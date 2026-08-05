@@ -92,3 +92,17 @@ See `GUIDE.md` section 16. Register the plugin in both:
 - [Claude Code plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
 - [Codex hooks](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)
+
+## Host acceptance (Claude Code + Codex on DeepSeek)
+
+Local Docker/host runner exercises **real** Claude Code and Codex sessions with
+`DEEPSEEK_MODEL` (default `deepseek-v4-flash`) from `.env`:
+
+```bash
+./scripts/acceptance/run.sh --smoke
+./scripts/acceptance/run.sh                 # all plugins × claude+codex
+./scripts/acceptance/run.sh --plugin php-runtime-guards
+./scripts/acceptance/run.sh --docker        # optional containerized hosts
+```
+
+See [docs/host-acceptance.md](docs/host-acceptance.md).

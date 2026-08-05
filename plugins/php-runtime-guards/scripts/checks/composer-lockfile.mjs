@@ -110,23 +110,60 @@ export function shellDependencyLockfileWriteTargets(command) {
   return dependencyLockfileTargets(targets);
 }
 
+function canonicalToolName(toolName) {
+  if (typeof toolName !== "string") return "";
+  const lower = toolName.trim().toLowerCase();
+  const map = {
+    apply_patch: "ApplyPatch",
+    applypatch: "ApplyPatch",
+    write: "Write",
+    edit: "Edit",
+    multiedit: "MultiEdit",
+    bash: "Bash",
+    shell: "Shell",
+    shell_command: "Shell",
+    exec_command: "Shell",
+    exec: "Shell",
+    local_shell: "Shell",
+    create_file: "Write",
+    search_replace: "Edit",
+  };
+  return map[lower] || toolName;
+}
+
+function pathsFromPatch(patch) {
+  if (typeof patch !== "string") return [];
+  const paths = [];
+  for (const line of patch.split("\n")) {
+    const m = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/);
+    if (m) paths.push(m[1].trim());
+  }
+  return paths;
+}
+
 export function collectLockfileTargets({ toolName, input }) {
   const fileTargets = [];
+  const name = canonicalToolName(toolName);
 
-  switch (toolName) {
+  switch (name) {
     case "Write":
     case "Edit":
     case "MultiEdit":
-    case "ApplyPatch":
       if (input.file_path) fileTargets.push(input.file_path);
       if (Array.isArray(input.edits)) {
-        // ApplyPatch-style multi-file patches may carry a per-file path in input.path.
         if (input.path) fileTargets.push(input.path);
       }
       break;
+    case "ApplyPatch": {
+      if (input.file_path) fileTargets.push(input.file_path);
+      if (input.path) fileTargets.push(input.path);
+      const blob = [input.patch, input.input, input.command].filter(Boolean).join("\n");
+      fileTargets.push(...pathsFromPatch(blob));
+      break;
+    }
     case "Bash":
     case "Shell": {
-      const command = stringInput(input.command);
+      const command = stringInput(input.command ?? input.cmd);
       return shellDependencyLockfileWriteTargets(command);
     }
     default:

@@ -1,0 +1,4 @@
+id = "01-deny-machine-path"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["pre-tool", "ownership"]

@@ -18,7 +18,11 @@ const RECOVERY =
 /** Returns a deny reason string for a protected target, or null when allowed. */
 export function protectedPathViolation(filePath) {
   if (typeof filePath !== "string" || !filePath) return null;
-  const normalized = filePath.replaceAll("\\", "/");
+  // Ensure relative targets like `runtime/log` still match `/runtime/` patterns.
+  let normalized = filePath.replaceAll("\\", "/");
+  if (!normalized.startsWith("/")) {
+    normalized = `/${normalized.replace(/^\.\//, "")}`;
+  }
   for (const [pattern, reason] of PROTECTED_PATTERNS) {
     pattern.lastIndex = 0;
     if (pattern.test(normalized)) return reason;

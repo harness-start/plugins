@@ -17,3 +17,6 @@ coverage/
 .npm/
 
 .env
+
+# Host acceptance local runs
+.acceptance-runs/

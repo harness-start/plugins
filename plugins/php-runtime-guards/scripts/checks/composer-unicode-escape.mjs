@@ -108,10 +108,32 @@ function collectPatchHits(patch) {
   return hits;
 }
 
+function canonicalToolName(toolName) {
+  if (typeof toolName !== "string") return "";
+  const lower = toolName.trim().toLowerCase();
+  const map = {
+    apply_patch: "ApplyPatch",
+    applypatch: "ApplyPatch",
+    write: "Write",
+    edit: "Edit",
+    multiedit: "MultiEdit",
+    bash: "Bash",
+    shell: "Shell",
+    shell_command: "Shell",
+    exec_command: "Shell",
+    exec: "Shell",
+    local_shell: "Shell",
+    create_file: "Write",
+    search_replace: "Edit",
+  };
+  return map[lower] || toolName;
+}
+
 export function collectUnicodeEscapeHits({ toolName, input }) {
   const hits = [];
+  const name = canonicalToolName(toolName);
 
-  switch (toolName) {
+  switch (name) {
     case "Write":
       if (isComposerJson(input.file_path)) {
         hits.push(...collectCjkUnicodeEscapes(input.content, "tool_input.content"));
@@ -140,7 +162,7 @@ export function collectUnicodeEscapeHits({ toolName, input }) {
 
     case "Bash":
     case "Shell": {
-      const command = stringInput(input.command);
+      const command = stringInput(input.command ?? input.cmd);
       if (/composer\.json/.test(command)) {
         hits.push(...collectCjkUnicodeEscapes(command, "tool_input.command"));
       }

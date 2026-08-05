@@ -70,7 +70,13 @@ export function extractFilePath(toolInput) {
 }
 
 export function extractShellCommand(toolName, toolInput) {
-  if (!/^(Bash|Shell|bash|shell)$/i.test(toolName)) return null;
+  if (
+    !/^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i.test(
+      toolName,
+    )
+  ) {
+    return null;
+  }
   const command = toolInput?.command ?? toolInput?.cmd ?? null;
   return typeof command === "string" ? command : null;
 }

@@ -17,13 +17,13 @@ import {
   readStdinJson,
   extractToolName,
   extractToolInput,
-  extractFilePath,
   extractShellCommand,
+  extractWriteTargets,
   preToolDeny,
   additionalContextOutput,
   writeJson,
 } from "./lib/hook-io.mjs";
-import { isWriteTool, isShellTool } from "./lib/matchers.mjs";
+import { isWriteTool, isShellTool, normalizeToolName } from "./lib/matchers.mjs";
 import {
   collectRepositoriesHits,
   repositoriesDenyMessage,
@@ -49,14 +49,13 @@ async function main() {
   const event = await readStdinJson();
   if (event.__parseError) process.exit(0);
 
-  const toolName = extractToolName(event);
+  const rawToolName = extractToolName(event);
+  const toolName = normalizeToolName(rawToolName) || rawToolName;
   const toolInput = extractToolInput(event);
 
-  const isWrite = isWriteTool(toolName);
-  const isShell = isShellTool(toolName);
+  const isWrite = isWriteTool(rawToolName) || isWriteTool(toolName);
+  const isShell = isShellTool(rawToolName) || isShellTool(toolName);
   if (!isWrite && !isShell) process.exit(0);
-
-  const filePath = extractFilePath(toolInput);
 
   // fail-closed guards run first; the first hit denies (single decision per hook).
   if (isWrite || isShell) {
@@ -79,16 +78,18 @@ async function main() {
     }
   }
 
-  if (isWrite && filePath) {
-    const violation = protectedPathViolation(filePath);
-    if (violation) {
-      writeJson(preToolDeny(protectedPathDenyMessage(filePath, violation)));
-      process.exit(0);
+  if (isWrite || isShell) {
+    for (const target of extractWriteTargets(rawToolName, toolInput)) {
+      const violation = protectedPathViolation(target);
+      if (violation) {
+        writeJson(preToolDeny(protectedPathDenyMessage(target, violation)));
+        process.exit(0);
+      }
     }
   }
 
   if (isShell) {
-    const command = extractShellCommand(toolName, toolInput) ?? "";
+    const command = extractShellCommand(rawToolName, toolInput) ?? "";
     const lines = truncationHit(command);
     if (lines !== null) {
       writeJson(additionalContextOutput("PreToolUse", truncationReportMessage(lines)));
