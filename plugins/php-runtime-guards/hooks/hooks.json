@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Shell|Write|Edit|ApplyPatch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/php-hook-pre-tool.mjs\"",
+            "statusMessage": "PHP runtime guards: composer policy, protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|ApplyPatch|Bash|Shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/php-hook-post-tool.mjs\"",
+            "statusMessage": "PHP runtime guards: syntax, encoding, debt",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}

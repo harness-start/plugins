@@ -17,6 +17,18 @@
       "category": "Productivity"
     },
     {
+      "name": "php-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/php-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "process-confidence",
       "source": {
         "source": "local",

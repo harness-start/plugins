@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/php-hook-pre-tool.mjs\"",
+            "statusMessage": "PHP runtime guards: composer policy, protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/php-hook-post-tool.mjs\"",
+            "statusMessage": "PHP runtime guards: syntax, encoding, debt",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}
