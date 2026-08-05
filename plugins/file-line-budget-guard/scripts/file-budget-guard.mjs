@@ -3,114 +3,190 @@
 /**
  * file-line-budget-guard — PostToolUse hook
  *
- * Ratchet-enforced file line budget mechanism:
- *   Normal files  → deny when exceeding the budget
- *   Oversize files → frozen at git HEAD line count, only shrinking allowed
- *   New files      → must stay within budget
- *   Test files     → excluded from line budgets
+ * Ratchet-enforced file line budget mechanism.
+ *
+ * Rules are declared as { match: RegExp, budget?: number, mode: "block"|"report"|"skip" }.
+ * User config (.file-line-budget-guard.mjs) rules are prepended to built-in rules.
+ * First match wins; unmatched files pass silently.
  *
  * PostToolUse runs after Edit | Write | MultiEdit | ApplyPatch.
- * When a file exceeds its budget, the block message is emitted to
- * stderr and the hook exits with code 2 so the agent can retry
- * with a split or reduction strategy.
  */
 
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { basename, extname } from "node:path";
+import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
 
-// ── Budgets ──────────────────────────────────────────────────
+// ── Built-in rules ───────────────────────────────────────────
+// These are the default rules when no user config is present.
+// Each rule has: match (RegExp), mode ("block"|"report"|"skip"), budget (number, except skip).
 
-const BUDGETS_BY_EXTENSION = {
-  ".gradle": 600,
-  ".js": 500,
-  ".jsx": 500,
-  ".cjs": 500,
-  ".ts": 500,
-  ".tsx": 500,
-  ".vue": 500,
-  ".svelte": 500,
-  ".py": 500,
-  ".php": 500,
-  ".rb": 500,
-  ".rake": 400,
-  ".gemspec": 300,
-  ".ru": 200,
-  ".erb": 300,
-  ".haml": 300,
-  ".slim": 300,
-  ".builder": 300,
-  ".jbuilder": 250,
-  ".rjs": 250,
-  ".go": 800,
-  ".rs": 800,
-  ".java": 800,
-  ".kt": 500,
-  ".kts": 500,
-  ".swift": 500,
-  ".c": 800,
-  ".cc": 800,
-  ".cpp": 800,
-  ".cxx": 800,
-  ".h": 500,
-  ".hh": 500,
-  ".hpp": 500,
-  ".hxx": 500,
-  ".ixx": 500,
-  ".cppm": 500,
-  ".ipp": 400,
-  ".tpp": 400,
-  ".inl": 300,
-  ".cmake": 300,
-  ".cs": 800,
-  ".lua": 500,
-  ".sh": 300,
-  ".bash": 300,
-  ".zsh": 300,
-  ".pl": 500,
-  ".pm": 500,
-  ".t": 400,
-  ".psgi": 300,
-  ".xs": 600,
+const BUILTIN_RULES = [
+  // ── skip: tests, fixtures, generated paths ──
+  { match: /(^|\/)tests?\//,                            mode: "skip" },
+  { match: /(^|\/)spec\//,                              mode: "skip" },
+  { match: /(^|\/)__tests__\//,                         mode: "skip" },
+  { match: /(^|\/)__mocks__\//,                         mode: "skip" },
+  { match: /(^|\/)fixtures?\//,                         mode: "skip" },
+  { match: /(^|\/)testdata\//,                          mode: "skip" },
+  { match: /(^|\/)e2e\//,                               mode: "skip" },
+  { match: /(^|\/)snapshots?\//,                        mode: "skip" },
+  { match: /\.(test|spec|e2e)\.[^.]+$/,                 mode: "skip" },
+  { match: /Test\.(php|java|kt)$/,                      mode: "skip" },
+  { match: /_test\.(go|py|rb|rs)$/,                     mode: "skip" },
+  { match: /(^|\/)(dist|build|coverage|vendor|node_modules|target|\.next|\.nuxt|__generated__|generated)\//, mode: "skip" },
+
+  // ── report: build recipes (linear files, warn only) ──
+  { match: /(^|\/)Dockerfile$/,          budget: 500, mode: "report" },
+  { match: /(^|\/)Containerfile$/,       budget: 500, mode: "report" },
+
+  // ── block: by extension ──
+  { match: /\.jsx?$/,                    budget: 500,  mode: "block" },
+  { match: /\.cjs$/,                     budget: 500,  mode: "block" },
+  { match: /\.mjs$/,                     budget: 500,  mode: "block" },
+  { match: /\.tsx?$/,                    budget: 500,  mode: "block" },
+  { match: /\.vue$/,                     budget: 500,  mode: "block" },
+  { match: /\.svelte$/,                  budget: 500,  mode: "block" },
+  { match: /\.py$/,                      budget: 500,  mode: "block" },
+  { match: /\.php$/,                     budget: 500,  mode: "block" },
+  { match: /\.rb$/,                      budget: 500,  mode: "block" },
+  { match: /\.rake$/,                    budget: 400,  mode: "block" },
+  { match: /\.gemspec$/,                 budget: 300,  mode: "block" },
+  { match: /\.ru$/,                      budget: 200,  mode: "block" },
+  { match: /\.erb$/,                     budget: 300,  mode: "block" },
+  { match: /\.haml$/,                    budget: 300,  mode: "block" },
+  { match: /\.slim$/,                    budget: 300,  mode: "block" },
+  { match: /\.builder$/,                 budget: 300,  mode: "block" },
+  { match: /\.jbuilder$/,                budget: 250,  mode: "block" },
+  { match: /\.rjs$/,                     budget: 250,  mode: "block" },
+  { match: /\.go$/,                      budget: 800,  mode: "block" },
+  { match: /\.rs$/,                      budget: 800,  mode: "block" },
+  { match: /\.java$/,                    budget: 800,  mode: "block" },
+  { match: /\.kt$/,                      budget: 500,  mode: "block" },
+  { match: /\.kts$/,                     budget: 500,  mode: "block" },
+  { match: /\.swift$/,                   budget: 500,  mode: "block" },
+  { match: /\.c$/,                       budget: 800,  mode: "block" },
+  { match: /\.(cc|cpp|cxx)$/,            budget: 800,  mode: "block" },
+  { match: /\.h$/,                       budget: 500,  mode: "block" },
+  { match: /\.(hh|hpp|hxx)$/,            budget: 500,  mode: "block" },
+  { match: /\.ixx$/,                     budget: 500,  mode: "block" },
+  { match: /\.cppm$/,                    budget: 500,  mode: "block" },
+  { match: /\.ipp$/,                     budget: 400,  mode: "block" },
+  { match: /\.tpp$/,                     budget: 400,  mode: "block" },
+  { match: /\.inl$/,                     budget: 300,  mode: "block" },
+  { match: /\.cmake$/,                   budget: 300,  mode: "block" },
+  { match: /\.cs$/,                      budget: 800,  mode: "block" },
+  { match: /\.lua$/,                     budget: 500,  mode: "block" },
+  { match: /\.sh$/,                      budget: 300,  mode: "block" },
+  { match: /\.bash$/,                    budget: 300,  mode: "block" },
+  { match: /\.zsh$/,                     budget: 300,  mode: "block" },
+  { match: /\.pl$/,                      budget: 500,  mode: "block" },
+  { match: /\.pm$/,                      budget: 500,  mode: "block" },
+  { match: /\.t$/,                       budget: 400,  mode: "block" },
+  { match: /\.psgi$/,                    budget: 300,  mode: "block" },
+  { match: /\.xs$/,                      budget: 600,  mode: "block" },
+  { match: /\.gradle$/,                  budget: 600,  mode: "block" },
+
+  // ── block: by file name ──
+  { match: /(^|\/)CMakeLists\.txt$/,     budget: 300,  mode: "block" },
+  { match: /(^|\/)Makefile$/,            budget: 300,  mode: "block" },
+  { match: /(^|\/)GNUmakefile$/,         budget: 300,  mode: "block" },
+  { match: /(^|\/)Rakefile$/,            budget: 300,  mode: "block" },
+  { match: /(^|\/)config\.ru$/,          budget: 200,  mode: "block" },
+  { match: /(^|\/)Guardfile$/,           budget: 200,  mode: "block" },
+  { match: /(^|\/)Capfile$/,             budget: 200,  mode: "block" },
+  { match: /(^|\/)Fastfile$/,            budget: 400,  mode: "block" },
+  { match: /(^|\/)Podfile$/,             budget: 300,  mode: "block" },
+  { match: /(^|\/)Appraisals$/,          budget: 200,  mode: "block" },
+  { match: /(^|\/)Makefile\.PL$/,        budget: 300,  mode: "block" },
+  { match: /(^|\/)Build\.PL$/,           budget: 300,  mode: "block" },
+];
+
+// ── Default settings ─────────────────────────────────────────
+
+const DEFAULT_SETTINGS = {
+  nearBudgetWarnRatio: 0.8,
+  warnCooldownMinutes: 30,
+  oversizeSoftGrowthLimit: 20,
 };
 
-// Build recipes are linear files that cannot be split;
-// exceeding the budget is downgraded to a warning (report only).
-const REPORT_ONLY_BUDGETS_BY_FILE_NAME = {
-  dockerfile: 500,
-  containerfile: 500,
-};
+// ── Ratchet constants (not user-configurable) ─────────────────
 
-const BUDGETS_BY_FILE_NAME = {
-  "cmakelists.txt": 300,
-  "makefile": 300,
-  "gnumakefile": 300,
-  "rakefile": 300,
-  "config.ru": 200,
-  "guardfile": 200,
-  "capfile": 200,
-  "fastfile": 400,
-  "podfile": 300,
-  "appraisals": 200,
-  "makefile.pl": 300,
-  "build.pl": 300,
-};
-
-// ── Ratchet constants ─────────────────────────────────────────
-
-const HISTORICAL_OVERSIZE_SOFT_GROWTH_LINES = 20;
-
-// Near-budget warning at 80% with 30-minute cooldown per file
-const NEAR_BUDGET_WARN_RATIO = 0.8;
 const WARN_MARKER_DIR = `${tmpdir()}/.ai-experts-file-budget-warned`;
-const WARN_MARKER_EXPIRY_MS = 30 * 60 * 1000;
+
+// ── Config discovery ─────────────────────────────────────────
+
+const CONFIG_FILE_NAMES = [
+  ".file-line-budget-guard.mjs",
+  ".file-line-budget-guard.cjs",
+  ".file-line-budget-guard.js",
+];
+
+/**
+ * Try to load user config from project root.
+ * Returns the imported module's default export, or null.
+ */
+async function loadUserConfig(repoRoot) {
+  for (const name of CONFIG_FILE_NAMES) {
+    const p = join(repoRoot, name);
+    if (!existsSync(p)) continue;
+    try {
+      const mod = await import(pathToFileURL(p).href);
+      return mod.default ?? mod;
+    } catch (e) {
+      process.stderr.write(`[file-line-budget-guard] Failed to load ${name}: ${e.message}\n`);
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Validate a single rule. Returns true if the rule is usable.
+ */
+function validateRule(rule, i) {
+  if (!(rule.match instanceof RegExp)) {
+    process.stderr.write(`[file-line-budget-guard] rule[${i}]: "match" must be a RegExp, skipping\n`);
+    return false;
+  }
+  if (rule.mode !== "skip") {
+    if (typeof rule.budget !== "number" || !Number.isFinite(rule.budget) || rule.budget <= 0) {
+      process.stderr.write(`[file-line-budget-guard] rule[${i}]: "budget" must be a positive number (mode != "skip"), skipping\n`);
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Merge user config rules (prepended) with built-in rules.
+ * Returns { rules, settings }.
+ */
+function resolveRules(userConfig) {
+  const userRules = (userConfig?.rules ?? []).filter(validateRule);
+  const rules = [...userRules, ...BUILTIN_RULES];
+  const settings = { ...DEFAULT_SETTINGS, ...userConfig?.settings };
+  return { rules, settings };
+}
+
+/**
+ * Find the first rule whose match.test(relPath) succeeds.
+ * Returns the rule object or null if no match.
+ */
+function matchRule(relPath, rules) {
+  for (const rule of rules) {
+    try {
+      if (rule.match.test(relPath)) return rule;
+    } catch {
+      // Broken regex → skip this rule
+      continue;
+    }
+  }
+  return null;
+}
 
 // ── Helpers ───────────────────────────────────────────────────
-
-function getLowerBaseName(filePath) {
-  return basename(filePath.replaceAll("\\", "/")).toLowerCase();
-}
 
 function countLines(text) {
   if (!text) return 0;
@@ -119,44 +195,10 @@ function countLines(text) {
   return lines.length;
 }
 
-/** Pattern-based exclusion: tests, fixtures, specs, generated code */
-const TEST_PATH_RE = /(?:^|\/)(?:tests?|spec|__tests__|__mocks__|fixtures|fixture|testdata|e2e|snapshots?)\//i;
-const TEST_FILE_RE = /(?:\.|_)(?:test|spec|e2e)\.[^.]+$|Test\.(?:php|java|kt)$|_test\.(?:go|py|rb|rs)$/i;
-const GENERATED_PATH_RE = /(?:^|\/)(?:dist|build|coverage|vendor|node_modules|target|\.next|\.nuxt|__generated__|generated)\//i;
-
-function isLikelyTestOrFixture(filePath) {
-  const p = filePath.replaceAll("\\", "/");
-  return TEST_PATH_RE.test(p) || TEST_FILE_RE.test(basename(p));
-}
-
-function isLikelyGeneratedPath(filePath) {
-  return GENERATED_PATH_RE.test(filePath.replaceAll("\\", "/"));
-}
-
-function getBudget(filePath) {
-  if (isLikelyTestOrFixture(filePath)) return null;
-  if (isLikelyGeneratedPath(filePath)) return null;
-  const baseName = getLowerBaseName(filePath);
-  return (
-    BUDGETS_BY_FILE_NAME[baseName] ??
-    BUDGETS_BY_EXTENSION[extname(baseName)] ??
-    null
-  );
-}
-
-function getReportOnlyBudget(filePath) {
-  const baseName = getLowerBaseName(filePath);
-  for (const [name, budget] of Object.entries(REPORT_ONLY_BUDGETS_BY_FILE_NAME)) {
-    if (baseName === name || baseName.startsWith(`${name}.`)) return budget;
-  }
-  return null;
-}
-
 /** Read git HEAD content for the given file path; returns null on failure */
 function readGitHeadContent(filePath) {
   try {
     const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      cwd: filePath,
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000,
@@ -187,10 +229,10 @@ function warnMarkerPath(filePath) {
   return `${WARN_MARKER_DIR}/${safeName}`;
 }
 
-function hasRecentWarnMarker(filePath) {
+function hasRecentWarnMarker(filePath, cooldownMs) {
   try {
     const st = statSync(warnMarkerPath(filePath));
-    return Date.now() - st.mtimeMs < WARN_MARKER_EXPIRY_MS;
+    return Date.now() - st.mtimeMs < cooldownMs;
   } catch {
     return false;
   }
@@ -244,15 +286,50 @@ async function main() {
     process.exit(0);
   }
 
-  // ── Build recipe: report-only ──
-  const reportOnlyBudget = getReportOnlyBudget(filePath);
-  if (reportOnlyBudget) {
-    const content = readTextFileCapped(filePath);
-    if (content === null) { process.exit(0); }
-    const lines = countLines(content);
-    if (lines <= reportOnlyBudget) { process.exit(0); }
+  // ── Locate repo root and load config ──
+  let repoRoot;
+  try {
+    repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+    }).trim();
+  } catch {
+    // Not a git repo → fall back to built-in rules
+    repoRoot = null;
+  }
+
+  const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
+  const { rules, settings } = resolveRules(userConfig);
+
+  // Compute relative path for matching
+  let relPath = filePath;
+  if (repoRoot) {
+    relPath = filePath.replace(repoRoot.replaceAll("\\", "/") + "/", "").replaceAll("\\", "/");
+  }
+
+  // ── Match rule ──
+  const rule = matchRule(relPath, rules);
+  if (!rule) {
+    // No rule matches → silently pass
+    process.exit(0);
+  }
+
+  // ── skip mode ──
+  if (rule.mode === "skip") {
+    process.exit(0);
+  }
+
+  const budget = rule.budget;
+  const content = readTextFileCapped(filePath);
+  if (content === null) { process.exit(0); }
+  const currentLines = countLines(content);
+
+  // ── report mode: warn only, no ratchet ──
+  if (rule.mode === "report") {
+    if (currentLines <= budget) { process.exit(0); }
     warn([
-      `[File Budget] ${filePath} 超出构建配方参考预算（${lines}/${reportOnlyBudget} 行）`,
+      `[File Budget] ${filePath} 超出构建配方参考预算（${currentLines}/${budget} 行）`,
       "",
       "构建配方是线性文件，不适用「拆分为多个文件」；持续增长时优先把安装清单、检查脚本外提到 bin/ 辅助脚本。",
       "禁止用删空行、删注释等格式化手段压行数。",
@@ -260,23 +337,17 @@ async function main() {
     // unreachable — warn() calls exit(0)
   }
 
-  const budget = getBudget(filePath);
-  if (!budget) {
-    process.exit(0);
-  }
+  // ── block mode: ratchet ──
 
-  const content = readTextFileCapped(filePath);
-  if (content === null) { process.exit(0); }
-  const currentLines = countLines(content);
-
-  // ── Within budget ──
+  // Within budget
   if (currentLines <= budget) {
-    const warnLines = Math.ceil(budget * NEAR_BUDGET_WARN_RATIO);
+    const warnLines = Math.ceil(budget * settings.nearBudgetWarnRatio);
+    const warnCooldownMs = settings.warnCooldownMinutes * 60 * 1000;
     if (currentLines < warnLines) { process.exit(0); }
-    if (hasRecentWarnMarker(filePath)) { process.exit(0); }
+    if (hasRecentWarnMarker(filePath, warnCooldownMs)) { process.exit(0); }
     writeWarnMarker(filePath);
     warn([
-      `[File Budget] ${filePath} 接近行数预算（${currentLines}/${budget} 行，已达 80%）`,
+      `[File Budget] ${filePath} 接近行数预算（${currentLines}/${budget} 行，已达 ${Math.round(settings.nearBudgetWarnRatio * 100)}%）`,
       "",
       "继续新增内容前先规划拆分到职责单一的文件；超过预算后新增内容会被整块阻断。",
       "禁止用删空行、删注释等格式化手段压行数。",
@@ -284,7 +355,7 @@ async function main() {
     // unreachable
   }
 
-  // ── Exceeded budget: ratchet branches ──
+  // Exceeded budget: ratchet branches
   const headContent = readGitHeadContent(filePath);
   const headLines = headContent !== null ? countLines(headContent) : null;
 
@@ -314,12 +385,12 @@ async function main() {
 
   if (currentLines > headLines) {
     const growth = currentLines - headLines;
-    if (growth <= HISTORICAL_OVERSIZE_SOFT_GROWTH_LINES) {
+    if (growth <= settings.oversizeSoftGrowthLimit) {
       // Small growth → warn but allow
       warn([
         `[File Budget] ${filePath} 是历史超标文件，本次仅小幅增长`,
         `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
-        `  增加了 ${growth} 行（<= ${HISTORICAL_OVERSIZE_SOFT_GROWTH_LINES} 行软阈值）`,
+        `  增加了 ${growth} 行（<= ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
         "",
         "建议后续拆分该文件并回收到预算内。",
       ].join("\n"));
@@ -330,9 +401,9 @@ async function main() {
     block([
       `[File Budget] ${filePath} 是历史超标文件，棘轮机制禁止继续膨胀`,
       `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
-      `  增加了 ${growth} 行（超过 ${HISTORICAL_OVERSIZE_SOFT_GROWTH_LINES} 行软阈值）`,
+      `  增加了 ${growth} 行（超过 ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
       "",
-      "超标文件只许缩小不许增长。请在添加新内容的同时拆分已有逻辑。"
+      "超标文件只许缩小不许增长。请在添加新内容的同时拆分已有逻辑。",
     ].join("\n"));
     // unreachable
   }
