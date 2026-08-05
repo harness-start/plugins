@@ -3,5 +3,18 @@
   "interface": {
     "displayName": "Company Agent Plugins"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "file-line-budget-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/file-line-budget-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
 }

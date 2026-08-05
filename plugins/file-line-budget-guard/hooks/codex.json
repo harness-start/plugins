@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/file-budget-guard.mjs\"",
+            "statusMessage": "Checking file line budget",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

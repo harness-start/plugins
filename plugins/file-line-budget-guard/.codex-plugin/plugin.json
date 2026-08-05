@@ -1,0 +1,16 @@
+{
+  "name": "file-line-budget-guard",
+  "version": "0.1.0",
+  "description": "Ratchet-enforced file line budget guard: prevents source files from exceeding per-language line limits after Edit or Write operations.",
+  "author": {
+    "name": "Company DevTools",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "File Line Budget Guard",
+    "shortDescription": "Ratchet-enforced per-language file line budgets.",
+    "developerName": "Company DevTools",
+    "category": "Productivity"
+  }
+}

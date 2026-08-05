@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/file-budget-guard.mjs\"",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

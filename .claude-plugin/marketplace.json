@@ -5,5 +5,11 @@
     "name": "Company DevTools",
     "email": "devtools@example.com"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "file-line-budget-guard",
+      "source": "./plugins/file-line-budget-guard",
+      "description": "Ratchet-enforced file line budget guard: prevents source files from exceeding per-language line limits."
+    }
+  ]
 }
