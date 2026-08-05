@@ -1,5 +1,9 @@
 # Host-acceptance image: real Claude Code + Codex CLIs for DeepSeek V4 Flash.
 # Plugin sources are mounted at runtime; this image only pins host toolchains.
+#
+# Claude refuses --dangerously-skip-permissions as root, so the image default
+# USER is non-root. run.sh also passes --user $(id -u):$(id -g) so /out writes
+# match the host owner.
 FROM node:20-bookworm
 
 ARG CLAUDE_CODE_VERSION=2.1.170
@@ -29,6 +33,12 @@ RUN curl -sS https://getcomposer.org/installer \
 WORKDIR /marketplace
 COPY models.json /opt/acceptance/models.json
 COPY entrypoint.sh /opt/acceptance/entrypoint.sh
-RUN chmod +x /opt/acceptance/entrypoint.sh
+RUN chmod +x /opt/acceptance/entrypoint.sh \
+  && chown -R node:node /opt/acceptance
+
+# node:20-bookworm ships non-root user `node` (uid 1000). run.sh overrides with
+# --user host-uid:host-gid so /out matches the host owner.
+USER node
+ENV HOME=/home/node
 
 ENTRYPOINT ["/opt/acceptance/entrypoint.sh"]
