@@ -8,7 +8,7 @@ cd "${ROOT_DIR}"
 
 CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-2.1.170}"
 CODEX_VERSION="${CODEX_VERSION:-0.146.0}"
-MARKETPLACE_NAME="${MARKETPLACE_NAME:-company-agent-plugins}"
+MARKETPLACE_NAME="${MARKETPLACE_NAME:-harness-start}"
 SKIP_HOST_INSTALL="${SKIP_HOST_INSTALL:-0}"
 SKIP_CODEX_LOAD="${SKIP_CODEX_LOAD:-0}"
 
@@ -120,9 +120,40 @@ check_marketplace_registration() {
   local codex_marketplace=".agents/plugins/marketplace.json"
   local failed=0
   local plugin name expected_source claude_source codex_source
+  local claude_marketplace_name codex_marketplace_name codex_display_name
   local -a disk_plugins=()
   local -a claude_plugins=()
   local -a codex_plugins=()
+
+  claude_marketplace_name="$(jq -r '.name // empty' "${claude_marketplace}")"
+  codex_marketplace_name="$(jq -r '.name // empty' "${codex_marketplace}")"
+  codex_display_name="$(
+    jq -r '.interface.displayName // empty' "${codex_marketplace}"
+  )"
+
+  if [ "${claude_marketplace_name}" != "${MARKETPLACE_NAME}" ]; then
+    printf 'Claude marketplace name is %s (expected %s)\n' \
+      "${claude_marketplace_name:-<empty>}" "${MARKETPLACE_NAME}" >&2
+    failed=1
+  fi
+
+  if [ "${codex_marketplace_name}" != "${MARKETPLACE_NAME}" ]; then
+    printf 'Codex marketplace name is %s (expected %s)\n' \
+      "${codex_marketplace_name:-<empty>}" "${MARKETPLACE_NAME}" >&2
+    failed=1
+  fi
+
+  if [ "${claude_marketplace_name}" != "${codex_marketplace_name}" ]; then
+    printf 'Claude/Codex marketplace .name fields differ: %s vs %s\n' \
+      "${claude_marketplace_name:-<empty>}" \
+      "${codex_marketplace_name:-<empty>}" >&2
+    failed=1
+  fi
+
+  printf 'Marketplace name: %s\n' "${MARKETPLACE_NAME}"
+  if [ -n "${codex_display_name}" ]; then
+    printf 'Codex displayName: %s\n' "${codex_display_name}"
+  fi
 
   mapfile -t claude_plugins < <(
     jq -r '.plugins[].name // empty' "${claude_marketplace}" | sort -u

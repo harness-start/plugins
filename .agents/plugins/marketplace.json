@@ -1,7 +1,7 @@
 {
-  "name": "company-agent-plugins",
+  "name": "harness-start",
   "interface": {
-    "displayName": "Company Agent Plugins"
+    "displayName": "Harness Start"
   },
   "plugins": [
     {

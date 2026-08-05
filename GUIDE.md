@@ -52,7 +52,7 @@ codex plugin --help
 推荐结构：
 
 ```text
-company-agent-plugins/
+harness-start/
 ├── README.md
 ├── LICENSE
 ├── .gitignore
@@ -112,8 +112,8 @@ Claude Code 安装插件时会将单个插件目录复制到缓存，插件目�
 创建仓库：
 
 ```bash
-mkdir company-agent-plugins
-cd company-agent-plugins
+mkdir harness-start
+cd harness-start
 
 git init -b master
 
@@ -153,10 +153,10 @@ coverage/
 
 ```json
 {
-  "name": "company-agent-plugins",
-  "description": "Company-maintained plugins for Claude Code and Codex.",
+  "name": "harness-start",
+  "description": "Harness Start plugins for Claude Code and Codex.",
   "owner": {
-    "name": "Company DevTools",
+    "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "plugins": [
@@ -185,14 +185,14 @@ coverage/
 Claude Code 用户安装时使用：
 
 ```bash
-claude plugin marketplace add YOUR_ORG/company-agent-plugins
-claude plugin install session-hooks@company-agent-plugins
+claude plugin marketplace add harness-start/plugins
+claude plugin install session-hooks@harness-start
 ```
 
 GitLab、自建 Git 或其他服务使用完整地址：
 
 ```bash
-claude plugin marketplace add https://git.example.com/company/company-agent-plugins.git
+claude plugin marketplace add https://git.gzcrm.cn/harness-start/plugins.git
 ```
 
 ## 6. Codex Marketplace
@@ -201,9 +201,9 @@ claude plugin marketplace add https://git.example.com/company/company-agent-plug
 
 ```json
 {
-  "name": "company-agent-plugins",
+  "name": "harness-start",
   "interface": {
-    "displayName": "Company Agent Plugins"
+    "displayName": "Harness Start"
   },
   "plugins": [
     {
@@ -237,15 +237,15 @@ claude plugin marketplace add https://git.example.com/company/company-agent-plug
 Codex 用户安装时使用：
 
 ```bash
-codex plugin marketplace add YOUR_ORG/company-agent-plugins
-codex plugin add session-hooks@company-agent-plugins
+codex plugin marketplace add harness-start/plugins
+codex plugin add session-hooks@harness-start
 ```
 
 也可以写成：
 
 ```bash
 codex plugin add session-hooks \
-  --marketplace company-agent-plugins
+  --marketplace harness-start
 ```
 
 ## 7. 创建双平台插件 manifest
@@ -262,7 +262,7 @@ codex plugin add session-hooks \
   "version": "0.1.0",
   "description": "Run company initialization logic when a Claude Code session starts.",
   "author": {
-    "name": "Company DevTools",
+    "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "hooks": "./hooks/claude.json"
@@ -281,14 +281,14 @@ Claude Code 的 manifest 在默认目录自动发现模式下可以省略，但�
   "version": "0.1.0",
   "description": "Run company initialization logic when a Codex session starts.",
   "author": {
-    "name": "Company DevTools",
+    "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Session Hooks",
     "shortDescription": "Initialize company agent sessions.",
-    "developerName": "Company DevTools",
+    "developerName": "Harness Start",
     "category": "Productivity"
   }
 }
@@ -524,7 +524,7 @@ claude plugin marketplace add .
 安装插件：
 
 ```bash
-claude plugin install session-hooks@company-agent-plugins
+claude plugin install session-hooks@harness-start
 ```
 
 然后启动新 Claude Code 会话，触发 `SessionStart`。
@@ -561,7 +561,7 @@ codex plugin marketplace list
 
 ```bash
 codex plugin list \
-  --marketplace company-agent-plugins \
+  --marketplace harness-start \
   --available \
   --json
 ```
@@ -569,7 +569,7 @@ codex plugin list \
 安装：
 
 ```bash
-codex plugin add session-hooks@company-agent-plugins --json
+codex plugin add session-hooks@harness-start --json
 ```
 
 安装后启动一个新的 Codex 会话：
@@ -589,22 +589,22 @@ codex
 ```bash
 git add .
 git commit -m "feat: initialize dual-platform plugin marketplace"
-git remote add origin git@github.com:YOUR_ORG/company-agent-plugins.git
+git remote add origin git@git.gzcrm.cn:harness-start/plugins.git
 git push -u origin master
 ```
 
 Claude Code：
 
 ```bash
-claude plugin marketplace add YOUR_ORG/company-agent-plugins
-claude plugin install session-hooks@company-agent-plugins
+claude plugin marketplace add harness-start/plugins
+claude plugin install session-hooks@harness-start
 ```
 
 Codex：
 
 ```bash
-codex plugin marketplace add YOUR_ORG/company-agent-plugins
-codex plugin add session-hooks@company-agent-plugins
+codex plugin marketplace add harness-start/plugins
+codex plugin add session-hooks@harness-start
 ```
 
 大型仓库可以使用 sparse checkout。
@@ -612,14 +612,14 @@ codex plugin add session-hooks@company-agent-plugins
 Claude Code：
 
 ```bash
-claude plugin marketplace add YOUR_ORG/company-agent-plugins \
+claude plugin marketplace add harness-start/plugins \
   --sparse .claude-plugin plugins
 ```
 
 Codex：
 
 ```bash
-codex plugin marketplace add YOUR_ORG/company-agent-plugins \
+codex plugin marketplace add harness-start/plugins \
   --sparse .agents/plugins \
   --sparse plugins
 ```
@@ -784,7 +784,7 @@ git ls-remote origin \
 
 ```bash
 codex plugin marketplace add \
-  YOUR_ORG/company-agent-plugins \
+  harness-start/plugins \
   --ref master
 ```
 
@@ -804,14 +804,14 @@ stable    已验收的生产版本
 先刷新 Marketplace 索引：
 
 ```bash
-claude plugin marketplace update company-agent-plugins
+claude plugin marketplace update harness-start
 ```
 
 再更新指定插件：
 
 ```bash
 claude plugin update \
-  session-hooks@company-agent-plugins
+  session-hooks@harness-start
 ```
 
 如果要更新多个插件，逐个执行：
@@ -819,7 +819,7 @@ claude plugin update \
 ```bash
 for plugin in session-hooks policy-checks; do
   claude plugin update \
-    "$plugin@company-agent-plugins"
+    "$plugin@harness-start"
 done
 ```
 
@@ -829,7 +829,7 @@ done
 claude plugin list --json |
 jq '.[] | select(
   .name == "session-hooks" and
-  .marketplace == "company-agent-plugins"
+  .marketplace == "harness-start"
 )'
 ```
 
@@ -857,7 +857,7 @@ Claude Code 可以按 Marketplace 开启自动更新。启用后，Claude Code �
 
 1. 在 Claude Code 中运行 `/plugin`；
 2. 打开 `Marketplaces`；
-3. 选择 `company-agent-plugins`；
+3. 选择 `harness-start`；
 4. 选择 `Enable auto-update`。
 
 第三方和本地开发 Marketplace 默认通常不会开启自动更新，需要使用者或管理员显式启用。更新完成后，如果出现 `/reload-plugins` 提示，应执行 reload 或启动新会话。
@@ -867,16 +867,16 @@ Claude Code 可以按 Marketplace 开启自动更新。启用后，Claude Code �
 ```json
 {
   "extraKnownMarketplaces": {
-    "company-agent-plugins": {
+    "harness-start": {
       "source": {
         "source": "github",
-        "repo": "YOUR_ORG/company-agent-plugins"
+        "repo": "harness-start/plugins"
       },
       "autoUpdate": true
     }
   },
   "enabledPlugins": {
-    "session-hooks@company-agent-plugins": true
+    "session-hooks@harness-start": true
   }
 }
 ```
@@ -889,7 +889,7 @@ Codex CLI 当前没有单独的 `codex plugin update <plugin>` 命令。Git Mark
 
 ```bash
 codex plugin marketplace upgrade \
-  company-agent-plugins \
+  harness-start \
   --json
 ```
 
@@ -901,7 +901,7 @@ codex plugin marketplace upgrade \
 codex plugin marketplace list
 
 codex plugin list \
-  --marketplace company-agent-plugins \
+  --marketplace harness-start \
   --available \
   --json |
 jq .
@@ -926,7 +926,7 @@ codex
 当前官方文档没有承诺 repo Marketplace 会像 Claude Code 一样在每次启动时自动更新。团队如果要求强制及时更新，应通过登录脚本、设备管理或受控运维任务定期执行：
 
 ```bash
-codex plugin marketplace upgrade company-agent-plugins
+codex plugin marketplace upgrade harness-start
 ```
 
 该任务应记录退出码和输出；失败时保留旧版本，不要静默删除再安装。
@@ -944,11 +944,11 @@ session-hooks 0.2.0 已发布。
 - 最低 Node.js 版本仍为 20。
 
 Claude Code：
-claude plugin marketplace update company-agent-plugins
-claude plugin update session-hooks@company-agent-plugins
+claude plugin marketplace update harness-start
+claude plugin update session-hooks@harness-start
 
 Codex：
-codex plugin marketplace upgrade company-agent-plugins
+codex plugin marketplace upgrade harness-start
 
 更新后请启动新会话并确认版本为 0.2.0。
 回滚版本：session-hooks-v0.1.0
@@ -1064,7 +1064,7 @@ jobs:
     env:
       CLAUDE_CODE_VERSION: "2.1.170"
       CODEX_VERSION: "0.146.0"
-      MARKETPLACE_NAME: company-agent-plugins
+      MARKETPLACE_NAME: harness-start
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -1083,7 +1083,7 @@ default:
 variables:
   CLAUDE_CODE_VERSION: "2.1.170"
   CODEX_VERSION: "0.146.0"
-  MARKETPLACE_NAME: "company-agent-plugins"
+  MARKETPLACE_NAME: "harness-start"
   CODEX_HOME: "${CI_PROJECT_DIR}/.ci-codex-home"
 
 stages:

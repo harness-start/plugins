@@ -70,10 +70,10 @@ Hook 自身出错（超时、异常、无效 JSON）时放行，不阻塞用户�
 
 ```bash
 # Claude Code
-claude plugin install file-line-budget-guard@company-agent-plugins
+claude plugin install file-line-budget-guard@harness-start
 
 # Codex
-codex plugin add file-line-budget-guard@company-agent-plugins
+codex plugin add file-line-budget-guard@harness-start
 ```
 
 ## 行为
