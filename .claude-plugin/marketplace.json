@@ -12,6 +12,11 @@
       "description": "Ratchet-enforced file line budget guard: prevents source files from exceeding per-language line limits."
     },
     {
+      "name": "command-safety-guards",
+      "source": "./plugins/command-safety-guards",
+      "description": "Command safety guards: deny broad recursive deletion, unbacked sed in-place edits, and cat heredoc writes outside temporary directories."
+    },
+    {
       "name": "php-runtime-guards",
       "source": "./plugins/php-runtime-guards",
       "description": "PHP runtime guards: composer.json policy (repositories / unicode escapes / lockfile), protected generated paths, test output truncation, php -l and composer validate syntax, encoding, net-new debt and debug statements."

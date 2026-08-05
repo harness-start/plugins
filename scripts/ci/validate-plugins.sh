@@ -58,12 +58,11 @@ check_scripts() {
   log "Checking plugin scripts"
   require_cmd node
 
-  shopt -s nullglob
-  local files=(plugins/*/scripts/*.mjs)
-  shopt -u nullglob
+  local -a files=()
+  mapfile -t files < <(find plugins -path '*/scripts/*.mjs' -type f | sort)
 
   if [ "${#files[@]}" -eq 0 ]; then
-    printf 'No plugin scripts found under plugins/*/scripts/*.mjs\n' >&2
+    printf 'No plugin scripts found under plugins/*/scripts/**/*.mjs\n' >&2
     exit 1
   fi
 
@@ -72,6 +71,92 @@ check_scripts() {
     printf 'Checking %s\n' "${file}"
     node --check "${file}"
   done
+}
+
+check_unit_tests() {
+  log "Running offline unit tests for every plugin"
+  require_cmd node
+
+  local plugin name
+  local -a test_files=()
+  for plugin in plugins/*; do
+    [ -d "${plugin}" ] || continue
+    name="$(basename "${plugin}")"
+    test_files=()
+    if [ -d "${plugin}/tests" ]; then
+      mapfile -t test_files < <(
+        find "${plugin}/tests" -maxdepth 1 -name '*.test.mjs' -type f | sort
+      )
+    fi
+    if [ "${#test_files[@]}" -eq 0 ]; then
+      printf 'Plugin has no offline unit tests: %s\n' "${name}" >&2
+      exit 1
+    fi
+    printf 'Testing %s (%s file(s))\n' "${name}" "${#test_files[@]}"
+    node --test "${test_files[@]}"
+  done
+}
+
+check_acceptance_suites() {
+  log "Checking dual-host acceptance suites and expect honesty"
+
+  local plugin name cases_dir case_dir hosts
+  local found_case
+  for plugin in plugins/*; do
+    [ -d "${plugin}" ] || continue
+    name="$(basename "${plugin}")"
+    cases_dir="${plugin}/acceptance/cases"
+    if [ ! -f "${plugin}/acceptance/README.md" ]; then
+      printf 'Plugin acceptance README missing: %s\n' "${name}" >&2
+      exit 1
+    fi
+    if [ ! -d "${cases_dir}" ]; then
+      printf 'Plugin acceptance cases missing: %s\n' "${name}" >&2
+      exit 1
+    fi
+
+    found_case=0
+    for case_dir in "${cases_dir}"/*; do
+      [ -d "${case_dir}" ] || continue
+      found_case=1
+      for required in case.toml prompt.md expect.sh; do
+        if [ ! -s "${case_dir}/${required}" ]; then
+          printf 'Acceptance case file missing or empty: %s/%s\n' \
+            "${case_dir}" "${required}" >&2
+          exit 1
+        fi
+      done
+      if [ ! -d "${case_dir}/workspace" ]; then
+        printf 'Acceptance workspace fixture missing: %s/workspace\n' \
+          "${case_dir}" >&2
+        exit 1
+      fi
+      hosts="$(
+        sed -n 's/.*hosts[[:space:]]*=[[:space:]]*\[\(.*\)\].*/\1/p' \
+          "${case_dir}/case.toml" | tr -d '" ' | tr ',' '\n' \
+          | tr '[:upper:]' '[:lower:]'
+      )"
+      if ! printf '%s\n' "${hosts}" | grep -Fxq claude \
+        || ! printf '%s\n' "${hosts}" | grep -Fxq codex; then
+        printf 'Acceptance case must declare both claude and codex: %s\n' \
+          "${case_dir}/case.toml" >&2
+        exit 1
+      fi
+      bash -n "${case_dir}/expect.sh"
+    done
+    if [ "${found_case}" -eq 0 ]; then
+      printf 'Plugin has no acceptance cases: %s\n' "${name}" >&2
+      exit 1
+    fi
+  done
+
+  local honesty_dir
+  honesty_dir="$(mktemp -d)"
+  if ! bash scripts/acceptance/check-expect-honesty.sh "${honesty_dir}"; then
+    rm -rf -- "${honesty_dir}"
+    exit 1
+  fi
+  rm -rf -- "${honesty_dir}"
 }
 
 check_manifest_versions() {
@@ -329,6 +414,8 @@ main() {
   install_hosts_if_needed
   validate_json
   check_scripts
+  check_unit_tests
+  check_acceptance_suites
   check_manifest_versions
   check_marketplace_registration
   validate_claude

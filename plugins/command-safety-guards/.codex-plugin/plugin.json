@@ -1,0 +1,16 @@
+{
+  "name": "command-safety-guards",
+  "version": "0.1.0",
+  "description": "Command safety guards for dangerous rm, unbacked sed in-place edits, and cat heredoc writes",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Command Safety Guards",
+    "shortDescription": "Block broad rm, unsafe sed, and cat heredoc writes",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}
