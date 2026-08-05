@@ -4,7 +4,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
@@ -14,9 +14,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Replace with organization-approved versions.
+      # Keep in sync with .gitlab-ci.yml
       CLAUDE_CODE_VERSION: "2.1.170"
       CODEX_VERSION: "0.146.0"
+      MARKETPLACE_NAME: company-agent-plugins
 
     steps:
       - name: Checkout
@@ -27,68 +28,9 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install plugin hosts
-        run: |
-          npm install --global \
-            "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
-            "@openai/codex@${CODEX_VERSION}"
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Validate JSON
+      - name: Validate plugins
         shell: bash
-        run: |
-          find .claude-plugin .agents/plugins plugins \
-            -type f \
-            -name '*.json' \
-            -print0 |
-          while IFS= read -r -d '' file; do
-            echo "Validating ${file}"
-            jq empty "${file}"
-          done
-
-      - name: Check scripts
-        shell: bash
-        run: |
-          for file in plugins/*/scripts/*.mjs; do
-            node --check "${file}"
-          done
-
-      - name: Check manifest versions
-        shell: bash
-        run: |
-          for plugin in plugins/*; do
-            claude_version="$(
-              jq -r '.version' \
-                "${plugin}/.claude-plugin/plugin.json"
-            )"
-
-            codex_version="$(
-              jq -r '.version' \
-                "${plugin}/.codex-plugin/plugin.json"
-            )"
-
-            test "${claude_version}" = "${codex_version}"
-          done
-
-      - name: Validate Claude marketplace
-        run: claude plugin validate --strict .
-
-      - name: Validate Claude plugins
-        shell: bash
-        run: |
-          for plugin in plugins/*; do
-            claude plugin validate --strict "${plugin}"
-          done
-
-      - name: Load Codex marketplace
-        shell: bash
-        run: |
-          export CODEX_HOME="${RUNNER_TEMP}/codex-home"
-          mkdir -p "${CODEX_HOME}"
-
-          codex plugin marketplace add . --json
-
-          codex plugin list \
-            --marketplace company-agent-plugins \
-            --available \
-            --json |
-          jq .
+        run: bash scripts/ci/validate-plugins.sh

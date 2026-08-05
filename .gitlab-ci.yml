@@ -1,0 +1,50 @@
+# Keep this pipeline aligned with .github/workflows/validate-plugins.yml.
+# Both entrypoints call scripts/ci/validate-plugins.sh.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "master"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  image: node:20-bookworm
+
+variables:
+  # Keep in sync with .github/workflows/validate-plugins.yml
+  CLAUDE_CODE_VERSION: "2.1.170"
+  CODEX_VERSION: "0.146.0"
+  MARKETPLACE_NAME: "company-agent-plugins"
+  # Codex needs a writable home outside the read-only CI workdir patterns.
+  CODEX_HOME: "${CI_PROJECT_DIR}/.ci-codex-home"
+  npm_config_cache: "${CI_PROJECT_DIR}/.npm"
+  FF_USE_FASTZIP: "true"
+
+stages:
+  - validate
+
+cache:
+  key:
+    files:
+      - .gitlab-ci.yml
+  paths:
+    - .npm/
+
+validate:plugins:
+  stage: validate
+  interruptible: true
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends jq ca-certificates git
+    - node --version
+    - npm --version
+    - jq --version
+    - mkdir -p "${CODEX_HOME}"
+  script:
+    - bash scripts/ci/validate-plugins.sh
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - .ci-codex-home/
+    reports: {}

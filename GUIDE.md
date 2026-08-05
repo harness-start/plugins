@@ -115,7 +115,7 @@ Claude Code 安装插件时会将单个插件目录复制到缓存，插件目�
 mkdir company-agent-plugins
 cd company-agent-plugins
 
-git init -b main
+git init -b master
 
 mkdir -p .claude-plugin
 mkdir -p .agents/plugins
@@ -590,7 +590,7 @@ codex
 git add .
 git commit -m "feat: initialize dual-platform plugin marketplace"
 git remote add origin git@github.com:YOUR_ORG/company-agent-plugins.git
-git push -u origin main
+git push -u origin master
 ```
 
 Claude Code：
@@ -755,7 +755,7 @@ git add \
 git commit -m "feat(session-hooks): release 0.2.0"
 git tag session-hooks-v0.2.0
 
-git push origin main
+git push origin master
 git push origin session-hooks-v0.2.0
 ```
 
@@ -772,7 +772,7 @@ git push origin session-hooks-v0.2.0
 
 ```bash
 git ls-remote origin \
-  refs/heads/main \
+  refs/heads/master \
   refs/tags/session-hooks-v0.2.0
 ```
 
@@ -785,19 +785,19 @@ git ls-remote origin \
 ```bash
 codex plugin marketplace add \
   YOUR_ORG/company-agent-plugins \
-  --ref main
+  --ref master
 ```
 
-那么 `marketplace upgrade` 会刷新 `main`。如果 Marketplace 固定在不会移动的 tag 或 SHA，发布新 tag 后，原有使用者不会自动切换到新 tag。
+那么 `marketplace upgrade` 会刷新 `master`。如果 Marketplace 固定在不会移动的 tag 或 SHA，发布新 tag 后，原有使用者不会自动切换到新 tag。
 
 生产环境建议使用可移动的稳定分支：
 
 ```text
-main      日常开发或 latest
+master    日常开发或 latest
 stable    已验收的生产版本
 ```
 
-发布流程可以先更新 `main`，完成回归后再将 `stable` 快进到相同提交。不要强制改写共享发布分支。
+发布流程可以先更新 `master`，完成回归后再将 `stable` 快进到相同提交。不要强制改写共享发布分支。
 
 ### 15.5 Claude Code 使用者手动更新
 
@@ -1027,7 +1027,24 @@ mkdir -p plugins/audit-hooks/scripts
 
 ## 17. CI 示例
 
-创建 `.github/workflows/validate-plugins.yml`：
+GitHub Actions 与 GitLab CI 共用同一套校验脚本，避免双平台流水线漂移：
+
+```text
+scripts/ci/validate-plugins.sh
+.github/workflows/validate-plugins.yml
+.gitlab-ci.yml
+```
+
+默认分支为 `master`。两个入口都调用 `scripts/ci/validate-plugins.sh`，校验内容包括：
+
+- JSON 与 manifest 可解析；
+- 插件脚本语法；
+- 双平台 `plugin.json` 版本一致；
+- **`plugins/*` 与两个 `marketplace.json` 互相登记且 source 路径正确**（防止新增插件忘记发布到 marketplace）；
+- `claude plugin validate --strict`；
+- Codex 本地加载 marketplace，并确认插件可发现。
+
+GitHub Actions 入口：
 
 ```yaml
 name: Validate plugins
@@ -1036,7 +1053,7 @@ on:
   pull_request:
   push:
     branches:
-      - main
+      - master
 
 permissions:
   contents: read
@@ -1044,86 +1061,44 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-
     env:
-      # Replace with organization-approved versions.
       CLAUDE_CODE_VERSION: "2.1.170"
       CODEX_VERSION: "0.146.0"
-
+      MARKETPLACE_NAME: company-agent-plugins
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - run: sudo apt-get update && sudo apt-get install -y jq
+      - run: bash scripts/ci/validate-plugins.sh
+```
 
-      - name: Install plugin hosts
-        run: |
-          npm install --global \
-            "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
-            "@openai/codex@${CODEX_VERSION}"
+GitLab CI 入口：
 
-      - name: Validate JSON
-        shell: bash
-        run: |
-          find .claude-plugin .agents/plugins plugins \
-            -type f \
-            -name '*.json' \
-            -print0 |
-          while IFS= read -r -d '' file; do
-            echo "Validating ${file}"
-            jq empty "${file}"
-          done
+```yaml
+default:
+  image: node:20-bookworm
 
-      - name: Check scripts
-        shell: bash
-        run: |
-          for file in plugins/*/scripts/*.mjs; do
-            node --check "${file}"
-          done
+variables:
+  CLAUDE_CODE_VERSION: "2.1.170"
+  CODEX_VERSION: "0.146.0"
+  MARKETPLACE_NAME: "company-agent-plugins"
+  CODEX_HOME: "${CI_PROJECT_DIR}/.ci-codex-home"
 
-      - name: Check manifest versions
-        shell: bash
-        run: |
-          for plugin in plugins/*; do
-            claude_version="$(
-              jq -r '.version' \
-                "${plugin}/.claude-plugin/plugin.json"
-            )"
+stages:
+  - validate
 
-            codex_version="$(
-              jq -r '.version' \
-                "${plugin}/.codex-plugin/plugin.json"
-            )"
-
-            test "${claude_version}" = "${codex_version}"
-          done
-
-      - name: Validate Claude marketplace
-        run: claude plugin validate --strict .
-
-      - name: Validate Claude plugins
-        shell: bash
-        run: |
-          for plugin in plugins/*; do
-            claude plugin validate --strict "${plugin}"
-          done
-
-      - name: Load Codex marketplace
-        shell: bash
-        run: |
-          export CODEX_HOME="${RUNNER_TEMP}/codex-home"
-          mkdir -p "${CODEX_HOME}"
-
-          codex plugin marketplace add . --json
-
-          codex plugin list \
-            --marketplace company-agent-plugins \
-            --available \
-            --json |
-          jq .
+validate:plugins:
+  stage: validate
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "master"
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends jq ca-certificates git
+  script:
+    - bash scripts/ci/validate-plugins.sh
 ```
 
 CI 可以证明：
@@ -1131,7 +1106,8 @@ CI 可以证明：
 - JSON 和 manifest 可解析；
 - Claude validator 通过；
 - Codex 能加载 Marketplace；
-- 脚本没有基础语法错误。
+- 脚本没有基础语法错误；
+- 每个 `plugins/*` 都已登记进 Claude 与 Codex 的 `marketplace.json`。
 
 CI 不能替代真实 hook 验收。发布前还应分别启动 Claude Code 和 Codex 新会话，确认 hook 被信任、触发并正确退出。
 

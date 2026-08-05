@@ -11,9 +11,14 @@ Both hosts share plugin business scripts. Marketplace indexes, plugin manifests,
 ├── .claude-plugin/marketplace.json    # Claude Code marketplace
 ├── .agents/plugins/marketplace.json   # Codex marketplace
 ├── plugins/                           # Self-contained plugins live here
-├── GUIDE.md                           # Full init / release guide
-└── .github/workflows/validate-plugins.yml
+├── scripts/ci/validate-plugins.sh     # Shared GitHub/GitLab CI checks
+├── .github/workflows/validate-plugins.yml
+├── .gitlab-ci.yml
+└── GUIDE.md                           # Full init / release guide
 ```
+
+Default branch: `master`  
+GitLab: `https://git.gzcrm.cn/harness-start/plugins`
 
 Each plugin is self-contained. Do not reference files outside its own directory at runtime; Claude Code copies a single plugin directory into cache.
 
@@ -29,25 +34,18 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 ## Local static checks
 
+GitHub Actions and GitLab CI both run the same script:
+
 ```bash
-find .claude-plugin .agents/plugins plugins \
-  -type f -name '*.json' -print0 |
-while IFS= read -r -d '' file; do
-  echo "Validating $file"
-  jq empty "$file"
-done
+bash scripts/ci/validate-plugins.sh
+```
 
-for file in plugins/*/scripts/*.mjs; do
-  [ -e "$file" ] || continue
-  node --check "$file"
-done
+That script validates JSON, dual-platform manifest versions, Claude/Codex marketplace loading, and **requires every `plugins/*` directory to be registered in both marketplace indexes** (and rejects orphan marketplace entries).
 
-for plugin in plugins/*; do
-  [ -d "$plugin" ] || continue
-  claude_version="$(jq -r '.version' "$plugin/.claude-plugin/plugin.json")"
-  codex_version="$(jq -r '.version' "$plugin/.codex-plugin/plugin.json")"
-  test "$claude_version" = "$codex_version"
-done
+Hosts already installed:
+
+```bash
+SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```
 
 ## Claude Code

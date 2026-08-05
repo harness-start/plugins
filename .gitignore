@@ -11,3 +11,7 @@ node_modules/
 # Generated artifacts
 dist/
 coverage/
+
+# CI local caches
+.ci-codex-home/
+.npm/
