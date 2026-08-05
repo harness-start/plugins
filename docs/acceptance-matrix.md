@@ -12,6 +12,8 @@
 | `php-runtime-guards` | Claude | 0.1.0 | PreToolUse deny / PostToolUse report | ⏳ **待验收**：本机 Claude OAuth 过期，`claude plugin validate --strict` 已通过（静态门禁）；需登录后开新会话补验 | `claude plugin validate --strict plugins/php-runtime-guards` | 无持久化（无状态文件） | `php-runtime-guards-v0.1.0` |
 | `php-runtime-guards` | Codex | 0.1.0 | PreToolUse deny：会话要求编辑 composer.json 添加 `repositories` 键 | ✅ **通过**：`ERROR ... Command blocked by PreToolUse hook: [Composer Repositories Guard]` + blockingContract；composer.json 未被修改 | `codex exec --dangerously-bypass-hook-trust` 会话（2026-08-05），拒绝后文件内容不变 | 无持久化 | `php-runtime-guards-v0.1.0` |
 | `php-runtime-guards` | Codex | 0.1.0 | PostToolUse 触发 | ✅ **部分通过**：hook 进程在每次 Bash 工具事件后被调用（探针确认）；Codex exec 模式以 Bash+apply_patch 写文件，`patchTargetPaths` 解析目标后检查可运行（单元测试覆盖）；report 注入模型上下文无法在 exec 模式输出中直接断言 | 事件探针 dump（tool_name=Bash）+ 61 个单元测试 | 无持久化 | `php-runtime-guards-v0.1.0` |
+| `symfony-runtime-guards` | Claude | 0.1.0 | PreToolUse deny / PostToolUse report | ⏳ **待验收**：本机 Claude OAuth 过期；需登录后开新会话补验 | `claude plugin validate --strict plugins/symfony-runtime-guards` | 无持久化 | `symfony-runtime-guards-v0.1.0` |
+| `symfony-runtime-guards` | Codex | 0.1.0 | PreToolUse deny / PostToolUse report | ⏳ **待验收**：逻辑与 php-runtime-guards 同构（deny 输出 + report 合并），Codex hook 装载机制已验证；待开新会话补验 Symfony 规则触发 | 16 个单元测试 | 无持久化 | `symfony-runtime-guards-v0.1.0` |
 
 ## 说明
 
