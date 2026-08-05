@@ -1,0 +1,16 @@
+{
+  "name": "thinkphp-runtime-guards",
+  "version": "0.1.0",
+  "description": "ThinkPHP hard guards: block writes to runtime directories (modern runtime/, legacy Application/Runtime/).",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "ThinkPHP Runtime Guards",
+    "shortDescription": "ThinkPHP guards: runtime directories.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

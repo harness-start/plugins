@@ -25,6 +25,21 @@
       "name": "process-confidence",
       "source": "./plugins/process-confidence",
       "description": "Observable delivery process: validated session begin, hook receipts, auto complete, Stop gate (hooks never auto-begin)."
+    },
+    {
+      "name": "laravel-runtime-guards",
+      "source": "./plugins/laravel-runtime-guards",
+      "description": "Laravel hard guards: deny writes to generated paths (bootstrap/cache, storage/framework cache|views, storage/logs, public/build, existing database/migrations)."
+    },
+    {
+      "name": "thinkphp-runtime-guards",
+      "source": "./plugins/thinkphp-runtime-guards",
+      "description": "ThinkPHP hard guards: deny writes to runtime directories (modern runtime/, legacy Application/Runtime/)."
+    },
+    {
+      "name": "webman-runtime-guards",
+      "source": "./plugins/webman-runtime-guards",
+      "description": "Webman hard guards: deny writes to the runtime directory (logs, pid files, caches)."
     }
   ]
 }

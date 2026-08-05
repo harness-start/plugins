@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|ApplyPatch|Bash|Shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/thinkphp-hook-pre-tool.mjs\"",
+            "statusMessage": "thinkphp-runtime-guards: protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}
