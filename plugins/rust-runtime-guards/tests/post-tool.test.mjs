@@ -7,13 +7,13 @@ import { collectDebtFindings, formatDebtReport } from "../scripts/checks/debt.mj
 import * as encoding from "../scripts/checks/encoding.mjs";
 
 test("encoding matches language extensions", () => {
-  assert.equal(encoding.matches(`a.rs`), true);
+  assert.equal(encoding.matches("a.rs"), true);
   assert.equal(encoding.matches("a.md"), false);
 });
 
 test("encoding detects UTF-8 BOM", () => {
   const dir = mkdtempSync(join(tmpdir(), "rust-enc-"));
-  const file = join(dir, `x.rs`);
+  const file = join(dir, "x.rs");
   try {
     writeFileSync(file, Buffer.from([0xef, 0xbb, 0xbf, 0x61, 0x0a]));
     const issues = encoding.check(file);
@@ -23,25 +23,36 @@ test("encoding detects UTF-8 BOM", () => {
   }
 });
 
-test("debt finds net-new pattern without baseline", () => {
+test("debt finds net-new unwrap without baseline", () => {
   const dir = mkdtempSync(join(tmpdir(), "rust-debt-"));
-  const file = join(dir, `x.rs`);
+  const file = join(dir, "svc.rs");
   try {
-    // Use first pattern-ish content generically: empty catch style may not match all langs
-    // Write a file and use Write content for pair when old_string absent
-    const content = "fn f() { todo!(); }\\n";
+    const content = "fn load() -> String {\n    std::fs::read_to_string(\"x\").unwrap()\n}\n";
     writeFileSync(file, content);
-    const findings = collectDebtFindings(
-      { file_path: file, content },
-      file,
+    const findings = collectDebtFindings({ file_path: file, content }, file);
+    assert.ok(findings.length >= 1, `expected unwrap findings, got ${JSON.stringify(findings)}`);
+    assert.ok(
+      findings.some((f) => /unwrap|expect/i.test(f.label)),
+      `expected unwrap/expect label, got ${findings.map((f) => f.label).join(",")}`,
     );
-    // fail-open suite: at least formatReport works when findings non-empty
-    if (findings.length > 0) {
-      const report = formatDebtReport(file, findings);
-      assert.match(report, /Debt Guard/);
-    } else {
-      assert.ok(true);
-    }
+    const report = formatDebtReport(file, findings);
+    assert.match(report, /Rust Debt Guard/);
+    assert.match(report, /unwrap|expect/i);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("debt finds allow attribute without justification", () => {
+  const dir = mkdtempSync(join(tmpdir(), "rust-allow-"));
+  const file = join(dir, "lib.rs");
+  try {
+    const content = "#[allow(dead_code)]\nfn unused() {}\n";
+    writeFileSync(file, content);
+    const findings = collectDebtFindings({ file_path: file, content }, file);
+    assert.ok(findings.length >= 1, `expected allow findings, got ${JSON.stringify(findings)}`);
+    const report = formatDebtReport(file, findings);
+    assert.match(report, /Debt Guard/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -7,13 +7,13 @@ import { collectDebtFindings, formatDebtReport } from "../scripts/checks/debt.mj
 import * as encoding from "../scripts/checks/encoding.mjs";
 
 test("encoding matches language extensions", () => {
-  assert.equal(encoding.matches(`a.ts`), true);
+  assert.equal(encoding.matches("a.ts"), true);
   assert.equal(encoding.matches("a.md"), false);
 });
 
 test("encoding detects UTF-8 BOM", () => {
   const dir = mkdtempSync(join(tmpdir(), "ts-enc-"));
-  const file = join(dir, `x.ts`);
+  const file = join(dir, "x.ts");
   try {
     writeFileSync(file, Buffer.from([0xef, 0xbb, 0xbf, 0x61, 0x0a]));
     const issues = encoding.check(file);
@@ -23,25 +23,36 @@ test("encoding detects UTF-8 BOM", () => {
   }
 });
 
-test("debt finds net-new pattern without baseline", () => {
+test("debt finds net-new any without baseline", () => {
   const dir = mkdtempSync(join(tmpdir(), "ts-debt-"));
-  const file = join(dir, `x.ts`);
+  const file = join(dir, "handler.ts");
   try {
-    // Use first pattern-ish content generically: empty catch style may not match all langs
-    // Write a file and use Write content for pair when old_string absent
-    const content = "const x: any = 1;\\n";
+    const content = "export function load(id: string): any {\n  return id;\n}\n";
     writeFileSync(file, content);
-    const findings = collectDebtFindings(
-      { file_path: file, content },
-      file,
+    const findings = collectDebtFindings({ file_path: file, content }, file);
+    assert.ok(findings.length >= 1, `expected debt findings, got ${JSON.stringify(findings)}`);
+    assert.ok(
+      findings.some((f) => f.label.includes("any") || /any/i.test(f.label)),
+      `expected any-related debt, got ${findings.map((f) => f.label).join(",")}`,
     );
-    // fail-open suite: at least formatReport works when findings non-empty
-    if (findings.length > 0) {
-      const report = formatDebtReport(file, findings);
-      assert.match(report, /Debt Guard/);
-    } else {
-      assert.ok(true);
-    }
+    const report = formatDebtReport(file, findings);
+    assert.match(report, /TypeScript Debt Guard/);
+    assert.match(report, /any/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("debt finds as any assertion", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ts-asany-"));
+  const file = join(dir, "cast.ts");
+  try {
+    const content = "const value = input as any;\n";
+    writeFileSync(file, content);
+    const findings = collectDebtFindings({ file_path: file, content }, file);
+    assert.ok(findings.length >= 1, `expected as-any findings, got ${JSON.stringify(findings)}`);
+    const report = formatDebtReport(file, findings);
+    assert.match(report, /Debt Guard/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
