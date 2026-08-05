@@ -1,0 +1,4 @@
+id = "01-deny-runtime"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["pre-tool", "deny", "protected-path"]

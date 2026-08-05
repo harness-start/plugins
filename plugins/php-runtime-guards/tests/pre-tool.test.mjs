@@ -324,3 +324,75 @@ test("truncation: report message is actionable", () => {
   assert.match(message, /Test Truncation/);
   assert.match(message, /tail\/head -5/);
 });
+
+// ── entry smoke test (subprocess, stdin → stdout JSON) ─────────────────
+
+function runHook(script, event) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => (stdout += chunk));
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.stdin.end(JSON.stringify(event));
+  });
+}
+
+test("repositories: apply_patch lowercase tool name (Codex) is denied", () => {
+  const hits = collectRepositoriesHits({
+    toolName: "apply_patch",
+    input: {
+      patch: [
+        "*** Begin Patch",
+        "*** Update File: composer.json",
+        "@@",
+        '+    "repositories": {"local": {"type": "path", "url": "../x"}},',
+      ].join("\n"),
+    },
+  });
+  assert.deepEqual(hits, ["patch:composer.json"]);
+});
+
+test("entry: apply_patch lowercase yields deny JSON", async () => {
+  const { code, stdout } = await runHook(PRE_TOOL, {
+    tool_name: "apply_patch",
+    tool_input: {
+      patch: [
+        "*** Begin Patch",
+        "*** Update File: composer.json",
+        "@@",
+        '+  "repositories": {},',
+      ].join("\n"),
+    },
+  });
+  assert.equal(code, 0);
+  const output = JSON.parse(stdout);
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(output.hookSpecificOutput.permissionDecisionReason, /Repositories Guard/);
+});
+
+test("entry: Edit composer.json with repositories key yields deny JSON", async () => {
+  const { code, stdout } = await runHook(PRE_TOOL, {
+    tool_name: "Edit",
+    tool_input: {
+      file_path: "composer.json",
+      new_string: '"repositories": {},',
+    },
+  });
+  assert.equal(code, 0);
+  const output = JSON.parse(stdout);
+  assert.equal(output.hookSpecificOutput.hookEventName, "PreToolUse");
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(output.hookSpecificOutput.permissionDecisionReason, /Repositories Guard/);
+});
+
+test("entry: clean Write yields no output", async () => {
+  const { code, stdout } = await runHook(PRE_TOOL, {
+    tool_name: "Write",
+    tool_input: { file_path: "src/App.php", content: "<?php\n" },
+  });
+  assert.equal(code, 0);
+  assert.equal(stdout, "");
+});

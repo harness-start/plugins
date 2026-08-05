@@ -14,7 +14,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 
@@ -247,12 +247,61 @@ function writeWarnMarker(filePath) {
   }
 }
 
-function extractFilePath(event) {
-  return (
-    event?.tool_input?.file_path ??
-    event?.toolInput?.file_path ??
-    null
-  );
+function extractFilePaths(event) {
+  const toolInput =
+    event?.tool_input ??
+    event?.toolInput ??
+    event?.tool?.input ??
+    event?.input ??
+    {};
+  const cwd =
+    event?.cwd ??
+    event?.working_directory ??
+    event?.workingDirectory ??
+    process.cwd();
+  const paths = [];
+  for (const key of ["file_path", "filePath", "path", "target_file"]) {
+    if (typeof toolInput?.[key] === "string" && toolInput[key]) {
+      paths.push(toolInput[key]);
+    }
+  }
+  // Codex apply_patch: paths live inside the freeform patch payload.
+  const patchBlob = [toolInput?.patch, toolInput?.input, toolInput?.command]
+    .filter((v) => typeof v === "string")
+    .join("\n");
+  if (patchBlob) {
+    for (const line of patchBlob.split("\n")) {
+      const m = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/);
+      if (m) paths.push(m[1].trim().replace(/\\n$/, ""));
+    }
+  }
+  // Codex/Claude shell tools: extract redirect targets (`> file`, `>> file`).
+  const command =
+    (typeof toolInput?.command === "string" && toolInput.command) ||
+    (typeof toolInput?.cmd === "string" && toolInput.cmd) ||
+    "";
+  if (command) {
+    for (const m of command.matchAll(/(?:>|>>)\s*([^\s;&|'"]+)/g)) {
+      paths.push(m[1]);
+    }
+    // Also catch paths that appear after heredoc terminators: `EOF\n} > path`
+    for (const m of command.matchAll(
+      /(?:^|[\s;|&])((?:\.\/)?src\/[^\s;&|'"]+\.(?:php|js|ts|tsx|jsx|py|go|rs|java|kt|vue|svelte))\b/g,
+    )) {
+      // Only keep when the command also has a redirect near the path.
+      if (command.includes(`> ${m[1]}`) || command.includes(`>${m[1]}`)) {
+        paths.push(m[1]);
+      }
+    }
+  }
+  // Resolve relative paths against event cwd so PostToolUse can stat the file.
+  return [
+    ...new Set(
+      paths
+        .filter(Boolean)
+        .map((p) => (p.startsWith("/") ? p : join(cwd, p.replace(/^\.\//, "")))),
+    ),
+  ];
 }
 
 function block(message) {
@@ -281,8 +330,8 @@ async function main() {
     process.exit(0);
   }
 
-  const filePath = extractFilePath(event);
-  if (!filePath || !existsSync(filePath)) {
+  const filePaths = extractFilePaths(event).filter((p) => existsSync(p));
+  if (filePaths.length === 0) {
     process.exit(0);
   }
 
@@ -293,37 +342,53 @@ async function main() {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000,
+      cwd: dirname(filePaths[0]),
     }).trim();
   } catch {
-    // Not a git repo → fall back to built-in rules
-    repoRoot = null;
+    try {
+      repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 5000,
+      }).trim();
+    } catch {
+      // Not a git repo → fall back to built-in rules
+      repoRoot = null;
+    }
   }
 
   const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
   const { rules, settings } = resolveRules(userConfig);
 
-  // Compute relative path for matching
-  let relPath = filePath;
-  if (repoRoot) {
-    relPath = filePath.replace(repoRoot.replaceAll("\\", "/") + "/", "").replaceAll("\\", "/");
+  // Evaluate every written path; first violation wins (fail-closed).
+  let filePath = null;
+  let rule = null;
+  let currentLines = 0;
+  let budget = 0;
+  for (const candidate of filePaths) {
+    let relPath = candidate;
+    if (repoRoot) {
+      relPath = candidate
+        .replace(repoRoot.replaceAll("\\", "/") + "/", "")
+        .replaceAll("\\", "/");
+    }
+    const matched = matchRule(relPath, rules);
+    if (!matched || matched.mode === "skip") continue;
+    const content = readTextFileCapped(candidate);
+    if (content === null) continue;
+    const lines = countLines(content);
+    if (matched.mode === "report" || matched.mode === "block") {
+      filePath = candidate;
+      rule = matched;
+      currentLines = lines;
+      budget = matched.budget;
+      // Prefer the first over-budget file; otherwise keep scanning.
+      if (lines > matched.budget) break;
+    }
   }
-
-  // ── Match rule ──
-  const rule = matchRule(relPath, rules);
-  if (!rule) {
-    // No rule matches → silently pass
+  if (!filePath || !rule) {
     process.exit(0);
   }
-
-  // ── skip mode ──
-  if (rule.mode === "skip") {
-    process.exit(0);
-  }
-
-  const budget = rule.budget;
-  const content = readTextFileCapped(filePath);
-  if (content === null) { process.exit(0); }
-  const currentLines = countLines(content);
 
   // ── report mode: warn only, no ratchet ──
   if (rule.mode === "report") {

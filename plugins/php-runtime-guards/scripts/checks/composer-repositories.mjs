@@ -68,10 +68,36 @@ function collectBashHits(command) {
   return hits;
 }
 
+function canonicalToolName(toolName) {
+  if (typeof toolName !== "string") return "";
+  const lower = toolName.trim().toLowerCase();
+  const map = {
+    apply_patch: "ApplyPatch",
+    applypatch: "ApplyPatch",
+    write: "Write",
+    edit: "Edit",
+    multiedit: "MultiEdit",
+    bash: "Bash",
+    shell: "Shell",
+    shell_command: "Shell",
+    exec_command: "Shell",
+    exec: "Shell",
+    local_shell: "Shell",
+    create_file: "Write",
+    search_replace: "Edit",
+  };
+  return map[lower] || toolName;
+}
+
 export function collectRepositoriesHits({ toolName, input }) {
   const hits = [];
+  const name = canonicalToolName(toolName);
+  const patchBlob = [input?.command, input?.input, input?.patch, input?.cmd]
+    .map(stringInput)
+    .filter(Boolean)
+    .join("\n");
 
-  switch (toolName) {
+  switch (name) {
     case "Write":
       if (isComposerJson(input.file_path) && addsRepositoriesKey(input.content)) {
         hits.push("tool_input.content");
@@ -95,17 +121,21 @@ export function collectRepositoriesHits({ toolName, input }) {
       break;
 
     case "ApplyPatch":
-      [input.command, input.input, input.patch].forEach((value) => {
-        collectPatchHits(stringInput(value)).forEach((hit) => hits.push(hit));
-      });
+      collectPatchHits(patchBlob).forEach((hit) => hits.push(hit));
       break;
 
     case "Bash":
     case "Shell":
-      collectBashHits(stringInput(input.command)).forEach((hit) => hits.push(hit));
+      collectBashHits(stringInput(input.command ?? input.cmd)).forEach((hit) =>
+        hits.push(hit),
+      );
       break;
 
     default:
+      // Codex freeform payloads sometimes only carry a patch string field.
+      if (patchBlob.includes("***") && /composer\.json/i.test(patchBlob)) {
+        collectPatchHits(patchBlob).forEach((hit) => hits.push(hit));
+      }
       break;
   }
 

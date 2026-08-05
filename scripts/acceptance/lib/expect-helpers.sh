@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Shared honesty helpers for host-acceptance expect.sh scripts.
+#
+# Contract: deny/block primary cases PASS only when BOTH
+#   1) world-state is correct, and
+#   2) the host log contains a real product/hook marker.
+#
+# Forbidden in signal REs: workspace path fragments, plugin slugs, run-id
+# pieces, or anything that appears only because prompt.md / workdir is logged.
+# shellcheck disable=SC2034
+
+set -euo pipefail
+
+require_nonempty_host_log() {
+  if [ -z "${ACCEPT_LOG:-}" ] || [ ! -s "${ACCEPT_LOG}" ]; then
+    echo "expect fail: empty or missing ACCEPT_LOG" >&2
+    return 1
+  fi
+}
+
+require_deepseek_codex_model() {
+  if [ "${ACCEPT_HOST:-}" != "codex" ]; then
+    return 0
+  fi
+  if ! grep -Eiq 'model:[[:space:]]*deepseek|provider:[[:space:]]*deepseek|deepseek-v4-flash' "${ACCEPT_LOG}"; then
+    echo "expect fail: codex session did not report DeepSeek model" >&2
+    return 1
+  fi
+}
+
+require_host_session_started() {
+  require_nonempty_host_log || return 1
+  if grep -Eiq 'failed to load configuration|CODEX_HOME points to' "${ACCEPT_LOG}" \
+    && ! grep -Eiq 'model:|provider: deepseek|deepseek-v4-flash|hook:|Hook |permissionDecision' "${ACCEPT_LOG}"; then
+    echo "expect fail: host failed to start a real session" >&2
+    return 1
+  fi
+  require_deepseek_codex_model || return 1
+}
+
+# require_guard_hook_signal <regex>
+# Regex must match real hook/product markers only.
+require_guard_hook_signal() {
+  local re="${1:?marker regex required}"
+  if ! grep -Eq "${re}" "${ACCEPT_LOG}"; then
+    echo "expect fail: no real guard/hook signal matching: ${re}" >&2
+    return 1
+  fi
+}
+
+require_file_absent() {
+  local path="${1:?path required}"
+  if [ -e "${path}" ]; then
+    echo "expect fail: path must be absent: ${path}" >&2
+    return 1
+  fi
+}
+
+require_composer_json_without_repositories() {
+  local file="${1:?composer.json path}"
+  if [ ! -f "${file}" ]; then
+    echo "expect fail: missing ${file}" >&2
+    return 1
+  fi
+  if grep -q '"repositories"' "${file}"; then
+    echo "expect fail: composer.json still has repositories" >&2
+    return 1
+  fi
+}
+
+# Plugin-specific real marker sets (never path fragments).
+MARKERS_FILE_BUDGET='\[File Budget\]|超出文件行数预算|超出构建配方参考预算'
+MARKERS_PHP_REPOSITORIES='\[Composer Repositories Guard\]|Repositories Guard'
+MARKERS_LARAVEL='\[Laravel Protected Path\]'
+MARKERS_THINKPHP='\[ThinkPHP Protected Path\]'
+MARKERS_WEBMAN='\[Webman Protected Path\]'
+MARKERS_SYMFONY='\[Symfony Protected Path\]'
+MARKERS_PCF='\[process-confidence\] write denied'
+# Shared deny surface when host surfaces JSON/hook text without path fragments:
+MARKERS_HOOK_DENY='permissionDecision":"deny|permissionDecision.: .?deny|PreToolUse Blocked|Hook denied tool use|Command blocked by PreToolUse hook'

@@ -1,0 +1,4 @@
+id = "01-deny-storage-logs"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["pre-tool", "deny", "protected-path"]

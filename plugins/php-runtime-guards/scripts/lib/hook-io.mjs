@@ -70,9 +70,46 @@ export function extractFilePath(toolInput) {
 }
 
 export function extractShellCommand(toolName, toolInput) {
-  if (!/^(Bash|Shell|bash|shell)$/i.test(toolName)) return null;
+  if (
+    !/^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i.test(
+      toolName,
+    )
+  ) {
+    return null;
+  }
   const command = toolInput?.command ?? toolInput?.cmd ?? null;
   return typeof command === "string" ? command : null;
+}
+
+/** Paths targeted by apply_patch freeform payloads. */
+export function extractPatchPaths(toolInput) {
+  const blob = [toolInput?.patch, toolInput?.input, toolInput?.command]
+    .filter((v) => typeof v === "string")
+    .join("\n");
+  if (!blob) return [];
+  const paths = [];
+  for (const line of blob.split("\n")) {
+    const m = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/);
+    if (m) paths.push(m[1].trim());
+  }
+  return paths;
+}
+
+/** All candidate write targets for a tool event. */
+export function extractWriteTargets(toolName, toolInput) {
+  const targets = [];
+  const filePath = extractFilePath(toolInput);
+  if (filePath) targets.push(filePath);
+  if (typeof toolInput?.path === "string") targets.push(toolInput.path);
+  targets.push(...extractPatchPaths(toolInput));
+  const cmd = extractShellCommand(toolName, toolInput);
+  if (cmd) {
+    // crude path tokens after redirects
+    for (const m of cmd.matchAll(/(?:>|>>)\s*([^\s;&|]+)/g)) {
+      targets.push(m[1]);
+    }
+  }
+  return [...new Set(targets.filter(Boolean))];
 }
 
 export function writeJson(obj) {
