@@ -31,6 +31,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | Plugin | Description |
 | --- | --- |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
+| `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
 | `php-runtime-guards` | PHP runtime guards: composer.json policy, protected paths, syntax, encoding, net-new debt/debug |
 | `symfony-runtime-guards` | Symfony guards: protected generated paths, Doctrine entity heuristics, Twig syntax |
 | `laravel-runtime-guards` | Laravel hard guards: deny writes to generated paths (bootstrap/cache, storage/framework cache\|views, storage/logs, public/build, existing migrations) |
@@ -54,7 +55,7 @@ GitHub Actions and GitLab CI both run the same script:
 bash scripts/ci/validate-plugins.sh
 ```
 
-That script validates JSON, dual-platform manifest versions, Claude/Codex marketplace loading, and **requires every `plugins/*` directory to be registered in both marketplace indexes** (and rejects orphan marketplace entries).
+That script validates JSON, all plugin JavaScript syntax, dual-platform manifest versions, offline unit tests, dual-host acceptance case structure, inert-log honesty, Claude/Codex marketplace loading, and **requires every `plugins/*` directory to be registered in both marketplace indexes** (and rejects orphan marketplace entries).
 
 Hosts already installed:
 

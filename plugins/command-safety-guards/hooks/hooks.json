@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/cmd-safety-hook-pre-tool.mjs\"",
+            "statusMessage": "command-safety-guards: checking shell command",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}

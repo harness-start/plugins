@@ -14,15 +14,16 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { classifyBudgetState } from "./lib/budget-policy.mjs";
 
 // ── Built-in rules ───────────────────────────────────────────
 // These are the default rules when no user config is present.
 // Each rule has: match (RegExp), mode ("block"|"report"|"skip"), budget (number, except skip).
 
-const BUILTIN_RULES = [
+export const BUILTIN_RULES = [
   // ── skip: tests, fixtures, generated paths ──
   { match: /(^|\/)tests?\//,                            mode: "skip" },
   { match: /(^|\/)spec\//,                              mode: "skip" },
@@ -163,7 +164,7 @@ function validateRule(rule, i) {
  * Merge user config rules (prepended) with built-in rules.
  * Returns { rules, settings }.
  */
-function resolveRules(userConfig) {
+export function resolveRules(userConfig) {
   const userRules = (userConfig?.rules ?? []).filter(validateRule);
   const rules = [...userRules, ...BUILTIN_RULES];
   const settings = { ...DEFAULT_SETTINGS, ...userConfig?.settings };
@@ -174,7 +175,7 @@ function resolveRules(userConfig) {
  * Find the first rule whose match.test(relPath) succeeds.
  * Returns the rule object or null if no match.
  */
-function matchRule(relPath, rules) {
+export function matchRule(relPath, rules) {
   for (const rule of rules) {
     try {
       if (rule.match.test(relPath)) return rule;
@@ -188,7 +189,7 @@ function matchRule(relPath, rules) {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-function countLines(text) {
+export function countLines(text) {
   if (!text) return 0;
   const lines = text.split(/\r?\n/);
   if (lines.at(-1) === "") lines.pop();
@@ -247,7 +248,7 @@ function writeWarnMarker(filePath) {
   }
 }
 
-function extractFilePaths(event) {
+export function extractFilePaths(event) {
   const toolInput =
     event?.tool_input ??
     event?.toolInput ??
@@ -390,25 +391,29 @@ async function main() {
     process.exit(0);
   }
 
-  // ── report mode: warn only, no ratchet ──
-  if (rule.mode === "report") {
-    if (currentLines <= budget) { process.exit(0); }
+  let headLines = null;
+  if (rule.mode === "block" && currentLines > budget) {
+    const headContent = readGitHeadContent(filePath);
+    headLines = headContent !== null ? countLines(headContent) : null;
+  }
+  const decision = classifyBudgetState({
+    mode: rule.mode,
+    currentLines,
+    budget,
+    headLines,
+    settings,
+  });
+
+  if (decision.kind === "report-over") {
     warn([
       `[File Budget] ${filePath} 超出构建配方参考预算（${currentLines}/${budget} 行）`,
       "",
       "构建配方是线性文件，不适用「拆分为多个文件」；持续增长时优先把安装清单、检查脚本外提到 bin/ 辅助脚本。",
       "禁止用删空行、删注释等格式化手段压行数。",
     ].join("\n"));
-    // unreachable — warn() calls exit(0)
   }
-
-  // ── block mode: ratchet ──
-
-  // Within budget
-  if (currentLines <= budget) {
-    const warnLines = Math.ceil(budget * settings.nearBudgetWarnRatio);
+  if (decision.kind === "near-budget") {
     const warnCooldownMs = settings.warnCooldownMinutes * 60 * 1000;
-    if (currentLines < warnLines) { process.exit(0); }
     if (hasRecentWarnMarker(filePath, warnCooldownMs)) { process.exit(0); }
     writeWarnMarker(filePath);
     warn([
@@ -417,73 +422,53 @@ async function main() {
       "继续新增内容前先规划拆分到职责单一的文件；超过预算后新增内容会被整块阻断。",
       "禁止用删空行、删注释等格式化手段压行数。",
     ].join("\n"));
-    // unreachable
   }
-
-  // Exceeded budget: ratchet branches
-  const headContent = readGitHeadContent(filePath);
-  const headLines = headContent !== null ? countLines(headContent) : null;
-
-  if (headLines === null) {
-    // New file (never committed) → must be within budget
+  if (decision.kind === "new-over") {
     block([
       `[File Budget] ${filePath} 超出文件行数预算`,
       `  当前: ${currentLines} 行 | 预算: ${budget} 行`,
       "",
       "新文件必须在预算内。请拆分为多个职责单一的文件。",
     ].join("\n"));
-    // unreachable
   }
-
-  if (headLines <= budget) {
-    // Was within budget, now exceeds → deny
+  if (decision.kind === "crossed-budget") {
     block([
       `[File Budget] ${filePath} 超出文件行数预算`,
       `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
       "",
       "请拆分逻辑到独立文件，保持单文件在预算内。",
     ].join("\n"));
-    // unreachable
   }
-
-  // ── Historically oversize (headLines > budget) ──
-
-  if (currentLines > headLines) {
-    const growth = currentLines - headLines;
-    if (growth <= settings.oversizeSoftGrowthLimit) {
-      // Small growth → warn but allow
-      warn([
-        `[File Budget] ${filePath} 是历史超标文件，本次仅小幅增长`,
-        `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
-        `  增加了 ${growth} 行（<= ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
-        "",
-        "建议后续拆分该文件并回收到预算内。",
-      ].join("\n"));
-      // unreachable
-    }
-
-    // Significant growth → ratchet deny
+  if (decision.kind === "historical-soft-growth") {
+    warn([
+      `[File Budget] ${filePath} 是历史超标文件，本次仅小幅增长`,
+      `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
+      `  增加了 ${decision.growth} 行（<= ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
+      "",
+      "建议后续拆分该文件并回收到预算内。",
+    ].join("\n"));
+  }
+  if (decision.kind === "historical-hard-growth") {
     block([
       `[File Budget] ${filePath} 是历史超标文件，棘轮机制禁止继续膨胀`,
       `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
-      `  增加了 ${growth} 行（超过 ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
+      `  增加了 ${decision.growth} 行（超过 ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
       "",
       "超标文件只许缩小不许增长。请在添加新内容的同时拆分已有逻辑。",
     ].join("\n"));
-    // unreachable
   }
-
-  if (currentLines < headLines) {
-    // Shrinking → positive feedback
+  if (decision.kind === "historical-shrink") {
     warn([
-      `[File Budget] ${filePath} 缩减了 ${headLines - currentLines} 行（${headLines} → ${currentLines}）`,
+      `[File Budget] ${filePath} 缩减了 ${decision.shrink} 行（${headLines} → ${currentLines}）`,
       `  预算: ${budget} 行 | 还需缩减: ${currentLines - budget} 行`,
     ].join("\n"));
-    // unreachable
   }
-
-  // Unchanged, still oversize → silent pass
   process.exit(0);
 }
 
-main();
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
+  main();
+}
