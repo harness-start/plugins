@@ -51,6 +51,42 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "laravel-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/laravel-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "thinkphp-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/thinkphp-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "webman-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/webman-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }

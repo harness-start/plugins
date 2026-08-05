@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/thinkphp-hook-pre-tool.mjs\"",
+            "statusMessage": "thinkphp-runtime-guards: protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}

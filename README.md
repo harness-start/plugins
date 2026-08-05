@@ -33,6 +33,9 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
 | `php-runtime-guards` | PHP runtime guards: composer.json policy, protected paths, syntax, encoding, net-new debt/debug |
 | `symfony-runtime-guards` | Symfony guards: protected generated paths, Doctrine entity heuristics, Twig syntax |
+| `laravel-runtime-guards` | Laravel hard guards: deny writes to generated paths (bootstrap/cache, storage/framework cache\|views, storage/logs, public/build, existing migrations) |
+| `thinkphp-runtime-guards` | ThinkPHP hard guards: deny writes to runtime/ and legacy Application/Runtime/ |
+| `webman-runtime-guards` | Webman hard guards: deny writes to runtime/ (logs, pid, caches) |
 | `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |
 
 ## Prerequisites
