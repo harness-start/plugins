@@ -91,6 +91,9 @@ container as `/out`:
 - Pins Claude Code + Codex, Node 20, git, jq, php-cli, composer
 - Entrypoint: `docker/host-acceptance/entrypoint.sh` → `scripts/acceptance/run.sh`
 - Models: `docker/host-acceptance/models.json` (Codex DeepSeek provider)
+- **Non-root only**: Claude rejects `--dangerously-skip-permissions` when running
+  as root. `run.sh` always launches the container with
+  `--user "$(id -u):$(id -g)"` and `HOME=/out/.container-home`.
 
 Build is invoked automatically by `run.sh` when launching from the host:
 
@@ -99,6 +102,7 @@ docker build -t harness-host-acceptance:local \
   -f docker/host-acceptance/Dockerfile \
   docker/host-acceptance
 ```
+
 
 ## Case layout
 

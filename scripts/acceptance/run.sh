@@ -109,11 +109,18 @@ if [ "${USE_DOCKER}" -eq 1 ]; then
   [ -n "${CASE_FILTER}" ] && args+=(--case "${CASE_FILTER}")
   [ "${HOST_FILTER}" != "both" ] && args+=(--host "${HOST_FILTER}")
   [ "${SMOKE_ONLY}" -eq 1 ] && args+=(--smoke)
+  # Claude refuses --dangerously-skip-permissions when euid is 0. Run as the
+  # invoking host user so /out artifacts are writable and not owned by root.
+  host_uid="$(id -u)"
+  host_gid="$(id -g)"
   docker run --rm \
+    --user "${host_uid}:${host_gid}" \
     -e DEEPSEEK_API_KEY \
     -e DEEPSEEK_MODEL \
     -e ACCEPT_OUT_DIR=/out \
     -e ACCEPT_IN_CONTAINER=1 \
+    -e HOME=/out/.container-home \
+    -e USER="${USER:-acceptance}" \
     -v "${REPO_ROOT}:/marketplace:ro" \
     -v "${OUT_DIR}:/out" \
     -w /marketplace \
