@@ -40,6 +40,31 @@
       "name": "webman-runtime-guards",
       "source": "./plugins/webman-runtime-guards",
       "description": "Webman hard guards: deny writes to the runtime directory (logs, pid files, caches)."
+    },
+    {
+      "name": "typescript-runtime-guards",
+      "source": "./plugins/typescript-runtime-guards",
+      "description": "TypeScript/JS runtime guards: deny dependency lockfile writes; report encoding, net-new debt (any/as-any/suppressions), and syntax heuristics."
+    },
+    {
+      "name": "python-runtime-guards",
+      "source": "./plugins/python-runtime-guards",
+      "description": "Python runtime guards: deny poetry/pdm/pipenv/uv lockfile writes; report encoding, net-new debt (type:ignore/Any/bare except), and py_compile syntax."
+    },
+    {
+      "name": "go-runtime-guards",
+      "source": "./plugins/go-runtime-guards",
+      "description": "Go runtime guards: deny go.sum writes; report encoding, net-new debt (nolint/panic), and gofmt syntax issues."
+    },
+    {
+      "name": "rust-runtime-guards",
+      "source": "./plugins/rust-runtime-guards",
+      "description": "Rust runtime guards: deny Cargo.lock writes; report encoding, net-new debt (allow/unwrap/todo!), and syntax heuristics."
+    },
+    {
+      "name": "jvm-runtime-guards",
+      "source": "./plugins/jvm-runtime-guards",
+      "description": "JVM runtime guards: deny gradle.lockfile writes; report encoding, net-new debt (SuppressWarnings/empty catch/Thread.sleep), and Java/Kotlin syntax heuristics."
     }
   ]
 }

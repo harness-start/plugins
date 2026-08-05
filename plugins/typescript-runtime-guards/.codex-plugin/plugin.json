@@ -1,0 +1,16 @@
+{
+  "name": "typescript-runtime-guards",
+  "version": "0.1.0",
+  "description": "TS/JS lockfile deny + encoding/debt/as-any/suppression reports",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "TypeScript Runtime Guards",
+    "shortDescription": "TS/JS lockfile deny + encoding/debt/as-any/suppression reports",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

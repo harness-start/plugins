@@ -1,0 +1,10 @@
+{
+  "name": "python-runtime-guards",
+  "version": "0.1.0",
+  "description": "Python lockfile deny + encoding/debt/syntax reports",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

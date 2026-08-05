@@ -1,0 +1,10 @@
+{
+  "name": "rust-runtime-guards",
+  "version": "0.1.0",
+  "description": "Rust lockfile deny + encoding/debt/debug reports",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}
