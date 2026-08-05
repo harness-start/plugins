@@ -26,6 +26,13 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 `GUIDE.md` uses example plugin names such as `session-hooks` and `policy-checks` for illustration only. Real plugins are registered under `plugins/` and listed in both marketplace indexes.
 
+## Plugins
+
+| Plugin | Description |
+| --- | --- |
+| `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
+| `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |
+
 ## Prerequisites
 
 - Git

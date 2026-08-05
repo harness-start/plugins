@@ -1,0 +1,66 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/pcf-hook-session-start.mjs\"",
+            "statusMessage": "Process confidence: injecting session context",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/pcf-hook-user-prompt.mjs\"",
+            "statusMessage": "Process confidence: delivery reminder",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/pcf-hook-pre-tool.mjs\"",
+            "statusMessage": "Process confidence: path guard",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch|Bash|Shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/pcf-hook-post-tool.mjs\"",
+            "statusMessage": "Process confidence: receipts and stages",
+            "timeout": 20000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/pcf-hook-stop.mjs\"",
+            "statusMessage": "Process confidence: stop gate",
+            "timeout": 20000
+          }
+        ]
+      }
+    ]
+  }
+}

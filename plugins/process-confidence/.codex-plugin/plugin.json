@@ -1,0 +1,16 @@
+{
+  "name": "process-confidence",
+  "version": "0.1.0",
+  "description": "Observable delivery process for coding agents: LLM begin with validated sessionId, hook-issued receipts, auto stage/complete, Stop gate. Hooks never auto-begin.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Process Confidence",
+    "shortDescription": "Delivery process confidence: begin, receipts, Stop gate.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness-start.local/process-confidence/receipt.schema.json",
+  "title": "Process Confidence Receipt",
+  "type": "object",
+  "required": [
+    "id",
+    "runId",
+    "sessionId",
+    "kind",
+    "command",
+    "exitCode",
+    "outcome",
+    "at",
+    "issuer"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["verify"] },
+    "command": { "type": "string" },
+    "exitCode": { "type": "integer" },
+    "outcome": {
+      "type": "string",
+      "enum": ["pass", "warn", "fail"]
+    },
+    "summary": { "type": "string" },
+    "at": { "type": "string" },
+    "issuer": {
+      "type": "string",
+      "enum": ["pcf-hook", "pcf-tool"]
+    }
+  }
+}

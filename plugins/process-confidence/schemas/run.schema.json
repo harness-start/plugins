@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://harness-start.local/process-confidence/run.schema.json",
+  "title": "Process Confidence Run",
+  "type": "object",
+  "required": [
+    "runId",
+    "sessionId",
+    "type",
+    "status",
+    "stage",
+    "mode",
+    "required",
+    "blockers",
+    "createdAt",
+    "updatedAt"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "runId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "agent": {
+      "type": "string",
+      "enum": ["claude", "codex", "ambiguous"]
+    },
+    "type": { "type": "string", "const": "deliver" },
+    "title": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["open", "done", "abandoned"]
+    },
+    "stage": {
+      "type": "string",
+      "enum": ["intent", "plan", "implement", "verify", "done"]
+    },
+    "mode": { "type": "string", "enum": ["on", "off"] },
+    "required": { "type": "boolean" },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "bypass": { "type": "boolean" },
+    "bypassReason": { "type": "string" },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "createdAt": { "type": "string" },
+    "updatedAt": { "type": "string" },
+    "completedAt": { "type": "string" },
+    "abandonedAt": { "type": "string" },
+    "abandonReason": { "type": "string" }
+  }
+}
