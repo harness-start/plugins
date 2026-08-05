@@ -94,6 +94,10 @@ container as `/out`:
 - **Non-root only**: Claude rejects `--dangerously-skip-permissions` when running
   as root. `run.sh` always launches the container with
   `--user "$(id -u):$(id -g)"` and `HOME=/out/.container-home`.
+- **Root leftovers**: older root-container runs may leave root-owned files under
+  `.acceptance-runs/`. Smoke purges those via a one-shot root container
+  (`--entrypoint` bypass) before the non-root suite starts; no host `sudo`
+  required (docker group is enough).
 
 Build is invoked automatically by `run.sh` when launching from the host:
 

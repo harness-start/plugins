@@ -103,6 +103,18 @@ if [ "${USE_DOCKER}" -eq 1 ]; then
     -t "${IMAGE}" \
     -f "${REPO_ROOT}/docker/host-acceptance/Dockerfile" \
     "${REPO_ROOT}/docker/host-acceptance"
+
+  # Older root-container runs leave root-owned files under OUT_DIR. Host user
+  # often has no sudo; docker group can still chown/rm via a one-shot root
+  # container (entrypoint bypassed). Only touch known smoke/home paths.
+  if [ "${SMOKE_ONLY}" -eq 1 ]; then
+    log "Purging prior smoke artifacts under ${OUT_DIR} (root leftovers ok)"
+    docker run --rm --user 0:0 --entrypoint /bin/bash \
+      -v "${OUT_DIR}:/out" \
+      "${IMAGE}" \
+      -lc 'rm -rf /out/smoke-ws /out/smoke-home /out/smoke-codex-home /out/deepseek-host-smoke-*.log /out/deepseek-host-smoke-*.claude-debug.log /out/latest 2>/dev/null || true'
+  fi
+
   # Re-invoke this script inside the container (entrypoint sets ACCEPT_IN_CONTAINER=1)
   args=(--skip-honesty)
   [ -n "${PLUGIN_FILTER}" ] && args+=(--plugin "${PLUGIN_FILTER}")
@@ -138,15 +150,18 @@ fi
 if [ "${SMOKE_ONLY}" -eq 1 ]; then
   require_cmd claude
   require_cmd codex
-  smoke_ws="${OUT_DIR}/smoke-ws"
-  rm -rf "${smoke_ws}"
+  # Unique dirs so a failed prior run never blocks (even if purge missed something).
+  smoke_stamp="$$"
+  smoke_ws="${OUT_DIR}/smoke-ws-${smoke_stamp}"
+  smoke_home="${OUT_DIR}/smoke-home-${smoke_stamp}"
+  smoke_codex_home="${OUT_DIR}/smoke-codex-home-${smoke_stamp}"
   mkdir -p "${smoke_ws}"
   git -C "${smoke_ws}" init -q
   echo ok >"${smoke_ws}/README.md"
   git -C "${smoke_ws}" add -A
   git -C "${smoke_ws}" -c user.email=a@b -c user.name=a commit -q -m init --allow-empty
 
-  export HOME="${OUT_DIR}/smoke-home"
+  export HOME="${smoke_home}"
   mkdir -p "${HOME}"
   configure_claude_home "${HOME}" "${DEEPSEEK_MODEL}"
   claude_log="${OUT_DIR}/deepseek-host-smoke-claude.log"
@@ -155,13 +170,12 @@ if [ "${SMOKE_ONLY}" -eq 1 ]; then
     <(printf 'Reply with exactly: PONG\n') "${claude_log}" 90
   set -e
   if ! grep -q 'PONG' "${claude_log}"; then
-    log "SMOKE FAIL claude"
+    log "SMOKE FAIL claude (see ${claude_log})"
     exit 1
   fi
   log "SMOKE PASS claude model=${DEEPSEEK_MODEL}"
 
-  export CODEX_HOME="${OUT_DIR}/smoke-codex-home"
-  rm -rf "${CODEX_HOME}"
+  export CODEX_HOME="${smoke_codex_home}"
   mkdir -p "${CODEX_HOME}"
   configure_codex_home "${CODEX_HOME}" "${DEEPSEEK_MODEL}" \
     "${REPO_ROOT}/docker/host-acceptance/models.json"
@@ -171,7 +185,7 @@ if [ "${SMOKE_ONLY}" -eq 1 ]; then
     <(printf 'Reply with exactly: PONG and do not modify files.\n') "${codex_log}" 120
   set -e
   if ! grep -q 'PONG' "${codex_log}"; then
-    log "SMOKE FAIL codex"
+    log "SMOKE FAIL codex (see ${codex_log})"
     exit 1
   fi
   if ! grep -Eq "model:[[:space:]]*${DEEPSEEK_MODEL}|deepseek-v4-flash" "${codex_log}"; then
