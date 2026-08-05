@@ -1,0 +1,16 @@
+{
+  "name": "symfony-runtime-guards",
+  "version": "0.1.0",
+  "description": "Symfony runtime guards: protected generated paths (symfony.lock, var/cache, public/build, migrations), Doctrine entity mapping heuristics, Twig template syntax checks.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Symfony Runtime Guards",
+    "shortDescription": "Symfony guards: protected paths, Doctrine entity, Twig syntax.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

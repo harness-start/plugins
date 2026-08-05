@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/symfony-hook-pre-tool.mjs\"",
+            "statusMessage": "Symfony guards: protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit|ApplyPatch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/symfony-hook-post-tool.mjs\"",
+            "statusMessage": "Symfony guards: Doctrine entity, Twig syntax",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}

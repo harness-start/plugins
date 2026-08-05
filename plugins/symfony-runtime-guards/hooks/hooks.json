@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Shell|Write|Edit|ApplyPatch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/symfony-hook-pre-tool.mjs\"",
+            "statusMessage": "Symfony guards: protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|ApplyPatch|Bash|Shell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/symfony-hook-post-tool.mjs\"",
+            "statusMessage": "Symfony guards: Doctrine entity, Twig syntax",
+            "timeout": 30000
+          }
+        ]
+      }
+    ]
+  }
+}

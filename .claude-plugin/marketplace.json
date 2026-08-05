@@ -17,6 +17,11 @@
       "description": "PHP runtime guards: composer.json policy (repositories / unicode escapes / lockfile), protected generated paths, test output truncation, php -l and composer validate syntax, encoding, net-new debt and debug statements."
     },
     {
+      "name": "symfony-runtime-guards",
+      "source": "./plugins/symfony-runtime-guards",
+      "description": "Symfony runtime guards: protected generated paths (symfony.lock, var/cache, public/build, migrations), Doctrine entity mapping heuristics, Twig template syntax checks."
+    },
+    {
       "name": "process-confidence",
       "source": "./plugins/process-confidence",
       "description": "Observable delivery process: validated session begin, hook receipts, auto complete, Stop gate (hooks never auto-begin)."
