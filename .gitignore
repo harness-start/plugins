@@ -1,0 +1,13 @@
+.DS_Store
+.vscode/
+.idea/
+node_modules/
+*.log
+
+# Local plugin/cache state
+.codex/
+.claude/settings.local.json
+
+# Generated artifacts
+dist/
+coverage/

@@ -1,0 +1,1191 @@
+# Claude Code / Codex 多插件仓库初始化指南
+
+## 1. 目标
+
+本文说明如何初始化一个 Git 仓库，同时作为：
+
+- Claude Code Plugin Marketplace；
+- Codex Plugin Marketplace；
+- 多个独立插件的源码仓库；
+- hooks 与 scripts 的统一维护仓库。
+
+两套平台共享插件业务脚本，但分别维护 Marketplace 索引、Plugin manifest 和 Hook 配置。Claude Code 与 Codex 的 manifest 字段、环境变量和生命周期事件并不完全一致，因此不要尝试用一份 manifest 覆盖两个平台。
+
+Claude Code 和 Codex 都支持在一个 Marketplace 中登记多个插件：
+
+- [Claude Code Marketplace 官方文档](https://code.claude.com/docs/en/plugin-marketplaces)
+- [Codex Plugin Packaging 官方文档](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
+
+## 2. 前置要求
+
+本地需要：
+
+```text
+Git
+Node.js 20+
+Claude Code CLI
+Codex CLI
+jq（推荐）
+```
+
+确认版本：
+
+```bash
+git --version
+node --version
+claude --version
+codex --version
+jq --version
+```
+
+确认插件命令存在：
+
+```bash
+claude plugin --help
+codex plugin --help
+```
+
+本文示例中的 hook 脚本使用 Node.js，因此目标机器也必须安装 Node.js。
+
+## 3. 仓库结构
+
+推荐结构：
+
+```text
+company-agent-plugins/
+├── README.md
+├── LICENSE
+├── .gitignore
+│
+├── .claude-plugin/
+│   └── marketplace.json
+│
+├── .agents/
+│   └── plugins/
+│       └── marketplace.json
+│
+└── plugins/
+    ├── session-hooks/
+    │   ├── README.md
+    │   ├── .claude-plugin/
+    │   │   └── plugin.json
+    │   ├── .codex-plugin/
+    │   │   └── plugin.json
+    │   ├── hooks/
+    │   │   ├── claude.json
+    │   │   └── codex.json
+    │   └── scripts/
+    │       └── session-start.mjs
+    │
+    └── policy-checks/
+        ├── README.md
+        ├── .claude-plugin/
+        │   └── plugin.json
+        ├── .codex-plugin/
+        │   └── plugin.json
+        ├── hooks/
+        │   ├── claude.json
+        │   └── codex.json
+        └── scripts/
+            └── policy-check.mjs
+```
+
+每个插件必须是自包含目录。不要让一个插件通过以下方式引用另一个插件：
+
+```text
+../other-plugin/scripts/tool.sh
+../../shared/script.mjs
+```
+
+Claude Code 安装插件时会将单个插件目录复制到缓存，插件目录外的文件不会一起复制。
+
+如果多个插件需要共享实现，可采用以下方式之一：
+
+- 抽取成独立 npm 包；
+- 在发布前将公共文件复制到每个插件；
+- 使用构建步骤生成每个插件的完整发布目录。
+
+不要依赖安装目录外的运行时相对路径。
+
+## 4. 初始化仓库
+
+创建仓库：
+
+```bash
+mkdir company-agent-plugins
+cd company-agent-plugins
+
+git init -b main
+
+mkdir -p .claude-plugin
+mkdir -p .agents/plugins
+
+mkdir -p plugins/session-hooks/.claude-plugin
+mkdir -p plugins/session-hooks/.codex-plugin
+mkdir -p plugins/session-hooks/hooks
+mkdir -p plugins/session-hooks/scripts
+
+mkdir -p plugins/policy-checks/.claude-plugin
+mkdir -p plugins/policy-checks/.codex-plugin
+mkdir -p plugins/policy-checks/hooks
+mkdir -p plugins/policy-checks/scripts
+```
+
+建议在根目录创建 `.gitignore`：
+
+```gitignore
+.DS_Store
+node_modules/
+*.log
+
+# Local plugin/cache state
+.codex/
+.claude/settings.local.json
+
+# Generated artifacts
+dist/
+coverage/
+```
+
+## 5. Claude Code Marketplace
+
+创建 `.claude-plugin/marketplace.json`：
+
+```json
+{
+  "name": "company-agent-plugins",
+  "description": "Company-maintained plugins for Claude Code and Codex.",
+  "owner": {
+    "name": "Company DevTools",
+    "email": "devtools@example.com"
+  },
+  "plugins": [
+    {
+      "name": "session-hooks",
+      "source": "./plugins/session-hooks",
+      "description": "Run company initialization logic when a session starts."
+    },
+    {
+      "name": "policy-checks",
+      "source": "./plugins/policy-checks",
+      "description": "Apply deterministic policy checks during agent execution."
+    }
+  ]
+}
+```
+
+其中：
+
+- `name` 是 Marketplace 标识；
+- `plugins[]` 中每项代表一个可独立安装的插件；
+- `source` 相对于仓库根目录；
+- 插件名称必须唯一；
+- 名称建议只使用小写字母、数字和连字符。
+
+Claude Code 用户安装时使用：
+
+```bash
+claude plugin marketplace add YOUR_ORG/company-agent-plugins
+claude plugin install session-hooks@company-agent-plugins
+```
+
+GitLab、自建 Git 或其他服务使用完整地址：
+
+```bash
+claude plugin marketplace add https://git.example.com/company/company-agent-plugins.git
+```
+
+## 6. Codex Marketplace
+
+创建 `.agents/plugins/marketplace.json`：
+
+```json
+{
+  "name": "company-agent-plugins",
+  "interface": {
+    "displayName": "Company Agent Plugins"
+  },
+  "plugins": [
+    {
+      "name": "session-hooks",
+      "source": {
+        "source": "local",
+        "path": "./plugins/session-hooks"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "policy-checks",
+      "source": {
+        "source": "local",
+        "path": "./plugins/policy-checks"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
+```
+
+Codex 用户安装时使用：
+
+```bash
+codex plugin marketplace add YOUR_ORG/company-agent-plugins
+codex plugin add session-hooks@company-agent-plugins
+```
+
+也可以写成：
+
+```bash
+codex plugin add session-hooks \
+  --marketplace company-agent-plugins
+```
+
+## 7. 创建双平台插件 manifest
+
+以下以 `session-hooks` 为例。
+
+### 7.1 Claude Code manifest
+
+创建 `plugins/session-hooks/.claude-plugin/plugin.json`：
+
+```json
+{
+  "name": "session-hooks",
+  "version": "0.1.0",
+  "description": "Run company initialization logic when a Claude Code session starts.",
+  "author": {
+    "name": "Company DevTools",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}
+```
+
+Claude Code 的 manifest 在默认目录自动发现模式下可以省略，但双平台、多插件、可发布仓库应显式保留。
+
+### 7.2 Codex manifest
+
+创建 `plugins/session-hooks/.codex-plugin/plugin.json`：
+
+```json
+{
+  "name": "session-hooks",
+  "version": "0.1.0",
+  "description": "Run company initialization logic when a Codex session starts.",
+  "author": {
+    "name": "Company DevTools",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Session Hooks",
+    "shortDescription": "Initialize company agent sessions.",
+    "developerName": "Company DevTools",
+    "category": "Productivity"
+  }
+}
+```
+
+Codex 要求插件包含 `.codex-plugin/plugin.json`。`skills/`、`SKILL.md`、MCP 和 hooks 都是可选组件。对于 hook-only 插件，不需要创建 `SKILL.md`。
+
+## 8. 创建平台独立的 Hook 配置
+
+业务脚本可以共享，但 hook 配置建议分开。
+
+### 8.1 Claude Code hook
+
+创建 `plugins/session-hooks/hooks/claude.json`：
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.mjs\""
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Claude Code 插件目录环境变量：
+
+```text
+CLAUDE_PLUGIN_ROOT
+CLAUDE_PLUGIN_DATA
+```
+
+- `CLAUDE_PLUGIN_ROOT` 指向当前安装版本的插件目录；
+- `CLAUDE_PLUGIN_DATA` 指向插件持久化数据目录。
+
+需要跨插件升级保存的数据应写入 `CLAUDE_PLUGIN_DATA`，不要写入插件安装目录。
+
+### 8.2 Codex hook
+
+创建 `plugins/session-hooks/hooks/codex.json`：
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/session-start.mjs\"",
+            "statusMessage": "Initializing company session"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Codex 插件目录环境变量：
+
+```text
+PLUGIN_ROOT
+PLUGIN_DATA
+```
+
+Codex 还提供 `CLAUDE_PLUGIN_ROOT` 和 `CLAUDE_PLUGIN_DATA` 兼容变量，但新插件应优先使用 Codex 原生变量。参见 [Codex Hooks 官方文档](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)。
+
+Codex 安装或启用插件不会自动信任其中的 hooks。用户必须审查并信任当前 hook 定义后，hook 才会执行。
+
+## 9. 创建共享业务脚本
+
+创建 `plugins/session-hooks/scripts/session-start.mjs`：
+
+```javascript
+let rawInput = "";
+
+for await (const chunk of process.stdin) {
+  rawInput += chunk;
+}
+
+try {
+  JSON.parse(rawInput || "{}");
+} catch (error) {
+  process.stderr.write(
+    `[session-hooks] Invalid hook input: ${error.message}\n`,
+  );
+  process.exit(2);
+}
+
+process.stderr.write("[session-hooks] SessionStart hook completed\n");
+```
+
+这个脚本：
+
+- 同时兼容 Claude Code 和 Codex；
+- 从标准输入读取 hook 事件；
+- 验证输入为 JSON；
+- 不依赖当前工作目录；
+- 不写入插件安装目录；
+- 不输出凭据或完整事件内容。
+
+如果需要持久化数据：
+
+```javascript
+import { mkdir, appendFile } from "node:fs/promises";
+import { join } from "node:path";
+
+const dataDirectory =
+  process.env.PLUGIN_DATA ??
+  process.env.CLAUDE_PLUGIN_DATA;
+
+if (!dataDirectory) {
+  throw new Error("Plugin data directory is unavailable");
+}
+
+await mkdir(dataDirectory, {
+  recursive: true,
+  mode: 0o700,
+});
+
+await appendFile(
+  join(dataDirectory, "events.log"),
+  `${new Date().toISOString()} SessionStart\n`,
+  {
+    encoding: "utf8",
+    mode: 0o600,
+  },
+);
+```
+
+不要把 token、用户 prompt、完整工具参数或环境变量直接写入日志。
+
+## 10. 为第二个插件复用结构
+
+`policy-checks` 使用相同结构：
+
+```text
+plugins/policy-checks/
+├── .claude-plugin/plugin.json
+├── .codex-plugin/plugin.json
+├── hooks/claude.json
+├── hooks/codex.json
+└── scripts/policy-check.mjs
+```
+
+每个插件独立维护：
+
+- 插件名称；
+- 插件版本；
+- 插件说明；
+- 双平台 manifest；
+- 双平台 hook 定义；
+- 测试和发布记录。
+
+## 11. 本地静态验证
+
+先检查所有 JSON：
+
+```bash
+find .claude-plugin .agents/plugins plugins \
+  -type f \
+  -name '*.json' \
+  -print0 |
+while IFS= read -r -d '' file; do
+  echo "Validating $file"
+  jq empty "$file"
+done
+```
+
+检查 JavaScript：
+
+```bash
+for file in plugins/*/scripts/*.mjs; do
+  node --check "$file"
+done
+```
+
+检查两个 manifest 的版本是否一致：
+
+```bash
+for plugin in plugins/*; do
+  claude_version="$(
+    jq -r '.version' "$plugin/.claude-plugin/plugin.json"
+  )"
+
+  codex_version="$(
+    jq -r '.version' "$plugin/.codex-plugin/plugin.json"
+  )"
+
+  if [ "$claude_version" != "$codex_version" ]; then
+    echo "Version mismatch: $plugin"
+    exit 1
+  fi
+done
+```
+
+## 12. Claude Code 验证
+
+验证整个 Marketplace：
+
+```bash
+claude plugin validate --strict .
+```
+
+验证单个插件：
+
+```bash
+for plugin in plugins/*; do
+  claude plugin validate --strict "$plugin"
+done
+```
+
+预期结果：
+
+```text
+✔ Validation passed
+```
+
+本地添加 Marketplace：
+
+```bash
+claude plugin marketplace add .
+```
+
+安装插件：
+
+```bash
+claude plugin install session-hooks@company-agent-plugins
+```
+
+然后启动新 Claude Code 会话，触发 `SessionStart`。
+
+查看已登记的 Marketplace：
+
+```bash
+claude plugin marketplace list --json
+```
+
+## 13. Codex 验证
+
+当前 Codex CLI 没有与 `claude plugin validate` 完全等价的独立 validator，因此需要结合以下检查：
+
+- JSON 静态检查；
+- Marketplace 加载；
+- 插件列表检查；
+- 本地安装；
+- 新会话真实 hook 验证。
+
+添加本地 Marketplace：
+
+```bash
+codex plugin marketplace add . --json
+```
+
+确认 Marketplace：
+
+```bash
+codex plugin marketplace list
+```
+
+确认其中的插件可发现：
+
+```bash
+codex plugin list \
+  --marketplace company-agent-plugins \
+  --available \
+  --json
+```
+
+安装：
+
+```bash
+codex plugin add session-hooks@company-agent-plugins --json
+```
+
+安装后启动一个新的 Codex 会话：
+
+```bash
+codex
+```
+
+审查并信任插件 hook，然后确认 `SessionStart` hook 在调试日志中成功完成。
+
+只看到“插件已安装”不能证明 hook 已执行；必须在新会话中完成实际触发验证。
+
+## 14. 从远程 Git 仓库测试
+
+推送仓库：
+
+```bash
+git add .
+git commit -m "feat: initialize dual-platform plugin marketplace"
+git remote add origin git@github.com:YOUR_ORG/company-agent-plugins.git
+git push -u origin main
+```
+
+Claude Code：
+
+```bash
+claude plugin marketplace add YOUR_ORG/company-agent-plugins
+claude plugin install session-hooks@company-agent-plugins
+```
+
+Codex：
+
+```bash
+codex plugin marketplace add YOUR_ORG/company-agent-plugins
+codex plugin add session-hooks@company-agent-plugins
+```
+
+大型仓库可以使用 sparse checkout。
+
+Claude Code：
+
+```bash
+claude plugin marketplace add YOUR_ORG/company-agent-plugins \
+  --sparse .claude-plugin plugins
+```
+
+Codex：
+
+```bash
+codex plugin marketplace add YOUR_ORG/company-agent-plugins \
+  --sparse .agents/plugins \
+  --sparse plugins
+```
+
+## 15. 插件版本发布与使用者更新
+
+### 15.1 更新链路
+
+插件更新分成四个独立环节：
+
+```text
+发布者生成新版本
+        ↓
+推送到 Marketplace 对应的 Git ref
+        ↓
+使用者刷新 Marketplace
+        ↓
+更新已安装插件并启动新会话验收
+```
+
+只推送代码并不能保证所有使用者立即运行新版本。发布者必须生成可识别的新版本；使用者必须刷新对应 Marketplace，并让插件宿主重新载入安装缓存。
+
+两套平台当前的更新入口不同：
+
+| 平台 | 手动更新入口 | 自动更新 |
+| --- | --- | --- |
+| Claude Code | `claude plugin update` | 可按 Marketplace 开启，启动时刷新 Marketplace 并更新已安装插件 |
+| Codex | `codex plugin marketplace upgrade` | 当前官方仓库 Marketplace 文档没有承诺与 Claude Code 等价的启动时自动更新，应按手动或受管任务执行 |
+
+### 15.2 版本规则
+
+每个插件独立使用语义化版本：
+
+```text
+MAJOR.MINOR.PATCH
+```
+
+例如：
+
+```text
+0.1.0
+0.1.1
+0.2.0
+1.0.0
+```
+
+版本必须同时更新：
+
+```text
+plugins/<name>/.claude-plugin/plugin.json
+plugins/<name>/.codex-plugin/plugin.json
+```
+
+两个 manifest 的 `name` 和 `version` 必须一致：
+
+```json
+{
+  "name": "session-hooks",
+  "version": "0.2.0"
+}
+```
+
+不要在 Marketplace 条目中重复声明插件版本，以免 Marketplace 和两个 manifest 出现三处版本漂移。
+
+Claude Code 按以下优先级解析版本：
+
+1. 插件 `.claude-plugin/plugin.json` 中的 `version`；
+2. Marketplace 插件条目中的 `version`；
+3. 插件 Git source 的 commit SHA。
+
+本文采用显式版本，因此每次发布都必须修改 `.claude-plugin/plugin.json` 的 `version`。如果代码已经推送，但版本仍是旧值，Claude Code 会认为插件没有更新并跳过升级。
+
+Codex 的 `.codex-plugin/plugin.json` 也应同步升级版本。更新完成后通过 `codex plugin list --json` 检查实际 materialized plugin 的版本，不要只检查 Git 仓库内容。
+
+### 15.3 发布者发布新版本
+
+以 `session-hooks` 从 `0.1.0` 升级到 `0.2.0` 为例。
+
+先修改两个 manifest：
+
+```text
+plugins/session-hooks/.claude-plugin/plugin.json
+plugins/session-hooks/.codex-plugin/plugin.json
+```
+
+将两处版本都改为：
+
+```json
+{
+  "version": "0.2.0"
+}
+```
+
+如果只是升级已有插件，不需要修改两个 Marketplace 的 `plugins[]`。只有新增、删除、重命名插件或更改插件 source 时，才需要修改 Marketplace 索引。
+
+发布前检查版本：
+
+```bash
+plugin=plugins/session-hooks
+
+claude_version="$(
+  jq -r '.version' "$plugin/.claude-plugin/plugin.json"
+)"
+
+codex_version="$(
+  jq -r '.version' "$plugin/.codex-plugin/plugin.json"
+)"
+
+test "$claude_version" = "$codex_version"
+test "$claude_version" = "0.2.0"
+```
+
+执行完整验证：
+
+```bash
+claude plugin validate --strict .
+claude plugin validate --strict plugins/session-hooks
+
+node --check \
+  plugins/session-hooks/scripts/session-start.mjs
+```
+
+完成本地双平台安装和真实 hook 回归后，再提交并推送：
+
+```bash
+git add \
+  plugins/session-hooks/.claude-plugin/plugin.json \
+  plugins/session-hooks/.codex-plugin/plugin.json \
+  plugins/session-hooks/hooks \
+  plugins/session-hooks/scripts \
+  plugins/session-hooks/CHANGELOG.md
+
+git commit -m "feat(session-hooks): release 0.2.0"
+git tag session-hooks-v0.2.0
+
+git push origin main
+git push origin session-hooks-v0.2.0
+```
+
+如果仓库没有 `plugins/session-hooks/CHANGELOG.md`，应在首次正式发布前创建。至少记录：
+
+- 版本号和发布日期；
+- 行为变化；
+- 是否修改 hooks；
+- 是否需要重新授权；
+- 破坏性变化和迁移方法；
+- 回滚目标版本或 tag。
+
+推送后确认远端分支和 tag 已包含新版本：
+
+```bash
+git ls-remote origin \
+  refs/heads/main \
+  refs/tags/session-hooks-v0.2.0
+```
+
+### 15.4 Git ref 与发布通道
+
+使用者只能更新到其 Marketplace source 所跟踪的 ref。
+
+例如，使用者通过以下命令添加 Marketplace：
+
+```bash
+codex plugin marketplace add \
+  YOUR_ORG/company-agent-plugins \
+  --ref main
+```
+
+那么 `marketplace upgrade` 会刷新 `main`。如果 Marketplace 固定在不会移动的 tag 或 SHA，发布新 tag 后，原有使用者不会自动切换到新 tag。
+
+生产环境建议使用可移动的稳定分支：
+
+```text
+main      日常开发或 latest
+stable    已验收的生产版本
+```
+
+发布流程可以先更新 `main`，完成回归后再将 `stable` 快进到相同提交。不要强制改写共享发布分支。
+
+### 15.5 Claude Code 使用者手动更新
+
+先刷新 Marketplace 索引：
+
+```bash
+claude plugin marketplace update company-agent-plugins
+```
+
+再更新指定插件：
+
+```bash
+claude plugin update \
+  session-hooks@company-agent-plugins
+```
+
+如果要更新多个插件，逐个执行：
+
+```bash
+for plugin in session-hooks policy-checks; do
+  claude plugin update \
+    "$plugin@company-agent-plugins"
+done
+```
+
+检查安装结果：
+
+```bash
+claude plugin list --json |
+jq '.[] | select(
+  .name == "session-hooks" and
+  .marketplace == "company-agent-plugins"
+)'
+```
+
+不同 Claude Code 版本的 JSON 字段可能变化。如果过滤结果为空，先执行以下命令查看真实输出结构：
+
+```bash
+claude plugin list --json | jq .
+```
+
+更新完成后：
+
+1. 如果 Claude Code 提示运行 `/reload-plugins`，按提示执行；
+2. 对 hooks、MCP、LSP 或后台进程的变更，结束旧会话并启动新会话；
+3. 重新触发受影响的 hook；
+4. 确认新版本行为和日志；
+5. 如果 hook 定义发生变化，重新审查其命令和权限。
+
+更新发生在会话中途时，已经启动的 hook、monitor、MCP server 或 LSP server 可能继续使用旧版本目录。新会话验收是正式更新流程的一部分。
+
+### 15.6 Claude Code 自动更新
+
+Claude Code 可以按 Marketplace 开启自动更新。启用后，Claude Code 在启动时刷新该 Marketplace，并更新其中已经安装的插件。
+
+启用方法：
+
+1. 在 Claude Code 中运行 `/plugin`；
+2. 打开 `Marketplaces`；
+3. 选择 `company-agent-plugins`；
+4. 选择 `Enable auto-update`。
+
+第三方和本地开发 Marketplace 默认通常不会开启自动更新，需要使用者或管理员显式启用。更新完成后，如果出现 `/reload-plugins` 提示，应执行 reload 或启动新会话。
+
+团队也可以在 `.claude/settings.json` 中声明 Marketplace 并开启自动更新：
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "company-agent-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "YOUR_ORG/company-agent-plugins"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "session-hooks@company-agent-plugins": true
+  }
+}
+```
+
+私有仓库的后台自动更新不能弹出交互式 Git 凭据提示。应通过受控环境变量提供只读 token，例如 GitHub 的 `GITHUB_TOKEN` 或 `GH_TOKEN`、GitLab 的 `GITLAB_TOKEN` 或 `GL_TOKEN`。不要把 token 写进仓库或 Marketplace 文件。
+
+### 15.7 Codex 使用者更新
+
+Codex CLI 当前没有单独的 `codex plugin update <plugin>` 命令。Git Marketplace 的更新入口是：
+
+```bash
+codex plugin marketplace upgrade \
+  company-agent-plugins \
+  --json
+```
+
+这个命令刷新已配置的 Git Marketplace snapshot。当前 Codex CLI 还会刷新该 Marketplace 对应的已安装插件缓存。
+
+检查 Marketplace 和已安装插件：
+
+```bash
+codex plugin marketplace list
+
+codex plugin list \
+  --marketplace company-agent-plugins \
+  --available \
+  --json |
+jq .
+```
+
+应检查以下事实：
+
+- Marketplace 已解析到新的 Git commit；
+- `session-hooks` 仍处于 installed/enabled 状态；
+- 本地物化版本已经是 `0.2.0`；
+- 没有 marketplace load error；
+- 新插件目录中包含预期的 hooks 和 scripts。
+
+然后完全退出旧 Codex 会话并启动新会话：
+
+```bash
+codex
+```
+
+如果新版本修改了 hook 定义，原来的信任记录不应被当成对新定义的授权。重新核对命令、脚本路径和权限后，再信任当前 hook。
+
+当前官方文档没有承诺 repo Marketplace 会像 Claude Code 一样在每次启动时自动更新。团队如果要求强制及时更新，应通过登录脚本、设备管理或受控运维任务定期执行：
+
+```bash
+codex plugin marketplace upgrade company-agent-plugins
+```
+
+该任务应记录退出码和输出；失败时保留旧版本，不要静默删除再安装。
+
+### 15.8 更新通知模板
+
+发布者完成远端验证后，应向使用者发送包含版本和命令的通知。例如：
+
+```text
+session-hooks 0.2.0 已发布。
+
+主要变化：
+- SessionStart 增加工作区策略检查；
+- hook 定义已变化，需要重新审查；
+- 最低 Node.js 版本仍为 20。
+
+Claude Code：
+claude plugin marketplace update company-agent-plugins
+claude plugin update session-hooks@company-agent-plugins
+
+Codex：
+codex plugin marketplace upgrade company-agent-plugins
+
+更新后请启动新会话并确认版本为 0.2.0。
+回滚版本：session-hooks-v0.1.0
+```
+
+通知中不要只写“请更新最新版”。必须提供：
+
+- 插件名称和目标版本；
+- 变更摘要；
+- 是否涉及 hook 权限变化；
+- 两个平台的准确命令；
+- 更新后验收方法；
+- 回滚版本。
+
+### 15.9 更新验收
+
+一次更新只有同时满足以下条件才算完成：
+
+- 远端目标 ref 包含新版本；
+- Claude Code 的已安装版本已更新；
+- Codex 的已物化插件版本已更新；
+- 两个平台都已启动新会话；
+- 修改过的 hook 已重新审查；
+- 真实事件能够触发新 hook；
+- hook 返回预期退出码；
+- 持久化数据仍位于 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA`；
+- 旧版本仍有明确回滚 tag。
+
+不要用以下证据单独判定更新成功：
+
+- Git push 成功；
+- Marketplace refresh 命令退出为零；
+- 插件列表中仍能看到插件名称；
+- 旧会话中的 hook 仍然可以运行。
+
+### 15.10 更新失败与回滚
+
+更新失败时先记录：
+
+```bash
+claude plugin list --json
+codex plugin marketplace list
+codex plugin list --available --json
+```
+
+检查使用者跟踪的 Marketplace source、ref、远端 commit、双 manifest 版本和 Marketplace load error。
+
+不要首先删除插件。删除可能同时移除缓存、持久化数据或本地启用状态。只有确认刷新和版本解析无法恢复后，才在备份配置和插件数据的前提下执行卸载、重新安装。
+
+回滚应将稳定发布 ref 指回已验收提交，或者发布一个版本号更高的修复版本。对于已经广泛分发的版本，推荐发布新的补丁版本，而不是复用旧版本号或强制改写 tag。
+
+## 16. 添加新插件
+
+新增插件 `audit-hooks` 时：
+
+```bash
+mkdir -p plugins/audit-hooks/.claude-plugin
+mkdir -p plugins/audit-hooks/.codex-plugin
+mkdir -p plugins/audit-hooks/hooks
+mkdir -p plugins/audit-hooks/scripts
+```
+
+然后：
+
+1. 创建 Claude Code manifest。
+2. 创建 Codex manifest。
+3. 创建 `hooks/claude.json`。
+4. 创建 `hooks/codex.json`。
+5. 创建业务脚本。
+6. 在 `.claude-plugin/marketplace.json` 中添加条目。
+7. 在 `.agents/plugins/marketplace.json` 中添加条目。
+8. 运行双平台验证。
+9. 分别安装并做真实会话测试。
+
+同一个 Marketplace 内不能出现重名插件。
+
+## 17. CI 示例
+
+创建 `.github/workflows/validate-plugins.yml`：
+
+```yaml
+name: Validate plugins
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    env:
+      # Replace with organization-approved versions.
+      CLAUDE_CODE_VERSION: "2.1.170"
+      CODEX_VERSION: "0.146.0"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install plugin hosts
+        run: |
+          npm install --global \
+            "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
+            "@openai/codex@${CODEX_VERSION}"
+
+      - name: Validate JSON
+        shell: bash
+        run: |
+          find .claude-plugin .agents/plugins plugins \
+            -type f \
+            -name '*.json' \
+            -print0 |
+          while IFS= read -r -d '' file; do
+            echo "Validating ${file}"
+            jq empty "${file}"
+          done
+
+      - name: Check scripts
+        shell: bash
+        run: |
+          for file in plugins/*/scripts/*.mjs; do
+            node --check "${file}"
+          done
+
+      - name: Check manifest versions
+        shell: bash
+        run: |
+          for plugin in plugins/*; do
+            claude_version="$(
+              jq -r '.version' \
+                "${plugin}/.claude-plugin/plugin.json"
+            )"
+
+            codex_version="$(
+              jq -r '.version' \
+                "${plugin}/.codex-plugin/plugin.json"
+            )"
+
+            test "${claude_version}" = "${codex_version}"
+          done
+
+      - name: Validate Claude marketplace
+        run: claude plugin validate --strict .
+
+      - name: Validate Claude plugins
+        shell: bash
+        run: |
+          for plugin in plugins/*; do
+            claude plugin validate --strict "${plugin}"
+          done
+
+      - name: Load Codex marketplace
+        shell: bash
+        run: |
+          export CODEX_HOME="${RUNNER_TEMP}/codex-home"
+          mkdir -p "${CODEX_HOME}"
+
+          codex plugin marketplace add . --json
+
+          codex plugin list \
+            --marketplace company-agent-plugins \
+            --available \
+            --json |
+          jq .
+```
+
+CI 可以证明：
+
+- JSON 和 manifest 可解析；
+- Claude validator 通过；
+- Codex 能加载 Marketplace；
+- 脚本没有基础语法错误。
+
+CI 不能替代真实 hook 验收。发布前还应分别启动 Claude Code 和 Codex 新会话，确认 hook 被信任、触发并正确退出。
+
+## 18. 安全要求
+
+每个 hook/plugin 合并前必须检查：
+
+- Hook 运行的命令是否完全可见；
+- 是否使用插件根目录环境变量定位文件；
+- 是否验证标准输入；
+- 是否限制文件读写范围；
+- 是否会向网络发送数据；
+- 是否打印 token、prompt、环境变量或工具参数；
+- 是否在 hook 执行期间安装依赖；
+- 是否依赖当前工作目录；
+- 是否支持目标操作系统；
+- 是否有超时、错误码和恢复路径。
+
+执行约束：
+
+- Hook 只做确定性、短时操作；
+- 不在 hook 中执行交互命令；
+- 不在 hook 中运行 `npm install`、`curl | sh` 等动态安装；
+- 不写入插件安装目录；
+- 持久化状态写入 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA`；
+- macOS/Linux、Windows 专用命令分别维护；
+- 插件更新后重新审查 hook；
+- 私有插件仓库使用最小化 Git 读取权限。
+
+## 19. 验收标准
+
+仓库初始化完成必须同时满足：
+
+- `.claude-plugin/marketplace.json` 可解析；
+- `.agents/plugins/marketplace.json` 可解析；
+- 两个 Marketplace 中插件名称和数量一致；
+- 每个插件有独立目录；
+- 每个插件有 Claude Code manifest；
+- 每个插件有 Codex manifest；
+- 双 manifest 名称和版本一致；
+- hook 配置不混用平台专属字段；
+- scripts 不引用插件目录外文件；
+- `claude plugin validate --strict .` 通过；
+- Codex 能加载本地 Marketplace；
+- 两个平台都能独立安装目标插件；
+- 两个平台的新会话都真实触发 hook；
+- 更新插件后可通过 Marketplace 获取新版本。
+
+## 20. 官方资料
+
+- [Claude Code：创建插件](https://code.claude.com/docs/en/plugins)
+- [Claude Code：插件参考](https://code.claude.com/docs/en/plugins-reference)
+- [Claude Code：创建和发布 Marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
+- [Claude Code：发现、安装与自动更新插件](https://code.claude.com/docs/en/discover-plugins)
+- [Codex：插件概览](https://learn.chatgpt.com/docs/plugins)
+- [Codex：打包插件](https://developers.openai.com/plugins/build/plugins)
+- [Codex：Lifecycle Hooks](https://learn.chatgpt.com/docs/hooks)

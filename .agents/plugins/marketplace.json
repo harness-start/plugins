@@ -1,0 +1,7 @@
+{
+  "name": "company-agent-plugins",
+  "interface": {
+    "displayName": "Company Agent Plugins"
+  },
+  "plugins": []
+}
