@@ -95,14 +95,16 @@ See `GUIDE.md` section 16. Register the plugin in both:
 
 ## Host acceptance (Claude Code + Codex on DeepSeek)
 
-Local Docker/host runner exercises **real** Claude Code and Codex sessions with
-`DEEPSEEK_MODEL` (default `deepseek-v4-flash`) from `.env`:
+**Live acceptance is Docker-only** (`docker/host-acceptance`). From the host,
+`./scripts/acceptance/run.sh` always builds/runs that image for smoke and live
+cases (Claude + Codex). Unit tests and the honesty gate may still run on the
+host. Requires `.env` with `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL=deepseek-v4-flash`:
 
 ```bash
-./scripts/acceptance/run.sh --smoke
-./scripts/acceptance/run.sh                 # all plugins × claude+codex
-./scripts/acceptance/run.sh --plugin php-runtime-guards
-./scripts/acceptance/run.sh --docker        # optional containerized hosts
+./scripts/acceptance/run.sh --smoke                         # DeepSeek smoke (Docker)
+./scripts/acceptance/run.sh                                 # all plugins × claude+codex (Docker)
+./scripts/acceptance/run.sh --plugin php-runtime-guards     # one plugin (Docker)
+./scripts/acceptance/run.sh --honesty-only                  # inert expect gate only (no Docker)
 ```
 
 See [docs/host-acceptance.md](docs/host-acceptance.md).

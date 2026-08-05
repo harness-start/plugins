@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
-# Local host-acceptance runner for harness-start plugins.
+# Host-acceptance runner for harness-start plugins.
 #
-# Drives real Claude Code and/or Codex non-interactive sessions against
-# DeepSeek V4 Flash (DEEPSEEK_API_KEY + DEEPSEEK_MODEL from repo .env).
+# Live Claude Code / Codex sessions (DeepSeek V4 Flash) are Docker-only.
+# From the host, this script always builds and runs docker/host-acceptance.
+# Inside the image (ACCEPT_IN_CONTAINER=1), it executes cases directly.
 #
-# Usage:
-#   ./scripts/acceptance/run.sh                          # all plugins, both hosts
+# Usage (from repo root on the host):
+#   ./scripts/acceptance/run.sh                          # all plugins × both hosts (Docker)
 #   ./scripts/acceptance/run.sh --plugin php-runtime-guards
-#   ./scripts/acceptance/run.sh --plugin php-runtime-guards --case 01-deny-repositories
-#   ./scripts/acceptance/run.sh --host claude
-#   ./scripts/acceptance/run.sh --docker                 # run inside host-acceptance image
-#   ./scripts/acceptance/run.sh --smoke                  # host DeepSeek smoke only
+#   ./scripts/acceptance/run.sh --plugin php-runtime-guards --case 01-deny-repositories --host claude
+#   ./scripts/acceptance/run.sh --smoke                  # DeepSeek smoke (Docker)
+#   ./scripts/acceptance/run.sh --honesty-only           # inert expect gate only (no Docker, no API)
+#   ./scripts/acceptance/run.sh --docker                 # accepted alias; Docker is already required
 #
 set -euo pipefail
 
@@ -29,7 +30,7 @@ HONESTY_ONLY=0
 OUT_DIR="${ACCEPT_OUT_DIR:-${REPO_ROOT}/.acceptance-runs/latest}"
 
 usage() {
-  sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -58,6 +59,17 @@ log() {
   printf '%s\n' "$*" | tee -a "${REPORT}"
 }
 
+in_acceptance_container() {
+  if [ "${ACCEPT_IN_CONTAINER:-0}" = "1" ]; then
+    return 0
+  fi
+  # Fallback when entrypoint env is missing but we are still in the image.
+  if [ -f /.dockerenv ] && [ -f /opt/acceptance/entrypoint.sh ]; then
+    return 0
+  fi
+  return 1
+}
+
 if [ "${HONESTY_ONLY}" -eq 1 ]; then
   bash "${SCRIPT_DIR}/check-expect-honesty.sh" "${OUT_DIR}/honesty" | tee "${OUT_DIR}/honesty-gate.log"
   exit $?
@@ -73,14 +85,25 @@ if [ "${SKIP_HONESTY}" -ne 1 ] && [ "${SMOKE_ONLY}" -ne 1 ]; then
   log "Honesty gate passed"
 fi
 
+# Live smoke/suites: never invoke claude/codex on the host.
+# Always wrap Docker unless we are already inside the acceptance image.
+if ! in_acceptance_container; then
+  USE_DOCKER=1
+fi
+
 if [ "${USE_DOCKER}" -eq 1 ]; then
+  if in_acceptance_container; then
+    printf 'error: nested Docker wrap inside acceptance container is not allowed\n' >&2
+    exit 2
+  fi
   require_cmd docker
   IMAGE="${ACCEPT_IMAGE:-harness-host-acceptance:local}"
+  log "Live host acceptance is Docker-only; building/running ${IMAGE}"
   docker build \
     -t "${IMAGE}" \
     -f "${REPO_ROOT}/docker/host-acceptance/Dockerfile" \
     "${REPO_ROOT}/docker/host-acceptance"
-  # Re-invoke this script inside the container without --docker
+  # Re-invoke this script inside the container (entrypoint sets ACCEPT_IN_CONTAINER=1)
   args=(--skip-honesty)
   [ -n "${PLUGIN_FILTER}" ] && args+=(--plugin "${PLUGIN_FILTER}")
   [ -n "${CASE_FILTER}" ] && args+=(--case "${CASE_FILTER}")
@@ -90,6 +113,7 @@ if [ "${USE_DOCKER}" -eq 1 ]; then
     -e DEEPSEEK_API_KEY \
     -e DEEPSEEK_MODEL \
     -e ACCEPT_OUT_DIR=/out \
+    -e ACCEPT_IN_CONTAINER=1 \
     -v "${REPO_ROOT}:/marketplace:ro" \
     -v "${OUT_DIR}:/out" \
     -w /marketplace \

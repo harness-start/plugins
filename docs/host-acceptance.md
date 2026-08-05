@@ -8,10 +8,26 @@ with the plugin installed, and assert **post-session world state / host logs**.
 
 This is **not** unit-testing hook scripts via stdin.
 
+## Policy: Docker only
+
+**Live host acceptance (Claude / Codex sessions) must run inside the
+`docker/host-acceptance` image.** There is no supported host-side path that
+invokes `claude` / `codex` for these suites.
+
+| Layer | Where | Command |
+| --- | --- | --- |
+| Unit tests (`node:test`) | Host | `node --test plugins/*/tests/*.mjs` |
+| Expect honesty gate (no API) | Host or container | `./scripts/acceptance/run.sh --honesty-only` |
+| Live Claude + Codex suites | **Docker only** | `./scripts/acceptance/run.sh` (auto-wraps Docker) |
+
+On the host, `./scripts/acceptance/run.sh` always builds/runs the acceptance
+image for smoke and live cases. Inside the container, the same script runs the
+cases directly (entrypoint sets `ACCEPT_IN_CONTAINER=1`).
+
 ## Prerequisites
 
-- Node 20+, `claude`, `codex` (or Docker)
-- Repo `.env`:
+- Docker
+- Repo `.env` (not committed):
 
 ```bash
 DEEPSEEK_API_KEY=sk-...
@@ -20,33 +36,69 @@ DEEPSEEK_MODEL=deepseek-v4-flash
 
 Only `deepseek-v4-flash` is supported for dual-host acceptance.
 
-## Run locally (hosts on PATH)
+## Run (always via Docker for live)
+
+From the repo root:
 
 ```bash
-# smoke both hosts against DeepSeek
+# smoke both hosts against DeepSeek (container)
 ./scripts/acceptance/run.sh --smoke
 
-# one plugin
+# one plugin (container)
 ./scripts/acceptance/run.sh --plugin php-runtime-guards
 
-# one case / one host
-./scripts/acceptance/run.sh --plugin php-runtime-guards --case 01-deny-repositories --host claude
+# one case / one host (container)
+./scripts/acceptance/run.sh \
+  --plugin php-runtime-guards \
+  --case 01-deny-repositories \
+  --host claude
 
-# everything
+# full marketplace suite (container)
 ./scripts/acceptance/run.sh
+
+# optional: custom image tag / out dir
+ACCEPT_IMAGE=harness-host-acceptance:local \
+  ./scripts/acceptance/run.sh --out .acceptance-runs/my-run --plugin typescript-runtime-guards
 ```
 
-Artifacts land in `.acceptance-runs/latest/` (gitignored): per-case workspace
-copies, `host.log`, `status.txt`, plus `summary.txt` and `acceptance-all.log`.
+`--docker` is accepted for clarity but is **redundant** on the host: live runs
+always use the container. Nested `--docker` inside the image is rejected.
 
-## Run via Docker
+Honesty only (no Docker required; no API):
 
 ```bash
-./scripts/acceptance/run.sh --docker
-./scripts/acceptance/run.sh --docker --plugin php-runtime-guards
+./scripts/acceptance/run.sh --honesty-only
+# or
+./scripts/acceptance/check-expect-honesty.sh
 ```
 
-Image: `docker/host-acceptance/Dockerfile` (Claude + Codex + node + php + jq).
+## Artifacts
+
+Default out dir: `.acceptance-runs/latest/` (gitignored), bind-mounted into the
+container as `/out`:
+
+| Path | Meaning |
+| --- | --- |
+| `summary.txt` | `PASS/FAIL plugin/case/host` lines |
+| `acceptance-all.log` | Combined log |
+| `<plugin>__<case>__<host>/host.log` | Host session log |
+| `.../status.txt` | `RESULT=PASS` etc. |
+| `.../workspace/` | Post-session workspace copy |
+
+## Image
+
+- Dockerfile: `docker/host-acceptance/Dockerfile`
+- Pins Claude Code + Codex, Node 20, git, jq, php-cli, composer
+- Entrypoint: `docker/host-acceptance/entrypoint.sh` → `scripts/acceptance/run.sh`
+- Models: `docker/host-acceptance/models.json` (Codex DeepSeek provider)
+
+Build is invoked automatically by `run.sh` when launching from the host:
+
+```bash
+docker build -t harness-host-acceptance:local \
+  -f docker/host-acceptance/Dockerfile \
+  docker/host-acceptance
+```
 
 ## Case layout
 
@@ -68,7 +120,7 @@ Environment for `expect.sh`:
 | `ACCEPT_PLUGIN` | Plugin name |
 | `HOME` / `PLUGIN_DATA` / `CLAUDE_PLUGIN_DATA` | Isolated per case |
 
-## Host configuration
+## Host configuration (inside the image)
 
 - **Claude**: `ANTHROPIC_BASE_URL=https://api.deepseek.com/anthropic`,
   `ANTHROPIC_AUTH_TOKEN=$DEEPSEEK_API_KEY`, all model aliases → `DEEPSEEK_MODEL`,
@@ -82,10 +134,12 @@ Environment for `expect.sh`:
 1. Add `cases/<id>/` with workspace + prompt + expect.
 2. Prefer hard evidence (file present/absent, grep of guard strings in log).
 3. Keep prompts short and single-purpose so the agent attempts the inducing tool call.
+4. Verify with `./scripts/acceptance/run.sh --plugin <name> --case <id>` (Docker).
 
 ## Expect honesty gate
 
-Before live host sessions, `./scripts/acceptance/run.sh` runs:
+Before live host sessions, `./scripts/acceptance/run.sh` runs on the **host**
+(no API):
 
 ```bash
 ./scripts/acceptance/check-expect-honesty.sh
