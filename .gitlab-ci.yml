@@ -14,7 +14,7 @@ variables:
   # Keep in sync with .github/workflows/validate-plugins.yml
   CLAUDE_CODE_VERSION: "2.1.170"
   CODEX_VERSION: "0.146.0"
-  MARKETPLACE_NAME: "company-agent-plugins"
+  MARKETPLACE_NAME: "harness-start"
   # Codex needs a writable home outside the read-only CI workdir patterns.
   CODEX_HOME: "${CI_PROJECT_DIR}/.ci-codex-home"
   npm_config_cache: "${CI_PROJECT_DIR}/.npm"

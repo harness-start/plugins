@@ -1,8 +1,8 @@
 {
-  "name": "company-agent-plugins",
-  "description": "Company-maintained plugins for Claude Code and Codex.",
+  "name": "harness-start",
+  "description": "Harness Start plugins for Claude Code and Codex.",
   "owner": {
-    "name": "Company DevTools",
+    "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "plugins": [

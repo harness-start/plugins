@@ -1,6 +1,8 @@
-# company-agent-plugins
+# harness-start
 
-Company-maintained dual-platform plugin marketplace for **Claude Code** and **Codex**.
+Marketplace id: `harness-start` · Display name: **Harness Start**
+
+Harness Start dual-platform plugin marketplace for **Claude Code** and **Codex**.
 
 Both hosts share plugin business scripts. Marketplace indexes, plugin manifests, and hook configs are maintained separately because field names, environment variables, and lifecycle events differ across platforms.
 
@@ -53,15 +55,15 @@ SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```bash
 claude plugin validate --strict .
 claude plugin marketplace add "$(pwd)"
-# claude plugin install <plugin-name>@company-agent-plugins
+# claude plugin install <plugin-name>@harness-start
 ```
 
 ## Codex
 
 ```bash
 codex plugin marketplace add . --json
-codex plugin list --marketplace company-agent-plugins --available --json
-# codex plugin add <plugin-name>@company-agent-plugins --json
+codex plugin list --marketplace harness-start --available --json
+# codex plugin add <plugin-name>@harness-start --json
 ```
 
 Codex does not auto-trust plugin hooks. Review and trust hook definitions before they run. Install success alone does not prove hooks executed; start a new session and verify.

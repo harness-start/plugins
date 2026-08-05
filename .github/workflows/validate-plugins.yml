@@ -17,7 +17,7 @@ jobs:
       # Keep in sync with .gitlab-ci.yml
       CLAUDE_CODE_VERSION: "2.1.170"
       CODEX_VERSION: "0.146.0"
-      MARKETPLACE_NAME: company-agent-plugins
+      MARKETPLACE_NAME: harness-start
 
     steps:
       - name: Checkout

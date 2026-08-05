@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Ratchet-enforced file line budget guard: prevents source files from exceeding per-language line limits after Edit or Write operations.",
   "author": {
-    "name": "Company DevTools",
+    "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "hooks": "./hooks/claude.json"
