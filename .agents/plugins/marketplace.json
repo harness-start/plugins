@@ -87,6 +87,66 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "typescript-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/typescript-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "python-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/python-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "go-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/go-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "rust-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/rust-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "jvm-runtime-guards",
+      "source": {
+        "source": "local",
+        "path": "./plugins/jvm-runtime-guards"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }
