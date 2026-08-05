@@ -14,6 +14,10 @@
 | `php-runtime-guards` | Codex | 0.1.0 | PostToolUse 触发 | ✅ **部分通过**：hook 进程在每次 Bash 工具事件后被调用（探针确认）；Codex exec 模式以 Bash+apply_patch 写文件，`patchTargetPaths` 解析目标后检查可运行（单元测试覆盖）；report 注入模型上下文无法在 exec 模式输出中直接断言 | 事件探针 dump（tool_name=Bash）+ 61 个单元测试 | 无持久化 | `php-runtime-guards-v0.1.0` |
 | `symfony-runtime-guards` | Claude | 0.1.0 | PreToolUse deny / PostToolUse report | ⏳ **待验收**：本机 Claude OAuth 过期；需登录后开新会话补验 | `claude plugin validate --strict plugins/symfony-runtime-guards` | 无持久化 | `symfony-runtime-guards-v0.1.0` |
 | `symfony-runtime-guards` | Codex | 0.1.0 | PreToolUse deny / PostToolUse report | ⏳ **待验收**：逻辑与 php-runtime-guards 同构（deny 输出 + report 合并），Codex hook 装载机制已验证；待开新会话补验 Symfony 规则触发 | 16 个单元测试 | 无持久化 | `symfony-runtime-guards-v0.1.0` |
+| `laravel-runtime-guards` | Claude | 0.1.0 | UserPromptSubmit 注入 | ⏳ **待验收**：Claude OAuth 过期；登录后开新会话触发 Laravel prompt 验证注入与冷却 | 7 个单元测试 | `~/.harness-start/hook-state`（冷却状态） | `laravel-runtime-guards-v0.1.0` |
+| `laravel-runtime-guards` | Codex | 0.1.0 | UserPromptSubmit 注入 | ⏳ **待验收**：机制与 php-runtime-guards 同（hook 装载已验证）；待开新会话触发验证 | 7 个单元测试 | 同上 | `laravel-runtime-guards-v0.1.0` |
+| `thinkphp-runtime-guards` | 双平台 | 0.1.0 | UserPromptSubmit 注入 | ⏳ **待验收**：同 laravel | 7 个单元测试 | 同上 | `thinkphp-runtime-guards-v0.1.0` |
+| `webman-runtime-guards` | 双平台 | 0.1.0 | UserPromptSubmit 注入 | ⏳ **待验收**：同 laravel | 7 个单元测试 | 同上 | `webman-runtime-guards-v0.1.0` |
 
 ## 说明
 

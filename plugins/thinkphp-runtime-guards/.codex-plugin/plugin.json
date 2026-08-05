@@ -1,0 +1,16 @@
+{
+  "name": "thinkphp-runtime-guards",
+  "version": "0.1.0",
+  "description": "ThinkPHP env detector: framework version and legacy/modern layout — injected once per session on ThinkPHP/FastAdmin-signaled prompts.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "ThinkPHP Runtime Guards",
+    "shortDescription": "thinkphp project env detection on prompt.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

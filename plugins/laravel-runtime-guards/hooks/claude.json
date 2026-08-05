@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "laravel|Laravel|artisan|Artisan|composer\\.json|blade|Blade|pest|Pest",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/laravel-hook-user-prompt.mjs\"",
+            "statusMessage": "env detection",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
