@@ -1,0 +1,16 @@
+{
+  "name": "php-runtime-guards",
+  "version": "0.1.0",
+  "description": "PHP runtime guards: composer.json policy (repositories key, Chinese unicode escapes, lockfile writes), protected generated paths, test output truncation, php -l / composer validate syntax, encoding, net-new debt and debug statements.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "PHP Runtime Guards",
+    "shortDescription": "PHP runtime guards: composer policy, protected paths, syntax, encoding, debt.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

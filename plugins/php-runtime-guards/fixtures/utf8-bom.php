@@ -1,0 +1,2 @@
+﻿<?php
+// BOM file
