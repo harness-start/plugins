@@ -1,0 +1,16 @@
+{
+  "name": "webman-runtime-guards",
+  "version": "0.1.0",
+  "description": "Webman env detector: framework/Workerman versions, webman extensions, key dependencies — injected once per session on Webman-signaled prompts.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Webman Runtime Guards",
+    "shortDescription": "webman project env detection on prompt.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

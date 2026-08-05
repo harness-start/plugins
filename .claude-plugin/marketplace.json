@@ -25,6 +25,21 @@
       "name": "process-confidence",
       "source": "./plugins/process-confidence",
       "description": "Observable delivery process: validated session begin, hook receipts, auto complete, Stop gate (hooks never auto-begin)."
+    },
+    {
+      "name": "laravel-runtime-guards",
+      "source": "./plugins/laravel-runtime-guards",
+      "description": "Laravel env detector: framework version, key packages (Sanctum/Horizon/Nova/Octane/Livewire/Inertia), testing framework, APP_ENV — injected once per session on Laravel-signaled prompts."
+    },
+    {
+      "name": "thinkphp-runtime-guards",
+      "source": "./plugins/thinkphp-runtime-guards",
+      "description": "ThinkPHP env detector: framework version and legacy/modern layout — injected once per session on ThinkPHP/FastAdmin-signaled prompts."
+    },
+    {
+      "name": "webman-runtime-guards",
+      "source": "./plugins/webman-runtime-guards",
+      "description": "Webman env detector: framework/Workerman versions, webman extensions, key dependencies — injected once per session on Webman-signaled prompts."
     }
   ]
 }

@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "webman|Webman|workerman|Workerman",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/webman-hook-user-prompt.mjs\"",
+            "statusMessage": "env detection",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
