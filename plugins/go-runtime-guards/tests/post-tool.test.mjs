@@ -7,13 +7,13 @@ import { collectDebtFindings, formatDebtReport } from "../scripts/checks/debt.mj
 import * as encoding from "../scripts/checks/encoding.mjs";
 
 test("encoding matches language extensions", () => {
-  assert.equal(encoding.matches(`a.go`), true);
+  assert.equal(encoding.matches("a.go"), true);
   assert.equal(encoding.matches("a.md"), false);
 });
 
 test("encoding detects UTF-8 BOM", () => {
   const dir = mkdtempSync(join(tmpdir(), "go-enc-"));
-  const file = join(dir, `x.go`);
+  const file = join(dir, "x.go");
   try {
     writeFileSync(file, Buffer.from([0xef, 0xbb, 0xbf, 0x61, 0x0a]));
     const issues = encoding.check(file);
@@ -23,25 +23,36 @@ test("encoding detects UTF-8 BOM", () => {
   }
 });
 
-test("debt finds net-new pattern without baseline", () => {
+test("debt finds net-new nolint without baseline", () => {
   const dir = mkdtempSync(join(tmpdir(), "go-debt-"));
-  const file = join(dir, `x.go`);
+  const file = join(dir, "svc.go");
   try {
-    // Use first pattern-ish content generically: empty catch style may not match all langs
-    // Write a file and use Write content for pair when old_string absent
-    const content = "func f() {\\n\\t// nolint\\n}\\n";
+    const content = "package svc\n\nfunc f() {\n\t// nolint\n}\n";
     writeFileSync(file, content);
-    const findings = collectDebtFindings(
-      { file_path: file, content },
-      file,
+    const findings = collectDebtFindings({ file_path: file, content }, file);
+    assert.ok(findings.length >= 1, `expected nolint findings, got ${JSON.stringify(findings)}`);
+    assert.ok(
+      findings.some((f) => /nolint/i.test(f.label)),
+      `expected nolint label, got ${findings.map((f) => f.label).join(",")}`,
     );
-    // fail-open suite: at least formatReport works when findings non-empty
-    if (findings.length > 0) {
-      const report = formatDebtReport(file, findings);
-      assert.match(report, /Debt Guard/);
-    } else {
-      assert.ok(true);
-    }
+    const report = formatDebtReport(file, findings);
+    assert.match(report, /Go Debt Guard/);
+    assert.match(report, /nolint/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("debt finds panic without justification", () => {
+  const dir = mkdtempSync(join(tmpdir(), "go-panic-"));
+  const file = join(dir, "handler.go");
+  try {
+    const content = "package h\n\nfunc Must() {\n\tpanic(\"boom\")\n}\n";
+    writeFileSync(file, content);
+    const findings = collectDebtFindings({ file_path: file, content }, file);
+    assert.ok(findings.length >= 1, `expected panic findings, got ${JSON.stringify(findings)}`);
+    const report = formatDebtReport(file, findings);
+    assert.match(report, /Debt Guard/);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
