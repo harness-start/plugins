@@ -31,11 +31,8 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | Plugin | Description |
 | --- | --- |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
-| `laravel-runtime-guards` | Laravel env detector: framework version, key packages, APP_ENV (once per session) |
 | `php-runtime-guards` | PHP runtime guards: composer.json policy, protected paths, syntax, encoding, net-new debt/debug |
 | `symfony-runtime-guards` | Symfony guards: protected generated paths, Doctrine entity heuristics, Twig syntax |
-| `thinkphp-runtime-guards` | ThinkPHP env detector: framework version, legacy/modern layout (once per session) |
-| `webman-runtime-guards` | Webman env detector: framework/Workerman versions, extensions, key deps (once per session) |
 | `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |
 
 ## Prerequisites
