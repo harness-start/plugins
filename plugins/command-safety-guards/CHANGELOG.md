@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.5.0] - 2026-08-07
+
+### Changed
+
+- Moved SQL BOM and invalid UTF-8 enforcement to the dedicated `encoding-guard` plugin.
+- Kept the PostToolUse file-safety engine focused on TLS bypass and direct PII logging reports.
+
 ## [0.4.0] - 2026-08-06
 
 ### Added

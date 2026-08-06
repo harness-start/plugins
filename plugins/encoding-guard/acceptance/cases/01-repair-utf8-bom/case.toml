@@ -1,0 +1,4 @@
+id = "01-repair-utf8-bom"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "encoding", "bom"]

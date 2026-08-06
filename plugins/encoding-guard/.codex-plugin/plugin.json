@@ -1,0 +1,16 @@
+{
+  "name": "encoding-guard",
+  "version": "0.1.0",
+  "description": "Blocks BOM-bearing and invalid UTF-8 text files after AI write operations.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Encoding Guard",
+    "shortDescription": "Enforces BOM-free UTF-8 for configured text files.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

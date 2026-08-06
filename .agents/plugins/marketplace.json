@@ -5,6 +5,18 @@
   },
   "plugins": [
     {
+      "name": "encoding-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/encoding-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "file-line-budget-guard",
       "source": {
         "source": "local",

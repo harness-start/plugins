@@ -37,7 +37,7 @@ Deterministic PreToolUse and PostToolUse guards for high-risk commands and sensi
 | `sql-privilege` | Report | 权限变更 SQL | 客户端中的 `GRANT` / `REVOKE` |
 | `secret-leak` | Report | 可能读出/外传凭据 | `cat`/… 敏感文件；`curl`/`wget` 带 secret 变量；`apksigner --ks-pass pass:`；`base64`/`echo` 涉密钥 |
 | `lark-yes` | Report | 飞书 CLI 非交互确认 | `lark-cli … --yes` |
-| `fileSafety`（引擎，PostToolUse） | Report | 写后内容风险 | 新增 TLS 校验绕过、日志直打 PII、SQL 文件 BOM/非法 UTF-8 |
+| `fileSafety`（引擎，PostToolUse） | Report | 写后内容风险 | 新增 TLS 校验绕过、日志直打 PII |
 
 `mode: "allow"` 可覆盖后续声明式 deny/report，**不能**绕过 `dangerousRm` 与 `denyEscalation`。
 
@@ -91,7 +91,7 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 | 3 | 递归 `rm` 宽目标（engine） | Deny |
 | 4 | 声明式规则（用户 → 内置）：sed / cat / Redis / SQL / 主动测试 / 凭据 / lark | Deny / Report / Allow |
 | 5 | MySQL 复制切换缺 preflight（engine） | Deny |
-| 6 | 写后 TLS bypass / PII / SQL encoding（engine） | PostToolUse report |
+| 6 | 写后 TLS bypass / PII（engine） | PostToolUse report |
 
 Clean commands produce no stdout. Denials exit with status 0 and return the shared `permissionDecision: deny` JSON contract expected by both hosts.
 
@@ -128,4 +128,4 @@ node --test plugins/command-safety-guards/tests/*.test.mjs
 
 The unit suite only runs pure checks and local Node.js hook subprocesses. Live Claude Code and Codex acceptance is Docker-only and requires the repository `.env` described in [host acceptance](../../docs/host-acceptance.md).
 
-Version: `0.4.0`
+Version: `0.5.0`

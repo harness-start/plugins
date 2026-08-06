@@ -30,6 +30,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 | Plugin | Description |
 | --- | --- |
+| `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
 | `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |

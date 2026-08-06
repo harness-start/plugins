@@ -92,7 +92,7 @@ export default {
 | `dangerousRm` | `true` | tokenize + 路径解析递归删除守卫（在规则匹配**之前**执行） |
 | `mysqlReplicationPreflight` | `true` | 复制切换需 event 内 preflight 证据 |
 | `secretRead` | `true` | Read 工具敏感路径提示 |
-| `fileSafety` | `true` | PostToolUse TLS / PII / SQL encoding |
+| `fileSafety` | `true` | PostToolUse TLS / PII |
 | `denyEscalation` | `true` | 同目标短时多次 deny 升级 |
 
 **说明：** `mode: "allow"` **不能**绕过 `dangerousRm` 与 `denyEscalation`。若需放行特定 `rm`，请关闭 `engines.dangerousRm` 或收窄删除目标；不要用 `/.*/` 式 allow。
@@ -161,6 +161,7 @@ mysqlReplicationPreflight（引擎）
 
 | 版本 | 变更 |
 |------|------|
+| `0.5.0` | SQL encoding 检查迁移到独立 `encoding-guard`，fileSafety 保留 TLS / PII |
 | `0.4.0` | 增加 `command-safety-guards-config` skill 管理项目配置文件 |
 | `0.3.0` | 引入配置文件、声明式规则表、engines 开关；默认行为兼容 0.2.x 关键路径 |
 | `0.2.0` | 数据库 / Redis / 主动测试 / 凭据 / 升级计数 |

@@ -354,18 +354,9 @@ test("secret read preserves templates and reports real credential paths", () => 
   assert.match(secretReadReport(["~/.ssh/id_ed25519"]), /Secret Read Notice/u);
 });
 
-test("file reports detect SQL encoding, TLS bypass, and PII logging", () => {
+test("file reports detect TLS bypass and PII logging", () => {
   const root = mkdtempSync(join(tmpdir(), "command-safety-"));
   try {
-    const sql = join(root, "schema.sql");
-    writeFileSync(
-      sql,
-      Buffer.concat([
-        Buffer.from([0xef, 0xbb, 0xbf]),
-        Buffer.from("SELECT 1;\n"),
-      ]),
-    );
-    assert.match(fileSafetyReports(sql).join("\n"), /Database Encoding/u);
     const source = join(root, "client.js");
     writeFileSync(
       source,
