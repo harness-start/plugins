@@ -65,7 +65,7 @@ export default {
 };
 ```
 
-使用 `file-line-budget-guard-config` skill 可以自动初始化、维护和诊断配置文件。
+使用插件自带 skill **`file-line-budget-guard-config`**（`skills/file-line-budget-guard-config/SKILL.md`）初始化、维护和诊断配置文件：在已启用本插件的会话中按 description 自动触发，或显式调用该 skill。
 
 ### 故障模式：fail-open
 
@@ -80,6 +80,7 @@ Hook 自身出错（超时、异常、无效 JSON）时放行，不阻塞用户�
 | `hooks/claude.json` | Claude Code `PostToolUse` hook |
 | `hooks/codex.json` | Codex `PostToolUse` hook |
 | `scripts/file-budget-guard.mjs` | 核心守卫脚本 |
+| `skills/file-line-budget-guard-config/` | 配置文件 init/编辑/诊断 skill |
 | `DESIGN.md` | 配置文件设计文档 |
 
 ## 安装
@@ -105,4 +106,4 @@ codex plugin add file-line-budget-guard@harness-start
 - 不写入插件安装目录
 - 不记录文件内容、凭据或完整事件
 
-Version: `0.2.0`
+Version: `0.3.0`

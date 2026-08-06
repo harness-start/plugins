@@ -151,10 +151,17 @@ mysqlReplicationPreflight（引擎）
 
 **禁止**在 `engines/` 与 `builtin-rules.mjs` 之间复制同一条策略；声明式能表达的只进 rules，不能的只进 engines。
 
-## 9. 版本
+## 9. 配置管理 Skill
+
+插件内 skill：`skills/command-safety-guards-config/SKILL.md`。
+
+用于在目标仓库初始化、增删改、诊断 `.command-safety-guards.mjs`。Agent 应遵循该 skill 的 schema、引擎边界与反模式（尤其 `allow` 不能绕过 `dangerousRm`）。
+
+## 10. 版本
 
 | 版本 | 变更 |
 |------|------|
+| `0.4.0` | 增加 `command-safety-guards-config` skill 管理项目配置文件 |
 | `0.3.0` | 引入配置文件、声明式规则表、engines 开关；默认行为兼容 0.2.x 关键路径 |
 | `0.2.0` | 数据库 / Redis / 主动测试 / 凭据 / 升级计数 |
 | `0.1.0` | 危险删除、sed -i、cat heredoc |

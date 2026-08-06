@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.4.0] - 2026-08-06
+
+### Added
+
+- Plugin skill `skills/command-safety-guards-config` to initialize, edit, and diagnose `.command-safety-guards.mjs` project config (with example reference).
+
 ## [0.3.0] - 2026-08-06
 
 ### Added

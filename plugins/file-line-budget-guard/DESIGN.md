@@ -164,9 +164,16 @@ export default {
 | `git rev-parse` 失败 | 回退内置规则 |
 | 正则 `.test()` 抛异常 | 跳过该条 |
 
-## 8. 版本升级路径
+## 8. 配置管理 Skill
+
+插件内 skill：`skills/file-line-budget-guard-config/SKILL.md`。
+
+用于在目标仓库初始化、增删改、诊断 `.file-line-budget-guard.mjs`。Agent 应遵循该 skill 的 schema 与反模式约束，而不是手写与 hook 不一致的字段。
+
+## 9. 版本升级路径
 
 | 版本 | 变更 |
 |------|------|
+| `0.3.0` | 增加 `file-line-budget-guard-config` skill 管理项目配置文件 |
 | `0.2.0` | 引入配置文件、正则规则表、统一匹配引擎；内置表从对象常量转为数组正则 |
-| `0.1.0` | 当前版本（硬编码） |
+| `0.1.0` | 硬编码预算表 |

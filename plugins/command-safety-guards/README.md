@@ -47,6 +47,8 @@ export default {
 
 `mode: "allow"` 可覆盖后续内置声明式 deny/report，**不能**绕过危险 `rm` 引擎与 deny 升级。关闭某引擎请用 `settings.engines.* = false`。
 
+使用插件自带 skill **`command-safety-guards-config`**（`skills/command-safety-guards-config/SKILL.md`）初始化、维护和诊断配置文件：在已启用本插件的会话中按 description 自动触发，或显式调用该 skill。
+
 ### 故障模式：fail-open
 
 Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放行，不阻塞用户操作。坏规则条目被跳过并写 stderr 警告。
@@ -72,6 +74,7 @@ Clean commands produce no stdout. Denials exit with status 0 and return the shar
 | `scripts/lib/rule-engine.mjs` | Config load / merge / match / format |
 | `scripts/engines/*` | Non-regex engines only (`dangerous-rm`, `mysql-preflight`, `secret-read`, `file-safety`) |
 | `scripts/lib/deny-state.mjs` | Deny escalation state |
+| `skills/command-safety-guards-config/` | Config init / edit / diagnose skill |
 
 ## Migrated from
 
@@ -96,4 +99,4 @@ node --test plugins/command-safety-guards/tests/*.test.mjs
 
 The unit suite only runs pure checks and local Node.js hook subprocesses. Live Claude Code and Codex acceptance is Docker-only and requires the repository `.env` described in [host acceptance](../../docs/host-acceptance.md).
 
-Version: `0.3.0`
+Version: `0.4.0`
