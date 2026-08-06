@@ -75,6 +75,11 @@
       "name": "web-frontend-guards",
       "source": "./plugins/web-frontend-guards",
       "description": "Frontend guards: report encoding, WXML/WXSS/Taro, mini-program configuration, Vue/Svelte, environment, and stylelint coverage issues."
+    },
+    {
+      "name": "infra-devops-guards",
+      "source": "./plugins/infra-devops-guards",
+      "description": "Infrastructure guards: deny irreversible data operations and unbounded probes; report syntax, encoding, debt, and recoverable operational risks."
     }
   ]
 }
