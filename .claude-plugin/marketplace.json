@@ -25,6 +25,11 @@
       "name": "in-chinese",
       "source": "./plugins/in-chinese",
       "description": "Keeps agent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift at response boundaries."
+    },
+    {
+      "name": "subagent-discipline",
+      "source": "./plugins/subagent-discipline",
+      "description": "Injects scope, safety, evidence, and context-discipline principles into every spawned subagent."
     }
   ]
 }
