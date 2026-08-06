@@ -30,6 +30,8 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 | Plugin | Description |
 | --- | --- |
+| `source-sanity-guard` | Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files |
+| `code-quality-guard` | Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits |
 | `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
 | `protected-file-guard` | Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories |

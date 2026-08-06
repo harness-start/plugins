@@ -1,0 +1,10 @@
+{
+  "name": "source-sanity-guard",
+  "version": "0.1.0",
+  "description": "Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

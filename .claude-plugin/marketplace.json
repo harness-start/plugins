@@ -7,6 +7,16 @@
   },
   "plugins": [
     {
+      "name": "source-sanity-guard",
+      "source": "./plugins/source-sanity-guard",
+      "description": "Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files."
+    },
+    {
+      "name": "code-quality-guard",
+      "source": "./plugins/code-quality-guard",
+      "description": "Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits."
+    },
+    {
       "name": "encoding-guard",
       "source": "./plugins/encoding-guard",
       "description": "Encoding guard: blocks BOM-bearing and invalid UTF-8 text files after AI writes."
