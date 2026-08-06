@@ -1,0 +1,16 @@
+{
+  "name": "in-chinese",
+  "version": "0.1.0",
+  "description": "Keeps agent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift at response boundaries.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "In Chinese",
+    "shortDescription": "Keep agent prose in Simplified Chinese.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

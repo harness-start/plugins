@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const EXPECTED_DIGEST =
-  "42b1941a700e2bb82142c55063b2e3f780a75fd95308f94d5da5f7799db61582";
+  "1fffb0313485ccda8a0065206626997fb33b1dd4c21eaf7e1e6dcb29aadb5e0f";
 const EXCLUDED = new Set([
   "context-rules:context-injector",
   "context-rules:context-rule-injector",
@@ -49,7 +49,6 @@ const EXCLUDED = new Set([
   "execution-discipline-guards:external-skill-isolation-guard",
   "execution-discipline-guards:garbled-text-guard",
   "execution-discipline-guards:language-drift-bash-feedback",
-  "execution-discipline-guards:language-drift-stop-gate",
   "execution-discipline-guards:language-drift-tool-feedback",
   "execution-discipline-guards:language-intent-marker",
   "execution-discipline-guards:markdown-budget-guard",

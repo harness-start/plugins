@@ -3,7 +3,7 @@
   "sourceRepository": "infra/ai-experts",
   "sourceRevision": "00d2945da025a13545ef086436617da1cb399ef9",
   "sourceHookCount": 202,
-  "sourceHookIdDigest": "42b1941a700e2bb82142c55063b2e3f780a75fd95308f94d5da5f7799db61582",
+  "sourceHookIdDigest": "1fffb0313485ccda8a0065206626997fb33b1dd4c21eaf7e1e6dcb29aadb5e0f",
   "policy": {
     "runtime": "direct-node-mjs",
     "excludedArtifacts": [
@@ -81,7 +81,7 @@
     },
     "execution-discipline-guards": {
       "disposition": "excluded-by-plan",
-      "reason": "Plugin removed from marketplace as incomplete; not retained as a target-native plugin.",
+      "reason": "Plugin removed from marketplace as incomplete; remaining hooks are not retained as target-native behavior.",
       "hookIds": [
         "backup-artifact-guard",
         "debt-marker-guard",
@@ -92,7 +92,6 @@
         "external-skill-isolation-guard",
         "garbled-text-guard",
         "language-drift-bash-feedback",
-        "language-drift-stop-gate",
         "language-drift-tool-feedback",
         "language-intent-marker",
         "markdown-budget-guard",
@@ -109,6 +108,12 @@
       "disposition": "target-native",
       "hookIds": [
         "file-budget-guard"
+      ]
+    },
+    "in-chinese": {
+      "disposition": "target-native",
+      "hookIds": [
+        "language-drift-stop-gate"
       ]
     },
     "git-delivery-guards": {

@@ -6,10 +6,11 @@
 
 ## 当前边界
 
-仓库只保留三个双平台、自包含插件：
+仓库保留四个双平台、自包含插件：
 
 - `command-safety-guards`
 - `file-line-budget-guard`
+- `in-chinese`
 - `process-confidence`
 
 所有 `*-runtime-guards` 已按明确的仓库范围决策退役。此前已移除的 web、infra、mobile、misc language、git delivery、execution discipline、delivery evidence 和 context rules 插件同样不再作为 target-native 插件维护。
@@ -18,10 +19,10 @@
 
 机器可读映射见 [migration-parity.json](migration-parity.json)。固定源清单仍包含 202 个唯一 hook ID，以保留审计历史：
 
-- 15 个 hook 标记为 `target-native`，由 `command-safety-guards` 和 `file-line-budget-guard` 承载；
-- 187 个 hook 标记为 `excluded-by-plan`，记录已退役插件及其排除理由。
+- 16 个 hook 标记为 `target-native`，由 `command-safety-guards`、`file-line-budget-guard` 和 `in-chinese` 承载；
+- 186 个 hook 标记为 `excluded-by-plan`，记录已退役插件及其排除理由。
 
-`process-confidence` 是目标仓库原生插件，不对应这份源 hook 清单。
+`process-confidence` 是目标仓库原生插件，不对应这份源 hook 清单。`in-chinese` 只恢复 `language-drift-stop-gate` 的回复边界语义；工具输出检查、bash feedback 和按用户意图授权其他语言仍保持排除。
 
 ## 运行约束
 
