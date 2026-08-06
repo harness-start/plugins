@@ -80,6 +80,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 | Plugin | Description |
 | --- | --- |
+| `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
 | `source-sanity-guard` | Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files |
 | `code-quality-guard` | Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits |
 | `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |

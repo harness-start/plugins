@@ -1,0 +1,4 @@
+id = "01-block-edit-loop"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "execution-loop", "deny"]
