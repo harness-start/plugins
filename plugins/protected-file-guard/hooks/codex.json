@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/protected-file-guard.mjs\"",
+            "statusMessage": "Checking protected files",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

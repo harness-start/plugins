@@ -1,0 +1,16 @@
+{
+  "name": "protected-file-guard",
+  "version": "0.1.0",
+  "description": "Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Protected File Guard",
+    "shortDescription": "Protect lockfiles and third-party dependency paths.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}
