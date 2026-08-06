@@ -1,4 +1,4 @@
-import { lstatSync } from "node:fs";
+import { lstatSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { splitShellLogicalLines, tokenizeShell } from "../lib/shell-parse.mjs";
 
@@ -52,14 +52,18 @@ function gitAdd(args, command) {
 
 function destructiveGit(args, command) {
   const sub = args[0], rest = args.slice(1);
+  if (sub === "update-ref" && rest.includes("-d") && rest.some((arg) => arg.startsWith("refs/original/"))) return result("deny", "Dangerous Git Command", "deleting refs/original removes history-rewrite recovery references", command, "let the controlled history-migration workflow clean recovery refs after verification");
   if (sub === "reset" && rest.includes("--hard")) return result("deny", "Dangerous Git Command", "git reset --hard 会丢失未提交改动", command, "先保存 diff 或 stash，再使用非破坏性 reset");
-  if (sub === "clean" && rest.some((arg) => /^-[a-z]*f/iu.test(arg))) return result("deny", "Dangerous Git Command", "git clean -f 会永久删除未跟踪文件", command, "先运行 git clean -nd 并逐个处理");
+  if (sub === "clean" && rest.some((arg) => /^-[a-z]*(?:f|d)/iu.test(arg))) return result("deny", "Dangerous Git Command", "git clean -f/-d 会永久删除未跟踪文件或目录", command, "先运行 git clean -nd 并逐个处理");
   if (sub === "push" && (rest.includes("--force") || rest.includes("-f")) && !rest.includes("--force-with-lease")) return result("deny", "Dangerous Git Command", "git push --force 会覆盖远程历史", command, "改用 --force-with-lease 并核对远端基线");
   if (["filter-repo", "filter-branch"].includes(sub)) return result("deny", "Dangerous Git Command", `${sub} 会改写仓库历史`, command, "在独立克隆中执行并保留恢复引用");
   if (sub === "stash" && rest[0] === "clear") return result("deny", "Dangerous Git Command", "git stash clear 会永久删除所有 stash", command, "逐个检查并仅删除明确授权的 stash");
-  if (sub === "stash" && rest[0] === "drop" && !process.env.AI_EXPERTS_ALLOW_STASH_DROP) return result("deny", "Dangerous Git Command", "git stash drop 会永久删除 stash", command, "设置明确授权哨兵后仅删除显式 stash@{N}");
+  if (sub === "stash" && rest[0] === "drop") {
+    const approved = /(?:^|[;&|]\s*)AI_EXPERTS_ALLOW_GIT_STASH_DROP=1\s+git(?:\s+-\S+)*\s+stash\s+drop\s+['"]?stash@\{\d+\}['"]?(?:\s|$)/u.test(command);
+    if (!approved || rest.length !== 2 || !/^stash@\{\d+\}$/u.test(rest[1])) return result("deny", "Dangerous Git Command", "git stash drop requires the inline approval sentinel and one explicit stash@{N}", command, "use AI_EXPERTS_ALLOW_GIT_STASH_DROP=1 git stash drop 'stash@{N}'");
+  }
   if (sub === "checkout" && rest.includes("--") && rest.some((arg) => [".", "./", "*", "./*"].includes(arg))) return result("deny", "Dangerous Git Command", "批量 checkout 会丢弃工作区改动", command, "逐个文件恢复并先保存 diff");
-  if (sub === "restore" && rest.some((arg) => [".", "./", "*", "./*"].includes(arg))) return result("deny", "Dangerous Git Command", "批量 restore 会丢弃工作区改动", command, "逐个文件恢复并先保存 diff");
+  if (sub === "restore" && (rest.some((arg) => [".", "./", "*", "./*"].includes(arg)) || rest.some((arg, index) => arg === "--source=HEAD" || arg === "--source" && rest[index + 1] === "HEAD"))) return result("deny", "Dangerous Git Command", "git restore 会用 HEAD 或批量目标覆盖工作区改动", command, "先保存 diff，并只恢复明确授权的单个文件和来源");
   return null;
 }
 
@@ -76,10 +80,11 @@ function conflictChoice(args, command, cwd) {
   return bulk ? result("deny", "Bulk Conflict Choice", "ours/theirs 只能用于单一显式文件", command, "逐个文件审查冲突后选择一侧") : null;
 }
 
-function commitMessage(args, command) {
+function commitMessage(args, command, cwd) {
   if (args[0] !== "commit" || args.includes("--amend") || args.includes("--fixup") || args.includes("--squash")) return null;
   if (/\$\(\s*cat\s+<</u.test(command)) return result("deny", "Commit Heredoc Guard", "提交信息不能通过 heredoc 命令替换生成", command, "使用一个或多个 git commit -m 字符串");
-  let message = ""; for (let i = 1; i < args.length; i += 1) { if (["-m", "--message"].includes(args[i]) && args[i + 1]) { message = args[i + 1]; break; } if (args[i].startsWith("--message=")) { message = args[i].slice(10); break; } if (/^-m.+/u.test(args[i])) { message = args[i].slice(2); break; } }
+  const paragraphs = []; for (let i = 1; i < args.length; i += 1) { if (["-m", "--message"].includes(args[i]) && args[i + 1]) { paragraphs.push(args[++i]); continue; } if (args[i].startsWith("--message=")) { paragraphs.push(args[i].slice(10)); continue; } if (/^-m.+/u.test(args[i])) { paragraphs.push(args[i].slice(2)); continue; } if (["-F", "--file"].includes(args[i]) && args[i + 1]) { try { paragraphs.push(readFileSync(resolve(cwd, args[++i]), "utf8")); } catch { i += 1; } continue; } if (args[i].startsWith("--file=")) { try { paragraphs.push(readFileSync(resolve(cwd, args[i].slice(7)), "utf8")); } catch {} continue; } if (/^-F.+/u.test(args[i])) { try { paragraphs.push(readFileSync(resolve(cwd, args[i].slice(2)), "utf8")); } catch {} } }
+  const message = paragraphs.join("\n\n").trim();
   if (!message) return null; const first = message.split("\n").find((line) => line.trim())?.trim() ?? ""; const description = (first.match(/^[^:]+:\s*(.+)$/u)?.[1] ?? first).trim(); const issues = [];
   if (first.length < 8) issues.push("首行过短"); if (!COMMIT.test(first)) issues.push("不是 Conventional Commits 格式"); if (GENERIC.test(description)) issues.push("描述过于模糊"); if (GARBLED.test(message)) issues.push("包含乱码或控制字符");
   return issues.length ? result("deny", "Commit Message", issues.join("；"), command, "使用 <type>(<scope>): <具体说明>") : null;
@@ -109,7 +114,7 @@ function svnRules(args, command) {
 export function classifyDeliveryCommand(command, cwd, event = {}) {
   if (typeof command !== "string" || !command.trim()) return [];
   const findings = [];
-  for (const rawArgs of invocations(command, "git")) { const args = stripGitGlobals(rawArgs); for (const check of [gitAdd(args, command), destructiveGit(args, command), branchName(args, command), conflictChoice(args, command, cwd), commitMessage(args, command)]) if (check) findings.push(check); }
+  for (const rawArgs of invocations(command, "git")) { let invocationCwd = cwd; for (let index = 0; index < rawArgs.length; index += 1) if (rawArgs[index] === "-C" && rawArgs[index + 1]) invocationCwd = resolve(invocationCwd, rawArgs[++index]); const args = stripGitGlobals(rawArgs); for (const check of [gitAdd(args, command), destructiveGit(args, command), branchName(args, command), conflictChoice(args, command, invocationCwd), commitMessage(args, command, invocationCwd)]) if (check) findings.push(check); }
   for (const args of invocations(command, "gh")) { const finding = ghMutation(args, command); if (finding) findings.push(finding); }
   const reviewScope = /all-in-one-review|agentic-fix-review-gate/u.test(JSON.stringify(event)); for (const args of invocations(command, "glab")) { const finding = glabMutation(args, command, reviewScope); if (finding) findings.push(finding); }
   for (const args of invocations(command, "svn")) { const finding = svnRules(args, command); if (finding) findings.push(finding); }

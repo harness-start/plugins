@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { basename, dirname, extname, join } from "node:path";
+import { basename, delimiter, dirname, extname, join, relative } from "node:path";
 
 const FRONTEND_EXTENSIONS = new Set([
   ".vue", ".svelte", ".html", ".htm", ".css", ".scss", ".less",
@@ -86,20 +86,27 @@ function miniProgramConfigReport(filePath, text) {
   return errors.length ? `[WeChat Mini Program Config] ${errors.join("\n")}` : null;
 }
 
-function localBinary(name, filePath) {
+function findBinary(name, filePath) {
   let current = dirname(filePath);
   while (true) {
     const candidate = join(current, "node_modules", ".bin", name);
     if (existsSync(candidate)) return candidate;
     const parent = dirname(current);
-    if (parent === current) return null;
+    if (parent === current) break;
     current = parent;
   }
+  for (const directory of String(process.env.PATH ?? "").split(delimiter).filter(Boolean)) {
+    for (const suffix of process.platform === "win32" ? [".cmd", ".exe", ".bat", ""] : [""]) {
+      const candidate = join(directory, `${name}${suffix}`);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
 }
 
 function frameworkTypeReport(filePath) {
   const extension = extname(filePath).toLowerCase();
-  const binary = extension === ".vue" ? localBinary("vue-tsc", filePath) : extension === ".svelte" ? localBinary("svelte-check", filePath) : null;
+  const binary = extension === ".vue" ? findBinary("vue-tsc", filePath) : extension === ".svelte" ? findBinary("svelte-check", filePath) : null;
   if (!binary) return null;
   const args = extension === ".vue" ? ["--noEmit", filePath] : ["--tsconfig", "./tsconfig.json", "--fail-on-warnings", "--fail-on-hints"];
   try {
@@ -111,7 +118,35 @@ function frameworkTypeReport(filePath) {
   }
 }
 
-export function fileReports(filePath) {
+const VALIDATION_DEBT = [
+  ["alert-only validation", /\b(?:window\.)?alert\s*\(/u, "表单校验优先字段级错误、汇总错误和可恢复提示，不只弹窗"],
+  ["generic toast validation", /\btoast\.(?:error|warning)\s*\(\s*["'`][^"'`]*(?:invalid|错误|失败|不能为空)/iu, "错误应绑定字段或操作对象并给出下一步，不只弹全局 toast"],
+  ["disabled submit without pending state", /disabled=\{[^}]*\}/u, "禁用提交按钮时同时呈现 pending、错误恢复或可重试状态"],
+];
+
+function gitBaseline(filePath) {
+  try {
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: dirname(filePath), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3000 }).trim();
+    const path = relative(root, filePath).replaceAll("\\", "/");
+    return execFileSync("git", ["show", `HEAD:${path}`], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], timeout: 3000 });
+  } catch {
+    return "";
+  }
+}
+
+function validationDebtReport(filePath, current, input) {
+  if (![".tsx", ".jsx", ".vue", ".svelte"].includes(extname(filePath).toLowerCase())) return null;
+  const newer = typeof input?.new_string === "string" ? input.new_string : current;
+  const older = typeof input?.old_string === "string" ? input.old_string : gitBaseline(filePath);
+  const count = (text, pattern) => text.split(/\r?\n/u).filter((line) => !/^\s*(?:\/\/|\/\*|\*)/u.test(line) && pattern.test(line)).length;
+  const findings = VALIDATION_DEBT.flatMap(([label, pattern, hint]) => {
+    const added = Math.max(0, count(newer, pattern) - count(older, pattern));
+    return added ? [`${label} (+${added}) — ${hint}`] : [];
+  });
+  return findings.length ? `[Frontend Validation Debt Guard] ${filePath}\n${findings.map((item) => `- ${item}`).join("\n")}` : null;
+}
+
+export function fileReports(filePath, input = {}) {
   const content = readText(filePath);
   if (!content) return [];
   const extension = extname(filePath).toLowerCase();
@@ -122,5 +157,6 @@ export function fileReports(filePath) {
     [".ts", ".tsx", ".js", ".jsx"].includes(extension) ? taroReport(content.text) : null,
     miniProgramConfigReport(filePath, content.text),
     frameworkTypeReport(filePath),
+    validationDebtReport(filePath, content.text, input),
   ].filter(Boolean);
 }

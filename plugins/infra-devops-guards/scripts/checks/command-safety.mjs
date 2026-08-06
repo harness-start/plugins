@@ -15,10 +15,30 @@ const REPORT_RULES = [
   [/\bkubectl\s+(?:drain|cordon)\b/iu, "Node drain/cordon can interrupt workloads"],
   [/\bkubectl\s+apply\s+-f\s+https?:\/\//iu, "Remote manifests cannot be reviewed before apply"],
   [/\bhelm\s+uninstall\b/iu, "Helm uninstall removes release resources"],
+  [/\bdocker\s+system\s+prune\b[^;|&]*\s-a\b/iu, "docker system prune -a removes all unused images, containers, and networks"],
+  [/\bdocker\s+(?:rm|remove)\s+-f\s+\$\(/iu, "docker rm -f with command substitution can remove containers in bulk"],
+  [/\baws\s+s3\s+rb\b/iu, "aws s3 rb removes an S3 bucket"],
   [/\b(?:gcloud\s+projects|az\s+group)\s+delete\b/iu, "Cloud project/resource-group deletion has a broad blast radius"],
 ];
 
-function tokenCommands(command) {
+const SHELL_CARRIERS = new Set(["bash", "dash", "ksh", "sh", "ssh", "su", "zsh"]);
+const WRAPPERS = new Set(["command", "env", "nohup", "sudo"]);
+
+function executable(tokens) {
+  let index = 0;
+  while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index])) index += 1;
+  while (index < tokens.length && WRAPPERS.has(tokens[index]?.split("/").at(-1))) {
+    const wrapper = tokens[index]?.split("/").at(-1);
+    index += 1;
+    while (index < tokens.length && (tokens[index].startsWith("-") || /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index]))) {
+      const takesValue = wrapper === "sudo" && ["-C", "-D", "-g", "-h", "-p", "-R", "-T", "-u", "--chdir", "--group", "--host", "--prompt", "--user"].includes(tokens[index]);
+      index += takesValue ? 2 : 1;
+    }
+  }
+  return tokens[index]?.split("/").at(-1) ?? "";
+}
+
+function tokenCommands(command, depth = 0) {
   return splitShellLogicalLines(command).flatMap((line) => {
     const groups = [];
     let current = [];
@@ -28,8 +48,15 @@ function tokenCommands(command) {
         current = [];
       } else current.push(token);
     }
-    if (current.length) groups.push(current.join(" "));
-    return groups;
+    if (current.length) groups.push(current);
+    return groups.flatMap((tokens) => {
+      const plain = tokens.filter((token) => !/\s/u.test(token));
+      const texts = plain.length ? [plain.join(" ")] : [];
+      if (depth < 3 && SHELL_CARRIERS.has(executable(plain))) {
+        for (const token of tokens.filter((item) => /\s/u.test(item))) texts.push(...tokenCommands(token, depth + 1));
+      }
+      return texts;
+    });
   });
 }
 
@@ -42,6 +69,27 @@ function specialDecision(command) {
   if (/\bmtr\b/u.test(command) && (!/(?:^|\s)(?:--report|-r)(?:\s|$)/u.test(command) || !boundedCount(command, /(?:--report-cycles|-c)\s+(\d+)/u, 100))) return { action: "deny", reason: "mtr must use report mode with 1-100 cycles" };
   if (/\bping\b/u.test(command) && !boundedCount(command, /(?:^|\s)-c\s+(\d+)/u, 20)) return { action: "deny", reason: "ping must use -c with 1-20 packets" };
   if (/\btcpdump\b/u.test(command) && !boundedCount(command, /(?:^|\s)-c\s+(\d+)/u, 1000)) return { action: "deny", reason: "tcpdump must use -c with 1-1000 packets" };
+
+  const iacMutation = /\b(?:terraform|tofu)\s+(?:apply|destroy)\b/iu.test(command);
+  const planEvidence = /\b(?:terraform|tofu)\s+plan\b|(?:^|\s)(?:saved|tf|tofu)?plan(?:\.tfplan)?(?:\s|$)|\.(?:tfplan|plan)\b/iu.test(command);
+  const iacApproval = /\bAI_EXPERTS_ALLOW_IAC_MUTATION=1\b|#\s*iac-mutation-ok\b/iu.test(command);
+  if (iacMutation && !planEvidence && !iacApproval) return { action: "report", reason: "Terraform/OpenTofu mutation has no reviewable plan or saved-plan evidence" };
+
+  const production = /(?:^|[\s=/"'-])(?:prod(?:uction)?|prd|live|主线)(?:[\s=/"'-]|$)/iu.test(command);
+  if (production) {
+    const productionRules = [
+      [/\bkubectl\b[^;|&]*\bexec\b[^;|&]*\s-(?:it|ti)\b/iu, "kubectl exec -it enters a production container"],
+      [/\bkubectl\b[^;|&]*\brollout\s+undo\b/iu, "kubectl rollout undo changes the production deployment version"],
+      [/\bkubectl\b[^;|&]*\bscale\b[^;|&]*--replicas\s*=?\s*0\b/iu, "kubectl scale --replicas=0 stops all selected Pods"],
+      [/\bkubectl\b[^;|&]*\bpatch\b[^;|&]*["']?replicas["']?\s*:\s*0\b/iu, "kubectl patch replicas:0 stops all selected Pods"],
+      [/\bkubectl\b[^;|&]*\b(?:label|annotate)\b[^;|&]*--overwrite\b/iu, "kubectl metadata overwrite can change production selectors or policy"],
+      [/\bkubectl\b[^;|&]*\bdelete\s+pod\b/iu, "deleting a production Pod can interrupt in-flight work"],
+      [/\bkubectl\b[^;|&]*\breplace\s+--force\b/iu, "kubectl replace --force deletes before recreating the resource"],
+      [/\bkubectl\b[^;|&]*\bedit\b/iu, "kubectl edit changes production state outside version control"],
+      [/\bkubectl\b[^;|&]*\bset\s+image\b/iu, "kubectl set image changes the production image outside the delivery pipeline"],
+    ];
+    for (const [pattern, reason] of productionRules) if (pattern.test(command)) return { action: "report", reason };
+  }
 
   const pve = tokenizeShell(command);
   const executable = pve.findIndex((token) => ["qm", "pct", "pvesm"].includes(token.split("/").at(-1)));

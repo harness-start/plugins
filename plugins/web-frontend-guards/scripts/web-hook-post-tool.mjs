@@ -13,7 +13,7 @@ async function main() {
   const input = extractToolInput(event);
   const targets = [extractFilePath(input)];
   if (isShellTool(toolName)) targets.push(...patchTargetPaths(extractShellCommand(toolName, input) ?? "", extractCwd(event)));
-  const reports = [...new Set(targets.filter(Boolean))].flatMap((target) => existsSync(target) ? fileReports(target) : []);
+  const reports = [...new Set(targets.filter(Boolean))].flatMap((target) => existsSync(target) ? fileReports(target, input) : []);
   if (reports.length) writeJson(additionalContextOutput("PostToolUse", reports.join("\n\n")));
 }
 main().catch(() => process.exit(0));

@@ -31,11 +31,16 @@ function staleLock(cwd, command) {
 }
 
 const MANIFESTS = ["package.json", "composer.json", "go.mod", "Cargo.toml", "pyproject.toml", "pom.xml", "build.gradle", "build.gradle.kts", "mix.exs", "Gemfile", "CMakeLists.txt"];
-const SOURCE = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".php", ".go", ".rs", ".py", ".java", ".kt", ".rb", ".ex", ".cpp", ".c", ".h"]);
-const CONFIG = new Set([".json", ".yaml", ".yml", ".toml", ".ini", ".conf", ".tf", ".hcl", ".xml"]);
+const SOURCE = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".php", ".go", ".rs", ".py", ".java", ".kt", ".kts", ".rb", ".ex", ".cpp", ".c", ".h", ".hpp", ".swift", ".cs", ".scala", ".sh", ".vue", ".svelte"]);
+const CONFIG = new Set([".json", ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".tf", ".tfvars", ".hcl", ".xml", ".env", ".properties"]);
 
-function boundary(file, root) {
-  let dir = posix.dirname(file.replaceAll("\\", "/"));
+function boundaryRules(root) { try { const value = JSON.parse(readFileSync(join(root, ".ai-experts", "commit-boundaries.json"), "utf8")); if (!Array.isArray(value?.boundaries)) return []; return value.boundaries.flatMap((item) => typeof item?.id === "string" && Array.isArray(item.prefixes) ? item.prefixes.filter((prefix) => typeof prefix === "string" && !prefix.split(/[\\/]/u).includes("..")).map((prefix) => ({ id: item.id, prefix: prefix.replaceAll("\\", "/").replace(/^\.\//u, "").replace(/\/$/u, "") })) : []).sort((a, b) => b.prefix.length - a.prefix.length); } catch { return []; } }
+
+function boundary(file, root, rules) {
+  const normalized = file.replaceAll("\\", "/");
+  const explicit = rules.find((rule) => !rule.prefix || normalized === rule.prefix || normalized.startsWith(`${rule.prefix}/`));
+  if (explicit) return explicit.id;
+  let dir = posix.dirname(normalized);
   while (true) { const disk = dir === "." ? root : join(root, dir); if (MANIFESTS.some((name) => existsSync(join(disk, name)))) return dir === "." ? "repo-root" : dir; if (dir === ".") return "repo-root"; const parent = posix.dirname(dir); if (parent === dir) return "repo-root"; dir = parent; }
 }
 
@@ -43,10 +48,11 @@ function commitState(cwd, command) {
   const invocation = gitInvocation(command, cwd); if (!invocation || invocation.subcommand !== "commit" || invocation.args.some((arg) => /^(?:--amend|--fixup|--squash)(?:=|$)/u.test(arg))) return []; cwd = invocation.cwd;
   const staged = lines(["diff", "--cached", "--name-only"], cwd), unstaged = lines(["diff", "--name-only"], cwd); if (!staged) return [];
   const findings = []; const overlap = unstaged ? staged.filter((file) => new Set(unstaged).has(file)) : [];
-  if (overlap.length) findings.push(finding("report", "Partial Staging", `${overlap.length} 个文件同时有 staged 与 unstaged 改动：${overlap.slice(0, 8).join(", ")}`, "分别检查 git diff --cached -- <file> 与 git diff -- <file>"));
-  if (!staged.length) return findings; const root = git(["rev-parse", "--show-toplevel"], cwd) || cwd; const groups = new Map();
-  for (const file of staged) { const id = boundary(file, root); if (!groups.has(id)) groups.set(id, { source: false, config: false, files: [] }); const group = groups.get(id); group.files.push(file); const extension = extname(file).toLowerCase(); if (SOURCE.has(extension)) group.source = true; if (CONFIG.has(extension) || /^(?:Dockerfile|Makefile|Jenkinsfile)$/u.test(basename(file))) group.config = true; }
-  const mixed = [...groups.entries()].filter(([, group]) => group.source && group.config); if (groups.size >= 2 || mixed.length) findings.push(finding("deny", "Commit Scope", `提交跨 ${groups.size} 个 manifest 边界，或混合 source 与 config/infra：${[...groups.keys()].join(", ")}`, "取消批量暂存，按 manifest 边界和关注点逐组 git add/commit")); else if (staged.length > 15) findings.push(finding("report", "Commit Scope", `单次提交包含 ${staged.length} 个文件`, "确认是否能继续拆分为更小的原子提交"));
+  if (overlap.length && !invocation.args.some((arg) => arg === "-a" || arg === "--all" || /^-[^-]*a/u.test(arg))) findings.push(finding("report", "Partial Staging", `${overlap.length} 个文件同时有 staged 与 unstaged 改动：${overlap.slice(0, 8).join(", ")}`, "分别检查 git diff --cached -- <file> 与 git diff -- <file>"));
+  const files = invocation.args.some((arg) => arg === "-a" || arg === "--all" || /^-[^-]*a/u.test(arg)) ? [...new Set([...staged, ...(unstaged ?? [])])] : staged;
+  if (!files.length) return findings; const root = git(["rev-parse", "--show-toplevel"], cwd) || cwd; const nameStatus = lines(["diff", "--cached", "--name-status"], cwd); if (nameStatus?.length && nameStatus.every((line) => /^R\d*\t/u.test(line))) { if (files.length > 15) findings.push(finding("report", "Commit Scope", `纯 rename 提交包含 ${files.length} 项迁移`, "确认迁移映射已对账")); return findings; } const rules = boundaryRules(root), groups = new Map();
+  for (const file of files) { const id = boundary(file, root, rules); if (!groups.has(id)) groups.set(id, { source: false, config: false, files: [] }); const group = groups.get(id); group.files.push(file); const extension = extname(file).toLowerCase(); if (SOURCE.has(extension)) group.source = true; if (CONFIG.has(extension) || /^(?:Dockerfile|Makefile|Jenkinsfile)$/u.test(basename(file))) group.config = true; }
+  const mixed = [...groups.entries()].filter(([, group]) => group.source && group.config); if (groups.size >= 2 || mixed.length) findings.push(finding("deny", "Commit Scope", `提交跨 ${groups.size} 个 manifest/explicit 边界，或混合 source 与 config/infra：${[...groups.keys()].join(", ")}`, "取消批量暂存，按声明边界和关注点逐组 git add/commit")); else if (files.length > 15) findings.push(finding("report", "Commit Scope", `单次提交包含 ${files.length} 个文件`, "确认是否能继续拆分为更小的原子提交"));
   return findings;
 }
 

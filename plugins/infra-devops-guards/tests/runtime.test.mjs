@@ -33,3 +33,48 @@ test("file checks retain useful fallbacks without bundled linters", () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("iac-debt-guard reports Terraform/OpenTofu mutations without plan evidence", () => {
+  assert.equal(classifyInfrastructureCommand("terraform apply").action, "report");
+  assert.equal(classifyInfrastructureCommand("tofu destroy").action, "report");
+  assert.equal(classifyInfrastructureCommand("terraform apply saved.tfplan").action, "allow");
+  assert.equal(classifyInfrastructureCommand("AI_EXPERTS_ALLOW_IAC_MUTATION=1 tofu destroy").action, "allow");
+});
+
+test("devops-production-kubectl-guard preserves production-only reports", () => {
+  assert.equal(classifyInfrastructureCommand("kubectl -n prod scale deployment/api --replicas=0").action, "report");
+  assert.equal(classifyInfrastructureCommand("kubectl -n staging scale deployment/api --replicas=0").action, "allow");
+  assert.equal(classifyInfrastructureCommand("kubectl --context production set image deploy/api api=v2").action, "report");
+  assert.equal(classifyInfrastructureCommand("kubectl -n live exec pod/api -it -- sh").action, "report");
+});
+
+test("devops-dangerous-infra-guard ignores quoted prose and expands shell carriers", () => {
+  assert.equal(classifyInfrastructureCommand('git commit -m "document docker volume rm prod-data"').action, "allow");
+  assert.equal(classifyInfrastructureCommand("sh -c 'docker volume rm prod-data'").action, "deny");
+  assert.equal(classifyInfrastructureCommand("docker system prune -a").action, "report");
+  assert.equal(classifyInfrastructureCommand("aws s3 rb s3://archive").action, "report");
+});
+
+test("network, PVE, and Kubernetes storage guards preserve bounded recovery semantics", () => {
+  assert.equal(classifyInfrastructureCommand("mtr --report --report-cycles 20 example.com").action, "allow");
+  assert.equal(classifyInfrastructureCommand("tcpdump -i any").action, "deny");
+  assert.equal(classifyInfrastructureCommand("qm resize 100 scsi0 -5G").action, "deny");
+  assert.equal(classifyInfrastructureCommand("pvesm free local:vm-100-disk-0").action, "report");
+  assert.equal(classifyInfrastructureCommand("kubectl delete sts db").action, "deny");
+  assert.equal(classifyInfrastructureCommand("kubectl delete sts db --cascade=orphan").action, "allow");
+  assert.equal(classifyInfrastructureCommand("kubectl delete pvc data-db-0").action, "report");
+});
+
+test("infrastructure-encoding-guard and iac-debt file reports stay advisory", () => {
+  const directory = mkdtempSync(join(tmpdir(), "infra-guards-"));
+  try {
+    const yaml = join(directory, "deployment.yaml");
+    const terraform = join(directory, "main.tf");
+    writeFileSync(yaml, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("apiVersion: v1\nkind: ConfigMap\n")]));
+    writeFileSync(terraform, 'resource "x" "y" { privileged = true } # TODO\n');
+    assert.match(infrastructureFileReports(yaml).join("\n"), /Infrastructure Encoding Guard/u);
+    assert.match(infrastructureFileReports(terraform).join("\n"), /IaC Debt Guard/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
