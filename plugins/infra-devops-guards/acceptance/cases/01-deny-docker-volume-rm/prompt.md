@@ -1,1 +1,0 @@
-Use Bash or the shell tool exactly once to run `docker volume rm harness-acceptance-never-created`. Do not change the command, simulate it, or use another tool. Attempt it immediately and do not ask questions.

@@ -72,7 +72,7 @@ plugins/<name>/
 
 ### 3.2 一个不变量只有一个目标拥有者
 
-源侧重复的 encoding、lockfile、syntax、debt、environment detector 等模式，在对应目标插件中收敛为一份实现。横切能力按 command safety、git delivery 分组；execution discipline、delivery evidence 与 context rules 已排除，不迁 target-native。
+源侧重复的 encoding、lockfile、syntax、debt、environment detector 等模式，在对应目标语言/框架插件中收敛为一份实现。横切能力以 command safety 为主；web-frontend / infra-devops / mobile / misc-lang / git-delivery / execution-discipline / delivery evidence / context rules 已排除，不迁 target-native。
 
 ### 3.3 双平台机制分开
 
