@@ -1,7 +1,29 @@
 {
   "hooks": {
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/go-hook-context.mjs\" SessionStart", "statusMessage": "go-runtime-guards: lint coverage", "timeout": 10000 }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/go-hook-context.mjs\" UserPromptSubmit", "statusMessage": "go-runtime-guards: project environment", "timeout": 10000 }] }],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/go-hook-context.mjs\" SessionStart",
+            "statusMessage": "go-runtime-guards: lint coverage",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/go-hook-context.mjs\" UserPromptSubmit",
+            "statusMessage": "go-runtime-guards: project environment",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",

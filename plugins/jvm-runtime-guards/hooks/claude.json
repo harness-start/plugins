@@ -1,6 +1,17 @@
 {
   "hooks": {
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/jvm-hook-user-prompt.mjs\"", "statusMessage": "jvm-runtime-guards: project environment", "timeout": 10000 }] }],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/jvm-hook-user-prompt.mjs\"",
+            "statusMessage": "jvm-runtime-guards: project environment",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
