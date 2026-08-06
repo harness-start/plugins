@@ -207,6 +207,12 @@
       "source": { "source": "local", "path": "./plugins/delivery-evidence" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Productivity"
+    },
+    {
+      "name": "context-rules",
+      "source": { "source": "local", "path": "./plugins/context-rules" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
     }
   ]
 }

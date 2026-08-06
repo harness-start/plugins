@@ -105,6 +105,11 @@
       "name": "delivery-evidence",
       "source": "./plugins/delivery-evidence",
       "description": "Delivery evidence gates: verify provenance, artifacts, ledgers, TDD order, GitLab closure, and external effects before completion."
+    },
+    {
+      "name": "context-rules",
+      "source": "./plugins/context-rules",
+      "description": "Bounded session context, prompt guidance, Codex context-rule matching, usage audit, and optional telemetry."
     }
   ]
 }
