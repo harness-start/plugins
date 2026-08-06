@@ -201,6 +201,12 @@
       "source": { "source": "local", "path": "./plugins/execution-discipline-guards" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Productivity"
+    },
+    {
+      "name": "delivery-evidence",
+      "source": { "source": "local", "path": "./plugins/delivery-evidence" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
     }
   ]
 }
