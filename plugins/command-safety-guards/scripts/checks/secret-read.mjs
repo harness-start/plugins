@@ -1,0 +1,4 @@
+import { basename } from "node:path";
+const WHITELIST = [/(?:^|\/)(?:tests?|__tests__|fixtures|testdata|examples?|samples?|templates?|docs?)\//iu, /\.(?:md|rst|adoc)$/iu, /\.env\.(?:example|template|sample|dist)$/iu];
+const SENSITIVE = [/(?:^|\/)\.env(?:\.[^.]+)?$/iu, /\.(?:pem|key|p12|pfx|jks|keystore)$/iu, /\bid_(?:rsa|ed25519|ecdsa|dsa)$/iu, /(?:^|\/)\.ssh\//iu, /(?:credentials\.json|service[-_]?account[-_]?key|\.aws\/credentials|\.docker\/config\.json|\.npmrc|\.pypirc|\.netrc|\.git-credentials|htpasswd)$/iu];
+export function secretReadReport(targets) { for (const raw of targets) { const path = String(raw).replaceAll("\\", "/"); if (WHITELIST.some((pattern) => pattern.test(path))) continue; if (SENSITIVE.some((pattern) => pattern.test(path)) || /(?:secret|credential|(?:^|[_.-])token[_.-]|passwd|password|api[-_]?key)/iu.test(basename(path))) return `[Secret Read Notice] 检测到敏感文件读取\n\n文件：${raw}\n读取内容可能进入 agent 上下文；只读取任务所需字段，禁止在输出中回显凭据。`; } return null; }
