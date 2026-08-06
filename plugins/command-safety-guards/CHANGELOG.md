@@ -2,6 +2,24 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.3.0] - 2026-08-06
+
+### Added
+
+- Project config file `.command-safety-guards.mjs` (also `.cjs` / `.js`) with declarative `rules` and `settings.engines`.
+- Built-in rule table in `scripts/lib/builtin-rules.mjs` for sed / cat heredoc / Redis / SQL / active-test / secret-leak / lark (user rules prepend; first match wins).
+- `DESIGN.md` documenting discovery order, fields, priority, fail-open, and engine boundaries.
+- Configurable deny-escalation `windowMinutes` and `threshold`.
+
+### Changed
+
+- PreToolUse entry orchestrates config load → engines → rule match instead of hard-coded check chains only.
+- Pattern-based checks live only in `builtin-rules.mjs`; non-regex engines live under `scripts/engines/`.
+
+### Removed
+
+- Dual-track `scripts/checks/{sed-inplace,cat-write,advanced-command,dangerous-command,secret-read,file-safety}.mjs` compatibility wrappers.
+
 ## [0.2.0] - 2026-08-06
 
 ### Added
