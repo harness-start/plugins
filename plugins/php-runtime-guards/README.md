@@ -25,7 +25,7 @@ verify the hooks actually fire.
 
 ## Behavior
 
-Two hook events, one process each:
+Four lifecycle events, one process each. Checked-in `.mjs` files run directly; the plugin installs or compiles nothing.
 ### PreToolUse (`Edit|Write|MultiEdit|ApplyPatch|Bash`)
 
 | Check | Decision | What it blocks / reports |
@@ -35,6 +35,7 @@ Two hook events, one process each:
 | Composer lockfile | **deny** | Direct writes to composer.lock via write tools or shell (redirect, tee, rm, mv, cp, sed -i) |
 | Protected paths | **deny** | `vendor/<pkg>/`, `vendor/autoload.php`, `vendor/composer/`, `.phpunit.result.cache` |
 | Test output truncation | report | `phpunit/phpstan/pest/psalm ... | tail/head -N` (N > 1) |
+| Heavy command repeat | report / deny | repeated identical phpunit/phpstan/pest/psalm runs after failure or success; `# retry-ok` is the explicit escape |
 
 Deny decisions carry a `blockingContract` (observedFacts / harm / unblockWhen /
 recovery) in the reason message.
@@ -49,9 +50,9 @@ recovery) in the reason message.
 | Debt | report | Net-new `@phpstan-ignore*` / `@psalm-suppress`, reflection encapsulation bypasses, empty catches (issue/ticket or `-- 原因:` justification exempts) |
 | Debug statements | report | Net-new `dd()` (must remove) / `var_dump()` / `print_r()` / `dump()` |
 
-PostToolUse cannot deny on either host; all checks report via
-additionalContext. The hard stop gate for PHP quality lives in a separate
-static-analysis plugin (phpstan is not part of this plugin).
+`UserPromptSubmit` consolidates `php-env-detector` facts. PostToolUse also records up to 24 changed PHP paths; `Stop` runs one bounded `php-lint-phpstan-stop` aggregation only when a project-local or PATH PHPStan already exists. Missing PHPStan is reported and never installed.
+
+PostToolUse remains fail-open. Only the Stop aggregation can block on concrete PHPStan errors.
 
 ## Platform notes
 
@@ -88,7 +89,7 @@ bash ../../scripts/ci/validate-plugins.sh
 
 ## Migrated from
 
-`infra/harness-starter` skills `php-engineering` (composer guards, protected
-paths, truncation, syntax, encoding, debt, debug) — framework-specific
-detectors (Laravel / ThinkPHP / Webman), phpstan and Symfony guards stay in
-the source repo for later dedicated plugins.
+`infra/ai-experts` PHP hooks: composer guards, protected paths, truncation,
+syntax, encoding, debt, debug, environment detection, heavy-command state,
+and bounded PHPStan aggregation. Framework-specific rules remain in their
+existing Laravel / ThinkPHP / Webman / Symfony plugins.

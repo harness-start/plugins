@@ -36,6 +36,7 @@ import * as syntaxComposer from "./checks/syntax-composer.mjs";
 import * as encoding from "./checks/encoding.mjs";
 import { collectDebtFindings, formatDebtReport } from "./checks/debt.mjs";
 import { collectDebugFindings, formatDebugReport } from "./checks/debug-statement.mjs";
+import { recordHeavyCommandOutcome, trackPhpstanFile } from "./checks/stateful-runtime.mjs";
 
 /**
  * Codex non-interactive mode applies file patches through the Bash tool with
@@ -52,6 +53,7 @@ async function main() {
   const isWrite = isWriteTool(toolName);
   const isShell = isShellTool(toolName);
   if (!isWrite && !isShell) process.exit(0);
+  if (isShell) recordHeavyCommandOutcome(event);
 
   const filePath = extractFilePath(toolInput);
   const targets = [];
@@ -66,6 +68,7 @@ async function main() {
 
   for (const target of [...new Set(targets)]) {
     if (!existsSync(target)) continue;
+    trackPhpstanFile(event, target);
 
     // ── Synchronous file checks (fast; bounded reads) ──
     if (encoding.matches(target)) {
