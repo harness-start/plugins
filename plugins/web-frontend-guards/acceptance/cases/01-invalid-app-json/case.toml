@@ -1,0 +1,4 @@
+id = "01-invalid-app-json"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["post-tool", "validation", "wechat"]

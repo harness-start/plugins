@@ -70,6 +70,11 @@
       "name": "jvm-runtime-guards",
       "source": "./plugins/jvm-runtime-guards",
       "description": "JVM runtime guards: deny gradle.lockfile writes; report encoding, net-new debt (SuppressWarnings/empty catch/Thread.sleep), and Java/Kotlin syntax heuristics."
+    },
+    {
+      "name": "web-frontend-guards",
+      "source": "./plugins/web-frontend-guards",
+      "description": "Frontend guards: report encoding, WXML/WXSS/Taro, mini-program configuration, Vue/Svelte, environment, and stylelint coverage issues."
     }
   ]
 }
