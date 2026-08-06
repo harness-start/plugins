@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/subagent-discipline-hook-start.mjs\"",
+            "statusMessage": "Subagent discipline: injecting scoped execution principles",
+            "timeout": 5,
+            "additionalContextLimit": 2000
+          }
+        ]
+      }
+    ]
+  }
+}
