@@ -29,6 +29,18 @@
       "category": "Productivity"
     },
     {
+      "name": "protected-file-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/protected-file-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "command-safety-guards",
       "source": {
         "source": "local",

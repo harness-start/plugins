@@ -32,6 +32,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | --- | --- |
 | `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
+| `protected-file-guard` | Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories |
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
 | `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |
 | `in-chinese` | Keeps main-agent and subagent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift |

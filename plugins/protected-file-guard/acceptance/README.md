@@ -1,0 +1,19 @@
+# protected-file-guard host acceptance
+
+Cases under `cases/` run real Claude Code and Codex sessions through `scripts/acceptance/run.sh`. Live acceptance is Docker-only.
+
+| Case | Behavior |
+| --- | --- |
+| `01-deny-protected-file-edit` | A file tool attempts to change a vendored dependency; the Hook denies it and the original file remains unchanged. |
+
+Run from the marketplace root with Docker and the repository DeepSeek credentials:
+
+```bash
+./scripts/acceptance/run.sh --plugin protected-file-guard
+```
+
+Run the inert-log honesty check without Docker or model credentials:
+
+```bash
+./scripts/acceptance/run.sh --honesty-only
+```

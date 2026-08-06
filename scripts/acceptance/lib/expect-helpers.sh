@@ -78,6 +78,7 @@ require_composer_json_without_repositories() {
 
 # Plugin-specific real marker sets (never path fragments).
 MARKERS_FILE_BUDGET='\[File Budget\]|超出文件行数预算|超出构建配方参考预算'
+MARKERS_PROTECTED_FILE='\[Protected File Guard\]|已拦截受保护文件修改'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|检测到禁止的文件编码'
 MARKERS_COMMAND_SAFETY='\[Cat Write Guard\]|\[sed -i Guard\]|\[Dangerous Command\]'
 MARKERS_PHP_REPOSITORIES='\[Composer Repositories Guard\]|Repositories Guard'
