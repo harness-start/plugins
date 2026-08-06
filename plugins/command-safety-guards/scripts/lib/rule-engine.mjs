@@ -67,7 +67,16 @@ export function validateRule(rule, i) {
 
 /** Merge user rules (prepended) with built-ins. */
 export function resolveRules(userConfig) {
-  const rawUser = userConfig?.rules ?? [];
+  const config =
+    userConfig && typeof userConfig === "object" && !Array.isArray(userConfig)
+      ? userConfig
+      : {};
+  const rawUser = Array.isArray(config.rules) ? config.rules : [];
+  if (config.rules !== undefined && !Array.isArray(config.rules)) {
+    process.stderr.write(
+      `[command-safety-guards] config "rules" must be an array, using built-ins\n`,
+    );
+  }
   const userRules = rawUser
     .map((rule, i) => ({ rule, i }))
     .filter(({ rule, i }) => validateRule(rule, i))
@@ -89,11 +98,19 @@ export function resolveRules(userConfig) {
     settings: {
       engines: {
         ...DEFAULT_SETTINGS.engines,
-        ...(userConfig?.settings?.engines ?? {}),
+        ...(config.settings?.engines &&
+        typeof config.settings.engines === "object" &&
+        !Array.isArray(config.settings.engines)
+          ? config.settings.engines
+          : {}),
       },
       escalation: {
         ...DEFAULT_SETTINGS.escalation,
-        ...(userConfig?.settings?.escalation ?? {}),
+        ...(config.settings?.escalation &&
+        typeof config.settings.escalation === "object" &&
+        !Array.isArray(config.settings.escalation)
+          ? config.settings.escalation
+          : {}),
       },
     },
   };
