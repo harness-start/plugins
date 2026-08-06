@@ -34,9 +34,9 @@ single file edit must not spawn N node processes (migration plan §2 P1).
 2. **PreToolUse deny** keeps fail-closed semantics and appends a
    `blockingContract` (observedFacts / harm / unblockWhen / recovery) to the
    reason, matching the migration plan's contract convention.
-3. **Matchers differ per platform**: Codex's plugin hook file is
-   `hooks/hooks.json` (its default path; `hooks/codex.json` is not read), and
-   its matcher matches uppercase tool names (`Bash|Write|Edit|ApplyPatch` —
+3. **Matchers differ per platform**: Codex's manifest selects
+   `hooks/codex.json`, and its matcher matches uppercase tool names
+   (`Bash|Write|Edit|ApplyPatch` —
    `exec_command` events arrive as `Bash`). Claude Code uses
    `hooks/claude.json`. Each hooks JSON is written for its host.
 4. **Codex hook trust**: plugin-bundled hooks are non-managed hooks and are

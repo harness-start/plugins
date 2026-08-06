@@ -4,7 +4,7 @@ Symfony runtime guards for Claude Code and Codex: protected generated paths,
 Doctrine entity mapping heuristics, Twig template syntax checks.
 
 Dual-platform plugin; the same business scripts run on both hosts. Hook
-configs are platform-specific (`hooks/claude.json` vs `hooks/hooks.json`).
+configs are platform-specific (`hooks/claude.json` vs `hooks/codex.json`).
 
 ## Install
 

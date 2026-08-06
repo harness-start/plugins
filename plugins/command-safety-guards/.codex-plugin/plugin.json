@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Command Safety Guards",
     "shortDescription": "Block unsafe commands and report sensitive data or code patterns",

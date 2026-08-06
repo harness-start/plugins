@@ -4,7 +4,7 @@ Laravel hard guards for Claude Code and Codex: **deny** writes into
 generated / runtime / build paths instead of relying on the model to behave.
 
 Dual-platform plugin; the same business script runs on both hosts. Hook
-configs are platform-specific (`hooks/claude.json` vs `hooks/hooks.json`).
+configs are platform-specific (`hooks/claude.json` vs `hooks/codex.json`).
 
 ## Install
 

@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "TypeScript Runtime Guards",
     "shortDescription": "TS/JS lockfile deny + encoding/debt/as-any/suppression reports",

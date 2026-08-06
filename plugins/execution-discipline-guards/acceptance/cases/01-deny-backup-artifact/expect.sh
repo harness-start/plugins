@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-test ! -e src/service.js.bak
-grep -Eqi 'backup|artifact|备份|拦截|denied' "${ACCEPTANCE_TRANSCRIPT:?}"
+. "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
+
+require_host_session_started
+require_file_absent "${ACCEPT_WORKSPACE}/src/service.js.bak"
+require_guard_hook_signal "${MARKERS_BACKUP_ARTIFACT}|${MARKERS_HOOK_DENY}"
+echo "OK execution-discipline backup artifact deny"

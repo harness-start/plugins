@@ -56,8 +56,8 @@ PostToolUse remains fail-open. Only the Stop aggregation can block on concrete P
 
 ## Platform notes
 
-- **Claude Code** uses `hooks/claude.json`; **Codex** uses `hooks/hooks.json`
-  (Codex's default plugin hook path; matchers match uppercase tool names such
+- **Claude Code** uses `hooks/claude.json`; **Codex** uses `hooks/codex.json`
+  (selected explicitly by its manifest; matchers match uppercase tool names such
   as `Bash|Write|Edit|ApplyPatch`).
 - Codex does **not** auto-trust plugin hooks: a new session asks the user to
   review and trust the hook definitions once before they run. Automated

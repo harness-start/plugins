@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-test ! -e .specs/login/plan.md
-grep -Eqi 'spec|clarification|澄清|阻断|denied' "${ACCEPTANCE_TRANSCRIPT:?}"
+. "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
+
+require_host_session_started
+require_file_absent "${ACCEPT_WORKSPACE}/.specs/login/plan.md"
+require_guard_hook_signal "${MARKERS_SPEC_PLAN}|${MARKERS_HOOK_DENY}"
+echo "OK delivery-evidence incomplete spec deny"

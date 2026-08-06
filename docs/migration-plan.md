@@ -18,7 +18,7 @@ marketplace
 
 marketplace
   → plugins/<name>/.codex-plugin/plugin.json
-    → hooks/hooks.json 或 hooks/codex.json
+    → hooks/codex.json
       → node "${PLUGIN_ROOT}/scripts/<entry>.mjs"
 ```
 
@@ -29,7 +29,7 @@ plugins/<name>/
 ├── .claude-plugin/plugin.json
 ├── .codex-plugin/plugin.json
 ├── hooks/claude.json
-├── hooks/hooks.json 或 hooks/codex.json
+├── hooks/codex.json
 ├── scripts/
 │   ├── <lifecycle-entry>.mjs
 │   ├── checks/*.mjs
@@ -77,6 +77,8 @@ plugins/<name>/
 ### 3.3 双平台机制分开
 
 Claude Code 与 Codex 的 manifest、根目录变量、事件名和输出结构分别维护。共享的是检查语义，不混用平台入口或环境变量。
+
+Codex 的 `PostToolUse` 发现问题时使用该宿主定义的退出码 `2` + `stderr` 反馈：操作已经完成，不会回滚；Codex 用检查结果替换原工具结果并继续修正。Claude Code 仍使用 `additionalContext`。这一差异只存在于输出适配层。
 
 ### 3.4 不增加隐式工具链
 

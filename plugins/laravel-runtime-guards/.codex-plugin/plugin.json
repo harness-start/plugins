@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Laravel Runtime Guards",
     "shortDescription": "Laravel guards: generated paths, migrations.",

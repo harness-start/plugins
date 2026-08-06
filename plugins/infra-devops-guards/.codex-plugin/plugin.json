@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "description": "Infrastructure syntax, dependency, and destructive-operation guards",
   "author": { "name": "Harness Start", "email": "devtools@example.com" },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": { "displayName": "Infrastructure and DevOps Guards", "shortDescription": "Infrastructure syntax, dependency, and destructive-operation guards", "developerName": "Harness Start", "category": "Productivity" }
 }

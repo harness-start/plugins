@@ -66,12 +66,20 @@ export function validateMigrationParity(root = ROOT) {
       fail(`excluded hook lacks reason: ${plugin}`);
     }
     for (const id of record.hookIds ?? []) pairs.push(`${plugin}:${id}`);
-    for (const platform of [".claude-plugin", ".codex-plugin"]) {
+    for (const [platform, expectedHooks] of [
+      [".claude-plugin", "./hooks/claude.json"],
+      [".codex-plugin", "./hooks/codex.json"],
+    ]) {
       const manifestPath = join(pluginRoot, platform, "plugin.json");
       if (!existsSync(manifestPath)) {
         fail(`manifest missing: ${relative(root, manifestPath)}`);
       }
       const manifest = json(manifestPath);
+      if (manifest.hooks !== expectedHooks) {
+        fail(
+          `platform hook config mismatch: ${plugin}/${platform} uses ${manifest.hooks ?? "<missing>"}, expected ${expectedHooks}`,
+        );
+      }
       const hooksPath = join(pluginRoot, manifest.hooks);
       if (!existsSync(hooksPath)) {
         fail(`hook config missing: ${relative(root, hooksPath)}`);
@@ -110,6 +118,9 @@ export function validateMigrationParity(root = ROOT) {
   }
   for (const path of walk(join(root, "plugins"))) {
     const name = path.split(/[\\/]/u).at(-1);
+    if (relative(root, path).replaceAll("\\", "/").endsWith("/hooks/hooks.json")) {
+      fail(`ambiguous cross-platform hook config is not allowed: ${relative(root, path)}`);
+    }
     if (FORBIDDEN_LOCKS.has(name)) {
       fail(`forbidden package-manager artifact: ${relative(root, path)}`);
     }

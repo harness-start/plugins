@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
-test ! -e pubspec.lock
-grep -Eqi 'lockfile|lock file|blocked|denied|拦截' "${ACCEPTANCE_TRANSCRIPT:?}"
+. "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
+
+require_host_session_started
+require_file_absent "${ACCEPT_WORKSPACE}/pubspec.lock"
+require_guard_hook_signal "${MARKERS_LOCKFILE}|${MARKERS_HOOK_DENY}"
+echo "OK mobile lockfile deny"

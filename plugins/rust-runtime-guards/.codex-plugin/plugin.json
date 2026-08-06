@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Rust Runtime Guards",
     "shortDescription": "Rust lockfile deny + encoding/debt/debug reports",

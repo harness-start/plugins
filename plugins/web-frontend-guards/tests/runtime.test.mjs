@@ -6,8 +6,22 @@ import { spawn } from "node:child_process";
 import test from "node:test";
 import { frontendEnvironment, stylelintPrimer } from "../scripts/checks/environment.mjs";
 import { fileReports } from "../scripts/checks/file-checks.mjs";
+import { additionalContextOutput } from "../scripts/lib/hook-io.mjs";
 
 const root = new URL("..", import.meta.url).pathname;
+
+test("Codex PostToolUse feedback preserves context while replacing the completed tool result", () => {
+  const previous = process.env.PLUGIN_ROOT;
+  process.env.PLUGIN_ROOT = root;
+  try {
+    assert.equal(additionalContextOutput("PostToolUse", "review this"), null);
+    assert.equal(process.exitCode, 2);
+  } finally {
+    process.exitCode = 0;
+    if (previous === undefined) delete process.env.PLUGIN_ROOT;
+    else process.env.PLUGIN_ROOT = previous;
+  }
+});
 
 function run(script, payload, cwd) {
   return new Promise((resolve, reject) => {
@@ -28,6 +42,36 @@ test("post entry reports invalid mini-program app config", async () => {
     const file = join(cwd, "app.json");
     await writeFile(file, '{"pages":[]}\n');
     const result = await run("web-hook-post-tool.mjs", { cwd, tool_name: "Edit", tool_input: { file_path: file } }, cwd);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /WeChat Mini Program Config/u);
+  } finally { await rm(cwd, { recursive: true, force: true }); }
+});
+
+test("post entry extracts targets from direct apply_patch payloads", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "web-guards-"));
+  try {
+    const file = join(cwd, "app.json");
+    await writeFile(file, '{"pages":[]}\n');
+    const result = await run("web-hook-post-tool.mjs", {
+      cwd,
+      tool_name: "apply_patch",
+      tool_input: { patch: "*** Begin Patch\n*** Add File: app.json\n+{\"pages\":[]}\n*** End Patch" },
+    }, cwd);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /WeChat Mini Program Config/u);
+  } finally { await rm(cwd, { recursive: true, force: true }); }
+});
+
+test("post entry extracts targets from shell redirects", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "web-guards-"));
+  try {
+    const file = join(cwd, "app.json");
+    await writeFile(file, '{"pages":[]}\n');
+    const result = await run("web-hook-post-tool.mjs", {
+      cwd,
+      tool_name: "exec_command",
+      tool_input: { cmd: "printf '%s\\n' '{\"pages\":[]}' > app.json" },
+    }, cwd);
     assert.equal(result.code, 0, result.stderr);
     assert.match(result.stdout, /WeChat Mini Program Config/u);
   } finally { await rm(cwd, { recursive: true, force: true }); }

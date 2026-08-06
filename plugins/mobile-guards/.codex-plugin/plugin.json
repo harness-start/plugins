@@ -3,6 +3,6 @@
   "version": "0.1.0",
   "description": "Android, Flutter, Dart, Swift, and Objective-C runtime guards",
   "author": { "name": "Harness Start", "email": "devtools@example.com" },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": { "displayName": "Mobile Guards", "shortDescription": "Mobile environment, lockfile, syntax, encoding, and concurrency checks", "developerName": "Harness Start", "category": "Productivity" }
 }

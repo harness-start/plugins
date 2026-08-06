@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "JVM Runtime Guards",
     "shortDescription": "JVM lockfile deny + encoding/debt/syntax reports for Java/Kotlin",

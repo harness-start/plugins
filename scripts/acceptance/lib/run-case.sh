@@ -123,14 +123,14 @@ else
   printf 'deepseek_check=ok\n' >>"${STATUS_FILE}"
 fi
 
-# expect.sh may treat timeout host exit specially
+# Run semantic assertions for diagnostics even when the host failed.
 set +e
 bash "${CASE_DIR}/expect.sh"
 EXPECT_EXIT=$?
 set -e
 printf 'expect_exit=%s\n' "${EXPECT_EXIT}" >>"${STATUS_FILE}"
 
-if [ "${EXPECT_EXIT}" -eq 0 ]; then
+if [ "${EXPECT_EXIT}" -eq 0 ] && [ "${HOST_EXIT}" -eq 0 ]; then
   printf 'RESULT=PASS\n' >>"${STATUS_FILE}"
   printf 'PASS %s\n' "${RUN_ID}"
   exit 0

@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "PHP Runtime Guards",
     "shortDescription": "PHP runtime guards: composer policy, protected paths, syntax, encoding, debt.",
