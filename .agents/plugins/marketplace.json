@@ -5,6 +5,30 @@
   },
   "plugins": [
     {
+      "name": "source-sanity-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/source-sanity-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "code-quality-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/code-quality-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "encoding-guard",
       "source": {
         "source": "local",

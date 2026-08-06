@@ -1,0 +1,16 @@
+{
+  "name": "source-sanity-guard",
+  "version": "0.1.0",
+  "description": "Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Source Sanity Guard",
+    "shortDescription": "Keep temporary, corrupted, and conflicted source out.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}
