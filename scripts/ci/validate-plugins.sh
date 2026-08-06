@@ -71,6 +71,12 @@ check_scripts() {
     printf 'Checking %s\n' "${file}"
     node --check "${file}"
   done
+
+  log "Checking install-all.sh syntax"
+  bash -n scripts/install-all.sh
+  printf 'Checking scripts/install-all.sh --list-only (offline-friendly)\n'
+  # Prefer local marketplace.json when network is blocked; still exercises the script.
+  bash scripts/install-all.sh --list-only >/dev/null
 }
 
 check_unit_tests() {
