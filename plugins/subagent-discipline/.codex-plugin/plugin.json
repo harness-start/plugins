@@ -1,0 +1,16 @@
+{
+  "name": "subagent-discipline",
+  "version": "0.1.0",
+  "description": "Injects scope, safety, evidence, and context-discipline principles into every spawned subagent.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Subagent Discipline",
+    "shortDescription": "Keep spawned subagents scoped and evidence-focused.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

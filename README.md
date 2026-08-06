@@ -34,6 +34,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
 | `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |
 | `in-chinese` | Keeps main-agent and subagent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift |
+| `subagent-discipline` | Injects scope, safety, evidence, verification, and context-discipline principles into every spawned subagent |
 
 ## Prerequisites
 
