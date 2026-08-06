@@ -9,6 +9,7 @@
 | `file-line-budget-guard` | Claude + Codex | 0.2.0 | `01-block-oversized-php` | ✅ 通过：真实文件工具触发 File Budget 信号 | Docker 全量汇总 `26/0/0` | 临时 warning marker | — |
 | `in-chinese` | Claude + Codex | 0.1.0 | `01-session-policy` | ✅ 通过：SessionStart 执行，模型用简体中文复述真实策略标记 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
 | `process-confidence` | Claude + Codex | 0.1.0 | `01-deny-machine-path` | ✅ 通过：机器路径未创建且有 deny 信号 | Docker 全量汇总 `26/0/0` | 容器内隔离数据目录 | — |
+| `subagent-discipline` | Claude + Codex | 0.1.0 | `01-subagent-contract` | ✅ 通过：真实 subagent 收到并报告 `[Subagent Contract]`，工作区未修改 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
 
 ## 说明
 
