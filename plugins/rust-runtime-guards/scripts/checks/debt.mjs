@@ -7,6 +7,11 @@ import { readDebtTextPair, shouldScanFile } from "../lib/debt-utils.mjs";
 
 const PATTERNS = [
   {
+    label: "dbg! debug macro",
+    re: /\bdbg!\s*\(/u,
+    hint: "移除 dbg! 或改用有级别、可配置的 tracing",
+  },
+  {
     label: "allow attribute",
     re: /#\s*\[\s*allow\s*\(/u,
     hint: "修复 lint；确需 allow 时写明 issue 或外部边界",

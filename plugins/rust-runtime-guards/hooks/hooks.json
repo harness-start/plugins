@@ -1,5 +1,6 @@
 {
   "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/rust-hook-user-prompt.mjs\"", "statusMessage": "rust-runtime-guards: project environment", "timeout": 10000 }] }],
     "PreToolUse": [
       {
         "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",

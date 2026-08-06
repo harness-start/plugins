@@ -1,6 +1,6 @@
 {
   "name": "rust-runtime-guards",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Rust lockfile deny + encoding/debt/debug reports",
   "author": {
     "name": "Harness Start",

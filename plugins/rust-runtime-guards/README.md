@@ -5,8 +5,9 @@ Rust lockfile deny + encoding/debt/debug reports
 ## Events
 
 - **PreToolUse**: deny direct lockfile writes (`Cargo.lock`)
-- **PostToolUse**: report encoding issues, net-new debt signals, best-effort syntax
+- **UserPromptSubmit**: inject consolidated `rust-env-detector` and `tauri-env-detector` facts once per day
+- **PostToolUse**: report encoding, net-new debt, best-effort syntax, and `rust-debug-statement-guard` `dbg!` findings
 
 ## Version
 
-0.1.0
+0.2.0
