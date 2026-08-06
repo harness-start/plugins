@@ -72,7 +72,7 @@ plugins/<name>/
 
 ### 3.2 一个不变量只有一个目标拥有者
 
-源侧重复的 encoding、lockfile、syntax、debt、environment detector 等模式，在对应目标插件中收敛为一份实现。横切能力按 command safety、git delivery、execution discipline、delivery evidence、context rules 分组。
+源侧重复的 encoding、lockfile、syntax、debt、environment detector 等模式，在对应目标插件中收敛为一份实现。横切能力按 command safety、git delivery 分组；execution discipline、delivery evidence 与 context rules 已排除，不迁 target-native。
 
 ### 3.3 双平台机制分开
 
@@ -146,7 +146,7 @@ bash scripts/ci/validate-plugins.sh
 | 插件内样板膨胀 | 按 import/export 审计未使用函数；只保留实际入口依赖 |
 | Claude/Codex 配置串用 | 双 manifest 与 hook 配置分别校验，入口命令使用各自根变量 |
 | 可选 lint 工具导致隐式安装 | 只使用已经存在的本地或 `PATH` 工具，缺失不安装 |
-| P13/P14 与 process-confidence 状态重叠 | 只通过稳定 receipt/schema 或插件数据目录协作，不读取脆弱相对路径 |
+| 插件本地状态与 process-confidence 重叠 | 只通过稳定 receipt/schema 或插件数据目录协作，不读取脆弱相对路径 |
 
 ## 8. 收口顺序
 

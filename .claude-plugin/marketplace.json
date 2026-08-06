@@ -95,21 +95,6 @@
       "name": "git-delivery-guards",
       "source": "./plugins/git-delivery-guards",
       "description": "Git delivery guards: protect destructive operations and staging boundaries, audit remote mutations, and report merge or CI workflow hazards."
-    },
-    {
-      "name": "execution-discipline-guards",
-      "source": "./plugins/execution-discipline-guards",
-      "description": "Execution discipline guards: control retry and edit loops, language drift, debt, syntax, polling, external skills, and long-task ledgers."
-    },
-    {
-      "name": "delivery-evidence",
-      "source": "./plugins/delivery-evidence",
-      "description": "Delivery evidence gates: verify provenance, artifacts, ledgers, TDD order, GitLab closure, and external effects before completion."
-    },
-    {
-      "name": "context-rules",
-      "source": "./plugins/context-rules",
-      "description": "Bounded session context, prompt guidance, Codex context-rule matching, usage audit, and optional telemetry."
     }
   ]
 }

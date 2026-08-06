@@ -1,4 +1,0 @@
-id = "01-session-context"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["session-start", "context", "p15"]

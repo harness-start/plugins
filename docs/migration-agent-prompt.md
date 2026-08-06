@@ -530,9 +530,9 @@ ALLOW_SOURCE_RETIRE=no
 | P10 | misc-lang-guards | ⬜ | **新建**或按语言拆 MR；lockfile 用配方 L 批量 | go lockfile |
 | P11 | git-delivery-guards | ⬜ | **新建**；Bash 族配方 B + 部分状态 | php pre |
 | **P12** | **command-safety-guards** | ⬜ | **新建；见 §4 完整范例** | php pre |
-| P13 | execution-discipline-guards | ⬜ | 配方 S+I；与 process-confidence 事件叠加 | process-confidence |
-| P14 | delivery-evidence | ⬜ | Stop 门禁；证据目录对齐 process-confidence | process-confidence |
-| P15 | context-rules | ⬜ | 注入类配方 I | process-confidence session-start |
+| P13 | execution-discipline-guards | ❌ 已移除 | 不迁 target-native；parity 记为 excluded-by-plan | — |
+| P14 | delivery-evidence | ❌ 已移除 | 不迁 target-native；parity 记为 excluded-by-plan | — |
+| P15 | context-rules | ❌ 已移除 | 低价值注入/遥测，不迁 target-native；parity 记为 excluded-by-plan | — |
 
 **推荐下一刀：`P12-batch1`（§4）。**
 
@@ -619,23 +619,17 @@ encoding/syntax/env 分批。
 | batch4 | ethical-hacking active-test-scope；lark-cli-confirmation-audit |
 | batch5 | deny-escalation（配方 S） |
 
-#### P13 execution-discipline-guards ⬜
+#### P13 execution-discipline-guards ❌ 已移除
 
-| 源簇 | 动作 |
-| --- | --- |
-| execution-loop-governance 四件 | 状态计数；PLUGIN_DATA；对照 process-confidence |
-| language-output-governance | bash/tool report + stop gate |
-| runtime-governance | 门禁与 syntax-json/xml；provenance |
-| long-task-context-governance | **收敛** support/types 进 lib，不要 6 个 hook 注册 |
-| find-skill 二守卫 | pre deny 配方 B |
+不迁 target-native。执行纪律门禁已从 marketplace 删除；源 hook 在 `migration-parity.json` 中记为 `excluded-by-plan`。
 
-#### P14 delivery-evidence ⬜
+#### P14 delivery-evidence ❌ 已移除
 
-各 `*-completion-gate.ts` + agentic-fix-review-gate → Stop/Post 检查证据文件是否存在；**状态与目录对齐 process-confidence receipt**。先读 `plugins/process-confidence/docs/` 与 `schemas/`。
+不迁 target-native。交付完成证据门禁已从 marketplace 删除；源 hook 在 `migration-parity.json` 中记为 `excluded-by-plan`。
 
-#### P15 context-rules ⬜
+#### P15 context-rules ❌ 已移除
 
-injector/reminder/prompt-guidance → SessionStart/UserPrompt；预算去重；skill-routing 的 registry 多文件收成 lib。
+不迁 target-native。会话/prompt 注入与可选遥测已从 marketplace 删除；源 hook 在 `migration-parity.json` 中记为 `excluded-by-plan`。
 
 #### P0b 旁支
 
