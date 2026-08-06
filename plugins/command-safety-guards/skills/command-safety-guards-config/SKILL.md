@@ -85,7 +85,7 @@ User `match` **must** be `RegExp`. Built-in function matchers are not available 
 | `dangerousRm` | true | Shell-parse recursive `rm` (runs **before** declarative rules) |
 | `mysqlReplicationPreflight` | true | Event-evidence check for replica mutations |
 | `secretRead` | true | Sensitive Read paths |
-| `fileSafety` | true | PostToolUse TLS/PII/encoding |
+| `fileSafety` | true | PostToolUse TLS/PII |
 | `denyEscalation` | true | Same-target multi-deny window |
 
 **Critical:** `mode: "allow"` does **not** bypass `dangerousRm` or `denyEscalation`. To relax recursive-rm protection, user must explicitly set `settings.engines.dangerousRm: false` — confirm impact first.
