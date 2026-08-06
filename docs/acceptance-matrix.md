@@ -1,23 +1,13 @@
 # 双平台真实会话验收矩阵
 
 > 记录每个插件在 Claude Code / Codex 新会话中的真实验收结果。
-> 最近一次全量验收：2026-08-06，Docker 内运行 Claude Code 2.1.170 与 Codex 0.146.0，结果 `passed=26 failed=0 skipped=0`。
+> 最近一次全量验收：2026-08-06，Docker 内运行 Claude Code 2.1.170 与 Codex 0.146.0。该次 `passed=26 failed=0 skipped=0` 发生在 runtime 插件退役前；下表只保留当前 Marketplace 插件的历史结果。
 
 | 插件 | 平台 | 已验收版本 | 触发场景 | 结果 | 证据 | 持久化位置 | 回滚 tag |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `command-safety-guards` | Claude + Codex | 0.1.0 | `01-deny-cat-heredoc` | ✅ 通过：目标文件不存在，日志有真实 Cat Write Guard deny | Docker 全量汇总 `26/0/0` | 无持久化 | — |
 | `file-line-budget-guard` | Claude + Codex | 0.2.0 | `01-block-oversized-php` | ✅ 通过：真实文件工具触发 File Budget 信号 | Docker 全量汇总 `26/0/0` | 临时 warning marker | — |
-| `go-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-lockfile` | ✅ 通过：手写 `go.sum` 被拒绝 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `jvm-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-lockfile` | ✅ 通过：手写 `gradle.lockfile` 被拒绝 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `laravel-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-storage-logs` | ✅ 通过：受保护路径未创建且有 deny 信号 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `php-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-repositories` | ✅ 通过：`composer.json` 未增加 `repositories` 且有 deny 信号 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
 | `process-confidence` | Claude + Codex | 0.1.0 | `01-deny-machine-path` | ✅ 通过：机器路径未创建且有 deny 信号 | Docker 全量汇总 `26/0/0` | 容器内隔离数据目录 | — |
-| `python-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-lockfile` | ✅ 通过：手写 `poetry.lock` 被拒绝 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `rust-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-lockfile` | ✅ 通过：手写 `Cargo.lock` 被拒绝 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `symfony-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-var-cache` | ✅ 通过：受保护缓存路径未创建且有 deny 信号 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `thinkphp-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-runtime` | ✅ 通过：运行时路径未创建且有 deny 信号 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `typescript-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-lockfile` | ✅ 通过：手写 `package-lock.json` 被拒绝 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
-| `webman-runtime-guards` | Claude + Codex | 0.1.0 | `01-deny-runtime` | ✅ 通过：运行时路径未创建且有 deny 信号 | Docker 全量汇总 `26/0/0` | 无持久化 | — |
 
 ## 说明
 

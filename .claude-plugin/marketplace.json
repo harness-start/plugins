@@ -17,59 +17,9 @@
       "description": "Command safety guards: deny broad recursive deletion, unbacked sed in-place edits, and cat heredoc writes outside temporary directories."
     },
     {
-      "name": "php-runtime-guards",
-      "source": "./plugins/php-runtime-guards",
-      "description": "PHP runtime guards: composer.json policy (repositories / unicode escapes / lockfile), protected generated paths, test output truncation, php -l and composer validate syntax, encoding, net-new debt and debug statements."
-    },
-    {
-      "name": "symfony-runtime-guards",
-      "source": "./plugins/symfony-runtime-guards",
-      "description": "Symfony runtime guards: protected generated paths (symfony.lock, var/cache, public/build, migrations), Doctrine entity mapping heuristics, Twig template syntax checks."
-    },
-    {
       "name": "process-confidence",
       "source": "./plugins/process-confidence",
       "description": "Observable delivery process: validated session begin, hook receipts, auto complete, Stop gate (hooks never auto-begin)."
-    },
-    {
-      "name": "laravel-runtime-guards",
-      "source": "./plugins/laravel-runtime-guards",
-      "description": "Laravel hard guards: deny writes to generated paths (bootstrap/cache, storage/framework cache|views, storage/logs, public/build, existing database/migrations)."
-    },
-    {
-      "name": "thinkphp-runtime-guards",
-      "source": "./plugins/thinkphp-runtime-guards",
-      "description": "ThinkPHP hard guards: deny writes to runtime directories (modern runtime/, legacy Application/Runtime/)."
-    },
-    {
-      "name": "webman-runtime-guards",
-      "source": "./plugins/webman-runtime-guards",
-      "description": "Webman hard guards: deny writes to the runtime directory (logs, pid files, caches)."
-    },
-    {
-      "name": "typescript-runtime-guards",
-      "source": "./plugins/typescript-runtime-guards",
-      "description": "TypeScript/JS runtime guards: deny dependency lockfile writes; report encoding, net-new debt (any/as-any/suppressions), and syntax heuristics."
-    },
-    {
-      "name": "python-runtime-guards",
-      "source": "./plugins/python-runtime-guards",
-      "description": "Python runtime guards: deny poetry/pdm/pipenv/uv lockfile writes; report encoding, net-new debt (type:ignore/Any/bare except), and py_compile syntax."
-    },
-    {
-      "name": "go-runtime-guards",
-      "source": "./plugins/go-runtime-guards",
-      "description": "Go runtime guards: deny go.sum writes; report encoding, net-new debt (nolint/panic), and gofmt syntax issues."
-    },
-    {
-      "name": "rust-runtime-guards",
-      "source": "./plugins/rust-runtime-guards",
-      "description": "Rust runtime guards: deny Cargo.lock writes; report encoding, net-new debt (allow/unwrap/todo!), and syntax heuristics."
-    },
-    {
-      "name": "jvm-runtime-guards",
-      "source": "./plugins/jvm-runtime-guards",
-      "description": "JVM runtime guards: deny gradle.lockfile writes; report encoding, net-new debt (SuppressWarnings/empty catch/Thread.sleep), and Java/Kotlin syntax heuristics."
     }
   ]
 }

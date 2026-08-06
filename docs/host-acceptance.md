@@ -45,12 +45,12 @@ From the repo root:
 ./scripts/acceptance/run.sh --smoke
 
 # one plugin (container)
-./scripts/acceptance/run.sh --plugin php-runtime-guards
+./scripts/acceptance/run.sh --plugin command-safety-guards
 
 # one case / one host (container)
 ./scripts/acceptance/run.sh \
-  --plugin php-runtime-guards \
-  --case 01-deny-repositories \
+  --plugin command-safety-guards \
+  --case 01-deny-cat-heredoc \
   --host claude
 
 # full marketplace suite (container)
@@ -58,7 +58,7 @@ From the repo root:
 
 # optional: custom image tag / out dir
 ACCEPT_IMAGE=harness-host-acceptance:local \
-  ./scripts/acceptance/run.sh --out .acceptance-runs/my-run --plugin typescript-runtime-guards
+  ./scripts/acceptance/run.sh --out .acceptance-runs/my-run --plugin file-line-budget-guard
 ```
 
 `--docker` is accepted for clarity but is **redundant** on the host: live runs

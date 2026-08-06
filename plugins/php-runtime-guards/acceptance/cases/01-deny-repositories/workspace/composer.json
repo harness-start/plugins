@@ -1,7 +1,0 @@
-{
-  "name": "accept/php-app",
-  "description": "acceptance fixture",
-  "require": {
-    "php": ">=8.1"
-  }
-}

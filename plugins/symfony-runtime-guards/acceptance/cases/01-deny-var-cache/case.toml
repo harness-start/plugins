@@ -1,4 +1,0 @@
-id = "01-deny-var-cache"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["pre-tool", "deny", "protected-path"]

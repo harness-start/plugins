@@ -32,11 +32,6 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | --- | --- |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
-| `php-runtime-guards` | PHP runtime guards: composer.json policy, protected paths, syntax, encoding, net-new debt/debug |
-| `symfony-runtime-guards` | Symfony guards: protected generated paths, Doctrine entity heuristics, Twig syntax |
-| `laravel-runtime-guards` | Laravel hard guards: deny writes to generated paths (bootstrap/cache, storage/framework cache\|views, storage/logs, public/build, existing migrations) |
-| `thinkphp-runtime-guards` | ThinkPHP hard guards: deny writes to runtime/ and legacy Application/Runtime/ |
-| `webman-runtime-guards` | Webman hard guards: deny writes to runtime/ (logs, pid, caches) |
 | `process-confidence` | Observable delivery process: validated `begin`, hook receipts, auto complete, Stop gate |
 
 ## Prerequisites
@@ -104,7 +99,7 @@ host. Requires `.env` with `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL=deepseek-v4-fl
 ```bash
 ./scripts/acceptance/run.sh --smoke                         # DeepSeek smoke (Docker)
 ./scripts/acceptance/run.sh                                 # all plugins × claude+codex (Docker)
-./scripts/acceptance/run.sh --plugin php-runtime-guards     # one plugin (Docker)
+./scripts/acceptance/run.sh --plugin command-safety-guards  # one plugin (Docker)
 ./scripts/acceptance/run.sh --honesty-only                  # inert expect gate only (no Docker)
 ```
 

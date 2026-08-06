@@ -25,7 +25,7 @@ RUN npm install --global \
   && claude --version \
   && codex --version
 
-# Composer (optional; php-runtime-guards post checks)
+# Composer is available for PHP-based acceptance workspaces.
 RUN curl -sS https://getcomposer.org/installer \
   | php -- --install-dir=/usr/local/bin --filename=composer \
   && composer --version

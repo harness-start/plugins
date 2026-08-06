@@ -133,7 +133,8 @@
       ]
     },
     "go-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "go-debt-guard",
         "go-dependency-lockfile-guard",
@@ -167,7 +168,8 @@
       ]
     },
     "jvm-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "java-env-detector",
         "java-syntax",
@@ -180,7 +182,7 @@
     },
     "laravel-runtime-guards": {
       "disposition": "excluded-by-plan",
-      "reason": "The migration plan explicitly keeps framework-only environment detection out; the target plugin protects Laravel generated/runtime paths instead.",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "php-laravel-env-detector"
       ]
@@ -227,7 +229,8 @@
       ]
     },
     "php-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "composer-repositories-guard",
         "composer-unicode-escape-guard",
@@ -247,7 +250,8 @@
       ]
     },
     "python-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "python-debt-guard",
         "python-dependency-lockfile-guard",
@@ -259,7 +263,8 @@
       ]
     },
     "rust-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "rust-debt-guard",
         "rust-debug-statement-guard",
@@ -270,7 +275,8 @@
       ]
     },
     "symfony-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "php-symfony-protected-paths",
         "php-symfony-syntax-doctrine-entity",
@@ -278,7 +284,8 @@
       ]
     },
     "typescript-runtime-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "any-type-guard",
         "deno-env-detector",
@@ -318,7 +325,7 @@
     },
     "webman-runtime-guards": {
       "disposition": "excluded-by-plan",
-      "reason": "The migration plan explicitly keeps framework-only environment detection out; the target plugin protects Webman runtime output instead.",
+      "reason": "Runtime guard plugin removed from the marketplace by explicit repository-scope decision; its hooks are no longer retained as target-native behavior.",
       "hookIds": [
         "php-webman-env-detector"
       ]
