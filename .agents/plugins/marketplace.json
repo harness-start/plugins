@@ -159,66 +159,6 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
-    },
-    {
-      "name": "web-frontend-guards",
-      "source": {
-        "source": "local",
-        "path": "./plugins/web-frontend-guards"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "infra-devops-guards",
-      "source": {
-        "source": "local",
-        "path": "./plugins/infra-devops-guards"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "mobile-guards",
-      "source": {
-        "source": "local",
-        "path": "./plugins/mobile-guards"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "misc-lang-guards",
-      "source": {
-        "source": "local",
-        "path": "./plugins/misc-lang-guards"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "git-delivery-guards",
-      "source": {
-        "source": "local",
-        "path": "./plugins/git-delivery-guards"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
     }
   ]
 }

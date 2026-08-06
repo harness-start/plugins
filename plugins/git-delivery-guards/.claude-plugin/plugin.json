@@ -1,1 +1,0 @@
-{"name":"git-delivery-guards","version":"0.1.0","description":"Git, GitHub, GitLab, SVN, commit scope, and merge-conflict guards","author":{"name":"Harness Start","email":"devtools@example.com"},"hooks":"./hooks/claude.json"}

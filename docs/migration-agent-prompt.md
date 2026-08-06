@@ -524,13 +524,13 @@ ALLOW_SOURCE_RETIRE=no
 | P1 | php-runtime-guards | 🟡 | 已有 dispatcher；补 phpstan/env 用配方 E/I | 自身 |
 | P1b–e | laravel/thinkphp/webman/symfony | ✅/🟡 | 路径/框架规则已按配方 P | laravel protected-paths |
 | P2–P6 | ts/python/go/rust/jvm-runtime-guards | 🟡 | 核心 L+D+E 已有；补 env/lint 用 §5 | go-runtime-guards |
-| P7 | web-frontend-guards | ⬜ | **新建**；encoding+syntax 为主，env 第二批 | php 双入口 |
-| P8 | infra-devops-guards | ⬜ | **新建**；syntax + dangerous deny + lint report | php pre + go post |
-| P9 | mobile-guards | ⬜ | **新建** | go |
-| P10 | misc-lang-guards | ⬜ | **新建**或按语言拆 MR；lockfile 用配方 L 批量 | go lockfile |
-| P11 | git-delivery-guards | ⬜ | **新建**；Bash 族配方 B + 部分状态 | php pre |
+| P7 | web-frontend-guards | ❌ 已移除 | 不完整实现已从 marketplace 删除；parity 记为 excluded-by-plan | — |
+| P8 | infra-devops-guards | ❌ 已移除 | 不完整实现已从 marketplace 删除；parity 记为 excluded-by-plan | — |
+| P9 | mobile-guards | ❌ 已移除 | 不完整实现已从 marketplace 删除；parity 记为 excluded-by-plan | — |
+| P10 | misc-lang-guards | ❌ 已移除 | 不完整实现已从 marketplace 删除；parity 记为 excluded-by-plan | — |
+| P11 | git-delivery-guards | ❌ 已移除 | 不完整实现已从 marketplace 删除；parity 记为 excluded-by-plan | — |
 | **P12** | **command-safety-guards** | ⬜ | **新建；见 §4 完整范例** | php pre |
-| P13 | execution-discipline-guards | ❌ 已移除 | 不迁 target-native；parity 记为 excluded-by-plan | — |
+| P13 | execution-discipline-guards | ❌ 已移除 | 不完整实现已从 marketplace 删除；parity 记为 excluded-by-plan | — |
 | P14 | delivery-evidence | ❌ 已移除 | 不迁 target-native；parity 记为 excluded-by-plan | — |
 | P15 | context-rules | ❌ 已移除 | 低价值注入/遥测，不迁 target-native；parity 记为 excluded-by-plan | — |
 
@@ -564,49 +564,9 @@ ALLOW_SOURCE_RETIRE=no
 | rust-runtime-guards | rust-engineering | env, tauri-env, debug-statement |
 | jvm-runtime-guards | jvm-engineering | java/kotlin env |
 
-#### P7 web-frontend-guards ⬜ — 建议首批文件
+#### P7–P11、P13 ❌ 已移除
 
-| 源 | 建议 check | 配方 |
-| --- | --- | --- |
-| frontend-design-taste/frontend-encoding-guard.ts | encoding.mjs | E |
-| wechat…/frontend-syntax-wxml.ts wxss.ts | syntax-wxml.mjs … | E |
-| tarojs…/frontend-syntax-taro-dom.ts | syntax-taro.mjs | E |
-| svelte-engineering/svelte-syntax.ts | syntax-svelte.mjs | E |
-| nuxt-engineering/vue-syntax.ts | syntax-vue.mjs | E |
-| wechat…/wechat-miniprogram-config-guard.ts | miniprogram-config.mjs | B/P |
-| 全部 `*-env-detector.ts` | 第二批 SessionStart | I |
-| vue-sfc-edit-primer / stylelint primer | 第二批 report | I |
-
-入口：`web-hook-pre-tool.mjs`（config deny）+ `web-hook-post-tool.mjs`（encoding/syntax）。  
-对标目录：复制 `php-runtime-guards` 整树再删 PHP checks。
-
-#### P8 infra-devops-guards ⬜ — 建议首批
-
-| 源 | 动作 |
-| --- | --- |
-| devops-syntax-yaml/dockerfile + linux-syntax-bash/zsh | post/pre syntax 配方 E |
-| infrastructure-encoding-guard | encoding |
-| devops-dangerous-infra-guard / devops-production-kubectl-guard / pve-destructive-operation-guard | pre deny 配方 B |
-| *lint* / terraform-fmt / actionlint / kubeconform | post report，缺二进制 skip |
-| infrastructure-dependency-lockfile-guard | 配方 L |
-
-#### P9 mobile-guards ⬜
-
-ios encoding/lint/objc patterns；dart lockfile+syntax；env 第二批。对标 go。
-
-#### P10 misc-lang-guards ⬜
-
-批量 lockfile（ruby/dotnet/…）= 多次配方 L 可同插件多 `LOCKFILE_NAMES` 或 checks 参数化。  
-encoding/syntax/env 分批。
-
-#### P11 git-delivery-guards ⬜
-
-| 源 | 动作 |
-| --- | --- |
-| git-destructive / partial-staging / add / commit-* / branch-naming | pre Bash 配方 B；从 ci-gated-mr-workflow hooks 搬 RE |
-| merge-conflict-guard | pre 读文件或 patch 内容 |
-| svn-* / git-stale-lock | 第二批 |
-| context-injector | 配方 I，注意与 process-confidence 重复 |
+`web-frontend-guards`、`infra-devops-guards`、`mobile-guards`、`misc-lang-guards`、`git-delivery-guards`、`execution-discipline-guards` 的不完整实现已从 marketplace 删除；源 hook 在 `migration-parity.json` 中记为 `excluded-by-plan`。
 
 #### P12 command-safety-guards ⬜
 
@@ -618,10 +578,6 @@ encoding/syntax/env 分批。
 | batch3 | db-ha-replication 四 hooks |
 | batch4 | ethical-hacking active-test-scope；lark-cli-confirmation-audit |
 | batch5 | deny-escalation（配方 S） |
-
-#### P13 execution-discipline-guards ❌ 已移除
-
-不迁 target-native。执行纪律门禁已从 marketplace 删除；源 hook 在 `migration-parity.json` 中记为 `excluded-by-plan`。
 
 #### P14 delivery-evidence ❌ 已移除
 

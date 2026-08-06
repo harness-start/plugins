@@ -112,7 +112,8 @@
       ]
     },
     "git-delivery-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Plugin removed from marketplace as incomplete; not retained as a target-native plugin.",
       "hookIds": [
         "devops-lint-gitlab-ci-duplicate-pipeline",
         "git-add-guard",
@@ -144,7 +145,8 @@
       ]
     },
     "infra-devops-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Plugin removed from marketplace as incomplete; not retained as a target-native plugin.",
       "hookIds": [
         "devops-dangerous-infra-guard",
         "devops-lint-actionlint",
@@ -184,7 +186,8 @@
       ]
     },
     "misc-lang-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Plugin removed from marketplace as incomplete; not retained as a target-native plugin.",
       "hookIds": [
         "angular-env-detector",
         "cpp-debug-statement-guard",
@@ -209,7 +212,8 @@
       ]
     },
     "mobile-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Plugin removed from marketplace as incomplete; not retained as a target-native plugin.",
       "hookIds": [
         "android-env-detector",
         "dart-dependency-lockfile-guard",
@@ -292,7 +296,8 @@
       ]
     },
     "web-frontend-guards": {
-      "disposition": "target-native",
+      "disposition": "excluded-by-plan",
+      "reason": "Plugin removed from marketplace as incomplete; not retained as a target-native plugin.",
       "hookIds": [
         "frontend-creative-env-detector",
         "frontend-encoding-guard",

@@ -1,7 +1,0 @@
-{
-  "name": "infra-devops-guards",
-  "version": "0.1.0",
-  "description": "Infrastructure syntax, dependency, and destructive-operation guards",
-  "author": { "name": "Harness Start", "email": "devtools@example.com" },
-  "hooks": "./hooks/claude.json"
-}

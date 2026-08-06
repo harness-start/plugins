@@ -1,4 +1,0 @@
-id = "01-deny-docker-volume-rm"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["pre-tool", "deny", "infrastructure"]
