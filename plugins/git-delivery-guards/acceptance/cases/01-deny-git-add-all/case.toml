@@ -1,0 +1,4 @@
+id = "01-deny-git-add-all"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["pre-tool", "deny", "git", "staging"]

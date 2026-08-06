@@ -189,6 +189,12 @@
       "source": { "source": "local", "path": "./plugins/misc-lang-guards" },
       "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
       "category": "Productivity"
+    },
+    {
+      "name": "git-delivery-guards",
+      "source": { "source": "local", "path": "./plugins/git-delivery-guards" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Productivity"
     }
   ]
 }

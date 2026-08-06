@@ -90,6 +90,11 @@
       "name": "misc-lang-guards",
       "source": "./plugins/misc-lang-guards",
       "description": "Additional language guards: deny generated lockfile writes; report encoding, syntax, debug, and Windows code-page risks; inject project environment facts."
+    },
+    {
+      "name": "git-delivery-guards",
+      "source": "./plugins/git-delivery-guards",
+      "description": "Git delivery guards: protect destructive operations and staging boundaries, audit remote mutations, and report merge or CI workflow hazards."
     }
   ]
 }
