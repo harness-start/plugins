@@ -85,6 +85,11 @@
       "name": "mobile-guards",
       "source": "./plugins/mobile-guards",
       "description": "Mobile guards: deny generated lockfile writes; report Dart, Swift, and Objective-C issues; inject Android, Flutter, and Apple environment facts."
+    },
+    {
+      "name": "misc-lang-guards",
+      "source": "./plugins/misc-lang-guards",
+      "description": "Additional language guards: deny generated lockfile writes; report encoding, syntax, debug, and Windows code-page risks; inject project environment facts."
     }
   ]
 }
