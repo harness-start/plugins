@@ -7,6 +7,11 @@
   },
   "plugins": [
     {
+      "name": "encoding-guard",
+      "source": "./plugins/encoding-guard",
+      "description": "Encoding guard: blocks BOM-bearing and invalid UTF-8 text files after AI writes."
+    },
+    {
       "name": "file-line-budget-guard",
       "source": "./plugins/file-line-budget-guard",
       "description": "Ratchet-enforced file line budget guard: prevents source files from exceeding per-language line limits."
