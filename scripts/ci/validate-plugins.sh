@@ -413,6 +413,8 @@ main() {
 
   install_hosts_if_needed
   validate_json
+  log "Validating migration parity and lean runtime policy"
+  node scripts/ci/validate-migration-parity.mjs
   check_scripts
   check_unit_tests
   check_acceptance_suites

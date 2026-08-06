@@ -19,16 +19,6 @@ export async function readStdinJson() {
   }
 }
 
-export function extractSessionId(event) {
-  return (
-    event?.session_id ??
-    event?.sessionId ??
-    event?.sessionID ??
-    event?.context?.session_id ??
-    null
-  );
-}
-
 export function extractCwd(event) {
   return (
     event?.cwd ??
