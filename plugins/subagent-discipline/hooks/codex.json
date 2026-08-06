@@ -12,6 +12,18 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/subagent-discipline-hook-stop.mjs\"",
+            "statusMessage": "Subagent discipline: return hygiene",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }

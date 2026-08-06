@@ -49,7 +49,7 @@
     {
       "name": "subagent-discipline",
       "source": "./plugins/subagent-discipline",
-      "description": "Injects scope, safety, evidence, and context-discipline principles into every spawned subagent."
+      "description": "Injects subagent contract and return hygiene; with agent_id, ledger TTL cleanup, gitignore ensure, optional Stop gate."
     }
   ]
 }
