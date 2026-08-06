@@ -95,6 +95,40 @@ test("builtin sed-inplace ignores a literal in a git commit message", () => {
   assert.equal(builtIn("git commit -m 'document sed -i usage'"), null);
 });
 
+test("builtin edit and data rules ignore program names passed as printf arguments", () => {
+  assert.equal(builtIn(`printf "%s %s\\n" sed -i`), null);
+  assert.equal(
+    builtIn(`printf "%s %s\\n" mysql "DROP TABLE users"`),
+    null,
+  );
+  assert.equal(builtIn(`printf "%s %s\\n" redis-cli FLUSHALL`), null);
+});
+
+test("builtin audit rules ignore program names passed as printf arguments", () => {
+  assert.equal(builtIn(`printf "%s %s\\n" nmap -p-`), null);
+  assert.equal(builtIn(`printf "%s %s\\n" lark-cli --yes`), null);
+  assert.equal(
+    builtIn(`printf "%s %s\\n" cat ~/.aws/credentials`),
+    null,
+  );
+});
+
+test("builtin data rules keep SQL text scoped to the matching command segment", () => {
+  assert.equal(
+    builtIn(`mysql -e "SELECT 1"; printf "%s\\n" "DROP TABLE users"`),
+    null,
+  );
+});
+
+test("builtin rules still inspect executables behind supported wrappers", () => {
+  assert.equal(builtIn(`command sed -i "s/a/b/" src/a.txt`)?.id, "sed-inplace");
+  assert.equal(builtIn(`sudo redis-cli FLUSHALL`)?.id, "redis-cli-risk");
+  assert.equal(
+    builtIn(`env MYSQL_PWD=x mysql -e "DROP TABLE users"`)?.id,
+    "sql-destructive",
+  );
+});
+
 test("sed-inplace deny message contains the complete blocking contract", () => {
   const rule = builtIn("sed -i 's/a/b/' src/a.txt");
   const message = formatFinding(rule, "sed -i 's/a/b/' src/a.txt");
@@ -282,6 +316,36 @@ test("mysql preflight engine denies STOP REPLICA without evidence", () => {
     }),
     null,
   );
+});
+
+test("mysql preflight rejects success markers embedded in the current command", () => {
+  const command =
+    `mysql -e "STOP REPLICA" # mysql-replication-preflight exit_code:0`;
+  const finding = mysqlReplicationPreflightFinding(command, {
+    tool_name: "Bash",
+    tool_input: { command },
+  });
+
+  assert.equal(finding?.action, "deny");
+  assert.match(finding.reason, /缺少成功复制 preflight 证据/u);
+});
+
+test("mysql preflight rejects unrelated nested evidence and timed out results", () => {
+  const command = `mysql -e "STOP REPLICA"`;
+  const nested = mysqlReplicationPreflightFinding(command, {
+    metadata: {
+      tool: "mysql-replication-preflight",
+      exit_code: 0,
+    },
+  });
+  const timedOut = mysqlReplicationPreflightFinding(command, {
+    tool: "mysql-replication-preflight",
+    exit_code: 0,
+    timed_out: true,
+  });
+
+  assert.equal(nested?.action, "deny");
+  assert.equal(timedOut?.action, "deny");
 });
 
 test("secret read preserves templates and reports real credential paths", () => {

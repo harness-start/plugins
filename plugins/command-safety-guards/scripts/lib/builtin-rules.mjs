@@ -8,7 +8,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { splitShellLogicalLines, tokenizeShell } from "./shell-parse.mjs";
+import { shellCommandInvocations, tokenizeShell } from "./shell-parse.mjs";
 
 const SQL_CLIENTS = new Set([
   "mysql",
@@ -32,11 +32,9 @@ const SQL_CLIENTS = new Set([
   "mongo",
 ]);
 
-function hasProgram(command, programs) {
-  return splitShellLogicalLines(command).some((line) =>
-    tokenizeShell(line).some((token) =>
-      programs.has(token.split("/").at(-1)?.toLowerCase()),
-    ),
+function programInvocations(command, programs) {
+  return shellCommandInvocations(command).filter((invocation) =>
+    programs.has(invocation.executable.toLowerCase()),
   );
 }
 
@@ -54,16 +52,20 @@ function cleanedSql(command) {
 // ── sed -i (no backup) ───────────────────────────────────────
 
 function sedInplaceReason(command) {
-  const short = /\bsed\s+(?:-[A-Za-z]*i)(?=[^A-Za-z]|$)/g;
-  let match;
-  while ((match = short.exec(command)) !== null) {
-    const after = command.slice(match.index + match[0].length);
-    if (/^[.'"]\S*/.test(after)) continue; // -i.bak / -i'.bak'
-    if (/^\s+(?:''|"")(?:\s|$)/.test(after)) continue; // macOS empty suffix
-    return "sed -i 会原地修改文件且不创建备份，无法回滚";
-  }
-  if (/\bsed\s+[^|;]*--in-place(?!=)\b/.test(command)) {
-    return "sed --in-place 会原地修改文件且不创建备份，无法回滚";
+  const invocations = programInvocations(command, new Set(["sed"]));
+  for (const { args } of invocations) {
+    for (let index = 0; index < args.length; index += 1) {
+      const argument = args[index] ?? "";
+      if (argument === "--in-place") {
+        return "sed --in-place 会原地修改文件且不创建备份，无法回滚";
+      }
+      if (argument.startsWith("--in-place=")) continue;
+      const short = argument.match(/^-[A-Za-z]*i(.*)$/u);
+      if (!short) continue;
+      if (short[1]) continue;
+      if (args[index + 1] === "") continue;
+      return "sed -i 会原地修改文件且不创建备份，无法回滚";
+    }
   }
   return null;
 }
@@ -90,18 +92,19 @@ function isCatTmpRedirect(command) {
 // ── redis ────────────────────────────────────────────────────
 
 function redisOperation(command) {
-  if (!hasProgram(command, new Set(["redis-cli"]))) return null;
-  const match = command.match(
-    /\b(?:KEYS|MONITOR|FLUSHALL|FLUSHDB|DEL|RANDOMKEY|SETBIT|BGSAVE|BGREWRITEAOF)\b/iu,
-  );
-  return match ? match[0].toUpperCase() : null;
+  const invocations = programInvocations(command, new Set(["redis-cli"]));
+  for (const { args } of invocations) {
+    const match = args.join(" ").match(
+      /\b(?:KEYS|MONITOR|FLUSHALL|FLUSHDB|DEL|RANDOMKEY|SETBIT|BGSAVE|BGREWRITEAOF)\b/iu,
+    );
+    if (match) return match[0].toUpperCase();
+  }
+  return null;
 }
 
 // ── sql ──────────────────────────────────────────────────────
 
 function sqlDestructiveReason(command) {
-  if (!hasProgram(command, SQL_CLIENTS)) return null;
-  const cleaned = cleanedSql(command);
   const blocks = [
     [/\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW)\b/iu, "DROP 会永久删除数据库对象"],
     [/\bTRUNCATE\s+(?:TABLE\s+)?\w/iu, "TRUNCATE 会清空表数据"],
@@ -109,46 +112,51 @@ function sqlDestructiveReason(command) {
     [/\bDELETE\s+FROM\b(?![^;]*\bWHERE\b)/iu, "DELETE 缺少 WHERE"],
     [/\bUPDATE\s+[^;]+\s+SET\b(?![^;]*\bWHERE\b)/iu, "UPDATE 缺少 WHERE"],
   ];
-  for (const [pattern, reason] of blocks) {
-    if (pattern.test(cleaned)) return reason;
+  for (const { args } of programInvocations(command, SQL_CLIENTS)) {
+    const cleaned = cleanedSql(args.join(" "));
+    for (const [pattern, reason] of blocks) {
+      if (pattern.test(cleaned)) return reason;
+    }
   }
   return null;
 }
 
 function sqlPrivilegeHit(command) {
-  if (!hasProgram(command, SQL_CLIENTS)) return false;
-  return /\b(?:GRANT|REVOKE)\b/iu.test(cleanedSql(command));
+  return programInvocations(command, SQL_CLIENTS).some(({ args }) =>
+    /\b(?:GRANT|REVOKE)\b/iu.test(cleanedSql(args.join(" "))),
+  );
 }
 
 // ── active security test ─────────────────────────────────────
 
 function activeTestReason(command) {
-  if (hasProgram(command, new Set(["masscan", "zmap"]))) {
-    return "高速全网扫描工具没有可审计边界";
-  }
-  if (
-    hasProgram(command, new Set(["hping", "hping3"])) &&
-    /--flood\b/u.test(command)
-  ) {
-    return "禁止 flood 模式";
-  }
-  if (hasProgram(command, new Set(["nmap"]))) {
-    const cidr = command.match(/\S+\/(\d{1,2})\b/u);
-    if (cidr && Number(cidr[1]) <= 20) {
-      return `目标范围 /${cidr[1]} 超过 /21 上限`;
+  for (const { executable, args } of shellCommandInvocations(command)) {
+    const program = executable.toLowerCase();
+    const subject = args.join(" ");
+    if (["masscan", "zmap"].includes(program)) {
+      return "高速全网扫描工具没有可审计边界";
+    }
+    if (["hping", "hping3"].includes(program) && /--flood\b/u.test(subject)) {
+      return "禁止 flood 模式";
+    }
+    if (program === "nmap") {
+      const cidr = subject.match(/\S+\/(\d{1,2})\b/u);
+      if (cidr && Number(cidr[1]) <= 20) {
+        return `目标范围 /${cidr[1]} 超过 /21 上限`;
+      }
+      if (
+        /(?:^|\s)-p-(?:\s|$)/u.test(subject) &&
+        !/--max-rate(?:=|\s+)\d+/u.test(subject)
+      ) {
+        return "全端口扫描缺少 --max-rate";
+      }
     }
     if (
-      /\s-p-(?:\s|$)/u.test(command) &&
-      !/--max-rate(?:=|\s+)\d+/u.test(command)
+      ["ffuf", "gobuster", "feroxbuster"].includes(program) &&
+      !/(?:^|\s)(?:-rate|--rate|-t|--threads)(?:=|\s+)\d+/u.test(subject)
     ) {
-      return "全端口扫描缺少 --max-rate";
+      return "内容枚举缺少 rate 或 threads 上限";
     }
-  }
-  if (
-    hasProgram(command, new Set(["ffuf", "gobuster", "feroxbuster"])) &&
-    !/(?:^|\s)(?:-rate|--rate|-t|--threads)(?:=|\s+)\d+/u.test(command)
-  ) {
-    return "内容枚举缺少 rate 或 threads 上限";
   }
   return null;
 }
@@ -156,19 +164,32 @@ function activeTestReason(command) {
 // ── secret leak ──────────────────────────────────────────────
 
 function secretLeakHit(command) {
-  const sensitiveRead =
-    /\b(?:cat|head|tail|less|more|bat)\b[^\n;&|]*(?:\.pem|\.key|\.p12|\.pfx|id_rsa|id_ed25519|\.jks|\.keystore|\.env\b|credentials\.json|\.aws\/credentials|\.netrc|\.git-credentials)/iu.test(
-      command,
+  return shellCommandInvocations(command).some(secretLeakInvocationHit);
+}
+
+function secretLeakInvocationHit({ executable, args }) {
+  const program = executable.toLowerCase();
+  const subject = args.join(" ");
+  if (["cat", "head", "tail", "less", "more", "bat"].includes(program)) {
+    return /(?:\.pem|\.key|\.p12|\.pfx|id_rsa|id_ed25519|\.jks|\.keystore|\.env\b|credentials\.json|\.aws\/credentials|\.netrc|\.git-credentials)/iu.test(
+      subject,
     );
-  const upload =
-    /\b(?:curl|wget|http)\b[^;|&]*(?:--data(?:-raw|-binary)?|--form|-d|-F)\s[^;|&]*(?:\$(?:\{)?(?:PRIVATE_KEY|SECRET_KEY|API_SECRET|AWS_SECRET_ACCESS_KEY|DATABASE_PASSWORD|DB_PASSWORD)|\$\(\s*cat\s+[^)]*(?:\.pem|\.key|id_rsa|id_ed25519))/iu.test(
-      command,
+  }
+  if (["curl", "wget", "http"].includes(program)) {
+    return /(?:--data(?:-raw|-binary)?|--form|-d|-F)\s[^;|&]*(?:\$(?:\{)?(?:PRIVATE_KEY|SECRET_KEY|API_SECRET|AWS_SECRET_ACCESS_KEY|DATABASE_PASSWORD|DB_PASSWORD)|\$\(\s*cat\s+[^)]*(?:\.pem|\.key|id_rsa|id_ed25519))/iu.test(
+      subject,
     );
-  const other =
-    /\bapksigner\b[^;\n]*(?:--ks-pass|--key-pass)(?:=|\s+)pass:|\bbase64\b[^;|&]*(?:\.pem|\.key|id_rsa|id_ed25519|PRIVATE)|\becho\b[^;|&]*\$(?:\{)?(?:PRIVATE_KEY|SECRET_KEY|TOKEN|API_KEY)/iu.test(
-      command,
-    );
-  return sensitiveRead || upload || other;
+  }
+  if (program === "apksigner") {
+    return /(?:--ks-pass|--key-pass)(?:=|\s+)pass:/iu.test(subject);
+  }
+  if (program === "base64") {
+    return /(?:\.pem|\.key|id_rsa|id_ed25519|PRIVATE)/iu.test(subject);
+  }
+  if (program === "echo") {
+    return /\$(?:\{)?(?:PRIVATE_KEY|SECRET_KEY|TOKEN|API_KEY)/iu.test(subject);
+  }
+  return false;
 }
 
 /**
@@ -353,8 +374,9 @@ export const BUILTIN_RULES = [
     mode: "report",
     match: {
       test: (command) =>
-        hasProgram(command, new Set(["lark-cli"])) &&
-        /(?:^|\s)--yes(?:\s|$)/u.test(command),
+        programInvocations(command, new Set(["lark-cli"])).some(({ args }) =>
+          args.includes("--yes"),
+        ),
     },
     reason: "检测到 --yes 非交互确认",
     recovery: "确认目标资源、写入/删除范围、可恢复副本和回读验证",

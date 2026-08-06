@@ -1,74 +1,13 @@
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import {
+  commandInvocation,
   splitShellLogicalLines,
   tokenizeShell,
 } from "../lib/shell-parse.mjs";
 
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&", "{", "}"]);
-const EMPTY_OPTIONS = new Set();
-const SIMPLE_COMMAND_WRAPPERS = new Set(["command", "exec", "nohup"]);
 const SHELL_COMMANDS = new Set(["bash", "dash", "sh", "zsh"]);
-const SUDO_OPTIONS_WITH_VALUE = new Set([
-  "-C", "-D", "-g", "-h", "-p", "-R", "-T", "-u",
-  "--chdir", "--close-from", "--group", "--host", "--prompt", "--role",
-  "--type", "--user",
-]);
-const ENV_OPTIONS_WITH_VALUE = new Set([
-  "-C", "-S", "-u", "--chdir", "--split-string", "--unset",
-]);
-const XARGS_OPTIONS_WITH_VALUE = new Set([
-  "-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s", "--arg-file",
-  "--delimiter", "--eof", "--max-args", "--max-chars", "--max-lines",
-  "--max-procs", "--replace",
-]);
-
-function skipWrapperOptions(tokens, start, optionsWithValue) {
-  let index = start;
-  while (index < tokens.length) {
-    const token = tokens[index];
-    if (!token?.startsWith("-")) break;
-    if (token === "--") return index + 1;
-    index += optionsWithValue.has(token) ? 2 : 1;
-  }
-  return index;
-}
-
-function commandInvocation(tokens) {
-  let index = 0;
-  let stdinDriven = false;
-  while (index < tokens.length) {
-    const token = tokens[index];
-    if (!token) break;
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
-      index += 1;
-      continue;
-    }
-    if (SIMPLE_COMMAND_WRAPPERS.has(token)) {
-      index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
-      continue;
-    }
-    if (token === "sudo") {
-      index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (token === "env") {
-      index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (token === "xargs") {
-      stdinDriven = true;
-      index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    return {
-      executable: token.split("/").at(-1) ?? token,
-      args: tokens.slice(index + 1),
-      stdinDriven,
-    };
-  }
-  return null;
-}
 
 function recursiveRmTarget(args, cwd, stdinDriven) {
   const recursive = args.some(

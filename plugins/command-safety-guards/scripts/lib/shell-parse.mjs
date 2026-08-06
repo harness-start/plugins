@@ -40,17 +40,83 @@ function decodeAnsiCQuoteEscape(command, slashIndex) {
   return { value: `\\${marker}`, endIndex: slashIndex + 1 };
 }
 
+const EMPTY_OPTIONS = new Set();
+const SIMPLE_COMMAND_WRAPPERS = new Set(["command", "exec", "nohup"]);
+const SUDO_OPTIONS_WITH_VALUE = new Set([
+  "-C", "-D", "-g", "-h", "-p", "-R", "-T", "-u",
+  "--chdir", "--close-from", "--group", "--host", "--prompt", "--role",
+  "--type", "--user",
+]);
+const ENV_OPTIONS_WITH_VALUE = new Set([
+  "-C", "-S", "-u", "--chdir", "--split-string", "--unset",
+]);
+const XARGS_OPTIONS_WITH_VALUE = new Set([
+  "-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s", "--arg-file",
+  "--delimiter", "--eof", "--max-args", "--max-chars", "--max-lines",
+  "--max-procs", "--replace",
+]);
+const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
+
+function skipWrapperOptions(tokens, start, optionsWithValue) {
+  let index = start;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token?.startsWith("-")) break;
+    if (token === "--") return index + 1;
+    index += optionsWithValue.has(token) ? 2 : 1;
+  }
+  return index;
+}
+
+export function commandInvocation(tokens) {
+  let index = 0;
+  let stdinDriven = false;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token) break;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
+      index += 1;
+      continue;
+    }
+    if (SIMPLE_COMMAND_WRAPPERS.has(token)) {
+      index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
+      continue;
+    }
+    if (token === "sudo") {
+      index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (token === "env") {
+      index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (token === "xargs") {
+      stdinDriven = true;
+      index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    return {
+      executable: token.split("/").at(-1) ?? token,
+      args: tokens.slice(index + 1),
+      stdinDriven,
+    };
+  }
+  return null;
+}
+
 export function tokenizeShell(command) {
   const tokens = [];
   let current = "";
+  let tokenStarted = false;
   let quote = null;
   let ansiCQuote = false;
   let escaped = false;
 
   const pushCurrent = () => {
-    if (current !== "") {
+    if (tokenStarted) {
       tokens.push(current);
       current = "";
+      tokenStarted = false;
     }
   };
 
@@ -60,6 +126,7 @@ export function tokenizeShell(command) {
 
     if (escaped) {
       current += char;
+      tokenStarted = true;
       escaped = false;
       continue;
     }
@@ -67,6 +134,7 @@ export function tokenizeShell(command) {
       if (ansiCQuote && char === "\\") {
         const decoded = decodeAnsiCQuoteEscape(command, index);
         current += decoded.value;
+        tokenStarted = true;
         index = decoded.endIndex;
         continue;
       }
@@ -80,26 +148,31 @@ export function tokenizeShell(command) {
         continue;
       }
       current += char;
+      tokenStarted = true;
       continue;
     }
     if (char === "$" && (next === '"' || next === "'")) {
       quote = next;
       ansiCQuote = next === "'";
+      tokenStarted = true;
       index += 1;
       continue;
     }
     if (char === '"' || char === "'") {
       quote = char;
+      tokenStarted = true;
       continue;
     }
     if (char === "\\") {
       escaped = true;
+      tokenStarted = true;
       continue;
     }
     if (/\s/.test(char)) {
       pushCurrent();
       continue;
     }
+    if (char === "#" && !tokenStarted) break;
     if (char === "&" && next === "&") {
       pushCurrent();
       tokens.push("&&");
@@ -123,10 +196,30 @@ export function tokenizeShell(command) {
       continue;
     }
     current += char;
+    tokenStarted = true;
   }
 
   pushCurrent();
   return tokens;
+}
+
+export function shellCommandInvocations(command) {
+  const invocations = [];
+  for (const logicalLine of splitShellLogicalLines(command)) {
+    const tokens = tokenizeShell(logicalLine);
+    let segment = [];
+    for (let index = 0; index <= tokens.length; index += 1) {
+      const token = tokens[index];
+      if (token !== undefined && !COMMAND_SEPARATORS.has(token)) {
+        segment.push(token);
+        continue;
+      }
+      const invocation = commandInvocation(segment);
+      if (invocation) invocations.push(invocation);
+      segment = [];
+    }
+  }
+  return invocations;
 }
 
 export function splitShellLogicalLines(command) {
