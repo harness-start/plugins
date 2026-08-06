@@ -1,7 +1,7 @@
 {
   "name": "subagent-discipline",
   "version": "0.1.0",
-  "description": "Injects scope, safety, evidence, and context-discipline principles into every spawned subagent.",
+  "description": "Injects subagent contract and return hygiene; with agent_id, ledger TTL cleanup, gitignore ensure, optional Stop gate.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

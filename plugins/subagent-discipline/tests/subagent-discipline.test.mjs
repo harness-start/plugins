@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { SUBAGENT_CONTEXT } from "../scripts/lib/policy.mjs";
+import { buildSubagentStartContext } from "../scripts/lib/policy.mjs";
 
 const ENTRY = fileURLToPath(
   new URL("../scripts/subagent-discipline-hook-start.mjs", import.meta.url),
@@ -23,7 +23,9 @@ function runEntry(input) {
   });
 }
 
-test("SubagentStart emits the exact discipline context", async () => {
+const EXPECTED_CONTEXT = buildSubagentStartContext();
+
+test("SubagentStart emits the discipline + hygiene context", async () => {
   const result = await runEntry(
     JSON.stringify({
       hook_event_name: "SubagentStart",
@@ -38,7 +40,7 @@ test("SubagentStart emits the exact discipline context", async () => {
   assert.deepEqual(JSON.parse(result.stdout), {
     hookSpecificOutput: {
       hookEventName: "SubagentStart",
-      additionalContext: SUBAGENT_CONTEXT,
+      additionalContext: EXPECTED_CONTEXT,
     },
   });
 });
@@ -50,13 +52,13 @@ test("SubagentStart applies to every agent type", async () => {
     );
     assert.equal(
       JSON.parse(result.stdout).hookSpecificOutput.additionalContext,
-      SUBAGENT_CONTEXT,
+      EXPECTED_CONTEXT,
     );
   }
 });
 
 test("policy does not impose a Result Card or completion schema", () => {
-  assert.doesNotMatch(SUBAGENT_CONTEXT, /Result Card|Parent action needed:/u);
+  assert.doesNotMatch(EXPECTED_CONTEXT, /Result Card|Parent action needed:/u);
 });
 
 test("SubagentStart fails open for malformed JSON", async () => {

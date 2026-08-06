@@ -12,12 +12,45 @@ export async function readStdinJson() {
   }
 }
 
-export function additionalContextOutput(text) {
+export function extractAssistantMessage(event) {
+  const message =
+    event?.last_assistant_message ?? event?.lastAssistantMessage ?? "";
+  return typeof message === "string" ? message : "";
+}
+
+export function isStopHookActive(event) {
+  return event?.stop_hook_active === true || event?.stopHookActive === true;
+}
+
+export function readSessionId(event) {
+  const id = event?.session_id ?? event?.sessionId;
+  return typeof id === "string" && id.trim() ? id.trim() : "";
+}
+
+export function readAgentType(event) {
+  const t = event?.agent_type ?? event?.agentType;
+  return typeof t === "string" ? t : "";
+}
+
+export function readParentBrief(event) {
+  const brief =
+    event?.agent_prompt ?? event?.agentPrompt ?? event?.prompt ?? "";
+  return typeof brief === "string" ? brief : "";
+}
+
+export function additionalContextOutput(text, hookEventName = "SubagentStart") {
   return {
     hookSpecificOutput: {
-      hookEventName: "SubagentStart",
+      hookEventName,
       additionalContext: text,
     },
+  };
+}
+
+export function stopBlock(reason) {
+  return {
+    decision: "block",
+    reason,
   };
 }
 

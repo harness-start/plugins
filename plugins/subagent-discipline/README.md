@@ -1,70 +1,103 @@
 # subagent-discipline
 
 Inject a compact engineering contract into every spawned Claude Code or Codex
-subagent. The contract keeps delegated work scoped, evidence-focused, and cheap
-to return to the parent context.
+subagent, and optionally enforce **return hygiene** when a usable `agent_id` is
+present.
 
 ## Behavior
 
-The plugin registers one `SubagentStart` hook without a matcher, so it applies
-to built-in and custom subagents. It injects these principles before the
-subagent's first prompt:
+### Always (SubagentStart)
 
-- execute only the dispatched scope and do not delegate again;
-- preserve safety, correctness, and explicit user constraints;
-- return findings or changes with evidence, verification, and gaps;
-- cite file conclusions with `file:line` evidence and avoid whole-file dumps;
-- reuse earlier summaries instead of re-reading large files;
-- omit routing, next-step, and session-reflection ceremony.
+Injects:
 
-The plugin does not require a Result Card or any fixed response headings. It
-also does not replace sandboxing, approvals, tool restrictions, or independent
-verification.
+- **`[Subagent Contract]`** — scope, safety, evidence, no whole-file dumps,
+  context discipline.
+- **`[Return Hygiene]`** — no empty acknowledgements, prefer `path:line`,
+  avoid restating the parent brief, summarize diffs/checks.
+
+This injection does **not** require `agent_id`.
+
+### Gated flow (requires `agent_id`)
+
+When the hook event carries a non-empty, path-safe `agent_id` / `agentId`, the
+plugin **enters** the hygiene state machine on Start and Stop:
+
+1. **Cleanup** files under `.subagent-discipline/` older than **24 hours**
+   (mtime).
+2. **Ensure** the git root `.gitignore` contains `.subagent-discipline/`
+   (create or append; no-op if already present). Only when a git root can be
+   resolved.
+3. **Start:** write `.subagent-discipline/spawns/<agentId>.json`.
+4. **Stop:** score the candidate return; write
+   `.subagent-discipline/returns/<agentId>-<stamp>.json`.
+
+If **`agent_id` is missing or invalid**, the plugin **does not enter** this
+flow: no ledger, no cleanup, no `.gitignore` mutation, no Stop scoring/block.
+
+### Stop scoring (default soft)
+
+Hard fail reasons (block mode only):
+
+| Reason | Meaning |
+| --- | --- |
+| `empty-return` | Near-empty reply without substance |
+| `whole-file-dump` | Oversized fenced block without a short summary |
+| `brief-echo` | High overlap with stored parent brief (opt-in; see config) |
+
+Default **`mode: soft`**: write ledger only; never `decision: block`.  
+**`mode: block`**: reject the return (same shape as other Stop gates) until
+fixed or `maxAttempts` forces pass.  
+**`mode: off`**: no Stop scoring even with `agent_id`.
+
+This plugin does **not** require a Result Card or fixed response headings. It
+does **not** prove citations are true or replace sandboxing, approvals, or
+independent verification.
+
+## Configuration (optional)
+
+`<git-root>/.subagent-discipline.mjs`:
+
+```js
+export default {
+  evidence: {
+    mode: "soft", // soft | block | off
+    maxFenceLines: 80,
+    minReturnChars: 40,
+    echoThreshold: 0.72,
+    maxAttempts: 2,
+    ledgerTtlHours: 24,
+    // Privacy: default false — brief-echo needs excerpt on disk when true
+    storeBriefExcerpt: false,
+    injectPathHints: true,
+    agentTypeMap: {},
+  },
+};
+```
 
 ## Platform behavior
 
-| Platform | Hook | Plugin root |
+| Platform | Hooks | Plugin root |
 | --- | --- | --- |
-| Claude Code | `SubagentStart` | `CLAUDE_PLUGIN_ROOT` |
-| Codex | `SubagentStart` | `PLUGIN_ROOT` |
+| Claude Code | `SubagentStart`, `SubagentStop` | `CLAUDE_PLUGIN_ROOT` |
+| Codex | `SubagentStart`, `SubagentStop` | `PLUGIN_ROOT` |
 
 Codex requires users to review and trust non-managed plugin hooks before they
 run. Use `/hooks` to inspect the installed definition.
 
+Official field notes: both hosts document `agent_id` on SubagentStart/Stop.
+Without it, only static contract injection runs.
+
 ## Related controls
 
-The following host capabilities can enforce stronger boundaries, but are not
-enabled by this cross-platform plugin:
+Host capabilities that can enforce stronger boundaries (not enabled here):
 
-- Claude Code `PreToolUse` receives `agent_id` and `agent_type` inside a
-  subagent, so a project can deny selected child-agent tool calls. Claude also
-  provides `TaskCompleted` and `TeammateIdle` gates for agent teams.
-- Claude agent definitions can limit `tools`, set `disallowedTools`, cap turns,
-  use worktree isolation, or limit nested subagent depth.
-- Codex custom agents can set `sandbox_mode`, model and reasoning defaults;
-  `[agents].max_concurrent_threads_per_session` caps concurrency.
-- `SubagentStop` can request another pass, but this plugin intentionally avoids
-  a completion gate because it does not impose a mechanical output schema.
-
-Official references:
-
-- [Claude Code hooks](https://code.claude.com/docs/en/hooks)
-- [Claude Code subagents](https://code.claude.com/docs/en/sub-agents)
-- [Codex hooks](https://learn.chatgpt.com/docs/hooks)
-- [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents)
-
-## Related skills
-
-Useful companion skills in the ai-experts catalog include
-`agent-harness-design`, `code-review-loop`, `execution-loop-governance`,
-`git-worktree-lifecycle`, `command-safety-governance`, and
-`long-task-context-governance`.
-
-For plan execution with fresh workers and separate specification and quality
-reviews, consider
-[`superpowers:subagent-driven-development`](https://github.com/obra/superpowers/blob/main/skills/subagent-driven-development/SKILL.md).
-It uses more subagent calls and review cycles, so apply it to tasks where those
-gates justify the added token and coordination cost.
+- Claude Code `PreToolUse` receives `agent_id` / `agent_type` inside a
+  subagent; agent teams use `TaskCompleted` / `TeammateIdle`.
+- Claude agent definitions can limit tools, turns, worktree isolation, nested
+  depth.
+- Codex custom agents: `sandbox_mode`, concurrency caps.
+- Coexistence: `in-chinese` may also `SubagentStop` block; reasons are
+  independent (possible double rewrite).
 
 ## Verification
 
