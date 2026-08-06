@@ -4,7 +4,57 @@ Marketplace id: `harness-start` · Display name: **Harness Start**
 
 Harness Start dual-platform plugin marketplace for **Claude Code** and **Codex**.
 
+**Public install source:** [https://github.com/harness-start/plugins](https://github.com/harness-start/plugins)
+
 Both hosts share plugin business scripts. Marketplace indexes, plugin manifests, and hook configs are maintained separately because field names, environment variables, and lifecycle events differ across platforms.
+
+## Install (one command)
+
+Adds/updates the marketplace and installs/updates **all** plugins for Claude Code and Codex (whichever CLIs are on `PATH`):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
+```
+
+Common variants:
+
+```bash
+# Only Claude Code
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --claude-only
+
+# Only Codex
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --codex-only
+
+# Skip missing host CLIs instead of failing
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-missing-hosts
+
+# From a local clone
+bash scripts/install-all.sh
+bash scripts/install-all.sh --dry-run
+```
+
+Requirements: `bash`, network to GitHub, and **Claude Code CLI** and/or **Codex CLI**. `jq` is recommended.
+
+After install:
+
+- **Claude Code:** start a new session (or `/reload-plugins` if prompted) so hooks load.
+- **Codex:** review and **trust** plugin hooks via `/hooks`. Install success does not mean hooks are trusted or running.
+
+### Manual install (equivalent)
+
+```bash
+# Claude Code
+claude plugin marketplace add harness-start/plugins
+# if already added:
+claude plugin marketplace update harness-start
+claude plugin install <name>@harness-start   # repeat per plugin, or use install-all.sh
+
+# Codex
+codex plugin marketplace add harness-start/plugins --ref master
+# if already added:
+codex plugin marketplace upgrade harness-start
+codex plugin add <name>@harness-start --json
+```
 
 ## Repository layout
 
@@ -13,14 +63,14 @@ Both hosts share plugin business scripts. Marketplace indexes, plugin manifests,
 ├── .claude-plugin/marketplace.json    # Claude Code marketplace
 ├── .agents/plugins/marketplace.json   # Codex marketplace
 ├── plugins/                           # Self-contained plugins live here
+├── scripts/install-all.sh             # One-click marketplace + all plugins
 ├── scripts/ci/validate-plugins.sh     # Shared GitHub/GitLab CI checks
 ├── .github/workflows/validate-plugins.yml
 ├── .gitlab-ci.yml
 └── GUIDE.md                           # Full init / release guide
 ```
 
-Default branch: `master`  
-GitLab: `https://git.gzcrm.cn/harness-start/plugins`
+Default branch: `master`
 
 Each plugin is self-contained. Do not reference files outside its own directory at runtime; Claude Code copies a single plugin directory into cache.
 
@@ -44,8 +94,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 - Git
 - Node.js 20+
-- Claude Code CLI
-- Codex CLI
+- Claude Code CLI and/or Codex CLI (for install / host checks)
 - `jq` (recommended)
 
 ## Local static checks
@@ -64,23 +113,18 @@ Hosts already installed:
 SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```
 
-## Claude Code
+## Local marketplace (development)
 
 ```bash
-claude plugin validate --strict .
+# Claude Code
 claude plugin marketplace add "$(pwd)"
-# claude plugin install <plugin-name>@harness-start
-```
+claude plugin install <plugin-name>@harness-start
 
-## Codex
-
-```bash
+# Codex
 codex plugin marketplace add . --json
 codex plugin list --marketplace harness-start --available --json
-# codex plugin add <plugin-name>@harness-start --json
+codex plugin add <plugin-name>@harness-start --json
 ```
-
-Codex does not auto-trust plugin hooks. Review and trust hook definitions before they run. Install success alone does not prove hooks executed; start a new session and verify.
 
 ## Adding a plugin
 

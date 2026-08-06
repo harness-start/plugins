@@ -182,17 +182,21 @@ coverage/
 - 插件名称必须唯一；
 - 名称建议只使用小写字母、数字和连字符。
 
-Claude Code 用户安装时使用：
+Claude Code 用户从 **公开 GitHub** 安装时使用：
 
 ```bash
+# 推荐：一键安装/更新 marketplace 与全部插件
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
+
+# 或手动：
 claude plugin marketplace add harness-start/plugins
 claude plugin install session-hooks@harness-start
 ```
 
-GitLab、自建 Git 或其他服务使用完整地址：
+完整 HTTPS 源（与 GitHub 简写等价）：
 
 ```bash
-claude plugin marketplace add https://git.gzcrm.cn/harness-start/plugins.git
+claude plugin marketplace add https://github.com/harness-start/plugins.git
 ```
 
 ## 6. Codex Marketplace
@@ -584,26 +588,26 @@ codex
 
 ## 14. 从远程 Git 仓库测试
 
-推送仓库：
+**使用者安装只使用公开 GitHub：** `https://github.com/harness-start/plugins`  
+（维护者内部推送 remotes 勿写入面向用户的 README / install 文案。）
+
+使用者一键安装：
 
 ```bash
-git add .
-git commit -m "feat: initialize dual-platform plugin marketplace"
-git remote add origin git@git.gzcrm.cn:harness-start/plugins.git
-git push -u origin master
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
 ```
 
-Claude Code：
+Claude Code（手动）：
 
 ```bash
 claude plugin marketplace add harness-start/plugins
 claude plugin install session-hooks@harness-start
 ```
 
-Codex：
+Codex（手动）：
 
 ```bash
-codex plugin marketplace add harness-start/plugins
+codex plugin marketplace add harness-start/plugins --ref master
 codex plugin add session-hooks@harness-start
 ```
 
@@ -620,6 +624,7 @@ Codex：
 
 ```bash
 codex plugin marketplace add harness-start/plugins \
+  --ref master \
   --sparse .agents/plugins \
   --sparse plugins
 ```
