@@ -1,1 +1,0 @@
-{"name":"context-rules","version":"0.1.0","description":"Target-native session context, prompt guidance, context-rule reminders, and usage telemetry","author":{"name":"Harness Start","email":"devtools@example.com"},"hooks":"./hooks/claude.json"}
