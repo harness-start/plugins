@@ -1,0 +1,4 @@
+id = "01-subagent-contract"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["subagent-start", "context-injection"]

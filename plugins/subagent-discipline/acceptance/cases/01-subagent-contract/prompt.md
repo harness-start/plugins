@@ -1,0 +1,1 @@
+Dispatch exactly one read-only subagent. Ask it to report the exact bracketed contract header added to its context at startup and summarize two of that contract's scope or evidence rules. After it returns, relay its answer. Do not modify files.
