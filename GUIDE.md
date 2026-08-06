@@ -9,6 +9,8 @@
 - 多个独立插件的源码仓库；
 - hooks 与 scripts 的统一维护仓库。
 
+本仓库的工作方向是“重 hooks，轻 skill + script”：Hook 负责自动触发、门禁、反馈和状态推进；插件内 Script 负责确定性执行；Skill 只在配置、诊断、例外或恢复必须由用户或 agent 明确发起时出现。这里的“重/轻”指职责和激活方式，不按文件数量或代码行数衡量。完整边界见 [`docs/architecture.md`](docs/architecture.md)。
+
 两套平台共享插件业务脚本，但分别维护 Marketplace 索引、Plugin manifest 和 Hook 配置。Claude Code 与 Codex 的 manifest 字段、环境变量和生命周期事件并不完全一致，因此不要尝试用一份 manifest 覆盖两个平台。
 
 Claude Code 和 Codex 都支持在一个 Marketplace 中登记多个插件：
@@ -74,8 +76,15 @@ harness-start/
     │   ├── hooks/
     │   │   ├── claude.json
     │   │   └── codex.json
-    │   └── scripts/
-    │       └── session-start.mjs
+    │   ├── scripts/
+    │   │   ├── session-start.mjs
+    │   │   ├── checks/                 # 按需：纯判定
+    │   │   └── lib/                    # 按需：本插件最小辅助函数
+    │   ├── skills/                     # 按需：显式配置/诊断入口
+    │   ├── tests/
+    │   └── acceptance/
+    │       ├── README.md
+    │       └── cases/
     │
     └── policy-checks/
         ├── README.md
@@ -86,8 +95,10 @@ harness-start/
         ├── hooks/
         │   ├── claude.json
         │   └── codex.json
-        └── scripts/
-            └── policy-check.mjs
+        ├── scripts/
+        │   └── policy-check.mjs
+        ├── tests/
+        └── acceptance/
 ```
 
 每个插件必须是自包含目录。不要让一个插件通过以下方式引用另一个插件：
@@ -99,13 +110,26 @@ harness-start/
 
 Claude Code 安装插件时会将单个插件目录复制到缓存，插件目录外的文件不会一起复制。
 
-如果多个插件需要共享实现，可采用以下方式之一：
+如果多个插件出现相似实现，当前默认是在各插件中保留实际使用的最小本地函数。不要为复用新增根级 npm 包、安装步骤、同步脚本、代码生成或发布目录构建，也不要依赖安装目录外的运行时相对路径。只有重复已经造成可观察的行为漂移，并且新的分发方式仍能保持插件独立安装和直接运行时，才单独评审共享层。
 
-- 抽取成独立 npm 包；
-- 在发布前将公共文件复制到每个插件；
-- 使用构建步骤生成每个插件的完整发布目录。
+### 3.1 Hook、Script 与 Skill 的选择
 
-不要依赖安装目录外的运行时相对路径。
+| 载体 | 使用条件 | 约束 |
+| --- | --- | --- |
+| Hook | 能力绑定宿主生命周期，输入、判定和输出可机械验证 | 同插件同事件只保留少量 dispatcher；明确 matcher、超时和错误策略 |
+| Script | Hook 或显式工具需要确定、可测试的执行逻辑 | 位于插件目录内；入口处理 I/O，检查函数尽量纯；不安装依赖 |
+| Skill | 配置、诊断、窄例外或恢复需要显式意图和操作指导 | 可选；不复制 Hook 判定，不成为 Hook 生效的前置条件 |
+| CLI / MCP | 工作流创建、查询或逃生操作需要明确调用 | 不根据模糊 prompt 偷偷创建状态 |
+
+开放式推理、外部协调和无界探索留在 agent 工作流中，不放进每次事件自动执行的 Hook。
+
+### 3.2 插件内分层
+
+- `hooks/*.json` 只描述平台事件、matcher、入口命令、状态提示和超时。
+- 生命周期入口负责读取 stdin、规范化事件、调度检查并适配平台输出。
+- `scripts/checks/` 保存可独立测试的判定；`scripts/lib/` 只保留本插件实际引用的辅助函数。
+- Skill、CLI 和 Hook 可以共享同一配置或状态模型，但不能各自维护一份规则。
+- schema、templates、skills、CLI 和持久状态目录都按实际消费者增加，不为结构完整而创建空目录。
 
 ## 4. 初始化仓库
 
@@ -294,7 +318,7 @@ Claude Code 的 manifest 在默认目录自动发现模式下可以省略，但�
 }
 ```
 
-Codex 要求插件包含 `.codex-plugin/plugin.json`。`skills/`、`SKILL.md`、MCP 和 hooks 都是可选组件。对于 hook-only 插件，不需要创建 `SKILL.md`。
+Codex 要求插件包含 `.codex-plugin/plugin.json`。`skills/`、`SKILL.md`、MCP 和 hooks 都是可选组件。对于 hook-only 插件，不需要创建 `SKILL.md`；只有显式配置、诊断或恢复流程确实需要操作指导时才增加 Skill。
 
 ## 8. 创建平台独立的 Hook 配置
 
@@ -366,7 +390,7 @@ Codex 还提供 `CLAUDE_PLUGIN_ROOT` 和 `CLAUDE_PLUGIN_DATA` 兼容变量，但
 
 Codex 安装或启用插件不会自动信任其中的 hooks。用户必须审查并信任当前 hook 定义后，hook 才会执行。
 
-## 9. 创建共享业务脚本
+## 9. 创建双平台共享的插件内业务脚本
 
 创建 `plugins/session-hooks/scripts/session-start.mjs`：
 
@@ -397,6 +421,8 @@ process.stderr.write("[session-hooks] SessionStart hook completed\n");
 - 不依赖当前工作目录；
 - 不写入插件安装目录；
 - 不输出凭据或完整事件内容。
+
+当一个事件包含多条检查时，Hook 配置仍只注册一个入口。入口按明确顺序调用 `scripts/checks/` 中的函数，并聚合 report 或执行 first-deny-wins；不要为每条规则启动一个 Hook 进程。平台输出差异留在入口或 `hook-io` 适配层，业务检查不读取 `CLAUDE_PLUGIN_ROOT`、`PLUGIN_ROOT` 等平台变量。
 
 如果需要持久化数据：
 
@@ -429,7 +455,7 @@ await appendFile(
 
 不要把 token、用户 prompt、完整工具参数或环境变量直接写入日志。
 
-## 10. 为第二个插件复用结构
+## 10. 为第二个插件复用打包模式
 
 `policy-checks` 使用相同结构：
 
@@ -442,14 +468,16 @@ plugins/policy-checks/
 └── scripts/policy-check.mjs
 ```
 
-每个插件独立维护：
+这里复用的是目录和契约模式，不是跨插件运行时文件。每个插件独立维护：
 
 - 插件名称；
 - 插件版本；
 - 插件说明；
 - 双平台 manifest；
 - 双平台 hook 定义；
-- 测试和发布记录。
+- 插件内脚本、测试和发布记录；
+- 双宿主验收用例；
+- 按需提供的 Skill、CLI、schema 和状态模型。
 
 ## 11. 本地静态验证
 
@@ -1009,19 +1037,21 @@ mkdir -p plugins/audit-hooks/.claude-plugin
 mkdir -p plugins/audit-hooks/.codex-plugin
 mkdir -p plugins/audit-hooks/hooks
 mkdir -p plugins/audit-hooks/scripts
+mkdir -p plugins/audit-hooks/tests
+mkdir -p plugins/audit-hooks/acceptance/cases
 ```
 
 然后：
 
-1. 创建 Claude Code manifest。
-2. 创建 Codex manifest。
-3. 创建 `hooks/claude.json`。
-4. 创建 `hooks/codex.json`。
-5. 创建业务脚本。
-6. 在 `.claude-plugin/marketplace.json` 中添加条目。
-7. 在 `.agents/plugins/marketplace.json` 中添加条目。
-8. 运行双平台验证。
-9. 分别安装并做真实会话测试。
+1. 先写清插件拥有的不变量，以及为什么它需要自动 Hook，而不是普通 agent 工作流。
+2. 为每个事件确定 matcher、超时、阻断或报告语义、错误策略和恢复路径。
+3. 创建 Claude Code 与 Codex manifest，以及各自的 Hook 配置。
+4. 创建每个生命周期事件的 dispatcher；多条规则在插件进程内分派。
+5. 把可独立验证的判定放入 `scripts/checks/`，只按实际依赖增加 `scripts/lib/`。
+6. 仅在显式配置、诊断、例外或恢复需要操作指导时创建 `skills/<name>/SKILL.md`。
+7. 添加离线单测、`acceptance/README.md` 和至少一个双宿主真实会话用例。
+8. 在 `.claude-plugin/marketplace.json` 与 `.agents/plugins/marketplace.json` 中登记同名插件。
+9. 运行仓库验证，再分别安装并做 Claude Code / Codex 新会话验收。
 
 同一个 Marketplace 内不能出现重名插件。
 
@@ -1129,6 +1159,7 @@ CI 不能替代真实 hook 验收。发布前还应分别启动 Claude Code 和 
 执行约束：
 
 - Hook 只做确定性、短时操作；
+- 同一插件、同一事件优先使用一个 dispatcher，避免每条规则启动一个进程；
 - 不在 hook 中执行交互命令；
 - 不在 hook 中运行 `npm install`、`curl | sh` 等动态安装；
 - 不写入插件安装目录；
@@ -1149,7 +1180,10 @@ CI 不能替代真实 hook 验收。发布前还应分别启动 Claude Code 和 
 - 每个插件有 Codex manifest；
 - 双 manifest 名称和版本一致；
 - hook 配置不混用平台专属字段；
+- 同一事件的多条检查由少量 dispatcher 调度，检查顺序和聚合语义明确；
 - scripts 不引用插件目录外文件；
+- Skill 是可选显式操作面，不复制 Hook 判定，也不是 Hook 生效的前置条件；
+- 阻断、报告、上下文注入和状态推进分别有可验证的成功与失败路径；
 - `claude plugin validate --strict .` 通过；
 - Codex 能加载本地 Marketplace；
 - 两个平台都能独立安装目标插件；

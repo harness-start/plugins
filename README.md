@@ -6,6 +6,22 @@ Harness Start dual-platform plugin marketplace for **Claude Code** and **Codex**
 
 Both hosts share plugin business scripts. Marketplace indexes, plugin manifests, and hook configs are maintained separately because field names, environment variables, and lifecycle events differ across platforms.
 
+## Architecture
+
+Harness Start is a collection of independently installable plugins that form an
+agent harness. Its current working direction is **hook-heavy, skill-and-script
+light**:
+
+- hooks own automatic lifecycle triggers, gates, feedback, and state progress;
+- plugin-local scripts keep execution deterministic, testable, and direct;
+- optional skills cover explicit configuration, diagnosis, exceptions, and
+  recovery instead of duplicating hook enforcement.
+
+“Heavy” describes responsibility, not the number of hook processes. A plugin
+should keep only a small number of dispatchers per lifecycle event and must stay
+self-contained. See [the working architecture](docs/architecture.md) for current
+facts, design defaults, trade-offs, and open questions.
+
 ## Repository layout
 
 ```text
@@ -13,6 +29,7 @@ Both hosts share plugin business scripts. Marketplace indexes, plugin manifests,
 ├── .claude-plugin/marketplace.json    # Claude Code marketplace
 ├── .agents/plugins/marketplace.json   # Codex marketplace
 ├── plugins/                           # Self-contained plugins live here
+├── docs/architecture.md               # Working harness architecture
 ├── scripts/ci/validate-plugins.sh     # Shared GitHub/GitLab CI checks
 ├── .github/workflows/validate-plugins.yml
 ├── .gitlab-ci.yml
@@ -87,6 +104,10 @@ See `GUIDE.md` section 16. Register the plugin in both:
 
 ## Docs
 
+- [Working architecture](docs/architecture.md)
+- [Repository initialization and plugin authoring guide](GUIDE.md)
+- [Dual-host acceptance](docs/host-acceptance.md)
+- [Acceptance matrix](docs/acceptance-matrix.md)
 - [Claude Code plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
 - [Codex hooks](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)

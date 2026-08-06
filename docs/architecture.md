@@ -1,0 +1,163 @@
+# Harness Start 工作架构
+
+> 状态：Working Architecture
+>
+> 最近核对：2026-08-07
+>
+> 适用对象：插件作者、维护者和评审者
+
+本文记录 Harness Start 当前的架构方向，不把仍在验证的选择写成已经稳定的规范。文中的“当前事实”可由仓库代码和配置核对；“工作默认”用于指导新设计；“开放问题”需要证据后再决定是否固化。
+
+插件库存以 [Claude Code Marketplace](../.claude-plugin/marketplace.json) 和 [Codex Marketplace](../.agents/plugins/marketplace.json) 为准。本文不替代各插件自己的 README、DESIGN 或验收材料。
+
+## 1. 目标
+
+这个仓库通过多个可独立安装的插件组成 harness。每个插件负责一组可解释的不变量，并能独立升级、验证和回滚。
+
+当前工作方向是 **重 hooks，轻 skill + script**：
+
+- Hook 是自动化主路径，负责触发、时序、门禁、反馈和状态推进。
+- Script 是 Hook 或显式工具调用的插件内执行单元，保持确定、可测试、自包含。
+- Skill 是可选的意图入口，只处理需要用户或 agent 明确发起的配置、诊断、例外和恢复操作。
+
+“重”和“轻”描述职责与激活方式，不是代码行数。重 Hook 不等于注册更多进程或在每次事件注入更多文字；轻 Script 也不等于把业务判定塞回 Hook JSON。
+
+## 2. 当前事实
+
+截至最近核对，仓库有 5 个插件，双 Marketplace 登记一致：
+
+| 插件 | 主要自动化入口 | 显式操作面 |
+| --- | --- | --- |
+| `command-safety-guards` | `PreToolUse` / `PostToolUse` 安全检查 | 配置管理 Skill |
+| `file-line-budget-guard` | `PostToolUse` 行数预算检查 | 配置管理 Skill |
+| `in-chinese` | `SessionStart` / `Stop` / `SubagentStop` 语言约束 | 无 |
+| `process-confidence` | 会话、工具和 Stop 生命周期 | `pcf` CLI 显式 `begin`、查询和逃生操作 |
+| `subagent-discipline` | `SubagentStart` 注入精简协作合同 | 无 |
+
+这些实现共同体现了以下事实：
+
+- 每个插件都有独立目录、双平台 manifest 和平台专属 Hook 配置。
+- 两个平台共享插件内业务脚本，但使用各自的根目录变量和 Hook 配置。
+- 只有配置确实需要显式意图时才提供 Skill；当前只有 2 个插件包含 `SKILL.md`。
+- 业务脚本直接以已提交的 Node.js `.mjs` 运行，没有仓库级安装、编译、bundle 或发布目录生成阶段。
+- 插件运行时不引用另一个插件的相对路径。
+
+## 3. 运行链路
+
+```text
+Marketplace
+  -> platform manifest
+    -> platform hook config
+      -> lifecycle event dispatcher
+        -> plugin-local checks / state
+          -> platform output adapter
+            -> deny | report | context | receipt | state transition
+
+explicit user or agent intent
+  -> Skill / CLI / future MCP surface
+    -> plugin config or plugin-local script
+      -> same documented invariant and state model
+```
+
+自动路径和显式路径可以共享同一套配置、纯函数或状态模型，但不能各自实现一份相互漂移的规则。
+
+## 4. 职责边界
+
+| 组件 | 应该负责 | 不应该负责 |
+| --- | --- | --- |
+| Hook 配置 | 事件、matcher、超时、平台根变量和入口命令 | 业务规则、跨平台兼容分支、隐式安装 |
+| Hook 入口 Script | 读取事件、规范化输入、调度检查、适配平台输出 | 长时间推理、交互式流程、无界网络或子进程调用 |
+| `checks/` / `lib/` | 纯判定、格式化、受控状态访问和最小辅助函数 | 仓库级共享运行时、未使用的通用抽象 |
+| Skill | 配置、诊断、窄例外、恢复和需要确认的操作 | 代替自动门禁、复制 Hook 判定、成为安装前提 |
+| CLI / MCP | 显式创建、查询或操作工作流状态 | 根据模糊意图偷偷启动工作流 |
+
+`process-confidence` 是重要边界案例：`begin` 必须由 LLM 显式调用；Run 创建后，Hooks 才负责 receipt、阶段推进、自动完成和 Stop 门禁。Hook-first 不意味着 Hook 可以替用户推断并创建所有状态。
+
+## 5. 插件设计默认值
+
+### 5.1 插件是部署和回滚边界
+
+一个插件携带运行所需的 manifest、Hook 配置、Scripts、测试、验收用例和必要文档。宿主只复制或加载单个插件目录，因此运行时不能依赖仓库根目录或其他插件。
+
+跨插件出现相似辅助函数时，当前默认是保留各插件实际使用的最小本地实现。少量重复是独立安装的成本。只有重复已经造成可观测漂移，并且存在不引入安装或构建阶段的分发方式时，才重新评估共享层。
+
+### 5.2 一个不变量只有一个拥有者
+
+同一条规则不能由多个插件重复阻断或重复注入。插件边界按用户能解释的责任划分，不按源文件、Skill 名称或语言包结构机械复制。
+
+### 5.3 一个事件面只保留少量入口
+
+同一插件、同一生命周期事件优先使用一个 dispatcher，在进程内按明确顺序执行检查。不要为每条细规则注册一个 command Hook。这样可以控制进程启动成本、输出顺序和 first-match/aggregate 语义。
+
+### 5.4 平台绑定分开，业务语义共享
+
+Claude Code 和 Codex 分别维护 manifest、Hook JSON、根目录变量和输出适配。检查函数和状态语义在插件内部共享。任何平台差异都应停留在 Hook 配置或输出适配边界，不能渗入每条业务规则。
+
+### 5.5 门禁只处理可机械判断的问题
+
+- `PreToolUse` 适合阻止高置信、尚未发生且有明确恢复路径的风险。
+- `PostToolUse` 适合报告已发生操作的结果、写 receipt 或提示修正；不能把事后反馈描述成已经回滚。
+- `SessionStart`、`SubagentStart` 等注入必须短小、限定到插件责任，并基于稳定策略或可观察事实。
+- `Stop` / `SubagentStop` 只有在完成条件能机械验证且解阻路径明确时才应阻断。
+
+每个 Hook 都要显式选择错误策略。解析失败、依赖缺失、超时和内部异常是否 fail-open 或 fail-closed，取决于误阻与漏阻的失败成本，并由入口测试锁定；仓库不设一个覆盖所有事件的统一答案。
+
+### 5.6 运行时保持直接和可审计
+
+Hook 不在执行期间安装依赖，不运行交互命令，不把凭据、完整 prompt 或完整事件写入日志。脚本只调用目标环境已经存在的工具，并对范围、超时和失败输出负责。
+
+## 6. 何时使用 Hook、Skill 或 Script
+
+设计新能力时按以下顺序判断：
+
+1. 能力是否绑定到宿主生命周期事件，并且输入、判定和输出可以机械验证？如果是，使用 Hook。
+2. 能力是否必须由用户或 agent 明确表达意图、选择策略或确认风险？如果是，提供 Skill、CLI 或 MCP 入口。
+3. 能力是否需要可复用的确定性执行逻辑？如果是，放入插件内 Script，并让 Hook 或显式入口调用它。
+4. 能力是否需要长时间开放式推理、外部协调或无界探索？如果是，它不应成为自动 Hook；应留在 agent 工作流中。
+
+Skill 不是每个插件的必需文件。只有 Hook 无法安全推断意图，且操作说明能显著降低错误配置或恢复成本时才增加 Skill。
+
+## 7. 反馈回路与风险控制
+
+Hook-first 的价值来自闭环，而不是事件覆盖率：
+
+```text
+event -> observed facts -> decision -> user/agent-visible feedback
+      -> correction or state change -> later event verifies the result
+```
+
+主要风险及当前控制如下：
+
+| 风险 | 当前控制 |
+| --- | --- |
+| Hook 数量增加导致延迟 | 同事件合并 dispatcher；matcher 和超时留在平台配置 |
+| 上下文注入变成噪声 | 只注入插件责任内的策略或事实；真实宿主验收检查可见行为 |
+| Skill 与 Hook 规则漂移 | Skill 引用插件 DESIGN/配置契约，不复制判定实现 |
+| 插件为复用重新引入框架 | 禁止跨插件运行时引用和隐式构建链，只保留实际 import 的本地函数 |
+| 自动化越过用户意图 | 显式创建类操作留在 Skill/CLI/MCP；Hook 只维护已存在的状态 |
+| 平台行为看似一致、实际不同 | 双 Hook 配置、双宿主验收和平台适配测试分别验证 |
+
+## 8. 开放问题
+
+这些问题尚未固化为 CI 规则。维护者在出现对应证据时更新本文，而不是在单个插件里静默创造新惯例。
+
+| 问题 | 当前默认 | 需要的证据 | 重新决策触发点 |
+| --- | --- | --- | --- |
+| Hook 延迟与上下文预算 | 少量 dispatcher、短输出、有限超时 | 双宿主耗时和输出大小分布 | 新插件使交互明显变慢或提示相互挤压 |
+| 跨插件复用 | 插件内最小重复 | 同一修复多次漂移的记录和可独立分发方案 | 重复维护成本超过独立部署收益 |
+| 持久状态协作 | 状态归拥有它的插件 | 两个插件确需共享的稳定 schema 和升级策略 | 出现跨插件读取私有文件的需求 |
+| Skill、CLI、MCP 的分工 | 选择最小显式入口 | 用户任务、宿主支持和恢复场景数据 | 同一操作需要维护多个不一致入口 |
+| fail-open / fail-closed 分类 | 按事件失败成本逐项决定 | 误阻、漏阻和恢复时间证据 | 新事件类型或真实事故暴露默认错误 |
+| 架构机械门禁 | 先文档评审，不加新 CI | 无状态守卫和有状态工作流都稳定应用 | 规则重复违反且可低误报检测 |
+
+## 9. 从 Working 到稳定契约
+
+在满足以下条件前，本文保持 Working 状态：
+
+- 无状态守卫和有状态工作流都能遵守这些边界，不需要隐藏例外；
+- Claude Code 与 Codex 的离线测试和真实宿主验收都能证明同一用户可见语义；
+- Hook 延迟、上下文噪声和误阻有可重复的观测方式；
+- 新增 Skill 或共享层有明确的进入条件和删除条件；
+- 可以把高价值规则转成低误报的静态或验收门禁。
+
+稳定后再决定哪些条目进入 CI 或项目指令。当前阶段，代码、配置和真实验收结果仍高于本文中的推断。
