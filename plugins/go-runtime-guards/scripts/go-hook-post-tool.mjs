@@ -18,6 +18,7 @@ import { patchTargetPaths } from "./lib/patch-utils.mjs";
 import * as encoding from "./checks/encoding.mjs";
 import { collectDebtFindings, formatDebtReport } from "./checks/debt.mjs";
 import * as syntax from "./checks/syntax.mjs";
+import { toolOutputReport } from "./checks/runtime-context.mjs";
 
 async function main() {
   const event = await readStdinJson();
@@ -53,6 +54,8 @@ async function main() {
     const result = await syntax.check(primary);
     if (result) reports.push(syntax.formatFailure(result, primary));
   }
+  const primer = toolOutputReport(event);
+  if (primer) reports.push(primer);
 
   if (reports.length === 0) process.exit(0);
   writeJson(additionalContextOutput("PostToolUse", reports.join("\n\n")));

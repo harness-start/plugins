@@ -44,6 +44,7 @@ import {
   truncationHit,
   truncationReportMessage,
 } from "./checks/test-truncation.mjs";
+import { heavyCommandDecision } from "./checks/stateful-runtime.mjs";
 
 async function main() {
   const event = await readStdinJson();
@@ -89,6 +90,15 @@ async function main() {
   }
 
   if (isShell) {
+    const repeat = heavyCommandDecision(event);
+    if (repeat?.action === "deny") {
+      writeJson(preToolDeny(repeat.message));
+      process.exit(0);
+    }
+    if (repeat?.action === "report") {
+      writeJson(additionalContextOutput("PreToolUse", repeat.message));
+      process.exit(0);
+    }
     const command = extractShellCommand(rawToolName, toolInput) ?? "";
     const lines = truncationHit(command);
     if (lines !== null) {

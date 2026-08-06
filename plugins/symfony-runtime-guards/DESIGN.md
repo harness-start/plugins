@@ -30,8 +30,8 @@ One process per event (dispatcher pattern), matching `php-runtime-guards`.
    was already report.
 2. **PreToolUse deny** keeps fail-closed semantics and appends a
    `blockingContract` (observedFacts / harm / unblockWhen / recovery).
-3. **Codex specifics**: plugin hook file is `hooks/hooks.json` (default
-   path), matchers use uppercase tool names (`Bash|Write|Edit|ApplyPatch`),
+3. **Codex specifics**: its manifest selects `hooks/codex.json`, matchers use
+   uppercase tool names (`Bash|Write|Edit|ApplyPatch`),
    and exec-mode patches are parsed from the inline `*** Begin Patch` payload
    (`scripts/lib/patch-utils.mjs`).
 4. **Twig typo fix**: the source harness used `bin/node:console`; this port

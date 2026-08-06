@@ -1,12 +1,12 @@
 {
   "name": "go-runtime-guards",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Go lockfile deny + encoding/debt/syntax reports",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Go Runtime Guards",
     "shortDescription": "Go lockfile deny + encoding/debt/syntax reports",

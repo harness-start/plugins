@@ -1,0 +1,13 @@
+{
+  "name": "web-frontend-guards",
+  "version": "0.1.0",
+  "description": "Web framework syntax, encoding, configuration, and environment guards",
+  "author": { "name": "Harness Start", "email": "devtools@example.com" },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Web Frontend Guards",
+    "shortDescription": "Web framework syntax, encoding, configuration, and environment guards",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

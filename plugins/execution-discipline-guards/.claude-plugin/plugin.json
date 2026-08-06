@@ -1,0 +1,1 @@
+{"name":"execution-discipline-guards","version":"0.1.0","description":"Execution loops, retry, polling, language, syntax, debt, ledger, and completion discipline","author":{"name":"Harness Start","email":"devtools@example.com"},"hooks":"./hooks/claude.json"}

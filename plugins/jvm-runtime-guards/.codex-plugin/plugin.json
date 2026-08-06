@@ -1,12 +1,12 @@
 {
   "name": "jvm-runtime-guards",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "JVM lockfile deny + encoding/debt/syntax reports for Java/Kotlin",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "JVM Runtime Guards",
     "shortDescription": "JVM lockfile deny + encoding/debt/syntax reports for Java/Kotlin",

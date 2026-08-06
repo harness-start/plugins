@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.2.0] - 2026-08-06
+
+### Added
+
+- Consolidated PHP environment facts, stateful heavy-command retry control, changed-file tracking, and one bounded Stop-stage PHPStan run without dependency installation.
+
 ## [0.1.0] - 2026-08-05
 
 ### Added
@@ -22,12 +28,6 @@ All notable changes to this plugin are documented in this file.
   invocations — entry-level smoke tests were dropped by design).
 - Docs: README (install/behavior/escapes), DESIGN (decisions), CHANGELOG.
 
-### Not migrated (by design)
+### Intentionally separate
 
-- phpstan hooks (lint tracker + Stop aggregation) → future static-analysis
-  plugin.
-- Laravel / ThinkPHP / Webman env detectors → future per-framework plugins.
-- Symfony guards (protected paths, Doctrine entity, Twig) → future Symfony
-  plugin.
-- `php-env-detector` (UserPromptSubmit context injection) → dropped, deemed
-  low value.
+- Laravel / ThinkPHP / Webman path rules and Symfony checks stay in their existing framework plugins.

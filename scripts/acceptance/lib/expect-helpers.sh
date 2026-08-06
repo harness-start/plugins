@@ -56,6 +56,14 @@ require_file_absent() {
   fi
 }
 
+require_file_exists() {
+  local path="${1:?path required}"
+  if [ ! -f "${path}" ]; then
+    echo "expect fail: file must exist: ${path}" >&2
+    return 1
+  fi
+}
+
 require_composer_json_without_repositories() {
   local file="${1:?composer.json path}"
   if [ ! -f "${file}" ]; then
@@ -77,5 +85,11 @@ MARKERS_THINKPHP='\[ThinkPHP Protected Path\]'
 MARKERS_WEBMAN='\[Webman Protected Path\]'
 MARKERS_SYMFONY='\[Symfony Protected Path\]'
 MARKERS_PCF='\[process-confidence\] write denied'
+MARKERS_SPEC_PLAN='\[Spec Plan Gate\]'
+MARKERS_BACKUP_ARTIFACT='\[Backup Artifact Guard\]'
+MARKERS_GIT_ADD='\[Git Add Guard\]'
+MARKERS_LOCKFILE='\[Lockfile Guard\]'
+MARKERS_INFRA_DEVOPS='\[Dangerous Infra Command\]'
+MARKERS_WEB_FRONTEND='\[WeChat Mini Program Config\]'
 # Shared deny surface when host surfaces JSON/hook text without path fragments:
 MARKERS_HOOK_DENY='permissionDecision":"deny|permissionDecision.: .?deny|PreToolUse Blocked|Hook denied tool use|Command blocked by PreToolUse hook'

@@ -1,10 +1,10 @@
 # command-safety-guards
 
-Deterministic PreToolUse guards for high-risk shell mutations on Claude Code and Codex.
+Deterministic PreToolUse and PostToolUse guards for high-risk commands and sensitive source patterns on Claude Code and Codex.
 
 ## Behavior
 
-The plugin starts one Node.js process for a matching PreToolUse event and evaluates checks in this order:
+The plugin starts one Node.js process per matching event and evaluates consolidated checks in this order:
 
 | Order | Check | Result |
 | --- | --- | --- |
@@ -12,6 +12,10 @@ The plugin starts one Node.js process for a matching PreToolUse event and evalua
 | 2 | Bare `sed -i` or `sed --in-place` without a backup suffix | Deny |
 | 3 | `cat` heredoc redirected to a repository file | Deny |
 | 3 | `cat` heredoc redirected under `/tmp`, `/private/tmp`, or `$TMPDIR` | Report |
+| 4 | Dangerous SQL/Redis, missing MySQL replication preflight, or unbounded active testing | Deny/report |
+| 5 | Secret reads/leaks and `lark-cli --yes` | Report |
+| 6 | Net-new TLS verification bypass, PII logging, or SQL encoding defects | PostToolUse report |
+| 7 | Three plugin-local denies against the same target within ten minutes | Deny escalation |
 
 Clean commands produce no stdout. Denials exit with status 0 and return the shared `permissionDecision: deny` JSON contract expected by both hosts.
 
@@ -24,11 +28,9 @@ Clean commands produce no stdout. Denials exit with status 0 and return the shar
 | `skills/command-safety-governance/src/hooks/cat-write-guard.ts` | `scripts/checks/cat-write.mjs` |
 | `core/hook-support/src/hook-bash-git-shell-utils.ts` | Minimal tokenizer in `scripts/lib/shell-parse.mjs` |
 
-The plugin is self-contained and has no `@harness/*` runtime dependency.
+The plugin is self-contained and has no `@harness/*` runtime dependency. Escalation state deliberately counts only denials emitted by this plugin because neither host exposes the source runtime's global telemetry contract. State is JSONL under `PLUGIN_DATA` or `CLAUDE_PLUGIN_DATA`; nothing is written into the plugin installation directory.
 
-## Known gaps
-
-`deny-escalation-guard.ts` is not part of this batch. It depends on cross-hook operational facts that neither plugin host exposes as a stable shared state contract. No empty or partial escalation hook is registered.
+All fourteen inventory hooks are represented by the two event entries and seven check/state modules. Node.js runs them directly with no dependency installation, compilation, or vendored source tree.
 
 ## Verification
 

@@ -1,0 +1,32 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/php-hook-user-prompt.mjs\"", "statusMessage": "PHP runtime guards: project environment", "timeout": 10000 }] }],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/php-hook-pre-tool.mjs\"",
+            "statusMessage": "PHP runtime guards: composer policy, protected paths",
+            "timeout": 15000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/scripts/php-hook-post-tool.mjs\"",
+            "statusMessage": "PHP runtime guards: syntax, encoding, debt",
+            "timeout": 30000
+          }
+        ]
+      }
+    ],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/php-hook-stop.mjs\"", "statusMessage": "PHP runtime guards: aggregate PHPStan", "timeout": 65000 }] }]
+  }
+}

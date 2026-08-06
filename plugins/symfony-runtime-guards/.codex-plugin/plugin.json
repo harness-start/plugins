@@ -6,7 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Symfony Runtime Guards",
     "shortDescription": "Symfony guards: protected paths, Doctrine entity, Twig syntax.",

@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+      "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/web-hook-post-tool.mjs\"", "statusMessage": "web-frontend-guards: file checks", "timeout": 30000 }]
+    }],
+    "SessionStart": [{
+      "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/web-hook-session-start.mjs\"", "statusMessage": "web-frontend-guards: stylelint coverage", "timeout": 15000 }]
+    }],
+    "UserPromptSubmit": [{
+      "hooks": [{ "type": "command", "command": "node \"${PLUGIN_ROOT}/scripts/web-hook-user-prompt.mjs\"", "statusMessage": "web-frontend-guards: environment", "timeout": 15000 }]
+    }]
+  }
+}

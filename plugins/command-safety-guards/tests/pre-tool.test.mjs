@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   catWriteClassification,
@@ -14,6 +17,10 @@ import {
   dangerousCommandDenyMessage,
   dangerousCommandHits,
 } from "../scripts/checks/dangerous-command.mjs";
+import { advancedCommandFindings } from "../scripts/checks/advanced-command.mjs";
+import { fileSafetyReports } from "../scripts/checks/file-safety.mjs";
+import { secretReadReport } from "../scripts/checks/secret-read.mjs";
+import { escalationMessage, recordDeny } from "../scripts/lib/deny-state.mjs";
 
 const PRE = fileURLToPath(
   new URL("../scripts/cmd-safety-hook-pre-tool.mjs", import.meta.url),
@@ -249,4 +256,46 @@ test("entry exits cleanly with no output for safe and non-shell tools", async ()
     },
     { code: 0, stdout: "", stderr: "" },
   );
+});
+
+test("advanced command checks cover database, replication, active test, and audits", () => {
+  const cases = [
+    ["mysql -e 'DROP TABLE users'", "deny", "Dangerous SQL"],
+    ["redis-cli FLUSHALL", "deny", "Redis CLI"],
+    ["mysql -e 'STOP REPLICA'", "deny", "MySQL Replication"],
+    ["nmap -p- 127.0.0.1", "deny", "Security Active"],
+    ["lark-cli doc delete abc --yes", "report", "Lark CLI"],
+    ["cat ~/.aws/credentials", "report", "Secret Leak"],
+  ];
+  for (const [command, action, id] of cases) { const finding = advancedCommandFindings(command)[0]; assert.equal(finding.action, action, command); assert.match(finding.id, new RegExp(id, "u"), command); }
+  assert.deepEqual(advancedCommandFindings("psql -c 'SELECT 1'"), []);
+  assert.deepEqual(advancedCommandFindings("nmap -p- --max-rate 50 127.0.0.1"), []);
+});
+
+test("secret read preserves templates and reports real credential paths", () => {
+  assert.equal(secretReadReport(["docs/.env.example"]), null);
+  assert.match(secretReadReport(["/work/.env"]), /Secret Read Notice/u);
+  assert.match(secretReadReport(["~/.ssh/id_ed25519"]), /Secret Read Notice/u);
+});
+
+test("file reports detect SQL encoding, TLS bypass, and PII logging", () => {
+  const root = mkdtempSync(join(tmpdir(), "command-safety-"));
+  try {
+    const sql = join(root, "schema.sql"); writeFileSync(sql, Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), Buffer.from("SELECT 1;\n")])); assert.match(fileSafetyReports(sql).join("\n"), /Database Encoding/u);
+    const source = join(root, "client.js"); writeFileSync(source, "const agent = { rejectUnauthorized: false };\nlogger.info(user.email);\n"); const report = fileSafetyReports(source).join("\n"); assert.match(report, /Insecure TLS/u); assert.match(report, /Log PII/u);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("entry reports sensitive Read without opening the file", async () => {
+  const { code, stdout } = await runHook({ tool_name: "Read", tool_input: { file_path: "/work/.env" } }); assert.equal(code, 0); const output = JSON.parse(stdout); assert.match(output.hookSpecificOutput.additionalContext, /Secret Read Notice/u);
+});
+
+test("plugin-local deny state escalates after three distinct turns", () => {
+  const root = mkdtempSync(join(tmpdir(), "deny-state-")); const previous = process.env.PLUGIN_DATA; process.env.PLUGIN_DATA = root;
+  try {
+    const command = "redis-cli FLUSHALL";
+    for (const turn_id of ["turn-1", "turn-2", "turn-3"]) recordDeny({ turn_id }, command, "Redis CLI Risk");
+    assert.match(escalationMessage({ turn_id: "turn-4" }, command), /deny 3 次/u);
+    assert.equal(escalationMessage({ turn_id: "turn-4" }, `${command} # escalation-ok`), null);
+  } finally { if (previous === undefined) delete process.env.PLUGIN_DATA; else process.env.PLUGIN_DATA = previous; rmSync(root, { recursive: true, force: true }); }
 });

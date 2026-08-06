@@ -82,6 +82,7 @@ export function extractShellCommand(toolName, toolInput) {
 }
 
 export function writeJson(obj) {
+  if (obj === null) return;
   process.stdout.write(`${JSON.stringify(obj)}\n`);
 }
 
@@ -98,10 +99,16 @@ export function preToolDeny(reason) {
 
 /** PreToolUse / PostToolUse report (additionalContext, both platforms). */
 export function additionalContextOutput(hookEventName, text) {
-  return {
+  const output = {
     hookSpecificOutput: {
       hookEventName,
       additionalContext: text,
     },
   };
+  if (process.env.PLUGIN_ROOT && hookEventName === "PostToolUse") {
+    process.stderr.write(`${text}\n`);
+    process.exitCode = 2;
+    return null;
+  }
+  return output;
 }
