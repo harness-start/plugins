@@ -80,6 +80,7 @@ require_composer_json_without_repositories() {
 MARKERS_INTENT_CLARIFY='\[intent-clarify-gate\]|业务写入已拦截|写屏障已解除|访谈尚未结束|访谈已结束'
 MARKERS_FIRST_PRINCIPLES='\[first-principles-gate\]|第一性原理模式已开启|业务写入已拦截|写屏障已解除|第一性原理会话已结束'
 MARKERS_FIRST_PRINCIPLES_STOP='完成/关闭需要有效|on-disk first-principles ledger|stale for this session|第一性原理模式尚未结束'
+MARKERS_GOAL_TASK='\[goal-task-gate\]|GOAL_TASK_DONE|armed run_id=|cleared run_id=|superseded run_id='
 MARKERS_FILE_BUDGET='\[File Budget\]|超出文件行数预算|超出构建配方参考预算'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|已拦截受保护文件修改'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|检测到禁止的文件编码'

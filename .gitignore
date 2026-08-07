@@ -20,3 +20,4 @@ coverage/
 
 # Host acceptance local runs
 .acceptance-runs/
+.goal-task/
