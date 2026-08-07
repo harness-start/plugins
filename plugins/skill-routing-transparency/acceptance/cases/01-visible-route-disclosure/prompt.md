@@ -1,0 +1,1 @@
+Read the repository README without modifying any files, then summarize its purpose in one concise sentence. Follow every installed plugin instruction and accurately disclose unavailable runtime capabilities.
