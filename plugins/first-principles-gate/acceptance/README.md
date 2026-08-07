@@ -4,7 +4,7 @@
 
 | Case | Intent | Expected signal |
 | --- | --- | --- |
-| `01-open-deny-then-ledger-complete` | Full happy path | open inject + business deny + valid ledger + `完成` unlocks |
+| `01-open-deny-then-ledger-complete` | Full happy path | open inject + business deny + valid ledger + `done` unlocks |
 | `02-completion-claim-blocks-without-ledger` | Bare completion claim | Stop block until ledger exists |
 | `03-short-alias-no-entry` | `/fp` / `$fp` are not entries | No open inject; business write not locked by this plugin |
 | `04-abort-unlocks-without-ledger` | Escape hatch | `# first-principles-abort` clears barrier without ledger |

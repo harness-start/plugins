@@ -12,7 +12,7 @@ if grep -Fq '----- model refuse (no hook fire) -----' "${ACCEPT_LOG}" \
   exit 1
 fi
 
-if grep -Eq '\[first-principles-gate\]|第一性原理模式已开启|业务写入已拦截' "${ACCEPT_LOG}"; then
+if grep -Eq '\[first-principles-gate\]|First-principles mode is open|business writes are blocked' "${ACCEPT_LOG}"; then
   echo "expect fail: short alias incorrectly opened first-principles mode" >&2
   exit 1
 fi

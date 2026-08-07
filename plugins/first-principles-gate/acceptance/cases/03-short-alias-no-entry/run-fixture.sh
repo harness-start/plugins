@@ -15,11 +15,11 @@ run_hook() {
   printf '%s' "$2" | node "${ENTRY}" "$1"
 }
 
-for prompt in '/fp 缓存' '$fp: auth' '/fp'; do
+for prompt in '/fp cache' '$fp: auth' '/fp'; do
   SESSION="accept-03-$(printf '%s' "${prompt}" | tr -c 'A-Za-z0-9' '_')"
   ENTRY_OUT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg p "${prompt}" \
     '{cwd:$cwd,session_id:$s,prompt:$p}')")"
-  if echo "${ENTRY_OUT}" | grep -q '第一性原理模式已开启'; then
+  if echo "${ENTRY_OUT}" | grep -q 'First-principles mode is open'; then
     echo "FAIL short alias opened mode: ${prompt}" >&2
     echo "${ENTRY_OUT}" >&2
     exit 1

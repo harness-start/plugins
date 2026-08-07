@@ -1,5 +1,5 @@
-/first-principles 验收：abort 无需 ledger 即可解除写屏障
+/first-principles acceptance: abort releases the write barrier without a ledger
 
-进入第一性原理模式后，不要写 ledger。
-用户会发送 `# first-principles-abort`。
-中止后应能修改 `src/app.js`。
+Do not write a ledger after entering first-principles mode.
+The user will send `# first-principles-abort`.
+After the abort, modifying `src/app.js` must be allowed.
