@@ -1,4 +1,0 @@
-id = "02-reverify-after-late-change"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["post-tool", "stop", "freshness", "recovery"]
