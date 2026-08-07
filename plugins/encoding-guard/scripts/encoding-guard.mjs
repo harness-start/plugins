@@ -201,9 +201,9 @@ function readFileCapped(filePath) {
 
 function formatIssue(issue) {
   if (issue.kind === "bom") {
-    return `检测到 ${issue.name}（${issue.bytes}）`;
+    return `Detected ${issue.name} (${issue.bytes})`;
   }
-  return "检测到非法 UTF-8 字节序列";
+  return "Detected an invalid UTF-8 byte sequence";
 }
 
 function block(findings) {
@@ -213,14 +213,14 @@ function block(findings) {
   ]);
   process.stderr.write(
     [
-      "[Encoding Guard] 检测到禁止的文件编码",
+      "[Encoding Guard] Prohibited file encoding detected",
       ...details,
       "",
       "blockingContract:",
-      "  observedFacts: 目标文本文件包含 BOM 或不是严格 UTF-8。",
-      "  harm: 错误编码会导致跨平台解析差异、乱码或构建失败。",
-      "  unblockWhen: 所有列出的文件均保存为无 BOM 的 UTF-8。",
-      "  recovery: UTF-8 BOM 可仅移除文件开头签名；其他编码须确认源编码后无损转换，禁止用替换字符猜测修复。",
+      "  observedFacts: A target text file contains a BOM or is not strict UTF-8.",
+      "  harm: Incorrect encodings can cause cross-platform parsing differences, garbled text, or build failures.",
+      "  unblockWhen: Every listed file is saved as UTF-8 without a BOM.",
+      "  recovery: For a UTF-8 BOM, remove only the leading signature; for other encodings, confirm the source encoding and convert losslessly instead of guessing with replacement characters.",
       "",
     ].join("\n"),
   );

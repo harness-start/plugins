@@ -37,7 +37,7 @@ test("analyzeEncoding identifies every BOM with longest signature first", () => 
 
 test("analyzeEncoding allows empty and valid UTF-8 text", () => {
   assert.equal(analyzeEncoding(Buffer.alloc(0)), null);
-  assert.equal(analyzeEncoding(Buffer.from("合法 UTF-8 😀\n", "utf8")), null);
+  assert.equal(analyzeEncoding(Buffer.from("Valid UTF-8 😀\n", "utf8")), null);
 });
 
 test("analyzeEncoding rejects adversarial invalid UTF-8 sequences", () => {
