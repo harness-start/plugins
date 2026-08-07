@@ -91,6 +91,29 @@ test("builtin sed-inplace allows explicit backup and macOS empty suffix forms", 
   }
 });
 
+test("builtin sed-inplace allows unbacked -i only on temporary paths", () => {
+  for (const command of [
+    "sed -i 's/USE_TZ=True,/USE_TZ=False,/' /tmp/runtest.py",
+    "sed -Ei 's/a/b/' /tmp/pytzstub/x.py",
+    "sed --in-place 's/a/b/' /private/tmp/script.sh",
+    "sed -i 's/a/b/' $TMPDIR/run.py",
+    "sed -i 's/a/b/' ${TMPDIR}/run.py",
+    "sed -i 's/a/b/' /tmp/a.py /tmp/b.py",
+  ]) {
+    assert.equal(builtIn(command), null, command);
+  }
+});
+
+test("builtin sed-inplace still denies unbacked -i on repo or mixed paths", () => {
+  assert.equal(builtIn("sed -i 's/a/b/' src/a.txt")?.id, "sed-inplace");
+  assert.equal(builtIn("sed -i 's/a/b/' ./tmp/not-absolute.py")?.id, "sed-inplace");
+  assert.equal(
+    builtIn("sed -i 's/a/b/' /tmp/a.py src/a.txt")?.id,
+    "sed-inplace",
+  );
+  assert.equal(builtIn("sed -i 's/a/b/'")?.id, "sed-inplace");
+});
+
 test("builtin sed-inplace ignores a literal in a git commit message", () => {
   assert.equal(builtIn("git commit -m 'document sed -i usage'"), null);
 });

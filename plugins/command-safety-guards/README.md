@@ -20,7 +20,7 @@ Deterministic PreToolUse and PostToolUse guards for high-risk commands and sensi
 | --- | --- | --- | --- |
 | `dangerousRm`（引擎） | Deny | 递归删除过宽目标 | `rm -r /`、`rm -rf ~`、`rm -r .`、`rm -r /tmp` 等顶层目录；`xargs … rm -r`；嵌套 `sh -c` 过深 |
 | `denyEscalation`（引擎） | Deny | 同目标短时多次 deny 升级 | 默认约 10 分钟内对同一目标累计 ≥3 次本插件 deny |
-| `sed-inplace` | Deny | 无备份的 sed 原地写 | `sed -i`（无备份后缀）、`sed --in-place`（无 `=SUFFIX`） |
+| `sed-inplace` | Deny | 无备份的 sed 原地写（**非**临时路径） | `sed -i` / `sed --in-place` 作用于仓库等路径；`/tmp/…`、`/private/tmp/…`、`$TMPDIR/…` 上的无备份 `-i` **放行** |
 | `cat-heredoc-repo-write` | Deny | cat heredoc 写非临时文件 | `cat > path <<EOF` / `cat <<EOF > path`（非 `/tmp`、非管道输入） |
 | `redis-cli-risk` | Deny | 高风险 Redis CLI | `redis-cli` 的 `KEYS` / `MONITOR` / `FLUSHALL` / `FLUSHDB` |
 | `sql-destructive` | Deny | 破坏性或不带 WHERE 的 SQL | 经 mysql/psql 等客户端：`DROP …`、`TRUNCATE`、`ALTER TABLE … DROP COLUMN`、无 `WHERE` 的 `DELETE`/`UPDATE` |

@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.5.1] - 2026-08-08
+
+### Changed
+
+- `sed-inplace`: allow unbacked `sed -i` / `sed --in-place` when **every** file operand is under `/tmp/`, `/private/tmp/`, or `$TMPDIR/` / `${TMPDIR}/` (aligned with cat heredoc temp paths). Repo paths and mixed targets still deny.
+
 ## [0.5.0] - 2026-08-07
 
 ### Changed

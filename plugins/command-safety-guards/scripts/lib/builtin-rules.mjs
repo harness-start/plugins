@@ -49,23 +49,76 @@ function cleanedSql(command) {
     .replace(/\/\*[\s\S]*?\*\//gu, "");
 }
 
+// ── temporary paths (shared by sed / cat) ─────────────────────
+
+/** Absolute temp file tokens only — relative paths never count as temp. */
+function isTempPathOperand(token) {
+  const value = String(token ?? "");
+  return /^(?:\/tmp\/|\/private\/tmp\/|\$\{?TMPDIR\}?\/)/u.test(value);
+}
+
+/**
+ * File operands for `sed [options] script [file...]` after inplace flags.
+ * Skips options and the script expression so `s/a/b/` is not treated as a path.
+ */
+function sedFileOperands(args) {
+  const files = [];
+  let sawExpression = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index] ?? "";
+    if (argument === "--") {
+      files.push(...args.slice(index + 1));
+      break;
+    }
+    if (
+      argument === "-e" ||
+      argument === "--expression" ||
+      argument === "-f" ||
+      argument === "--file"
+    ) {
+      sawExpression = true;
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("-")) continue;
+    // First non-option is the script unless -e/-f already supplied one.
+    if (!sawExpression) {
+      sawExpression = true;
+      continue;
+    }
+    files.push(argument);
+  }
+  return files;
+}
+
+function sedHasUnbackedInplace(args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index] ?? "";
+    if (argument === "--in-place") return true;
+    if (argument.startsWith("--in-place=")) continue;
+    const short = argument.match(/^-[A-Za-z]*i(.*)$/u);
+    if (!short) continue;
+    if (short[1]) continue;
+    // macOS empty backup suffix: sed -i '' 's/a/b/' file
+    if (args[index + 1] === "") continue;
+    return true;
+  }
+  return false;
+}
+
 // ── sed -i (no backup) ───────────────────────────────────────
 
 function sedInplaceReason(command) {
   const invocations = programInvocations(command, new Set(["sed"]));
   for (const { args } of invocations) {
-    for (let index = 0; index < args.length; index += 1) {
-      const argument = args[index] ?? "";
-      if (argument === "--in-place") {
-        return "sed --in-place modifies files in place without a backup and cannot be rolled back";
-      }
-      if (argument.startsWith("--in-place=")) continue;
-      const short = argument.match(/^-[A-Za-z]*i(.*)$/u);
-      if (!short) continue;
-      if (short[1]) continue;
-      if (args[index + 1] === "") continue;
-      return "sed -i modifies files in place without a backup and cannot be rolled back";
+    if (!sedHasUnbackedInplace(args)) continue;
+    const files = sedFileOperands(args);
+    // Allow unbacked -i only when every edited operand is under a temp dir.
+    // No file operands (stdin-only) stay deny — still unrecoverable rewrite UX.
+    if (files.length > 0 && files.every((file) => isTempPathOperand(file))) {
+      continue;
     }
+    return "sed -i modifies files in place without a backup and cannot be rolled back";
   }
   return null;
 }
@@ -218,12 +271,12 @@ export const BUILTIN_RULES = [
     resolveReason: (command) =>
       sedInplaceReason(command) ?? "sed in-place editing has no recoverable backup",
     recovery:
-      "Use Edit/apply_patch for replacements; if sed is required, create an explicit recoverable backup first.",
+      "Use Edit/apply_patch for replacements; if sed is required, create an explicit recoverable backup first. Unbacked sed -i under /tmp, /private/tmp, or $TMPDIR/ is allowed.",
     observedFacts:
-      "The Bash input contains sed --in-place or bare sed -i without a backup suffix.",
+      "The Bash input contains sed --in-place or bare sed -i without a backup suffix on a non-temporary path.",
     harm: "In-place rewrites are difficult to review or recover and bypass file-aware editing hooks.",
     unblockWhen:
-      "The command no longer performs unbacked in-place editing, or uses a file-aware editing tool instead.",
+      "Target only temporary paths (/tmp/…, $TMPDIR/…), use a backup suffix, or use a file-aware editing tool.",
   },
   {
     id: "cat-heredoc-repo-write",
