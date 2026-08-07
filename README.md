@@ -99,6 +99,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `subagent-discipline` | Injects scope/evidence contract + return hygiene; with `agent_id`, ledger cleanup (24h), gitignore ensure, optional Stop gate |
 | `intent-clarify-gate` | Gates business writes during grill-me style intent clarification until `完成` or complete-option close |
 | `first-principles-gate` | Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes |
+| `goal-task-gate` | Arms on host `/goal` prompts, forces append-only decision trails under `.goal-task/`, and completes only with `GOAL_TASK_DONE` trailer plus close row |
 
 ## Prerequisites
 

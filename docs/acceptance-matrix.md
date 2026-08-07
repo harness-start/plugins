@@ -16,6 +16,7 @@
 | `skill-routing-transparency` | Claude + Codex | 0.1.0 | `01-visible-route-disclosure` | ✅ 通过：真实会话收到透明度协议并显示 Hook/路由信号，Claude 与 Codex 工作区均保持不变 | 2026-08-07 Docker 定向汇总 `2/0/0`，honesty gate `54/0` | 无持久化 | — |
 | `subagent-discipline` | Claude + Codex | 0.1.0 | `01-subagent-contract` | ✅ 通过：真实 subagent 收到并报告 `[Subagent Contract]`，工作区未修改 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
 | `first-principles-gate` | Claude + Codex | 0.1.0 | `01-open-deny-then-ledger-complete`、`02-completion-claim-blocks-without-ledger`、`03-short-alias-no-entry`、`04-abort-unlocks-without-ledger`、`05-invalid-ledger-blocks-close`、`06-soft-report-while-open` | ⏳ 待 Docker 宿主验收；离线 6 场景 fixture + 严格单元测试；入口仅 `/first-principles` 与 `$first-principles` | 本地 unit + 全量 `run-fixture.sh`；honesty gate 覆盖 6 cases | 插件数据目录 session/workspace 哈希；24h TTL | — |
+| `goal-task-gate` | Claude + Codex | 0.1.0 | `01-goal-prompt-arms-inject`、`02-deny-trail-rewrite`、`03-fake-trailer-blocks` | ⏳ 待 Docker 宿主验收；离线 fixture + unit；clear/supersede 在 offline + unit | 本地 unit + run-fixture | `.goal-task/` + 插件数据目录 session 哈希；48h TTL | — |
 
 ## 说明
 

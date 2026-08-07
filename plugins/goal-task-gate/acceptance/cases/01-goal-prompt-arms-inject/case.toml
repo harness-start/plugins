@@ -1,0 +1,4 @@
+id = "01-goal-prompt-arms-inject"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["user-prompt", "goal-task", "arm", "inject"]
