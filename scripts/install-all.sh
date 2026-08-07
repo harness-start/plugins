@@ -2,6 +2,10 @@
 # Install or update the Harness Start marketplace and all plugins
 # for Claude Code and/or Codex from the public GitHub repository.
 #
+# Before installing, lists plugins already installed from this marketplace,
+# logs the diff vs the desired catalog, uninstalls previous marketplace
+# plugins, then installs the current catalog (remove-then-install).
+#
 # Public source (only): https://github.com/harness-start/plugins
 #
 # One-liner:
@@ -20,6 +24,8 @@ MARKETPLACE_JSON_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/p
 # Fallback when network/host list unavailable.
 # KEEP IN SYNC with .claude-plugin/marketplace.json plugins[].name
 FALLBACK_PLUGINS=(
+  verification-provenance-guard
+  execution-loop-guard
   source-sanity-guard
   code-quality-guard
   encoding-guard
@@ -42,8 +48,15 @@ usage() {
   cat <<'EOF'
 Usage: install-all.sh [options]
 
-Add/update the harness-start marketplace and install/update all plugins
+Add/update the harness-start marketplace and install all catalog plugins
 for Claude Code and Codex from GitHub (harness-start/plugins).
+
+Strategy (per host):
+  1. Resolve desired plugin names from the marketplace catalog
+  2. Detect plugins already installed from this marketplace
+  3. Log the diff (remove / keep-in-catalog / add)
+  4. Uninstall every previously installed marketplace plugin
+  5. Install the current catalog fresh
 
 Options:
   --claude-only           Only Claude Code
@@ -85,6 +98,51 @@ run_cmd() {
 }
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+# Read non-empty lines from stdin into a named array variable.
+read_lines_into() {
+  local __varname="$1"
+  local __line
+  eval "${__varname}=()"
+  while IFS= read -r __line || [ -n "${__line}" ]; do
+    [ -n "${__line}" ] || continue
+    eval "${__varname}+=(\"\${__line}\")"
+  done
+}
+
+# Lines in $1 (newline list) that are not in $2 (newline list).
+list_minus() {
+  local left="$1"
+  local right="$2"
+  if [ -z "${left}" ]; then
+    return 0
+  fi
+  if [ -z "${right}" ]; then
+    printf '%s\n' "${left}"
+    return 0
+  fi
+  comm -23 <(printf '%s\n' "${left}" | sed '/^$/d' | sort -u) \
+    <(printf '%s\n' "${right}" | sed '/^$/d' | sort -u)
+}
+
+# Lines in both $1 and $2.
+list_intersect() {
+  local left="$1"
+  local right="$2"
+  if [ -z "${left}" ] || [ -z "${right}" ]; then
+    return 0
+  fi
+  comm -12 <(printf '%s\n' "${left}" | sed '/^$/d' | sort -u) \
+    <(printf '%s\n' "${right}" | sed '/^$/d' | sort -u)
+}
+
+format_plugin_list() {
+  if [ "$#" -eq 0 ]; then
+    printf '<none>'
+    return 0
+  fi
+  printf '%s' "$*"
+}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -207,7 +265,6 @@ resolve_plugins_from_codex_available() {
 
 resolve_plugin_names() {
   local names=""
-  local line
 
   if names="$(resolve_plugins_from_github 2>/dev/null)" && [ -n "${names}" ]; then
     log "Plugin list from GitHub marketplace.json (ref=${GIT_REF})"
@@ -226,6 +283,101 @@ resolve_plugin_names() {
   printf '%s\n' "${names}" | sed '/^$/d' | sort -u
 }
 
+# --- installed plugin discovery ---------------------------------------------
+
+# Print plugin names currently installed from MARKETPLACE_NAME (Claude).
+list_claude_installed_marketplace_plugins() {
+  if ! have_cmd claude; then
+    return 0
+  fi
+  local raw
+  raw="$(claude plugin list --json 2>/dev/null || true)"
+  [ -n "${raw}" ] || return 0
+
+  if have_cmd jq; then
+    printf '%s' "${raw}" | jq -r --arg m "${MARKETPLACE_NAME}" '
+      if type == "array" then .[]
+      elif .plugins then .plugins[]
+      elif .installed then .installed[]
+      else empty end
+      | select(
+          (.marketplace // .marketplaceName // "") == $m
+          or (.id // .pluginId // "" | endswith("@" + $m))
+        )
+      | (.name // ((.id // .pluginId // "") | split("@")[0]) // empty)
+    ' | sed '/^$/d' | sort -u
+    return 0
+  fi
+
+  # Best-effort without jq: selector strings like name@marketplace
+  printf '%s' "${raw}" \
+    | grep -oE "[A-Za-z0-9._-]+@${MARKETPLACE_NAME}" \
+    | sed "s/@${MARKETPLACE_NAME}\$//" \
+    | sort -u
+}
+
+# Print plugin names currently installed from MARKETPLACE_NAME (Codex).
+list_codex_installed_marketplace_plugins() {
+  if ! have_cmd codex; then
+    return 0
+  fi
+  local raw
+  raw="$(codex plugin list --marketplace "${MARKETPLACE_NAME}" --json 2>/dev/null || true)"
+  if [ -z "${raw}" ]; then
+    raw="$(codex plugin list --json 2>/dev/null || true)"
+  fi
+  [ -n "${raw}" ] || return 0
+
+  if have_cmd jq; then
+    # Prefer .installed when present. Marketplace-scoped lists may omit
+    # marketplace fields; default missing marketplace to $m so scoped rows match.
+    printf '%s' "${raw}" | jq -r --arg m "${MARKETPLACE_NAME}" '
+      if type == "object" and (.installed | type == "array") then .installed[]
+      elif type == "array" then .[]
+      elif .plugins then .plugins[]
+      else empty end
+      | select(.installed != false)
+      | select(
+          (.marketplaceName // .marketplace // $m) == $m
+          or (.pluginId // .id // "" | endswith("@" + $m))
+        )
+      | (.name // ((.pluginId // .id // "") | split("@")[0]) // empty)
+    ' | sed '/^$/d' | sort -u
+    return 0
+  fi
+
+  printf '%s' "${raw}" \
+    | grep -oE "[A-Za-z0-9._-]+@${MARKETPLACE_NAME}" \
+    | sed "s/@${MARKETPLACE_NAME}\$//" \
+    | sort -u
+}
+
+# Log installed vs desired and populate remove/keep/add newline lists via namerefs.
+# Usage: plan_plugin_diff <host_label> <installed_lines> <desired_lines>
+# Prints: remove\tkeep\tadd as three sections via globals PLAN_REMOVE / PLAN_KEEP / PLAN_ADD
+plan_plugin_diff() {
+  local host_label="$1"
+  local installed_lines="$2"
+  local desired_lines="$3"
+
+  PLAN_REMOVE="$(list_minus "${installed_lines}" "${desired_lines}" || true)"
+  PLAN_KEEP="$(list_intersect "${installed_lines}" "${desired_lines}" || true)"
+  PLAN_ADD="$(list_minus "${desired_lines}" "${installed_lines}" || true)"
+
+  local -a installed_arr=() remove_arr=() keep_arr=() add_arr=() desired_arr=()
+  read_lines_into installed_arr <<<"${installed_lines}"
+  read_lines_into desired_arr <<<"${desired_lines}"
+  read_lines_into remove_arr <<<"${PLAN_REMOVE}"
+  read_lines_into keep_arr <<<"${PLAN_KEEP}"
+  read_lines_into add_arr <<<"${PLAN_ADD}"
+
+  log "${host_label}: installed now (${#installed_arr[@]}): $(format_plugin_list "${installed_arr[@]}")"
+  log "${host_label}: desired catalog (${#desired_arr[@]}): $(format_plugin_list "${desired_arr[@]}")"
+  log "${host_label}: will remove (${#remove_arr[@]}): $(format_plugin_list "${remove_arr[@]}")"
+  log "${host_label}: will reinstall (already present) (${#keep_arr[@]}): $(format_plugin_list "${keep_arr[@]}")"
+  log "${host_label}: will install (new) (${#add_arr[@]}): $(format_plugin_list "${add_arr[@]}")"
+}
+
 # --- Claude ------------------------------------------------------------------
 
 claude_marketplace_present() {
@@ -242,28 +394,6 @@ claude_marketplace_present() {
   fi
 }
 
-claude_plugin_installed() {
-  local plugin="$1"
-  local raw
-  raw="$(claude plugin list --json 2>/dev/null || true)"
-  [ -n "${raw}" ] || return 1
-  if have_cmd jq; then
-    printf '%s' "${raw}" | jq -e --arg p "${plugin}" --arg m "${MARKETPLACE_NAME}" '
-      [.[]?
-        | select(
-            ((.name // "") == $p or (.id // "" | startswith($p + "@")))
-            and (
-              (.marketplace // .marketplaceName // "") == $m
-              or (.id // "" | endswith("@" + $m))
-            )
-          )
-      ] | length > 0
-    ' >/dev/null 2>&1
-  else
-    printf '%s' "${raw}" | grep -q "${plugin}@${MARKETPLACE_NAME}"
-  fi
-}
-
 ensure_claude_marketplace() {
   if claude_marketplace_present; then
     log "Claude: updating marketplace ${MARKETPLACE_NAME}"
@@ -277,30 +407,78 @@ ensure_claude_marketplace() {
   fi
 }
 
-install_claude_plugins() {
-  local -a plugins=("$@")
-  local plugin selector failures=0
-  for plugin in "${plugins[@]}"; do
-    selector="${plugin}@${MARKETPLACE_NAME}"
-    if claude_plugin_installed "${plugin}"; then
-      log "Claude: update ${selector}"
-      if ! run_cmd claude plugin update "${selector}" -s "${CLAUDE_SCOPE}"; then
-        warn "Claude update failed for ${selector}; trying install"
-        if ! run_cmd claude plugin install "${selector}" -s "${CLAUDE_SCOPE}"; then
-          err "Claude failed: ${selector}"
-          failures=$((failures + 1))
-          [ "${FAIL_FAST}" = "1" ] && return 1
-        fi
+uninstall_claude_plugin() {
+  local plugin="$1"
+  local selector="${plugin}@${MARKETPLACE_NAME}"
+  log "Claude: uninstall ${selector}"
+  # -y: non-interactive; scope matches install scope
+  if ! run_cmd claude plugin uninstall "${selector}" -s "${CLAUDE_SCOPE}" -y; then
+    # Older CLIs may lack -y or use remove alias
+    if ! run_cmd claude plugin remove "${selector}" -s "${CLAUDE_SCOPE}" -y 2>/dev/null; then
+      if ! run_cmd claude plugin uninstall "${selector}" -s "${CLAUDE_SCOPE}"; then
+        warn "Claude uninstall failed for ${selector} (continuing)"
+        return 1
       fi
-    else
-      log "Claude: install ${selector}"
-      if ! run_cmd claude plugin install "${selector}" -s "${CLAUDE_SCOPE}"; then
-        err "Claude failed: ${selector}"
+    fi
+  fi
+  return 0
+}
+
+install_claude_plugin() {
+  local plugin="$1"
+  local selector="${plugin}@${MARKETPLACE_NAME}"
+  log "Claude: install ${selector}"
+  if ! run_cmd claude plugin install "${selector}" -s "${CLAUDE_SCOPE}"; then
+    err "Claude failed: ${selector}"
+    return 1
+  fi
+  return 0
+}
+
+# Remove-then-install all marketplace plugins for Claude.
+sync_claude_plugins() {
+  local -a desired=("$@")
+  local failures=0
+  local plugin
+  local installed_lines desired_lines
+
+  desired_lines="$(printf '%s\n' "${desired[@]}")"
+  installed_lines="$(list_claude_installed_marketplace_plugins || true)"
+
+  plan_plugin_diff "Claude" "${installed_lines}" "${desired_lines}"
+
+  # 1) Uninstall every previously installed plugin from this marketplace
+  local -a installed_arr=()
+  read_lines_into installed_arr <<<"${installed_lines}"
+  if [ "${#installed_arr[@]}" -gt 0 ]; then
+    log "Claude: uninstalling ${#installed_arr[@]} previously installed marketplace plugin(s)"
+    for plugin in "${installed_arr[@]}"; do
+      set +e
+      uninstall_claude_plugin "${plugin}"
+      local rc=$?
+      set -e
+      if [ "${rc}" -ne 0 ]; then
         failures=$((failures + 1))
         [ "${FAIL_FAST}" = "1" ] && return 1
       fi
+    done
+  else
+    log "Claude: no previously installed marketplace plugins"
+  fi
+
+  # 2) Install current catalog
+  log "Claude: installing ${#desired[@]} catalog plugin(s)"
+  for plugin in "${desired[@]}"; do
+    set +e
+    install_claude_plugin "${plugin}"
+    local rc=$?
+    set -e
+    if [ "${rc}" -ne 0 ]; then
+      failures=$((failures + 1))
+      [ "${FAIL_FAST}" = "1" ] && return 1
     fi
   done
+
   return "${failures}"
 }
 
@@ -334,22 +512,75 @@ ensure_codex_marketplace() {
   fi
 }
 
-install_codex_plugins() {
-  local -a plugins=("$@")
-  local plugin selector failures=0
-  for plugin in "${plugins[@]}"; do
-    selector="${plugin}@${MARKETPLACE_NAME}"
-    log "Codex: add ${selector}"
+uninstall_codex_plugin() {
+  local plugin="$1"
+  local selector="${plugin}@${MARKETPLACE_NAME}"
+  log "Codex: remove ${selector}"
+  if ! run_cmd codex plugin remove "${selector}" --json; then
+    if ! run_cmd codex plugin remove "${plugin}" --marketplace "${MARKETPLACE_NAME}" --json; then
+      warn "Codex remove failed for ${selector} (continuing)"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+install_codex_plugin() {
+  local plugin="$1"
+  local selector="${plugin}@${MARKETPLACE_NAME}"
+  log "Codex: add ${selector}"
+  if ! run_cmd codex plugin add "${selector}" --json; then
+    warn "Codex add failed for ${selector}; retrying once"
     if ! run_cmd codex plugin add "${selector}" --json; then
-      # Re-add after upgrade often succeeds when snapshot was stale.
-      warn "Codex add failed for ${selector}; retrying once"
-      if ! run_cmd codex plugin add "${selector}" --json; then
-        err "Codex failed: ${selector}"
+      err "Codex failed: ${selector}"
+      return 1
+    fi
+  fi
+  return 0
+}
+
+# Remove-then-install all marketplace plugins for Codex.
+sync_codex_plugins() {
+  local -a desired=("$@")
+  local failures=0
+  local plugin
+  local installed_lines desired_lines
+
+  desired_lines="$(printf '%s\n' "${desired[@]}")"
+  installed_lines="$(list_codex_installed_marketplace_plugins || true)"
+
+  plan_plugin_diff "Codex" "${installed_lines}" "${desired_lines}"
+
+  local -a installed_arr=()
+  read_lines_into installed_arr <<<"${installed_lines}"
+  if [ "${#installed_arr[@]}" -gt 0 ]; then
+    log "Codex: removing ${#installed_arr[@]} previously installed marketplace plugin(s)"
+    for plugin in "${installed_arr[@]}"; do
+      set +e
+      uninstall_codex_plugin "${plugin}"
+      local rc=$?
+      set -e
+      if [ "${rc}" -ne 0 ]; then
         failures=$((failures + 1))
         [ "${FAIL_FAST}" = "1" ] && return 1
       fi
+    done
+  else
+    log "Codex: no previously installed marketplace plugins"
+  fi
+
+  log "Codex: adding ${#desired[@]} catalog plugin(s)"
+  for plugin in "${desired[@]}"; do
+    set +e
+    install_codex_plugin "${plugin}"
+    local rc=$?
+    set -e
+    if [ "${rc}" -ne 0 ]; then
+      failures=$((failures + 1))
+      [ "${FAIL_FAST}" = "1" ] && return 1
     fi
   done
+
   return "${failures}"
 }
 
@@ -359,6 +590,7 @@ main() {
   log "Harness Start installer"
   log "Public source: https://github.com/harness-start/plugins (ref=${GIT_REF})"
   log "Marketplace: ${MARKETPLACE_NAME}"
+  log "Mode: detect installed marketplace plugins → remove → install catalog"
 
   load_plugins_array() {
     PLUGINS=()
@@ -393,7 +625,7 @@ EOF
       # Re-resolve after marketplace is present (may pick host available list)
       load_plugins_array
       set +e
-      install_claude_plugins "${PLUGINS[@]}"
+      sync_claude_plugins "${PLUGINS[@]}"
       claude_fail=$?
       set -e
     else
@@ -412,7 +644,7 @@ EOF
       ensure_codex_marketplace
       load_plugins_array
       set +e
-      install_codex_plugins "${PLUGINS[@]}"
+      sync_codex_plugins "${PLUGINS[@]}"
       codex_fail=$?
       set -e
     else
