@@ -4,9 +4,9 @@
 
 | Case | Intent | Expected signal |
 | --- | --- | --- |
-| `01-visible-route-disclosure` | 新主任务收到透明度协议 | Claude 与 Codex 日志出现真实 Hook 协议或 `📌 Skill 路由` 公开行，工作区保持不变 |
+| `01-visible-route-disclosure` | A new main task receives the transparency protocol | Claude and Codex logs contain the real hook protocol or a public `📌 Skill route` line; the workspace remains unchanged |
 
-宿主验收环境只安装本 Marketplace 插件，不保证安装 Harness runtime。因此 route lookup 缺失时，公开 `unavailable` 是合规结果；不得伪装成 `noMatch`。
+The host acceptance environment installs only plugins from this marketplace and does not guarantee a Harness runtime. When route lookup is missing, disclosing `unavailable` is compliant; it must not be represented as `noMatch`.
 
 ## Offline fixture
 
@@ -14,4 +14,4 @@
 bash plugins/skill-routing-transparency/acceptance/cases/01-visible-route-disclosure/run-fixture.sh
 ```
 
-fixture 直接驱动发布入口，验证双平台 `SessionStart`、任务轮次提醒和短跟进静默。
+The fixture drives the published entry directly and verifies `SessionStart`, task-turn reminders, and short-follow-up silence on both platforms.

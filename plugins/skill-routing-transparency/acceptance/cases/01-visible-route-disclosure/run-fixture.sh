@@ -6,8 +6,8 @@ plugin_dir="$(cd "${case_dir}/../../.." && pwd)"
 entry="${plugin_dir}/scripts/skill-routing-transparency.mjs"
 
 session_output="$(printf '%s' '{"session_id":"fixture-session"}' | node "${entry}" session codex)"
-prompt_output="$(printf '%s' '{"session_id":"fixture-session","prompt":"实现 Skill 路由透明度"}' | node "${entry}" prompt claude)"
-followup_output="$(printf '%s' '{"session_id":"fixture-session","prompt":"继续"}' | node "${entry}" prompt codex)"
+prompt_output="$(printf '%s' '{"session_id":"fixture-session","prompt":"Implement Skill route transparency"}' | node "${entry}" prompt claude)"
+followup_output="$(printf '%s' '{"session_id":"fixture-session","prompt":"continue"}' | node "${entry}" prompt codex)"
 
 printf '%s' "${session_output}" | grep -q 'Skill Routing Transparency'
 printf '%s' "${session_output}" | grep -q 'AI_EXPERTS_SESSION_ID'
