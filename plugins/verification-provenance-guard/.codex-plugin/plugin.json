@@ -1,0 +1,16 @@
+{
+  "name": "verification-provenance-guard",
+  "version": "0.1.0",
+  "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Verification Provenance Guard",
+    "shortDescription": "Verify completion evidence, not labels.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}
