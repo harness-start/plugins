@@ -18,8 +18,8 @@ export default {
       match: /\bgit\s+push\b[^\n]*--force(?:\s|$)/iu,
       mode: "deny",
       title: "Git Force Push Guard",
-      reason: "force push 会改写远端历史",
-      recovery: "改用 --force-with-lease 或走受控发布流程",
+      reason: "force push rewrites remote history",
+      recovery: "use --force-with-lease or a controlled release process",
     },
 
     // Audit-only for a noisy but intentional tool
@@ -28,8 +28,8 @@ export default {
       match: /\bterraform\s+apply\b/iu,
       mode: "report",
       title: "Terraform Apply Notice",
-      reason: "基础设施变更应确认 plan 与影响面",
-      recovery: "先 terraform plan 并保存 plan 文件后再 apply",
+      reason: "infrastructure changes require a reviewed plan and impact scope",
+      recovery: "run terraform plan and save the plan file before apply",
     },
   ],
   settings: {

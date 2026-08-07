@@ -327,7 +327,7 @@ test("mysql preflight rejects success markers embedded in the current command", 
   });
 
   assert.equal(finding?.action, "deny");
-  assert.match(finding.reason, /缺少成功复制 preflight 证据/u);
+  assert.match(finding.reason, /missing successful replication preflight evidence/u);
 });
 
 test("mysql preflight rejects unrelated nested evidence and timed out results", () => {
@@ -389,7 +389,7 @@ test("plugin-local deny state escalates after three distinct turns", () => {
     for (const turn_id of ["turn-1", "turn-2", "turn-3"]) {
       recordDeny({ turn_id }, command, "redis-cli-risk");
     }
-    assert.match(escalationMessage({ turn_id: "turn-4" }, command), /deny 3 次/u);
+    assert.match(escalationMessage({ turn_id: "turn-4" }, command), /denied the same target 3 times/u);
     assert.equal(
       escalationMessage({ turn_id: "turn-4" }, `${command} # escalation-ok`),
       null,

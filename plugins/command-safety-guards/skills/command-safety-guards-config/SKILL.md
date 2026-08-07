@@ -5,9 +5,9 @@ description: >
   .command-safety-guards.mjs (or .cjs/.js) config for the command-safety-guards
   plugin. Use when the user wants to allow/deny/report shell command patterns,
   tune engines or deny-escalation settings, fix invalid config, or asks about
-  command-safety configuration / 命令拦截配置 / 命令安全配置.
+  command-safety configuration.
   Triggers: /command-safety-guards-config, "command safety config",
-  "命令拦截配置", ".command-safety-guards.mjs".
+  ".command-safety-guards.mjs".
 version: 0.1.0
 ---
 
@@ -46,8 +46,8 @@ export default {
       match: /\bgit\s+push\b[^\n]*--force\b/iu,
       mode: "deny",
       title: "Git Force Push Guard",
-      reason: "force push 会改写远端历史",
-      recovery: "改用 --force-with-lease 或受控流程",
+      reason: "force push rewrites remote history",
+      recovery: "use --force-with-lease or a controlled process",
     },
   ],
   settings: {
