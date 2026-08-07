@@ -1,4 +1,0 @@
-id = "01-visible-route-disclosure"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["skill-routing", "transparency", "no-mutation"]
