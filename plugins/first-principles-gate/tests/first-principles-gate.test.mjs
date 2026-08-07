@@ -143,9 +143,9 @@ test("default entry tokens are only /first-principles and $first-principles", ()
 });
 
 test("matchEntry accepts only configured full tokens as prefix", () => {
-  assert.deepEqual(matchEntry("/first-principles 缓存"), {
+  assert.deepEqual(matchEntry("/first-principles cache"), {
     token: "/first-principles",
-    topic: "缓存",
+    topic: "cache",
   });
   assert.deepEqual(matchEntry("$first-principles: auth"), {
     token: "$first-principles",
@@ -157,14 +157,14 @@ test("matchEntry accepts only configured full tokens as prefix", () => {
 
 test("matchEntry rejects short aliases and mid-string mentions", () => {
   assert.equal(matchEntry("/fp"), null, "/fp must not open mode");
-  assert.equal(matchEntry("/fp 缓存"), null);
+  assert.equal(matchEntry("/fp cache"), null);
   assert.equal(matchEntry("$fp"), null, "$fp must not open mode");
   assert.equal(matchEntry("$fp: auth"), null);
-  assert.equal(matchEntry("实现登录，以后再用 /first-principles"), null);
+  assert.equal(matchEntry("Implement login and use /first-principles later"), null);
   assert.equal(matchEntry("please /first-principles later"), null);
-  assert.equal(matchEntry("first-principles 缓存"), null);
+  assert.equal(matchEntry("first-principles cache"), null);
   assert.equal(matchEntry("/first-principles-extra"), null);
-  assert.equal(matchEntry("/first-principle 缓存"), null);
+  assert.equal(matchEntry("/first-principle cache"), null);
 });
 
 test("actionablePrompt strips skill and fence noise before entry match", () => {
@@ -175,15 +175,15 @@ test("actionablePrompt strips skill and fence noise before entry match", () => {
   assert.equal(matchEntry("```\n/first-principles\n```\n"), null);
 });
 
-test("classify: continue, done(完成 only), abort", () => {
-  assert.equal(classifyUserInput("补充一个约束：TTL 5m", {}).class, "continue");
-  assert.equal(classifyUserInput("完成", {}).class, "done");
-  assert.equal(classifyUserInput("完成 台账已写", {}).class, "done");
+test("classify: continue, done(done only), abort", () => {
+  assert.equal(classifyUserInput("Add one constraint: TTL 5m", {}).class, "continue");
+  assert.equal(classifyUserInput("done", {}).class, "done");
+  assert.equal(classifyUserInput("done ledger is written", {}).class, "done");
   assert.equal(classifyUserInput("# first-principles-abort", {}).class, "abort");
   // Invented short done/abort aliases are not protocol by default
   assert.equal(classifyUserInput("fp-done", {}).class, "continue");
   assert.equal(classifyUserInput("# fp-abort", {}).class, "continue");
-  assert.equal(classifyUserInput("完成度怎么算", {}).class, "continue");
+  assert.equal(classifyUserInput("How is completion measured?", {}).class, "continue");
 });
 
 test("ledger path allowlist and write-block phase gate", () => {
@@ -212,12 +212,12 @@ test("state transitions: entry → continue → done", () => {
   assert.equal(state.phase, "open");
   state = applyClassification(
     state,
-    classifyUserInput("继续拆假设", state),
+    classifyUserInput("Continue decomposing assumptions", state),
     2000,
   );
   assert.equal(state.phase, "open");
   assert.equal(state.lastUserClass, "continue");
-  state = applyClassification(state, classifyUserInput("完成", state), 3000);
+  state = applyClassification(state, classifyUserInput("done", state), 3000);
   assert.equal(state.phase, "closed");
   assert.equal(state.closeReason, "completed");
 });
@@ -318,11 +318,11 @@ test("loadAndValidateLedger reads workspace primary path", () => {
 });
 
 test("completion and implement claim detectors", () => {
-  assert.equal(looksLikeCompletionClaim("第一性原理分析已完成，见 ledger"), true);
+  assert.equal(looksLikeCompletionClaim("First-principles analysis is complete; see the ledger"), true);
   assert.equal(looksLikeCompletionClaim("ledger is complete"), true);
-  assert.equal(looksLikeCompletionClaim("我们可以讨论第一性原理方法"), false);
-  assert.equal(looksLikeImplementClaim("好的，我开始实现登录模块。"), true);
-  assert.equal(looksLikeImplementClaim("下一轮继续列假设"), false);
+  assert.equal(looksLikeCompletionClaim("We can discuss the first-principles method"), false);
+  assert.equal(looksLikeImplementClaim("Okay, I am going to implement the login module."), true);
+  assert.equal(looksLikeImplementClaim("Continue listing assumptions next turn"), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -338,7 +338,7 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
   try {
     const entry = await runEntry(
       "prompt",
-      { cwd: root, session_id: session, prompt: "/first-principles 缓存" },
+      { cwd: root, session_id: session, prompt: "/first-principles cache" },
       env,
     );
     assert.equal(entry.code, 0);
@@ -351,7 +351,7 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
     );
     assert.match(
       entryOut.hookSpecificOutput.additionalContext,
-      /业务写入已拦截/,
+      /business writes are blocked/,
     );
 
     const deny = await runEntry(
@@ -391,12 +391,12 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
 
     const done = await runEntry(
       "prompt",
-      { cwd: root, session_id: session, prompt: "完成" },
+      { cwd: root, session_id: session, prompt: "done" },
       env,
     );
     assert.match(
       parseStdout(done.stdout)?.hookSpecificOutput?.additionalContext ?? "",
-      /写屏障已解除|会话已结束/,
+      /write barrier is released|session is closed/,
     );
 
     const stopOk = await runEntry(
@@ -404,7 +404,7 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "第一性原理分析已完成，ledger 已落盘。",
+        last_assistant_message: "First-principles analysis is complete and the ledger is persisted.",
       },
       env,
     );
@@ -440,7 +440,7 @@ test("hook: /fp and $fp never open write-block", async () => {
   const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
   try {
     for (const [session, prompt] of [
-      ["s-fp-slash", "/fp 缓存"],
+      ["s-fp-slash", "/fp cache"],
       ["s-fp-dollar", "$fp: auth"],
       ["s-fp-only", "/fp"],
     ]) {
@@ -495,7 +495,7 @@ test("hook: completion claim without ledger is blocked", async () => {
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "第一性原理分析已完成。",
+        last_assistant_message: "First-principles analysis is complete.",
       },
       env,
     );
@@ -534,7 +534,7 @@ test("hook: invalid ledger (bad derived_from) blocks completion claim", async ()
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "第一性原理分析已完成。",
+        last_assistant_message: "First-principles analysis is complete.",
       },
       env,
     );
@@ -563,7 +563,7 @@ test("hook: incomplete open turn soft-reports instead of permanent lock", async 
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "正在列假设，下一轮写 atoms。",
+        last_assistant_message: "I am listing assumptions and will write atoms next.",
       },
       env,
     );
@@ -571,7 +571,7 @@ test("hook: incomplete open turn soft-reports instead of permanent lock", async 
     assert.notEqual(out?.decision, "block");
     assert.match(
       out?.hookSpecificOutput?.additionalContext ?? "",
-      /soft report|尚未完整/u,
+      /soft report|still incomplete/u,
     );
 
     const deny = await runEntry(
@@ -607,7 +607,7 @@ test("hook: mid-string first-principles does not open write-block", async () => 
       {
         cwd: root,
         session_id: "s-mid",
-        prompt: "实现登录，以后再用 /first-principles",
+        prompt: "Implement login and use /first-principles later",
       },
       env,
     );
@@ -686,13 +686,13 @@ test("hook: stop blocks implement claim while open", async () => {
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "好的，我开始实现登录模块。",
+        last_assistant_message: "Okay, I am going to implement the login module.",
       },
       env,
     );
     const out = parseStdout(stop.stdout);
     assert.equal(out?.decision, "block");
-    assert.match(out?.reason ?? "", /尚未结束|first-principles-gate/);
+    assert.match(out?.reason ?? "", /still open|first-principles-gate/);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });
@@ -739,7 +739,7 @@ test("hook: abort unlocks writes without requiring ledger", async () => {
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "已中止。",
+        last_assistant_message: "Aborted.",
       },
       env,
     );
@@ -763,7 +763,7 @@ test("hook: closed completed without valid ledger is blocked on stop", async () 
     );
     await runEntry(
       "prompt",
-      { cwd: root, session_id: session, prompt: "完成" },
+      { cwd: root, session_id: session, prompt: "done" },
       env,
     );
     const allow = await runEntry(
@@ -786,7 +786,7 @@ test("hook: closed completed without valid ledger is blocked on stop", async () 
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "会话结束了。",
+        last_assistant_message: "The session is closed.",
       },
       env,
     );
@@ -1008,7 +1008,7 @@ test("hook: stale pre-existing valid ledger cannot satisfy completion claim", as
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "第一性原理分析已完成。",
+        last_assistant_message: "First-principles analysis is complete.",
       },
       env,
     );
@@ -1053,7 +1053,7 @@ test("hook: mkdir-only PostToolUse must not credit stale ledger revision", async
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "第一性原理分析已完成。",
+        last_assistant_message: "First-principles analysis is complete.",
       },
       env,
     );
@@ -1140,7 +1140,7 @@ test("hook: stopGate.mode=report emits context for implement claim instead of bl
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "好的，我开始实现登录模块。",
+        last_assistant_message: "Okay, I am going to implement the login module.",
       },
       env,
     );
@@ -1148,7 +1148,7 @@ test("hook: stopGate.mode=report emits context for implement claim instead of bl
     assert.notEqual(out?.decision, "block");
     assert.match(
       out?.hookSpecificOutput?.additionalContext ?? "",
-      /尚未结束|不要开始实现/,
+      /still open|do not begin implementation/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -1191,4 +1191,3 @@ test("hook: configured primary ledger path is writable while open", async () => 
     rmSync(data, { recursive: true, force: true });
   }
 });
-

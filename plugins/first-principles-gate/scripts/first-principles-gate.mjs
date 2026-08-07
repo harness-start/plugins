@@ -299,8 +299,8 @@ function runStop(event, config) {
 
   if (outcome.kind === "block_implement") {
     const body = [
-      "[first-principles-gate] 第一性原理模式尚未结束（phase=open），不要开始实现。",
-      "请继续写 `.first-principles/ledger.json`；用户「完成」或 `# first-principles-abort` 后再改业务代码。",
+      "[first-principles-gate] First-principles mode is still open (phase=open); do not begin implementation.",
+      "Continue writing `.first-principles/ledger.json`; modify business code only after the user replies `done` or sends `# first-principles-abort`.",
     ].join("\n");
     if (stopMode === "block") {
       writeJson(stopDeny(body));

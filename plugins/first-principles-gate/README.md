@@ -5,7 +5,7 @@ Dual-host (Claude Code / Codex) plugin that enforces a **first-principles analys
 1. **Enter** when the user prompt **starts with** `/first-principles` or `$first-principles` only (short aliases like `/fp` are **not** entries).
 2. While **open**, block non-ledger file/shell mutations (allow `.first-principles/**` and `docs/decisions/**`).
 3. Require an on-disk **structured ledger** (`.first-principles/ledger.json`) with schema `first-principles/v1`.
-4. On **Stop**, soft-report incomplete ledgers mid-session; **block** when the assistant claims completion or the user closed with `完成` without a valid ledger.
+4. On **Stop**, soft-report incomplete ledgers mid-session; **block** when the assistant claims completion or the user closed with `done` without a valid ledger.
 5. Escape with `# first-principles-abort`. Corrupt state / TTL / aborted / idle → **fail-open** (no permanent write lock).
 
 ## Install

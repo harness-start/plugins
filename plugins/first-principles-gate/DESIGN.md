@@ -13,7 +13,7 @@ Phases: `idle` → `open` → `closed` (or back to `idle` on TTL).
 | Event | Behavior |
 | --- | --- |
 | UserPromptSubmit entry | Match prompt **prefix** tokens → `open`, inject protocol |
-| UserPromptSubmit open | `完成` → `closed(completed)`; `# first-principles-abort` → `closed(aborted)`; other text → continue inject |
+| UserPromptSubmit open | `done` → `closed(completed)`; `# first-principles-abort` → `closed(aborted)`; other text → continue inject |
 | PreToolUse | While `open` and `writeBlock.mode=block`, deny non-allowlisted file/shell mutations |
 | PostToolUse | Optional ledger revision bookkeeping when allowlisted paths change |
 | Stop | Soft-report incomplete ledger while open; **block** on completion claim or `closed(completed)` without valid ledger; block implement claims while open |
@@ -27,7 +27,7 @@ State is stored under the host plugin-data directory, keyed by SHA-256 of `sessi
 
 Short aliases such as `/fp` or `$fp` are **not** entry tokens. Mid-string mentions do not open the mode.
 
-Close: whole-line / prefix `完成`. Abort: `# first-principles-abort`.
+Close: whole-line / prefix `done`. Abort: `# first-principles-abort`.
 
 ## Ledger schema (`first-principles/v1`)
 
@@ -75,7 +75,7 @@ Unsupported values fall back to defaults for that field (or full defaults when l
 
 ## Recovery
 
-- User: `完成` unlocks writes; `# first-principles-abort` aborts.
+- User: `done` unlocks writes; `# first-principles-abort` aborts.
 - Agent: write a valid ledger; Stop block reasons list missing fields.
 - After two consecutive ledger Stop blocks, fail-open with an explicit warning to avoid deadlock.
 

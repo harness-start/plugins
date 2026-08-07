@@ -7,7 +7,7 @@ export const DEFAULT_CONFIG = Object.freeze({
     "/first-principles",
     "$first-principles",
   ]),
-  donePhrases: Object.freeze(["完成"]),
+  donePhrases: Object.freeze(["done"]),
   enableEngineeringBypass: true,
   abortToken: "# first-principles-abort",
   writeBlock: Object.freeze({
