@@ -4,6 +4,9 @@ Marketplace id: `harness-start` · Display name: **Harness Start**
 
 Harness Start dual-platform plugin marketplace for **Claude Code** and **Codex**.
 
+> [!WARNING]
+> This repository is under active development. Implementations and behavior may change at any time.
+
 **Public install source:** [https://github.com/harness-start/plugins](https://github.com/harness-start/plugins)
 
 Both hosts share plugin business scripts. Marketplace indexes, plugin manifests, and hook configs are maintained separately because field names, environment variables, and lifecycle events differ across platforms.
