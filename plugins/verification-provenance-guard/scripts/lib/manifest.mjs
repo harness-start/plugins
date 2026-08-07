@@ -1,5 +1,5 @@
 const FENCE_RE = /```verification-evidence[ \t]*\r?\n([\s\S]*?)\r?\n```/gu;
-const CLAIM_LINE_RE = /^- \[(C[1-9]\d*)\]\[(本地实测|产物实测|远端 CI|推断|未验证)\] ([^\r\n]+)$/gmu;
+const CLAIM_LINE_RE = /^- \[(C[1-9]\d*)\]\[(locally-verified|artifact-verified|remote-ci|inferred|unverified)\] ([^\r\n]+)$/gmu;
 const CLAIM_IDS = /^C[1-9]\d*$/u;
 const EVIDENCE_IDS = /^E[1-9]\d*$/u;
 const SHA1 = /^[a-f0-9]{40}$/u;
@@ -312,11 +312,11 @@ export function parseEvidenceManifest(raw, { maxDepth = 8, maxItems = 20 } = {})
 }
 
 function expectedVisibleTag(claim) {
-  if (claim.status === "inferred") return "推断";
-  if (claim.status === "unverified") return "未验证";
-  if (claim.predicate === "artifact_materialized") return "产物实测";
-  if (claim.predicate === "ci_pipeline_succeeded") return "远端 CI";
-  return "本地实测";
+  if (claim.status === "inferred") return "inferred";
+  if (claim.status === "unverified") return "unverified";
+  if (claim.predicate === "artifact_materialized") return "artifact-verified";
+  if (claim.predicate === "ci_pipeline_succeeded") return "remote-ci";
+  return "locally-verified";
 }
 
 export function validateVisibleClaims(text, manifest, options = {}) {

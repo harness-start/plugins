@@ -58,13 +58,13 @@ function workspace() {
 
 function validUnverifiedResponse(completion) {
   return [
-    "- [C1][未验证] 自动验证尚未执行。",
+    "- [C1][unverified] Automatic verification has not run.",
     "",
     "```verification-evidence",
     JSON.stringify({
       schema: "verification-evidence/v1",
       completion,
-      claims: [{ id: "C1", predicate: "other", status: "unverified", statement: "自动验证尚未执行。", reason: "矩阵用例。" }],
+      claims: [{ id: "C1", predicate: "other", status: "unverified", statement: "Automatic verification has not run.", reason: "Matrix case." }],
       evidence: [],
     }),
     "```",
@@ -90,16 +90,16 @@ test("parser and trigger pairwise matrix stays fully covered", async (context) =
   for (const [index, item] of matrix.cases.entries()) {
     const event = { cwd: root, session_id: `parser-${index}`, stop_hook_active: item.stop_active };
     if (item.trigger === "mutation") updateState(event, (state) => { state.mutations = 1; state.revision = 1; });
-    let message = item.manifest === "absent" ? "普通说明。" : validUnverifiedResponse(item.completion === "completion" ? "done_with_concerns" : "needs_context");
+    let message = item.manifest === "absent" ? "Ordinary explanation." : validUnverifiedResponse(item.completion === "completion" ? "done_with_concerns" : "needs_context");
     if (item.manifest === "malformed_json") message = "```verification-evidence\n{\"schema\":\n```";
     if (item.manifest === "duplicate_block") message = `${validUnverifiedResponse("needs_context")}\n${validUnverifiedResponse("needs_context")}`;
     if (item.manifest === "oversized") message = `\`\`\`verification-evidence\n${"x".repeat(33 * 1024)}\n\`\`\``;
-    if (item.trigger === "validation_claim") message += "\n单元测试全部通过。";
-    if (item.trigger === "artifact_claim") message += "\n报告已生成：`artifact.txt`。";
-    if (item.outside_text === "labeled_claim") message += "\n- [C2][本地实测] 单元测试全部通过。";
-    if (item.outside_text === "bare_pass_claim") message += "\n单元测试全部通过。";
-    if (item.outside_text === "bare_artifact_claim") message += "\n报告已生成：`artifact.txt`。";
-    if (item.outside_text === "negated_or_quoted") message += "\n测试尚未通过。\n> 示例：测试全部通过。";
+    if (item.trigger === "validation_claim") message += "\nAll unit tests passed.";
+    if (item.trigger === "artifact_claim") message += "\nReport generated: `artifact.txt`.";
+    if (item.outside_text === "labeled_claim") message += "\n- [C2][locally-verified] All unit tests passed.";
+    if (item.outside_text === "bare_pass_claim") message += "\nAll unit tests passed.";
+    if (item.outside_text === "bare_artifact_claim") message += "\nReport generated: `artifact.txt`.";
+    if (item.outside_text === "negated_or_quoted") message += "\nTests have not passed.\n> Example: all tests passed.";
     event.last_assistant_message = message;
     const decision = await evaluateStop(event, config, root);
     const safeOutside = ["none", "negated_or_quoted"].includes(item.outside_text);
@@ -146,10 +146,10 @@ test("evidence status, kind, freshness, revision, and representation pairwise ma
       : item.evidence_kind === "artifact" ? "artifact_materialized"
         : item.evidence_kind === "ci" ? "ci_pipeline_succeeded" : "other";
     const claim = item.claim_status === "verified"
-      ? { id: "C1", predicate, status: "verified", statement: "验证结论。", evidence: evidence ? ["E1"] : [] }
+      ? { id: "C1", predicate, status: "verified", statement: "Verified conclusion.", evidence: evidence ? ["E1"] : [] }
       : item.claim_status === "inferred"
-        ? { id: "C1", predicate, status: "inferred", statement: "推断结论。", basis: "矩阵依据。", ...(evidence ? { evidence: ["E1"] } : {}) }
-        : { id: "C1", predicate: "other", status: "unverified", statement: "未验证结论。", reason: "矩阵原因。" };
+        ? { id: "C1", predicate, status: "inferred", statement: "Inferred conclusion.", basis: "Matrix basis.", ...(evidence ? { evidence: ["E1"] } : {}) }
+        : { id: "C1", predicate: "other", status: "unverified", statement: "Unverified conclusion.", reason: "Matrix reason." };
     const raw = {
       schema: "verification-evidence/v1",
       completion: item.claim_status === "verified" ? "done" : "done_with_concerns",

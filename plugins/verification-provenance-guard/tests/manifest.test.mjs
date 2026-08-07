@@ -16,7 +16,7 @@ function manifest(overrides = {}) {
       id: "C1",
       predicate: "test_suite_passed",
       status: "verified",
-      statement: "单元测试 15/15 通过。",
+      statement: "Unit tests passed: 15/15.",
       evidence: ["E1"],
     }],
     evidence: [{
@@ -32,9 +32,9 @@ function manifest(overrides = {}) {
 
 function response(value = manifest()) {
   return [
-    "## 结论",
+    "## Conclusions",
     "",
-    "- [C1][本地实测] 单元测试 15/15 通过。",
+    "- [C1][locally-verified] Unit tests passed: 15/15.",
     "",
     "```verification-evidence",
     JSON.stringify(value, null, 2),
@@ -82,8 +82,8 @@ test("done cannot contain inferred or unverified claims", () => {
       id: "C1",
       predicate: "other",
       status: "inferred",
-      statement: "实现应满足要求。",
-      basis: "代码与测试结果一致。",
+      statement: "The implementation should meet the requirements.",
+      basis: "The code is consistent with the test results.",
     }],
     evidence: [],
   });
@@ -102,8 +102,8 @@ test("visible claims must be one-line, unique, tagged, and statement-exact", () 
   const parsed = parseEvidenceManifest(JSON.stringify(manifest()));
   assert.doesNotThrow(() => validateVisibleClaims(response(), parsed));
   assert.throws(() => validateVisibleClaims(response().replace("15/15", "14/15"), parsed), /does not match/u);
-  assert.throws(() => validateVisibleClaims(response().replace("[本地实测]", "[远端 CI]"), parsed), /tag/u);
-  assert.throws(() => validateVisibleClaims(response().replace("## 结论", "- [C1][本地实测] 单元测试 15/15 通过。"), parsed), /exactly once/u);
+  assert.throws(() => validateVisibleClaims(response().replace("[locally-verified]", "[remote-ci]"), parsed), /tag/u);
+  assert.throws(() => validateVisibleClaims(response().replace("## Conclusions", "- [C1][locally-verified] Unit tests passed: 15/15."), parsed), /exactly once/u);
 });
 
 test("confusable claim identifiers are not accepted", () => {

@@ -5,8 +5,8 @@ description: >
   Use after changing files or external state, or whenever reporting tests, lint,
   type checks, generated artifacts, Git state, or CI results. Produces the exact
   verification-evidence/v1 conclusion list and JSON manifest required by
-  verification-provenance-guard. Triggers: "完成证据", "验证证据", "测试通过",
-  "产物已生成", "CI 成功", "交付结论", "verification evidence", "final evidence".
+  verification-provenance-guard. Triggers: "verification evidence", "test passed",
+  "artifact generated", "CI succeeded", "delivery conclusion", "final evidence".
 version: 0.1.0
 ---
 
@@ -67,18 +67,18 @@ glab api projects/<project-id>/pipelines/<pipeline-id>
 gh run view <run-id> --json databaseId,status,conclusion,headSha,url
 ```
 
-The manifest must repeat the exact query command. An exit code of 0, a web URL, or a handwritten `[远端 CI]` label alone is not CI evidence. Do not put tokens in the command or URL.
+The manifest must repeat the exact query command. An exit code of 0, a web URL, or a handwritten `[remote-ci]` label alone is not CI evidence. Do not put tokens in the command or URL.
 
 ## Exact response template
 
 Use ASCII IDs and keep every visible conclusion on one line. The manifest `statement` must exactly equal the visible text after the provenance tag.
 
 ````markdown
-## 结论
+## Conclusions
 
-- [C1][本地实测] 单元测试 15/15 通过。
-- [C2][产物实测] 报告已生成：`reports/result.md`。
-- [C3][未验证] Windows 验收未执行：当前无 Windows 环境。
+- [C1][locally-verified] Unit tests passed: 15/15.
+- [C2][artifact-verified] Report generated: `reports/result.md`.
+- [C3][unverified] Windows acceptance was not run because no Windows environment is available.
 
 ```verification-evidence
 {
@@ -89,22 +89,22 @@ Use ASCII IDs and keep every visible conclusion on one line. The manifest `state
       "id": "C1",
       "predicate": "test_suite_passed",
       "status": "verified",
-      "statement": "单元测试 15/15 通过。",
+      "statement": "Unit tests passed: 15/15.",
       "evidence": ["E1"]
     },
     {
       "id": "C2",
       "predicate": "artifact_materialized",
       "status": "verified",
-      "statement": "报告已生成：`reports/result.md`。",
+      "statement": "Report generated: `reports/result.md`.",
       "evidence": ["E2"]
     },
     {
       "id": "C3",
       "predicate": "other",
       "status": "unverified",
-      "statement": "Windows 验收未执行：当前无 Windows 环境。",
-      "reason": "当前会话没有 Windows 执行环境。"
+      "statement": "Windows acceptance was not run because no Windows environment is available.",
+      "reason": "This session has no Windows execution environment."
     }
   ],
   "evidence": [
@@ -132,12 +132,12 @@ Use ASCII IDs and keep every visible conclusion on one line. The manifest `state
 
 | Predicate | Required evidence | Visible tag |
 | --- | --- | --- |
-| `test_suite_passed` | `command`, classified as a test | `[本地实测]` |
-| `verification_succeeded` | `command`, classified as test/lint/typecheck/build/static analysis | `[本地实测]` |
-| `artifact_materialized` | current `artifact` metadata | `[产物实测]` |
-| `git_state_matches` | live `git` state | `[本地实测]` |
-| `ci_pipeline_succeeded` | captured structured `ci` result | `[远端 CI]` |
-| `other` | never mechanically verified | `[推断]` or `[未验证]` |
+| `test_suite_passed` | `command`, classified as a test | `[locally-verified]` |
+| `verification_succeeded` | `command`, classified as test/lint/typecheck/build/static analysis | `[locally-verified]` |
+| `artifact_materialized` | current `artifact` metadata | `[artifact-verified]` |
+| `git_state_matches` | live `git` state | `[locally-verified]` |
+| `ci_pipeline_succeeded` | captured structured `ci` result | `[remote-ci]` |
+| `other` | never mechanically verified | `[inferred]` or `[unverified]` |
 
 - `done` requires every claim to be verified.
 - Use `done_with_concerns` when any claim is inferred or unverified.

@@ -5,6 +5,6 @@ set -euo pipefail
 require_host_session_started
 grep -q 'value = 2' "${ACCEPT_WORKSPACE}/src/app.js"
 node --test "${ACCEPT_WORKSPACE}/tests/app.test.mjs" >/dev/null
-require_guard_hook_signal "完成态证据不完整或无法自动验证|${MARKERS_STOP_BLOCK}"
+require_guard_hook_signal "Completion evidence is incomplete or cannot be verified automatically|${MARKERS_STOP_BLOCK}"
 
 echo "OK bare test claim blocked and recovered"
