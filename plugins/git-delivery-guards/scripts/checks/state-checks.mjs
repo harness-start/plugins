@@ -74,16 +74,16 @@ function staleLock(invocation) {
   }
   if (!snapshot.isFile() || snapshot.isSymbolicLink()) {
     return finding(
-      "deny", "Git Lock Guard", `${lockPath} 不是可安全处理的普通锁文件`,
-      "停止 Git 写操作，人工核对 Git 目录与锁文件类型",
+      "deny", "Git Lock Guard", `${lockPath} is not a regular lock file that can be handled safely`,
+      "stop Git writes and manually inspect the Git directory and lock-file type",
     );
   }
 
   const age = Date.now() - snapshot.mtimeMs;
   if (age < LOCK_AGE_MS) {
     return finding(
-      "deny", "Git Lock Guard", `index.lock 仅存在 ${Math.max(0, Math.round(age / 1000))} 秒，尚未超过安全阈值`,
-      "等待当前 Git 操作完成后重试",
+      "deny", "Git Lock Guard", `index.lock is only ${Math.max(0, Math.round(age / 1000))} seconds old and has not passed the safety threshold`,
+      "wait for the current Git operation to finish, then retry",
     );
   }
 
@@ -93,8 +93,8 @@ function staleLock(invocation) {
   } catch {}
   if (!Number.isSafeInteger(pid) || pid <= 0) {
     return finding(
-      "deny", "Git Lock Guard", "陈旧 index.lock 没有可验证的持有者 PID，拒绝自动删除",
-      `确认没有 Git 进程后人工删除 ${lockPath}`,
+      "deny", "Git Lock Guard", "the stale index.lock has no verifiable holder PID; automatic deletion is refused",
+      `confirm that no Git process is running, then delete ${lockPath} manually`,
     );
   }
 
@@ -102,8 +102,8 @@ function staleLock(invocation) {
   if (holder !== "dead") {
     return finding(
       "deny", "Git Lock Guard",
-      holder === "alive" ? `index.lock 记录的 PID ${pid} 仍存活` : `无法确认 PID ${pid} 已退出`,
-      "等待持有者完成；仅在确认进程退出后处理锁文件",
+      holder === "alive" ? `PID ${pid} recorded by index.lock is still alive` : `cannot confirm that PID ${pid} has exited`,
+      "wait for the holder to finish; handle the lock file only after confirming that the process exited",
     );
   }
 
@@ -114,19 +114,19 @@ function staleLock(invocation) {
       current.mtimeMs === snapshot.mtimeMs;
     if (!sameFile) {
       return finding(
-        "deny", "Git Lock Guard", "index.lock 在验证期间发生变化，拒绝自动删除",
-        "重新检查当前 Git 持有者和锁文件状态",
+        "deny", "Git Lock Guard", "index.lock changed during verification; automatic deletion is refused",
+        "recheck the current Git holder and lock-file state",
       );
     }
     unlinkSync(lockPath);
     return finding(
-      "report", "Git Lock Guard", `已清理存在 ${Math.round(age / 1000)} 秒且 PID ${pid} 已退出的 index.lock`,
-      "无需操作；若 Git 仍失败，重新检查是否出现新的锁持有者",
+      "report", "Git Lock Guard", `removed an index.lock that was ${Math.round(age / 1000)} seconds old after PID ${pid} exited`,
+      "no action is required; if Git still fails, check for a new lock holder",
     );
   } catch (error) {
     return finding(
-      "deny", "Git Lock Guard", `陈旧 index.lock 无法安全清理：${error?.message ?? error}`,
-      `确认没有 Git 进程后人工删除 ${lockPath}`,
+      "deny", "Git Lock Guard", `the stale index.lock could not be removed safely: ${error?.message ?? error}`,
+      `confirm that no Git process is running, then delete ${lockPath} manually`,
     );
   }
 }
@@ -138,25 +138,25 @@ function readBoundaryRules(root) {
   try {
     value = JSON.parse(readFileSync(configPath, "utf8"));
   } catch (error) {
-    return { rules: [], error: `无法解析 ${configPath}: ${error?.message ?? error}` };
+    return { rules: [], error: `failed to parse ${configPath}: ${error?.message ?? error}` };
   }
   if (value?.version !== 1 || !Array.isArray(value.boundaries)) {
-    return { rules: [], error: `${configPath} 必须包含 version: 1 和 boundaries 数组` };
+    return { rules: [], error: `${configPath} must contain version: 1 and a boundaries array` };
   }
   const rules = [];
   const ids = new Set();
   for (const [index, item] of value.boundaries.entries()) {
     if (!item || typeof item.id !== "string" || !item.id.trim() || ids.has(item.id) || !Array.isArray(item.prefixes) || item.prefixes.length === 0) {
-      return { rules: [], error: `boundaries[${index}] 必须有唯一非空 id 和非空 prefixes 数组` };
+      return { rules: [], error: `boundaries[${index}] must have a unique non-empty id and a non-empty prefixes array` };
     }
     ids.add(item.id);
     for (const prefixValue of item.prefixes) {
       if (typeof prefixValue !== "string" || !prefixValue.trim()) {
-        return { rules: [], error: `boundaries[${index}].prefixes 只能包含非空字符串` };
+        return { rules: [], error: `boundaries[${index}].prefixes may contain only non-empty strings` };
       }
       const segments = prefixValue.replaceAll("\\", "/").split("/");
       if (segments.includes("..")) {
-        return { rules: [], error: `boundaries[${index}] 的 prefix 不能包含 ..` };
+        return { rules: [], error: `a prefix in boundaries[${index}] must not contain ..` };
       }
       const prefix = prefixValue.replaceAll("\\", "/").replace(/^\.\//u, "").replace(/\/+$/u, "");
       rules.push({ id: item.id, prefix });
@@ -200,8 +200,8 @@ function commitState(invocation) {
   if (overlap.length && !commitAll) {
     findings.push(finding(
       "report", "Partial Staging Guard",
-      `${overlap.length} 个文件同时有 staged 与 unstaged 改动：${overlap.slice(0, 8).join(", ")}`,
-      "分别检查 git diff --cached -- <file> 与 git diff -- <file>",
+      `${overlap.length} file(s) have both staged and unstaged changes: ${overlap.slice(0, 8).join(", ")}`,
+      "inspect git diff --cached -- <file> and git diff -- <file> separately",
     ));
   }
   const files = commitAll ? [...new Set([...staged, ...(unstaged ?? [])])] : staged;
@@ -212,7 +212,7 @@ function commitState(invocation) {
   if (boundaryConfig.error) {
     findings.push(finding(
       "deny", "Commit Scope Guard", boundaryConfig.error,
-      "修复 .ai-experts/commit-boundaries.json 后重新提交",
+      "fix .ai-experts/commit-boundaries.json before committing again",
     ));
     return findings;
   }
@@ -221,8 +221,8 @@ function commitState(invocation) {
   if (nameStatus?.length && nameStatus.every((line) => /^R\d*\t/u.test(line))) {
     if (files.length > 15) {
       findings.push(finding(
-        "report", "Commit Scope Guard", `纯 rename 提交包含 ${files.length} 项迁移`,
-        "确认迁移映射已逐项对账",
+        "report", "Commit Scope Guard", `rename-only commit contains ${files.length} migration entries`,
+        "confirm that every migration mapping has been reconciled",
       ));
     }
     return findings;
@@ -241,13 +241,13 @@ function commitState(invocation) {
   if (groups.size >= 2 || mixed) {
     findings.push(finding(
       "deny", "Commit Scope Guard",
-      `提交跨 ${groups.size} 个 manifest/explicit 边界，或混合 source 与 config/infra：${[...groups.keys()].join(", ")}`,
-      "取消批量暂存，按声明边界和关注点逐组 git add/commit",
+      `commit crosses ${groups.size} manifest/explicit boundaries or mixes source with config/infra: ${[...groups.keys()].join(", ")}`,
+      "unstage the batch and git add/commit each declared boundary and concern separately",
     ));
   } else if (files.length > 15) {
     findings.push(finding(
-      "report", "Commit Scope Guard", `单次提交包含 ${files.length} 个文件`,
-      "确认是否能继续拆分为更小的原子提交",
+      "report", "Commit Scope Guard", `one commit contains ${files.length} files`,
+      "check whether it can be split into smaller atomic commits",
     ));
   }
   return findings;

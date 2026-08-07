@@ -154,16 +154,16 @@ export function conflictFileFindings(filePaths, repoRoot, cwd, config) {
 
 export function formatConflictFindings(findings) {
   return [
-    "[Git Delivery Guards] 检测到未解决的合并冲突",
+    "[Git Delivery Guards] Unresolved merge conflict detected",
     "",
     ...findings.map((finding) => `- ${finding.path}:${finding.line} (${finding.marker})`),
     "",
-    "文件已经写入；Hook 不会自动回滚。",
+    "The file has already been written; the hook will not roll it back automatically.",
     "",
     "blockingContract:",
-    "  observedFacts: 写入后的最终文本文件仍包含标准合并冲突标记。",
-    "  harm: 未解决冲突可能破坏构建、运行行为和提交语义。",
-    "  unblockWhen: 解析两侧改动并删除全部冲突标记。",
-    "  recovery: 重新读取完整文件，保留正确语义，移除标记后运行相关验证。",
+    "  observedFacts: The final text file still contains standard merge-conflict markers after the write.",
+    "  harm: Unresolved conflicts can break builds, runtime behavior, and commit semantics.",
+    "  unblockWhen: Resolve both sides of the change and remove every conflict marker.",
+    "  recovery: Reread the complete file, preserve the correct semantics, remove the markers, and run relevant verification.",
   ].join("\n");
 }
