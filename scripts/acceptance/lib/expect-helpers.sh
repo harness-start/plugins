@@ -83,6 +83,7 @@ MARKERS_FIRST_PRINCIPLES_STOP='完成/关闭需要有效|on-disk first-principle
 MARKERS_FILE_BUDGET='\[File Budget\]|超出文件行数预算|超出构建配方参考预算'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|已拦截受保护文件修改'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|检测到禁止的文件编码'
+MARKERS_MARKDOWN_FORMAT='\[Markdown Format Guard\]|检测到 Markdown 格式问题'
 MARKERS_COMMAND_SAFETY='\[Cat Write Guard\]|\[sed -i Guard\]|\[Dangerous Command\]'
 MARKERS_PHP_REPOSITORIES='\[Composer Repositories Guard\]|Repositories Guard'
 MARKERS_LARAVEL='\[Laravel Protected Path\]'

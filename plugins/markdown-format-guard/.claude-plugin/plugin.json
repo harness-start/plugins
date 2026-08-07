@@ -1,0 +1,10 @@
+{
+  "name": "markdown-format-guard",
+  "version": "0.1.0",
+  "description": "Checks Markdown heading structure and common formatting rules after AI write operations.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

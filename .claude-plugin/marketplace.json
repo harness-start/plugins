@@ -80,6 +80,11 @@
       "name": "first-principles-gate",
       "source": "./plugins/first-principles-gate",
       "description": "Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes."
+    },
+    {
+      "name": "markdown-format-guard",
+      "source": "./plugins/markdown-format-guard",
+      "description": "Checks Markdown heading structure and common formatting rules after AI write operations."
     }
   ]
 }

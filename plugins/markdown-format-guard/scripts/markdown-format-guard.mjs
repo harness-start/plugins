@@ -1,0 +1,262 @@
+#!/usr/bin/env node
+
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  analyzeMarkdown,
+  isMarkdownPath,
+  resolveConfig,
+} from "./lib/markdown-policy.mjs";
+
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const MAX_FINDINGS = 20;
+const CONFIG_FILE_NAMES = [
+  ".markdown-format-guard.mjs",
+  ".markdown-format-guard.cjs",
+  ".markdown-format-guard.js",
+];
+
+function warnConfig(message) {
+  process.stderr.write(`[markdown-format-guard] ${message}\n`);
+}
+
+export async function loadUserConfig(repoRoot) {
+  for (const name of CONFIG_FILE_NAMES) {
+    const configPath = join(repoRoot, name);
+    if (!existsSync(configPath)) continue;
+    try {
+      const loaded = await import(pathToFileURL(configPath).href);
+      return loaded.default ?? loaded;
+    } catch (error) {
+      warnConfig(`failed to load ${name}: ${error.message}`);
+      return null;
+    }
+  }
+  return null;
+}
+
+function extractToolInput(event) {
+  return (
+    event?.tool_input ??
+    event?.toolInput ??
+    event?.tool?.input ??
+    event?.input ??
+    {}
+  );
+}
+
+function stripMatchingQuotes(value) {
+  if (
+    value.length >= 2 &&
+    ((value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'")))
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+export function extractFilePaths(event) {
+  const toolInput = extractToolInput(event);
+  const cwd =
+    event?.cwd ??
+    event?.working_directory ??
+    event?.workingDirectory ??
+    process.cwd();
+  const paths = [];
+
+  for (const key of [
+    "file_path",
+    "filePath",
+    "path",
+    "target_file",
+    "output_file",
+    "outputFile",
+  ]) {
+    if (typeof toolInput?.[key] === "string" && toolInput[key]) {
+      paths.push(toolInput[key]);
+    }
+  }
+
+  const patchPayload = [toolInput?.patch, toolInput?.input, toolInput?.command]
+    .filter((value) => typeof value === "string")
+    .join("\n");
+  for (const line of patchPayload.split("\n")) {
+    const match = line.match(
+      /^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u,
+    );
+    if (match) paths.push(match[1].trim());
+  }
+
+  const command =
+    (typeof toolInput?.command === "string" && toolInput.command) ||
+    (typeof toolInput?.cmd === "string" && toolInput.cmd) ||
+    "";
+  for (const match of command.matchAll(
+    /(?:^|[\s;])(?:\d*>>?|&>)\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu,
+  )) {
+    paths.push(stripMatchingQuotes(match[1]));
+  }
+
+  return [
+    ...new Set(
+      paths
+        .filter(Boolean)
+        .map((path) =>
+          isAbsolute(path)
+            ? resolve(path)
+            : resolve(cwd, path.replace(/^\.\//u, "")),
+        ),
+    ),
+  ];
+}
+
+function resolveRepoRoot(filePath) {
+  try {
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: dirname(filePath),
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+function relativeMatchPath(filePath, repoRoot, cwd) {
+  if (repoRoot) return relative(repoRoot, filePath).replaceAll("\\", "/");
+  const fromCwd = relative(cwd, filePath).replaceAll("\\", "/");
+  return fromCwd.startsWith("../")
+    ? filePath.replaceAll("\\", "/")
+    : fromCwd;
+}
+
+function readTextCapped(filePath) {
+  try {
+    if (statSync(filePath).size > MAX_FILE_BYTES) return null;
+    return readFileSync(filePath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function formatFinding(path, item) {
+  return `- ${path}:${item.line} [${item.check}] ${item.message}`;
+}
+
+function emitReport(pathFindings) {
+  if (pathFindings.length === 0) return;
+  const details = pathFindings.flatMap(({ path, findings }) =>
+    findings.map((item) => formatFinding(path, item)),
+  );
+  process.stderr.write(
+    [
+      "[Markdown Format Guard] 格式建议（report，不阻断）",
+      ...details,
+      "",
+    ].join("\n"),
+  );
+}
+
+function block(pathFindings) {
+  const details = pathFindings.flatMap(({ path, findings }) =>
+    findings.map((item) => formatFinding(path, item)),
+  );
+  process.stderr.write(
+    [
+      "[Markdown Format Guard] 检测到 Markdown 格式问题",
+      ...details,
+      "",
+      "blockingContract:",
+      "  observedFacts: 列出的 Markdown 文件违反了启用的格式规则（标题层级/样式、空白、围栏等）。",
+      "  harm: 不一致的 Markdown 结构会降低可读性，并导致渲染、目录与审查工具行为不稳定。",
+      "  unblockWhen: 修复所有 block 级 finding 后重新写入/保存文件并通过本检查。",
+      "  recovery: 按行号修正标题递增与空行、去掉 Tab/非法行尾空白、闭合围栏代码块，并确保文件以单个换行结尾。不要依赖自动猜测重写整篇文档。",
+      "",
+    ].join("\n"),
+  );
+  process.exit(2);
+}
+
+export async function evaluateEvent(event) {
+  const cwd =
+    event?.cwd ??
+    event?.working_directory ??
+    event?.workingDirectory ??
+    process.cwd();
+  const candidates = extractFilePaths(event).filter(existsSync);
+  if (candidates.length === 0) {
+    return { block: [], report: [] };
+  }
+
+  const repoRoot = resolveRepoRoot(candidates[0]);
+  const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
+  const config = resolveConfig(userConfig, warnConfig);
+
+  const blockFindings = [];
+  const reportFindings = [];
+  let total = 0;
+
+  for (const filePath of candidates) {
+    const matchPath = relativeMatchPath(filePath, repoRoot, cwd);
+    if (!isMarkdownPath(matchPath)) continue;
+    const text = readTextCapped(filePath);
+    if (text === null) continue;
+    const result = analyzeMarkdown(text, matchPath, config);
+    if (result.block.length > 0) {
+      blockFindings.push({ path: matchPath, findings: result.block });
+      total += result.block.length;
+    }
+    if (result.report.length > 0) {
+      reportFindings.push({ path: matchPath, findings: result.report });
+    }
+    if (total >= MAX_FINDINGS) break;
+  }
+
+  return { block: blockFindings, report: reportFindings };
+}
+
+async function main() {
+  let rawInput = "";
+  for await (const chunk of process.stdin) rawInput += chunk;
+
+  let event;
+  try {
+    event = JSON.parse(rawInput || "{}");
+  } catch {
+    return;
+  }
+
+  const { block: blockFindings, report: reportFindings } =
+    await evaluateEvent(event);
+
+  if (reportFindings.length > 0 && blockFindings.length === 0) {
+    emitReport(reportFindings);
+  }
+
+  if (blockFindings.length > 0) {
+    // Include report items in the block output for context when mixed.
+    if (reportFindings.length > 0) {
+      for (const entry of reportFindings) {
+        blockFindings.push({
+          path: entry.path,
+          findings: entry.findings.map((f) => ({
+            ...f,
+            message: `(report) ${f.message}`,
+          })),
+        });
+      }
+    }
+    block(blockFindings);
+  }
+}
+
+if (
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === resolve(process.argv[1])
+) {
+  main().catch(() => process.exit(0));
+}
