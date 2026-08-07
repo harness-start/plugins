@@ -47,11 +47,6 @@
       "description": "Command safety guards: deny broad recursive deletion, unbacked sed in-place edits, and cat heredoc writes outside temporary directories."
     },
     {
-      "name": "process-confidence",
-      "source": "./plugins/process-confidence",
-      "description": "Observable delivery process: validated session begin, hook receipts, auto complete, Stop gate (hooks never auto-begin)."
-    },
-    {
       "name": "in-chinese",
       "source": "./plugins/in-chinese",
       "description": "Keeps agent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift at response boundaries."
