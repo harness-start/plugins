@@ -1,0 +1,152 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { test } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { DEFAULT_CONFIG, resolveConfig } from "../scripts/lib/config.mjs";
+
+const ENTRY = fileURLToPath(new URL("../scripts/verification-provenance-guard.mjs", import.meta.url));
+
+function workspace() {
+  const root = mkdtempSync(join(tmpdir(), "verification-provenance-hook-"));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  mkdirSync(join(root, "src"));
+  writeFileSync(join(root, "src", "app.js"), "export const value = 1;\n");
+  return root;
+}
+
+function run(mode, event, env = {}) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [ENTRY, mode], { env: { ...process.env, ...env }, stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => resolvePromise({ code, stdout, stderr }));
+    child.stdin.end(JSON.stringify(event));
+  });
+}
+
+function event(root, additions = {}) {
+  return { cwd: root, session_id: "session-1", ...additions };
+}
+
+function validResponse(command = "node --test tests/*.test.mjs") {
+  const claim = "单元测试 1/1 通过。";
+  return [
+    "## 结论",
+    "",
+    `- [C1][本地实测] ${claim}`,
+    "",
+    "```verification-evidence",
+    JSON.stringify({
+      schema: "verification-evidence/v1",
+      completion: "done",
+      claims: [{ id: "C1", predicate: "test_suite_passed", status: "verified", statement: claim, evidence: ["E1"] }],
+      evidence: [{ id: "E1", kind: "command", command, exitCode: 0, summary: { passed: 1, failed: 0 } }],
+    }, null, 2),
+    "```",
+  ].join("\n");
+}
+
+test("default config is strict and invalid overrides remain bounded", () => {
+  const warnings = [];
+  const config = resolveConfig({ mode: "bad", trigger: "bad", stop: { maxBlocks: 99 }, commands: { testPatterns: ["bad", /custom-test/u] } }, (message) => warnings.push(message));
+  assert.equal(config.mode, DEFAULT_CONFIG.mode);
+  assert.equal(config.trigger, DEFAULT_CONFIG.trigger);
+  assert.equal(config.stop.maxBlocks, DEFAULT_CONFIG.stop.maxBlocks);
+  assert.equal(config.commands.testPatterns.length, 1);
+  assert.ok(warnings.length >= 4);
+});
+
+test("session hook injects the reporting Skill contract", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const result = await run("session", event(root), { PLUGIN_DATA: data });
+  assert.match(result.stdout, /verification-evidence-reporting/u);
+  assert.match(result.stdout, /verification-evidence\/v1/u);
+});
+
+test("mutation plus bare pass claim blocks; current receipt manifest then clears state", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const env = { PLUGIN_DATA: data };
+  await run("post", event(root, { tool_name: "Edit", tool_input: { file_path: "src/app.js" } }), env);
+  await run("post", event(root, {
+    tool_name: "Bash",
+    tool_input: { command: "node --test tests/*.test.mjs" },
+    tool_response: "# pass 1\n# fail 0\nProcess exited with code 0\n",
+  }), env);
+
+  const blocked = await run("stop", event(root, { last_assistant_message: "单元测试全部通过。\n\nDONE" }), env);
+  assert.equal(JSON.parse(blocked.stdout).decision, "block");
+  assert.match(blocked.stderr, /证据不完整/u);
+
+  const allowed = await run("stop", event(root, { last_assistant_message: validResponse() }), env);
+  assert.equal(allowed.stdout, "");
+  assert.equal(allowed.code, 0);
+  const stateDirectory = join(data, "verification-provenance-guard");
+  assert.equal(readdirSync(stateDirectory).length, 0);
+});
+
+test("a verification receipt becomes stale after another mutation", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const env = { PLUGIN_DATA: data };
+  await run("post", event(root, { tool_name: "Bash", tool_input: { command: "node --test tests/*.test.mjs" }, tool_response: "# pass 1\n# fail 0\n" }), env);
+  await run("post", event(root, { tool_name: "Edit", tool_input: { file_path: "src/app.js" } }), env);
+  const result = await run("stop", event(root, { last_assistant_message: validResponse() }), env);
+  assert.equal(JSON.parse(result.stdout).decision, "block");
+  assert.match(result.stderr, /after the last mutation/u);
+});
+
+test("a test command with a trailing workspace mutation cannot prove completion", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const env = { PLUGIN_DATA: data };
+  const command = "node --test tests/*.test.mjs && sed -i s/1/2/ src/app.js";
+  await run("post", event(root, {
+    tool_name: "Bash",
+    tool_input: { command },
+    tool_response: "# pass 1\n# fail 0\n",
+  }), env);
+  const result = await run("stop", event(root, { last_assistant_message: validResponse(command) }), env);
+  assert.equal(JSON.parse(result.stdout).decision, "block");
+  assert.match(result.stderr, /not a reliable success/u);
+});
+
+test("bounded recursive Stop retries fail open without clearing evidence state", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const env = { PLUGIN_DATA: data };
+  await run("post", event(root, { tool_name: "Edit", tool_input: { file_path: "src/app.js" } }), env);
+  const invalid = event(root, { last_assistant_message: "实现完成。", stop_hook_active: true });
+  const first = await run("stop", invalid, env);
+  const second = await run("stop", invalid, env);
+  const third = await run("stop", invalid, env);
+  assert.equal(JSON.parse(first.stdout).decision, "block");
+  assert.equal(JSON.parse(second.stdout).decision, "block");
+  assert.equal(third.stdout, "");
+  assert.match(third.stderr, /fail-open/u);
+  const directory = join(data, "verification-provenance-guard");
+  assert.equal(readdirSync(directory).length, 1);
+  assert.doesNotMatch(readFileSync(join(directory, readdirSync(directory)[0]), "utf8"), /src\/app\.js|实现完成/u);
+});
+
+test("ordinary answers without mutation or evidence claims remain untouched", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const result = await run("stop", event(root, { last_assistant_message: "这个概念可以分成三个部分解释。" }), { PLUGIN_DATA: data });
+  assert.deepEqual({ stdout: result.stdout, stderr: result.stderr, code: result.code }, { stdout: "", stderr: "", code: 0 });
+});

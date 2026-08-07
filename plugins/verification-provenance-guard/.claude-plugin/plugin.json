@@ -1,0 +1,10 @@
+{
+  "name": "verification-provenance-guard",
+  "version": "0.1.0",
+  "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

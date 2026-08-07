@@ -7,6 +7,11 @@
   },
   "plugins": [
     {
+      "name": "verification-provenance-guard",
+      "source": "./plugins/verification-provenance-guard",
+      "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses."
+    },
+    {
       "name": "execution-loop-guard",
       "source": "./plugins/execution-loop-guard",
       "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session."
