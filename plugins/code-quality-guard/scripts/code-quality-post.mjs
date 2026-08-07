@@ -115,7 +115,7 @@ function eslintMessages(result, path, mode) {
   try {
     parsed = JSON.parse(result.stdout || "[]");
   } catch {
-    return [finding("ESLint", path, "report", combinedOutput(result) || "ESLint 未返回可解析的 JSON")];
+    return [finding("ESLint", path, "report", combinedOutput(result) || "ESLint returned no parseable JSON")];
   }
   const findings = [];
   for (const file of parsed) {
@@ -146,20 +146,20 @@ function reportOutput(text) {
 }
 
 function formatFindings(findings, omittedFiles) {
-  const lines = ["[Code Quality Guard] 源码检查结果", ""];
+  const lines = ["[Code Quality Guard] Source check results", ""];
   for (const item of findings) {
     lines.push(`- [${item.mode}] ${item.check}: ${item.path}`);
     lines.push(`  ${item.message}`);
   }
-  if (omittedFiles > 0) lines.push(`- [report] 本次另有 ${omittedFiles} 个文件因即时检查上限未执行`);
+  if (omittedFiles > 0) lines.push(`- [report] ${omittedFiles} additional file(s) were not checked because of the immediate-check limit`);
   if (findings.some((item) => item.mode === "block")) {
     lines.push(
       "",
       "blockingContract:",
-      "  observedFacts: 修改后的文件存在可复现的语法、解析或阻断级检查错误。",
-      "  harm: 当前源码无法被对应工具链可靠解析。",
-      "  unblockWhen: 修复所有 block 项并重新触发文件检查。",
-      "  recovery: 按工具输出定位错误；Hook 已在写入后运行，不会自动回滚文件。",
+      "  observedFacts: Modified files contain reproducible syntax, parse, or blocking check errors.",
+      "  harm: The relevant toolchain cannot reliably parse the current source.",
+      "  unblockWhen: Fix every blocking finding and trigger the file check again.",
+      "  recovery: Locate errors from the tool output; the hook ran after the write and will not roll files back automatically.",
     );
   }
   return lines.join("\n");
@@ -208,11 +208,11 @@ async function main() {
   });
   const commandFailure = (check, path, mode, result) => {
     if (result.timedOut) {
-      findings.push(finding(check, path, "report", `检查在 ${config.limits.immediateTimeoutMs}ms 后超时`));
+      findings.push(finding(check, path, "report", `Check timed out after ${config.limits.immediateTimeoutMs}ms`));
       return true;
     }
     if (result.error) {
-      findings.push(finding(check, path, "report", `检查器执行失败：${result.error.message}`));
+      findings.push(finding(check, path, "report", `Checker execution failed: ${result.error.message}`));
       return true;
     }
     if (result.code !== 0) {
@@ -220,7 +220,7 @@ async function main() {
         check,
         path,
         mode,
-        capOutput(combinedOutput(result) || `检查器退出码 ${result.code}`, config.limits.maxOutputLines),
+        capOutput(combinedOutput(result) || `Checker exit code ${result.code}`, config.limits.maxOutputLines),
       ));
       return true;
     }
@@ -245,7 +245,7 @@ async function main() {
       if (mode !== "off") {
         const executable = tool("esbuild", ["node_modules/.bin/esbuild"]);
         if (!executable) {
-          missing("esbuild", path, "未找到项目本地或 PATH 中的 esbuild，TypeScript 语法检查已跳过");
+          missing("esbuild", path, "esbuild was not found locally or on PATH; skipped the TypeScript syntax check");
         } else {
           const devNull = process.platform === "win32" ? "NUL" : "/dev/null";
           const result = await run(executable, [filePath, "--log-level=error", `--outfile=${devNull}`]);
@@ -258,9 +258,9 @@ async function main() {
       const mode = modeFor("eslint", path, config);
       const executable = tool("eslint", ["node_modules/.bin/eslint"]);
       if (!executable) {
-        missing("eslint", path, "未找到项目本地或 PATH 中的 ESLint，lint 已跳过");
+        missing("eslint", path, "ESLint was not found locally or on PATH; skipped linting");
       } else if (!hasEslintConfig(repoRoot)) {
-        missing("eslint-config", path, "未找到 ESLint 配置，lint 已跳过");
+        missing("eslint-config", path, "No ESLint configuration was found; skipped linting");
       } else {
         const result = await run(executable, [filePath, "--format", "json"]);
         if (result.timedOut || result.error || result.code === 2) {
@@ -277,7 +277,7 @@ async function main() {
         const python = tool("python3", [".venv/bin/python", "venv/bin/python"])
           ?? tool("python", [".venv/bin/python", "venv/bin/python"]);
         if (!python) {
-          missing("python", path, "未找到项目虚拟环境或 PATH 中的 Python，语法检查已跳过");
+          missing("python", path, "Python was not found in the project environment or on PATH; skipped the syntax check");
         } else {
           const program = "import pathlib,sys; p=sys.argv[1]; compile(pathlib.Path(p).read_bytes(), p, 'exec')";
           const result = await run(python, ["-c", program, filePath]);
@@ -288,7 +288,7 @@ async function main() {
       if (ruffMode !== "off") {
         const ruff = tool("ruff", [".venv/bin/ruff", "venv/bin/ruff"]);
         if (!ruff) {
-          missing("ruff", path, "未找到项目虚拟环境或 PATH 中的 Ruff，lint 已跳过");
+          missing("ruff", path, "Ruff was not found in the project environment or on PATH; skipped linting");
         } else {
           const result = await run(ruff, ["check", "--no-fix", "--output-format", "concise", filePath]);
           commandFailure("Ruff", path, result.code === 2 ? "report" : ruffMode, result);
@@ -301,7 +301,7 @@ async function main() {
       if (mode !== "off") {
         const php = tool("php");
         if (!php) {
-          missing("php", path, "未找到 PATH 中的 PHP，语法检查已跳过");
+          missing("php", path, "PHP was not found on PATH; skipped the syntax check");
         } else {
           const result = await run(php, ["-l", filePath]);
           commandFailure("PHP Syntax", path, mode, result);
@@ -314,7 +314,7 @@ async function main() {
       if (mode !== "off") {
         const composer = tool("composer", ["vendor/bin/composer"]);
         if (!composer) {
-          missing("composer", path, "未找到项目本地或 PATH 中的 Composer，配置检查已跳过");
+          missing("composer", path, "Composer was not found locally or on PATH; skipped the configuration check");
         } else {
           const result = await run(composer, ["validate", "--no-check-publish", "--no-check-lock", filePath]);
           commandFailure("Composer Validate", path, mode, result);
