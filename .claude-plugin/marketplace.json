@@ -70,6 +70,11 @@
       "name": "intent-clarify-gate",
       "source": "./plugins/intent-clarify-gate",
       "description": "Gates business writes during grill-me style intent clarification until \u5b8c\u6210 or complete-option close."
+    },
+    {
+      "name": "first-principles-gate",
+      "source": "./plugins/first-principles-gate",
+      "description": "Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes."
     }
   ]
 }

@@ -1,0 +1,4 @@
+id = "06-soft-report-while-open"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["stop", "first-principles", "soft-report"]
