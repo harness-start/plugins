@@ -1,11 +1,6 @@
 ---
 name: git-delivery-guards-config
-description: >
-  Initialize, inspect, edit, and diagnose git-delivery-guards repository
-  configuration. Use for .git-delivery-guards.mjs, commit-boundaries.json,
-  merge-conflict modes, or Git commit boundary overrides.
-  Triggers: /git-delivery-guards-config, ".git-delivery-guards.mjs",
-  "commit-boundaries.json", "Git delivery config".
+description: Change git-delivery-guards project settings or commit boundary rules via .git-delivery-guards.mjs and commit-boundaries.json.
 version: 0.2.0
 ---
 

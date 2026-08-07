@@ -1,12 +1,6 @@
 ---
 name: encoding-guard-config
-description: >
-  Initialize, inspect, edit, and diagnose the project-root .encoding-guard.mjs
-  configuration for the encoding-guard plugin, or safely investigate and fix
-  BOM / invalid UTF-8 findings. Use for encoding guard configuration, encoding
-  pattern overrides, BOM detection, non-UTF-8 files, encoding errors, encoding guard, or
-  .encoding-guard.mjs. Triggers: /encoding-guard-config, "encoding guard config",
-  "BOM detection", "UTF-8 encoding config".
+description: Change encoding-guard project settings or investigate BOM / invalid UTF-8 findings via .encoding-guard.mjs.
 version: 0.1.0
 ---
 

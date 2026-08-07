@@ -1,11 +1,6 @@
 ---
 name: language-output-governance-config
-description: >
-  Initialize, inspect, edit, and diagnose language-output-governance project
-  configuration. Use for .language-output-governance.mjs, default response
-  profiles, language drift thresholds, tool feedback, or Stop language gates.
-  Triggers: /language-output-governance-config,
-  ".language-output-governance.mjs", "language output config".
+description: Change language-output-governance defaults: response profile, drift thresholds, tool feedback, and Stop language gate in .language-output-governance.mjs.
 version: 0.2.0
 ---
 

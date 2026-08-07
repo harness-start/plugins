@@ -1,13 +1,6 @@
 ---
 name: file-line-budget-guard-config
-description: >
-  Initialize, inspect, edit, and diagnose the project-root
-  .file-line-budget-guard.mjs (or .cjs/.js) config for the file-line-budget-guard
-  plugin. Use when the user wants to create or change line-budget rules, skip
-  paths, report-only budgets, ratchet settings, fix invalid config, or asks
-  about file-line-budget-guard configuration or ratchet configuration.
-  Triggers: /file-line-budget-guard-config, "budget config", "line budget config",
-  ".file-line-budget-guard.mjs".
+description: Change file-line-budget-guard line limits, skip paths, report-only budgets, or ratchet behavior in .file-line-budget-guard.mjs.
 version: 0.1.0
 ---
 

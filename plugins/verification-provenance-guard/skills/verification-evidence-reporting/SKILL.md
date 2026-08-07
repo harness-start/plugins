@@ -1,12 +1,6 @@
 ---
 name: verification-evidence-reporting
-description: >
-  Prepare a completion response with machine-checkable verification provenance.
-  Use after changing files or external state, or whenever reporting tests, lint,
-  type checks, generated artifacts, Git state, or CI results. Produces the exact
-  verification-evidence/v1 conclusion list and JSON manifest required by
-  verification-provenance-guard. Triggers: "verification evidence", "test passed",
-  "artifact generated", "CI succeeded", "delivery conclusion", "final evidence".
+description: Build a machine-checkable verification-evidence/v1 appendix for test, lint, artifact, Git, or CI claims before stating completion.
 version: 0.1.0
 ---
 

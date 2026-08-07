@@ -1,13 +1,6 @@
 ---
 name: command-safety-guards-config
-description: >
-  Initialize, inspect, edit, and diagnose the project-root
-  .command-safety-guards.mjs (or .cjs/.js) config for the command-safety-guards
-  plugin. Use when the user wants to allow/deny/report shell command patterns,
-  tune engines or deny-escalation settings, fix invalid config, or asks about
-  command-safety configuration.
-  Triggers: /command-safety-guards-config, "command safety config",
-  ".command-safety-guards.mjs".
+description: Change or diagnose project command-safety-guards rules: shell allow/deny/report patterns, engines, and deny-escalation in .command-safety-guards.mjs.
 version: 0.1.0
 ---
 

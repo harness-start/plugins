@@ -1,11 +1,6 @@
 ---
 name: source-sanity-guard-config
-description: >
-  Initialize, inspect, edit, and diagnose .source-sanity-guard.mjs. Use when a
-  user wants to change source-sanity check modes, add a narrow path override,
-  or diagnose backup artifact or garbled text guard behavior.
-  Triggers: /source-sanity-guard-config, ".source-sanity-guard.mjs",
-  "source sanity config".
+description: Change source-sanity-guard modes and path overrides for backup artifacts and garbled text in .source-sanity-guard.mjs.
 version: 0.2.0
 ---
 

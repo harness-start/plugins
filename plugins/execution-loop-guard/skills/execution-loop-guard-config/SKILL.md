@@ -1,13 +1,6 @@
 ---
 name: execution-loop-guard-config
-description: >
-  Initialize, inspect, edit, and diagnose the project-root
-  .execution-loop-guard.mjs (or .cjs/.js) config for execution-loop-guard.
-  Use when the user wants to tune edit-loop thresholds, command retry limits,
-  polling budgets, exemption paths, bypass markers, or diagnose unexpected
-  execution-loop reports and blocks. Triggers: /execution-loop-guard-config,
-  "execution loop config", "edit loop config", "retry threshold", "polling budget",
-  ".execution-loop-guard.mjs".
+description: Change execution-loop-guard thresholds for edit loops, command retries, polling budgets, exemptions, or bypass markers in .execution-loop-guard.mjs.
 version: 0.1.0
 ---
 

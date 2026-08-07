@@ -1,11 +1,6 @@
 ---
 name: first-principles-ledger
-description: >
-  Write and repair the machine-checkable first-principles ledger used by
-  first-principles-gate. Use when Stop blocks for missing ledger fields,
-  derived_from id errors, or when starting /first-principles analysis.
-  Triggers: first-principles ledger, .first-principles/ledger.json,
-  first-principles/v1.
+description: Create or repair the machine-checkable first-principles ledger when analysis is open or Stop blocks on missing/invalid ledger fields.
 ---
 
 # first-principles-ledger

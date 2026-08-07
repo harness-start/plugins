@@ -1,6 +1,6 @@
 ---
 name: intent-clarify-gate-config
-description: "Configure intent-clarify-gate entry tokens, write-block, and session TTL via project .intent-clarify-gate.mjs."
+description: Change intent-clarify-gate entry tokens, write-block mode, and session TTL in .intent-clarify-gate.mjs.
 ---
 
 # Intent Clarify Gate Config

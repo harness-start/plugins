@@ -1,13 +1,6 @@
 ---
 name: protected-file-guard-config
-description: >
-  Initialize, inspect, edit, and diagnose the project-root
-  .protected-file-guard.mjs (or .cjs/.js) config used by the
-  protected-file-guard plugin. Use when the user wants to protect additional
-  file patterns, add a narrow allow exception, fix an invalid protected-file
-  rule, or asks about protected-file-guard configuration.
-  Triggers: /protected-file-guard-config, ".protected-file-guard.mjs",
-  "protected file config".
+description: Change protected-file-guard protected path patterns and allow exceptions in .protected-file-guard.mjs.
 version: 0.1.0
 ---
 

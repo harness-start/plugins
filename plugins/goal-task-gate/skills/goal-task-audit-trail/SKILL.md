@@ -1,11 +1,6 @@
 ---
 name: goal-task-audit-trail
-description: >
-  Decision and work trail protocol for goal-task-gate while a host /goal run is
-  armed. Append decisions via log-decision.mjs, optional work lines via
-  log-work.mjs, tip rewrite last 2–3 rows only, complete with kind=close plus
-  GOAL_TASK_DONE trailer. Triggers: /goal, goal-task-gate, decisions.tsv,
-  GOAL_TASK_DONE, show-me-your-work style audit.
+description: Maintain the goal-task decision/work trail while a host goal run is armed: append decisions and work, tip-only rewrites, and close with the required trailer.
 ---
 
 # goal-task-audit-trail

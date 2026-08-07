@@ -1,9 +1,6 @@
 ---
 name: goal-task-gate-config
-description: >
-  Manage project .goal-task-gate.mjs configuration for goal-task-gate: tipWindow,
-  auditRoot, stopGate mode, TTL. Triggers: /goal-task-gate-config, goal-task-gate
-  config, .goal-task-gate.mjs.
+description: Change goal-task-gate project settings such as tipWindow, auditRoot, stopGate mode, and TTL in .goal-task-gate.mjs.
 ---
 
 # goal-task-gate-config

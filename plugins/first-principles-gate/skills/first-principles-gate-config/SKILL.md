@@ -1,10 +1,6 @@
 ---
 name: first-principles-gate-config
-description: >
-  Initialize, inspect, and diagnose first-principles-gate project configuration.
-  Use for .first-principles-gate.mjs, write-block mode, entry tokens, ledger path,
-  and Stop gate settings. Triggers: /first-principles-gate-config,
-  ".first-principles-gate.mjs", "first principles gate config".
+description: Change first-principles-gate project settings: write-block mode, entry tokens, ledger path, and Stop gate in .first-principles-gate.mjs.
 ---
 
 # first-principles-gate-config

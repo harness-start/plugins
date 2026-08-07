@@ -1,11 +1,6 @@
 ---
 name: code-quality-guard-config
-description: >
-  Initialize, inspect, edit, and diagnose .code-quality-guard.mjs. Use when a
-  user wants to change syntax or lint modes, add path exceptions, tune bounded
-  execution limits, or diagnose ESLint, esbuild, Ruff, Composer, PHP, or PHPStan
-  discovery. Triggers: /code-quality-guard-config, ".code-quality-guard.mjs",
-  "code quality guard config".
+description: Change or diagnose project code-quality-guard settings: syntax/lint modes, path exceptions, and bounded ESLint/Ruff/PHPStan/Composer limits in .code-quality-guard.mjs.
 version: 0.1.0
 ---
 
