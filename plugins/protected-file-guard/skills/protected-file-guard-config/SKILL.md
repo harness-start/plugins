@@ -5,9 +5,9 @@ description: >
   .protected-file-guard.mjs (or .cjs/.js) config used by the
   protected-file-guard plugin. Use when the user wants to protect additional
   file patterns, add a narrow allow exception, fix an invalid protected-file
-  rule, or asks about protected-file-guard configuration / 受保护文件配置.
+  rule, or asks about protected-file-guard configuration.
   Triggers: /protected-file-guard-config, ".protected-file-guard.mjs",
-  "protected file config", "受保护文件配置".
+  "protected file config".
 version: 0.1.0
 ---
 
@@ -36,8 +36,8 @@ export default {
       id: "protect-generated-sdk",
       match: /^src\/generated-sdk\//,
       mode: "block",
-      reason: "SDK 由生成器维护",
-      recovery: "修改生成源并重新生成 SDK",
+      reason: "The SDK is maintained by a generator",
+      recovery: "Change the generator source and regenerate the SDK",
     },
     {
       id: "allow-reviewed-vendor-patch",
