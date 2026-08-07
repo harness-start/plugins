@@ -136,7 +136,7 @@ function resolveReason(rule, command) {
   if (typeof rule.resolveReason === "function") {
     return rule.resolveReason(command);
   }
-  return rule.reason || `命中规则 ${rule.id}`;
+  return rule.reason || `matched rule ${rule.id}`;
 }
 
 /** Format a deny/report message for a matched rule. */
@@ -148,29 +148,29 @@ export function formatFinding(rule, command) {
   const title = rule.title || rule.id || "Command Safety";
   const reason = resolveReason(rule, command);
   const recovery =
-    rule.recovery || "调整命令后重试，或在项目配置中声明 allow 规则。";
+    rule.recovery || "Adjust the command and retry, or declare an allow rule in the project configuration.";
 
   if (rule.mode === "report") {
     return [
-      `[${title}] 风险提示`,
+      `[${title}] Risk notice`,
       "",
-      `原因：${reason}`,
-      `恢复/替代：${recovery}`,
-      `命令：${command}`,
+      `Reason: ${reason}`,
+      `Recovery/alternative: ${recovery}`,
+      `Command: ${command}`,
     ].join("\n");
   }
 
   return [
-    `[${title}] 已拦截`,
+    `[${title}] Blocked`,
     "",
-    `原因：${reason}`,
-    `恢复/替代：${recovery}`,
-    `命令：${command}`,
+    `Reason: ${reason}`,
+    `Recovery/alternative: ${recovery}`,
+    `Command: ${command}`,
     "",
     "blockingContract:",
-    `  observedFacts: ${rule.observedFacts || "命令命中 command-safety-guards 声明式规则。"}`,
-    `  harm: ${rule.harm || "可能造成数据丢失、越界测试、凭据暴露或不可恢复的变更。"}`,
-    `  unblockWhen: ${rule.unblockWhen || "补齐授权、范围、备份或安全替代方案，或添加精确 allow 规则。"}`,
+    `  observedFacts: ${rule.observedFacts || "The command matched a declarative command-safety-guards rule."}`,
+    `  harm: ${rule.harm || "It may cause data loss, out-of-scope testing, credential exposure, or unrecoverable changes."}`,
+    `  unblockWhen: ${rule.unblockWhen || "Provide authorization, scope, backup, or a safe alternative, or add a precise allow rule."}`,
     `  recovery: ${recovery}`,
   ].join("\n");
 }

@@ -31,6 +31,9 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 # Skip missing host CLIs instead of failing
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-missing-hosts
 
+# Select the default response language (Simplified Chinese remains the default)
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --language en-US
+
 # From a local clone
 bash scripts/install-all.sh
 bash scripts/install-all.sh --dry-run
@@ -46,6 +49,8 @@ After install:
 - **Claude Code:** start a new session (or `/reload-plugins` if prompted) so hooks load.
 - **Codex:** review and **trust** plugin hooks via `/hooks`. Install success does not mean hooks are trusted or running.
 - **Community skills:** plugins may declare `skill-deps.json`; `install-all.sh` installs/updates them into the **global** skills scope (`npx skills add … --global`).
+
+`--language <profile>` accepts `zh-CN`, `en-US`, `ja-JP`, `ko-KR`, or `th-TH`. When provided, the installer stores the selected profile in each installed host's own configuration directory. Without the option, `language-output-governance` keeps its built-in `zh-CN` default. A project's `.language-output-governance.mjs` overrides the installed user preference.
 
 ### Manual install (equivalent)
 
@@ -101,7 +106,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `language-output-governance` | Keeps main-agent and subagent prose aligned with one configurable session language; Simplified Chinese is the default profile |
 | `skill-routing-transparency` | Shows each new task's final explicit/primary/companion/noMatch route and distinguishes it from actual Skill loads |
 | `subagent-discipline` | Injects scope/evidence contract + return hygiene; with `agent_id`, ledger cleanup (24h), gitignore ensure, optional Stop gate |
-| `intent-clarify-gate` | Gates business writes during grill-me style intent clarification until `完成` or complete-option close |
+| `intent-clarify-gate` | Gates business writes during grill-me style intent clarification until `done` or complete-option close |
 | `first-principles-gate` | Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes |
 | `goal-task-gate` | Arms on host `/goal` prompts, forces append-only decision trails under `.goal-task/`, and completes only with `GOAL_TASK_DONE` trailer plus close row |
 

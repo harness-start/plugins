@@ -44,26 +44,26 @@ function actionFor(mode, streak, reportAt, blockAt) {
 }
 
 function retryMessage({ action, command, outcome, streak, blockAt, windowMinutes }) {
-  const kind = outcome === "failure" ? "失败命令" : "成功命令";
+  const kind = outcome === "failure" ? "failed command" : "successful command";
   const lines = [
-    `[Execution Loop Guard] ${kind}重复执行 ${streak} 次`,
-    `命令：${normalizeCommand(command).slice(0, 160)}`,
+    `[Execution Loop Guard] ${kind} repeated ${streak} times`,
+    `Command: ${normalizeCommand(command).slice(0, 160)}`,
     "",
   ];
   if (action === "block") {
     lines.push(
       "blockingContract:",
-      `  observedFacts: 同一${kind}在 ${windowMinutes} 分钟窗口内达到阻断阈值。`,
-      "  harm: 不分析结果地重复执行不会产生进展，并会消耗会话与外部资源。",
-      "  unblockWhen: 阅读最新输出，形成新的根因假设或改变实现、参数、环境后再验证。",
-      "  recovery: 修复根因后重新执行；确属有意重复时在命令末尾添加 `# retry-ok`。",
+      `  observedFacts: The same ${kind} reached the blocking threshold within a ${windowMinutes}-minute window.`,
+      "  harm: Repeating a command without analyzing its result cannot make progress and consumes session and external resources.",
+      "  unblockWhen: Read the latest output, form a new root-cause hypothesis, or change the implementation, parameters, or environment before verifying again.",
+      "  recovery: Fix the root cause and rerun; append `# retry-ok` when the repetition is intentional.",
       "",
-      "本次阻断已清空该命令的重复周期，修复后可以重新开始。",
+      "This block cleared the command's repetition cycle; start a new cycle after fixing the cause.",
     );
   } else {
     lines.push(
-      `再重复 ${Math.max(0, blockAt - streak)} 次将被阻断。`,
-      "请先检查上一次输出并确认重复执行是否能产生新证据。",
+      `${Math.max(0, blockAt - streak)} more repetition(s) will trigger a block.`,
+      "Inspect the previous output first and confirm that another run can produce new evidence.",
     );
   }
   return lines.join("\n");
@@ -71,22 +71,22 @@ function retryMessage({ action, command, outcome, streak, blockAt, windowMinutes
 
 function pollingMessage(action, command, sleepSum, querySum, settings) {
   const lines = [
-    `[Execution Loop Guard] 远端轮询超预算：近 ${settings.windowMinutes} 分钟累计 sleep 约 ${Math.round(sleepSum)}s、状态查询 ${querySum} 次`,
-    `当前命令：${String(command).trim().slice(0, 160)}`,
+    `[Execution Loop Guard] Remote polling budget exceeded: approximately ${Math.round(sleepSum)}s of sleep and ${querySum} status queries in the last ${settings.windowMinutes} minutes`,
+    `Current command: ${String(command).trim().slice(0, 160)}`,
     "",
   ];
   if (action === "block") {
     lines.push(
       "blockingContract:",
-      "  observedFacts: 远端状态查询或显式 sleep 已达到当前窗口预算。",
-      "  harm: 无终止条件的轮询会持续占用会话、Runner 与远端 API 配额。",
-      "  unblockWhen: 改用有总预算、退避和终止条件的监督流程，或只执行一次状态快照。",
-      "  recovery: 确属预期等待时在命令末尾添加 `# poll-ok`，该命令将不计入预算。",
+      "  observedFacts: Remote status queries or explicit sleeps reached the current window budget.",
+      "  harm: Polling without a termination condition continually consumes session, runner, and remote API resources.",
+      "  unblockWhen: Use a supervised flow with a total budget, backoff, and termination condition, or take one status snapshot.",
+      "  recovery: Append `# poll-ok` when the wait is intentional; that command will not count toward the budget.",
     );
   } else {
     lines.push(
-      "请改用有总预算、退避和终止条件的监督流程；只需快照时执行一次状态查询。",
-      "确属预期等待可在命令末尾添加 `# poll-ok`，该命令将不计入预算。",
+      "Use a supervised flow with a total budget, backoff, and termination condition; run one status query when only a snapshot is needed.",
+      "Append `# poll-ok` when the wait is intentional; that command will not count toward the budget.",
     );
   }
   return lines.join("\n");
@@ -209,23 +209,23 @@ function recordCommandOutcome(event, config, forceFailure) {
 
 function editMessage(action, findings, settings) {
   const lines = [
-    `[Execution Loop Guard] ${action === "block" ? "编辑循环已阻断" : "检测到高频编辑"}`,
+    `[Execution Loop Guard] ${action === "block" ? "Edit loop blocked" : "High-frequency edits detected"}`,
     "",
-    ...findings.map((finding) => `- ${finding.path}: ${finding.count} 次（近 ${settings.windowMinutes} 分钟）`),
+    ...findings.map((finding) => `- ${finding.path}: ${finding.count} edit(s) in the last ${settings.windowMinutes} minutes`),
     "",
   ];
   if (action === "block") {
     lines.push(
       "blockingContract:",
-      "  observedFacts: 同一文件在滚动窗口内达到编辑阻断阈值。",
-      "  harm: 持续小改通常意味着缺少稳定根因、完整文件理解或有效验证反馈。",
-      "  unblockWhen: 重读完整文件、diff 和验证输出，形成一个可证伪假设与最小修改方案。",
-      "  recovery: 先运行相关验证或重新制定方案；成功验证会清空本会话编辑计数。",
+      "  observedFacts: The same file reached the edit blocking threshold within the rolling window.",
+      "  harm: Repeated small edits usually indicate an unstable root cause, incomplete file understanding, or missing verification feedback.",
+      "  unblockWhen: Reread the complete file, diff, and verification output, then form a falsifiable hypothesis and minimal change.",
+      "  recovery: Run relevant verification or revise the plan first; successful verification clears this session's edit counts.",
       "",
-      "被阻断文件的计数周期已清空，下一次修改会从新周期开始。",
+      "The blocked files' count cycles were cleared; the next edit starts a new cycle.",
     );
   } else {
-    lines.push(`达到 ${settings.blockAt} 次时将阻断；成功运行测试、lint、typecheck 或其他验证命令会清空本会话编辑计数。`);
+    lines.push(`The guard blocks at ${settings.blockAt} edits; a successful test, lint, typecheck, or other verification command clears this session's edit counts.`);
   }
   return lines.join("\n");
 }

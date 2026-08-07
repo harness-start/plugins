@@ -20,7 +20,7 @@ run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
   '{cwd:$cwd,session_id:$s,prompt:"/first-principles no ledger"}')" >/dev/null
 
 STOP_OUT="$(run_hook stop "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,last_assistant_message:"第一性原理分析已完成。"}')")"
+  '{cwd:$cwd,session_id:$s,last_assistant_message:"First-principles analysis is complete."}')")"
 echo "${STOP_OUT}" | grep -q '"decision":"block"' || {
   echo "FAIL expected Stop block without ledger" >&2
   echo "${STOP_OUT}" >&2

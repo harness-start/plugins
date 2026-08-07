@@ -67,14 +67,14 @@ async function main() {
   }
   if (!hasPhpstanConfig(repoRoot)) {
     if (config.missingTools === "report-once" && markMissingOnce(state, "phpstan-config")) {
-      outputReport("[Code Quality Guard] 未找到 PHPStan 配置，本会话的批量静态分析已跳过");
+      outputReport("[Code Quality Guard] No PHPStan configuration was found; skipped batch static analysis for this session");
     }
     return;
   }
   const phpstan = findExecutable("phpstan", repoRoot, ["vendor/bin/phpstan"]);
   if (!phpstan) {
     if (config.missingTools === "report-once" && markMissingOnce(state, "phpstan")) {
-      outputReport("[Code Quality Guard] 未找到项目本地或 PATH 中的 PHPStan，本会话的批量静态分析已跳过");
+      outputReport("[Code Quality Guard] PHPStan was not found locally or on PATH; skipped batch static analysis for this session");
     }
     return;
   }
@@ -94,14 +94,14 @@ async function main() {
       { cwd: repoRoot, timeoutMs: config.limits.phpstanTimeoutMs },
     );
     if (result.timedOut) {
-      findings.push({ mode: "report", message: `PHPStan 在 ${config.limits.phpstanTimeoutMs}ms 后超时` });
+      findings.push({ mode: "report", message: `PHPStan timed out after ${config.limits.phpstanTimeoutMs}ms` });
     } else if (result.error) {
-      findings.push({ mode: "report", message: `PHPStan 执行失败：${result.error.message}` });
+      findings.push({ mode: "report", message: `PHPStan execution failed: ${result.error.message}` });
     } else if (result.code !== 0) {
       findings.push({
         mode: result.code === 1 ? group.mode : "report",
         message: capOutput(
-          [result.stdout, result.stderr].filter((value) => value?.trim()).join("\n") || `PHPStan 退出码 ${result.code}`,
+          [result.stdout, result.stderr].filter((value) => value?.trim()).join("\n") || `PHPStan exit code ${result.code}`,
           config.limits.maxOutputLines,
         ),
       });
@@ -112,10 +112,10 @@ async function main() {
   writeState(state);
   if (findings.length === 0 && omitted === 0) return;
   const message = [
-    "[Code Quality Guard] PHPStan 批量检查结果",
+    "[Code Quality Guard] PHPStan batch check results",
     "",
     ...findings.flatMap((item) => [`- [${item.mode}] PHPStan`, ...item.message.split("\n").map((line) => `  ${line}`)]),
-    ...(omitted > 0 ? [`- [report] 另有 ${omitted} 个 PHP 文件因批量上限未检查`] : []),
+    ...(omitted > 0 ? [`- [report] ${omitted} additional PHP file(s) were not checked because of the batch limit`] : []),
   ].join("\n");
   if (findings.some((item) => item.mode === "block")) stopBlock(message);
   else outputReport(message);

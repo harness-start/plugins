@@ -8,11 +8,11 @@ export const PROFILE_IDS = Object.freeze([
 
 const PROFILE_DEFINITIONS = {
   "zh-CN": {
-    label: "简体中文",
+    label: "Simplified Chinese",
     allowedScripts: ["han"],
     aliases: /简体中文|中文|汉语|\bChinese\b/iu,
-    sessionInstruction: "自然语言说明使用简体中文。",
-    rewriteInstruction: "请完整使用简体中文重写上一回答。",
+    sessionInstruction: "Use Simplified Chinese for natural-language explanations.",
+    rewriteInstruction: "Rewrite the complete previous response in Simplified Chinese.",
   },
   "en-US": {
     label: "English",
@@ -22,25 +22,25 @@ const PROFILE_DEFINITIONS = {
     rewriteInstruction: "Rewrite the complete previous response in English.",
   },
   "ja-JP": {
-    label: "日本語",
+    label: "Japanese",
     allowedScripts: ["han", "kana"],
     aliases: /日文|日语|日本語|\bJapanese\b/iu,
-    sessionInstruction: "自然言語の説明には日本語を使用してください。",
-    rewriteInstruction: "前の回答全体を日本語で書き直してください。",
+    sessionInstruction: "Use Japanese for natural-language explanations.",
+    rewriteInstruction: "Rewrite the complete previous response in Japanese.",
   },
   "ko-KR": {
-    label: "한국어",
+    label: "Korean",
     allowedScripts: ["hangul"],
     aliases: /韩文|韩语|朝鲜语|한국어|\bKorean\b/iu,
-    sessionInstruction: "자연어 설명에는 한국어를 사용하세요.",
-    rewriteInstruction: "이전 답변 전체를 한국어로 다시 작성하세요.",
+    sessionInstruction: "Use Korean for natural-language explanations.",
+    rewriteInstruction: "Rewrite the complete previous response in Korean.",
   },
   "th-TH": {
-    label: "ภาษาไทย",
+    label: "Thai",
     allowedScripts: ["thai"],
     aliases: /泰文|泰语|ภาษาไทย|\bThai\b/iu,
-    sessionInstruction: "ใช้ภาษาไทยสำหรับคำอธิบายภาษาธรรมชาติ",
-    rewriteInstruction: "เขียนคำตอบก่อนหน้าทั้งหมดใหม่เป็นภาษาไทย",
+    sessionInstruction: "Use Thai for natural-language explanations.",
+    rewriteInstruction: "Rewrite the complete previous response in Thai.",
   },
 };
 

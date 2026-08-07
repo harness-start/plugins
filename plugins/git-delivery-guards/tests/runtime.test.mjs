@@ -160,7 +160,7 @@ test("conflict configuration can downgrade a repository path to report", async (
       cwd: root, tool_name: "Write", tool_input: { file_path: target },
     });
     assert.equal(result.code, 0, result.stderr);
-    assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /未解决的合并冲突/u);
+    assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /Unresolved merge conflict/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

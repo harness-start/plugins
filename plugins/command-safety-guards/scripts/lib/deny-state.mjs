@@ -95,7 +95,7 @@ export function escalationMessage(event, command, options = {}) {
     recent.filter((entry) => !entry.turn).length,
   );
   return count >= threshold
-    ? `[Deny Escalation Guard] 同一目标已被 command-safety-guards deny ${count} 次。\n\n请停止变换写法重试，重读拦截原因并解决前置条件；确认误伤时向用户说明证据。${options.windowMinutes ?? 10} 分钟后计数失效。`
+    ? `[Deny Escalation Guard] command-safety-guards has denied the same target ${count} times.\n\nStop retrying with alternate spellings, reread the denial reason, and satisfy its prerequisites. If this is a false positive, explain the evidence to the user. The count expires after ${options.windowMinutes ?? 10} minutes.`
     : null;
 }
 

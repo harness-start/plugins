@@ -17,5 +17,5 @@ See [references/example-config.mjs](./references/example-config.mjs).
 
 - Entry tokens: `/grill-me`, `$grill-me`, `/grilling`, `$grilling` (prompt **prefix** only)
 - Write-block while `phase=open` for business paths; allow `.grill-ledgers/**`, `docs/decisions/**`
-- Close on whole-message `完成` or selecting `N. 完成 — …`
+- Close on whole-message `done` or selecting `N. Done — …`
 - `skillInstall.mode` defaults to `off` (safe offline/CI)

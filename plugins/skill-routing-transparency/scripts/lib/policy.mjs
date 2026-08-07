@@ -4,7 +4,7 @@ const HOOK_HEADER_RE =
   /^\s*(?:[•*-]\s*)?(?:SessionStart|UserPromptSubmit|PreToolUse|PostToolUse|Stop|SubagentStop|Notification)\s+hook\b/iu;
 
 export const SHORT_FOLLOWUP_RE =
-  /^(?:(?:好的?[，,]?\s*)?(?:继续(?:做|处理|执行|任务)?|请继续|接着(?:做|处理|执行)?|按(?:上面|上述|原计划|计划)(?:继续(?:执行|推进)?|执行|推进)?)|好的?|可以|收到|明白|了解|请确认|稍等|已完成|完成了|ok|okay|done)[。！!？? ]*$/iu;
+  /^(?:(?:好的?[，,]?\s*)?(?:继续(?:做|处理|执行|任务)?|请继续|接着(?:做|处理|执行)?|按(?:上面|上述|原计划|计划)(?:继续(?:执行|推进)?|执行|推进)?)|continue(?:\s+with\s+(?:the\s+)?(?:original|previous)\s+plan)?|好的?|可以|收到|明白|了解|请确认|稍等|已完成|完成了|ok|okay|done)[。！!？? ]*$/iu;
 
 const HOST_COMMAND_RE =
   /^\/(?:clear|compact|config|cost|doctor|help|hooks|login|logout|model|permissions|reload-plugins|resume|status|usage)\b/iu;
@@ -51,10 +51,10 @@ export function lookupCommand(platform) {
 }
 
 const DISCLOSURE_FORMATS = [
-  "- Explicit: 📌 Skill 路由：explicit=`skill-id`；loaded=`skill-id`",
-  "- Implicit: 📌 Skill 路由：primary=`skill-id`；companions=`a`, `b`；loaded=`skill-id`, `a`, `b`",
-  "- No match: 📌 Skill 路由：noMatch；loaded=none",
-  "- Lookup unavailable or invalid: 📌 Skill 路由：unavailable；loaded=none",
+  "- Explicit: 📌 Skill route: explicit=`skill-id`; loaded=`skill-id`",
+  "- Implicit: 📌 Skill route: primary=`skill-id`; companions=`a`, `b`; loaded=`skill-id`, `a`, `b`",
+  "- No match: 📌 Skill route: noMatch; loaded=none",
+  "- Lookup unavailable or invalid: 📌 Skill route: unavailable; loaded=none",
   "- Selected but not loaded: append load_failed=`skill-id` and do not include it in `loaded`.",
 ].join("\n");
 

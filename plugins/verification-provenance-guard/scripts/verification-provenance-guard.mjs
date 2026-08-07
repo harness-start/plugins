@@ -35,9 +35,9 @@ import {
 import { clearState, readState, updateState } from "./lib/state-store.mjs";
 
 const SESSION_CONTEXT = [
-  "[Verification Provenance Guard] 交付证据协议已启用。",
-  "发生文件/工作区变更，或最终回复声称测试、CI、Git、产物结论时，结尾必须包含 verification-evidence/v1 manifest。",
-  "使用插件 Skill `verification-evidence-reporting` 获取完整模板。标签本身不是证据；verified 结论必须匹配本会话记录或当前文件/Git 状态。",
+  "[Verification Provenance Guard] Delivery evidence protocol is enabled.",
+  "After file or workspace changes, or when the final response claims test, CI, Git, or artifact conclusions, end with a verification-evidence/v1 manifest.",
+  "Use the bundled `verification-evidence-reporting` Skill for the complete template. A label alone is not evidence; verified claims must match this session's records or current file/Git state.",
 ].join("\n");
 
 function warn(message) {
@@ -85,13 +85,13 @@ function triggerRequired(config, state, unsupported, blockPresent) {
 
 function formatBlock(findings) {
   return [
-    "[Verification Provenance Guard] 完成态证据不完整或无法自动验证。",
+    "[Verification Provenance Guard] Completion evidence is incomplete or cannot be verified automatically.",
     "",
     ...findings.slice(0, 12).map((finding) => `- ${finding}`),
     "",
-    "恢复方式：使用 `verification-evidence-reporting` Skill，确保正文每条结论有 C#，并提供唯一的 verification-evidence/v1 JSON block。",
-    "verified 结论必须引用最后一次变更后的命令 receipt、当前 workspace 产物/Git 状态，或本会话解析到的成功 CI receipt。",
-    "无法自动证明时改为 [推断] 或 [未验证] 并填写 basis/reason；不要只补 [本地实测] 标签。",
+    "Recovery: use the `verification-evidence-reporting` Skill, give every visible conclusion a C# identifier, and provide exactly one verification-evidence/v1 JSON block.",
+    "A verified claim must reference a command receipt after the latest change, current workspace artifact/Git state, or a successful CI receipt parsed in this session.",
+    "When automatic proof is unavailable, use [inferred] or [unverified] and provide basis/reason; do not merely add a [locally-verified] label.",
   ].join("\n");
 }
 

@@ -6,8 +6,8 @@ Implements the workflow in [`docs/grill-me-hooks-design.md`](./docs/grill-me-hoo
 
 1. **Enter** when the user prompt **starts with** `/grill-me`, `$grill-me`, `/grilling`, or `$grilling`.
 2. While **open**, block non-ledger file/shell mutations.
-3. Classify user replies: `1|2|3`, `N` + note, free-text constraint, `完成`, or `# grill-abort`.
-4. On **Stop**, parse `N. 完成 — …` as the complete option; selecting that `N` closes the session.
+3. Classify user replies: `1|2|3`, `N` + note, free-text constraint, `done`, or `# grill-abort`.
+4. On **Stop**, parse `N. Done — …` as the complete option; selecting that `N` closes the session.
 5. Corrupt state / TTL / closed / idle → **fail-open** (no permanent write lock).
 
 ## Install

@@ -52,6 +52,7 @@ LIST_ONLY=0
 FAIL_FAST=0
 SKIP_SKILL_DEPS=0
 CLAUDE_SCOPE="user"
+LANGUAGE_PROFILE="${HARNESS_LANGUAGE_PROFILE:-}"
 
 usage() {
   cat <<'EOF'
@@ -74,6 +75,7 @@ Options:
   --codex-only            Only Codex
   --ref <ref>             Git ref for Codex marketplace add (default: master)
   --scope <scope>         Claude install scope: user|project|local (default: user)
+  --language <profile>    Default response profile: zh-CN|en-US|ja-JP|ko-KR|th-TH
   --dry-run               Print actions without running them
   --skip-missing-hosts    Skip missing claude/codex instead of failing
   --skip-skill-deps       Skip community skill install/update from skill-deps.json
@@ -85,12 +87,14 @@ Environment:
   HARNESS_MARKETPLACE_NAME     default: harness-start
   HARNESS_MARKETPLACE_SOURCE   default: harness-start/plugins
   HARNESS_GIT_REF              default: master
+  HARNESS_LANGUAGE_PROFILE     same as --language
   HARNESS_SKIP_SKILL_DEPS      set to 1 to skip skill-deps (same as --skip-skill-deps)
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
   bash scripts/install-all.sh --claude-only
   bash scripts/install-all.sh --codex-only --ref master
+  bash scripts/install-all.sh --language en-US
   bash scripts/install-all.sh --dry-run --skip-missing-hosts
   bash scripts/install-all.sh --skip-skill-deps
 EOF
@@ -170,6 +174,10 @@ while [ "$#" -gt 0 ]; do
       CLAUDE_SCOPE="${2:?--scope requires a value}"
       shift 2
       ;;
+    --language)
+      LANGUAGE_PROFILE="${2:?--language requires a value}"
+      shift 2
+      ;;
     --dry-run) DRY_RUN=1; shift ;;
     --skip-missing-hosts) SKIP_MISSING=1; shift ;;
     --skip-skill-deps) SKIP_SKILL_DEPS=1; shift ;;
@@ -192,6 +200,14 @@ case "${CLAUDE_SCOPE}" in
   user|project|local) ;;
   *)
     err "--scope must be user, project, or local"
+    exit 2
+    ;;
+esac
+
+case "${LANGUAGE_PROFILE}" in
+  ""|zh-CN|en-US|ja-JP|ko-KR|th-TH) ;;
+  *)
+    err "--language must be zh-CN, en-US, ja-JP, ko-KR, or th-TH"
     exit 2
     ;;
 esac
@@ -603,6 +619,33 @@ sync_codex_plugins() {
   return "${failures}"
 }
 
+# --- language profile --------------------------------------------------------
+
+write_language_profile() {
+  local host="$1"
+  local config_root path
+  [ -n "${LANGUAGE_PROFILE}" ] || return 0
+
+  case "${host}" in
+    claude) config_root="${CLAUDE_CONFIG_DIR:-$HOME/.claude}" ;;
+    codex) config_root="${CODEX_HOME:-$HOME/.codex}" ;;
+    *) err "unsupported language profile host: ${host}"; return 1 ;;
+  esac
+  path="${config_root}/harness-start/language-output-governance.json"
+
+  if [ "${DRY_RUN}" = "1" ]; then
+    log "${host}: would set language profile ${LANGUAGE_PROFILE} in ${path}"
+    return 0
+  fi
+
+  local temp_path="${path}.tmp.$$"
+  umask 077
+  mkdir -p -- "$(dirname "${path}")"
+  printf '{\n  "defaultProfile": "%s"\n}\n' "${LANGUAGE_PROFILE}" >"${temp_path}"
+  mv -- "${temp_path}" "${path}"
+  log "${host}: language profile ${LANGUAGE_PROFILE} saved to ${path}"
+}
+
 # --- community skill deps (skill-deps.json) ----------------------------------
 #
 # Each plugin may declare community skills at:
@@ -954,6 +997,9 @@ EOF
       sync_claude_plugins "${PLUGINS[@]}"
       claude_fail=$?
       set -e
+      if [ "${claude_fail}" -eq 0 ]; then
+        write_language_profile claude
+      fi
     else
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "claude not found; skipping Claude Code"
@@ -973,6 +1019,9 @@ EOF
       sync_codex_plugins "${PLUGINS[@]}"
       codex_fail=$?
       set -e
+      if [ "${codex_fail}" -eq 0 ]; then
+        write_language_profile codex
+      fi
     else
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "codex not found; skipping Codex"

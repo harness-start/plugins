@@ -18,7 +18,7 @@ Read `../../DESIGN.md` before changing the interface.
 ```js
 export default {
   entryTokens: ["/first-principles", "$first-principles"],
-  donePhrases: ["完成"],
+  donePhrases: ["done"],
   abortToken: "# first-principles-abort",
   writeBlock: {
     mode: "block", // block | report | off

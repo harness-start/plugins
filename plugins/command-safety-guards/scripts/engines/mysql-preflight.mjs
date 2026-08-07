@@ -51,24 +51,24 @@ export function mysqlReplicationPreflightFinding(command, event = {}) {
   return {
     action: "deny",
     id: "MySQL Replication Failover Guard",
-    reason: `缺少成功复制 preflight 证据：${mutation}`,
+    reason: `missing successful replication preflight evidence: ${mutation}`,
     recovery:
-      "先运行 mysql-replication-preflight 并验证复制线程、延迟和 GTID 覆盖",
+      "run mysql-replication-preflight first and verify replication threads, lag, and GTID coverage",
   };
 }
 
 export function mysqlPreflightDenyMessage(finding, command = "") {
   return [
-    `[${finding.id}] 已拦截`,
+    `[${finding.id}] Blocked`,
     "",
-    `原因：${finding.reason}`,
-    `恢复/替代：${finding.recovery}`,
-    `命令：${command}`,
+    `Reason: ${finding.reason}`,
+    `Recovery/alternative: ${finding.recovery}`,
+    `Command: ${command}`,
     "",
     "blockingContract:",
-    "  observedFacts: 命令命中高风险复制状态变更且缺少成功 preflight 证据。",
-    "  harm: 可能造成不可验证的主从切换或数据不一致。",
-    "  unblockWhen: 补齐 mysql-replication-preflight 成功证据。",
+    "  observedFacts: The command matches a high-risk replication state change without successful preflight evidence.",
+    "  harm: It could cause an unverifiable primary/replica switchover or data inconsistency.",
+    "  unblockWhen: Provide successful mysql-replication-preflight evidence.",
     `  recovery: ${finding.recovery}`,
   ].join("\n");
 }

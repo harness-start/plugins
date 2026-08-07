@@ -49,8 +49,8 @@ function gitAdd(invocation, command) {
   const args = invocation.args;
   if (args.some((token) => [".", "./", "*", "./*"].includes(token) || token.startsWith("--pathspec-from-file"))) {
     return finding(
-      "deny", "Git Add Guard", "批量暂存可能混入其他任务的改动", command,
-      "使用 git add <具体文件路径> 逐个暂存",
+      "deny", "Git Add Guard", "bulk staging may include changes from other tasks", command,
+      "stage each file explicitly with git add <specific-file-path>",
     );
   }
   const hasBulk = args.some((token) =>
@@ -61,8 +61,8 @@ function gitAdd(invocation, command) {
   );
   if (hasBulk && !explicit) {
     return finding(
-      "deny", "Git Add Guard", "未指定具体路径的 -A/--all/-u 会批量暂存", command,
-      "使用 git add <具体文件路径> 逐个暂存",
+      "deny", "Git Add Guard", "-A/--all/-u without a specific path stages changes in bulk", command,
+      "stage each file explicitly with git add <specific-file-path>",
     );
   }
   return null;
@@ -73,14 +73,14 @@ function destructiveGit(invocation, command) {
   const args = invocation.args;
   if (subcommand === "update-ref" && args.includes("-d") && args.some((arg) => arg.startsWith("refs/original/"))) {
     return finding(
-      "deny", "Dangerous Git Command", "删除 refs/original 会移除历史重写的恢复引用", command,
-      "在受控历史迁移完成验证后再清理恢复引用",
+      "deny", "Dangerous Git Command", "deleting refs/original removes recovery references from history rewrites", command,
+      "clean up recovery references only after a controlled history migration is verified",
     );
   }
   if (subcommand === "reset" && args.includes("--hard")) {
     return finding(
-      "deny", "Dangerous Git Command", "git reset --hard 会丢失未提交改动", command,
-      "先保存 diff 或 stash，再使用非破坏性 reset",
+      "deny", "Dangerous Git Command", "git reset --hard discards uncommitted changes", command,
+      "save the diff or stash first, then use a non-destructive reset",
     );
   }
   if (subcommand === "clean") {
@@ -88,8 +88,8 @@ function destructiveGit(invocation, command) {
     const destructive = args.some((arg) => ["--force", "--directory"].includes(arg) || /^-[^-]*[fd]/u.test(arg));
     if (destructive && !dryRun) {
       return finding(
-        "deny", "Dangerous Git Command", "git clean -f/-d 会永久删除未跟踪文件或目录", command,
-        "先运行 git clean -nd 并逐个处理",
+        "deny", "Dangerous Git Command", "git clean -f/-d permanently deletes untracked files or directories", command,
+        "run git clean -nd first and handle targets individually",
       );
     }
   }
@@ -98,36 +98,36 @@ function destructiveGit(invocation, command) {
     const force = args.some((arg) => arg === "--force" || arg === "-f" || /^-[^-]*f/u.test(arg));
     if (force && !lease) {
       return finding(
-        "deny", "Dangerous Git Command", "git push --force 会覆盖远程历史", command,
-        "改用 --force-with-lease 并核对远端基线",
+        "deny", "Dangerous Git Command", "git push --force overwrites remote history", command,
+        "use --force-with-lease and verify the remote baseline",
       );
     }
   }
   if (["filter-repo", "filter-branch"].includes(subcommand)) {
     return finding(
-      "deny", "Dangerous Git Command", `${subcommand} 会改写仓库历史`, command,
-      "在独立克隆中执行并保留恢复引用",
+      "deny", "Dangerous Git Command", `${subcommand} rewrites repository history`, command,
+      "run it in a separate clone and preserve recovery references",
     );
   }
   if (subcommand === "stash" && args[0] === "clear") {
     return finding(
-      "deny", "Dangerous Git Command", "git stash clear 会永久删除全部 stash", command,
-      "逐个检查并仅删除明确授权的 stash",
+      "deny", "Dangerous Git Command", "git stash clear permanently deletes every stash", command,
+      "inspect stashes individually and delete only an explicitly authorized stash",
     );
   }
   if (subcommand === "stash" && args[0] === "drop") {
     const approved = /(?:^|[;&|]\s*)AI_EXPERTS_ALLOW_GIT_STASH_DROP=1\s+git(?:\s+-\S+)*\s+stash\s+drop\s+['"]?stash@\{\d+\}['"]?(?:\s|$)/u.test(command);
     if (!approved || args.length !== 2 || !/^stash@\{\d+\}$/u.test(args[1])) {
       return finding(
-        "deny", "Dangerous Git Command", "git stash drop 需要 inline approval sentinel 和一个显式 stash@{N}", command,
-        "使用 AI_EXPERTS_ALLOW_GIT_STASH_DROP=1 git stash drop 'stash@{N}'",
+        "deny", "Dangerous Git Command", "git stash drop requires an inline approval sentinel and an explicit stash@{N}", command,
+        "use AI_EXPERTS_ALLOW_GIT_STASH_DROP=1 git stash drop 'stash@{N}'",
       );
     }
   }
   if (subcommand === "checkout" && args.includes("--") && args.some((arg) => [".", "./", "*", "./*"].includes(arg))) {
     return finding(
-      "deny", "Dangerous Git Command", "批量 checkout 会丢弃工作区改动", command,
-      "逐个文件恢复并先保存 diff",
+      "deny", "Dangerous Git Command", "bulk checkout discards working-tree changes", command,
+      "save the diff first and restore one file at a time",
     );
   }
   if (subcommand === "restore" && (
@@ -135,8 +135,8 @@ function destructiveGit(invocation, command) {
     args.some((arg, index) => arg === "--source=HEAD" || (arg === "--source" && args[index + 1] === "HEAD"))
   )) {
     return finding(
-      "deny", "Dangerous Git Command", "git restore 会用 HEAD 或批量目标覆盖工作区改动", command,
-      "先保存 diff，并只恢复明确授权的单个文件和来源",
+      "deny", "Dangerous Git Command", "git restore overwrites working-tree changes from HEAD or a bulk target", command,
+      "save the diff and restore only an explicitly authorized individual file and source",
     );
   }
   return null;
@@ -149,8 +149,8 @@ function branchName(invocation, command) {
   const branch = flagIndex >= 0 ? args[flagIndex + 1] : null;
   if (!branch || BRANCH.test(branch)) return null;
   return finding(
-    "deny", "Branch Naming Guard", `分支名 ${branch} 不符合 <type>/<lowercase-slug>`, command,
-    `使用 ${TYPES.join("|")}/<lowercase-slug>`,
+    "deny", "Branch Naming Guard", `branch name ${branch} does not match <type>/<lowercase-slug>`, command,
+    `use ${TYPES.join("|")}/<lowercase-slug>`,
   );
 }
 
@@ -173,8 +173,8 @@ function conflictChoice(invocation, command) {
   });
   return unsafe
     ? finding(
-        "deny", "Bulk Conflict Choice Guard", "ours/theirs 只能用于一个显式文件", command,
-        "逐个文件审查冲突后选择一侧",
+        "deny", "Bulk Conflict Choice Guard", "ours/theirs may be applied only to one explicit file", command,
+        "review each conflict and choose a side one file at a time",
       )
     : null;
 }
@@ -185,8 +185,8 @@ function commitMessage(invocation, command) {
   if (args.some((arg) => /^(?:--amend|--fixup|--squash)(?:=|$)/u.test(arg))) return null;
   if (/\$\(\s*cat\s+<</u.test(command)) {
     return finding(
-      "deny", "Commit Heredoc Guard", "提交信息不能通过 heredoc 命令替换生成", command,
-      "使用一个或多个 git commit -m 字符串",
+      "deny", "Commit Heredoc Guard", "commit messages must not be generated through heredoc command substitution", command,
+      "use one or more git commit -m strings",
     );
   }
   const paragraphs = [];
@@ -212,14 +212,14 @@ function commitMessage(invocation, command) {
   const first = message.split("\n").find((line) => line.trim())?.trim() ?? "";
   const description = (first.match(/^[^:]+:\s*(.+)$/u)?.[1] ?? first).trim();
   const issues = [];
-  if (first.length < 8) issues.push("首行过短");
-  if (!COMMIT.test(first)) issues.push("不是 Conventional Commits 格式");
-  if (GENERIC.test(description)) issues.push("描述过于模糊");
-  if (GARBLED.test(message)) issues.push("包含乱码或控制字符");
+  if (first.length < 8) issues.push("first line is too short");
+  if (!COMMIT.test(first)) issues.push("not in Conventional Commits format");
+  if (GENERIC.test(description)) issues.push("description is too vague");
+  if (GARBLED.test(message)) issues.push("contains garbled text or control characters");
   return issues.length
     ? finding(
         "deny", "Commit Message Guard", issues.join("；"), command,
-        "使用 <type>(<scope>): <具体说明>",
+        "use <type>(<scope>): <specific-description>",
       )
     : null;
 }
@@ -240,16 +240,16 @@ export function classifyDeliveryCommand(command, cwd) {
 
 export function formatDeliveryFinding(value) {
   return [
-    `[${value.id}] ${value.action === "deny" ? "已拦截" : "风险提示"}`,
+    `[${value.id}] ${value.action === "deny" ? "Blocked" : "Risk notice"}`,
     "",
-    `原因：${value.reason}`,
-    `恢复/替代：${value.recovery}`,
+    `Reason: ${value.reason}`,
+    `Recovery/alternative: ${value.recovery}`,
     ...(value.action === "deny" ? [
       "",
       "blockingContract:",
-      "  observedFacts: 命令或仓库状态命中了本地 Git 交付规则。",
-      "  harm: 可能丢失改动、污染提交边界、掩盖冲突或破坏恢复能力。",
-      "  unblockWhen: 改为目标明确、可恢复且提交边界清晰的操作。",
+      "  observedFacts: The command or repository state matched a local Git delivery rule.",
+      "  harm: The operation may lose changes, contaminate commit boundaries, hide conflicts, or impair recovery.",
+      "  unblockWhen: Use an operation with explicit targets, recoverability, and clear commit boundaries.",
       `  recovery: ${value.recovery}`,
     ] : []),
   ].join("\n");

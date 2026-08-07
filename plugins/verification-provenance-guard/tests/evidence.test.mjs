@@ -33,19 +33,19 @@ function sha256(value) {
 }
 
 test("claim detector catches bare conclusions but ignores examples, quotes, and negation", () => {
-  assert.deepEqual(detectUnsupportedClaims("单元测试全部通过。"), ["validation"]);
-  assert.deepEqual(detectUnsupportedClaims("报告已生成：`reports/a.md`。"), ["artifact"]);
-  assert.deepEqual(detectUnsupportedClaims("GitLab pipeline 43865 success。"), ["ci"]);
-  assert.deepEqual(detectUnsupportedClaims("测试尚未通过。"), []);
-  assert.deepEqual(detectUnsupportedClaims("> 示例：单元测试全部通过。\n\n```text\nCI passed\n```"), []);
-  assert.deepEqual(detectUnsupportedClaims("单元测\u200b试全部通\u200b过。"), ["validation"]);
-  assert.deepEqual(detectUnsupportedClaims("数据库迁移已验证。", [/数据库迁移已验证/u]), ["custom"]);
+  assert.deepEqual(detectUnsupportedClaims("All unit tests passed."), ["validation"]);
+  assert.deepEqual(detectUnsupportedClaims("Report generated: `reports/a.md`."), ["artifact"]);
+  assert.deepEqual(detectUnsupportedClaims("GitLab pipeline 43865 succeeded."), ["ci"]);
+  assert.deepEqual(detectUnsupportedClaims("Tests have not passed."), []);
+  assert.deepEqual(detectUnsupportedClaims("> Example: all unit tests passed.\n\n```text\nCI passed\n```"), []);
+  assert.deepEqual(detectUnsupportedClaims("All unit te\u200bsts pa\u200bssed."), ["validation"]);
+  assert.deepEqual(detectUnsupportedClaims("Database migration verified.", [/database migration verified/iu]), ["custom"]);
 });
 
 test("config accepts bounded custom claim and command patterns", () => {
   const warnings = [];
   const config = resolveConfig({
-    claims: { additionalPatterns: [/数据库迁移已验证/u, "invalid"] },
+    claims: { additionalPatterns: [/database migration verified/iu, "invalid"] },
     commands: { testPatterns: [/\bvitest\b/u] },
   }, (message) => warnings.push(message));
   assert.equal(config.claims.additionalPatterns.length, 1);

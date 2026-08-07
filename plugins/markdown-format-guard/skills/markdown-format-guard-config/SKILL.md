@@ -5,9 +5,9 @@ description: >
   .markdown-format-guard.mjs configuration for the markdown-format-guard plugin,
   or safely investigate Markdown format findings (heading levels, ATX style,
   fences, trailing whitespace). Use for markdown format guard configuration,
-  markdownlint-style heading rules, 标题层级, Markdown 格式守卫, or
+  markdownlint-style heading rules, heading levels, Markdown format guard, or
   .markdown-format-guard.mjs. Triggers: /markdown-format-guard-config,
-  "markdown format guard config", "Markdown 标题检查配置".
+  "markdown format guard config", "Markdown heading check config".
 version: 0.1.0
 ---
 

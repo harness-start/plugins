@@ -1,5 +1,5 @@
-/fp 验收：短别名不是入口
+/fp acceptance: the short alias is not an entry token
 
-本用例以 `/fp` 开头（**不是**合法入口）。
-请正常编辑 `src/app.js` 把 value 改成 1。
-期望：不进入第一性原理写屏障；业务写入不被本插件拦截。
+This case starts with `/fp`, which is **not** a valid entry token.
+Edit `src/app.js` normally and change value to 1.
+Expected: first-principles write blocking does not open and this plugin does not block the business write.

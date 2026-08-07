@@ -37,11 +37,11 @@ function event(root, additions = {}) {
 }
 
 function validResponse(command = "node --test tests/*.test.mjs") {
-  const claim = "单元测试 1/1 通过。";
+  const claim = "Unit tests passed: 1/1.";
   return [
-    "## 结论",
+    "## Conclusions",
     "",
-    `- [C1][本地实测] ${claim}`,
+    `- [C1][locally-verified] ${claim}`,
     "",
     "```verification-evidence",
     JSON.stringify({
@@ -85,9 +85,9 @@ test("mutation plus bare pass claim blocks; current receipt manifest then clears
     tool_response: "# pass 1\n# fail 0\nProcess exited with code 0\n",
   }), env);
 
-  const blocked = await run("stop", event(root, { last_assistant_message: "单元测试全部通过。\n\nDONE" }), env);
+  const blocked = await run("stop", event(root, { last_assistant_message: "All unit tests passed.\n\nDONE" }), env);
   assert.equal(JSON.parse(blocked.stdout).decision, "block");
-  assert.match(blocked.stderr, /证据不完整/u);
+  assert.match(blocked.stderr, /evidence is incomplete/u);
 
   const allowed = await run("stop", event(root, { last_assistant_message: validResponse() }), env);
   assert.equal(allowed.stdout, "");
@@ -130,7 +130,7 @@ test("bounded recursive Stop retries fail open without clearing evidence state",
   context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
   const env = { PLUGIN_DATA: data };
   await run("post", event(root, { tool_name: "Edit", tool_input: { file_path: "src/app.js" } }), env);
-  const invalid = event(root, { last_assistant_message: "实现完成。", stop_hook_active: true });
+  const invalid = event(root, { last_assistant_message: "Implementation complete.", stop_hook_active: true });
   const first = await run("stop", invalid, env);
   const second = await run("stop", invalid, env);
   const third = await run("stop", invalid, env);
@@ -140,13 +140,13 @@ test("bounded recursive Stop retries fail open without clearing evidence state",
   assert.match(third.stderr, /fail-open/u);
   const directory = join(data, "verification-provenance-guard");
   assert.equal(readdirSync(directory).length, 1);
-  assert.doesNotMatch(readFileSync(join(directory, readdirSync(directory)[0]), "utf8"), /src\/app\.js|实现完成/u);
+  assert.doesNotMatch(readFileSync(join(directory, readdirSync(directory)[0]), "utf8"), /src\/app\.js|Implementation complete/u);
 });
 
 test("ordinary answers without mutation or evidence claims remain untouched", async (context) => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "verification-provenance-data-"));
   context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
-  const result = await run("stop", event(root, { last_assistant_message: "这个概念可以分成三个部分解释。" }), { PLUGIN_DATA: data });
+  const result = await run("stop", event(root, { last_assistant_message: "This concept can be explained in three parts." }), { PLUGIN_DATA: data });
   assert.deepEqual({ stdout: result.stdout, stderr: result.stderr, code: result.code }, { stdout: "", stderr: "", code: 0 });
 });

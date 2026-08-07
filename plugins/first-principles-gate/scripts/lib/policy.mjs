@@ -68,7 +68,7 @@ function escapeRegExp(value) {
  * Classify user message while phase is open (not the entry turn itself).
  */
 export function classifyUserInput(prompt, state = {}, config = {}) {
-  const donePhrases = config.donePhrases ?? ["完成"];
+  const donePhrases = config.donePhrases ?? ["done"];
   const enableBypass = config.enableEngineeringBypass !== false;
   const abortToken = config.abortToken ?? "# first-principles-abort";
   const t = String(prompt ?? "").trim();
@@ -512,24 +512,24 @@ export function looksLikeCompletionClaim(assistantText) {
 }
 
 export function protocolInjectText(topic = "") {
-  const topicLine = topic ? `主题：${topic}` : null;
+  const topicLine = topic ? `Topic: ${topic}` : null;
   return [
-    "[first-principles-gate] 第一性原理模式已开启（业务写入已拦截）。",
+    "[first-principles-gate] First-principles mode is open; business writes are blocked.",
     topicLine,
     "",
-    "【agent】",
-    "1. 写出待判断问题与当前默认做法。",
-    "2. 列出隐含惯例假设（assumptions）。",
-    "3. 拆到不可再拆的基本事实/约束（atoms）。",
-    "4. 仅从 atoms 重新推导可选结论（rebuild.options，derived_from 必须引用 atom id）。",
-    "5. 标明 uncertainties 与 next_actions。",
-    "6. 将结构化台账写入 `.first-principles/ledger.json`（schema: first-principles/v1）。",
-    "7. 用户回复「完成」前不要改业务代码；逃生：`# first-principles-abort`。",
+    "[agent]",
+    "1. State the question to decide and the current default approach.",
+    "2. List implicit conventional assumptions.",
+    "3. Reduce the problem to irreducible facts and constraints (atoms).",
+    "4. Derive alternatives only from atoms (rebuild.options; every derived_from must reference an atom id).",
+    "5. Record uncertainties and next_actions.",
+    "6. Write the structured ledger to `.first-principles/ledger.json` (schema: first-principles/v1).",
+    "7. Do not modify business code until the user replies `done`; escape hatch: `# first-principles-abort`.",
     "",
-    "【user】",
-    "- 继续推进分析：直接说明约束/反馈",
-    "- 结束并解除写屏障：完成",
-    "- 中止：# first-principles-abort",
+    "[user]",
+    "- Continue analysis: state constraints or feedback directly",
+    "- Finish and release the write barrier: done",
+    "- Abort: # first-principles-abort",
   ]
     .filter((line) => line !== null)
     .join("\n");
@@ -539,20 +539,20 @@ export function classifyInjectText(classification) {
   switch (classification.class) {
     case "continue":
       return [
-        "[first-principles-gate] 继续第一性原理分析。",
-        "请更新 `.first-principles/ledger.json`（question / assumptions / atoms / rebuild / uncertainties）。",
-        "未完成前不要改业务代码。用户「完成」或 `# first-principles-abort` 可解除写屏障。",
+        "[first-principles-gate] Continue the first-principles analysis.",
+        "Update `.first-principles/ledger.json` (question / assumptions / atoms / rebuild / uncertainties).",
+        "Do not modify business code before completion. The user can release the write barrier with `done` or `# first-principles-abort`.",
       ].join("\n");
     case "done":
       return [
-        "[first-principles-gate] 第一性原理会话已结束（写屏障已解除）。",
-        classification.note ? `收束附加说明：${classification.note}` : null,
-        "若尚未写入有效 ledger，Stop 仍会要求补齐结构字段后再声称完成。",
+        "[first-principles-gate] The first-principles session is closed; the write barrier is released.",
+        classification.note ? `Closing note: ${classification.note}` : null,
+        "If no valid ledger has been written, Stop will still require the missing structured fields before completion can be claimed.",
       ]
         .filter(Boolean)
         .join("\n");
     case "abort":
-      return "[first-principles-gate] 用户中止第一性原理模式（写屏障已解除）。可处理后续普通开发任务。";
+      return "[first-principles-gate] The user aborted first-principles mode; the write barrier is released and ordinary development tasks may proceed.";
     default:
       return null;
   }
@@ -560,37 +560,37 @@ export function classifyInjectText(classification) {
 
 export function writeDenyMessage() {
   return [
-    "[first-principles-gate] 当前处于第一性原理模式，业务写入已拦截。",
+    "[first-principles-gate] First-principles mode is open; business writes are blocked.",
     "",
     "blockingContract:",
-    "  observedFacts: session phase 为 open，目标路径不在台账白名单。",
-    "  harm: 未落盘结构化分析前改代码会导致错误实现与返工。",
-    "  unblockWhen: 用户回复「完成」，或 # first-principles-abort；TTL 到期亦解除。",
-    "  recovery: 将 ledger 写入 `.first-principles/ledger.json`；台账与 docs/decisions/ 可写。",
+    "  observedFacts: The session phase is open and the target path is outside the ledger allowlist.",
+    "  harm: Modifying code before persisting the structured analysis can cause an incorrect implementation and rework.",
+    "  unblockWhen: The user replies `done` or sends # first-principles-abort; TTL expiry also releases the barrier.",
+    "  recovery: Write the ledger to `.first-principles/ledger.json`; ledger and docs/decisions/ paths remain writable.",
   ].join("\n");
 }
 
 export function ledgerBlockMessage(findings) {
   const list = (findings ?? []).map((item) => `- ${item}`).join("\n");
   return [
-    "[first-principles-gate] 完成/关闭需要有效的 on-disk first-principles ledger。",
+    "[first-principles-gate] Completion or closure requires a valid on-disk first-principles ledger.",
     "",
     "findings:",
     list || "- missing ledger",
     "",
     "blockingContract:",
-    "  observedFacts: 最终回复声称完成，或 phase=closed(completed)，但 ledger 结构不完整。",
-    "  harm: 无机械可核验中间产物时，下游无法交接假设与基本事实。",
-    "  unblockWhen: 写入 `.first-principles/ledger.json` 并通过 schema 校验。",
-    "  recovery: 见 bundled skill first-principles-ledger；最小字段 question、assumptions、atoms、rebuild.options[].derived_from、uncertainties。",
+    "  observedFacts: The final response claims completion, or phase=closed(completed), but the ledger structure is incomplete.",
+    "  harm: Without a machine-verifiable intermediate artifact, downstream work cannot inherit the assumptions and foundational facts.",
+    "  unblockWhen: Write `.first-principles/ledger.json` and pass schema validation.",
+    "  recovery: See the bundled first-principles-ledger Skill; minimum fields are question, assumptions, atoms, rebuild.options[].derived_from, and uncertainties.",
   ].join("\n");
 }
 
 export function softLedgerReport(findings) {
   const list = (findings ?? []).map((item) => `- ${item}`).join("\n");
   return [
-    "[first-principles-gate] ledger 尚未完整（本轮 soft report，未永久锁定）。",
+    "[first-principles-gate] The ledger is still incomplete; this is a soft report and does not create a permanent lock.",
     list || "- missing ledger",
-    "继续写 `.first-principles/ledger.json`；完成声明或用户「完成」后将强制校验。",
+    "Continue writing `.first-principles/ledger.json`; validation becomes mandatory after a completion claim or the user's `done` response.",
   ].join("\n");
 }

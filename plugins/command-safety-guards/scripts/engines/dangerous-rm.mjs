@@ -17,7 +17,7 @@ function recursiveRmTarget(args, cwd, stdinDriven) {
   );
   if (!recursive) return null;
   if (stdinDriven) {
-    return "xargs 向 rm -r 动态注入路径，无法证明删除范围安全";
+    return "xargs dynamically supplies paths to rm -r, so the deletion scope cannot be proven safe";
   }
 
   let optionsEnded = false;
@@ -37,15 +37,15 @@ function recursiveRmTarget(args, cwd, stdinDriven) {
       .replace(/^\$PWD(?=\/|$)/u, cwd)
       .replace(/^\$\(pwd\)(?=\/|$)/u, cwd);
     const absolute = resolve(cwd, expanded);
-    if (/^\/+$/u.test(expanded)) return "rm -r / 会删除整个文件系统";
+    if (/^\/+$/u.test(expanded)) return "rm -r / would delete the entire filesystem";
     if (absolute === resolve(cwd) || expanded.startsWith("./*")) {
-      return "rm -r . 会删除当前目录所有内容";
+      return "rm -r . would delete everything in the current directory";
     }
     if (homeReference || absolute === homedir()) {
-      return "rm -r ~ 家目录极其危险";
+      return "rm -r ~ targets the home directory and is extremely dangerous";
     }
     if (dirname(absolute) === "/" || /^\/\*+$/u.test(expanded)) {
-      return "rm -r 顶层目录（如 /tmp /home）极其危险";
+      return "rm -r targeting a top-level directory such as /tmp or /home is extremely dangerous";
     }
   }
   return null;
@@ -77,7 +77,7 @@ function dangerousCommandReason(command, cwd, depth = 0) {
         const nestedCommand = invocation.args[commandIndex + 1];
         if (commandIndex >= 0 && nestedCommand) {
           if (depth >= 4) {
-            return "嵌套 shell -c 命令层级过深，无法证明删除范围安全";
+            return "nested shell -c commands are too deep to prove the deletion scope safe";
           }
           const reason = dangerousCommandReason(nestedCommand, cwd, depth + 1);
           if (reason) return reason;
@@ -98,15 +98,15 @@ export function dangerousCommandHits(command, cwd = process.cwd()) {
 export function dangerousCommandDenyMessage(hits, command = "") {
   const reasons = Array.isArray(hits) ? hits : [];
   return [
-    "[Dangerous Command] 已拦截高危命令",
+    "[Dangerous Command] High-risk command blocked",
     "",
-    `原因：${reasons.join("；") || "命令的删除范围无法证明安全"}`,
-    `命令：${command}`,
+    `Reason: ${reasons.join("; ") || "the command's deletion scope cannot be proven safe"}`,
+    `Command: ${command}`,
     "",
     "blockingContract:",
-    "  observedFacts: 解析后的 shell 命令会递归删除文件系统根、家目录、工作区根或同等宽泛的目标。",
-    "  harm: 执行该命令可能不可逆地删除用户数据或整个工作环境。",
-    "  unblockWhen: 删除目标已解析为明确、狭窄且经过核对的路径，或移除破坏性命令。",
-    "  recovery: 先解析目标文件，优先使用可恢复的移动/回收站操作，再以明确窄路径重试。",
+    "  observedFacts: The parsed shell command recursively deletes the filesystem root, home directory, workspace root, or an equivalently broad target.",
+    "  harm: Running this command could irreversibly delete user data or the entire working environment.",
+    "  unblockWhen: The deletion target resolves to a specific, narrow, verified path, or the destructive command is removed.",
+    "  recovery: Resolve the target files first, prefer a recoverable move or trash operation, then retry with an explicit narrow path.",
   ].join("\n");
 }

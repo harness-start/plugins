@@ -1,7 +1,7 @@
 const ZERO_WIDTH_AND_BIDI = /[\u200B-\u200F\u202A-\u202E\u2060\u2066-\u2069\uFEFF]/gu;
 const NEGATED = /(?:尚未|还未|未|没有|没|不|failed|failure|error|not\s+pass|did\s+not\s+pass|not\s+successful)/iu;
 const VALIDATION = /(?:phpstan|phpunit|pytest|eslint|ruff|type[- ]?check|lint|unit tests?|tests?|单元测试|测试|静态分析|类型检查)[^\n]{0,40}?(?:全部)?(?:通过|成功|全绿|pass(?:ed)?|success)/iu;
-const CI = /(?:gitlab|github|ci|pipeline|流水线)[^\n]{0,60}?(?:通过|成功|全绿|pass(?:ed)?|success)/iu;
+const CI = /(?:gitlab|github|ci|pipeline|流水线)[^\n]{0,60}?(?:通过|成功|全绿|pass(?:ed)?|success|succeed(?:ed)?)/iu;
 const ARTIFACT = /(?:报告|报表|产物|文件|artifact|report|export)[^\n]{0,60}?(?:已)?(?:生成|创建|保存|导出|写入|generated|created|saved|exported|written)[^\n]{0,80}?(?:`[^`]+`|\[[^\]]+\]\([^)]+\)|[A-Za-z0-9_.\/-]+\.[A-Za-z0-9]{1,12})/iu;
 const GIT = /(?:commit|push|merge|merged|提交|推送|合并)[^\n]{0,50}?(?:完成|成功|已合并|succeeded|success)/iu;
 

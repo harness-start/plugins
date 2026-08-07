@@ -5,8 +5,8 @@ export default {
       id: "protect-generated-sdk",
       match: /^src\/generated-sdk\//,
       mode: "block",
-      reason: "SDK 由生成器维护",
-      recovery: "修改生成源并重新生成 SDK",
+      reason: "The SDK is maintained by a generator",
+      recovery: "Change the generator source and regenerate the SDK",
     },
     {
       id: "allow-reviewed-vendor-patch",

@@ -342,7 +342,7 @@ export function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 102
 export function capOutput(text, maxLines) {
   const lines = String(text ?? "").trim().split(/\r?\n/u).filter(Boolean);
   if (lines.length <= maxLines) return lines.join("\n");
-  return [...lines.slice(0, maxLines), `… 另有 ${lines.length - maxLines} 行已省略`].join("\n");
+  return [...lines.slice(0, maxLines), `… ${lines.length - maxLines} additional line(s) omitted`].join("\n");
 }
 
 export function extractSessionId(event) {

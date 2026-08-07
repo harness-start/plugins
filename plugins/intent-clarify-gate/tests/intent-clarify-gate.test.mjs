@@ -72,15 +72,15 @@ function parseStdout(stdout) {
 }
 
 test("matchEntry requires prefix tokens only", () => {
-  assert.deepEqual(matchEntry("/grill-me 看板"), {
+  assert.deepEqual(matchEntry("/grill-me dashboard"), {
     token: "/grill-me",
-    topic: "看板",
+    topic: "dashboard",
   });
   assert.deepEqual(matchEntry("$grill-me: auth"), {
     token: "$grill-me",
     topic: "auth",
   });
-  assert.equal(matchEntry("实现登录，以后再用 /grill-me"), null);
+  assert.equal(matchEntry("Implement login and use /grill-me later"), null);
   assert.equal(matchEntry("please /grilling later"), null);
   assert.ok(matchEntry("/grilling"));
 });
@@ -96,31 +96,31 @@ test("classify matrix: choice, choice_note, constraint, done, abort", () => {
   assert.equal(classifyUserInput("2", open).class, "choice");
   assert.equal(classifyUserInput("2", open).choice, "2");
 
-  const note = classifyUserInput("1 但是回流改 3 天", open);
+  const note = classifyUserInput("1 but change the feedback window to 3 days", open);
   assert.equal(note.class, "choice_note");
   assert.equal(note.choice, "1");
-  assert.match(note.note, /回流/);
+  assert.match(note.note, /feedback window/);
 
-  const colon = classifyUserInput("3：用 JWT", open);
+  const colon = classifyUserInput("3: use JWT", open);
   assert.equal(colon.class, "choice_note");
   assert.equal(colon.choice, "3");
 
-  assert.equal(classifyUserInput("我们已有 outbox", open).class, "constraint");
-  assert.equal(classifyUserInput("完成度怎么算", open).class, "constraint");
+  assert.equal(classifyUserInput("We already have an outbox", open).class, "constraint");
+  assert.equal(classifyUserInput("How is completion measured?", open).class, "constraint");
 
-  assert.equal(classifyUserInput("完成", open).class, "done");
-  assert.equal(classifyUserInput("完成 台账放到 docs", open).class, "done");
+  assert.equal(classifyUserInput("done", open).class, "done");
+  assert.equal(classifyUserInput("done put the ledger under docs", open).class, "done");
 
   assert.equal(classifyUserInput("# grill-abort", open).class, "abort");
-  assert.equal(classifyUserInput("好的开始写吧", open).class, "constraint");
+  assert.equal(classifyUserInput("Okay, start writing", open).class, "constraint");
 });
 
 test("complete option parse and selecting N closes", () => {
   const text = [
-    "**Q: 下一步？**",
-    "1. 再确认开关",
-    "2. 再确认 TTL",
-    "3. 完成 — 锁定已选决策",
+    "**Q: What next?**",
+    "1. Confirm the feature flag",
+    "2. Confirm the TTL",
+    "3. Done — lock the selected decisions",
   ].join("\n");
   const parsed = parseCompleteOptions(text);
   assert.equal(parsed.completeOffered, true);
@@ -163,12 +163,12 @@ test("state transitions: entry → choice → done", () => {
   assert.equal(state.phase, "open");
   state = applyClassification(
     state,
-    classifyUserInput("1 但是注", state),
+    classifyUserInput("1 with a note", state),
     2000,
   );
   assert.equal(state.phase, "open");
   assert.equal(state.lastUserClass, "choice_note");
-  state = applyClassification(state, classifyUserInput("完成", state), 3000);
+  state = applyClassification(state, classifyUserInput("done", state), 3000);
   assert.equal(state.phase, "closed");
   assert.equal(state.closeReason, "completed");
 });
@@ -195,7 +195,7 @@ test("config rejects invalid writeBlock mode", () => {
   assert.ok(warnings.length >= 1);
 });
 
-test("hook integration: open denies business write, allows ledger, 完成 unlocks", async () => {
+test("hook integration: open denies business write, allows ledger, done unlocks", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "icg-data-"));
   const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
@@ -204,7 +204,7 @@ test("hook integration: open denies business write, allows ledger, 完成 unlock
   try {
     const entry = await runEntry(
       "prompt",
-      { cwd: root, session_id: session, prompt: "/grill-me 看板" },
+      { cwd: root, session_id: session, prompt: "/grill-me dashboard" },
       env,
     );
     assert.equal(entry.code, 0);
@@ -257,7 +257,7 @@ test("hook integration: open denies business write, allows ledger, 完成 unlock
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "1. a\n2. b\n3. 完成 — 锁定\n",
+        last_assistant_message: "1. a\n2. b\n3. Done — lock scope\n",
       },
       env,
     );
@@ -272,7 +272,7 @@ test("hook integration: open denies business write, allows ledger, 完成 unlock
     const closedCtx = parseStdout(chooseComplete.stdout);
     assert.match(
       closedCtx?.hookSpecificOutput?.additionalContext ?? "",
-      /访谈已结束|写屏障已解除/,
+      /interview is closed|write barrier is released/iu,
     );
 
     const allowWrite = await runEntry(
@@ -300,7 +300,7 @@ test("hook integration: open denies business write, allows ledger, 完成 unlock
   }
 });
 
-test("hook integration: 完成 meta closes without complete option", async () => {
+test("hook integration: done meta closes without complete option", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "icg-data-"));
   const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
@@ -313,7 +313,7 @@ test("hook integration: 完成 meta closes without complete option", async () =>
     );
     await runEntry(
       "prompt",
-      { cwd: root, session_id: session, prompt: "完成" },
+      { cwd: root, session_id: session, prompt: "done" },
       env,
     );
     const allow = await runEntry(
@@ -347,7 +347,7 @@ test("mid-string grill-me does not open write-block", async () => {
       {
         cwd: root,
         session_id: "s-mid",
-        prompt: "实现登录，以后再用 /grill-me",
+        prompt: "Implement login and use /grill-me later",
       },
       env,
     );
@@ -427,13 +427,13 @@ test("stop blocks implement claim while open", async () => {
       {
         cwd: root,
         session_id: session,
-        last_assistant_message: "好的，我开始实现登录模块。",
+        last_assistant_message: "Okay, I am going to implement the login module.",
       },
       env,
     );
     const out = parseStdout(stop.stdout);
     assert.equal(out?.decision, "block");
-    assert.match(out?.reason ?? "", /访谈尚未结束/);
+    assert.match(out?.reason ?? "", /interview is still open/);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });

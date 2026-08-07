@@ -12,6 +12,8 @@ State is stored under the host plugin-data directory, keyed by a SHA-256 digest 
 
 ## Configuration
 
+Configuration precedence is Git-root `.language-output-governance.mjs`, then the host-scoped installer preference, then strict defaults. Claude Code stores its preference below `CLAUDE_CONFIG_DIR` (default `~/.claude`); Codex stores its preference below `CODEX_HOME` (default `~/.codex`). Host-scoped preference files are JSON and contain only `defaultProfile`.
+
 `.language-output-governance.mjs` accepts only:
 
 ```js

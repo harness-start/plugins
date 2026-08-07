@@ -92,7 +92,7 @@ test("file extraction covers direct, nested, patch, move, and ignores shell", ()
 
 test("output capping preserves the limit and reports omitted lines", () => {
   const output = capOutput("one\ntwo\nthree\nfour", 2);
-  assert.equal(output, "one\ntwo\n… 另有 2 行已省略");
+  assert.equal(output, "one\ntwo\n… 2 additional line(s) omitted");
 });
 
 test("local executable discovery precedes PATH", () => {
@@ -219,7 +219,7 @@ test("missing tools report once per session and workspace", async () => {
     const env = { PLUGIN_ROOT: "/plugin", PLUGIN_DATA: data, PATH: emptyPath };
     const first = await runEntry(POST_ENTRY, event, env);
     assert.equal(first.code, 0);
-    assert.match(first.stderr, /未找到项目本地或 PATH 中的 ESLint/u);
+    assert.match(first.stderr, /ESLint was not found locally or on PATH/u);
     const second = await runEntry(POST_ENTRY, event, env);
     assert.equal(second.code, 0);
     assert.equal(second.stderr, "");
@@ -245,7 +245,7 @@ test("PHP files persist for Stop and PHPStan report remains non-blocking", async
     assert.equal(post.code, 0);
     const stop = await runEntry(STOP_ENTRY, { cwd: root, session_id: "phpstan" }, env);
     assert.equal(stop.code, 0);
-    assert.match(stop.stderr, /PHPStan 批量检查结果/u);
+    assert.match(stop.stderr, /PHPStan batch check results/u);
     assert.match(stop.stderr, /simulated issue/u);
   } finally {
     rmSync(root, { recursive: true, force: true });

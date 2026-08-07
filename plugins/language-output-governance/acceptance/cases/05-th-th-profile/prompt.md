@@ -1,1 +1,1 @@
-โปรดใช้ภาษาไทยสำหรับคำตอบต่อไป แสดง profile marker ที่ถูกต้องจากจุดเริ่มต้นเซสชัน จากนั้นใช้ Write tool สร้าง `answer.txt` ที่มีเพียง `นี่คือคำตอบภาษาไทยและจะใช้ภาษาที่กำหนดต่อไป` และขึ้นบรรทัดใหม่ อย่าแก้ไขไฟล์อื่น
+Continue answering in Thai. Show the exact profile marker injected at session start, then use the Write tool to put exactly `นี่คือคำตอบภาษาไทยและจะใช้ภาษาที่กำหนดต่อไป` followed by one newline in `answer.txt`. Do not modify any other file.

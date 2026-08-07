@@ -57,14 +57,14 @@ function sedInplaceReason(command) {
     for (let index = 0; index < args.length; index += 1) {
       const argument = args[index] ?? "";
       if (argument === "--in-place") {
-        return "sed --in-place 会原地修改文件且不创建备份，无法回滚";
+        return "sed --in-place modifies files in place without a backup and cannot be rolled back";
       }
       if (argument.startsWith("--in-place=")) continue;
       const short = argument.match(/^-[A-Za-z]*i(.*)$/u);
       if (!short) continue;
       if (short[1]) continue;
       if (args[index + 1] === "") continue;
-      return "sed -i 会原地修改文件且不创建备份，无法回滚";
+      return "sed -i modifies files in place without a backup and cannot be rolled back";
     }
   }
   return null;
@@ -106,11 +106,11 @@ function redisOperation(command) {
 
 function sqlDestructiveReason(command) {
   const blocks = [
-    [/\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW)\b/iu, "DROP 会永久删除数据库对象"],
-    [/\bTRUNCATE\s+(?:TABLE\s+)?\w/iu, "TRUNCATE 会清空表数据"],
-    [/\bALTER\s+TABLE\b[^;]*\bDROP\s+COLUMN\b/iu, "DROP COLUMN 会永久删除列数据"],
-    [/\bDELETE\s+FROM\b(?![^;]*\bWHERE\b)/iu, "DELETE 缺少 WHERE"],
-    [/\bUPDATE\s+[^;]+\s+SET\b(?![^;]*\bWHERE\b)/iu, "UPDATE 缺少 WHERE"],
+    [/\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW)\b/iu, "DROP permanently deletes a database object"],
+    [/\bTRUNCATE\s+(?:TABLE\s+)?\w/iu, "TRUNCATE removes all table data"],
+    [/\bALTER\s+TABLE\b[^;]*\bDROP\s+COLUMN\b/iu, "DROP COLUMN permanently deletes column data"],
+    [/\bDELETE\s+FROM\b(?![^;]*\bWHERE\b)/iu, "DELETE is missing WHERE"],
+    [/\bUPDATE\s+[^;]+\s+SET\b(?![^;]*\bWHERE\b)/iu, "UPDATE is missing WHERE"],
   ];
   for (const { args } of programInvocations(command, SQL_CLIENTS)) {
     const cleaned = cleanedSql(args.join(" "));
@@ -134,28 +134,28 @@ function activeTestReason(command) {
     const program = executable.toLowerCase();
     const subject = args.join(" ");
     if (["masscan", "zmap"].includes(program)) {
-      return "高速全网扫描工具没有可审计边界";
+      return "the high-speed internet-wide scanner has no auditable boundary";
     }
     if (["hping", "hping3"].includes(program) && /--flood\b/u.test(subject)) {
-      return "禁止 flood 模式";
+      return "flood mode is prohibited";
     }
     if (program === "nmap") {
       const cidr = subject.match(/\S+\/(\d{1,2})\b/u);
       if (cidr && Number(cidr[1]) <= 20) {
-        return `目标范围 /${cidr[1]} 超过 /21 上限`;
+        return `target range /${cidr[1]} exceeds the /21 limit`;
       }
       if (
         /(?:^|\s)-p-(?:\s|$)/u.test(subject) &&
         !/--max-rate(?:=|\s+)\d+/u.test(subject)
       ) {
-        return "全端口扫描缺少 --max-rate";
+        return "the all-port scan is missing --max-rate";
       }
     }
     if (
       ["ffuf", "gobuster", "feroxbuster"].includes(program) &&
       !/(?:^|\s)(?:-rate|--rate|-t|--threads)(?:=|\s+)\d+/u.test(subject)
     ) {
-      return "内容枚举缺少 rate 或 threads 上限";
+      return "content enumeration is missing a rate or thread limit";
     }
   }
   return null;
@@ -216,14 +216,14 @@ export const BUILTIN_RULES = [
     mode: "deny",
     match: { test: (command) => Boolean(sedInplaceReason(command)) },
     resolveReason: (command) =>
-      sedInplaceReason(command) ?? "sed 原地修改没有可恢复的备份",
+      sedInplaceReason(command) ?? "sed in-place editing has no recoverable backup",
     recovery:
-      "使用 Edit/apply_patch 应用替换；确需 sed 时先建立明确、可恢复的备份。",
+      "Use Edit/apply_patch for replacements; if sed is required, create an explicit recoverable backup first.",
     observedFacts:
-      "Bash 输入包含 sed --in-place 或未指定备份后缀的裸 sed -i。",
-    harm: "原地改写难以审查或恢复，并绕过文件感知的编辑 hook。",
+      "The Bash input contains sed --in-place or bare sed -i without a backup suffix.",
+    harm: "In-place rewrites are difficult to review or recover and bypass file-aware editing hooks.",
     unblockWhen:
-      "命令不再执行无备份原地编辑，或改用文件感知编辑工具。",
+      "The command no longer performs unbacked in-place editing, or uses a file-aware editing tool instead.",
   },
   {
     id: "cat-heredoc-repo-write",
@@ -235,31 +235,31 @@ export const BUILTIN_RULES = [
         !isCatPipeInput(command) &&
         !isCatTmpRedirect(command),
     },
-    reason: "通过 Bash 的 cat heredoc 写文件会绕过所有 PostToolUse hook",
-    recovery: "新建文件使用 Write，修改文件使用 Edit/apply_patch。",
-    observedFacts: "Bash 输入包含重定向到非临时文件的 cat heredoc。",
-    harm: "该写入会绕过文件感知的目标检查、变更钩子与写后验证。",
+    reason: "Writing a file through a Bash cat heredoc bypasses all PostToolUse hooks",
+    recovery: "Use Write for new files and Edit/apply_patch for existing files.",
+    observedFacts: "The Bash input contains a cat heredoc redirected to a non-temporary file.",
+    harm: "The write bypasses file-aware target checks, change hooks, and post-write verification.",
     unblockWhen:
-      "heredoc 仅作为管道输入、仅写入允许的临时目录，或改用文件感知编辑工具。",
+      "The heredoc is used only as pipeline input, writes only to an allowed temporary directory, or is replaced with a file-aware editing tool.",
     formatMessage: (command) =>
       [
-        "[Cat Write Guard] 已拦截 cat heredoc 写文件",
+        "[Cat Write Guard] cat heredoc file write blocked",
         "",
-        "通过 Bash 的 cat heredoc 写文件会绕过所有 PostToolUse hook：",
-        "  • 语法检查器不会执行",
-        "  • file-line-budget-guard 不会检查行数预算",
-        "  • encoding guards 不会检查编码",
-        "  • 路径守卫不会检查写入目标",
+        "Writing a file through a Bash cat heredoc bypasses all PostToolUse hooks:",
+        "  • syntax checkers do not run",
+        "  • file-line-budget-guard does not check line budgets",
+        "  • encoding guards do not check encoding",
+        "  • path guards do not check the write target",
         "",
-        `命令：${command}`,
+        `Command: ${command}`,
         "",
-        "替代方案：新建文件使用 Write，修改文件使用 Edit/apply_patch。",
+        "Alternative: use Write for new files and Edit/apply_patch for existing files.",
         "",
         "blockingContract:",
-        "  observedFacts: Bash 输入包含重定向到非临时文件的 cat heredoc。",
-        "  harm: 该写入会绕过文件感知的目标检查、变更钩子与写后验证。",
-        "  unblockWhen: heredoc 仅作为管道输入、仅写入允许的临时目录，或改用文件感知编辑工具。",
-        "  recovery: 使用 Write、Edit 或 apply_patch 应用内容，使路径守卫与验证 hook 能观察变更。",
+        "  observedFacts: The Bash input contains a cat heredoc redirected to a non-temporary file.",
+        "  harm: The write bypasses file-aware target checks, change hooks, and post-write verification.",
+        "  unblockWhen: The heredoc is used only as pipeline input, writes only to an allowed temporary directory, or is replaced with a file-aware editing tool.",
+        "  recovery: Apply content with Write, Edit, or apply_patch so path guards and verification hooks can observe the change.",
       ].join("\n"),
   },
   {
@@ -272,15 +272,15 @@ export const BUILTIN_RULES = [
         !isCatPipeInput(command) &&
         isCatTmpRedirect(command),
     },
-    reason: "Bash cat heredoc 写临时文件不会触发文件感知的 PostToolUse 检查",
-    recovery: "临时脚本可以继续，但建议优先使用 Write 工具。",
+    reason: "Writing a temporary file with a Bash cat heredoc does not trigger file-aware PostToolUse checks",
+    recovery: "Temporary scripts may proceed, but prefer the Write tool.",
     formatMessage: (command) =>
       [
-        "[Cat Write Guard] 检测到 cat heredoc 写入临时文件",
+        "[Cat Write Guard] cat heredoc temporary-file write detected",
         "",
-        "Bash cat heredoc 写文件不会触发文件感知的 PostToolUse 检查。",
-        "临时脚本可以继续，但建议优先使用 Write 工具。",
-        `命令：${command}`,
+        "Writing a file with a Bash cat heredoc does not trigger file-aware PostToolUse checks.",
+        "Temporary scripts may proceed, but prefer the Write tool.",
+        `Command: ${command}`,
       ].join("\n"),
   },
   {
@@ -297,12 +297,12 @@ export const BUILTIN_RULES = [
     },
     resolveReason: (command) => {
       const op = redisOperation(command);
-      return `${op} 会扫描、阻塞或清空 Redis 数据`;
+      return `${op} scans, blocks, or clears Redis data`;
     },
-    recovery: "先确认目标实例、数据范围和可恢复替代方案",
-    observedFacts: "命令命中高风险 Redis CLI 操作。",
-    harm: "可能造成数据丢失或实例阻塞。",
-    unblockWhen: "改用可审计的窄范围操作，或在配置中声明精确 allow。",
+    recovery: "Confirm the target instance, data scope, and recoverable alternative first",
+    observedFacts: "The command matches a high-risk Redis CLI operation.",
+    harm: "It may cause data loss or block the instance.",
+    unblockWhen: "Use an auditable narrow-scope operation or declare a precise allow rule in configuration.",
   },
   {
     id: "redis-cli-pressure",
@@ -321,9 +321,9 @@ export const BUILTIN_RULES = [
     },
     resolveReason: (command) => {
       const op = redisOperation(command);
-      return `${op} 可能阻塞主线程或增加实例资源压力`;
+      return `${op} may block the main thread or increase instance resource pressure`;
     },
-    recovery: "先确认目标实例、数据范围和可恢复替代方案",
+    recovery: "Confirm the target instance, data scope, and recoverable alternative first",
   },
   {
     id: "sql-destructive",
@@ -331,19 +331,19 @@ export const BUILTIN_RULES = [
     mode: "deny",
     match: { test: (command) => Boolean(sqlDestructiveReason(command)) },
     resolveReason: (command) =>
-      sqlDestructiveReason(command) ?? "危险 SQL",
-    recovery: "添加明确 WHERE 或先完成备份、授权和恢复验证",
-    observedFacts: "SQL 客户端命令命中破坏性或不带 WHERE 的变更。",
-    harm: "可能永久删除数据库对象或批量清空数据。",
-    unblockWhen: "补齐 WHERE、备份与授权后再执行。",
+      sqlDestructiveReason(command) ?? "dangerous SQL",
+    recovery: "Add an explicit WHERE clause or complete backup, authorization, and recovery verification first",
+    observedFacts: "The SQL client command matches a destructive change or a mutation without WHERE.",
+    harm: "It may permanently delete database objects or remove data in bulk.",
+    unblockWhen: "Add WHERE, backup, and authorization before executing.",
   },
   {
     id: "sql-privilege",
     title: "SQL Notice",
     mode: "report",
     match: { test: (command) => sqlPrivilegeHit(command) },
-    reason: "数据库权限将发生变化",
-    recovery: "确认目标用户、最小权限范围和回滚语句",
+    reason: "database privileges will change",
+    recovery: "Confirm the target user, least-privilege scope, and rollback statement",
   },
   {
     id: "active-test-unbounded",
@@ -351,11 +351,11 @@ export const BUILTIN_RULES = [
     mode: "deny",
     match: { test: (command) => Boolean(activeTestReason(command)) },
     resolveReason: (command) =>
-      activeTestReason(command) ?? "主动安全测试缺少可审计边界",
-    recovery: "改用明确目标和有界速率",
-    observedFacts: "主动安全测试命令缺少可审计边界。",
-    harm: "可能造成越界扫描或资源冲击。",
-    unblockWhen: "声明目标范围、速率或线程上限。",
+      activeTestReason(command) ?? "active security testing lacks an auditable boundary",
+    recovery: "Use an explicit target and bounded rate",
+    observedFacts: "The active security testing command lacks an auditable boundary.",
+    harm: "It may scan outside the authorized scope or overload resources.",
+    unblockWhen: "Declare the target scope and rate or thread limit.",
   },
   {
     id: "secret-leak",
@@ -363,9 +363,9 @@ export const BUILTIN_RULES = [
     mode: "report",
     match: { test: (command) => secretLeakHit(command) },
     resolveReason: (command) =>
-      `命令可能读取、输出或传输敏感凭据（摘要 ${digest(command)}）`,
+      `The command may read, print, or transmit sensitive credentials (digest ${digest(command)})`,
     recovery:
-      "只读取必要字段，禁止回显或外传；用环境引用和安全凭据通道",
+      "Read only required fields, never echo or exfiltrate them, and use environment references and secure credential channels",
     sensitive: true,
   },
   {
@@ -378,8 +378,8 @@ export const BUILTIN_RULES = [
           args.includes("--yes"),
         ),
     },
-    reason: "检测到 --yes 非交互确认",
-    recovery: "确认目标资源、写入/删除范围、可恢复副本和回读验证",
+    reason: "non-interactive --yes confirmation detected",
+    recovery: "Confirm the target resource, write/delete scope, recoverable copy, and read-back verification",
     sensitive: true,
   },
 ];

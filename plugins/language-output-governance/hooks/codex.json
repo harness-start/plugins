@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/language-output-hook-session-start.mjs\"",
+            "command": "HARNESS_HOST=codex node \"${PLUGIN_ROOT}/scripts/language-output-hook-session-start.mjs\"",
             "statusMessage": "Language Output: loading session profile",
             "timeout": 10000
           }
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/language-output-hook-user-prompt.mjs\"",
+            "command": "HARNESS_HOST=codex node \"${PLUGIN_ROOT}/scripts/language-output-hook-user-prompt.mjs\"",
             "statusMessage": "Language Output: recording language intent",
             "timeout": 10000
           }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/language-output-hook-post-tool.mjs\"",
+            "command": "HARNESS_HOST=codex node \"${PLUGIN_ROOT}/scripts/language-output-hook-post-tool.mjs\"",
             "statusMessage": "Language Output: checking generated text",
             "timeout": 10000
           }
@@ -42,7 +42,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/language-output-hook-stop.mjs\"",
+            "command": "HARNESS_HOST=codex node \"${PLUGIN_ROOT}/scripts/language-output-hook-stop.mjs\"",
             "statusMessage": "Language Output: checking final response",
             "timeout": 10000
           }
@@ -54,7 +54,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/language-output-hook-stop.mjs\"",
+            "command": "HARNESS_HOST=codex node \"${PLUGIN_ROOT}/scripts/language-output-hook-stop.mjs\"",
             "statusMessage": "Language Output: checking subagent response",
             "timeout": 10000
           }

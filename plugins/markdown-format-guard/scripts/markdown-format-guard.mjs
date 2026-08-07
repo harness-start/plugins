@@ -154,7 +154,7 @@ function emitReport(pathFindings) {
   );
   process.stderr.write(
     [
-      "[Markdown Format Guard] 格式建议（report，不阻断）",
+      "[Markdown Format Guard] Formatting suggestions (report only)",
       ...details,
       "",
     ].join("\n"),
@@ -167,14 +167,14 @@ function block(pathFindings) {
   );
   process.stderr.write(
     [
-      "[Markdown Format Guard] 检测到 Markdown 格式问题",
+      "[Markdown Format Guard] Markdown formatting issues detected",
       ...details,
       "",
       "blockingContract:",
-      "  observedFacts: 列出的 Markdown 文件违反了启用的格式规则（标题层级/样式、空白、围栏等）。",
-      "  harm: 不一致的 Markdown 结构会降低可读性，并导致渲染、目录与审查工具行为不稳定。",
-      "  unblockWhen: 修复所有 block 级 finding 后重新写入/保存文件并通过本检查。",
-      "  recovery: 按行号修正标题递增与空行、去掉 Tab/非法行尾空白、闭合围栏代码块，并确保文件以单个换行结尾。不要依赖自动猜测重写整篇文档。",
+      "  observedFacts: The listed Markdown files violate enabled formatting rules for headings, whitespace, fences, or related structure.",
+      "  harm: Inconsistent Markdown structure reduces readability and makes rendering, TOC, and review tools unreliable.",
+      "  unblockWhen: Fix every blocking finding, save the file again, and pass this check.",
+      "  recovery: Use the reported line numbers to fix heading increments and blank lines, remove tabs or invalid trailing whitespace, close fenced code blocks, and end the file with one newline. Do not rely on a guessed full-document rewrite.",
       "",
     ].join("\n"),
   );

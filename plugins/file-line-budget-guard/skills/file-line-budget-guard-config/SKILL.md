@@ -5,8 +5,8 @@ description: >
   .file-line-budget-guard.mjs (or .cjs/.js) config for the file-line-budget-guard
   plugin. Use when the user wants to create or change line-budget rules, skip
   paths, report-only budgets, ratchet settings, fix invalid config, or asks
-  about file-line-budget-guard configuration / 行数预算配置 / 棘轮配置.
-  Triggers: /file-line-budget-guard-config, "budget config", "行数预算配置",
+  about file-line-budget-guard configuration or ratchet configuration.
+  Triggers: /file-line-budget-guard-config, "budget config", "line budget config",
   ".file-line-budget-guard.mjs".
 version: 0.1.0
 ---

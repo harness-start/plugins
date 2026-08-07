@@ -229,28 +229,28 @@ export function formatDeny(findings) {
   const details = shown.flatMap((finding) => [
     `- ${finding.path}`,
     `  rule: ${finding.rule.id}`,
-    `  reason: ${finding.rule.reason ?? "目标路径受项目保护规则约束"}`,
+    `  reason: ${finding.rule.reason ?? "the target path is covered by a project protection rule"}`,
   ]);
   if (findings.length > shown.length) {
-    details.push(`- 另有 ${findings.length - shown.length} 个受保护目标`);
+    details.push(`- ${findings.length - shown.length} additional protected target(s)`);
   }
   const recoveries = [
     ...new Set(
       shown.map((finding) =>
         finding.rule.recovery ??
-        "改为修改权威源文件；如确需放行，请在项目配置中添加更窄的 allow 规则。"
+        "Change the authoritative source instead; if an exception is required, add a narrower allow rule to the project configuration."
       ),
     ),
   ];
   return [
-    "[Protected File Guard] 已拦截受保护文件修改",
+    "[Protected File Guard] Protected file modification blocked",
     "",
     ...details,
     "",
     "blockingContract:",
-    "  observedFacts: 文件工具的一个或多个目标命中了受保护路径规则。",
-    "  harm: 直接编辑 lockfile 或第三方依赖目录会使生成状态与权威依赖声明脱节，且改动可能在重新安装时丢失。",
-    "  unblockWhen: 操作不再写入受保护路径，或项目配置以更具体的 allow 规则明确放行。",
+    "  observedFacts: One or more file-tool targets matched a protected-path rule.",
+    "  harm: Directly editing lockfiles or third-party dependency directories separates generated state from authoritative declarations, and reinstalling may discard the changes.",
+    "  unblockWhen: The operation no longer writes to a protected path, or a more specific project allow rule explicitly permits it.",
     "  recovery:",
     ...recoveries.map((recovery) => `    - ${recovery}`),
   ].join("\n");

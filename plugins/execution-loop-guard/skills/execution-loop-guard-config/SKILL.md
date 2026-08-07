@@ -6,7 +6,7 @@ description: >
   Use when the user wants to tune edit-loop thresholds, command retry limits,
   polling budgets, exemption paths, bypass markers, or diagnose unexpected
   execution-loop reports and blocks. Triggers: /execution-loop-guard-config,
-  "execution loop config", "编辑循环配置", "重试阈值", "轮询预算",
+  "execution loop config", "edit loop config", "retry threshold", "polling budget",
   ".execution-loop-guard.mjs".
 version: 0.1.0
 ---

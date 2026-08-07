@@ -1,7 +1,7 @@
 /** @type {import('../../../scripts/lib/config.mjs').DEFAULT_CONFIG} */
 export default {
   entryTokens: ["/grill-me", "$grill-me", "/grilling", "$grilling"],
-  donePhrases: ["完成"],
+  donePhrases: ["done"],
   enableEngineeringBypass: true,
   writeBlock: {
     mode: "block",

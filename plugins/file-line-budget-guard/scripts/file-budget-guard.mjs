@@ -406,10 +406,10 @@ async function main() {
 
   if (decision.kind === "report-over") {
     warn([
-      `[File Budget] ${filePath} 超出构建配方参考预算（${currentLines}/${budget} 行）`,
+      `[File Budget] ${filePath} exceeds the build-recipe reference budget (${currentLines}/${budget} lines)`,
       "",
-      "构建配方是线性文件，不适用「拆分为多个文件」；持续增长时优先把安装清单、检查脚本外提到 bin/ 辅助脚本。",
-      "禁止用删空行、删注释等格式化手段压行数。",
+      "Build recipes are linear files and cannot simply be split; when they keep growing, move install lists and checks into bin/ helper scripts.",
+      "Do not reduce the count by deleting blank lines, comments, or other formatting.",
     ].join("\n"));
   }
   if (decision.kind === "near-budget") {
@@ -417,50 +417,50 @@ async function main() {
     if (hasRecentWarnMarker(filePath, warnCooldownMs)) { process.exit(0); }
     writeWarnMarker(filePath);
     warn([
-      `[File Budget] ${filePath} 接近行数预算（${currentLines}/${budget} 行，已达 ${Math.round(settings.nearBudgetWarnRatio * 100)}%）`,
+      `[File Budget] ${filePath} is near its line budget (${currentLines}/${budget} lines, ${Math.round(settings.nearBudgetWarnRatio * 100)}%)`,
       "",
-      "继续新增内容前先规划拆分到职责单一的文件；超过预算后新增内容会被整块阻断。",
-      "禁止用删空行、删注释等格式化手段压行数。",
+      "Plan a split into single-responsibility files before adding more; new content is blocked once the budget is exceeded.",
+      "Do not reduce the count by deleting blank lines, comments, or other formatting.",
     ].join("\n"));
   }
   if (decision.kind === "new-over") {
     block([
-      `[File Budget] ${filePath} 超出文件行数预算`,
-      `  当前: ${currentLines} 行 | 预算: ${budget} 行`,
+      `[File Budget] ${filePath} exceeds its file line budget`,
+      `  Current: ${currentLines} lines | Budget: ${budget} lines`,
       "",
-      "新文件必须在预算内。请拆分为多个职责单一的文件。",
+      "New files must remain within budget. Split this into single-responsibility files.",
     ].join("\n"));
   }
   if (decision.kind === "crossed-budget") {
     block([
-      `[File Budget] ${filePath} 超出文件行数预算`,
-      `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
+      `[File Budget] ${filePath} exceeds its file line budget`,
+      `  Before: ${headLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
       "",
-      "请拆分逻辑到独立文件，保持单文件在预算内。",
+      "Move logic into separate files so each file remains within budget.",
     ].join("\n"));
   }
   if (decision.kind === "historical-soft-growth") {
     warn([
-      `[File Budget] ${filePath} 是历史超标文件，本次仅小幅增长`,
-      `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
-      `  增加了 ${decision.growth} 行（<= ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
+      `[File Budget] ${filePath} was already oversized and grew only slightly`,
+      `  Before: ${headLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
+      `  Added ${decision.growth} lines (<= ${settings.oversizeSoftGrowthLimit}-line soft threshold)`,
       "",
-      "建议后续拆分该文件并回收到预算内。",
+      "Split this file in a follow-up and bring it back within budget.",
     ].join("\n"));
   }
   if (decision.kind === "historical-hard-growth") {
     block([
-      `[File Budget] ${filePath} 是历史超标文件，棘轮机制禁止继续膨胀`,
-      `  修改前: ${headLines} 行 | 修改后: ${currentLines} 行 | 预算: ${budget} 行`,
-      `  增加了 ${decision.growth} 行（超过 ${settings.oversizeSoftGrowthLimit} 行软阈值）`,
+      `[File Budget] ${filePath} was already oversized; the ratchet prevents further growth`,
+      `  Before: ${headLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
+      `  Added ${decision.growth} lines (above the ${settings.oversizeSoftGrowthLimit}-line soft threshold)`,
       "",
-      "超标文件只许缩小不许增长。请在添加新内容的同时拆分已有逻辑。",
+      "Oversized files may shrink but not grow. Split existing logic while adding the new content.",
     ].join("\n"));
   }
   if (decision.kind === "historical-shrink") {
     warn([
-      `[File Budget] ${filePath} 缩减了 ${decision.shrink} 行（${headLines} → ${currentLines}）`,
-      `  预算: ${budget} 行 | 还需缩减: ${currentLines - budget} 行`,
+      `[File Budget] ${filePath} shrank by ${decision.shrink} lines (${headLines} → ${currentLines})`,
+      `  Budget: ${budget} lines | Still over by: ${currentLines - budget} lines`,
     ].join("\n"));
   }
   process.exit(0);

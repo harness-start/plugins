@@ -134,9 +134,9 @@ test("edit loop reports, blocks, then starts a fresh cycle", async (context) => 
   const fourth = await runEntry("post", fileEvent(root), env);
 
   assert.equal(first.stdout, "");
-  assert.match(second.stdout, /高频编辑/u);
+  assert.match(second.stdout, /High-frequency edits/u);
   assert.equal(third.code, 2);
-  assert.match(third.stderr, /编辑循环已阻断/u);
+  assert.match(third.stderr, /Edit loop blocked/u);
   assert.equal(fourth.stdout, "");
   assert.equal(fourth.code, 0);
 });
@@ -169,7 +169,7 @@ test("failed verification preserves edit counters", async (context) => {
   const afterVerify = await runEntry("post", fileEvent(root), env);
 
   assert.equal(afterVerify.code, 0);
-  assert.match(afterVerify.stdout, /高频编辑/u);
+  assert.match(afterVerify.stdout, /High-frequency edits/u);
 });
 
 test("failed command reports on the second attempt and blocks the third", async (context) => {
@@ -185,7 +185,7 @@ test("failed command reports on the second attempt and blocks the third", async 
   const thirdPre = await runEntry("pre", failure, env);
   const freshPre = await runEntry("pre", failure, env);
 
-  assert.match(secondPre.stdout, /失败命令重复执行 2 次/u);
+  assert.match(secondPre.stdout, /failed command repeated 2 times/u);
   assert.equal(JSON.parse(thirdPre.stdout).hookSpecificOutput.permissionDecision, "deny");
   assert.match(thirdPre.stdout, /blockingContract/u);
   assert.equal(freshPre.stdout, "");
@@ -212,7 +212,7 @@ test("remote polling remains report-only by default", async (context) => {
   const result = await runEntry("pre", shellEvent(root, "glab ci status", null), { PLUGIN_DATA: data });
 
   assert.equal(result.code, 0);
-  assert.match(result.stdout, /远端轮询超预算/u);
+  assert.match(result.stdout, /Remote polling budget exceeded/u);
   assert.doesNotMatch(result.stdout, /permissionDecision/u);
 });
 

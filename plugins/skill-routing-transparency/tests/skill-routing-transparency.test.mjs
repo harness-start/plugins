@@ -70,18 +70,18 @@ test("lookup command sets Codex provenance and preserves Claude path", () => {
 });
 
 test("prompt policy skips continuation-only and host command turns", () => {
-  assert.equal(isRouteEligiblePrompt("继续"), false);
-  assert.equal(isRouteEligiblePrompt("按原计划继续执行"), false);
+  assert.equal(isRouteEligiblePrompt("continue"), false);
+  assert.equal(isRouteEligiblePrompt("continue with the original plan"), false);
   assert.equal(isRouteEligiblePrompt("/help"), false);
-  assert.equal(isRouteEligiblePrompt("研究路由透明度并实现插件"), true);
-  assert.equal(isRouteEligiblePrompt("$python-engineering 修复脚本"), true);
-  assert.equal(isRouteEligiblePrompt("/python-engineering 修复脚本"), true);
-  assert.equal(isRouteEligiblePrompt("继续修复登录问题"), true);
-  assert.equal(isRouteEligiblePrompt("完成了，接着实现插件"), true);
+  assert.equal(isRouteEligiblePrompt("Research route transparency and implement the plugin"), true);
+  assert.equal(isRouteEligiblePrompt("$python-engineering fix the script"), true);
+  assert.equal(isRouteEligiblePrompt("/python-engineering fix the script"), true);
+  assert.equal(isRouteEligiblePrompt("Continue fixing the login issue"), true);
+  assert.equal(isRouteEligiblePrompt("Finished that; now implement the plugin"), true);
 });
 
 test("actionable prompt removes injected Skill and fenced-only noise", () => {
-  assert.equal(actionablePrompt("<skill>x</skill>\n实现路由展示"), "实现路由展示");
+  assert.equal(actionablePrompt("<skill>x</skill>\nImplement route display"), "Implement route display");
   assert.equal(actionablePrompt("```js\nconst x = 1;\n```"), "");
 });
 
@@ -102,7 +102,7 @@ test("hook emits SessionStart and UserPromptSubmit contexts", async () => {
 
   const prompt = await runEntry("prompt", "claude", {
     session_id: "s1",
-    prompt: "实现 Skill 路由透明度",
+    prompt: "Implement Skill route transparency",
   });
   assert.equal(prompt.code, 0);
   assert.equal(
@@ -112,13 +112,13 @@ test("hook emits SessionStart and UserPromptSubmit contexts", async () => {
 });
 
 test("hook stays silent for short follow-ups, subagents, and malformed input", async () => {
-  const followup = await runEntry("prompt", "codex", { prompt: "继续" });
+  const followup = await runEntry("prompt", "codex", { prompt: "continue" });
   assert.equal(followup.code, 0);
   assert.equal(followup.stdout, "");
 
   const subagent = await runEntry("prompt", "codex", {
     agent_id: "agent-1",
-    prompt: "实现路由插件",
+    prompt: "Implement the routing plugin",
   });
   assert.equal(subagent.code, 0);
   assert.equal(subagent.stdout, "");

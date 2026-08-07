@@ -28,7 +28,7 @@ echo "${DENY}" | grep -q '"permissionDecision":"deny"' || {
 
 ABORT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
   '{cwd:$cwd,session_id:$s,prompt:"# first-principles-abort"}')")"
-echo "${ABORT}" | grep -q '写屏障已解除\|中止' || {
+echo "${ABORT}" | grep -q 'write barrier is released\|aborted' || {
   echo "FAIL missing abort inject" >&2
   echo "${ABORT}" >&2
   exit 1
@@ -43,7 +43,7 @@ if echo "${ALLOW}" | grep -q '"permissionDecision":"deny"'; then
 fi
 
 STOP="$(run_hook stop "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,last_assistant_message:"已中止"}')")"
+  '{cwd:$cwd,session_id:$s,last_assistant_message:"Aborted"}')")"
 if echo "${STOP}" | grep -q '"decision":"block"'; then
   echo "FAIL abort path must not require ledger on stop" >&2
   echo "${STOP}" >&2

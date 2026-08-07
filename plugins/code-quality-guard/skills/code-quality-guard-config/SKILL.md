@@ -5,7 +5,7 @@ description: >
   user wants to change syntax or lint modes, add path exceptions, tune bounded
   execution limits, or diagnose ESLint, esbuild, Ruff, Composer, PHP, or PHPStan
   discovery. Triggers: /code-quality-guard-config, ".code-quality-guard.mjs",
-  "code quality guard config", "代码质量守卫配置".
+  "code quality guard config".
 version: 0.1.0
 ---
 
