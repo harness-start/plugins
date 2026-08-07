@@ -292,7 +292,7 @@ export function runChecks(text, relativePath, config) {
         if (state.content.includes("\t")) {
           findings.push({
             mode,
-            ...finding("hardTabs", state.line, "行内包含 Tab，请改用空格缩进"),
+            ...finding("hardTabs", state.line, "Line contains a tab; use spaces for indentation"),
           });
         }
       }
@@ -315,7 +315,7 @@ export function runChecks(text, relativePath, config) {
             ...finding(
               "trailingWhitespace",
               state.line,
-              "行尾含 Tab 或非法空白",
+              "Line ends with a tab or invalid whitespace",
             ),
           });
           continue;
@@ -325,7 +325,7 @@ export function runChecks(text, relativePath, config) {
           ...finding(
             "trailingWhitespace",
             state.line,
-            `行尾有 ${trail.length} 个空格（仅允许恰好 2 个空格作硬换行）`,
+            `Line ends with ${trail.length} spaces (only exactly 2 spaces are allowed for a hard line break)`,
           ),
         });
       }
@@ -356,7 +356,7 @@ export function runChecks(text, relativePath, config) {
               ...finding(
                 "multipleBlankLines",
                 blankStart,
-                "连续空行超过 1 行",
+                "More than one consecutive blank line",
               ),
             });
           }
@@ -376,7 +376,7 @@ export function runChecks(text, relativePath, config) {
         ...finding(
           "finalNewline",
           model.lines.length || 1,
-          "文件必须以换行符结尾",
+          "File must end with a newline",
         ),
       });
     }
@@ -391,7 +391,7 @@ export function runChecks(text, relativePath, config) {
         ...finding(
           "fencedCodeClosed",
           model.unclosedFence.openLine,
-          "围栏代码块未闭合",
+          "Fenced code block is not closed",
         ),
       });
     }
@@ -409,7 +409,7 @@ export function runChecks(text, relativePath, config) {
             ...finding(
               "fencedCodeLanguage",
               state.line,
-              "围栏代码块建议标注语言（例如 ```js）",
+              "Fenced code blocks should declare a language (for example, ```js)",
             ),
           });
         }
@@ -435,7 +435,7 @@ export function runChecks(text, relativePath, config) {
           ...finding(
             "headingStyle",
             heading.line,
-            "请使用 ATX 标题（# / ##），不要使用 Setext 下划线标题",
+            "Use ATX headings (# / ##) instead of Setext underlined headings",
           ),
         });
       }
@@ -453,7 +453,7 @@ export function runChecks(text, relativePath, config) {
           ...finding(
             "headingSpace",
             heading.line,
-            "ATX 标题的 # 后必须有一个空格",
+            "An ATX heading must have one space after #",
           ),
         });
         continue;
@@ -464,7 +464,7 @@ export function runChecks(text, relativePath, config) {
           ...finding(
             "headingSpace",
             heading.line,
-            "ATX 标题的 # 后只能有一个空格",
+            "An ATX heading must have exactly one space after #",
           ),
         });
       }
@@ -476,7 +476,7 @@ export function runChecks(text, relativePath, config) {
       if (heading.text === "") {
         findings.push({
           mode: headingMode.emptyHeading,
-          ...finding("emptyHeading", heading.line, "标题不能为空"),
+          ...finding("emptyHeading", heading.line, "Heading must not be empty"),
         });
       }
     }
@@ -495,7 +495,7 @@ export function runChecks(text, relativePath, config) {
             ...finding(
               "headingBlankLines",
               heading.line,
-              "标题上方需要空行",
+              "A blank line is required above the heading",
             ),
           });
         }
@@ -514,7 +514,7 @@ export function runChecks(text, relativePath, config) {
             ...finding(
               "headingBlankLines",
               heading.line,
-              "标题下方需要空行",
+              "A blank line is required below the heading",
             ),
           });
         }
@@ -531,7 +531,7 @@ export function runChecks(text, relativePath, config) {
           ...finding(
             "headingIncrement",
             heading.line,
-            `标题层级从 h${lastLevel} 跳到 h${heading.level}，每次最多增加一级`,
+            `Heading level jumps from h${lastLevel} to h${heading.level}; increase by at most one level`,
           ),
         });
       }
@@ -548,7 +548,7 @@ export function runChecks(text, relativePath, config) {
           ...finding(
             "singleH1",
             heading.line,
-            "全文只允许一个一级标题（h1）",
+            "Only one level-one heading (h1) is allowed per document",
           ),
         });
       }
