@@ -5,7 +5,7 @@ description: >
   user wants to change source-sanity check modes, add a narrow path override,
   or diagnose backup artifact or garbled text guard behavior.
   Triggers: /source-sanity-guard-config, ".source-sanity-guard.mjs",
-  "source sanity config", "源码卫生配置".
+  "source sanity config".
 version: 0.2.0
 ---
 

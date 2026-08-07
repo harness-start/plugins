@@ -187,15 +187,15 @@ function writeOutput(value) {
 
 function formatPreFindings(findings) {
   return [
-    "[Source Sanity Guard] 检测到不安全的源码写入",
+    "[Source Sanity Guard] Unsafe source write detected",
     "",
     ...findings.map((finding) => `- ${finding.path}: ${finding.message}`),
     "",
     "blockingContract:",
-    "  observedFacts: 文件目标或待写入内容命中了源码卫生检查。",
-    "  harm: 备份产物和明显乱码会污染源码、评审与后续构建。",
-    "  unblockWhen: 改用正式源码路径，并移除明显损坏的替换字符。",
-    "  recovery: 从权威源恢复原始文本；不要提交临时副本或用猜测内容替换乱码。",
+    "  observedFacts: A file target or pending content matched a source hygiene check.",
+    "  harm: Backup artifacts and clearly garbled text contaminate source, reviews, and later builds.",
+    "  unblockWhen: Use the canonical source path and remove clearly corrupted replacement characters.",
+    "  recovery: Restore the original text from an authoritative source; do not commit temporary copies or replace corruption with guessed content.",
   ].join("\n");
 }
 
@@ -212,7 +212,7 @@ async function runPre(event, config, repoRoot, cwd) {
     if (isBuiltInSkippedPath(path)) continue;
     const backupMode = modeFor("backupArtifact", path, config);
     if (backupMode !== "off" && isBackupArtifactPath(path)) {
-      findings.push({ path, mode: backupMode, message: "源码目录中的备份或临时文件名" });
+      findings.push({ path, mode: backupMode, message: "backup or temporary filename inside a source directory" });
       if (backupMode === "block") hasBlock = true;
     }
     const garbledMode = modeFor("garbledText", path, config);
@@ -220,7 +220,7 @@ async function runPre(event, config, repoRoot, cwd) {
       findings.push({
         path,
         mode: garbledMode,
-        message: `待写入文本包含 ${garbled.replacementCharacters} 个 U+FFFD 替换字符`,
+        message: `pending text contains ${garbled.replacementCharacters} U+FFFD replacement character(s)`,
       });
       if (garbledMode === "block") hasBlock = true;
     }
