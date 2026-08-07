@@ -203,6 +203,73 @@ check_manifest_versions() {
   fi
 }
 
+check_skill_deps() {
+  log "Checking optional skill-deps.json manifests"
+  require_cmd jq
+
+  local plugin name deps_file count
+  local found=0
+
+  for plugin in plugins/*; do
+    [ -d "${plugin}" ] || continue
+    name="$(basename "${plugin}")"
+    deps_file="${plugin}/skill-deps.json"
+    [ -f "${deps_file}" ] || continue
+    found=$((found + 1))
+
+    printf 'Validating %s\n' "${deps_file}"
+    jq empty "${deps_file}"
+
+    if ! jq -e 'type == "object" and (.skills | type == "array")' "${deps_file}" >/dev/null; then
+      printf 'skill-deps.json must be an object with a skills array: %s\n' \
+        "${deps_file}" >&2
+      exit 1
+    fi
+
+    count="$(jq '.skills | length' "${deps_file}")"
+    if [ "${count}" -eq 0 ]; then
+      printf 'skill-deps.json skills array is empty (omit the file instead): %s\n' \
+        "${deps_file}" >&2
+      exit 1
+    fi
+
+    if ! jq -e '
+      .skills
+      | all(
+          type == "object"
+          and (.name | type == "string" and length > 0)
+          and (.source | type == "string" and length > 0)
+        )
+    ' "${deps_file}" >/dev/null; then
+      printf 'Each skills[] entry needs non-empty string name and source: %s\n' \
+        "${deps_file}" >&2
+      exit 1
+    fi
+
+    # Optional description must be a string when present.
+    if ! jq -e '
+      .skills
+      | all(
+          (has("description") | not)
+          or (.description | type == "string")
+        )
+    ' "${deps_file}" >/dev/null; then
+      printf 'skills[].description must be a string when present: %s\n' \
+        "${deps_file}" >&2
+      exit 1
+    fi
+
+    printf '%s: %s skill-dep(s)\n' "${name}" "${count}"
+    jq -r '.skills[] | "  - \(.name) <= \(.source)"' "${deps_file}"
+  done
+
+  if [ "${found}" -eq 0 ]; then
+    printf 'No skill-deps.json files present (optional)\n'
+  else
+    printf 'Validated %s skill-deps.json file(s)\n' "${found}"
+  fi
+}
+
 check_marketplace_registration() {
   log "Checking plugins are registered in both marketplace indexes"
   require_cmd jq
@@ -423,6 +490,7 @@ main() {
   check_unit_tests
   check_acceptance_suites
   check_manifest_versions
+  check_skill_deps
   check_marketplace_registration
   validate_claude
   load_codex_marketplace

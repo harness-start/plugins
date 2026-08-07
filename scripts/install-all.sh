@@ -6,6 +6,10 @@
 # logs the diff vs the desired catalog, uninstalls previous marketplace
 # plugins, then installs the current catalog (remove-then-install).
 #
+# Also installs/updates community Agent Skills declared by each plugin in
+# plugins/<name>/skill-deps.json into the *global* skills scope via:
+#   npx skills add <source> --skill <name> --global --yes ...
+#
 # Public source (only): https://github.com/harness-start/plugins
 #
 # One-liner:
@@ -20,6 +24,7 @@ MARKETPLACE_SOURCE="${HARNESS_MARKETPLACE_SOURCE:-harness-start/plugins}"
 GIT_REF="${HARNESS_GIT_REF:-master}"
 GITHUB_HTTPS_URL="https://github.com/harness-start/plugins.git"
 MARKETPLACE_JSON_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/.claude-plugin/marketplace.json"
+SKILL_DEPS_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/plugins/%s/skill-deps.json"
 
 # Fallback when network/host list unavailable.
 # KEEP IN SYNC with .claude-plugin/marketplace.json plugins[].name
@@ -45,6 +50,7 @@ DRY_RUN=0
 SKIP_MISSING=0
 LIST_ONLY=0
 FAIL_FAST=0
+SKIP_SKILL_DEPS=0
 CLAUDE_SCOPE="user"
 
 usage() {
@@ -60,6 +66,8 @@ Strategy (per host):
   3. Log the diff (remove / keep-in-catalog / add)
   4. Uninstall every previously installed marketplace plugin
   5. Install the current catalog fresh
+  6. Install/update community skills declared in each plugin's skill-deps.json
+     (global scope via npx skills add … --global)
 
 Options:
   --claude-only           Only Claude Code
@@ -68,20 +76,23 @@ Options:
   --scope <scope>         Claude install scope: user|project|local (default: user)
   --dry-run               Print actions without running them
   --skip-missing-hosts    Skip missing claude/codex instead of failing
-  --list-only             Resolve plugin names and exit
-  --fail-fast             Stop on first plugin failure
+  --skip-skill-deps       Skip community skill install/update from skill-deps.json
+  --list-only             Resolve plugin names (and skill deps) and exit
+  --fail-fast             Stop on first plugin or skill-deps failure
   -h, --help              Show this help
 
 Environment:
   HARNESS_MARKETPLACE_NAME     default: harness-start
   HARNESS_MARKETPLACE_SOURCE   default: harness-start/plugins
   HARNESS_GIT_REF              default: master
+  HARNESS_SKIP_SKILL_DEPS      set to 1 to skip skill-deps (same as --skip-skill-deps)
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
   bash scripts/install-all.sh --claude-only
   bash scripts/install-all.sh --codex-only --ref master
   bash scripts/install-all.sh --dry-run --skip-missing-hosts
+  bash scripts/install-all.sh --skip-skill-deps
 EOF
 }
 
@@ -161,6 +172,7 @@ while [ "$#" -gt 0 ]; do
       ;;
     --dry-run) DRY_RUN=1; shift ;;
     --skip-missing-hosts) SKIP_MISSING=1; shift ;;
+    --skip-skill-deps) SKIP_SKILL_DEPS=1; shift ;;
     --list-only) LIST_ONLY=1; shift ;;
     --fail-fast) FAIL_FAST=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -171,6 +183,10 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+if [ "${HARNESS_SKIP_SKILL_DEPS:-0}" = "1" ]; then
+  SKIP_SKILL_DEPS=1
+fi
 
 case "${CLAUDE_SCOPE}" in
   user|project|local) ;;
@@ -587,13 +603,308 @@ sync_codex_plugins() {
   return "${failures}"
 }
 
+# --- community skill deps (skill-deps.json) ----------------------------------
+#
+# Each plugin may declare community skills at:
+#   plugins/<name>/skill-deps.json
+#
+# Schema:
+#   {
+#     "skills": [
+#       {
+#         "name": "grill-me",
+#         "source": "https://github.com/mattpocock/skills",
+#         "description": "optional human note"
+#       }
+#     ]
+#   }
+#
+# Install target is always *global* user scope:
+#   npx --yes skills add <source> --skill <name> --global --yes -a <agents...>
+#
+# Re-running add updates/overwrites an existing global install.
+
+local_repo_root() {
+  local script_dir
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  cd "${script_dir}/.." && pwd
+}
+
+# Parse skill-deps JSON → stdout lines: name<TAB>source
+# Returns 0 when JSON is valid (including empty skills). Returns 1 on parse error.
+parse_skill_deps_json() {
+  local json="$1"
+  local plugin_label="${2:-skill-deps.json}"
+
+  if [ -z "${json}" ]; then
+    return 0
+  fi
+
+  if have_cmd jq; then
+    if ! printf '%s' "${json}" | jq -e 'type == "object"' >/dev/null 2>&1; then
+      err "${plugin_label}: root must be a JSON object"
+      return 1
+    fi
+    if ! printf '%s' "${json}" | jq -e 'has("skills")' >/dev/null 2>&1; then
+      err "${plugin_label}: missing required \"skills\" array"
+      return 1
+    fi
+    if ! printf '%s' "${json}" | jq -e '.skills | type == "array"' >/dev/null 2>&1; then
+      err "${plugin_label}: \"skills\" must be an array"
+      return 1
+    fi
+    # Reject entries missing name/source; emit valid pairs.
+    local bad
+    bad="$(
+      printf '%s' "${json}" | jq -r '
+        .skills
+        | to_entries[]
+        | select(
+            (.value | type != "object")
+            or ((.value.name // "") | type != "string")
+            or ((.value.name // "") | length == 0)
+            or ((.value.source // "") | type != "string")
+            or ((.value.source // "") | length == 0)
+          )
+        | "\(.key)"
+      '
+    )"
+    if [ -n "${bad}" ]; then
+      err "${plugin_label}: each skills[] entry needs non-empty string name and source"
+      return 1
+    fi
+    printf '%s' "${json}" | jq -r '
+      .skills[]?
+      | select((.name | type == "string") and (.name | length > 0)
+               and (.source | type == "string") and (.source | length > 0))
+      | "\(.name)\t\(.source)"
+    '
+    return 0
+  fi
+
+  if have_cmd python3; then
+    printf '%s' "${json}" | python3 -c '
+import json, sys
+label = sys.argv[1]
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    print(f"error: {label}: invalid JSON: {e}", file=sys.stderr)
+    sys.exit(1)
+if not isinstance(data, dict):
+    print(f"error: {label}: root must be a JSON object", file=sys.stderr)
+    sys.exit(1)
+skills = data.get("skills")
+if skills is None:
+    print(f"error: {label}: missing required \"skills\" array", file=sys.stderr)
+    sys.exit(1)
+if not isinstance(skills, list):
+    print(f"error: {label}: \"skills\" must be an array", file=sys.stderr)
+    sys.exit(1)
+for i, item in enumerate(skills):
+    if not isinstance(item, dict):
+        print(f"error: {label}: skills[{i}] must be an object", file=sys.stderr)
+        sys.exit(1)
+    name = item.get("name")
+    source = item.get("source")
+    if not isinstance(name, str) or not name.strip():
+        print(f"error: {label}: skills[{i}].name must be a non-empty string", file=sys.stderr)
+        sys.exit(1)
+    if not isinstance(source, str) or not source.strip():
+        print(f"error: {label}: skills[{i}].source must be a non-empty string", file=sys.stderr)
+        sys.exit(1)
+    print(f"{name.strip()}\t{source.strip()}")
+' "${plugin_label}"
+    return $?
+  fi
+
+  err "need jq or python3 to parse skill-deps.json"
+  return 1
+}
+
+# Load skill-deps for one plugin name. Prefer local clone, else GitHub raw.
+# Emits name<TAB>source lines to stdout. Missing file is not an error.
+load_skill_deps_for_plugin() {
+  local plugin="$1"
+  local root json url label
+
+  root="$(local_repo_root)"
+  label="plugins/${plugin}/skill-deps.json"
+
+  if [ -f "${root}/plugins/${plugin}/skill-deps.json" ]; then
+    json="$(cat "${root}/plugins/${plugin}/skill-deps.json")"
+    parse_skill_deps_json "${json}" "${label}"
+    return $?
+  fi
+
+  # shellcheck disable=SC2059
+  url="$(printf "${SKILL_DEPS_URL_TEMPLATE}" "${GIT_REF}" "${plugin}")"
+  if json="$(fetch_url "${url}" 2>/dev/null)"; then
+    parse_skill_deps_json "${json}" "${label} (ref=${GIT_REF})"
+    return $?
+  fi
+
+  # No skill-deps for this plugin — fine.
+  return 0
+}
+
+# Collect unique skill deps for the given plugin names.
+# Prints name<TAB>source, deduped by skill name (first source wins).
+# Sets global SKILL_DEPS_PARSE_FAIL to non-zero when any manifest is invalid.
+collect_skill_deps() {
+  local -a plugins=("$@")
+  local plugin lines line name source
+  local -A seen_names=()
+  local -A seen_pairs=()
+  SKILL_DEPS_PARSE_FAIL=0
+
+  for plugin in "${plugins[@]}"; do
+    [ -n "${plugin}" ] || continue
+    set +e
+    lines="$(load_skill_deps_for_plugin "${plugin}")"
+    local rc=$?
+    set -e
+    if [ "${rc}" -ne 0 ]; then
+      SKILL_DEPS_PARSE_FAIL=$((SKILL_DEPS_PARSE_FAIL + 1))
+      warn "Invalid skill-deps for plugin ${plugin}"
+      [ "${FAIL_FAST}" = "1" ] && return 1
+      continue
+    fi
+    [ -n "${lines}" ] || continue
+    while IFS= read -r line || [ -n "${line}" ]; do
+      [ -n "${line}" ] || continue
+      name="${line%%$'\t'*}"
+      source="${line#*$'\t'}"
+      if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
+        warn "Skipping malformed skill-deps line from ${plugin}: ${line}"
+        continue
+      fi
+      if [ -n "${seen_names[${name}]+x}" ]; then
+        if [ "${seen_names[${name}]}" != "${source}" ]; then
+          warn "Skill ${name} declared with different sources; keeping ${seen_names[${name}]} (ignoring ${source} from ${plugin})"
+        fi
+        continue
+      fi
+      seen_names["${name}"]="${source}"
+      seen_pairs["${name}"]="${source}"
+      printf '%s\t%s\n' "${name}" "${source}"
+    done <<<"${lines}"
+  done
+  return 0
+}
+
+# Agents for skills CLI based on which hosts this install targets.
+skill_install_agents() {
+  local -a agents=()
+  if [ "${DO_CLAUDE}" = "1" ]; then
+    agents+=(claude-code)
+  fi
+  if [ "${DO_CODEX}" = "1" ]; then
+    agents+=(codex)
+  fi
+  # Fallback if both host flags somehow off: still install for dual-host.
+  if [ "${#agents[@]}" -eq 0 ]; then
+    agents=(claude-code codex)
+  fi
+  printf '%s\n' "${agents[@]}"
+}
+
+# Install or update one community skill into the global skills scope.
+install_global_skill() {
+  local name="$1"
+  local source="$2"
+  local -a agents=()
+  local -a agent_args=()
+  local agent
+
+  read_lines_into agents < <(skill_install_agents)
+  for agent in "${agents[@]}"; do
+    agent_args+=(-a "${agent}")
+  done
+
+  log "Skills: install/update global ${name} from ${source} (agents: ${agents[*]})"
+  # Always re-run add: updates/overwrites existing global install; works even when
+  # the skill was previously copied outside the skills CLI lockfile.
+  if ! run_cmd npx --yes skills add "${source}" --skill "${name}" --global --yes "${agent_args[@]}"; then
+    err "Failed to install global skill ${name} from ${source}"
+    return 1
+  fi
+  return 0
+}
+
+# Install all collected skill deps. Returns number of failures.
+sync_skill_deps() {
+  local -a plugins=("$@")
+  local failures=0
+  local deps_lines line name source
+  local -a dep_arr=()
+
+  if [ "${SKIP_SKILL_DEPS}" = "1" ]; then
+    log "Skills: skipped (--skip-skill-deps / HARNESS_SKIP_SKILL_DEPS=1)"
+    return 0
+  fi
+
+  if ! have_cmd npx; then
+    # Collect first so we only warn when deps actually exist.
+    deps_lines="$(collect_skill_deps "${plugins[@]}" || true)"
+    if [ -n "${deps_lines}" ] || [ "${SKILL_DEPS_PARSE_FAIL:-0}" -gt 0 ]; then
+      if [ "${SKIP_MISSING}" = "1" ]; then
+        warn "npx not found; skipping community skill-deps install"
+        return 0
+      fi
+      err "npx not found on PATH (need Node.js to install skill-deps; or pass --skip-skill-deps / --skip-missing-hosts)"
+      return 1
+    fi
+    log "Skills: no skill-deps declared; npx not required"
+    return 0
+  fi
+
+  set +e
+  deps_lines="$(collect_skill_deps "${plugins[@]}")"
+  local collect_rc=$?
+  set -e
+  if [ "${collect_rc}" -ne 0 ] && [ "${FAIL_FAST}" = "1" ]; then
+    return 1
+  fi
+
+  if [ "${SKILL_DEPS_PARSE_FAIL:-0}" -gt 0 ]; then
+    failures=$((failures + SKILL_DEPS_PARSE_FAIL))
+    if [ "${FAIL_FAST}" = "1" ]; then
+      return "${failures}"
+    fi
+  fi
+
+  if [ -z "${deps_lines}" ]; then
+    log "Skills: no community skill-deps declared by catalog plugins"
+    return "${failures}"
+  fi
+
+  read_lines_into dep_arr <<<"${deps_lines}"
+  log "Skills: ${#dep_arr[@]} unique community skill(s) to install/update globally"
+
+  for line in "${dep_arr[@]}"; do
+    name="${line%%$'\t'*}"
+    source="${line#*$'\t'}"
+    set +e
+    install_global_skill "${name}" "${source}"
+    local rc=$?
+    set -e
+    if [ "${rc}" -ne 0 ]; then
+      failures=$((failures + 1))
+      [ "${FAIL_FAST}" = "1" ] && return "${failures}"
+    fi
+  done
+
+  return "${failures}"
+}
+
 # --- main --------------------------------------------------------------------
 
 main() {
   log "Harness Start installer"
   log "Public source: https://github.com/harness-start/plugins (ref=${GIT_REF})"
   log "Marketplace: ${MARKETPLACE_NAME}"
-  log "Mode: detect installed marketplace plugins → remove → install catalog"
+  log "Mode: detect installed marketplace plugins → remove → install catalog → skill-deps"
 
   load_plugins_array() {
     PLUGINS=()
@@ -616,10 +927,22 @@ EOF
 
   if [ "${LIST_ONLY}" = "1" ]; then
     printf '%s\n' "${PLUGINS[@]}"
+    if [ "${SKIP_SKILL_DEPS}" != "1" ]; then
+      local deps_lines
+      deps_lines="$(collect_skill_deps "${PLUGINS[@]}" || true)"
+      if [ -n "${deps_lines}" ]; then
+        printf '\n# skill-deps (name<TAB>source)\n' >&2
+        printf '%s\n' "${deps_lines}"
+      fi
+      if [ "${SKILL_DEPS_PARSE_FAIL:-0}" -gt 0 ]; then
+        err "${SKILL_DEPS_PARSE_FAIL} skill-deps manifest(s) failed to parse"
+        exit 1
+      fi
+    fi
     exit 0
   fi
 
-  local claude_fail=0 codex_fail=0 did_any=0
+  local claude_fail=0 codex_fail=0 skill_fail=0 did_any=0
 
   if [ "${DO_CLAUDE}" = "1" ]; then
     if have_cmd claude; then
@@ -660,8 +983,18 @@ EOF
     fi
   fi
 
+  # Community skills are host-independent (global user scope). Run even when
+  # host CLIs are missing (e.g. --skip-missing-hosts) so skill-deps still apply.
+  set +e
+  sync_skill_deps "${PLUGINS[@]}"
+  skill_fail=$?
+  set -e
+  if [ "${SKIP_SKILL_DEPS}" != "1" ]; then
+    did_any=1
+  fi
+
   if [ "${did_any}" = "0" ]; then
-    err "No host CLIs ran (claude/codex missing?)"
+    err "No host CLIs ran (claude/codex missing?) and skill-deps were skipped"
     exit 1
   fi
 
@@ -674,10 +1007,13 @@ EOF
     printf '  Codex: review and trust plugin hooks with /hooks before they run.\n'
     printf '         Install success does not mean hooks are trusted or executing.\n'
   fi
+  if [ "${SKIP_SKILL_DEPS}" != "1" ]; then
+    printf '  Skills: community skill-deps install to global scope (~/.agents/skills via npx skills).\n'
+  fi
 
-  local total_fail=$((claude_fail + codex_fail))
+  local total_fail=$((claude_fail + codex_fail + skill_fail))
   if [ "${total_fail}" -gt 0 ]; then
-    err "${total_fail} plugin operation(s) failed"
+    err "${total_fail} plugin/skill operation(s) failed"
     exit 1
   fi
 }

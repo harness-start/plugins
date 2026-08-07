@@ -67,6 +67,7 @@ harness-start/
 └── plugins/
     ├── session-hooks/
     │   ├── README.md
+    │   ├── skill-deps.json          # optional community skill deps
     │   ├── .claude-plugin/
     │   │   └── plugin.json
     │   ├── .codex-plugin/
@@ -1025,10 +1026,44 @@ mkdir -p plugins/audit-hooks/scripts
 5. 创建业务脚本。
 6. 在 `.claude-plugin/marketplace.json` 中添加条目。
 7. 在 `.agents/plugins/marketplace.json` 中添加条目。
-8. 运行双平台验证。
-9. 分别安装并做真实会话测试。
+8. 若依赖社区公开 skill（skills.sh / GitHub skill 仓库），添加 `skill-deps.json`（见下）。
+9. 运行双平台验证。
+10. 分别安装并做真实会话测试。
 
 同一个 Marketplace 内不能出现重名插件。
+
+### 16.1 社区 skill 依赖（skill-deps.json）
+
+插件若依赖社区公开 skill（例如 `grill-me`），在插件根目录声明：
+
+```text
+plugins/<name>/skill-deps.json
+```
+
+```json
+{
+  "skills": [
+    {
+      "name": "grill-me",
+      "source": "https://github.com/mattpocock/skills",
+      "description": "optional"
+    }
+  ]
+}
+```
+
+`scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新：
+
+```bash
+npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a codex
+```
+
+注意：
+
+- 目标是用户级全局 scope（`--global`），不是项目目录。
+- 无依赖的插件不要创建空文件；CI 在文件存在时校验 schema。
+- 离线或无 `npx` 时可使用 `--skip-skill-deps` / `HARNESS_SKIP_SKILL_DEPS=1`。
+- curl 一键安装时会从 GitHub raw 拉取各插件的 `skill-deps.json`（`HARNESS_GIT_REF` / `--ref`）。
 
 ## 17. CI 示例
 
@@ -1044,6 +1079,7 @@ scripts/ci/validate-plugins.sh
 
 - JSON 与 manifest 可解析；
 - 插件脚本语法；
+- 可选 `skill-deps.json` schema（`skills[].name` / `skills[].source`）；
 - 双平台 `plugin.json` 版本一致；
 - **`plugins/*` 与两个 `marketplace.json` 互相登记且 source 路径正确**（防止新增插件忘记发布到 marketplace）；
 - `claude plugin validate --strict`；

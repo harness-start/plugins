@@ -14,6 +14,15 @@ Implements the workflow in [`docs/grill-me-hooks-design.md`](./docs/grill-me-hoo
 
 Via marketplace `harness-start` (see repo root README) or local plugin path.
 
+### Community skill dependency
+
+This plugin expects the public **`grill-me`** skill (entry tokens `/grill-me`, `/grilling`). Declared in [`skill-deps.json`](./skill-deps.json):
+
+```bash
+# Performed automatically by scripts/install-all.sh (global scope)
+npx --yes skills add https://github.com/mattpocock/skills --skill grill-me --global --yes
+```
+
 ## Config
 
 Optional project root file (trusted `import()`):
@@ -22,7 +31,7 @@ Optional project root file (trusted `import()`):
 
 See `skills/intent-clarify-gate-config/`.
 
-Default `skillInstall.mode` is **`off`** (offline/CI safe).
+Default runtime `skillInstall.mode` is **`off`** (offline/CI safe). Prefer installing `grill-me` once via `install-all.sh` / `skill-deps.json` rather than enabling runtime `npx` from hooks.
 
 ## Hooks
 

@@ -34,14 +34,18 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 # From a local clone
 bash scripts/install-all.sh
 bash scripts/install-all.sh --dry-run
+
+# Skip community skill-deps (offline / no npx)
+bash scripts/install-all.sh --skip-skill-deps
 ```
 
-Requirements: `bash`, network to GitHub, and **Claude Code CLI** and/or **Codex CLI**. `jq` is recommended.
+Requirements: `bash`, network to GitHub, and **Claude Code CLI** and/or **Codex CLI**. `jq` is recommended. Community skill deps also need **Node.js / `npx`** (see below).
 
 After install:
 
 - **Claude Code:** start a new session (or `/reload-plugins` if prompted) so hooks load.
 - **Codex:** review and **trust** plugin hooks via `/hooks`. Install success does not mean hooks are trusted or running.
+- **Community skills:** plugins may declare `skill-deps.json`; `install-all.sh` installs/updates them into the **global** skills scope (`npx skills add … --global`).
 
 ### Manual install (equivalent)
 
@@ -137,12 +141,50 @@ codex plugin list --marketplace harness-start --available --json
 codex plugin add <plugin-name>@harness-start --json
 ```
 
+## Community skill dependencies
+
+Some plugins need public Agent Skills (for example `intent-clarify-gate` → `grill-me`). Declare them per plugin:
+
+```text
+plugins/<name>/skill-deps.json
+```
+
+```json
+{
+  "skills": [
+    {
+      "name": "grill-me",
+      "source": "https://github.com/mattpocock/skills",
+      "description": "optional note"
+    }
+  ]
+}
+```
+
+`scripts/install-all.sh` collects every catalog plugin's `skill-deps.json` (local clone or GitHub raw for the curl one-liner), dedupes by skill name, and runs:
+
+```bash
+npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a codex
+```
+
+Flags / env:
+
+| Flag / env | Effect |
+| --- | --- |
+| `--skip-skill-deps` | Do not install skill-deps |
+| `HARNESS_SKIP_SKILL_DEPS=1` | Same as above |
+| `--list-only` | Also prints resolved `name<TAB>source` pairs |
+
+Omit `skill-deps.json` when the plugin has no community skill needs. The file is optional; CI validates schema when present.
+
 ## Adding a plugin
 
 See `GUIDE.md` section 16. Register the plugin in both:
 
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
+
+If the plugin needs a public skill (skills.sh / GitHub skill repo), add `plugins/<name>/skill-deps.json` so `install-all.sh` can install it globally.
 
 ## Docs
 

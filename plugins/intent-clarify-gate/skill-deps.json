@@ -1,0 +1,9 @@
+{
+  "skills": [
+    {
+      "name": "grill-me",
+      "source": "https://github.com/mattpocock/skills",
+      "description": "Community grill-me interviewing skill required by intent-clarify-gate entry tokens (/grill-me, /grilling)."
+    }
+  ]
+}
