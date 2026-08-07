@@ -35,6 +35,7 @@ FALLBACK_PLUGINS=(
   language-output-governance
   subagent-discipline
   intent-clarify-gate
+  first-principles-gate
 )
 
 DO_CLAUDE=1
