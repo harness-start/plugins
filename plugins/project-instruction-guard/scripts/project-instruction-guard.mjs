@@ -22,12 +22,19 @@ import { inspectProjectInstructions, resolveProjectRootOrNull } from "./lib/proj
 import { clearState, readState, updateState } from "./lib/state-store.mjs";
 
 const CLI_PATH = fileURLToPath(new URL("./project-instructions-cli.mjs", import.meta.url));
-const READ_ONLY = /^\s*(?:(?:[A-Za-z_][A-Za-z0-9_]*)=(?:"[^"]*"|'[^']*'|\S+)\s+)*(?:pwd|ls|cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|find|grep|rg|which|git\s+(?:status|diff|log|show|rev-parse|branch|ls-files))\b/iu;
-const SHELL_CONTROL = /[;&|<>`\n]|\$\(/u;
+const READ_ONLY = /^\s*(?:(?:[A-Za-z_][A-Za-z0-9_]*)=(?:"[^"]*"|'[^']*'|\S+)\s+)*(?:pwd|ls|cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|find|grep|rg|which|git(?:\s+-C\s+(?:"[^"]*"|'[^']*'|\S+))?\s+(?:status|diff|log|show|rev-parse|branch|ls-files))\b/iu;
+const SHELL_WRITE_OR_SUBSTITUTION = /[<>`]|\$\(/u;
 const BLOCKED_STATUS = /(?:^|\n)\s*(?:BLOCKED|NEEDS_CONTEXT)\s*(?:\n|$)/u;
 
 function warn(message) {
   process.stderr.write(`[project-instruction-guard] ${message}\n`);
+}
+
+function isReadOnlyCommand(command) {
+  const value = String(command ?? "");
+  if (SHELL_WRITE_OR_SUBSTITUTION.test(value)) return false;
+  const segments = value.split(/&&|\|\||;|\n|(?<!\|)\|(?!\|)/u).map((segment) => segment.trim()).filter(Boolean);
+  return segments.length > 0 && segments.every((segment) => READ_ONLY.test(segment));
 }
 
 function cliInvocation(command) {
@@ -164,7 +171,7 @@ async function post(event, root) {
       noteMutation(event, root, validReceipt ? receipt : null);
       return;
     }
-    if (READ_ONLY.test(command) && !SHELL_CONTROL.test(command)) return;
+    if (isReadOnlyCommand(command)) return;
     if (noteMutation(event, root)) {
       warn("project files changed; assess the managed instruction block and run project-instructions-verify last");
     }

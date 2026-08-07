@@ -249,6 +249,23 @@ test("read-only prefixes cannot hide a trailing workspace mutation", async (cont
   assert.equal(JSON.parse(result.stdout).decision, "block");
 });
 
+test("compound read-only commands remain exempt, including git -C", async (context) => {
+  const root = repository();
+  const data = mkdtempSync(join(tmpdir(), "project-instruction-data-"));
+  context.after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  });
+  const env = { PLUGIN_DATA: data };
+  await runHook("post", event(root, {
+    tool_name: "Bash",
+    tool_input: { command: `ls -la "${root}" && git -C "${root}" status --short` },
+    tool_response: { exit_code: 0 },
+  }), env);
+  const result = await runHook("stop", event(root, { last_assistant_message: "DONE" }), env);
+  assert.equal(result.stdout, "");
+});
+
 test("quoted command substitutions cannot masquerade as trusted CLI reads", async (context) => {
   const root = repository();
   const data = mkdtempSync(join(tmpdir(), "project-instruction-data-"));
