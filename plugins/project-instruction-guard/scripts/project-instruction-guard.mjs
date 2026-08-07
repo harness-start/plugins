@@ -131,15 +131,15 @@ async function context(event, root) {
   const state = inspectProjectInstructions(root);
   if (state.valid) return;
   const target = state.instructionSource === "README.md"
-    ? "维护 README.md 受管区并保留 AGENTS.md/CLAUDE.md → README.md"
-    : "维护 AGENTS.md 并建立 CLAUDE.md → AGENTS.md";
+    ? "maintain the managed README.md block and preserve AGENTS.md/CLAUDE.md → README.md"
+    : "maintain AGENTS.md and establish CLAUDE.md → AGENTS.md";
   writeJson(additionalContextOutput([
-    "[Project Instruction Guard] Git 根项目指令结构需要维护。",
+    "[Project Instruction Guard] The Git-root project instruction structure requires maintenance.",
     `root=${state.root}`,
     `instructionSource=${state.instructionSource}`,
     `stateDigest=${state.stateDigest}`,
     ...state.findings.map((finding) => `- ${finding}`),
-    `${target}。使用 project-instruction-maintenance Skill 执行 inspect → reconcile → verify。`,
+    `${target}. Use the project-instruction-maintenance Skill to run inspect → reconcile → verify.`,
   ].join("\n")));
 }
 
@@ -185,22 +185,22 @@ async function post(event, root) {
 function recoveryReason(state, freshness) {
   if (!state.valid) {
     return [
-      "[Project Instruction Guard] Git 根项目指令结构未闭合，不能报告完成。",
+      "[Project Instruction Guard] The Git-root project instruction structure is unresolved; completion cannot be reported.",
       `instructionSource=${state.instructionSource}`,
       `stateDigest=${state.stateDigest}`,
       ...state.findings.map((finding) => `- ${finding}`),
       "",
-      "恢复方式：使用 `project-instruction-maintenance` Skill，以当前 stateDigest 执行 reconcile；写入后用 revisionId 执行 verify。",
-      "只有规则冲突、异常 symlink 或平台无法创建 symlink 时才需要用户决定。",
+      "Recovery: use the `project-instruction-maintenance` Skill to reconcile with the current stateDigest, then verify with the revisionId after writing.",
+      "User input is needed only for rule conflicts, anomalous symlinks, or platforms that cannot create symlinks.",
     ].join("\n");
   }
   return [
-    "[Project Instruction Guard] 本轮项目文件已变化，但最后一次变化之后没有匹配当前状态的 project-instructions-verify receipt。",
+    "[Project Instruction Guard] Project files changed this turn, but no project-instructions-verify receipt matches the current state after the latest change.",
     `mutationRevision=${freshness.mutationRevision}`,
     `verifiedRevision=${freshness.verifiedRevision}`,
     `stateDigest=${state.stateDigest}`,
     "",
-    "恢复方式：判断受管区是否需要 reconcile；无变化也运行 verify --decision no-change，并把 verify 作为最后一个变更相关命令。",
+    "Recovery: determine whether the managed block needs reconciliation; even with no changes, run verify --decision no-change and keep verify as the final change-related command.",
   ].join("\n");
 }
 

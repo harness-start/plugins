@@ -19,7 +19,7 @@ if [ "${ACCEPT_HOST}" = "claude" ]; then
     and (.verifiedStateDigest | type == "string" and length == 64)
     and .reminderPending == false
   ' "${state_files[0]}" >/dev/null
-  require_guard_hook_signal 'Git 根项目指令结构未闭合'
+  require_guard_hook_signal 'Git-root project instruction structure is unresolved'
   require_guard_hook_signal 'Revision ID.*[a-f0-9-]{36}'
   require_guard_hook_signal 'Verify invocation ID.*[a-f0-9-]{36}'
 else

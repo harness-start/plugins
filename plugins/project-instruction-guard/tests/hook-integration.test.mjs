@@ -95,9 +95,9 @@ test("a project mutation blocks Stop until a matching final verification receipt
   const env = { PLUGIN_DATA: data };
 
   await runHook("post", event(root, { tool_name: "Edit", tool_input: { file_path: "src/app.js" }, tool_response: { exit_code: 0 } }), env);
-  const blocked = await runHook("stop", event(root, { last_assistant_message: "实现完成。\n\nDONE" }), env);
+  const blocked = await runHook("stop", event(root, { last_assistant_message: "Implementation complete.\n\nDONE" }), env);
   assert.equal(JSON.parse(blocked.stdout).decision, "block");
-  assert.match(blocked.stderr, /最后一次变化之后/u);
+  assert.match(blocked.stderr, /after the latest change/u);
 
   const receipt = runCli(root, ["verify", "--workspace", root, "--decision", "no-change"]);
   await runHook("post", event(root, {
@@ -105,7 +105,7 @@ test("a project mutation blocks Stop until a matching final verification receipt
     tool_input: { command: `node "${CLI}" verify --workspace "${root}" --decision no-change` },
     tool_response: { exit_code: 0, output: receipt },
   }), env);
-  const allowed = await runHook("stop", event(root, { last_assistant_message: "实现完成。\n\nDONE" }), env);
+  const allowed = await runHook("stop", event(root, { last_assistant_message: "Implementation complete.\n\nDONE" }), env);
   assert.deepEqual({ stdout: allowed.stdout, stderr: allowed.stderr, code: allowed.code }, { stdout: "", stderr: "", code: 0 });
 });
 
@@ -318,15 +318,15 @@ test("invalid structure blocks independently, while report/off and blocked hando
 
   const strict = await runHook("stop", event(root, { last_assistant_message: "DONE" }), env);
   assert.equal(JSON.parse(strict.stdout).decision, "block");
-  assert.match(strict.stderr, /结构未闭合/u);
+  assert.match(strict.stderr, /structure is unresolved/u);
 
-  const handoff = await runHook("stop", event(root, { last_assistant_message: "BLOCKED\n\n需要用户选择规则。" }), env);
+  const handoff = await runHook("stop", event(root, { last_assistant_message: "BLOCKED\n\nThe user must choose a rule." }), env);
   assert.equal(handoff.stdout, "");
 
   writeFileSync(join(root, ".project-instruction-guard.mjs"), "export default { mode: 'report' };\n");
   const report = await runHook("stop", event(root, { last_assistant_message: "DONE" }), env);
   assert.equal(report.stdout, "");
-  assert.match(report.stderr, /结构未闭合/u);
+  assert.match(report.stderr, /structure is unresolved/u);
 
   writeFileSync(join(root, ".project-instruction-guard.mjs"), "export default { mode: 'off' };\n");
   const off = await runHook("stop", event(root, { last_assistant_message: "DONE" }), env);
