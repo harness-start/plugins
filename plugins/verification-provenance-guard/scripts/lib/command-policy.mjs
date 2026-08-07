@@ -2,8 +2,7 @@ import { createHash } from "node:crypto";
 
 const CI_COMMAND = /\b(?:glab\s+(?:api|ci|mr\s+view)|gh\s+(?:run\s+view|pr\s+checks|api))\b/iu;
 const TEST_COMMAND = /\b(?:node\s+--test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|pest|jest|vitest|go\s+test|cargo\s+test|mvn\s+test|gradlew?\s+test|rspec|ctest|make\s+test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|bun\s+test)\b/iu;
-const VERIFY_COMMAND = /(?:\b(?:eslint|ruff\s+check|phpstan|tsc|shellcheck|actionlint|kubeconform|composer\s+validate|terraform\s+validate|tofu\s+validate|npm\s+(?:run\s+)?(?:lint|typecheck|check|build)|pnpm\s+(?:run\s+)?(?:lint|typecheck|check|build)|yarn\s+(?:run\s+)?(?:lint|typecheck|check|build)|cargo\s+(?:check|clippy)|go\s+vet)\b|project-instructions-cli\.mjs["']?\s+verify\b)/iu;
-const PROJECT_INSPECT = /project-instructions-cli\.mjs["']?\s+inspect\b/iu;
+const VERIFY_COMMAND = /\b(?:eslint|ruff\s+check|phpstan|tsc|shellcheck|actionlint|kubeconform|composer\s+validate|terraform\s+validate|tofu\s+validate|npm\s+(?:run\s+)?(?:lint|typecheck|check|build)|pnpm\s+(?:run\s+)?(?:lint|typecheck|check|build)|yarn\s+(?:run\s+)?(?:lint|typecheck|check|build)|cargo\s+(?:check|clippy)|go\s+vet)\b/iu;
 const EXTERNAL_COMMAND = /^\s*(?:git\s+(?:commit|push|tag)|glab\s+(?:mr\s+(?:create|merge)|release\s+create)|gh\s+(?:pr\s+(?:create|merge)|release\s+create))\b/iu;
 const READ_ONLY = /^\s*(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)*(?:pwd|ls|cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|find|grep|rg|which|git\s+(?:status|diff|log|show|rev-parse|branch|ls-files)|jq\b)/iu;
 const MASK_FAILURE = /(?:\|\|\s*(?:true|:)(?:\s|$)|;\s*true(?:\s|$)|\bset\s+\+e\b)/iu;
@@ -56,7 +55,6 @@ export function classifyCommand(command, config = {}) {
   if (CI_COMMAND.test(value)) return "ci";
   if (TEST_COMMAND.test(value) || additionalTests.some((pattern) => matches(pattern, value))) return "test";
   if (VERIFY_COMMAND.test(value) || additionalVerification.some((pattern) => matches(pattern, value))) return "verification";
-  if (PROJECT_INSPECT.test(value)) return "read";
   if (EXTERNAL_COMMAND.test(value)) return "external";
   if (READ_ONLY.test(value)) return "read";
   return "mutation";

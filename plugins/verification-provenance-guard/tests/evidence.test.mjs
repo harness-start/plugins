@@ -56,8 +56,7 @@ test("config accepts bounded custom claim and command patterns", () => {
 test("command classifier and reliability reject failure masking and mutating verification", () => {
   assert.equal(classifyCommand("node --test tests/*.test.mjs"), "test");
   assert.equal(classifyCommand("npm run lint"), "verification");
-  assert.equal(classifyCommand("node \"/opt/plugin/project-instructions-cli.mjs\" verify --workspace /repo --decision no-change"), "verification");
-  assert.equal(classifyCommand("node \"/opt/plugin/project-instructions-cli.mjs\" inspect --workspace /repo"), "read");
+  assert.equal(classifyCommand("git status --short"), "read");
   assert.equal(classifyCommand("glab api projects/1/pipelines/2"), "ci");
   assert.equal(classifyCommand("git commit -m test"), "external");
   assert.equal(classifyCommand("git push origin feature"), "external");
@@ -67,7 +66,7 @@ test("command classifier and reliability reject failure masking and mutating ver
   assert.equal(commandReliability("set -o pipefail; node --test | tail -20").reliable, true);
   assert.equal(commandReliability("eslint --fix src").reliable, false);
   assert.equal(commandReliability("node --test && sed -i s/a/b/ src/app.js").workspaceMutation, true);
-  assert.equal(commandReliability("touch changed.txt && node \"/opt/plugin/project-instructions-cli.mjs\" verify --workspace /repo --decision no-change").workspaceMutation, true);
+  assert.equal(commandReliability("touch changed.txt && npm run lint").workspaceMutation, true);
   assert.equal(commandReliability("node --test > reports/test.log").workspaceMutation, true);
 });
 
