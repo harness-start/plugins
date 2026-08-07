@@ -31,7 +31,7 @@ jq -n '{
 }' > "${WS}/.first-principles/ledger.json"
 
 STOP="$(run_hook stop "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,last_assistant_message:"第一性原理分析已完成"}')")"
+  '{cwd:$cwd,session_id:$s,last_assistant_message:"First-principles analysis is complete"}')")"
 echo "${STOP}" | grep -q '"decision":"block"' || {
   echo "FAIL expected Stop block for invalid ledger" >&2
   echo "${STOP}" >&2

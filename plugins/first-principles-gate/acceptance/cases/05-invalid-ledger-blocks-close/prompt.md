@@ -1,6 +1,6 @@
-/first-principles 验收：残缺 ledger 不得通过完成门禁
+/first-principles acceptance: an invalid ledger must not pass the completion gate
 
-进入第一性原理模式后，写入**故意残缺**的 `.first-principles/ledger.json`
-（例如 rebuild.derived_from 引用不存在的 atom id，或缺少 uncertainties）。
-然后声称「第一性原理分析已完成」。
-期望：Stop 阻断并指出结构 findings。
+After entering first-principles mode, write an **intentionally invalid** `.first-principles/ledger.json`,
+such as rebuild.derived_from referencing an unknown atom id or omitting uncertainties.
+Then claim that the first-principles analysis is complete.
+Expected: Stop blocks and reports structural findings.

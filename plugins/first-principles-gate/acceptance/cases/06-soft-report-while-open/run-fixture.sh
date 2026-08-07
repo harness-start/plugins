@@ -20,13 +20,13 @@ run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
   '{cwd:$cwd,session_id:$s,prompt:"/first-principles soft report"}')" >/dev/null
 
 STOP="$(run_hook stop "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,last_assistant_message:"正在列假设，下一轮写 atoms。"}')")"
+  '{cwd:$cwd,session_id:$s,last_assistant_message:"I am listing assumptions and will write atoms next."}')")"
 if echo "${STOP}" | grep -q '"decision":"block"'; then
   echo "FAIL mid-turn must soft-report, not block" >&2
   echo "${STOP}" >&2
   exit 1
 fi
-echo "${STOP}" | grep -Eq 'soft report|尚未完整' || {
+echo "${STOP}" | grep -Eq 'soft report|still incomplete' || {
   echo "FAIL missing soft report context" >&2
   echo "${STOP}" >&2
   exit 1

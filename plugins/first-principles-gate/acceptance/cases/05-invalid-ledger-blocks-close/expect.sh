@@ -4,5 +4,5 @@ set -euo pipefail
 
 require_host_session_started
 require_guard_hook_signal "${MARKERS_STOP_BLOCK}|\"decision\"[[:space:]]*:[[:space:]]*\"block\""
-require_guard_hook_signal '完成/关闭需要有效|unknown atom id|uncertainties|on-disk first-principles ledger|stale for this session'
+require_guard_hook_signal 'Completion or closure requires|unknown atom id|uncertainties|on-disk first-principles ledger|stale for this session'
 echo "OK first-principles-gate invalid-ledger Stop block signal present"

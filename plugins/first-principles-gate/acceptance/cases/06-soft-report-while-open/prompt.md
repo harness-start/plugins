@@ -1,4 +1,4 @@
-/first-principles 验收：中途轮次 soft report，不永久锁死 Stop
+/first-principles acceptance: an interim soft report must not permanently lock Stop
 
-进入第一性原理模式后，**不要**声称分析已完成，只说明「正在列假设」。
-期望：Stop 不 block，但注入 soft report 提示补齐 ledger；业务写仍被 PreToolUse 拦截。
+After entering first-principles mode, **do not** claim completion; say only that assumptions are being listed.
+Expected: Stop does not block, but injects a soft report asking for the ledger; PreToolUse still blocks business writes.
