@@ -90,7 +90,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
 | `protected-file-guard` | Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories |
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
-| `in-chinese` | Keeps main-agent and subagent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift |
+| `language-output-governance` | Keeps main-agent and subagent prose aligned with one configurable session language; Simplified Chinese is the default profile |
 | `subagent-discipline` | Injects scope/evidence contract + return hygiene; with `agent_id`, ledger cleanup (24h), gitignore ensure, optional Stop gate |
 
 ## Prerequisites

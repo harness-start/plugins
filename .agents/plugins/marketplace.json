@@ -113,10 +113,10 @@
       "category": "Productivity"
     },
     {
-      "name": "in-chinese",
+      "name": "language-output-governance",
       "source": {
         "source": "local",
-        "path": "./plugins/in-chinese"
+        "path": "./plugins/language-output-governance"
       },
       "policy": {
         "installation": "AVAILABLE",

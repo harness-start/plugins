@@ -12,7 +12,7 @@
 | `encoding-guard` | Claude + Codex | 0.1.0 | `01-repair-utf8-bom` | ✅ 通过：真实 BOM 写入触发守卫，最终文件修复为无 BOM UTF-8 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
 | `command-safety-guards` | Claude + Codex | 0.1.0 | `01-deny-cat-heredoc` | ✅ 通过：目标文件不存在，日志有真实 Cat Write Guard deny | Docker 全量汇总 `26/0/0` | 无持久化 | — |
 | `file-line-budget-guard` | Claude + Codex | 0.2.0 | `01-block-oversized-php` | ✅ 通过：真实文件工具触发 File Budget 信号 | Docker 全量汇总 `26/0/0` | 临时 warning marker | — |
-| `in-chinese` | Claude + Codex | 0.1.0 | `01-session-policy` | ✅ 通过：SessionStart 执行，模型用简体中文复述真实策略标记 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
+| `language-output-governance` | Claude + Codex | 0.2.0 | `01-zh-cn-governance`、`02-en-us-profile`、`03-ja-jp-profile`、`04-ko-kr-profile`、`05-th-th-profile` | ✅ 通过：五种内置语言均保持会话 profile；Claude 触发 PostToolUse 软反馈与 Stop 纠偏，DeepSeek-Codex 安全降级到 Stop 纠偏且未丢失工具结果 | 2026-08-07 Docker 定向汇总 `10/0/0`，honesty gate `38/0` | 插件数据目录中的会话 profile、授权语言与软反馈去重状态；24h TTL | — |
 | `subagent-discipline` | Claude + Codex | 0.1.0 | `01-subagent-contract` | ✅ 通过：真实 subagent 收到并报告 `[Subagent Contract]`，工作区未修改 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
 
 ## 说明
