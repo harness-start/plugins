@@ -34,6 +34,7 @@ FALLBACK_PLUGINS=(
   command-safety-guards
   language-output-governance
   subagent-discipline
+  intent-clarify-gate
 )
 
 DO_CLAUDE=1

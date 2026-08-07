@@ -1,0 +1,10 @@
+{
+  "name": "intent-clarify-gate",
+  "version": "0.1.0",
+  "description": "Gates implementation during grill-me style intent clarification: entry prefix, 1/2/3 classify, complete-option close, write-block until done.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json"
+}

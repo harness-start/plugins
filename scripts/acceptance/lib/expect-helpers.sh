@@ -77,6 +77,7 @@ require_composer_json_without_repositories() {
 }
 
 # Plugin-specific real marker sets (never path fragments).
+MARKERS_INTENT_CLARIFY='\[intent-clarify-gate\]|业务写入已拦截|写屏障已解除|访谈尚未结束|访谈已结束'
 MARKERS_FILE_BUDGET='\[File Budget\]|超出文件行数预算|超出构建配方参考预算'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|已拦截受保护文件修改'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|检测到禁止的文件编码'

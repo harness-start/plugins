@@ -65,6 +65,11 @@
       "name": "subagent-discipline",
       "source": "./plugins/subagent-discipline",
       "description": "Injects subagent contract and return hygiene; with agent_id, ledger TTL cleanup, gitignore ensure, optional Stop gate."
+    },
+    {
+      "name": "intent-clarify-gate",
+      "source": "./plugins/intent-clarify-gate",
+      "description": "Gates business writes during grill-me style intent clarification until \u5b8c\u6210 or complete-option close."
     }
   ]
 }
