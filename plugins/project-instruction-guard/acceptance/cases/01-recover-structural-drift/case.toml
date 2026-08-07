@@ -1,0 +1,4 @@
+id = "01-recover-structural-drift"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["session", "stop", "instructions", "recovery"]

@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 
 const CI_COMMAND = /\b(?:glab\s+(?:api|ci|mr\s+view)|gh\s+(?:run\s+view|pr\s+checks|api))\b/iu;
 const TEST_COMMAND = /\b(?:node\s+--test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|pest|jest|vitest|go\s+test|cargo\s+test|mvn\s+test|gradlew?\s+test|rspec|ctest|make\s+test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|bun\s+test)\b/iu;
-const VERIFY_COMMAND = /\b(?:eslint|ruff\s+check|phpstan|tsc|shellcheck|actionlint|kubeconform|composer\s+validate|terraform\s+validate|tofu\s+validate|npm\s+(?:run\s+)?(?:lint|typecheck|check|build)|pnpm\s+(?:run\s+)?(?:lint|typecheck|check|build)|yarn\s+(?:run\s+)?(?:lint|typecheck|check|build)|cargo\s+(?:check|clippy)|go\s+vet)\b/iu;
+const VERIFY_COMMAND = /(?:\b(?:eslint|ruff\s+check|phpstan|tsc|shellcheck|actionlint|kubeconform|composer\s+validate|terraform\s+validate|tofu\s+validate|npm\s+(?:run\s+)?(?:lint|typecheck|check|build)|pnpm\s+(?:run\s+)?(?:lint|typecheck|check|build)|yarn\s+(?:run\s+)?(?:lint|typecheck|check|build)|cargo\s+(?:check|clippy)|go\s+vet)\b|project-instructions-cli\.mjs["']?\s+verify\b)/iu;
+const PROJECT_INSPECT = /project-instructions-cli\.mjs["']?\s+inspect\b/iu;
 const EXTERNAL_COMMAND = /^\s*(?:git\s+(?:commit|push|tag)|glab\s+(?:mr\s+(?:create|merge)|release\s+create)|gh\s+(?:pr\s+(?:create|merge)|release\s+create))\b/iu;
 const READ_ONLY = /^\s*(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)*(?:pwd|ls|cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|find|grep|rg|which|git\s+(?:status|diff|log|show|rev-parse|branch|ls-files)|jq\b)/iu;
 const MASK_FAILURE = /(?:\|\|\s*(?:true|:)(?:\s|$)|;\s*true(?:\s|$)|\bset\s+\+e\b)/iu;
@@ -10,6 +11,7 @@ const MUTATING_VERIFY_FLAG = /(?:^|\s)(?:--fix(?:\s|=|$)|--write(?:\s|=|$)|-u(?:
 const PIPE = /(^|[^|])\|([^|]|$)/u;
 const OUTPUT_WRITE = /(?:^|[\s;&|])(?:\d*>{1,2}(?!&)|tee(?:\s|$))/iu;
 const TRAILING_SHELL_COMMAND = /(?:&&|\|\||;|\n)\s*\S/u;
+const LEADING_SHELL_COMMAND = /(?:&&|\|\||;|\n)/u;
 
 function matches(pattern, value) {
   pattern.lastIndex = 0;
@@ -25,6 +27,17 @@ function verificationTail(value) {
   if (matches.length === 0) return "";
   const first = matches.sort((left, right) => left.index - right.index)[0];
   return value.slice(first.end);
+}
+
+function verificationHead(value) {
+  const matches = [TEST_COMMAND, VERIFY_COMMAND].flatMap((pattern) => {
+    pattern.lastIndex = 0;
+    const match = pattern.exec(value);
+    return match ? [{ index: match.index }] : [];
+  });
+  if (matches.length === 0) return "";
+  const first = matches.sort((left, right) => left.index - right.index)[0];
+  return value.slice(0, first.index).replace(/^\s*set\s+-(?:o\s+pipefail|euo\s+pipefail)\s*;\s*/u, "");
 }
 
 export function normalizeCommand(command) {
@@ -43,6 +56,7 @@ export function classifyCommand(command, config = {}) {
   if (CI_COMMAND.test(value)) return "ci";
   if (TEST_COMMAND.test(value) || additionalTests.some((pattern) => matches(pattern, value))) return "test";
   if (VERIFY_COMMAND.test(value) || additionalVerification.some((pattern) => matches(pattern, value))) return "verification";
+  if (PROJECT_INSPECT.test(value)) return "read";
   if (EXTERNAL_COMMAND.test(value)) return "external";
   if (READ_ONLY.test(value)) return "read";
   return "mutation";
@@ -55,10 +69,12 @@ export function commandReliability(command) {
   if (MUTATING_VERIFY_FLAG.test(value)) reasons.push("mutating verification flag");
   if (PIPE.test(value) && !/(?:set\s+-o\s+pipefail|set\s+-euo\s+pipefail)/u.test(value)) reasons.push("pipeline without pipefail");
   if (OUTPUT_WRITE.test(value)) reasons.push("verification output write");
+  if (LEADING_SHELL_COMMAND.test(verificationHead(value))) reasons.push("leading compound command");
   if (TRAILING_SHELL_COMMAND.test(verificationTail(value))) reasons.push("trailing compound command");
   const workspaceMutation = reasons.some((reason) => [
     "mutating verification flag",
     "verification output write",
+    "leading compound command",
     "trailing compound command",
   ].includes(reason));
   return { reliable: reasons.length === 0, reasons, workspaceMutation };

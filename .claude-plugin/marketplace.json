@@ -7,6 +7,11 @@
   },
   "plugins": [
     {
+      "name": "project-instruction-guard",
+      "source": "./plugins/project-instruction-guard",
+      "description": "Keeps root project instructions canonical, safely reconciled, and verified after repository changes."
+    },
+    {
       "name": "verification-provenance-guard",
       "source": "./plugins/verification-provenance-guard",
       "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses."

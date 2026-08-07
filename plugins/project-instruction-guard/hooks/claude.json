@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-${CLAUDE_SESSION_ID:-hook}}\" AI_EXPERTS_TRIGGER_FROM=\"project-instruction-guard:session\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/project-instruction-guard.mjs\" session",
+            "statusMessage": "Inspecting project instructions",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-${CLAUDE_SESSION_ID:-hook}}\" AI_EXPERTS_TRIGGER_FROM=\"project-instruction-guard:post\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/project-instruction-guard.mjs\" post",
+            "statusMessage": "Tracking project instruction freshness",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-${CLAUDE_SESSION_ID:-hook}}\" AI_EXPERTS_TRIGGER_FROM=\"project-instruction-guard:stop\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/project-instruction-guard.mjs\" stop",
+            "statusMessage": "Verifying project instruction closure",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

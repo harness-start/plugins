@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Instruction Maintenance"
+  short_description: "Maintain canonical project instruction files"
+  default_prompt: "Use $project-instruction-maintenance to inspect and safely reconcile this repository’s root instructions."
