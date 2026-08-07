@@ -3,15 +3,15 @@ name: source-sanity-guard-config
 description: >
   Initialize, inspect, edit, and diagnose .source-sanity-guard.mjs. Use when a
   user wants to change source-sanity check modes, add a narrow path override,
-  or diagnose backup artifact, garbled text, or merge conflict guard behavior.
+  or diagnose backup artifact or garbled text guard behavior.
   Triggers: /source-sanity-guard-config, ".source-sanity-guard.mjs",
   "source sanity config", "源码卫生配置".
-version: 0.1.0
+version: 0.2.0
 ---
 
 # source-sanity-guard-config
 
-Manage the Git-root `.source-sanity-guard.mjs` consumed by `source-sanity-guard`. Read the sibling `DESIGN.md` before changing configuration.
+Manage the Git-root `.source-sanity-guard.mjs` consumed by `source-sanity-guard`. Read `../../DESIGN.md` before changing configuration.
 
 ## Workflow
 
@@ -43,4 +43,4 @@ export default {
 };
 ```
 
-The first matching override that declares a check wins for that check. Keep exceptions narrower than built-in skipped directories.
+The first matching override that declares a check wins for that check. Keep exceptions narrower than built-in skipped directories. Configure merge conflict detection through `git-delivery-guards`, not this plugin.

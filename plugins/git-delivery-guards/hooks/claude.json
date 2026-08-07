@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/git-delivery-hook-pre-tool.mjs\"",
+            "timeout": 20000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/git-delivery-hook-post-tool.mjs\"",
+            "timeout": 15000
+          }
+        ]
+      }
+    ]
+  }
+}

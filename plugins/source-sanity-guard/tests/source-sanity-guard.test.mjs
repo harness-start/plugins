@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   analyzeGarbledText,
-  findMergeConflictMarkers,
+  CHECK_NAMES,
   isBackupArtifactPath,
   isBuiltInSkippedPath,
   modeFor,
@@ -23,9 +23,9 @@ import {
 
 const ENTRY = fileURLToPath(new URL("../scripts/source-sanity-guard.mjs", import.meta.url));
 
-function runEntry(mode, event, env = {}) {
+function runEntry(event, env = {}) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [ENTRY, mode], {
+    const child = spawn(process.execPath, [ENTRY], {
       env: { ...process.env, ...env },
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -73,21 +73,6 @@ test("garbled text requires consecutive or at least three replacement characters
   assert.deepEqual(analyzeGarbledText("\uFFFD a \uFFFD b \uFFFD"), { replacementCharacters: 3 });
 });
 
-test("merge markers must start a line and report bounded positions", () => {
-  assert.deepEqual(findMergeConflictMarkers([
-    "const text = '<<<<<<< not a marker';",
-    "<<<<<<< HEAD",
-    "left",
-    "=======",
-    "right",
-    ">>>>>>> branch",
-  ].join("\n")), [
-    { line: 2, marker: "<<<<<<<" },
-    { line: 4, marker: "=======" },
-    { line: 6, marker: ">>>>>>>" },
-  ]);
-});
-
 test("config supports first matching per-check override and rejects invalid modes", () => {
   const warnings = [];
   const config = resolveConfig({
@@ -95,13 +80,21 @@ test("config supports first matching per-check override and rejects invalid mode
     overrides: [
       { match: /^fixtures\//u, checks: { garbledText: "off" } },
       { match: /^fixtures\/strict\//u, checks: { garbledText: "block" } },
-      { match: "src", checks: { mergeConflict: "off" } },
+      { match: "src", checks: { backupArtifact: "off" } },
     ],
   }, (message) => warnings.push(message));
   assert.equal(config.checks.backupArtifact, "report");
   assert.equal(config.checks.garbledText, "block");
   assert.equal(modeFor("garbledText", "fixtures/strict/data.txt", config), "off");
   assert.equal(warnings.length, 2);
+});
+
+test("public policy and hook manifests no longer own merge conflict checks", () => {
+  assert.deepEqual(CHECK_NAMES, ["backupArtifact", "garbledText"]);
+  for (const relativePath of ["../hooks/claude.json", "../hooks/codex.json"]) {
+    const manifest = JSON.parse(readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8"));
+    assert.deepEqual(Object.keys(manifest.hooks), ["PreToolUse"]);
+  }
 });
 
 test("target and content extraction cover direct, nested, patch, and move inputs", () => {
@@ -127,7 +120,7 @@ test("pre hook denies backup artifacts before the file exists", async () => {
   const root = gitRoot("source-sanity-backup-");
   try {
     mkdirSync(join(root, "src"));
-    const result = await runEntry("pre", {
+    const result = await runEntry({
       cwd: root,
       tool_name: "Write",
       tool_input: { file_path: "src/app.js.bak", content: "temporary" },
@@ -145,36 +138,18 @@ test("pre hook denies obvious garbling but allows one replacement character", as
   const root = gitRoot("source-sanity-garbled-");
   try {
     mkdirSync(join(root, "src"));
-    const blocked = await runEntry("pre", {
+    const blocked = await runEntry({
       cwd: root,
       tool_name: "Edit",
       tool_input: { file_path: "src/app.js", new_string: "const value = '\uFFFD\uFFFD';" },
     });
     assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
-    const allowed = await runEntry("pre", {
+    const allowed = await runEntry({
       cwd: root,
       tool_name: "Edit",
       tool_input: { file_path: "src/app.js", new_string: "const value = '\uFFFD';" },
     });
     assert.deepEqual({ code: allowed.code, stdout: allowed.stdout, stderr: allowed.stderr }, { code: 0, stdout: "", stderr: "" });
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("post hook blocks an unresolved final file and does not flag a clean file", async () => {
-  const root = gitRoot("source-sanity-conflict-");
-  try {
-    mkdirSync(join(root, "src"));
-    const target = join(root, "src", "app.js");
-    writeFileSync(target, "<<<<<<< HEAD\nleft\n=======\nright\n>>>>>>> branch\n", "utf8");
-    const event = { cwd: root, tool_name: "Write", tool_input: { file_path: target } };
-    const blocked = await runEntry("post", event, { PLUGIN_ROOT: "/plugin" });
-    assert.equal(blocked.code, 2);
-    assert.match(blocked.stderr, /未解决的合并冲突/u);
-    writeFileSync(target, "const value = 'resolved';\n", "utf8");
-    const clean = await runEntry("post", event, { PLUGIN_ROOT: "/plugin" });
-    assert.deepEqual({ code: clean.code, stdout: clean.stdout, stderr: clean.stderr }, { code: 0, stdout: "", stderr: "" });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -190,7 +165,7 @@ test("project config can downgrade a backup finding to report", async () => {
       "};",
       "",
     ].join("\n"), "utf8");
-    const result = await runEntry("pre", {
+    const result = await runEntry({
       cwd: root,
       tool_name: "Write",
       tool_input: { file_path: "src/reviewed/app.js.bak", content: "temporary" },

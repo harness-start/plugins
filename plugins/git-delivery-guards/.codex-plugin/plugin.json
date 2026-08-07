@@ -1,0 +1,16 @@
+{
+  "name": "git-delivery-guards",
+  "version": "0.2.0",
+  "description": "Guards local Git commands, atomic commits, repository state, and unresolved merge markers.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Git Delivery Guards",
+    "shortDescription": "Keep Git changes scoped, recoverable, and conflict-free.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}
