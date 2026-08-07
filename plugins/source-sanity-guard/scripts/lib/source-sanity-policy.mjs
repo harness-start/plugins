@@ -1,13 +1,11 @@
 export const CHECK_NAMES = [
   "backupArtifact",
   "garbledText",
-  "mergeConflict",
 ];
 
 export const DEFAULT_CHECKS = Object.freeze({
   backupArtifact: "block",
   garbledText: "block",
-  mergeConflict: "block",
 });
 
 const VALID_MODES = new Set(["block", "report", "off"]);
@@ -127,17 +125,4 @@ export function analyzeGarbledText(text) {
     return { replacementCharacters: total };
   }
   return null;
-}
-
-export function findMergeConflictMarkers(text) {
-  if (typeof text !== "string") return [];
-  const lines = text.split(/\r?\n/u);
-  const findings = [];
-  for (const [index, line] of lines.entries()) {
-    if (/^(?:<<<<<<<|=======|>>>>>>>)(?:\s|$)/u.test(line)) {
-      findings.push({ line: index + 1, marker: line.slice(0, 7) });
-      if (findings.length >= 10) break;
-    }
-  }
-  return findings;
 }

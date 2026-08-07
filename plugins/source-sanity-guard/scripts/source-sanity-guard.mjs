@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
   analyzeGarbledText,
-  findMergeConflictMarkers,
   isBackupArtifactPath,
   isBuiltInSkippedPath,
   isTextPath,
@@ -15,7 +14,6 @@ import {
   resolveConfig,
 } from "./lib/source-sanity-policy.mjs";
 
-const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const CONFIG_FILE_NAME = ".source-sanity-guard.mjs";
 const FILE_TOOLS = new Set([
   "applypatch",
@@ -164,15 +162,6 @@ async function loadUserConfig(repoRoot) {
   }
 }
 
-function readTextFileCapped(filePath) {
-  try {
-    if (!statSync(filePath).isFile() || statSync(filePath).size > MAX_FILE_BYTES) return null;
-    return readFileSync(filePath, "utf8");
-  } catch {
-    return null;
-  }
-}
-
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -184,10 +173,6 @@ function preToolDeny(reason) {
 }
 
 function reportOutput(eventName, text) {
-  if (process.env.PLUGIN_ROOT && eventName === "PostToolUse") {
-    process.stderr.write(`${text}\n`);
-    return null;
-  }
   return {
     hookSpecificOutput: {
       hookEventName: eventName,
@@ -211,16 +196,6 @@ function formatPreFindings(findings) {
     "  harm: 备份产物和明显乱码会污染源码、评审与后续构建。",
     "  unblockWhen: 改用正式源码路径，并移除明显损坏的替换字符。",
     "  recovery: 从权威源恢复原始文本；不要提交临时副本或用猜测内容替换乱码。",
-  ].join("\n");
-}
-
-function formatMergeFindings(findings) {
-  return [
-    "[Source Sanity Guard] 检测到未解决的合并冲突",
-    "",
-    ...findings.map((finding) => `- ${finding.path}:${finding.line} (${finding.marker})`),
-    "",
-    "文件已经写入；Hook 不会自动回滚。请解析两侧改动、删除全部冲突标记并重新验证。",
   ].join("\n");
 }
 
@@ -255,40 +230,13 @@ async function runPre(event, config, repoRoot, cwd) {
   writeOutput(hasBlock ? preToolDeny(message) : reportOutput("PreToolUse", message));
 }
 
-async function runPost(event, config, repoRoot, cwd) {
-  const findings = [];
-  let hasBlock = false;
-  for (const target of extractFileTargets(event)) {
-    if (!existsSync(target)) continue;
-    const path = relativePath(target, repoRoot, cwd);
-    if (isBuiltInSkippedPath(path) || !isTextPath(path)) continue;
-    const mode = modeFor("mergeConflict", path, config);
-    if (mode === "off") continue;
-    const text = readTextFileCapped(target);
-    if (text === null) continue;
-    for (const marker of findMergeConflictMarkers(text)) {
-      findings.push({ path, mode, ...marker });
-      if (mode === "block") hasBlock = true;
-    }
-  }
-  if (findings.length === 0) return;
-  const message = formatMergeFindings(findings.slice(0, 10));
-  if (hasBlock) {
-    process.stderr.write(`${message}\n`);
-    process.exitCode = 2;
-  } else {
-    writeOutput(reportOutput("PostToolUse", message));
-  }
-}
-
-export async function main(mode = process.argv[2]) {
+export async function main() {
   const event = await readStdinJson();
-  if (event.__parseError || (mode !== "pre" && mode !== "post")) return;
+  if (event.__parseError) return;
   const cwd = resolve(extractCwd(event));
   const repoRoot = resolveRepoRoot(cwd);
   const config = resolveConfig(await loadUserConfig(repoRoot));
-  if (mode === "pre") await runPre(event, config, repoRoot, cwd);
-  else await runPost(event, config, repoRoot, cwd);
+  await runPre(event, config, repoRoot, cwd);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
