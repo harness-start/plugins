@@ -90,6 +90,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `git-delivery-guards` | Guards local Git commands, atomic commits, repository state, and unresolved merge markers |
 | `code-quality-guard` | Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits |
 | `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |
+| `markdown-format-guard` | Checks Markdown heading structure and common formatting rules after AI writes |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
 | `protected-file-guard` | Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories |
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
