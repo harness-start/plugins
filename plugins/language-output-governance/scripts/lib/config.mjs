@@ -1,11 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { isProfileId } from "./profiles.mjs";
 
 const CONFIG_NAME = ".language-output-governance.mjs";
+const USER_CONFIG_RELATIVE_PATH = "harness-start/language-output-governance.json";
 const TOP_LEVEL_KEYS = new Set(["defaultProfile", "toolFeedback", "stop", "detection"]);
 const DETECTION_KEYS = new Set(["minScriptCharacters", "minLetterRatio"]);
 
@@ -75,10 +77,36 @@ function repoRoot(cwd) {
   }
 }
 
+export function userConfigPath(env = process.env) {
+  if (env.HARNESS_HOST === "claude") {
+    return join(env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), USER_CONFIG_RELATIVE_PATH);
+  }
+  if (env.HARNESS_HOST === "codex") {
+    return join(env.CODEX_HOME || join(homedir(), ".codex"), USER_CONFIG_RELATIVE_PATH);
+  }
+  return null;
+}
+
+function loadUserConfig(path) {
+  if (!path || !existsSync(path)) return null;
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
 export async function loadConfig(cwd, warn = () => {}) {
   const root = repoRoot(isAbsolute(cwd) ? cwd : resolve(cwd));
   const path = join(root, CONFIG_NAME);
-  if (!existsSync(path)) return { config: strictDefault(), path: null };
+  const globalPath = userConfigPath();
+  if (!existsSync(path)) {
+    if (!globalPath || !existsSync(globalPath)) {
+      return { config: strictDefault(), path: null };
+    }
+    try {
+      return { config: resolveConfig(loadUserConfig(globalPath)), path: globalPath };
+    } catch (error) {
+      warn(`invalid ${globalPath}; using strict defaults: ${error instanceof Error ? error.message : String(error)}`);
+      return { config: strictDefault(), path: globalPath };
+    }
+  }
   try {
     const imported = await import(`${pathToFileURL(path).href}?language-output=${Date.now()}`);
     return { config: resolveConfig(imported.default ?? imported), path };

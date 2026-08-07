@@ -5,7 +5,7 @@ description: >
   configuration. Use for .language-output-governance.mjs, default response
   profiles, language drift thresholds, tool feedback, or Stop language gates.
   Triggers: /language-output-governance-config,
-  ".language-output-governance.mjs", "language output config", "语言输出配置".
+  ".language-output-governance.mjs", "language output config".
 version: 0.2.0
 ---
 

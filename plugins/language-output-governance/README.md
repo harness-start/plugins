@@ -29,7 +29,15 @@ Claude and standard Codex providers receive `PostToolUse.additionalContext`. Cod
 
 ## Project configuration
 
-Create `.language-output-governance.mjs` at the Git root:
+The marketplace installer can persist a host-scoped user preference:
+
+```bash
+bash scripts/install-all.sh --language en-US
+```
+
+Claude Code reads `harness-start/language-output-governance.json` below `CLAUDE_CONFIG_DIR` (default `~/.claude`); Codex reads the same relative path below `CODEX_HOME` (default `~/.codex`). The file contains only `defaultProfile`.
+
+For a project override, create `.language-output-governance.mjs` at the Git root:
 
 ```js
 export default {
@@ -43,7 +51,7 @@ export default {
 };
 ```
 
-The configuration is project-owned trusted executable configuration loaded through `import()`. Invalid fields or values produce a warning and retain the strict defaults. Thresholds are bounded to `1..100` script characters and `0.01..1` letter ratio.
+Project configuration takes precedence over the host-scoped user preference. The project file is trusted executable configuration loaded through `import()`. Invalid fields or values produce a warning and retain the strict defaults. Thresholds are bounded to `1..100` script characters and `0.01..1` letter ratio.
 
 Use the bundled `language-output-governance-config` Skill to initialize or diagnose the file. The complete contract is in [DESIGN.md](./DESIGN.md).
 
