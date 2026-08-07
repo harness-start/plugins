@@ -170,7 +170,7 @@ function runStop(event, config) {
     state.completeChoice = parsed.completeChoice;
     if (parsed.multiComplete) {
       contexts.push(
-        "[intent-clarify-gate] 检测到多个「完成」选项，请只保留一项「N. 完成 — …」。",
+        "[intent-clarify-gate] Multiple Done options detected; keep exactly one `N. Done — …` option.",
       );
     }
 
@@ -179,7 +179,7 @@ function runStop(event, config) {
       Number(state.turnIndex) >= Number(config.stopGate.remindCompleteOptionAfterRounds)
     ) {
       contexts.push(
-        `[intent-clarify-gate] 已进行 ${state.turnIndex} 轮选题，若关键路径已摸清，请在 1/2/3 中加入「N. 完成 — …」。`,
+        `[intent-clarify-gate] ${state.turnIndex} question rounds are complete; if the critical path is clear, include \`N. Done — …\` among the 1/2/3 options.`,
       );
     }
 
@@ -197,8 +197,8 @@ function runStop(event, config) {
     writeJson(
       stopDeny(
         [
-          "[intent-clarify-gate] 访谈尚未结束（phase=open），不要开始实现。",
-          "请继续出 1/2/3；路径摸清时加入「N. 完成 — …」。用户回复「完成」或选中完成项后再改代码。",
+          "[intent-clarify-gate] The interview is still open (phase=open); do not begin implementation.",
+          "Continue with 1/2/3 questions and include `N. Done — …` once the path is clear. Modify code only after the user replies `done` or selects the Done option.",
         ].join("\n"),
       ),
     );

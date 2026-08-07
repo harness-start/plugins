@@ -11,14 +11,14 @@
 - 入口前缀匹配  
 - 用户输入机械分类  
 - open 期间业务写屏障  
-- Stop 解析「完成」选项编号  
+- Stop parses the `Done` option number
 - 状态损坏 / TTL **fail-open**
 
 不负责：生成题干、替用户做决策、语义猜测是否该 grill、默认联网 `npx skills add`（配置可开，CI 默认 off）。
 
 ## Phase
 
-`idle` →（入口前缀）→ `open` →（`完成` / 完成项编号 / `# grill-abort`）→ `closed`
+`idle` → (entry prefix) → `open` → (`done` / Done option number / `# grill-abort`) → `closed`
 
 写屏障：`phase === open && writeBlock.mode === "block"`。
 
@@ -31,8 +31,8 @@
 | `1` / `2` / `3` | choice | open |
 | `1 但是…` | choice_note | open |
 | 无数字前缀自由文本 | constraint | open |
-| `完成`[+说明] | done | closed |
-| 选中 `N. 完成 — …` 的 N | done | closed |
+| `done` [+ note] | done | closed |
+| Select N from `N. Done — …` | done | closed |
 | `# grill-abort` | abort | closed |
 
 ## 代码映射
@@ -50,4 +50,4 @@
 
 ## 恢复
 
-阻断文案包含 observedFacts / harm / unblockWhen / recovery。用户回复 `完成`、选完成项、或 `# grill-abort` 后写屏障解除。
+Blocking text includes observedFacts / harm / unblockWhen / recovery. The write barrier is released after the user replies `done`, selects the Done option, or sends `# grill-abort`.

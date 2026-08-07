@@ -65,7 +65,7 @@ export function parseCompleteOptions(assistantText) {
   const text = String(assistantText ?? "");
   const found = [];
   for (const line of text.split(/\r?\n/u)) {
-    const m = line.match(/^\s*([123])\.\s*完成(?:\s|[—\-–:：]|$)/u);
+    const m = line.match(/^\s*([123])\.\s*done(?:\s|[—\-–:：]|$)/iu);
     if (m) found.push(m[1]);
   }
   if (found.length === 0) {
@@ -86,7 +86,7 @@ export function parseCompleteOptions(assistantText) {
  * @param {{ donePhrases?: string[], enableEngineeringBypass?: boolean }} config
  */
 export function classifyUserInput(prompt, state = {}, config = {}) {
-  const donePhrases = config.donePhrases ?? ["完成"];
+  const donePhrases = config.donePhrases ?? ["done"];
   const enableBypass = config.enableEngineeringBypass !== false;
   let t = normalizeFullwidthDigits(String(prompt ?? "")).trim();
   if (!t) return { class: "ignore" };
@@ -294,48 +294,48 @@ export function looksLikeImplementClaim(assistantText) {
 
 export function protocolInjectText() {
   return [
-    "[intent-clarify-gate] 访谈/意图澄清模式已开启（业务写入已拦截）。",
+    "[intent-clarify-gate] Interview and intent-clarification mode is open; business writes are blocked.",
     "",
-    "【agent】",
-    "1. 每轮一题，恰好 3 个选项，标记 1. 2. 3.；可标注推荐。",
-    "2. 关键路径大致摸清后，必须把其中一项写成：",
-    "   N. 完成 — <锁定说明>",
-    "   供用户选 N 或直接回「完成」结束。",
-    "3. 用户「N」或「N + 说明」：接受选项 N，说明为附加约束；复述后继续。",
-    "4. 用户纯文本（无 1/2/3/完成 前缀）：条件变更，重出 1/2/3，不结束。",
-    "5. 用户「完成」或选中完成项：输出已选决策摘要，停止访谈；未完成前不改业务代码。",
+    "[agent]",
+    "1. Ask one question per turn with exactly three options labeled 1, 2, and 3; one may be marked recommended.",
+    "2. Once the critical path is sufficiently clear, one option must be:",
+    "   N. Done — <locked-scope summary>",
+    "   The user may select N or reply `done` directly to finish.",
+    "3. For `N` or `N + note`, accept option N and treat the note as an added constraint; restate it, then continue.",
+    "4. Plain text without a 1/2/3/done prefix changes the constraints; present 1/2/3 again without closing.",
+    "5. When the user replies `done` or selects the Done option, summarize selected decisions and end the interview; do not modify business code before then.",
     "",
-    "【user 合法输入】",
+    "[valid user input]",
     "- 1 / 2 / 3",
-    "- 1 但是… / 2：…（选题+附加说明）",
-    "- 完成 或 完成 + 说明",
-    "- 其它文字 = 条件变更",
-    "- 逃生 # grill-abort",
+    "- 1 with a note / 2: note (selection plus constraint)",
+    "- done or done + note",
+    "- other text = constraint change",
+    "- escape hatch: # grill-abort",
   ].join("\n");
 }
 
 export function classifyInjectText(classification) {
   switch (classification.class) {
     case "choice":
-      return `[intent-clarify-gate] 用户已选 ${classification.choice}。请记入决策并给出下一题的 1/2/3（路径摸清时包含「N. 完成 — …」）。`;
+      return `[intent-clarify-gate] The user selected ${classification.choice}. Record the decision and ask the next 1/2/3 question; include \`N. Done — …\` once the path is clear.`;
     case "choice_note":
       return [
-        `[intent-clarify-gate] 用户已选 ${classification.choice}，附加说明：${classification.note}`,
-        "请复述理解后继续：若说明修正本题则重出 1/2/3，否则进入下一决策点。",
+        `[intent-clarify-gate] The user selected ${classification.choice} with this note: ${classification.note}`,
+        "Restate your understanding, then continue: present the current 1/2/3 again if the note changes this question; otherwise move to the next decision point.",
       ].join("\n");
     case "constraint":
       return [
-        "[intent-clarify-gate] 用户输入为条件/偏好变更（未选题、未结束）。",
-        "请合并约束后重新给出本题 1/2/3；不要结束访谈，不要改业务代码。",
+        "[intent-clarify-gate] The user's input changes a constraint or preference; it does not select an option or end the interview.",
+        "Merge the constraint and present this question's 1/2/3 again; do not end the interview or modify business code.",
       ].join("\n");
     case "done":
       return [
-        "[intent-clarify-gate] 访谈已结束（写屏障已解除）。",
-        classification.note ? `收束附加说明：${classification.note}` : null,
-        "请输出已选决策摘要；等待用户后续实现/规划指令。",
+        "[intent-clarify-gate] The interview is closed; the write barrier is released.",
+        classification.note ? `Closing note: ${classification.note}` : null,
+        "Summarize the selected decisions and wait for the user's implementation or planning instruction.",
       ].filter(Boolean).join("\n");
     case "abort":
-      return "[intent-clarify-gate] 用户中止访谈（写屏障已解除）。可处理后续普通开发任务。";
+      return "[intent-clarify-gate] The user aborted the interview; the write barrier is released and ordinary development tasks may proceed.";
     default:
       return null;
   }
@@ -343,12 +343,12 @@ export function classifyInjectText(classification) {
 
 export function writeDenyMessage() {
   return [
-    "[intent-clarify-gate] 当前处于意图澄清/访谈模式，业务写入已拦截。",
+    "[intent-clarify-gate] Intent-clarification interview mode is open; business writes are blocked.",
     "",
     "blockingContract:",
-    "  observedFacts: session phase 为 open，目标路径不在台账白名单。",
-    "  harm: 关键歧义未收敛前改代码会导致错误实现与返工。",
-    "  unblockWhen: 用户整段回复「完成」、选中「N. 完成 — …」选项，或 # grill-abort。",
-    "  recovery: 继续 1/2/3 选题；条件变更请直接说明；台账可写 docs/decisions/ 与 .grill-ledgers/。",
+    "  observedFacts: The session phase is open and the target path is outside the ledger allowlist.",
+    "  harm: Modifying code before critical ambiguities converge can cause an incorrect implementation and rework.",
+    "  unblockWhen: The user replies `done`, selects the `N. Done — …` option, or sends # grill-abort.",
+    "  recovery: Continue with 1/2/3 questions; state constraint changes directly. Ledger writes are allowed under docs/decisions/ and .grill-ledgers/.",
   ].join("\n");
 }

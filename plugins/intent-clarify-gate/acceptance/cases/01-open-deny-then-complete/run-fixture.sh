@@ -23,7 +23,7 @@ run_hook() {
 
 echo "==> entry /grill-me"
 ENTRY_OUT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,prompt:"/grill-me 验收写屏障"}')")"
+  '{cwd:$cwd,session_id:$s,prompt:"/grill-me verify write barrier"}')")"
 echo "${ENTRY_OUT}" | grep -q 'intent-clarify-gate' || {
   echo "FAIL missing open inject context" >&2
   echo "${ENTRY_OUT}" >&2
@@ -43,10 +43,10 @@ echo "${DENY_OUT}" | grep -q 'intent-clarify-gate' || {
   exit 1
 }
 
-echo "==> close with 完成"
+echo "==> close with done"
 DONE_OUT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,prompt:"完成"}')")"
-echo "${DONE_OUT}" | grep -q '写屏障已解除\|访谈已结束' || {
+  '{cwd:$cwd,session_id:$s,prompt:"done"}')")"
+echo "${DONE_OUT}" | grep -q 'write barrier is released\|interview is closed' || {
   echo "FAIL missing close context" >&2
   echo "${DONE_OUT}" >&2
   exit 1
@@ -56,7 +56,7 @@ echo "==> pre write after close must not deny"
 ALLOW_OUT="$(run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg path "${WS}/src/app.js" \
   '{cwd:$cwd,session_id:$s,tool_name:"Write",tool_input:{file_path:$path,content:"y\n"}}')")"
 if echo "${ALLOW_OUT}" | grep -q '"permissionDecision":"deny"'; then
-  echo "FAIL residual deny after 完成" >&2
+  echo "FAIL residual deny after done" >&2
   echo "${ALLOW_OUT}" >&2
   exit 1
 fi

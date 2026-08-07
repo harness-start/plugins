@@ -13,7 +13,7 @@ Drives the shipped hook entry with stdin JSON (no live model):
 
 1. UserPromptSubmit `/grill-me …` → open inject  
 2. PreToolUse Write `src/app.js` → deny signal  
-3. UserPromptSubmit `完成` → closed  
+3. UserPromptSubmit `done` → closed
 4. PreToolUse Write again → no deny  
 
 ```bash

@@ -1,1 +1,1 @@
-/grill-me 验收：意图澄清写屏障
+/grill-me acceptance: intent-clarification write barrier

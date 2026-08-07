@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 
 export const DEFAULT_CONFIG = Object.freeze({
   entryTokens: Object.freeze(["/grill-me", "$grill-me", "/grilling", "$grilling"]),
-  donePhrases: Object.freeze(["完成"]),
+  donePhrases: Object.freeze(["done"]),
   enableEngineeringBypass: true,
   writeBlock: Object.freeze({
     mode: "block", // block | report | off
