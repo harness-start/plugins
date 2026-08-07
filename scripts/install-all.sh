@@ -33,6 +33,7 @@ FALLBACK_PLUGINS=(
   protected-file-guard
   command-safety-guards
   language-output-governance
+  skill-routing-transparency
   subagent-discipline
   intent-clarify-gate
   first-principles-gate

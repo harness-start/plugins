@@ -62,6 +62,11 @@
       "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
     },
     {
+      "name": "skill-routing-transparency",
+      "source": "./plugins/skill-routing-transparency",
+      "description": "Shows the final Skill route and distinguishes selected Skills from successfully loaded Skills."
+    },
+    {
       "name": "subagent-discipline",
       "source": "./plugins/subagent-discipline",
       "description": "Injects subagent contract and return hygiene; with agent_id, ledger TTL cleanup, gitignore ensure, optional Stop gate."

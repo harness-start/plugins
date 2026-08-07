@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"skill-routing-transparency:session\" node \"${PLUGIN_ROOT}/scripts/skill-routing-transparency.mjs\" session codex",
+            "statusMessage": "Skill Routing Transparency: loading disclosure protocol",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"skill-routing-transparency:prompt\" node \"${PLUGIN_ROOT}/scripts/skill-routing-transparency.mjs\" prompt codex",
+            "statusMessage": "Skill Routing Transparency: reminding final route disclosure",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

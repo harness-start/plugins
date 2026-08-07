@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/skill-routing-transparency.mjs\" session claude",
+            "statusMessage": "Skill Routing Transparency: loading disclosure protocol",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/skill-routing-transparency.mjs\" prompt claude",
+            "statusMessage": "Skill Routing Transparency: reminding final route disclosure",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
