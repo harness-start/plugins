@@ -57,9 +57,9 @@
       "description": "Command safety guards: deny broad recursive deletion, unbacked sed in-place edits, and cat heredoc writes outside temporary directories."
     },
     {
-      "name": "in-chinese",
-      "source": "./plugins/in-chinese",
-      "description": "Keeps agent prose in Simplified Chinese and blocks long Korean, Japanese, or Thai language drift at response boundaries."
+      "name": "language-output-governance",
+      "source": "./plugins/language-output-governance",
+      "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
     },
     {
       "name": "subagent-discipline",

@@ -33,6 +33,15 @@ cache:
 validate:plugins:
   stage: validate
   interruptible: true
+  # Healthy runs finish in about a minute. Bound runner/container stalls while
+  # leaving ample headroom for host installation and the complete test suite.
+  timeout: 5m
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends jq ca-certificates git

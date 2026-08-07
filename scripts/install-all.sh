@@ -32,7 +32,7 @@ FALLBACK_PLUGINS=(
   file-line-budget-guard
   protected-file-guard
   command-safety-guards
-  in-chinese
+  language-output-governance
   subagent-discipline
 )
 

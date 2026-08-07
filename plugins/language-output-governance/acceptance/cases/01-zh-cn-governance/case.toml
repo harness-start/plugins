@@ -1,0 +1,4 @@
+id = "01-zh-cn-governance"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["zh-cn", "post-tool-feedback", "stop-rewrite"]

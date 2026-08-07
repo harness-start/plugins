@@ -96,7 +96,7 @@ Host capabilities that can enforce stronger boundaries (not enabled here):
 - Claude agent definitions can limit tools, turns, worktree isolation, nested
   depth.
 - Codex custom agents: `sandbox_mode`, concurrency caps.
-- Coexistence: `in-chinese` may also `SubagentStop` block; reasons are
+- Coexistence: `language-output-governance` may also `SubagentStop` block; reasons are
   independent (possible double rewrite).
 
 ## Verification
