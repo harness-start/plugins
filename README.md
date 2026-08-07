@@ -83,7 +83,8 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `project-instruction-guard` | Keeps root project instructions canonical and requires a current verification receipt after repository changes |
 | `verification-provenance-guard` | Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses |
 | `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
-| `source-sanity-guard` | Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files |
+| `source-sanity-guard` | Blocks backup artifacts and obvious replacement-character corruption in source files |
+| `git-delivery-guards` | Guards local Git commands, atomic commits, repository state, and unresolved merge markers |
 | `code-quality-guard` | Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits |
 | `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |
 | `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |

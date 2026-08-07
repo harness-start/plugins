@@ -24,7 +24,12 @@
     {
       "name": "source-sanity-guard",
       "source": "./plugins/source-sanity-guard",
-      "description": "Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files."
+      "description": "Blocks backup artifacts and obvious replacement-character corruption in source files."
+    },
+    {
+      "name": "git-delivery-guards",
+      "source": "./plugins/git-delivery-guards",
+      "description": "Guards local Git commands, atomic commits, repository state, and unresolved merge markers."
     },
     {
       "name": "code-quality-guard",
