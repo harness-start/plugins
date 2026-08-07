@@ -80,6 +80,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 | Plugin | Description |
 | --- | --- |
+| `project-instruction-guard` | Keeps root project instructions canonical and requires a current verification receipt after repository changes |
 | `verification-provenance-guard` | Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses |
 | `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
 | `source-sanity-guard` | Blocks backup artifacts, obvious replacement-character corruption, and unresolved merge markers in source files |

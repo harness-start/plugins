@@ -1,0 +1,20 @@
+{
+  "name": "project-instruction-guard",
+  "version": "0.1.0",
+  "description": "Keeps root project instructions canonical, safely reconciled, and verified after repository changes.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Project Instruction Guard",
+    "shortDescription": "Maintain canonical root instructions.",
+    "longDescription": "Detects root instruction drift, safely reconciles a bounded managed block, and requires a current verification receipt after project changes.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": ["hooks", "skills"],
+    "defaultPrompt": "Use $project-instruction-maintenance to inspect and safely reconcile this repository's root instructions."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "project-instruction-guard",
+  "version": "0.1.0",
+  "description": "Keeps root project instructions canonical, safely reconciled, and verified after repository changes.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}
