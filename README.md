@@ -105,6 +105,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
 | `language-output-governance` | Keeps main-agent and subagent prose aligned with one configurable session language; Simplified Chinese is the default profile |
 | `subagent-discipline` | Injects scope/evidence contract + return hygiene; with `agent_id`, ledger cleanup (24h), gitignore ensure, optional Stop gate |
+| `subagent-lifecycle-audit` | Records append-only subagent starts/stops and lifecycle gaps without storing work content |
 | `intent-clarify-gate` | Gates business writes during grill-me style intent clarification until `done` or complete-option close |
 | `first-principles-gate` | Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes |
 | `goal-task-gate` | Arms on host `/goal` prompts, forces append-only decision trails under `.goal-task/`, and completes only with `GOAL_TASK_DONE` trailer plus close row |

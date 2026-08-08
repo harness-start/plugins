@@ -1,0 +1,4 @@
+id = "01-record-lifecycle"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["subagent-start", "subagent-stop", "lifecycle-audit"]

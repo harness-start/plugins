@@ -219,6 +219,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "subagent-lifecycle-audit",
+      "source": {
+        "source": "local",
+        "path": "./plugins/subagent-lifecycle-audit"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }

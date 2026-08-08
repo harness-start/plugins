@@ -1,0 +1,22 @@
+{
+  "name": "subagent-lifecycle-audit",
+  "version": "0.1.0",
+  "description": "Records append-only subagent start and stop metadata and blocks common direct mutations of the lifecycle trail.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Subagent Lifecycle Audit",
+    "shortDescription": "Audit subagent starts, stops, and lifecycle gaps.",
+    "longDescription": "Records lifecycle metadata for spawned subagents without storing prompts, responses, commands, file paths, or tool payloads.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [
+      "Lifecycle audit",
+      "Audit trail protection"
+    ],
+    "defaultPrompt": "Summarize the recorded subagent lifecycle sessions."
+  }
+}

@@ -95,6 +95,11 @@
       "name": "command-exec-audit",
       "source": "./plugins/command-exec-audit",
       "description": "Records agent shell commands with status and duration to a project-local per-session JSONL trail."
+    },
+    {
+      "name": "subagent-lifecycle-audit",
+      "source": "./plugins/subagent-lifecycle-audit",
+      "description": "Records append-only subagent starts and stops without storing prompts, responses, or tool activity."
     }
   ]
 }
