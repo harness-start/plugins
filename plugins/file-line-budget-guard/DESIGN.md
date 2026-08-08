@@ -82,7 +82,7 @@ export default {
   settings: {
     nearBudgetWarnRatio: 0.8,
     warnCooldownMinutes: 30,
-    oversizeSoftGrowthLimit: 20,
+    oversizeSoftGrowthLimit: 100,
   },
 };
 ```
@@ -99,7 +99,7 @@ export default {
 
 | mode | 超预算行为 | 棘轮（历史超标） |
 |------|-----------|------------------|
-| `block`（默认） | 阻断写入，要求拆分 | 生效：只许缩小 |
+| `block`（默认） | 阻断写入，要求拆分 | 生效：历史超标文件允许最多 100 行的有界维护增量，更大改动要求拆分；可通过项目配置收紧 |
 | `report` | 仅输出警告，不阻断 | 不生效：每次仅提示 |
 | `skip` | 不检查，静默放行 | 不生效 |
 

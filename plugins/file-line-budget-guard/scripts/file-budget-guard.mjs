@@ -14,7 +14,7 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { classifyBudgetState } from "./lib/budget-policy.mjs";
@@ -109,7 +109,10 @@ export const BUILTIN_RULES = [
 const DEFAULT_SETTINGS = {
   nearBudgetWarnRatio: 0.8,
   warnCooldownMinutes: 30,
-  oversizeSoftGrowthLimit: 20,
+  // A bounded maintenance change in a legacy oversized file should remain
+  // possible. One hundred lines is 20% of the common 500-line source budget;
+  // growth still requires a split or an explicit project override.
+  oversizeSoftGrowthLimit: 100,
 };
 
 // ── Ratchet constants (not user-configurable) ─────────────────
@@ -196,15 +199,11 @@ export function countLines(text) {
   return lines.length;
 }
 
-/** Read git HEAD content for the given file path; returns null on failure */
-function readGitHeadContent(filePath) {
+/** Read git HEAD content for the given file path; returns null on failure. */
+function readGitHeadContent(filePath, repoRoot) {
   try {
-    const repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      encoding: "utf-8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 5000,
-    }).trim();
-    const relPath = filePath.replace(repoRoot + "/", "").replaceAll("\\", "/");
+    const relPath = relative(repoRoot, filePath).replaceAll("\\", "/");
+    if (relPath === ".." || relPath.startsWith("../")) return null;
     return execFileSync("git", ["show", `HEAD:${relPath}`], {
       cwd: repoRoot,
       encoding: "utf-8",
@@ -393,7 +392,7 @@ async function main() {
 
   let headLines = null;
   if (rule.mode === "block" && currentLines > budget) {
-    const headContent = readGitHeadContent(filePath);
+    const headContent = readGitHeadContent(filePath, repoRoot);
     headLines = headContent !== null ? countLines(headContent) : null;
   }
   const decision = classifyBudgetState({

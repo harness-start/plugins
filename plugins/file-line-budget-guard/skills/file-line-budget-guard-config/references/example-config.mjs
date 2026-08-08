@@ -19,6 +19,6 @@ export default {
   settings: {
     nearBudgetWarnRatio: 0.8,
     warnCooldownMinutes: 30,
-    oversizeSoftGrowthLimit: 20,
+    oversizeSoftGrowthLimit: 100,
   },
 };

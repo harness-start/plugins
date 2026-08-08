@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   countLines,
@@ -30,6 +33,12 @@ test("resolveRules gives a valid user rule precedence over built-ins", () => {
   assert.equal(rules[0], custom);
   assert.equal(matchRule("src/legacy.php", rules), custom);
   assert.equal(settings.oversizeSoftGrowthLimit, 7);
+});
+
+test("default legacy growth allowance stays bounded but permits maintenance", () => {
+  const { settings } = resolveRules(null);
+
+  assert.equal(settings.oversizeSoftGrowthLimit, 100);
 });
 
 test("matchRule skips tests before applying source-file budgets", () => {
@@ -162,4 +171,29 @@ test("entry fails open with empty output for malformed JSON", async () => {
   assert.equal(result.code, 0);
   assert.equal(result.stdout, "");
   assert.equal(result.stderr, "");
+});
+
+test("entry resolves the HEAD baseline from the target repository, not process cwd", async () => {
+  const root = mkdtempSync(join(tmpdir(), "file-budget-cross-cwd-"));
+  const target = join(root, "legacy.py");
+  try {
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: root });
+    execFileSync("git", ["config", "user.email", "test@example.invalid"], { cwd: root });
+    writeFileSync(target, `${"pass\n".repeat(510)}`);
+    execFileSync("git", ["add", "legacy.py"], { cwd: root });
+    execFileSync("git", ["commit", "-q", "-m", "test: add legacy file"], { cwd: root });
+    writeFileSync(target, `${"pass\n".repeat(540)}`);
+
+    const result = await runEntry(JSON.stringify({
+      cwd: root,
+      tool_name: "Edit",
+      tool_input: { file_path: target },
+    }));
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stderr, /was already oversized and grew only slightly/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

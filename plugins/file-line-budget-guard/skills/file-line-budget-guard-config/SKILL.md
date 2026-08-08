@@ -36,7 +36,7 @@ export default {
   settings: {
     nearBudgetWarnRatio: 0.8,      // warn when lines >= budget * ratio
     warnCooldownMinutes: 30,
-    oversizeSoftGrowthLimit: 20, // historical oversize soft growth lines
+    oversizeSoftGrowthLimit: 100, // historical oversize soft growth lines
   },
 };
 ```
@@ -89,7 +89,7 @@ export default {
   settings: {
     nearBudgetWarnRatio: 0.8,
     warnCooldownMinutes: 30,
-    oversizeSoftGrowthLimit: 20,
+    oversizeSoftGrowthLimit: 100,
   },
 };
 ```

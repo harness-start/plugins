@@ -60,7 +60,7 @@ export default {
   settings: {
     nearBudgetWarnRatio: 0.8,
     warnCooldownMinutes: 30,
-    oversizeSoftGrowthLimit: 20,
+    oversizeSoftGrowthLimit: 100,
   },
 };
 ```
@@ -106,4 +106,4 @@ codex plugin add file-line-budget-guard@harness-start
 - 不写入插件安装目录
 - 不记录文件内容、凭据或完整事件
 
-Version: `0.3.0`
+Version: `0.3.2`
