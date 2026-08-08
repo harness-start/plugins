@@ -1,0 +1,16 @@
+{
+  "name": "subagent-workflow-guard",
+  "version": "0.2.0",
+  "description": "Provides application-first handoff, hook-backed gates on capable hosts, and sealed implementation-review closure.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Subagent Workflow Guard",
+    "shortDescription": "Application handoff and sealed review closure.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

@@ -137,10 +137,10 @@
       "category": "Productivity"
     },
     {
-      "name": "subagent-discipline",
+      "name": "subagent-workflow-guard",
       "source": {
         "source": "local",
-        "path": "./plugins/subagent-discipline"
+        "path": "./plugins/subagent-workflow-guard"
       },
       "policy": {
         "installation": "AVAILABLE",

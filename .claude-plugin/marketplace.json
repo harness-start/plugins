@@ -62,9 +62,9 @@
       "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
     },
     {
-      "name": "subagent-discipline",
-      "source": "./plugins/subagent-discipline",
-      "description": "Injects subagent contract and return hygiene; with agent_id, ledger TTL cleanup, gitignore ensure, optional Stop gate."
+      "name": "subagent-workflow-guard",
+      "source": "./plugins/subagent-workflow-guard",
+      "description": "Provides application-first handoff, hook-backed gates on capable hosts, and sealed implementation-review closure."
     },
     {
       "name": "intent-clarify-gate",

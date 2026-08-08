@@ -1,0 +1,4 @@
+id = "01-application-dispatch"
+hosts = ["claude", "codex"]
+timeout_sec = 360
+tags = ["pre-tool", "agent-dispatch", "host-boundary"]
