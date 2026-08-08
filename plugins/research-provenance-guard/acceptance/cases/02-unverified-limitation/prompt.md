@@ -1,0 +1,1 @@
+$research Use research_provenance to begin epoch 1 for the question "What is the fixture's production uptime?" There is no source. Seal one `unverified` claim with the limitation "No production telemetry was supplied." at mutation revision 0. Finish with the exact returned trailer and do not invent an uptime value.
