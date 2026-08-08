@@ -1,6 +1,6 @@
 ---
 name: language-output-governance-config
-description: Change language-output-governance defaults: response profile, drift thresholds, tool feedback, and Stop language gate in .language-output-governance.mjs.
+description: "Change language-output-governance defaults: response profile, drift thresholds, tool feedback, and Stop language gate in .language-output-governance.mjs."
 version: 0.2.0
 ---
 

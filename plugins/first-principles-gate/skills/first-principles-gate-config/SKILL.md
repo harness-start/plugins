@@ -1,6 +1,6 @@
 ---
 name: first-principles-gate-config
-description: Change first-principles-gate project settings: write-block mode, entry tokens, ledger path, and Stop gate in .first-principles-gate.mjs.
+description: "Change first-principles-gate project settings: write-block mode, entry tokens, ledger path, and Stop gate in .first-principles-gate.mjs."
 ---
 
 # first-principles-gate-config

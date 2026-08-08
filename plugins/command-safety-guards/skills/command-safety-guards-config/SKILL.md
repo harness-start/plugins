@@ -1,6 +1,6 @@
 ---
 name: command-safety-guards-config
-description: Change or diagnose project command-safety-guards rules: shell allow/deny/report patterns, engines, and deny-escalation in .command-safety-guards.mjs.
+description: "Change or diagnose project command-safety-guards rules: shell allow/deny/report patterns, engines, and deny-escalation in .command-safety-guards.mjs."
 version: 0.1.0
 ---
 

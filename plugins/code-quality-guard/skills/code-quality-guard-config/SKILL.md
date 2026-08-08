@@ -1,6 +1,6 @@
 ---
 name: code-quality-guard-config
-description: Change or diagnose project code-quality-guard settings: syntax/lint modes, path exceptions, and bounded ESLint/Ruff/PHPStan/Composer limits in .code-quality-guard.mjs.
+description: "Change or diagnose project code-quality-guard settings: syntax/lint modes, path exceptions, and bounded ESLint/Ruff/PHPStan/Composer limits in .code-quality-guard.mjs."
 version: 0.1.0
 ---
 

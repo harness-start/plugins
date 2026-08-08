@@ -1,6 +1,6 @@
 ---
 name: goal-task-audit-trail
-description: Maintain the goal-task decision/work trail while a host goal run is armed: append decisions and work, tip-only rewrites, and close with the required trailer.
+description: "Maintain the goal-task decision/work trail while a host goal run is armed: append decisions and work, tip-only rewrites, and close with the required trailer."
 ---
 
 # goal-task-audit-trail
