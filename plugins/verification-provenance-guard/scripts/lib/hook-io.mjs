@@ -25,7 +25,19 @@ export function extractToolInput(event) {
 }
 
 export function extractToolResponse(event) {
-  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.tool?.response ?? null;
+  return event?.tool_response
+    ?? event?.toolResponse
+    ?? event?.tool_result
+    ?? event?.toolResult
+    ?? event?.response
+    ?? event?.tool?.response
+    ?? event?.error
+    ?? null;
+}
+
+export function extractPrompt(event) {
+  const value = event?.prompt ?? event?.user_prompt ?? event?.userPrompt ?? event?.message ?? "";
+  return typeof value === "string" ? value : "";
 }
 
 export function extractAssistantMessage(event) {

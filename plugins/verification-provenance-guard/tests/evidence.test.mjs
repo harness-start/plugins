@@ -9,6 +9,7 @@ import { test } from "node:test";
 import {
   commandHash,
   commandReliability,
+  inferOutcome,
   parseCiResult,
   parseVerificationSummary,
   classifyCommand,
@@ -46,10 +47,13 @@ test("config accepts bounded custom claim and command patterns", () => {
   const warnings = [];
   const config = resolveConfig({
     claims: { additionalPatterns: [/database migration verified/iu, "invalid"] },
-    commands: { testPatterns: [/\bvitest\b/u] },
+    commands: { testPatterns: [/\bvitest\b/u], expectedFailurePatterns: [/expected mismatch/gu] },
+    paths: { nonCodePatterns: [/generated\/schema\.json/gu] },
   }, (message) => warnings.push(message));
   assert.equal(config.claims.additionalPatterns.length, 1);
   assert.equal(config.commands.testPatterns.length, 1);
+  assert.equal(config.commands.expectedFailurePatterns.length, 1);
+  assert.equal(config.paths.nonCodePatterns.length, 1);
   assert.match(warnings.join("\n"), /claims\.additionalPatterns\[1\]/u);
 });
 
@@ -70,6 +74,18 @@ test("command classifier and reliability reject failure masking and mutating ver
   assert.equal(commandReliability("node --test > reports/test.log").workspaceMutation, true);
 });
 
+test("command classifier accepts complete read-only chains but fails closed on mixed or executable chains", () => {
+  assert.equal(classifyCommand("cd /tmp/project && pwd && sed -n '1,80p' README.md | head -20"), "read");
+  assert.equal(classifyCommand("git status --short && echo --- && git diff --check"), "read");
+  assert.equal(classifyCommand("wc -c report.json && sha256sum report.json && xxd report.json && file report.json"), "read");
+  assert.equal(classifyCommand("printf 'bytes: ' && wc -c < report.json"), "read");
+  assert.equal(classifyCommand("find docs -type f -exec cat {} \\; | head -20"), "read");
+  assert.equal(classifyCommand("find docs -type f -exec rm {} \\;"), "mutation");
+  assert.equal(classifyCommand("xxd report.json > report.hex"), "mutation");
+  assert.equal(classifyCommand("cat README.md && rm README.md"), "mutation");
+  assert.equal(classifyCommand("cd /tmp/project && python3 -c 'open(\"changed\", \"w\").write(\"x\")'"), "mutation");
+});
+
 test("stateful custom command patterns are stable across repeated classification", () => {
   const config = { testPatterns: [/\bmy-test\b/gu] };
   assert.equal(classifyCommand("my-test" , config), "test");
@@ -78,9 +94,19 @@ test("stateful custom command patterns are stable across repeated classification
 
 test("verification summaries are bounded and structured", () => {
   assert.deepEqual(parseVerificationSummary("# pass 15\n# fail 0\n# skipped 2\n"), { passed: 15, failed: 0, skipped: 2 });
+  assert.deepEqual(parseVerificationSummary({ stdout: "# pass 1\n# fail 0\n", stderr: "" }), { passed: 1, failed: 0 });
   assert.deepEqual(parseVerificationSummary("================ 7 passed, 1 skipped in 0.2s ================"), { passed: 7, skipped: 1 });
   assert.deepEqual(parseVerificationSummary("OK (12 tests, 30 assertions)"), { passed: 12, failed: 0 });
   assert.equal(parseVerificationSummary("success"), null);
+});
+
+test("command outcomes use explicit host status or a structured non-empty test summary", () => {
+  assert.equal(inferOutcome("test runner output without an exit status"), "unknown");
+  assert.equal(inferOutcome("# pass 1\n# fail 0\n"), "success");
+  assert.equal(inferOutcome("# pass 0\n# fail 1\n"), "failure");
+  assert.equal(inferOutcome({ stdout: "# pass 1\n# fail 0\n", stderr: "", interrupted: false }), "success");
+  assert.equal(inferOutcome({ exit_code: 0 }), "success");
+  assert.equal(inferOutcome({ exit_code: 1 }), "failure");
 });
 
 test("CI parser requires structured success, sha, id, and URL", () => {

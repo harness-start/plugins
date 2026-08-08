@@ -11,6 +11,7 @@ import {
   inferOutcome,
   parseCiResult,
   parseVerificationSummary,
+  responseText,
 } from "./lib/command-policy.mjs";
 import { loadConfig } from "./lib/config.mjs";
 import { validateManifestEvidence } from "./lib/evidence.mjs";
@@ -24,53 +25,91 @@ import {
   additionalContextOutput,
   extractAssistantMessage,
   extractCwd,
+  extractPrompt,
   extractShellCommand,
   extractToolResponse,
   isFileMutation,
-  isStopHookActive,
   readStdinJson,
   stopBlock,
   writeJson,
 } from "./lib/hook-io.mjs";
+import { mutationScopes, shellMutationScopes } from "./lib/mutation-policy.mjs";
 import { clearState, readState, updateState } from "./lib/state-store.mjs";
+import { validateWorkflowEvidence } from "./lib/workflow.mjs";
 
 const SESSION_CONTEXT = [
   "[Verification Provenance Guard] Delivery evidence protocol is enabled.",
-  "After file or workspace changes, or when the final response claims test, CI, Git, or artifact conclusions, end with a verification-evidence/v1 manifest.",
-  "Use the bundled `verification-evidence-reporting` Skill for the complete template. A label alone is not evidence; verified claims must match this session's records or current file/Git state.",
+  "For substantial work, use the bundled `evidence-driven-delivery` Skill: contract, challenge, minimal change, targeted verification, complete verification, adversarial review, then report.",
+  "After file or workspace changes, use a verification-evidence/v2 manifest. Behavior code requires test edit -> observed RED -> production edit -> current GREEN; refactors require the same GREEN command before and after the edit.",
+  "Use `verification-evidence-reporting` for the exact template. Final command evidence must be after the latest mutation and in the current user-prompt epoch; labels and subagent reports are not evidence.",
 ].join("\n");
 
 function warn(message) {
   process.stderr.write(`[verification-provenance-guard] ${message}\n`);
 }
 
-function recordMutation(state) {
+function nextSeq(state) {
+  state.eventSeq += 1;
+  return state.eventSeq;
+}
+
+function recordMutation(state, scopes = ["unknown"]) {
   state.revision += 1;
-  state.mutations += 1;
+  const seq = nextSeq(state);
+  for (const scope of scopes) {
+    state.mutations.push({ seq, promptEpoch: state.promptEpoch, revision: state.revision, scope });
+  }
+}
+
+function configuredFailureMatch(response, patterns) {
+  const text = responseText(response);
+  return (patterns ?? []).some((pattern) => {
+    pattern.lastIndex = 0;
+    return pattern.test(text);
+  });
+}
+
+function runPrompt(event) {
+  updateState(event, (state) => {
+    state.promptEpoch += 1;
+    state.stopBlocks = 0;
+    state.abortAuthorized = extractPrompt(event).trim() === "# verification-abort";
+  });
 }
 
 function runPost(event, config, forceFailure) {
   updateState(event, (state) => {
     if (isFileMutation(event)) {
-      recordMutation(state);
+      const scopes = mutationScopes(event, config.paths);
+      recordMutation(state, scopes);
+      if (scopes.some((scope) => ["code", "unknown"].includes(scope))) {
+        const hasChallenge = state.receipts.some((receipt) => receipt.class === "test" && receipt.reliable === true && ["success", "failure"].includes(receipt.outcome));
+        if (!hasChallenge) warn("code or unknown mutation observed before a test RED/GREEN challenge; completion will be blocked");
+      }
       return;
     }
     const command = extractShellCommand(event);
     if (!command?.trim()) return;
     const classification = classifyCommand(command, config.commands);
     const reliability = commandReliability(command);
-    if (classification === "mutation" || reliability.workspaceMutation) recordMutation(state);
+    if (classification === "mutation" || reliability.workspaceMutation) {
+      recordMutation(state, shellMutationScopes(command, extractCwd(event), config.paths));
+    }
     if (!["test", "verification", "ci"].includes(classification)) return;
     const response = extractToolResponse(event);
     const outcome = inferOutcome(response, forceFailure);
+    const summary = ["test", "verification"].includes(classification) ? parseVerificationSummary(response) : null;
     const provider = /\bgh\s+/iu.test(command) ? "github" : "gitlab";
     state.receipts.push({
+      seq: nextSeq(state),
       commandHash: commandHash(command),
       class: classification,
       outcome,
       reliable: reliability.reliable,
+      redQualified: outcome === "failure" && ((summary?.failed ?? 0) > 0 || configuredFailureMatch(response, config.commands.expectedFailurePatterns)),
+      promptEpoch: state.promptEpoch,
       revision: state.revision,
-      summary: classification === "test" ? parseVerificationSummary(response) : null,
+      summary,
       ci: classification === "ci" && outcome === "success" ? parseCiResult(response, provider) : null,
       at: Date.now(),
     });
@@ -80,17 +119,24 @@ function runPost(event, config, forceFailure) {
 function triggerRequired(config, state, unsupported, blockPresent) {
   if (config.trigger === "always") return true;
   if (blockPresent || unsupported.length > 0) return true;
-  return config.trigger === "mutation-or-claim" && state.mutations > 0;
+  return config.trigger === "mutation-or-claim" && state.mutations.length > 0;
 }
 
-function formatBlock(findings) {
+function formatBlock(findings, compact = false) {
+  if (compact) {
+    return [
+      "[Verification Provenance Guard] Completion remains blocked after repeated invalid evidence.",
+      ...findings.slice(0, 6).map((finding) => `- ${finding}`),
+      "Return a valid verification-evidence/v2 report with completion blocked/needs_context, or ask the user to submit exactly `# verification-abort`.",
+    ].join("\n");
+  }
   return [
     "[Verification Provenance Guard] Completion evidence is incomplete or cannot be verified automatically.",
     "",
     ...findings.slice(0, 12).map((finding) => `- ${finding}`),
     "",
-    "Recovery: use the `verification-evidence-reporting` Skill, give every visible conclusion a C# identifier, and provide exactly one verification-evidence/v1 JSON block.",
-    "A verified claim must reference a command receipt after the latest change, current workspace artifact/Git state, or a successful CI receipt parsed in this session.",
+    "Recovery: use the `evidence-driven-delivery` and `verification-evidence-reporting` Skills, give every visible conclusion a C# identifier, and provide exactly one verification-evidence/v2 JSON block.",
+    "A final command receipt must be after the latest change and in the current user-prompt epoch. Historical RED/baseline receipts remain process evidence only.",
     "When automatic proof is unavailable, use [inferred] or [unverified] and provide basis/reason; do not merely add a [locally-verified] label.",
   ].join("\n");
 }
@@ -98,6 +144,7 @@ function formatBlock(findings) {
 export async function evaluateStop(event, config, repoRoot) {
   const message = extractAssistantMessage(event);
   const state = readState(event);
+  if (state.abortAuthorized) return { allow: true, terminal: true, aborted: true, state };
   let block;
   const findings = [];
   try {
@@ -128,6 +175,12 @@ export async function evaluateStop(event, config, repoRoot) {
   }
   if (unsupported.length > 0) findings.push(`unsupported bare conclusion categories: ${unsupported.join(", ")}`);
   if (manifest) findings.push(...await validateManifestEvidence(manifest, { state, workspaceRoot: repoRoot, maxArtifactBytes: config.artifact.maxBytes }));
+  if (manifest?.schema === "verification-evidence/v1" && state.mutations.length > 0) {
+    findings.push("completion after mutations requires verification-evidence/v2");
+  }
+  if (manifest?.schema === "verification-evidence/v2") {
+    findings.push(...await validateWorkflowEvidence(manifest, { state, workspaceRoot: repoRoot, maxArtifactBytes: config.artifact.maxBytes }));
+  }
   if (findings.length > 0) return { allow: false, findings: [...new Set(findings)], state, manifest };
   return { allow: true, terminal: ["done", "done_with_concerns"].includes(manifest.completion), state, manifest };
 }
@@ -140,12 +193,11 @@ async function runStop(event, config, repoRoot) {
     else updateState(event, (state) => { state.stopBlocks = 0; });
     return;
   }
-  const active = isStopHookActive(event);
   const updated = updateState(event, (state) => { state.stopBlocks += 1; return state.stopBlocks; });
   const attempts = updated.result ?? decision.state.stopBlocks + 1;
-  const reason = formatBlock(decision.findings);
-  if (config.mode === "report" || (active && attempts > config.stop.maxBlocks)) {
-    warn(`${reason}\n[fail-open] Stop retry limit reached; evidence state is retained.`);
+  const reason = formatBlock(decision.findings, attempts > config.stop.maxBlocks);
+  if (config.mode === "report") {
+    warn(`${reason}\n[report-only] Completion was not blocked.`);
     return;
   }
   writeJson(stopBlock(reason));
@@ -154,13 +206,14 @@ async function runStop(event, config, repoRoot) {
 
 export async function main(mode = process.argv[2]) {
   const event = await readStdinJson();
-  if (event.__parseError || !["session", "post", "failure", "stop"].includes(mode)) return;
+  if (event.__parseError || !["session", "prompt", "post", "failure", "stop"].includes(mode)) return;
   const cwd = resolve(extractCwd(event));
   const { config, repoRoot } = await loadConfig(cwd, warn);
   if (mode === "session") {
     updateState(event, () => {});
     writeJson(additionalContextOutput(SESSION_CONTEXT));
-  } else if (mode === "post") runPost(event, config, false);
+  } else if (mode === "prompt") runPrompt(event);
+  else if (mode === "post") runPost(event, config, false);
   else if (mode === "failure") runPost(event, config, true);
   else await runStop(event, config, repoRoot);
 }

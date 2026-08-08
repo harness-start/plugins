@@ -89,10 +89,13 @@ async function artifactFinding(item, workspaceRoot, maxBytes) {
 
 function commandFinding(item, predicate, state) {
   const hash = commandHash(item.command);
-  const receipt = [...(state.receipts ?? [])].reverse().find((candidate) => candidate.commandHash === hash);
+  const receipt = [...(state.receipts ?? [])].reverse().find((candidate) => candidate.commandHash === hash && candidate.outcome === "success");
   if (!receipt) return `${item.id}: no matching command receipt`;
   if (receipt.outcome !== "success" || receipt.reliable !== true) return `${item.id}: matching command receipt is not a reliable success`;
   if (receipt.revision !== state.revision) return `${item.id}: verification must run after the last mutation`;
+  if ((state.promptEpoch ?? 0) > 0 && receipt.promptEpoch !== state.promptEpoch) {
+    return `${item.id}: verification must run in the current user-prompt epoch`;
+  }
   if (predicate === "test_suite_passed" && receipt.class !== "test") return `${item.id}: command is not classified as a test`;
   if (predicate === "verification_succeeded" && !["test", "verification"].includes(receipt.class)) return `${item.id}: command is not classified as verification`;
   if (!summaryMatches(item.summary, receipt.summary)) return `${item.id}: command summary does not match the observed output`;
@@ -120,6 +123,9 @@ function ciFinding(item, state) {
   if (!receipt) return `${item.id}: no matching CI query receipt`;
   if (receipt.outcome !== "success" || receipt.reliable !== true || receipt.revision !== state.revision || !receipt.ci) {
     return `${item.id}: CI receipt is missing, stale, or unsuccessful`;
+  }
+  if ((state.promptEpoch ?? 0) > 0 && receipt.promptEpoch !== state.promptEpoch) {
+    return `${item.id}: CI query must run in the current user-prompt epoch`;
   }
   const expected = { provider: item.provider, pipelineId: item.pipelineId, status: item.status, sha: item.sha, url: item.url };
   if (Object.entries(expected).some(([key, value]) => receipt.ci[key] !== value)) return `${item.id}: CI metadata does not match the observed result`;

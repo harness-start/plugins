@@ -1,0 +1,4 @@
+id = "06-non-code-negative-check"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["stop", "workflow", "artifact", "allow"]

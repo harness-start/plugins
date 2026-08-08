@@ -42,6 +42,49 @@ function response(value = manifest()) {
   ].join("\n");
 }
 
+function v2Manifest(overrides = {}) {
+  return {
+    schema: "verification-evidence/v2",
+    completion: "done",
+    workflow: {
+      profile: "code_behavior",
+      contract: "Export the requested behavior through the public module seam.",
+      challenge: { kind: "red_test", evidence: ["E1"] },
+      targetedVerification: ["E2"],
+      completeVerification: ["E2"],
+      adversarialReview: {
+        status: "verified",
+        statement: "The public behavior and regression path were rechecked.",
+        evidence: ["E2"],
+      },
+    },
+    claims: [{
+      id: "C1",
+      predicate: "test_suite_passed",
+      status: "verified",
+      statement: "Unit tests passed: 1/1.",
+      evidence: ["E2"],
+    }],
+    evidence: [
+      {
+        id: "E1",
+        kind: "command",
+        command: "node --test tests/app.test.mjs",
+        outcome: "expected_failure",
+        summary: { passed: 0, failed: 1 },
+      },
+      {
+        id: "E2",
+        kind: "command",
+        command: "node --test tests/app.test.mjs",
+        outcome: "success",
+        summary: { passed: 1, failed: 0 },
+      },
+    ],
+    ...overrides,
+  };
+}
+
 test("extracts exactly one bounded evidence block", () => {
   const block = extractEvidenceBlock(response(), { maxBytes: 32 * 1024 });
   assert.equal(block.present, true);
@@ -109,4 +152,32 @@ test("visible claims must be one-line, unique, tagged, and statement-exact", () 
 test("confusable claim identifiers are not accepted", () => {
   const parsed = parseEvidenceManifest(JSON.stringify(manifest()));
   assert.throws(() => validateVisibleClaims(response().replace("[C1]", "[Ｃ1]"), parsed), /missing visible claim/u);
+});
+
+test("v2 parses an explicit workflow and expected-failure challenge evidence", () => {
+  const parsed = parseEvidenceManifest(JSON.stringify(v2Manifest()));
+  assert.equal(parsed.schema, "verification-evidence/v2");
+  assert.equal(parsed.workflow.profile, "code_behavior");
+  assert.equal(parsed.evidence[0].outcome, "expected_failure");
+});
+
+test("v2 rejects failure evidence in completion claims and unused workflow evidence", () => {
+  const failureClaim = v2Manifest({
+    claims: [{
+      id: "C1",
+      predicate: "test_suite_passed",
+      status: "verified",
+      statement: "Unit tests passed: 1/1.",
+      evidence: ["E1"],
+    }],
+  });
+  assert.throws(() => parseEvidenceManifest(JSON.stringify(failureClaim)), /expected_failure.*completion claim/iu);
+
+  const unused = v2Manifest({
+    evidence: [
+      ...v2Manifest().evidence,
+      { id: "E3", kind: "command", command: "npm run lint", outcome: "success" },
+    ],
+  });
+  assert.throws(() => parseEvidenceManifest(JSON.stringify(unused)), /unreferenced evidence/u);
 });

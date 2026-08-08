@@ -89,7 +89,11 @@ test("parser and trigger pairwise matrix stays fully covered", async (context) =
 
   for (const [index, item] of matrix.cases.entries()) {
     const event = { cwd: root, session_id: `parser-${index}`, stop_hook_active: item.stop_active };
-    if (item.trigger === "mutation") updateState(event, (state) => { state.mutations = 1; state.revision = 1; });
+    if (item.trigger === "mutation") updateState(event, (state) => {
+      state.eventSeq = 1;
+      state.revision = 1;
+      state.mutations.push({ seq: 1, promptEpoch: 0, revision: 1, scope: "unknown" });
+    });
     let message = item.manifest === "absent" ? "Ordinary explanation." : validUnverifiedResponse(item.completion === "completion" ? "done_with_concerns" : "needs_context");
     if (item.manifest === "malformed_json") message = "```verification-evidence\n{\"schema\":\n```";
     if (item.manifest === "duplicate_block") message = `${validUnverifiedResponse("needs_context")}\n${validUnverifiedResponse("needs_context")}`;
@@ -105,7 +109,7 @@ test("parser and trigger pairwise matrix stays fully covered", async (context) =
     const safeOutside = ["none", "negated_or_quoted"].includes(item.outside_text);
     const triggerAddsBare = ["validation_claim", "artifact_claim"].includes(item.trigger);
     const expectedAllow = item.manifest === "valid"
-      ? safeOutside && !triggerAddsBare
+      ? safeOutside && !triggerAddsBare && item.trigger !== "mutation"
       : item.manifest === "absent" && item.trigger === "no_work" && safeOutside;
     assert.equal(decision.allow, expectedAllow, `parser matrix case ${index + 1}: ${JSON.stringify(item)}`);
   }

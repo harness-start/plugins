@@ -4,7 +4,9 @@ const CI_COMMAND = /\b(?:glab\s+(?:api|ci|mr\s+view)|gh\s+(?:run\s+view|pr\s+che
 const TEST_COMMAND = /\b(?:node\s+--test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|pest|jest|vitest|go\s+test|cargo\s+test|mvn\s+test|gradlew?\s+test|rspec|ctest|make\s+test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test|bun\s+test)\b/iu;
 const VERIFY_COMMAND = /\b(?:eslint|ruff\s+check|phpstan|tsc|shellcheck|actionlint|kubeconform|composer\s+validate|terraform\s+validate|tofu\s+validate|npm\s+(?:run\s+)?(?:lint|typecheck|check|build)|pnpm\s+(?:run\s+)?(?:lint|typecheck|check|build)|yarn\s+(?:run\s+)?(?:lint|typecheck|check|build)|cargo\s+(?:check|clippy)|go\s+vet)\b/iu;
 const EXTERNAL_COMMAND = /^\s*(?:git\s+(?:commit|push|tag)|glab\s+(?:mr\s+(?:create|merge)|release\s+create)|gh\s+(?:pr\s+(?:create|merge)|release\s+create))\b/iu;
-const READ_ONLY = /^\s*(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)*(?:pwd|ls|cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|find|grep|rg|which|git\s+(?:status|diff|log|show|rev-parse|branch|ls-files)|jq\b)/iu;
+const READ_ONLY_SIMPLE = /^(?:pwd|ls|cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|grep|rg|which|jq|echo|printf|env|sort|cut|tr|xxd|file)\b/iu;
+const READ_ONLY_GIT = /^git\s+(?:status|diff|log|show|rev-parse|ls-files)\b/iu;
+const ENV_ASSIGNMENTS = /^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)*/u;
 const MASK_FAILURE = /(?:\|\|\s*(?:true|:)(?:\s|$)|;\s*true(?:\s|$)|\bset\s+\+e\b)/iu;
 const MUTATING_VERIFY_FLAG = /(?:^|\s)(?:--fix(?:\s|=|$)|--write(?:\s|=|$)|-u(?:\s|$)|--updateSnapshot\b)/u;
 const PIPE = /(^|[^|])\|([^|]|$)/u;
@@ -39,6 +41,28 @@ function verificationHead(value) {
   return value.slice(0, first.index).replace(/^\s*set\s+-(?:o\s+pipefail|euo\s+pipefail)\s*;\s*/u, "");
 }
 
+function readOnlySegment(raw) {
+  const value = raw.trim().replace(ENV_ASSIGNMENTS, "").trim();
+  if (!value || /\$\(|`/u.test(value)) return false;
+  if (/^cd(?:\s|$)/iu.test(value)) return /^cd\s+(?:--\s+)?[^;&|<>]+$/u.test(value);
+  if (/^find\b/iu.test(value)) {
+    if (/\s-(?:delete|ok|okdir)\b/iu.test(value)) return false;
+    const executors = [...value.matchAll(/\s-exec(?:dir)?\s+([^\s;]+)/giu)].map((match) => match[1]);
+    return executors.every((program) => /^(?:cat|head|tail|wc|stat|sha(?:1|256|512)sum|shasum|file|xxd)$/iu.test(program));
+  }
+  if (/^sed\b/iu.test(value)) return /^sed\s+-[^\s]*n[^\s]*\s+/iu.test(value) && !/\s-i(?:\s|$)/iu.test(value);
+  if (/^git\s+branch\b/iu.test(value)) return /^git\s+branch(?:\s+(?:--(?:list|show-current)|-[arv]+))*\s*$/iu.test(value);
+  if (/^python(?:3)?\s+-m\s+json\.tool\b/iu.test(value)) return true;
+  return READ_ONLY_SIMPLE.test(value) || READ_ONLY_GIT.test(value);
+}
+
+function isReadOnlyChain(command) {
+  const withoutBenignStderr = String(command ?? "").replace(/\s+2>(?:\/dev\/null|&1)\b/gu, "").replaceAll("\\;", " ");
+  if (OUTPUT_WRITE.test(withoutBenignStderr)) return false;
+  const segments = withoutBenignStderr.split(/&&|\|\||;|\n|(?<!\|)\|(?!\|)/u);
+  return segments.length > 0 && segments.every(readOnlySegment);
+}
+
 export function normalizeCommand(command) {
   return String(command ?? "").trim().replace(/\s+/gu, " ").replace(/;+$/u, "").trim();
 }
@@ -56,7 +80,7 @@ export function classifyCommand(command, config = {}) {
   if (TEST_COMMAND.test(value) || additionalTests.some((pattern) => matches(pattern, value))) return "test";
   if (VERIFY_COMMAND.test(value) || additionalVerification.some((pattern) => matches(pattern, value))) return "verification";
   if (EXTERNAL_COMMAND.test(value)) return "external";
-  if (READ_ONLY.test(value)) return "read";
+  if (isReadOnlyChain(value)) return "read";
   return "mutation";
 }
 
@@ -85,14 +109,24 @@ export function inferOutcome(response, forceFailure = false) {
     if (typeof code === "number") return code === 0 ? "success" : "failure";
     if (response.success === false || response.is_error === true || response.isError === true) return "failure";
   }
-  const text = typeof response === "string" ? response : JSON.stringify(response ?? "");
+  const text = responseText(response);
   const codes = [...text.matchAll(/(?:Process exited with code|Exit code:?|exited with code)\s+(-?\d+)/giu)];
   if (codes.length > 0) return Number(codes.at(-1)[1]) === 0 ? "success" : "failure";
-  return "success";
+  const summary = parseVerificationSummary(text);
+  if ((summary?.failed ?? 0) > 0) return "failure";
+  if ((summary?.passed ?? 0) > 0 && summary?.failed === 0) return "success";
+  return "unknown";
 }
 
 export function responseText(response) {
   if (typeof response === "string") return response;
+  if (response && typeof response === "object" && !Array.isArray(response)) {
+    const text = ["stdout", "stderr", "output", "content", "message", "error"]
+      .map((key) => response[key])
+      .filter((value) => typeof value === "string")
+      .join("\n");
+    if (text) return text;
+  }
   try { return JSON.stringify(response ?? ""); } catch { return String(response ?? ""); }
 }
 

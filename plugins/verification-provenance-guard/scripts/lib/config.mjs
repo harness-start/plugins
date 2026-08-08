@@ -14,7 +14,8 @@ export const DEFAULT_CONFIG = Object.freeze({
   artifact: Object.freeze({ maxBytes: 64 * 1024 * 1024 }),
   stop: Object.freeze({ maxBlocks: 2 }),
   claims: Object.freeze({ additionalPatterns: Object.freeze([]) }),
-  commands: Object.freeze({ testPatterns: Object.freeze([]), verificationPatterns: Object.freeze([]) }),
+  commands: Object.freeze({ testPatterns: Object.freeze([]), verificationPatterns: Object.freeze([]), expectedFailurePatterns: Object.freeze([]) }),
+  paths: Object.freeze({ testPatterns: Object.freeze([]), codePatterns: Object.freeze([]), nonCodePatterns: Object.freeze([]) }),
 });
 
 function warnDefault(message) {
@@ -60,6 +61,12 @@ export function resolveConfig(value, warn = warnDefault) {
     commands: {
       testPatterns: patterns(source.commands?.testPatterns, "commands.testPatterns", warn),
       verificationPatterns: patterns(source.commands?.verificationPatterns, "commands.verificationPatterns", warn),
+      expectedFailurePatterns: patterns(source.commands?.expectedFailurePatterns, "commands.expectedFailurePatterns", warn),
+    },
+    paths: {
+      testPatterns: patterns(source.paths?.testPatterns, "paths.testPatterns", warn),
+      codePatterns: patterns(source.paths?.codePatterns, "paths.codePatterns", warn),
+      nonCodePatterns: patterns(source.paths?.nonCodePatterns, "paths.nonCodePatterns", warn),
     },
   };
 }

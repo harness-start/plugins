@@ -1,0 +1,4 @@
+id = "04-accept-refactor-baseline"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["stop", "workflow", "refactor", "allow"]

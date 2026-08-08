@@ -9,7 +9,7 @@
     {
       "name": "verification-provenance-guard",
       "source": "./plugins/verification-provenance-guard",
-      "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses."
+      "description": "Enforces challenge-before-change workflow evidence and fresh completion provenance for code and artifact tasks."
     },
     {
       "name": "execution-loop-guard",

@@ -1,0 +1,4 @@
+id = "05-recover-stale-green"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["stop", "workflow", "freshness", "deny"]

@@ -16,6 +16,8 @@ const PREDICATES = new Set([
 ]);
 const FORMATS = new Set(["text", "json", "pdf", "png", "jpeg", "zip", "binary"]);
 const PROVIDERS = new Set(["gitlab", "github"]);
+const WORKFLOW_PROFILES = new Set(["code_behavior", "code_refactor", "non_code"]);
+const CHALLENGE_KINDS = new Set(["red_test", "baseline_green", "negative_check", "counterexample", "dry_run", "not_applicable"]);
 
 function byteLength(value) {
   return Buffer.byteLength(String(value), "utf8");
@@ -177,21 +179,25 @@ function validateSummary(summary, label) {
   return result;
 }
 
-function validateEvidence(entry, index) {
+function validateEvidence(entry, index, schema) {
   const label = `evidence[${index}]`;
   assertObject(entry, label);
   const id = stringField(entry.id, `${label}.id`, { pattern: EVIDENCE_IDS });
   const kind = stringField(entry.kind, `${label}.kind`, { max: 32 });
   if (kind === "command") {
-    exactKeys(entry, new Set(["id", "kind", "command", "exitCode", "summary"]), label);
-    if (entry.exitCode !== 0) throw new Error(`${label}.exitCode must equal 0`);
-    return {
-      id,
-      kind,
-      command: stringField(entry.command, `${label}.command`, { max: 4096 }),
-      exitCode: 0,
-      ...(entry.summary === undefined ? {} : { summary: validateSummary(entry.summary, `${label}.summary`) }),
-    };
+    const command = stringField(entry.command, `${label}.command`, { max: 4096 });
+    if (schema === "verification-evidence/v1") {
+      exactKeys(entry, new Set(["id", "kind", "command", "exitCode", "summary"]), label);
+      if (entry.exitCode !== 0) throw new Error(`${label}.exitCode must equal 0`);
+      return { id, kind, command, exitCode: 0, ...(entry.summary === undefined ? {} : { summary: validateSummary(entry.summary, `${label}.summary`) }) };
+    }
+    exactKeys(entry, new Set(["id", "kind", "command", "outcome", "summary"]), label);
+    if (!["success", "expected_failure"].includes(entry.outcome)) throw new Error(`${label}.outcome is unsupported`);
+    const summary = entry.summary === undefined ? undefined : validateSummary(entry.summary, `${label}.summary`);
+    if (entry.outcome === "expected_failure" && !(summary?.failed > 0)) {
+      throw new Error(`${label}: expected_failure requires summary.failed > 0`);
+    }
+    return { id, kind, command, outcome: entry.outcome, ...(summary === undefined ? {} : { summary }) };
   }
   if (kind === "artifact") {
     exactKeys(entry, new Set(["id", "kind", "path", "format", "bytes", "sha256"]), label);
@@ -223,6 +229,71 @@ function validateEvidence(entry, index) {
     return { ...entry, id, kind };
   }
   throw new Error(`${label}.kind is unsupported: ${kind}`);
+}
+
+function evidenceIds(value, label, { min = 0, max = 20 } = {}) {
+  if (!Array.isArray(value) || value.length < min || value.length > max) {
+    throw new Error(`${label} must contain ${min}..${max} ids`);
+  }
+  const ids = value.map((item, index) => stringField(item, `${label}[${index}]`, { pattern: EVIDENCE_IDS }));
+  assertUnique(ids, `${label} reference`);
+  return ids;
+}
+
+function validateWorkflowReview(entry) {
+  const label = "workflow.adversarialReview";
+  assertObject(entry, label);
+  exactKeys(entry, new Set(["status", "statement", "evidence", "basis", "reason"]), label);
+  const status = stringField(entry.status, `${label}.status`, { max: 32 });
+  const statement = stringField(entry.statement, `${label}.statement`, { max: 1000 });
+  if (!STATUSES.has(status)) throw new Error(`${label}.status is unsupported`);
+  if (status === "verified") {
+    if (entry.basis !== undefined || entry.reason !== undefined) throw new Error(`${label}: verified review must not contain basis or reason`);
+    return { status, statement, evidence: evidenceIds(entry.evidence, `${label}.evidence`, { min: 1 }) };
+  }
+  if (status === "inferred") {
+    if (entry.reason !== undefined) throw new Error(`${label}: inferred review must not contain reason`);
+    return {
+      status,
+      statement,
+      basis: stringField(entry.basis, `${label}.basis`, { max: 2000 }),
+      evidence: entry.evidence === undefined ? [] : evidenceIds(entry.evidence, `${label}.evidence`),
+    };
+  }
+  if (entry.basis !== undefined || entry.evidence !== undefined) throw new Error(`${label}: unverified review must not contain basis or evidence`);
+  return { status, statement, reason: stringField(entry.reason, `${label}.reason`, { max: 2000 }), evidence: [] };
+}
+
+function validateWorkflow(entry) {
+  const label = "workflow";
+  assertObject(entry, label);
+  exactKeys(entry, new Set(["profile", "contract", "challenge", "targetedVerification", "completeVerification", "adversarialReview"]), label);
+  const profile = stringField(entry.profile, `${label}.profile`, { max: 32 });
+  if (!WORKFLOW_PROFILES.has(profile)) throw new Error(`${label}.profile is unsupported`);
+  const contract = stringField(entry.contract, `${label}.contract`, { max: 1000 });
+  assertObject(entry.challenge, `${label}.challenge`);
+  exactKeys(entry.challenge, new Set(["kind", "evidence", "basis"]), `${label}.challenge`);
+  const kind = stringField(entry.challenge.kind, `${label}.challenge.kind`, { max: 32 });
+  if (!CHALLENGE_KINDS.has(kind)) throw new Error(`${label}.challenge.kind is unsupported`);
+  const reasoned = ["counterexample", "not_applicable"].includes(kind);
+  if (reasoned && entry.challenge.basis === undefined) throw new Error(`${label}.challenge.basis is required for ${kind}`);
+  if (!reasoned && entry.challenge.basis !== undefined) throw new Error(`${label}.challenge.basis is not allowed for ${kind}`);
+  const challengeEvidence = entry.challenge.evidence === undefined
+    ? []
+    : evidenceIds(entry.challenge.evidence, `${label}.challenge.evidence`);
+  if (!reasoned && challengeEvidence.length === 0) throw new Error(`${label}.challenge.evidence must contain 1..20 ids`);
+  return {
+    profile,
+    contract,
+    challenge: {
+      kind,
+      evidence: challengeEvidence,
+      ...(reasoned ? { basis: stringField(entry.challenge.basis, `${label}.challenge.basis`, { max: 2000 }) } : {}),
+    },
+    targetedVerification: evidenceIds(entry.targetedVerification, `${label}.targetedVerification`),
+    completeVerification: evidenceIds(entry.completeVerification, `${label}.completeVerification`),
+    adversarialReview: validateWorkflowReview(entry.adversarialReview),
+  };
 }
 
 function validateClaim(entry, index) {
@@ -274,8 +345,11 @@ export function parseEvidenceManifest(raw, { maxDepth = 8, maxItems = 20 } = {})
   let value;
   try { value = JSON.parse(raw); } catch (error) { throw new Error(`manifest is invalid JSON: ${error.message}`); }
   assertObject(value, "manifest");
-  exactKeys(value, new Set(["schema", "completion", "claims", "evidence"]), "manifest");
-  if (value.schema !== "verification-evidence/v1") throw new Error("manifest.schema must equal verification-evidence/v1");
+  if (!["verification-evidence/v1", "verification-evidence/v2"].includes(value.schema)) {
+    throw new Error("manifest.schema must equal verification-evidence/v1 or verification-evidence/v2");
+  }
+  const isV2 = value.schema === "verification-evidence/v2";
+  exactKeys(value, new Set(["schema", "completion", "claims", "evidence", ...(isV2 ? ["workflow"] : [])]), "manifest");
   if (!COMPLETIONS.has(value.completion)) throw new Error("manifest.completion is unsupported");
   if (!Array.isArray(value.claims) || value.claims.length < 1 || value.claims.length > maxItems) {
     throw new Error(`manifest.claims must contain 1..${maxItems} entries`);
@@ -284,7 +358,8 @@ export function parseEvidenceManifest(raw, { maxDepth = 8, maxItems = 20 } = {})
     throw new Error(`manifest.evidence must contain 0..${maxItems} entries`);
   }
   const claims = value.claims.map(validateClaim);
-  const evidence = value.evidence.map(validateEvidence);
+  const evidence = value.evidence.map((entry, index) => validateEvidence(entry, index, value.schema));
+  const workflow = isV2 ? validateWorkflow(value.workflow) : null;
   assertUnique(claims.map((entry) => entry.id), "claim id");
   assertUnique(evidence.map((entry) => entry.id), "evidence id");
   const byId = new Map(evidence.map((entry) => [entry.id, entry]));
@@ -299,16 +374,31 @@ export function parseEvidenceManifest(raw, { maxDepth = 8, maxItems = 20 } = {})
     for (const id of claim.evidence) {
       const item = byId.get(id);
       if (item.kind !== expected) throw new Error(`${claim.id} requires ${expected} evidence, received ${item.kind}`);
+      if (item.kind === "command" && item.outcome === "expected_failure") {
+        throw new Error(`${claim.id}: expected_failure evidence cannot support a completion claim`);
+      }
     }
     if (claim.predicate === "test_suite_passed" && /(?:\b\d+\s*\/\s*\d+\b|\b\d+\s+(?:tests?|passed)\b|\d+\s*(?:个)?(?:测试)?通过)/iu.test(claim.statement)) {
       if (!claim.evidence.some((id) => byId.get(id)?.summary)) throw new Error(`${claim.id}: numeric test claims require a structured summary`);
+    }
+  }
+  if (workflow) {
+    const workflowIds = [
+      ...workflow.challenge.evidence,
+      ...workflow.targetedVerification,
+      ...workflow.completeVerification,
+      ...workflow.adversarialReview.evidence,
+    ];
+    for (const id of workflowIds) {
+      if (!byId.has(id)) throw new Error(`workflow references unknown evidence: ${id}`);
+      referenced.add(id);
     }
   }
   for (const item of evidence) if (!referenced.has(item.id)) throw new Error(`unreferenced evidence: ${item.id}`);
   if (value.completion === "done" && claims.some((claim) => claim.status !== "verified")) {
     throw new Error("completion must be done_with_concerns, blocked, or needs_context when claims are inferred or unverified");
   }
-  return { schema: value.schema, completion: value.completion, claims, evidence };
+  return { schema: value.schema, completion: value.completion, ...(workflow ? { workflow } : {}), claims, evidence };
 }
 
 function expectedVisibleTag(claim) {

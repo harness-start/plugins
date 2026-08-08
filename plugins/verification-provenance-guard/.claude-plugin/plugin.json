@@ -1,7 +1,7 @@
 {
   "name": "verification-provenance-guard",
-  "version": "0.1.0",
-  "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses.",
+  "version": "0.2.0",
+  "description": "Enforces challenge-before-change workflow evidence and fresh completion provenance for code and artifact tasks.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
