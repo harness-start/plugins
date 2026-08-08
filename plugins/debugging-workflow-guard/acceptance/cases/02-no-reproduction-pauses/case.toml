@@ -1,0 +1,4 @@
+id = "02-no-reproduction-pauses"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["activation", "blocked", "resume"]

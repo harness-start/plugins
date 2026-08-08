@@ -1,0 +1,1 @@
+Use $debug-workflow to diagnose and fix the failing test. Use `node --test test/math.test.mjs` as `symptom.reproduction` and run it verbatim without pipes, redirections, an echo suffix, or another wrapper. Follow the full work-order workflow, use hook-issued receipt IDs, remove any debug markers, close the work order, and reference its path in your final response.

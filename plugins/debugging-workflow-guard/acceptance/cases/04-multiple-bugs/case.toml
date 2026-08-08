@@ -1,0 +1,4 @@
+id = "04-multiple-bugs"
+hosts = ["claude", "codex"]
+timeout_sec = 480
+tags = ["multiple-bugs", "attribution", "shared-root-cause"]

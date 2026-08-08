@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:session\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" session",
+            "statusMessage": "Discovering Debug Work Orders",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:pre\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" pre",
+            "statusMessage": "Checking active debug bug",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:post\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" post",
+            "statusMessage": "Recording debug evidence",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:stop\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" stop",
+            "statusMessage": "Validating Debug Work Order",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

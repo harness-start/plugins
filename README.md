@@ -108,6 +108,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `subagent-lifecycle-audit` | Records append-only subagent starts/stops and lifecycle gaps without storing work content |
 | `intent-clarify-gate` | Gates business writes during grill-me style intent clarification until `done` or complete-option close |
 | `first-principles-gate` | Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes |
+| `debugging-workflow-guard` | Uses a focused Skill to create an explicit Debug Work Order, then attributes multi-bug evidence and gates unsafe fix loops through hooks |
 | `goal-task-gate` | Arms on host `/goal` prompts, forces append-only decision trails under `.goal-task/`, and completes only with `GOAL_TASK_DONE` trailer plus close row |
 | `file-access-audit` | Records structured agent file reads/writes to project-local `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | Records agent shell commands with status and duration to project-local `.command-exec-audit/sessions/<session>.jsonl` |
