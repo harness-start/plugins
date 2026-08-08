@@ -12,7 +12,7 @@ Keep one owner for the task and its final verdict. Do not add agents or persiste
 1. State a one-line contract: the caller-visible result and how it will be accepted.
 2. Select one profile. Read [workflow-profiles.md](references/workflow-profiles.md) when the task mixes code and non-code work or the profile is unclear.
 3. Establish the challenge before the authoritative change:
-   - Behavior code: invoke `$tdd`; name the public seam, edit one focused test, and run it to an expected RED caused by the missing behavior.
+   - Behavior code: invoke `$test-driven-development`; name the public seam, edit one focused test, and run it to an expected RED caused by the missing behavior.
    - Refactor: run the exact test command that must stay green.
    - Non-code work: run a negative check or dry-run, construct a falsifiable counterexample, or record why no challenge is available.
 4. Make the smallest vertical change that satisfies the current contract. Do not combine unrelated cleanup.

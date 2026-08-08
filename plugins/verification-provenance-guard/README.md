@@ -17,7 +17,7 @@
 
 ## 社区 TDD Skill
 
-插件通过 [`skill-deps.json`](./skill-deps.json) 安装 `mattpocock/skills` 的 `tdd` Skill，为 public seam、纵向切片和 RED/GREEN 提供方法指导。硬校验规则全部位于插件本地；跳过 community skill 安装不会关闭 Stop 门禁。
+插件通过 [`skill-deps.json`](./skill-deps.json) 安装 [`obra/superpowers` 的 `test-driven-development` Skill](https://www.skills.sh/obra/superpowers/test-driven-development)，为 RED/GREEN/REFACTOR 提供方法指导。硬校验规则全部位于插件本地；跳过 community skill 安装不会关闭 Stop 门禁。
 
 ## 项目配置
 

@@ -1,9 +1,9 @@
 {
   "skills": [
     {
-      "name": "tdd",
-      "source": "https://github.com/mattpocock/skills",
-      "description": "Community public-seam TDD guidance used by evidence-driven-delivery for behavior-changing code work. Runtime enforcement remains local to this plugin."
+      "name": "test-driven-development",
+      "source": "https://github.com/obra/superpowers",
+      "description": "Community red-green-refactor guidance used by evidence-driven-delivery for behavior-changing code work. Runtime enforcement remains local to this plugin."
     }
   ]
 }
