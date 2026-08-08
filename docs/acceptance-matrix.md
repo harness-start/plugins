@@ -5,7 +5,7 @@
 
 | 插件 | 平台 | 已验收版本 | 触发场景 | 结果 | 证据 | 持久化位置 | 回滚 tag |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `research-provenance-guard` | Claude + Codex | 0.1.0 | `01-workspace-anchor-seal`、`02-unverified-limitation`、`03-ordinary-bypass`、`04-direct-firecrawl-denied` | ⚠️ Claude 四场景通过；Codex 0.146 + DeepSeek 可启动 MCP 进程，但 provider 未向模型暴露自定义 tools，强制路径按预期拒绝 shell 绕行，尚未达到双宿主通过 | 2026-08-08 Claude Docker 定向汇总 `4/0/0`；Codex 现场观察到 MCP 子进程但无 MCP PostToolUse receipt；honesty gate `80/0` | 平台插件数据目录中的 0600 捕获内容和逐事件收据（hook TTL 24h）；工作区只生成 `.research/runs/` 报告与 manifest | — |
+| `research-provenance-guard` | Claude + Codex | 0.2.0 | `01-workspace-anchor-seal`、`02-unverified-limitation`、`03-ordinary-bypass`、`04-direct-firecrawl-denied` | ⚠️ 0.2.0 改为编排 skill + 项目内 workflow 激活（去掉 `$research`/skill 名触发）；Claude 旧 0.1.0 四场景曾通过，需按新入口回归；Codex MCP tools 暴露问题仍在 | 2026-08-08 合同改写后待 Docker 重跑 | 项目 `.research/runs/*/workflow.json` + 平台插件数据 0600 捕获/收据；seal 后才有 report/manifest；outbound handoff 需 seal | — |
 | `verification-provenance-guard` | Claude + Codex | 0.1.0 | `01-recover-bare-test-claim`、`02-recover-artifact-digest` | ✅ 通过：无证据测试结论和错误产物摘要均触发真实 Stop 阻断；模型按 Skill 补齐当前证据后放行 | 2026-08-07 Docker 定向汇总 `4/0/0`，honesty gate `24/0` | 插件数据目录中的 session/workspace 哈希、revision 与有界结构化 receipts；终态放行后清空 | — |
 | `execution-loop-guard` | Claude + Codex | 0.1.0 | `01-block-edit-loop` | ✅ 通过：同一源码文件在测试阈值内重复编辑后，真实 PostToolUse 阻断并清空该文件计数周期 | 2026-08-07 Docker 定向汇总 `2/0/0` | 插件数据目录中的 session/workspace 哈希计数；不保存原始路径、命令或输出 | — |
 | `source-sanity-guard` | Claude + Codex | 0.1.0 | `01-deny-backup-artifact` | ✅ 通过：真实 PreToolUse 拒绝源码备份文件，目标始终不存在 | 2026-08-07 Docker 定向汇总 `2/0/0` | 无持久化 | — |

@@ -6,7 +6,7 @@ import { createInterface } from "node:readline";
 import { ResearchService } from "./lib/research-service.mjs";
 
 const TOOLS = [
-  ["research_begin", "Begin a hard-mode research run bound to the client workspace root.", { question: "string", scope: "string", as_of: "string", prompt_epoch: "integer" }, ["question", "scope", "as_of", "prompt_epoch"]],
+  ["research_begin", "Begin a hard-mode research run bound to the client workspace root. Optional run_id binds an existing project workflow opened by research-evidence-workflow.", { question: "string", scope: "string", as_of: "string", prompt_epoch: "integer", run_id: "string" }, ["question", "scope", "as_of", "prompt_epoch"]],
   ["source_discover", "Discover candidate sources through Firecrawl. Discovery output is not evidence until captured.", { query: "string", category: "string", limit: "integer" }, ["query"]],
   ["source_capture", "Capture a workspace file or public http(s) URL into immutable private plugin data.", { kind: "string", path: "string", url: "string", via: "string" }, []],
   ["source_read", "Read a bounded slice of captured untrusted source content.", { source_id: "string", offset: "integer", limit: "integer" }, ["source_id"]],
@@ -112,7 +112,7 @@ class StdioPeer {
       let result;
       if (message.method === "initialize") {
         this.protocolVersion = message.params?.protocolVersion ?? this.protocolVersion;
-        result = { protocolVersion: this.protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "research_provenance", version: "0.1.0" } };
+        result = { protocolVersion: this.protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "research_provenance", version: "0.2.0" } };
       } else if (message.method === "ping") result = {};
       else if (message.method === "tools/list") result = { tools: TOOLS };
       else if (message.method === "tools/call") {

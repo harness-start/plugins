@@ -3,12 +3,17 @@
     {
       "name": "research",
       "source": "https://github.com/mattpocock/skills/tree/v1.2.3/skills/engineering/research",
-      "description": "Popular engineering research workflow emphasizing primary sources and durable reports; local MCP receipts remain the authoritative evidence path."
+      "description": "Discover-phase subagent technique: primary sources and findings Markdown. Orchestrator rewrites output paths under .research/runs/<id>/; never final evidence."
     },
     {
       "name": "firecrawl",
       "source": "https://github.com/firecrawl/cli/tree/v1.19.30/skills/firecrawl-cli",
-      "description": "Popular web discovery and extraction workflow; in active hard mode the local guard requires its bounded MCP wrapper and disables feedback telemetry."
+      "description": "Discovery strategy (search→scrape escalation). During an active hard run, execution is MCP source_discover/source_capture only; direct CLI is blocked."
+    },
+    {
+      "name": "handoff",
+      "source": "https://github.com/mattpocock/skills",
+      "description": "Post-seal outbound session handoff. Requires sealed report; project handoffs/outbound/prompt.md must record the exact prompt."
     }
   ]
 }

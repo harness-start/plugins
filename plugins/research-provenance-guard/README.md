@@ -1,21 +1,40 @@
 # Research Provenance Guard
 
-An opt-in hard research harness for Claude Code and Codex. It turns sources into captured receipts, exact anchors, typed claims, canonical reports, and a fresh completion seal instead of relying on model-written citations.
+An opt-in hard research harness for Claude Code and Codex. It turns sources into captured receipts, exact anchors, typed claims, canonical reports, and a fresh completion seal—driven by the **`research-evidence-workflow` orchestrator** and **project workflow files**, not by skill-name heuristics.
 
-## Activation
+## Entry
 
-Hard mode activates only through `/research`, `$research`, the bundled `research-evidence-workflow` Skill, or the first `research_begin` MCP call. Ordinary answers bypass the gate. The user can abandon an active run only with `# research-abort`.
+1. Install the plugin (and optional `skill-deps`: `research`, `firecrawl`, `handoff`).
+2. SessionStart injects routing priority: research tasks must start with **`research-evidence-workflow`**, not bare `firecrawl` / `research`.
+3. The orchestrator opens a durable run under `.research/runs/<run-id>/workflow.json`.
+4. Hard enforcement (Firecrawl CLI block, Stop seal, outbound gate) applies only while that run is open.
+
+There is **no** `$research` / `/research` activation alias. Mentioning a skill name in chat does not open hard mode.
+
+User abort: exactly `# research-abort`.
+
+## Project layout
+
+```text
+.research/runs/<run-id>/
+  workflow.json
+  brief.md
+  source-plan.md
+  skill-trace.jsonl
+  handoffs/inbound/*
+  handoffs/outbound/*    # only after seal
+  claims.draft.json
+  research.json          # seal only
+  report.md              # seal only
+```
+
+Captured source bodies live under the platform plugin data directory (private). Prefer gitignoring `.research/` if you do not want runs in version control.
 
 ## Evidence path
 
-`research_begin` binds one run to the single workspace root advertised by the MCP client. `source_discover` may use an installed Firecrawl CLI, but discovery is never evidence. `source_capture`, `source_read`, and `source_anchor` build evidence; `research_seal` validates claims and writes:
+`research_begin` binds one run to the MCP workspace root and syncs `workflow.json`. `source_discover` may use Firecrawl under the hood; discovery is never evidence. `source_capture`, `source_read`, and `source_anchor` build evidence; `research_seal` validates claims and writes the canonical report.
 
-```text
-.research/runs/<run-id>/research.json
-.research/runs/<run-id>/report.md
-```
-
-The final answer must contain only an optional pointer to the matching canonical report plus the exact trailer returned by `research_seal`:
+Final answer: optional pointer to the matching report plus:
 
 ```text
 Research-Evidence: research-evidence/v1
@@ -23,17 +42,27 @@ Research-Run: <run-id>
 Research-Seal: sha256:<digest>
 ```
 
-The Stop hook works offline. It requires an observed MCP seal receipt from the current prompt epoch and mutation revision, then recomputes the manifest payload, report, and seal digests. Any later observed mutation or artifact tampering invalidates completion.
+## Outbound handoff
 
-## Source safety and privacy
+After seal, use the workflow CLI `handoff-outbound` so `handoffs/outbound/handoff.md` and `prompt.md` (full prompt text) are recorded, then optionally the community `handoff` skill. Hooks block outbound writes before seal.
 
-- Workspace captures must remain under the bound root and be regular UTF-8 text files at most 8 MiB.
-- Direct URL capture accepts public HTTP(S) text, HTML, JSON, and XML only; it rejects URL credentials, sensitive query keys, private/loopback/link-local/metadata addresses on every redirect, login/challenge pages, more than five redirects, responses over 8 MiB, and requests over 15 seconds.
-- Firecrawl runs as a fixed-argument child process without a shell, with feedback telemetry disabled. If it is unavailable, known URLs and workspace sources still work.
-- Authoritative content, receipts, and append-only events live under the platform plugin data directory with private permissions and a 24-hour hook TTL. Workspace files contain only the generated report and manifest.
+## Workflow CLI
 
-Captured web content remains untrusted. The seal is an integrity digest backed by same-session hook observation, not a cryptographic identity signature and not protection against a malicious same-user process that can alter plugin data.
+```bash
+node "${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/research-workflow.mjs" run-open --cwd "$PWD"
+node ".../research-workflow.mjs" brief-write --cwd "$PWD" --question "..." --scope "..." --as-of "..."
+node ".../research-workflow.mjs" handoff-inbound --cwd "$PWD" --file /tmp/inbound.json
+node ".../research-workflow.mjs" completeness-check --cwd "$PWD"
+node ".../research-workflow.mjs" handoff-outbound --cwd "$PWD" --handoff-file ... --prompt-file ...
+```
 
 ## Community skills
 
-`skill-deps.json` pins Matt Pocock's `research` skill at `v1.2.3` and Firecrawl's CLI skill at `v1.19.30`. They improve discovery and research technique; this plugin's MCP capture and Stop validation establish the enforceable evidence chain.
+`skill-deps.json` installs phase workers. The orchestrator skill documents when each is used and how firecrawl strategy maps to MCP. Direct Firecrawl CLI is blocked during an active run.
+
+## Verification
+
+```bash
+node --test plugins/research-provenance-guard/tests/*.test.mjs
+./scripts/acceptance/run.sh --plugin research-provenance-guard
+```

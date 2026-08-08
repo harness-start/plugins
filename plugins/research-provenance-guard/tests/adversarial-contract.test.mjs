@@ -55,7 +55,10 @@ test("fabrication, path escape, duplicate anchors, and unknown fields fail close
 });
 
 test("URL captures use injected bounded transport and private artifacts are mode 0600", async () => {
-  const { workspace, dataRoot } = await setup("url");
+  const root = await mkdtemp(join(tmpdir(), "research-matrix-url-"));
+  const workspace = join(root, "workspace");
+  const dataRoot = join(root, "data");
+  await mkdir(workspace);
   const service = new ResearchService({
     workspaceRoot: workspace,
     dataRoot,

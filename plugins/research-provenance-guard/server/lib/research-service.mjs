@@ -5,6 +5,14 @@ import { spawn } from "node:child_process";
 
 import { canonicalJson, sealPayload, sha256 } from "./integrity.mjs";
 import { safeFetchText } from "./safe-fetch.mjs";
+import {
+  defaultWorkflow,
+  ensureRunSkeleton,
+  findActiveWorkflow,
+  readWorkflowFile,
+  writeWorkflow,
+  workflowPath,
+} from "../../scripts/lib/workflow-fs.mjs";
 
 const SOURCE_KINDS = new Set(["web", "news", "github", "research", "pdf", "developer", "workspace"]);
 const CLAIM_STATUSES = new Set(["anchored", "multi_anchored", "inferred", "contested", "unverified"]);
@@ -138,19 +146,59 @@ export class ResearchService {
     throw new Error(`unknown tool: ${name}`);
   }
 
+  syncWorkflow(mutator) {
+    const runId = this.run.run_id;
+    ensureRunSkeleton(this.workspaceRoot, runId);
+    const existing = readWorkflowFile(workflowPath(this.workspaceRoot, runId))
+      ?? defaultWorkflow({ runId, question: this.run.question, scope: this.run.scope, asOf: this.run.as_of, promptEpoch: this.run.prompt_epoch });
+    const next = mutator({ ...existing, completeness: { ...existing.completeness }, mcp: { ...existing.mcp } });
+    writeWorkflow(this.workspaceRoot, next);
+    return next;
+  }
+
   async begin(args) {
-    assertExactKeys(args, ["question", "scope", "as_of", "prompt_epoch"], "research_begin");
+    assertExactKeys(args, ["question", "scope", "as_of", "prompt_epoch", "run_id"], "research_begin");
     if (this.run && !this.run.sealed) throw new Error("this session already has an unfinished research run");
     await this.pruneExpiredRuns();
     this.sources.clear();
     this.anchors.clear();
     const promptEpoch = Number(args.prompt_epoch);
     if (!Number.isSafeInteger(promptEpoch) || promptEpoch < 0) throw new Error("prompt_epoch must be a non-negative integer");
-    const runId = `r-${this.now().toISOString().replace(/[-:.TZ]/gu, "").slice(0, 14)}-${randomBytes(5).toString("hex")}`;
-    this.run = { run_id: runId, question: requiredLine(args.question, "question"), scope: requiredLine(args.scope, "scope"), as_of: requiredLine(args.as_of, "as_of", 64), prompt_epoch: promptEpoch, event_seq: 0, sealed: false };
+    const question = requiredLine(args.question, "question");
+    const scope = requiredLine(args.scope, "scope");
+    const asOf = requiredLine(args.as_of, "as_of", 64);
+    const active = findActiveWorkflow(this.workspaceRoot);
+    let runId;
+    if (args.run_id !== undefined) {
+      runId = requiredLine(args.run_id, "run_id", 96);
+      if (!/^r-[a-z0-9-]+$/u.test(runId)) throw new Error("run_id must match r-<timestamp>-<hex>");
+      const existing = readWorkflowFile(workflowPath(this.workspaceRoot, runId));
+      if (!existing) throw new Error(`run_id ${runId} has no project workflow; call research-workflow run-open first or omit run_id`);
+      if (existing.mcp?.begun && existing.phase !== "aborted" && !existing.completeness?.sealed) {
+        throw new Error(`run ${runId} already has MCP begin; finish or abort it first`);
+      }
+    } else if (active && !active.mcp?.begun && !active.completeness?.sealed && active.phase !== "aborted") {
+      runId = active.run_id;
+    } else if (active && active.mcp?.begun && !active.completeness?.sealed && active.phase !== "aborted") {
+      throw new Error(`unfinished research run ${active.run_id} is already open in this workspace`);
+    } else {
+      runId = `r-${this.now().toISOString().replace(/[-:.TZ]/gu, "").slice(0, 14)}-${randomBytes(5).toString("hex")}`;
+    }
+    this.run = { run_id: runId, question, scope, as_of: asOf, prompt_epoch: promptEpoch, event_seq: 0, sealed: false };
     await mkdir(join(this.dataRoot, "research-provenance-guard", "runs", runId, "events"), { recursive: true, mode: 0o700 });
-    const eventId = await this.event("research_begin", { question: this.run.question, scope: this.run.scope, as_of: this.run.as_of, prompt_epoch: promptEpoch, workspace_sha256: sha256(this.workspaceRoot) });
-    return { run_id: runId, event_id: eventId, prompt_epoch: promptEpoch };
+    this.syncWorkflow((workflow) => {
+      workflow.run_id = runId;
+      workflow.question = question;
+      workflow.scope = scope;
+      workflow.as_of = asOf;
+      workflow.prompt_epoch = promptEpoch;
+      workflow.phase = workflow.completeness?.brief ? "capturing" : "briefed";
+      workflow.completeness.brief = true;
+      workflow.mcp = { begun: true, source_count: 0, anchor_count: 0 };
+      return workflow;
+    });
+    const eventId = await this.event("research_begin", { question, scope, as_of: asOf, prompt_epoch: promptEpoch, workspace_sha256: sha256(this.workspaceRoot) });
+    return { run_id: runId, event_id: eventId, prompt_epoch: promptEpoch, workflow_path: `.research/runs/${runId}/workflow.json` };
   }
 
   async pruneExpiredRuns() {
@@ -224,6 +272,11 @@ export class ResearchService {
     await atomicWrite(contentPath, text);
     const source = { source_id: sourceId, kind, workspace_path: args.path ? locator : null, final_url: finalUrl, content_type: contentType, sha256: contentHash, bytes: Buffer.byteLength(text), captured_at: this.now().toISOString() };
     this.sources.set(sourceId, { ...source, content_path: contentPath });
+    this.syncWorkflow((workflow) => {
+      workflow.phase = "capturing";
+      workflow.mcp = { ...workflow.mcp, begun: true, source_count: this.sources.size, anchor_count: this.anchors.size };
+      return workflow;
+    });
     const eventId = await this.event("source_capture", source);
     return { ...source, event_id: eventId };
   }
@@ -266,6 +319,10 @@ export class ResearchService {
     const anchorId = `A${String(this.anchors.size + 1).padStart(3, "0")}`;
     const anchor = { anchor_id: anchorId, source_id: source.source_id, kind: args.kind, locator, excerpt_sha256: sha256(excerpt), label: excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt };
     this.anchors.set(anchorId, anchor);
+    this.syncWorkflow((workflow) => {
+      workflow.mcp = { ...workflow.mcp, begun: true, source_count: this.sources.size, anchor_count: this.anchors.size };
+      return workflow;
+    });
     const eventId = await this.event("source_anchor", anchor);
     return { ...anchor, event_id: eventId };
   }
@@ -298,6 +355,18 @@ export class ResearchService {
     await atomicWrite(reportPath, report);
     const eventId = await this.event("research_seal", { seal, manifest_payload_sha256: manifestPayloadHash, report_sha256: reportHash, prompt_epoch: this.run.prompt_epoch, mutation_revision: revision });
     this.run.sealed = true;
+    this.syncWorkflow((workflow) => {
+      workflow.phase = "sealed";
+      workflow.completeness = {
+        ...workflow.completeness,
+        brief: true,
+        all_claims_classified: true,
+        sealed: true,
+      };
+      workflow.mcp = { begun: true, source_count: this.sources.size, anchor_count: this.anchors.size };
+      workflow.seal = { seal, mutation_revision: revision, at: this.now().toISOString() };
+      return workflow;
+    });
     const rel = `.research/runs/${this.run.run_id}`;
     return { event_id: eventId, run_id: this.run.run_id, seal, manifest_path: `${rel}/research.json`, report_path: `${rel}/report.md`, trailer: `Research-Evidence: research-evidence/v1\nResearch-Run: ${this.run.run_id}\nResearch-Seal: ${seal}` };
   }

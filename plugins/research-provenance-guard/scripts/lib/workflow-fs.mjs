@@ -1,0 +1,161 @@
+import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, existsSync, statSync } from "node:fs";
+import { dirname, join, relative, resolve, isAbsolute } from "node:path";
+import { randomBytes } from "node:crypto";
+
+export const WORKFLOW_SCHEMA = "research-workflow/v1";
+export const OPEN_PHASES = new Set(["open", "briefed", "discovering", "capturing", "claims_drafted", "sealed", "handed_off"]);
+export const TERMINAL_PHASES = new Set(["aborted", "complete"]);
+export const SEALED_OR_LATER = new Set(["sealed", "handed_off", "complete"]);
+
+const RUN_ID = /^r-[a-z0-9-]+$/u;
+
+export function runsRoot(workspaceRoot) {
+  return join(resolve(workspaceRoot), ".research", "runs");
+}
+
+export function runDir(workspaceRoot, runId) {
+  if (!RUN_ID.test(runId)) throw new Error(`invalid run id: ${runId}`);
+  return join(runsRoot(workspaceRoot), runId);
+}
+
+export function workflowPath(workspaceRoot, runId) {
+  return join(runDir(workspaceRoot, runId), "workflow.json");
+}
+
+function atomicWriteSync(path, content) {
+  mkdirSync(dirname(path), { recursive: true, mode: 0o755 });
+  const temporary = `${path}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
+  writeFileSync(temporary, content, { encoding: "utf8", mode: 0o644, flag: "wx" });
+  renameSync(temporary, path);
+}
+
+export function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEpoch = 0, allowSoloMain = false }) {
+  return {
+    schema: WORKFLOW_SCHEMA,
+    run_id: runId,
+    phase: "open",
+    question,
+    scope,
+    as_of: asOf,
+    prompt_epoch: promptEpoch,
+    opened_at: new Date().toISOString(),
+    allow_solo_main: allowSoloMain === true,
+    source_plan_path: "source-plan.md",
+    subagents: [],
+    mcp: { begun: false, source_count: 0, anchor_count: 0 },
+    completeness: {
+      brief: false,
+      all_claims_classified: false,
+      sealed: false,
+      outbound_handoff: false,
+    },
+    seal: null,
+    outbound_handoff: null,
+  };
+}
+
+export function readWorkflowFile(path) {
+  try {
+    const raw = JSON.parse(readFileSync(path, "utf8"));
+    if (!raw || raw.schema !== WORKFLOW_SCHEMA || !RUN_ID.test(raw.run_id ?? "")) return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+export function writeWorkflow(workspaceRoot, workflow) {
+  const path = workflowPath(workspaceRoot, workflow.run_id);
+  atomicWriteSync(path, `${JSON.stringify(workflow, null, 2)}\n`);
+  return path;
+}
+
+export function ensureRunSkeleton(workspaceRoot, runId) {
+  const root = runDir(workspaceRoot, runId);
+  for (const part of ["", "handoffs/inbound", "handoffs/outbound"]) {
+    mkdirSync(part ? join(root, part) : root, { recursive: true, mode: 0o755 });
+  }
+  return root;
+}
+
+export function listWorkflows(workspaceRoot) {
+  const root = runsRoot(workspaceRoot);
+  if (!existsSync(root)) return [];
+  const out = [];
+  for (const name of readdirSync(root)) {
+    if (!RUN_ID.test(name)) continue;
+    const path = join(root, name, "workflow.json");
+    const workflow = readWorkflowFile(path);
+    if (workflow) out.push(workflow);
+  }
+  return out;
+}
+
+export function findActiveWorkflow(workspaceRoot) {
+  const open = listWorkflows(workspaceRoot).filter((item) => OPEN_PHASES.has(item.phase) && !TERMINAL_PHASES.has(item.phase));
+  if (open.length === 0) return null;
+  open.sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at)));
+  return open[0];
+}
+
+export function isActivePhase(phase) {
+  return OPEN_PHASES.has(phase) && !TERMINAL_PHASES.has(phase);
+}
+
+export function appendSkillTrace(workspaceRoot, runId, entry) {
+  const path = join(runDir(workspaceRoot, runId), "skill-trace.jsonl");
+  mkdirSync(dirname(path), { recursive: true, mode: 0o755 });
+  writeFileSync(path, `${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`, { encoding: "utf8", flag: "a" });
+}
+
+/** Relative path from workspace root using forward slashes, or null if outside. */
+export function workspaceRelative(workspaceRoot, candidate) {
+  const root = resolve(workspaceRoot);
+  const target = resolve(candidate);
+  const rel = relative(root, target);
+  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;
+  return rel.replaceAll("\\", "/");
+}
+
+/**
+ * Classify a path relative to workspace for write policy.
+ * @returns {"seal"|"outbound"|"orchestration"|"other"}
+ */
+export function classifyResearchPath(relPath) {
+  const path = String(relPath ?? "").replaceAll("\\", "/");
+  if (!path.startsWith(".research/runs/")) return "other";
+  const parts = path.split("/");
+  // .research/runs/<id>/...
+  if (parts.length < 4) return "orchestration";
+  const rest = parts.slice(3).join("/");
+  if (rest === "research.json" || rest === "report.md") return "seal";
+  if (rest.startsWith("handoffs/outbound/") || rest === "handoffs/outbound") return "outbound";
+  return "orchestration";
+}
+
+export function pathLooksLikeResearchWrite(serialized) {
+  return /(?:^|[\s'"=:\\/])\.research(?:[\\/]|$)/u.test(String(serialized ?? ""));
+}
+
+export function extractResearchRelativePaths(serialized) {
+  const text = String(serialized ?? "");
+  const found = new Set();
+  const re = /\.research\/runs\/(r-[a-z0-9-]+)\/([^\s'"\\]+)/giu;
+  let match;
+  while ((match = re.exec(text))) {
+    found.add(`.research/runs/${match[1]}/${match[2].replace(/[),.;]+$/u, "")}`);
+  }
+  if (/\.research(?:\/|\\|$)/u.test(text) && found.size === 0) {
+    found.add(".research/");
+  }
+  return [...found];
+}
+
+export function generateRunId(now = () => new Date()) {
+  return `r-${now().toISOString().replace(/[-:.TZ]/gu, "").slice(0, 14)}-${randomBytes(5).toString("hex")}`;
+}
+
+export function assertDirWritable(path) {
+  const info = statSync(path, { throwIfNoEntry: false });
+  if (info && !info.isDirectory()) throw new Error(`${path} is not a directory`);
+}

@@ -1,7 +1,7 @@
 {
   "name": "research-provenance-guard",
-  "version": "0.1.0",
-  "description": "Enforces captured, anchored, fresh, machine-verifiable evidence for explicit research tasks.",
+  "version": "0.2.0",
+  "description": "Orchestrated hard research: project workflow files, MCP capture/anchors, seal, and post-seal handoff.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
