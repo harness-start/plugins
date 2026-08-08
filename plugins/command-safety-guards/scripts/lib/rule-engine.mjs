@@ -41,6 +41,13 @@ function isMatcher(value) {
   );
 }
 
+function testMatcher(matcher, subject) {
+  if (matcher instanceof RegExp) {
+    return new RegExp(matcher.source, matcher.flags).test(subject);
+  }
+  return matcher.test(subject);
+}
+
 /** Validate a user-supplied rule. Built-ins are trusted. */
 export function validateRule(rule, i) {
   if (!rule || typeof rule !== "object") {
@@ -124,7 +131,7 @@ export function matchRule(command, rules, options = {}) {
   for (const rule of rules) {
     if (!isMatcher(rule.match)) continue;
     try {
-      if (rule.match.test(subject)) return rule;
+      if (testMatcher(rule.match, subject)) return rule;
     } catch {
       continue;
     }

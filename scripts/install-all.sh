@@ -30,7 +30,6 @@ SKILL_DEPS_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins
 # KEEP IN SYNC with .claude-plugin/marketplace.json plugins[].name
 FALLBACK_PLUGINS=(
   verification-provenance-guard
-  swe-contract-verifier
   execution-loop-guard
   source-sanity-guard
   code-quality-guard

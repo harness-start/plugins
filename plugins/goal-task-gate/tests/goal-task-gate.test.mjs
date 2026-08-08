@@ -22,6 +22,7 @@ import {
 } from "../scripts/lib/policy.mjs";
 import {
   appendDecision,
+  auditPaths,
   createRun,
   loadDecisions,
   makeRunId,
@@ -397,6 +398,25 @@ test("resolveConfig tipWindow clamp", () => {
   assert.equal(c.tipWindow, 2);
   const c2 = resolveConfig({ tipWindow: 9 });
   assert.equal(c2.tipWindow, 3);
+});
+
+test("resolveConfig falls back when auditRoot escapes the repository", () => {
+  const warnings = [];
+
+  const config = resolveConfig(
+    { auditRoot: "../outside" },
+    (warning) => warnings.push(warning),
+  );
+
+  assert.equal(config.auditRoot, ".goal-task");
+  assert.match(warnings[0], /invalid auditRoot/u);
+});
+
+test("auditPaths rejects an unvalidated auditRoot outside the repository", () => {
+  assert.throws(
+    () => auditPaths("/workspace/repo", "../outside", "run-1"),
+    /inside the repository root/u,
+  );
 });
 
 test("log-decision loads project tipWindow and rejects rewrite past seal", async () => {

@@ -51,12 +51,30 @@ function asTipWindow(value, fallback) {
   return fallback;
 }
 
+function normalizeAuditRoot(value) {
+  const candidate = value.trim().replaceAll("\\", "/");
+  if (/^(?:\/|[A-Za-z]:)/u.test(candidate)) return null;
+
+  const segments = candidate.split("/");
+  if (segments.includes("..")) return null;
+
+  const normalized = segments
+    .filter((segment) => segment && segment !== ".")
+    .join("/");
+  return normalized || null;
+}
+
 export function resolveConfig(raw, warn = () => {}) {
   const config = cloneDefault();
   if (!raw || typeof raw !== "object") return config;
 
   if (typeof raw.auditRoot === "string" && raw.auditRoot.trim()) {
-    config.auditRoot = raw.auditRoot.trim().replaceAll("\\", "/").replace(/^\/+|\/+$/gu, "");
+    const auditRoot = normalizeAuditRoot(raw.auditRoot);
+    if (auditRoot) {
+      config.auditRoot = auditRoot;
+    } else {
+      warn("invalid auditRoot: use a relative directory inside the repository root");
+    }
   }
   if (raw.tipWindow !== undefined) {
     config.tipWindow = asTipWindow(raw.tipWindow, config.tipWindow);

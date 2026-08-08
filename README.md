@@ -93,7 +93,6 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | Plugin | Description |
 | --- | --- |
 | `verification-provenance-guard` | Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses |
-| `swe-contract-verifier` | Requires fresh boundary-contract tests and an independent read-only reviewer after SWE source changes |
 | `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
 | `source-sanity-guard` | Blocks backup artifacts and obvious replacement-character corruption in source files |
 | `git-delivery-guards` | Guards local Git commands, atomic commits, repository state, and unresolved merge markers |
@@ -194,6 +193,7 @@ If the plugin needs a public skill (skills.sh / GitHub skill repo), add `plugins
 
 ## Docs
 
+- [Artifact Delivery Evidence 插件拆分](docs/artifact-delivery-evidence-plugins.md)
 - [Claude Code plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
 - [Codex hooks](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)

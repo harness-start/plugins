@@ -74,6 +74,24 @@ test("matchRule ignores sed mention inside git commit messages", () => {
   );
 });
 
+test("matchRule evaluates a global user RegExp consistently across calls", () => {
+  const { rules } = resolveRules({
+    rules: [{ id: "global", match: /danger/gu, mode: "deny" }],
+  });
+
+  assert.equal(matchRule("danger", rules)?.id, "global");
+  assert.equal(matchRule("danger", rules)?.id, "global");
+});
+
+test("matchRule evaluates a sticky user RegExp consistently across calls", () => {
+  const { rules } = resolveRules({
+    rules: [{ id: "sticky", match: /^danger$/yu, mode: "deny" }],
+  });
+
+  assert.equal(matchRule("danger", rules)?.id, "sticky");
+  assert.equal(matchRule("danger", rules)?.id, "sticky");
+});
+
 test("sanitizeCommand strips commit message payloads", () => {
   const sanitized = sanitizeCommand("git commit -m 'document sed -i usage'");
   assert.equal(sanitized.includes("sed -i"), false);

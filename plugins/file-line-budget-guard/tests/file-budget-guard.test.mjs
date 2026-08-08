@@ -53,6 +53,20 @@ test("matchRule skips tests before applying source-file budgets", () => {
   assert.equal(matchRule("README.md", rules), null);
 });
 
+test("matchRule evaluates a global RegExp consistently across calls", () => {
+  const rule = { match: /[.]js$/gu, budget: 100, mode: "block" };
+
+  assert.equal(matchRule("src/example.js", [rule]), rule);
+  assert.equal(matchRule("src/example.js", [rule]), rule);
+});
+
+test("matchRule evaluates a sticky RegExp consistently across calls", () => {
+  const rule = { match: /^src\/example[.]js$/yu, budget: 100, mode: "block" };
+
+  assert.equal(matchRule("src/example.js", [rule]), rule);
+  assert.equal(matchRule("src/example.js", [rule]), rule);
+});
+
 test("extractFilePaths normalizes direct and apply_patch targets", () => {
   const paths = extractFilePaths({
     cwd: "/repo",

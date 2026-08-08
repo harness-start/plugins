@@ -181,7 +181,8 @@ export function resolveRules(userConfig) {
 export function matchRule(relPath, rules) {
   for (const rule of rules) {
     try {
-      if (rule.match.test(relPath)) return rule;
+      const match = new RegExp(rule.match.source, rule.match.flags);
+      if (match.test(relPath)) return rule;
     } catch {
       // Broken regex → skip this rule
       continue;
