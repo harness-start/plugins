@@ -1,0 +1,1 @@
+# Video direct-write fixture

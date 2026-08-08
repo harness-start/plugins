@@ -1,0 +1,18 @@
+{
+  "name": "poster-project-delivery-guard",
+  "version": "0.1.0",
+  "description": "Enforces ordered Satori layer projects, paired proofs, and fresh poster delivery evidence.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "interface": {
+    "displayName": "Poster Project Delivery Guard",
+    "shortDescription": "Guard Satori layers, proofs, and release evidence.",
+    "longDescription": "Enforces poster variant and layer manifests, pure Satori TSX boundaries, paired source-hash SVG/PNG proofs, protected writers, and required release outputs.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "defaultPrompt": "Validate the active poster artifact project and explain the recovery path for every finding.",
+    "capabilities": ["hooks"]
+  }
+}

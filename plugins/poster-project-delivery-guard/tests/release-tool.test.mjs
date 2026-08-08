@@ -1,0 +1,91 @@
+import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+const ENTRY = fileURLToPath(new URL("../scripts/tools/project-release.mjs", import.meta.url));
+const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+function writeFixture(root) {
+  const layer = "export function buildLayer(){return <div style={{display:'flex'}}>Poster</div>;}\n";
+  const layerDigest = sha256(layer);
+  const files = {
+    ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
+    "package.json": "{}\n",
+    "package-lock.json": "{}\n",
+    "plan.contract.json": JSON.stringify({ artifactId: "poster", targetStage: "release" }),
+    "plan.assets.json": "{}\n",
+    "poster.project.json": JSON.stringify({ artifactId: "poster" }),
+    "src/render.ts": "export const render = () => {};\n",
+    "src/compose.ts": "export const compose = () => {};\n",
+    "src/theme.ts": "export const theme = {};\n",
+    "src/variants/manifest.json": JSON.stringify({ variants: [{ index: 1, id: "main", directory: "001-main" }] }),
+    "src/variants/001-main/variant.json": JSON.stringify({ id: "main", width: 1200, height: 1600 }),
+    "src/variants/001-main/layers/manifest.json": JSON.stringify({ layers: [{ index: 1, role: "background", source: "001-background-base.tsx" }] }),
+    "src/variants/001-main/layers/001-background-base.tsx": layer,
+    [`src/variants/001-main/layers/001-background-base.${layerDigest}.svg`]: "<svg/>",
+    [`src/variants/001-main/layers/001-background-base.${layerDigest}.png`]: "PNG",
+    "dist/poster.main.png": Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]),
+    "evidence.accessibility.json": "{}\n",
+    "review.poster.json": "{}\n",
+    "release.manifest.json": "{}\n",
+  };
+  for (const [relativePath, content] of Object.entries(files)) {
+    const target = join(root, relativePath);
+    mkdirSync(dirname(target), { recursive: true });
+    writeFileSync(target, content);
+  }
+}
+
+function run(root) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [ENTRY, root], {
+      env: { ...process.env, AI_EXPERTS_SESSION_ID: "test", AI_EXPERTS_TRIGGER_FROM: "test:release" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout, stderr }));
+  });
+}
+
+test("poster release wrapper binds raw output bytes and clears its journal", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "poster-release-"));
+  const root = join(sandbox, "poster");
+  try {
+    mkdirSync(root);
+    writeFixture(root);
+    const result = await run(root);
+
+    assert.equal(result.code, 0, result.stderr);
+    const receipt = JSON.parse(readFileSync(join(root, "receipt.release.json"), "utf8"));
+    assert.equal(receipt.outputs["dist/poster.main.png"], sha256(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00])));
+    assert.equal(existsSync(join(root, ".poster-delivery-journal.json")), false);
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("poster release refuses to overwrite an active writer journal", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "poster-release-"));
+  const root = join(sandbox, "poster");
+  try {
+    mkdirSync(root);
+    writeFixture(root);
+    writeFileSync(join(root, ".poster-delivery-journal.json"), "{}\n");
+    const result = await run(root);
+
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /EEXIST|journal/u);
+    assert.equal(existsSync(join(root, "receipt.release.json")), false);
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+});

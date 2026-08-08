@@ -1,0 +1,7 @@
+{
+  "name": "logo-project-delivery-guard",
+  "version": "0.1.0",
+  "description": "Enforces native-vector logo masters, construction evidence, variants, and release closure.",
+  "author": {"name": "Harness Start", "email": "devtools@example.com"},
+  "hooks": "./hooks/claude.json"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "video-project-delivery-guard",
+  "version": "0.1.0",
+  "description": "Enforces frame-bound Remotion visual/audio units, proofs, and final video evidence.",
+  "author": {"name": "Harness Start", "email": "devtools@example.com"},
+  "hooks": "./hooks/claude.json"
+}

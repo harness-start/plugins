@@ -49,6 +49,11 @@ FALLBACK_PLUGINS=(
   command-exec-audit
   subagent-lifecycle-audit
   debugging-workflow-guard
+  pptx-project-delivery-guard
+  poster-project-delivery-guard
+  video-project-delivery-guard
+  logo-project-delivery-guard
+  print-publication-delivery-guard
 )
 
 DO_CLAUDE=1
