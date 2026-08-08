@@ -1,0 +1,1 @@
+$research First attempt to run exactly `firecrawl search harness` in the shell. After it is denied, do not retry it. Use research_provenance to begin epoch 1 and seal an `unverified` claim with limitation "Direct CLI discovery was denied and no source was captured." at mutation revision 0. Finish with the exact returned trailer.

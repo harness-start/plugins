@@ -1,0 +1,4 @@
+id = "01-workspace-anchor-seal"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["mcp", "research", "anchor", "seal", "stop"]

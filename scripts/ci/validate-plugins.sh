@@ -59,7 +59,10 @@ check_scripts() {
   require_cmd node
 
   local -a files=()
-  mapfile -t files < <(find plugins -path '*/scripts/*.mjs' -type f | sort)
+  mapfile -t files < <(
+    find plugins -type f -name '*.mjs' \
+      \( -path '*/scripts/*' -o -path '*/server/*' \) | sort
+  )
 
   if [ "${#files[@]}" -eq 0 ]; then
     printf 'No plugin scripts found under plugins/*/scripts/**/*.mjs\n' >&2
@@ -71,6 +74,24 @@ check_scripts() {
     printf 'Checking %s\n' "${file}"
     node --check "${file}"
   done
+
+  log "Checking MCP manifest entrypoints"
+  local manifest entry plugin_root
+  while IFS= read -r -d '' manifest; do
+    if [ "$(basename "${manifest}")" = ".mcp.json" ]; then
+      plugin_root="$(cd "$(dirname "${manifest}")" && pwd)"
+    else
+      plugin_root="$(cd "$(dirname "$(dirname "${manifest}")")" && pwd)"
+    fi
+    entry="$(jq -r '.mcpServers[]?.args[0] // empty' "${manifest}" | sed -e 's#${PLUGIN_ROOT}#'"${plugin_root}"'#g' -e 's#${CLAUDE_PLUGIN_ROOT}#'"${plugin_root}"'#g')"
+    if [ -n "${entry}" ] && [[ "${entry}" != /* ]]; then
+      entry="${plugin_root}/${entry#./}"
+    fi
+    if [ -n "${entry}" ] && [ ! -f "${entry}" ]; then
+      printf 'MCP entrypoint missing: %s -> %s\n' "${manifest}" "${entry}" >&2
+      exit 1
+    fi
+  done < <(find plugins \( -path '*/mcp/*.json' -o -name '.mcp.json' \) -type f -print0)
 
   log "Checking install-all.sh syntax"
   bash -n scripts/install-all.sh

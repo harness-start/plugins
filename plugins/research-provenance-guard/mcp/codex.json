@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "research_provenance": {
+      "command": "node",
+      "args": ["./server/research-provenance-server.mjs"],
+      "cwd": ".",
+      "env_vars": ["PLUGIN_DATA", "AI_EXPERTS_SESSION_ID"]
+    }
+  }
+}

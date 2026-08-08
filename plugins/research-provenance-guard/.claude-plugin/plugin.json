@@ -1,0 +1,10 @@
+{
+  "name": "research-provenance-guard",
+  "version": "0.1.0",
+  "description": "Enforces captured, anchored, fresh, machine-verifiable evidence for explicit research tasks.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

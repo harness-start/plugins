@@ -1,0 +1,1 @@
+$research Use only the research_provenance MCP tools. Research what the local `source.md` states. Begin epoch 1, capture the workspace file, read it, create an exact anchor, seal one anchored claim at mutation revision 0, and finish with the exact trailer returned by the seal tool. Do not edit files directly.
