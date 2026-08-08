@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/file-access-audit.mjs\" pre",
+            "statusMessage": "Protecting file access audit trail",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/file-access-audit.mjs\" post",
+            "statusMessage": "Recording file access",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

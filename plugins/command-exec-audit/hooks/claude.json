@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/command-exec-audit.mjs\" pre",
+            "statusMessage": "Recording command start / protecting command audit trail",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/command-exec-audit.mjs\" post",
+            "statusMessage": "Recording command finish",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/command-exec-audit.mjs\" failure",
+            "statusMessage": "Recording command failure",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

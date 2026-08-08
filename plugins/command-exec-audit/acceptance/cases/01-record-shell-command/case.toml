@@ -1,0 +1,4 @@
+id = "01-record-shell-command"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "command-exec-audit", "record"]

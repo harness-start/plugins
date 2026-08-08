@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"file-access-audit:pre\" node \"${PLUGIN_ROOT}/scripts/file-access-audit.mjs\" pre",
+            "statusMessage": "Protecting file access audit trail",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"file-access-audit:post\" node \"${PLUGIN_ROOT}/scripts/file-access-audit.mjs\" post",
+            "statusMessage": "Recording file access",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

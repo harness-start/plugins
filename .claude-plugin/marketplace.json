@@ -85,6 +85,16 @@
       "name": "markdown-format-guard",
       "source": "./plugins/markdown-format-guard",
       "description": "Checks Markdown heading structure and common formatting rules after AI write operations."
+    },
+    {
+      "name": "file-access-audit",
+      "source": "./plugins/file-access-audit",
+      "description": "Records structured agent file reads and writes to a project-local per-session JSONL trail."
+    },
+    {
+      "name": "command-exec-audit",
+      "source": "./plugins/command-exec-audit",
+      "description": "Records agent shell commands with status and duration to a project-local per-session JSONL trail."
     }
   ]
 }

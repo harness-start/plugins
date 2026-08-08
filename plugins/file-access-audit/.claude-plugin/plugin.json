@@ -1,0 +1,10 @@
+{
+  "name": "file-access-audit",
+  "version": "0.1.0",
+  "description": "Records structured agent file reads and writes to a project-local per-session JSONL trail.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}
