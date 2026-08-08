@@ -64,6 +64,29 @@ require_file_exists() {
   fi
 }
 
+# require_research_seal_receipt <research.json>
+# A canonical artifact is insufficient by itself: require a matching receipt
+# emitted by the host's PostToolUse hook after a real MCP tool call.
+require_research_seal_receipt() {
+  local manifest="${1:?research manifest required}"
+  local run_id seal receipt
+  run_id="$(jq -r '.run_id // empty' "${manifest}")"
+  seal="$(jq -r '.integrity.seal // empty' "${manifest}")"
+  if [ -z "${run_id}" ] || [ -z "${seal}" ]; then
+    echo "expect fail: manifest is missing run id or seal: ${manifest}" >&2
+    return 1
+  fi
+  while IFS= read -r -d '' receipt; do
+    if jq -e --arg run_id "${run_id}" --arg seal "${seal}" \
+      '.type == "receipt" and .payload.tool == "research_seal" and .payload.runId == $run_id and .payload.seal == $seal' \
+      "${receipt}" >/dev/null 2>&1; then
+      return 0
+    fi
+  done < <(find "${ACCEPT_OUT:?}" -path '*/research-provenance-guard/hook-events/*.json' -type f -print0)
+  echo "expect fail: no matching research_seal PostToolUse receipt" >&2
+  return 1
+}
+
 require_composer_json_without_repositories() {
   local file="${1:?composer.json path}"
   if [ ! -f "${file}" ]; then
@@ -96,6 +119,7 @@ MARKERS_LANGUAGE_OUTPUT_FEEDBACK='\[Language Output Feedback\]'
 MARKERS_LANGUAGE_OUTPUT_GATE='\[Language Output Gate\]'
 MARKERS_SKILL_ROUTING_TRANSPARENCY='\[Skill Routing Transparency( Reminder)?\]|📌 Skill route'
 MARKERS_SUBAGENT_DISCIPLINE='\[Subagent Contract\]'
+MARKERS_RESEARCH_PROVENANCE='\[Research Provenance Guard\]|Research-Evidence: research-evidence/v1|Validating research evidence seal'
 MARKERS_SPEC_PLAN='\[Spec Plan Gate\]'
 MARKERS_BACKUP_ARTIFACT='\[Backup Artifact Guard\]'
 MARKERS_SOURCE_SANITY='\[Source Sanity Guard\]|Unsafe source write detected|Unresolved merge conflict detected'
