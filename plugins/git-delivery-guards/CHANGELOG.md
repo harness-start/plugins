@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Ignore standalone `=======` lines unless the file also contains a merge-conflict boundary marker, avoiding false positives on RST table borders and similar document syntax.
+
 ## 0.2.0
 
 - Reintroduce a Git-only delivery guard with strict local command and repository-state policies.

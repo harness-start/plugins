@@ -81,13 +81,27 @@ export function modeForConflict(relativePath, config) {
 export function findMergeConflictMarkers(text) {
   if (typeof text !== "string") return [];
   const findings = [];
+  let hasBoundaryMarker = false;
   for (const [index, line] of text.split(/\r?\n/u).entries()) {
     if (/^(?:<<<<<<<|=======|>>>>>>>)(?:\s|$)/u.test(line)) {
-      findings.push({ line: index + 1, marker: line.slice(0, 7) });
-      if (findings.length >= 10) break;
+      const finding = { line: index + 1, marker: line.slice(0, 7) };
+      const isBoundary = finding.marker !== "=======";
+      if (isBoundary) {
+        hasBoundaryMarker = true;
+      }
+      if (findings.length < 10) {
+        findings.push(finding);
+      } else if (isBoundary && findings.every(({ marker }) => marker === "=======")) {
+        // Keep the bounded report useful when document separators precede the
+        // first real conflict boundary.
+        findings[findings.length - 1] = finding;
+      }
     }
   }
-  return findings;
+  // A bare `=======` line is also valid document syntax (for example, an RST
+  // table border). Treat separators as conflict evidence only when the file
+  // also contains a high-specificity conflict boundary marker.
+  return hasBoundaryMarker ? findings : [];
 }
 
 export function resolveRepoRoot(cwd) {

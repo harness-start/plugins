@@ -105,6 +105,21 @@ test("pre entry emits a complete blocking contract", async () => {
 
 test("merge marker detection is line anchored, bounded, and configurable", () => {
   assert.deepEqual(findMergeConflictMarkers([
+    "=======",
+    "column  column",
+    "=======",
+  ].join("\n")), []);
+  const lateBoundary = findMergeConflictMarkers([
+    ...Array.from({ length: 10 }, () => "======="),
+    "<<<<<<< HEAD",
+    "left",
+    "=======",
+    "right",
+    ">>>>>>> branch",
+  ].join("\n"));
+  assert.equal(lateBoundary.length, 10);
+  assert.deepEqual(lateBoundary.at(-1), { line: 11, marker: "<<<<<<<" });
+  assert.deepEqual(findMergeConflictMarkers([
     "const example = '<<<<<<< not a marker';",
     "<<<<<<< HEAD", "left", "=======", "right", ">>>>>>> branch",
   ].join("\n")), [
