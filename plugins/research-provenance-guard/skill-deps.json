@@ -1,0 +1,14 @@
+{
+  "skills": [
+    {
+      "name": "research",
+      "source": "https://github.com/mattpocock/skills/tree/v1.2.3/skills/engineering/research",
+      "description": "Popular engineering research workflow emphasizing primary sources and durable reports; local MCP receipts remain the authoritative evidence path."
+    },
+    {
+      "name": "firecrawl",
+      "source": "https://github.com/firecrawl/cli/tree/v1.19.30/skills/firecrawl-cli",
+      "description": "Popular web discovery and extraction workflow; in active hard mode the local guard requires its bounded MCP wrapper and disables feedback telemetry."
+    }
+  ]
+}
