@@ -45,8 +45,8 @@ artifact-evidence-runtime                    内部共享包，不单独安装
 ├── design-review-evidence-guard             跨载体：审查与复验合同
 │
 ├── pptx-project-delivery-guard               PptxGenJS 工程、PPTX、同源 PDF
-├── poster-project-delivery-guard             海报、封面、Banner
-├── video-project-delivery-guard              视频、动效、GIF
+├── poster-project-delivery-guard             Satori/resvg 海报、封面、Banner
+├── video-project-delivery-guard              Remotion 视频、动效、GIF
 ├── brand-identity-delivery-guard            Logo、字标、VI、色板、字体
 └── document-publication-delivery-guard      报告、手册、出版 PDF
 
@@ -88,7 +88,8 @@ learning-experience-delivery-guard           培训方案与学习资产
 artifacts/poster/spring-launch/
 ├── plan.contract.json
 ├── plan.assets.json
-├── src/variants/001-main.poster.json
+├── src/variants/001-main.tsx
+├── src/variants/001-main.<source-sha256>.svg
 ├── src/variants/001-main.<source-sha256>.png
 ├── dist/spring-launch.png
 ├── review.independent.json
@@ -234,9 +235,9 @@ carrier lint ─┘   StageReceiptV1
 | 插件 | Plan / Source | Candidate | Evidence / Review | Closure |
 | --- | --- | --- | --- | --- |
 | pptx | `plan.contract.json`、`pptx.project.json`、`src/slides/manifest.json`、每页 source 与同目录 hash preview | `dist/<artifact-id>.pptx`、`dist/<artifact-id>.pdf` | `dist/pages/001.png`、`evidence.structure.json`、`review.visual.json` | `release.manifest.json`、`receipt.release.json` |
-| poster | `plan.contract.json`、`plan.assets.json`、variant source 与同目录 hash preview | `dist/<artifact-id>.png` | 最终输出测量、`review.independent.json` | `release.manifest.json`、`receipt.release.json` |
+| poster | `plan.contract.json`、`plan.assets.json`、`poster.project.json`、variant TSX/data 与同目录 SVG/PNG proof | `dist/<artifact-id>.png` | 最终输出测量、`review.independent.json` | `release.manifest.json`、`receipt.release.json` |
 | brand | `plan.contract.json`、`plan.assets.json`、`source.master.svg` | `candidate.variant.001.svg` | `evidence.preview-strip.png`、`evidence.color.json`、`evidence.font.json`、`review.independent.json` | 同上 |
-| video | `plan.contract.json`、`plan.storyboard.json`、scene source 与同目录 hash preview | `dist/<artifact-id>.mp4` | `evidence.probe.json`、最终抽帧、`review.continuity.json` | 同上 |
+| video | `plan.contract.json`、`plan.storyboard.json`、`video.project.json`、scene source 与同目录 hash preview clip | `dist/<artifact-id>.mp4` | `evidence.probe.json`、最终成片抽帧、`review.continuity.json` | 同上 |
 | document | `plan.contract.json`、`source.master.md` | `candidate.screen.pdf`；可选 `candidate.print.pdf` | `evidence.page.001.png`、`evidence.structure.json`、`review.visual.json` | 同上 |
 | content | `plan.contract.json`、`source.snapshot.001.json`、`source.claims.json` | `candidate.report.md` | `evidence.run.json` | 同上 |
 | learning | `plan.contract.json`、`source.curriculum.md`、`source.exercise.001.md` | 由 plan 定义交付角色 | `evidence.readback.json`、`evidence.assessment.json` | 同上 |
@@ -387,19 +388,168 @@ preview 相对文件名必须匹配 `^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.[a-f0-9
 
 ### `poster-project-delivery-guard`
 
-工程根匹配 `^artifacts/poster/[a-z0-9]+(?:-[a-z0-9]+)*/$`。可编辑 variant 匹配 `src/variants/<NNN>-<slug>.poster.json`，一个 source 只能描述一个画布；同目录预览匹配 `<NNN>-<slug>.<64hex-source-sha256>.png`。正式输出只写 `dist/<poster-id>.png`，多 variant 按 `<NNN>-<slug>.png` 写入 `dist/variants/`。
+[Satori](https://github.com/vercel/satori) 把纯、无状态 JSX 转为 SVG；[resvg-js](https://github.com/thx/resvg-js) 再把该 SVG 光栅化为 PNG。参考的 [Bunny Launcher 示例](https://bunny-launcher.net/imaging/satori/#example) 采用相同两阶段链路，但本地 hard profile 固定使用 `satori` 与 `@resvg/resvg-js`，不混用 edge wrapper。
 
-Hook 复用 PPT 模式：source mutation 使同名 hash preview 和 release 失效；preview Tool 校验尺寸、格式、透明通道、颜色 profile、素材引用和 render subject；release 绑定 plan、source、preview、review 与最终 PNG。字体/图片权利真实性仍使用来源 proof 加具名 attestation。
+#### 工程路径
 
-迁移范围只保留 poster scaffold/render/lint/package，并把单画布 source/preview/output 落到固定工程路径。
+工程根匹配 `^artifacts/poster/[a-z0-9]+(?:-[a-z0-9]+)*/$`：
+
+```text
+artifacts/poster/spring-launch/
+├── plan.contract.json
+├── plan.assets.json
+├── poster.project.json
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── src/
+│   ├── render.ts
+│   ├── theme.ts
+│   └── variants/
+│       ├── manifest.json
+│       ├── 001-main.tsx
+│       ├── 001-main.<source-sha256>.svg
+│       └── 001-main.<source-sha256>.png
+├── data/
+│   └── 001-main.json
+├── assets/
+│   ├── fonts/
+│   └── images/
+├── dist/
+│   └── spring-launch.png
+├── evidence.render.json
+├── review.independent.json
+├── release.manifest.json
+└── receipt.release.json
+```
+
+`poster.project.json` 固定 `posterId`、width、height、pixelRatio、background、entry、variant manifest、asset/data roots、颜色 profile 和稳定输出路径。一个 hard 工程只使用 TypeScript/TSX；`satori`、`@resvg/resvg-js`、React 与类型依赖都用精确版本并由 `package-lock.json` 闭合。
+
+`src/variants/manifest.json` 是 variant 的唯一顺序源。每条记录包含 `index`、`id`、`sourcePath`、`sourceSha256`、`dataPath`、`dataSha256`、SVG/PNG proof path 与 hash、`renderSubjectDigest`、width 和 height。单主稿写 `dist/<poster-id>.png`；多规格写 `dist/variants/<NNN>-<slug>.png`，不得临时创造其他输出目录。
+
+#### 单画布模块合同
+
+- variant source 固定为 `src/variants/<NNN>-<slug>.tsx`，文件名匹配 `^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.tsx$`；
+- 每个 variant 只导出一个纯 `buildPoster(ctx)`，返回一个 JSX root；文案和素材取值来自只读 data/assets，不为单次出图修改布局源码；
+- 只有 `src/render.ts` 可以 import Satori、resvg-js 和文件写入 API；它对每条 manifest 记录只调用一次 Satori 和一次 resvg；
+- variant/helper 禁止 import 渲染器、`node:fs`、网络客户端或其他 variant，禁止 React state/effect、`dangerouslySetInnerHTML`、`<style>`、`<link>`、`<script>` 和普通 CSS animation；
+- image/font 必须来自登记的本地文件或受控 data URI。字体显式传给 Satori；图片显式给出尺寸。远程 URL、系统字体 fallback 和运行期下载在 build 前阻断；
+- lint 只允许 Satori 实际支持的元素与 CSS 子集；不能用浏览器 CSS 支持情况推断 Satori 一定能渲染；
+- AST/import-graph lint 加受控 runtime instrumentation，核对每条记录只有一个 JSX root、一个 SVG 和一个 PNG，且 SVG viewBox、resvg 输出尺寸与 project profile 一致。
+
+#### 同目录双阶段 proof
+
+每个 source 必须同时有且只有一组当前 proof：
+
+```text
+001-main.tsx
+001-main.<source-file-sha256>.svg
+001-main.<source-file-sha256>.png
+```
+
+proof 文件名匹配 `^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.[a-f0-9]{64}\.(?:svg|png)$`，SVG 与 PNG 必须使用同一 source hash。
+
+文件名中的 SHA-256 只绑定 source bytes。`renderSubjectDigest` 还覆盖 project、lockfile、render/theme/helper、data、引用资产、字体及 Satori/resvg 版本；任一依赖变化都使 SVG、PNG、review 和 release 失效。`poster-variant-preview` 是两个 proof 的唯一 writer，必须先获得 Satori SVG，再把同一 SVG bytes 交给 resvg，receipt 同时记录两段 hash 和尺寸。
+
+拟实现 Tool：
+
+| Tool | 输出 |
+| --- | --- |
+| `poster-project-lint` | project/schema、Satori CSS、import graph、素材/字体和单画布诊断 |
+| `poster-variant-preview` | source-bound SVG、PNG 与两阶段 receipt |
+| `poster-project-build` | 当前 manifest 的稳定 PNG 候选和 render evidence |
+| `poster-project-release` | release manifest、release receipt 与 `dist` 闭包 |
+
+硬 Hook：`ToolBefore` 阻断错误目录、断号、非 preview Tool 写 hash proof、variant 访问渲染器/网络/文件系统；`ToolAfter(source/data/asset)` 重算依赖图并失效受影响 proof；`ToolAfter(preview)` 校验 source hash、SVG/PNG 因果链、尺寸、字体和 receipt；build 前要求全部 variant fresh，build 后检查最终 PNG magic bytes、尺寸、alpha、颜色 profile 和 render subject；release 前要求独立 review 与权利 attestation 闭合。`AgentStopped` 只核对文件和 receipt，不现场渲染。
+
+现有 poster plan/assets、lint、review 和 package 合同可以迁移；Fabric `.poster.json` 与 Chromium renderer 不进入新 hard profile。若保留旧模板，只能通过显式 migration Tool 转成 TSX/data 后重新 lint、预览和 review，不能让两种 renderer 共用 receipt。
 
 ### `video-project-delivery-guard`
 
-工程根匹配 `^artifacts/video/[a-z0-9]+(?:-[a-z0-9]+)*/$`。scene source 匹配 `src/scenes/<NNN>-<slug>.js|ts|tsx`，每个 module 只拥有一个 scene/time span；同目录 preview 匹配 `<NNN>-<slug>.<64hex-source-sha256>.png|mp4`。scene manifest 决定顺序、时长和转场，正式输出只写 `dist/<video-id>.mp4`。
+视频固定使用 [Remotion](https://www.remotion.dev/docs/) 做确定性 React 时间线。一个 hard 工程只交付一个 Composition、一个画幅/FPS/profile 和一个最终 MP4；横竖版或不同时长作为不同 `video-id`，避免同一工程出现多个“正式成片”。
 
-Hook 校验 scene 单元边界、连续编号、source-hash preview、timeline 总时长、最终 hash、FPS、分辨率、codec、音轨和字幕；抽帧必须来自最终媒体并绑定 timecode/hash。节奏、情绪和审美只形成定位到 scene/frame 的 review evidence。
+#### 工程路径
 
-迁移 storyboard validate、media probe、frame sample、render/add-audio Tool 时，必须把 receipt 绑定最终媒体 digest 和 generation，不能继续使用“同 session 即有效”。
+工程根匹配 `^artifacts/video/[a-z0-9]+(?:-[a-z0-9]+)*/$`：
+
+```text
+artifacts/video/product-launch/
+├── plan.contract.json
+├── plan.storyboard.json
+├── plan.assets.json
+├── video.project.json
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── remotion.config.ts
+├── src/
+│   ├── index.ts
+│   ├── Root.tsx
+│   ├── Video.tsx
+│   ├── theme.ts
+│   └── scenes/
+│       ├── manifest.json
+│       ├── 001-intro.tsx
+│       ├── 001-intro.<source-sha256>.mp4
+│       ├── 002-demo.tsx
+│       └── 002-demo.<source-sha256>.mp4
+├── public/
+│   ├── fonts/
+│   ├── images/
+│   ├── audio/
+│   └── video/
+├── dist/
+│   └── product-launch.mp4
+├── evidence.probe.json
+├── evidence.frames.json
+├── review.continuity.json
+├── release.manifest.json
+└── receipt.release.json
+```
+
+`video.project.json` 固定 `videoId`、`compositionId`、entry、storyboard、scene manifest、width、height、fps、durationInFrames、codec、audio profile、props schema 和 `dist/<video-id>.mp4`。`remotion` 与全部 `@remotion/*` 包必须是同一精确版本，lockfile 漂移使全部 preview/build evidence 失效。
+
+`plan.storyboard.json` 是 scene 帧区间、转场重叠、字幕、音轨和连续性的唯一事实源，区间统一为 `[startFrame,endFrame)`。`src/scenes/manifest.json` 只映射 `index/id/storyboardSceneId/sourcePath/sourceSha256/previewPath/previewSha256/renderSubjectDigest`，不得复制一套可漂移的时间线。
+
+#### 单 scene capability boundary
+
+- scene source 固定为 `src/scenes/<NNN>-<slug>.tsx`，文件名匹配 `^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.tsx$`，顺序与 storyboard scene 完全一致；
+- `src/index.ts` 只能注册 Root；`src/Root.tsx` 是唯一 `<Composition>` owner；`src/Video.tsx` 是唯一顶层 `Sequence`/`Series`/`TransitionSeries` assembler；
+- 每个 scene 只导出一个 component，接收局部 `durationInFrames`、只读 props 和 asset handles，不接收全局 start/end，也不能注册 Composition、调度其他 scene 或写文件；
+- scene/helper 禁止 import `@remotion/renderer`、其他 scene、Root/Video、文件系统或网络客户端；render bundle 不得读取凭据或在渲染期访问远程素材；
+- 时间只能来自 `useCurrentFrame()` 与 `useVideoConfig()`。禁止 timer、墙钟、`Date.now()`、无 seed 随机数和普通 CSS animation；需要随机时使用显式稳定 seed；
+- props 必须可 JSON 序列化；字体、图片、音视频必须预先落入 `public/` 并登记 hash/许可，缺失资源调用 render cancellation，不能静默 fallback；
+- AST/import-graph lint 加受控 Composition probe，核对一个交付 Composition、scene 一次引用、frame 区间闭合、总帧数一致，且 scene 无法改变顶层 timeline。
+
+#### scene 预览与最终成片证据
+
+每个 scene source 必须有一个同目录隔离预览片段：
+
+```text
+001-intro.tsx
+001-intro.<source-file-sha256>.mp4
+```
+
+`video-scene-preview` 是 preview clip 的唯一 writer。它在宿主 cache 中生成受控临时 Composition，用该 scene 的正式 storyboard slice、props、字体和素材渲染完整局部区间；receipt 记录 source hash、`renderSubjectDigest`、帧数、fps、codec、MP4 hash，以及开头/中间/末尾解码帧 hash。`renderSubjectDigest` 覆盖 project、storyboard slice、lockfile、Root/Video/theme/shared components、props、引用资产、字体和 Remotion/Chromium/ffmpeg 版本。
+
+preview 文件名匹配 `^[0-9]{3}-[a-z0-9]+(?:-[a-z0-9]+)*\.[a-f0-9]{64}\.mp4$`。旧 hash clip 不得保留在 `src/scenes/`，避免 Hook 选择到多个事实源。
+
+scene preview 只能关闭 source-stage proof，不能证明最终转场、音画同步或成片编码正确。最终 `dist/<video-id>.mp4` 必须直接 probe 和解码抽帧：开场、每个 scene 中间态、结束卡、每个转场前/中/后帧，以及字幕和有声路径。Composition still 或 scene preview 不能替代这些证据。
+
+拟实现 Tool：
+
+| Tool | 输出 |
+| --- | --- |
+| `video-project-lint` | storyboard、project、依赖版本、import graph、scene/timeline 诊断 |
+| `video-scene-preview` | source-bound scene MP4 与局部 probe receipt |
+| `video-project-render` | 最终 MP4、render log、hash 和 render receipt |
+| `video-final-probe` | 最终文件 codec/FPS/尺寸/时长/帧数/音轨证据 |
+| `video-final-sample` | 最终成片 required frame/timecode/hash 集合 |
+| `video-project-release` | release manifest、release receipt 与 `dist` 闭包 |
+
+硬 Hook：`ToolBefore` 阻断错误工程根、scene 断号、多 Composition、非 preview Tool 写 hash clip 和非 render/release Tool 写 `dist`；`ToolAfter(source/storyboard/asset)` 使依赖页面及最终成片失效；`ToolAfter(preview)` 直接 probe/decode 当前 clip；render 前要求 storyboard validator、全部 fresh preview、精确依赖版本、无远程资源和可用媒体 runtime；render 后要求最终 MP4 hash、probe、抽帧、音频/字幕检查与 review 全部绑定同一 generation；release 前还要有绑定当前 Remotion licensing 页面快照、适用场景和具名 owner 的许可决策。`AgentStopped` 不运行 Remotion 或 ffmpeg，只复核现有 receipt。
+
+迁移 storyboard validate、media probe 和 frame sample；原 render/add-audio Tool 需改成 Remotion render adapter。Receipt 必须绑定最终媒体 digest、project generation 和工具版本，不能继续使用“同 session 即有效”。
 
 ### `brand-identity-delivery-guard`
 
@@ -453,9 +603,9 @@ Hook 校验 scene 单元边界、连续编号、source-hash preview、timeline �
 | brief | accessibility plan、visual brief、storyboard 输入合同 | `plan.*` schema、首文件 gate、真实用户选择绑定 |
 | review | design lint、perceptual、visual evidence | `review.*` writer ownership、reviewer lifecycle、generation binding |
 | pptx | PptxGenJS starter、storyboard、build、release、完成门禁 | 固定工程 profile、单页 module、source-hash preview、用户选择防伪、artifact freshness |
-| poster | poster scaffold/render/lint/package | 固定 variant 工程、source-hash preview、统一 release、权利 attestation |
+| poster | plan/assets、设计 lint/review、package receipt | Satori/resvg adapter、TSX/CSS lint、双阶段 proof、单画布 instrumentation、统一 release |
 | brand | logo preview、部分 color/font reference | 大部分确定性 validator 与完整 package 工具链 |
-| video | storyboard、probe、sample、render | 固定 scene 工程、source-hash preview、final media freshness、统一 release |
+| video | storyboard、probe、sample、media runtime | Remotion adapter、scene capability boundary、隔离 preview、最终成片 freshness、统一 release |
 | document | `md-to-pdf` 构建 | probe、逐页、字体、链接、a11y、release |
 | content | run/report render 与 validate | source snapshot、generation 和时效性合同 |
 | learning | TrainingBrief validator | exercise/readback/assessment/delivery 验证链 |
@@ -468,12 +618,14 @@ Hook 校验 scene 单元边界、连续编号、source-hash preview、timeline �
 | --- | --- |
 | `poster-plan.json`、`training-brief.json` | `plan.contract.json` |
 | `poster-assets.json` | `plan.assets.json` |
-| `poster.poster.json` | `src/variants/001-main.poster.json` |
+| Fabric `poster.poster.json` | 经 migration Tool 生成 `src/variants/001-main.tsx` 与 `data/001-main.json` |
 | 海报最终 PNG | `dist/<poster-id>.png` |
 | `poster-review.json` | `review.independent.json` |
 | deck storyboard/copy/readback | `plan.storyboard.json`、`plan.copy.json`、`plan.readback.json` |
 | 集中式 PptxGenJS generator | `src/deck.ts` 加 `src/slides/<NNN>-<slug>.ts` |
 | PPTX/PDF/page renders | `dist/<deck-id>.pptx`、`dist/<deck-id>.pdf`、`dist/pages/<NNN>.png` |
+| 集中式 Remotion Composition | `src/Video.tsx` 加 `src/scenes/<NNN>-<slug>.tsx` |
+| 视频最终 MP4 | `dist/<video-id>.mp4` |
 | content credibility `run.json` / `report.md` | `evidence.run.json` / `candidate.report.md` |
 | 各类 package/release manifest | `release.manifest.json` |
 | 各类最终 receipt 文件 | `receipt.release.json` |
@@ -504,7 +656,7 @@ plugins/<plugin>/
 
 1. 实现 runtime 的 artifact root、path parser、role registry、snapshot、generation、CAS 状态机和双宿主事件适配。
 2. 先实现 `pptx-project-delivery-guard`：固定工程路径、单页 module、hash preview、build/release，作为完整纵向切片。
-3. 将 project layout、unit source 和 hash preview 模式迁移到 poster/video，再迁移 content。
+3. 实现 Satori/resvg poster adapter 与 Remotion video adapter，复用 project layout、unit source 和 hash preview 模式。
 4. 从三条纵向实现中稳定抽取 brief/review 公共插件，避免先抽象后返工。
 5. 实现 document；brand 和 learning 在专用 validator 补齐后进入 hard 模式，此前只发布 evidence/advisory 能力。
 
@@ -533,14 +685,18 @@ plugins/<plugin>/
 - slide module import PptxGenJS、调用 `addSlide()`、被 manifest 重复引用或同时生成多页时被拒绝；
 - slide source 缺少当前 source-hash preview、保留旧 hash preview 或共享依赖变化后沿用旧 preview 时被拒绝；
 - 非登记 Tool 写 `src/slides/*.png`、`dist/`、release 或 receipt 时被拒绝；
+- poster variant import Satori/resvg、文件系统或网络客户端，返回多个画布，使用不支持的 CSS，或绕过 render adapter 时被拒绝；
+- poster SVG 与 PNG 不来自同一 preview invocation、data/font/asset 漂移后沿用旧 proof，或 Fabric 与 Satori receipt 混用时被拒绝；
+- video scene 注册 Composition、调度其他 scene、import renderer、使用 timer/墙钟/无 seed 随机数，或在 render 期访问远程素材时被拒绝；
+- scene preview 冒充最终成片证据、Composition still 冒充最终抽帧、probe/sample 不属于当前 MP4 时被拒绝；
 - 外部发布发生但 verifier 缺失时只能 `BLOCKED`，不得报告完成。
 
 ### 结果级 fixture
 
 - pptx：slide 断号、多页 module、hash preview 过期、锁文件漂移、页数错、缺字体和不可渲染；
-- poster：错误尺寸、source/preview 不闭合和 profile 漂移；
+- poster：Satori 不支持的元素/CSS、缺字体、远程素材、双 root、SVG/PNG subject 不同、错误尺寸和 profile 漂移；
 - document：缺字体、页数错、不可渲染、空白页和文本层损坏；
-- video：scene 越界、错误 codec/FPS、黑帧、抽帧不属于最终文件和音轨缺失；
+- video：多 Composition、scene 越界、非确定性时间、远程素材、错误 codec/FPS、转场黑帧、抽帧不属于最终文件和音轨缺失；
 - content/learning：引用未绑定、来源变化、练习目标不映射和 readback 过期。
 
 ### 双宿主与误阻断
