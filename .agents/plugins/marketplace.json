@@ -5,6 +5,18 @@
   },
   "plugins": [
     {
+      "name": "research-provenance-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/research-provenance-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "verification-provenance-guard",
       "source": {
         "source": "local",

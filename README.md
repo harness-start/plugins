@@ -92,6 +92,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 
 | Plugin | Description |
 | --- | --- |
+| `research-provenance-guard` | Opt-in hard research path with MCP source capture, exact anchors, typed claims, canonical reports, and fresh completion seals |
 | `verification-provenance-guard` | Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses |
 | `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
 | `source-sanity-guard` | Blocks backup artifacts and obvious replacement-character corruption in source files |
