@@ -13,7 +13,7 @@ orchestrator skill entry
   -> project workflow.json (open)
   -> brief + source plan + inbound subagent handoffs
   -> MCP roots/list workspace binding
-  -> candidate discovery (non-evidence; MCP or adapted firecrawl technique)
+  -> candidate discovery (non-evidence; MCP, adapted firecrawl technique, or optional arxiv-search worker)
   -> bounded source capture in private plugin data
   -> exact captured-content anchors
   -> typed claim validation
@@ -60,6 +60,7 @@ Captured source bodies and MCP event streams remain under the platform plugin da
 
 - `research` — discover/read technique for subagents; findings land under inbound paths.
 - `firecrawl` — discovery strategy only; hard-run execution is MCP `source_discover` / `source_capture`.
+- `arxiv-search` — optional academic candidate discovery only; worker output is untrusted and must resolve to a versioned authoritative paper page before MCP capture/anchor.
 - `handoff` — post-seal outbound session handoff; project `outbound/prompt.md` must store the exact prompt.
 
 ## State and concurrency

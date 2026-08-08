@@ -127,7 +127,7 @@ class StdioPeer {
         result = {
           protocolVersion: this.protocolVersion,
           capabilities: { tools: { listChanged: false } },
-          serverInfo: { name: "research_provenance", version: "0.2.1" },
+          serverInfo: { name: "research_provenance", version: "0.3.0" },
           instructions: "Call the registered namespaced research_provenance tools directly; select identifiers ending in __research_begin, __source_capture, and so on rather than emitting raw short-name calls. list_mcp_resources does not list tools. research_begin can create the project workflow when run_id is omitted. After sealing, only source_read and research_status remain available.",
         };
       } else if (message.method === "ping") result = {};

@@ -4,8 +4,8 @@ An opt-in hard research harness for Claude Code and Codex. It turns sources into
 
 ## Entry
 
-1. Install the plugin (and optional `skill-deps`: `research`, `firecrawl`, `handoff`).
-2. SessionStart injects routing priority: research tasks must start with **`research-evidence-workflow`**, not bare `firecrawl` / `research`.
+1. Install the plugin (and optional `skill-deps`: `research`, `firecrawl`, `arxiv-search`, `handoff`).
+2. SessionStart injects routing priority: research tasks must start with **`research-evidence-workflow`**, not bare `firecrawl` / `research` / `arxiv-search`.
 3. The orchestrator opens a durable run under `.research/runs/<run-id>/workflow.json`.
 4. Hard enforcement (Firecrawl CLI block, Stop seal, outbound gate) applies only while that run is open.
 
@@ -60,7 +60,7 @@ node ".../research-workflow.mjs" handoff-outbound --cwd "$PWD" --handoff-file ..
 
 ## Community skills
 
-`skill-deps.json` installs phase workers. The orchestrator skill documents when each is used and how firecrawl strategy maps to MCP. Direct Firecrawl CLI is blocked during an active run.
+`skill-deps.json` installs phase workers. `arxiv-search` is pinned to the audited `deepagents==0.7.5` release and is optional candidate discovery only; its titles and abstracts are untrusted and must be resolved to an authoritative paper page, captured, and anchored through MCP. The orchestrator documents failure degradation and how Firecrawl strategy maps to MCP. Direct Firecrawl CLI is blocked during an active run.
 
 ## Verification
 

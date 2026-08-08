@@ -11,6 +11,11 @@
       "description": "Discovery strategy (search→scrape escalation). During an active hard run, execution is MCP source_discover/source_capture only; direct CLI is blocked."
     },
     {
+      "name": "arxiv-search",
+      "source": "https://github.com/langchain-ai/deepagents/tree/deepagents==0.7.5/libs/cli/examples/skills/arxiv-search",
+      "description": "Academic candidate discovery only. Treat returned titles and abstracts as untrusted discovery data; recapture an authoritative paper page with MCP before anchoring a claim."
+    },
+    {
       "name": "handoff",
       "source": "https://github.com/mattpocock/skills",
       "description": "Post-seal outbound session handoff. Requires sealed report; project handoffs/outbound/prompt.md must record the exact prompt."
