@@ -11,7 +11,7 @@ import {
   writeFileSync,
   appendFileSync,
 } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { DECISION_KINDS, GITIGNORE_PATTERN } from "./policy.mjs";
 
@@ -55,7 +55,17 @@ export function makeRunId(now = new Date()) {
 }
 
 export function auditPaths(repoRoot, auditRoot, runId) {
-  const root = join(resolve(repoRoot), auditRoot);
+  const repoRootAbs = resolve(repoRoot);
+  const root = resolve(repoRootAbs, auditRoot);
+  const relativeRoot = relative(repoRootAbs, root);
+  if (
+    !relativeRoot ||
+    relativeRoot === ".." ||
+    relativeRoot.startsWith(`..${sep}`) ||
+    isAbsolute(relativeRoot)
+  ) {
+    throw new Error("auditRoot must resolve inside the repository root");
+  }
   const runDir = join(root, "runs", runId);
   return {
     auditRootAbs: root,
