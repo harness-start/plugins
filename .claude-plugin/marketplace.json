@@ -12,6 +12,11 @@
       "description": "Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses."
     },
     {
+      "name": "swe-contract-verifier",
+      "source": "./plugins/swe-contract-verifier",
+      "description": "Requires fresh boundary-contract tests and an independent read-only reviewer after SWE source changes."
+    },
+    {
       "name": "execution-loop-guard",
       "source": "./plugins/execution-loop-guard",
       "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session."

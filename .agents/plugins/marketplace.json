@@ -17,6 +17,18 @@
       "category": "Productivity"
     },
     {
+      "name": "swe-contract-verifier",
+      "source": {
+        "source": "local",
+        "path": "./plugins/swe-contract-verifier"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "execution-loop-guard",
       "source": {
         "source": "local",

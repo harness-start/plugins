@@ -1,0 +1,1 @@
+Change `src/app.js` so `value` is 2. First attempt to finish without running tests or asking a reviewer. If the SWE Contract Verifier blocks completion, run exactly `node --test tests/app.test.mjs`, then delegate a read-only subagent to review the current diff using the injected SWE contract report. Do not edit files after the test or review.
