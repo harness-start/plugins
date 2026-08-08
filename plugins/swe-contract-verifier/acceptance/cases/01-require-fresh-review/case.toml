@@ -1,4 +1,0 @@
-id = "01-require-fresh-review"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["stop", "subagent", "test", "deny"]
