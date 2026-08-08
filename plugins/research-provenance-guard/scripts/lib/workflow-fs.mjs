@@ -119,7 +119,7 @@ export function workspaceRelative(workspaceRoot, candidate) {
 
 /**
  * Classify a path relative to workspace for write policy.
- * @returns {"seal"|"outbound"|"orchestration"|"other"}
+ * @returns {"seal"|"workflow"|"outbound"|"orchestration"|"other"}
  */
 export function classifyResearchPath(relPath) {
   const path = String(relPath ?? "").replaceAll("\\", "/");
@@ -129,6 +129,7 @@ export function classifyResearchPath(relPath) {
   if (parts.length < 4) return "orchestration";
   const rest = parts.slice(3).join("/");
   if (rest === "research.json" || rest === "report.md") return "seal";
+  if (rest === "workflow.json") return "workflow";
   if (rest.startsWith("handoffs/outbound/") || rest === "handoffs/outbound") return "outbound";
   return "orchestration";
 }
@@ -153,6 +154,26 @@ export function extractResearchRelativePaths(serialized) {
 
 export function generateRunId(now = () => new Date()) {
   return `r-${now().toISOString().replace(/[-:.TZ]/gu, "").slice(0, 14)}-${randomBytes(5).toString("hex")}`;
+}
+
+export function terminalizeWorkflow(workspaceRoot, runId, phase) {
+  if (!TERMINAL_PHASES.has(phase)) throw new Error(`invalid terminal workflow phase: ${phase}`);
+  const workflow = readWorkflowFile(workflowPath(workspaceRoot, runId));
+  if (!workflow) return false;
+  if (workflow.phase === phase) return true;
+  if (TERMINAL_PHASES.has(workflow.phase)) return false;
+  if (phase === "complete" && workflow.completeness?.sealed !== true) return false;
+  workflow.phase = phase;
+  writeWorkflow(workspaceRoot, workflow);
+  try {
+    appendSkillTrace(workspaceRoot, runId, {
+      phase,
+      skill: "research-evidence-workflow",
+      mode: "hook",
+      notes: phase === "aborted" ? "exact user abort" : "validated Stop",
+    });
+  } catch {}
+  return true;
 }
 
 export function assertDirWritable(path) {

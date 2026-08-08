@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from 
 import { join, resolve } from "node:path";
 
 import { cwd, sessionId } from "./hook-io.mjs";
-import { findActiveWorkflow, isActivePhase } from "./workflow-fs.mjs";
+import { findActiveWorkflow, isActivePhase, readWorkflowFile, workflowPath } from "./workflow-fs.mjs";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -39,6 +39,9 @@ export function readState(event) {
     revision: 0,
     active: false,
     aborted: false,
+    abortedRunId: null,
+    completed: false,
+    completedRunId: null,
     seal: null,
     runId: workflow?.run_id ?? null,
     receipts: [],
@@ -69,7 +72,11 @@ export function readState(event) {
       }
       if (item.type === "prompt") {
         state.promptEpoch += 1;
-        state.aborted = item.payload.abort === true;
+        if (item.payload.abort === true) {
+          state.aborted = true;
+          state.abortedRunId = item.payload.runId ?? state.runId;
+          state.runId = item.payload.runId ?? state.runId;
+        }
       } else if (item.type === "mutation") {
         state.revision += 1;
         state.seal = null;
@@ -77,15 +84,28 @@ export function readState(event) {
         state.receipts.push(item.payload);
         if (item.payload.tool === "research_begin") {
           state.runId = item.payload.runId ?? state.runId;
+          state.seal = null;
+          state.aborted = false;
+          state.completed = false;
         }
-        if (item.payload.tool === "research_seal") state.seal = item.payload;
+        if (item.payload.tool === "research_seal" && (!state.runId || item.payload.runId === state.runId)) state.seal = item.payload;
       } else if (item.type === "complete") {
-        // completion recorded; workflow file remains source of truth for phase
+        if (!item.payload.runId || !state.runId || item.payload.runId === state.runId) {
+          state.completed = true;
+          state.completedRunId = item.payload.runId ?? state.runId;
+          state.runId = item.payload.runId ?? state.runId;
+        }
       }
     }
   }
 
-  if (state.aborted) {
+  const runWorkflow = state.runId ? readWorkflowFile(workflowPath(workspace, state.runId)) : null;
+  if (state.aborted && runWorkflow && runWorkflow.phase !== "aborted") state.aborted = false;
+  if (state.completed && runWorkflow && runWorkflow.phase !== "complete") state.completed = false;
+  if (workflow && state.aborted && state.abortedRunId !== workflow.run_id) state.aborted = false;
+  if (workflow && state.completed && state.completedRunId !== workflow.run_id) state.completed = false;
+
+  if (state.aborted || state.completed) {
     state.active = false;
     return state;
   }
@@ -93,15 +113,16 @@ export function readState(event) {
   if (workflow && isActivePhase(workflow.phase)) {
     state.active = true;
     state.runId = workflow.run_id;
+    if (state.seal?.runId !== state.runId) state.seal = null;
     // Seal authority remains same-session MCP PostToolUse receipts (freshness after mutations).
     // workflow.json records phase for activation and outbound gates only.
   } else if (state.receipts.some((item) => item.tool === "research_begin")) {
-    // MCP begin observed but workflow missing/unreadable: still gate until seal or abort
+    // MCP begin observed but workflow missing/unreadable: gate until a validated Stop or exact abort.
     const begun = [...state.receipts].reverse().find((item) => item.tool === "research_begin");
-    const sealed = state.receipts.some((item) => item.tool === "research_seal" && item.runId === (begun?.runId ?? item.runId));
-    if (begun && !state.aborted && !sealed) {
+    if (begun && !state.aborted && !state.completed) {
       state.active = true;
       state.runId = begun.runId ?? state.runId;
+      if (state.seal?.runId !== state.runId) state.seal = null;
     }
   }
 

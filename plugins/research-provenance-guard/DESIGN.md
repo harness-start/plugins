@@ -21,6 +21,7 @@ orchestrator skill entry
   -> outbound handoff only after sealed (prompt recorded)
   -> observed research_seal receipt at epoch/revision
   -> offline Stop revalidation of trailer + files + digest
+  -> hook-owned terminal phase (`complete`, or exact-user `aborted`)
 ```
 
 Hook activation, SessionStart text, skill-deps installation, or extra model turns alone are not outcome evidence. Outcome-level checks are workflow phase, anchor resolution, claim status rules, canonical artifact generation, artifact hash recomputation, receipt matching, and freshness after the last observed mutation.
@@ -48,9 +49,10 @@ Captured source bodies and MCP event streams remain under the platform plugin da
 
 | Path | Writer |
 | --- | --- |
-| workflow, brief, source-plan, skill-trace, inbound handoffs, claims.draft | Orchestrator / workflow CLI / agent under an open run |
+| `workflow.json` phase and completeness | Workflow CLI / MCP / validated lifecycle hooks |
+| brief, source-plan, skill-trace, inbound handoffs, claims.draft | Orchestrator / workflow CLI / agent under an open run |
 | `research.json`, `report.md` | Only `research_seal` |
-| `handoffs/outbound/**` | Only after `completeness.sealed` (or phase `sealed`+) |
+| `handoffs/outbound/**` | Workflow CLI `handoff-outbound`, only after phase `sealed` |
 
 ## Skill composition
 
@@ -62,16 +64,19 @@ Captured source bodies and MCP event streams remain under the platform plugin da
 
 ## State and concurrency
 
-Hook observations are append-only event files (TTL 24h) keyed by session and workspace. Active mode is reconstructed from project `workflow.json` phases plus hook receipts. A server process permits one unfinished MCP run and is scoped to one workspace root.
+Hook observations are append-only event files (TTL 24h) keyed by session and workspace. Active mode is reconstructed from project `workflow.json` phases plus hook receipts. A seal receipt remains gated until a validated Stop records `complete`; a later `research_begin` clears authority from any earlier seal. A server process permits one unfinished MCP run and is scoped to one workspace root.
+
+General workspace mutations advance the hook revision. The post-seal `handoff-outbound` CLI and hook-owned terminal phase are explicit lifecycle transitions: they cannot alter sealed evidence and therefore do not invalidate its digest. Direct outbound writes remain blocked.
 
 The parent session owns seal and outbound handoff. Subagents may capture-read or draft notes through inbound handoffs; their prose cannot create a seal receipt.
 
 ## Trust boundaries
 
-- MCP `roots/list` is authoritative for workspace scope.
+- MCP `roots/list` is authoritative when the host supplies roots. Codex 0.146 returns an empty roots list for local stdio servers, so the Codex-only bundle explicitly forwards its absolute launch `PWD`; the server accepts that fallback only with the Codex host marker and only when roots are empty.
+- Workspace capture resolves symbolic links and rejects targets outside that root.
 - Direct HTTP pins DNS public checks on every redirect.
 - The seal digest is integrity within the observable workflow, not a signature against a hostile same-user process.
 
 ## Degradation
 
-Missing Firecrawl affects discovery only. Missing plugin data or MCP roots fails the authoritative path closed. User abort is exactly `# research-abort`. Unverified claims require a visible limitation and must not be presented as verified facts outside the canonical report.
+Missing Firecrawl affects discovery only. Missing plugin data, a valid single MCP root, or the narrow Codex launch-root fallback fails the authoritative path closed. User abort is exactly `# research-abort`. Unverified claims require a visible limitation and must not be presented as verified facts outside the canonical report.

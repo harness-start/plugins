@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { spawn } from "node:child_process";
 
@@ -17,6 +17,8 @@ import {
 const SOURCE_KINDS = new Set(["web", "news", "github", "research", "pdf", "developer", "workspace"]);
 const CLAIM_STATUSES = new Set(["anchored", "multi_anchored", "inferred", "contested", "unverified"]);
 const ID = /^[A-Z][A-Za-z0-9_-]{0,63}$/u;
+const BINDABLE_WORKFLOW_PHASES = new Set(["open", "briefed", "discovering", "capturing", "claims_drafted"]);
+const SEALED_READ_METHODS = new Set(["source_read", "research_status"]);
 
 function assertObject(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -137,6 +139,7 @@ export class ResearchService {
     assertObject(args, "arguments");
     if (name === "research_begin") return this.begin(args);
     if (!this.run) throw new Error("research_begin must be called first");
+    if (this.run.sealed && !SEALED_READ_METHODS.has(name)) throw new Error("research run is sealed; evidence and canonical artifacts are immutable");
     if (name === "source_discover") return this.discover(args);
     if (name === "source_capture") return this.capture(args);
     if (name === "source_read") return this.read(args);
@@ -174,10 +177,10 @@ export class ResearchService {
       if (!/^r-[a-z0-9-]+$/u.test(runId)) throw new Error("run_id must match r-<timestamp>-<hex>");
       const existing = readWorkflowFile(workflowPath(this.workspaceRoot, runId));
       if (!existing) throw new Error(`run_id ${runId} has no project workflow; call research-workflow run-open first or omit run_id`);
-      if (existing.mcp?.begun && existing.phase !== "aborted" && !existing.completeness?.sealed) {
-        throw new Error(`run ${runId} already has MCP begin; finish or abort it first`);
+      if (!BINDABLE_WORKFLOW_PHASES.has(existing.phase) || existing.completeness?.sealed === true || existing.mcp?.begun === true) {
+        throw new Error(`run ${runId} must be open and unsealed without an earlier MCP begin`);
       }
-    } else if (active && !active.mcp?.begun && !active.completeness?.sealed && active.phase !== "aborted") {
+    } else if (active && BINDABLE_WORKFLOW_PHASES.has(active.phase) && !active.mcp?.begun && !active.completeness?.sealed) {
       runId = active.run_id;
     } else if (active && active.mcp?.begun && !active.completeness?.sealed && active.phase !== "aborted") {
       throw new Error(`unfinished research run ${active.run_id} is already open in this workspace`);
@@ -254,9 +257,11 @@ export class ResearchService {
       if (kind !== "workspace") throw new Error("path capture requires kind=workspace");
       const candidate = resolve(this.workspaceRoot, requiredString(args.path, "path"));
       if (!within(this.workspaceRoot, candidate)) throw new Error("workspace source escapes the bound root");
-      const info = await stat(candidate);
+      const [realWorkspace, realCandidate] = await Promise.all([realpath(this.workspaceRoot), realpath(candidate)]);
+      if (!within(realWorkspace, realCandidate)) throw new Error("workspace source escapes the bound root through a symbolic link");
+      const info = await stat(realCandidate);
       if (!info.isFile() || info.size > 8 * 1024 * 1024) throw new Error("workspace source must be a regular file at most 8 MiB");
-      text = await readFile(candidate, "utf8");
+      text = await readFile(realCandidate, "utf8");
       if (text.includes("\0")) throw new Error("binary workspace sources are not anchorable");
       locator = relative(this.workspaceRoot, candidate).replaceAll("\\", "/");
     } else {

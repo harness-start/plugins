@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -73,4 +74,27 @@ test("run-open creates project workflow and blocks outbound until sealed", async
   assert.equal(after.phase, "handed_off");
   assert.equal(after.completeness.outbound_handoff, true);
   assert.match(await readFile(join(root, ".research/runs/r-20260808120000-cli0001/handoffs/outbound/prompt.md"), "utf8"), /Continue from sealed/u);
+  assert.equal(after.outbound_handoff.prompt_sha256_prefix, createHash("sha256").update("Continue from sealed research.\n").digest("hex").slice(0, 16));
+
+  const manualComplete = runCli(["run-complete", "--run-id", begun.run_id], root);
+  assert.notEqual(manualComplete.status, 0, "only a successful Stop hook may complete a run");
+});
+
+test("workflow CLI cannot self-authorize abort or escape inbound result paths", async () => {
+  const root = await mkdtemp(join(tmpdir(), "research-cli-guard-"));
+  const runId = "r-20260808120000-cli0002";
+  assert.equal(runCli(["run-open", "--run-id", runId], root).status, 0);
+
+  const manualAbort = runCli(["run-abort", "--run-id", runId], root);
+  assert.notEqual(manualAbort.status, 0, "only the exact user abort prompt may abort a run");
+  assert.equal(findActiveWorkflow(root)?.run_id, runId);
+
+  await writeFile(join(root, "result.md"), "result\n", "utf8");
+  const escapedResult = runCli([
+    "handoff-result",
+    "--run-id", runId,
+    "--id", "../escape",
+    "--file", join(root, "result.md"),
+  ], root);
+  assert.notEqual(escapedResult.status, 0);
 });

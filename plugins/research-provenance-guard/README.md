@@ -11,7 +11,7 @@ An opt-in hard research harness for Claude Code and Codex. It turns sources into
 
 There is **no** `$research` / `/research` activation alias. Mentioning a skill name in chat does not open hard mode.
 
-User abort: exactly `# research-abort`.
+User abort: exactly `# research-abort`. The hook owns the terminal `aborted` transition; the workflow CLI cannot self-authorize abort or completion.
 
 ## Project layout
 
@@ -32,7 +32,9 @@ Captured source bodies live under the platform plugin data directory (private). 
 
 ## Evidence path
 
-`research_begin` binds one run to the MCP workspace root and syncs `workflow.json`. `source_discover` may use Firecrawl under the hood; discovery is never evidence. `source_capture`, `source_read`, and `source_anchor` build evidence; `research_seal` validates claims and writes the canonical report.
+`research_begin` binds one run to the MCP workspace root and syncs `workflow.json`. MCP tool identifiers are host-namespaced; select the registered identifier ending in `__research_begin`, `__source_capture`, and so on rather than emitting a raw short-name function call. `source_discover` may use Firecrawl under the hood; discovery is never evidence. `source_capture`, `source_read`, and `source_anchor` build evidence; `research_seal` validates claims and writes the canonical report.
+
+After `research_seal`, evidence mutations and resealing are rejected. A validated Stop changes the workflow to `complete`; later ordinary prompts are not kept in hard mode. Direct edits to `workflow.json`, canonical seal files, or outbound handoff paths are blocked while a run is active.
 
 Final answer: optional pointer to the matching report plus:
 
@@ -44,7 +46,7 @@ Research-Seal: sha256:<digest>
 
 ## Outbound handoff
 
-After seal, use the workflow CLI `handoff-outbound` so `handoffs/outbound/handoff.md` and `prompt.md` (full prompt text) are recorded, then optionally the community `handoff` skill. Hooks block outbound writes before seal.
+After seal, use the workflow CLI `handoff-outbound` so `handoffs/outbound/handoff.md` and `prompt.md` (full prompt text) are recorded, then optionally the community `handoff` skill. Direct outbound writes are blocked. This CLI transition is lifecycle metadata and does not stale the already immutable evidence seal.
 
 ## Workflow CLI
 

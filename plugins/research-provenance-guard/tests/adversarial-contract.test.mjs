@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, stat, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 import { ResearchService } from "../server/lib/research-service.mjs";
 import { parseTrailer } from "../scripts/lib/seal-validator.mjs";
+import { defaultWorkflow, ensureRunSkeleton, writeWorkflow } from "../scripts/lib/workflow-fs.mjs";
 
 async function setup(sessionId = "matrix") {
   const root = await mkdtemp(join(tmpdir(), "research-matrix-"));
@@ -44,8 +45,11 @@ test("multi-source, inference, contested, and JSON-pointer contracts seal togeth
 });
 
 test("fabrication, path escape, duplicate anchors, and unknown fields fail closed", async () => {
-  const { service } = await setup("negative");
+  const { root, workspace, service } = await setup("negative");
   await assert.rejects(service.call("source_capture", { kind: "workspace", path: "../outside.md" }), /escapes/u);
+  await writeFile(join(root, "outside.md"), "outside root\n", "utf8");
+  await symlink(join(root, "outside.md"), join(workspace, "linked.md"));
+  await assert.rejects(service.call("source_capture", { kind: "workspace", path: "linked.md" }), /escapes/u);
   await assert.rejects(service.call("source_capture", { kind: "workspace", path: "one.md", url: "https://example.test/ignored" }), /exactly one/u);
   await assert.rejects(service.call("source_capture", { kind: "workspace", path: "one.md", surprise: true }), /unknown field/u);
   const source = await service.call("source_capture", { kind: "workspace", path: "one.md" });
@@ -75,4 +79,52 @@ test("URL captures use injected bounded transport and private artifacts are mode
 test("one service process permits only one unfinished run", async () => {
   const { service } = await setup("unfinished");
   await assert.rejects(service.call("research_begin", { question: "Q2", scope: "S", as_of: "2026-08-08", prompt_epoch: 2 }), /unfinished research run/u);
+});
+
+test("a sealed run rejects later evidence mutations and cannot be reused", async () => {
+  const { service, begun } = await setup("sealed-freeze");
+  const sealed = await service.call("research_seal", {
+    run_id: begun.run_id,
+    prompt_epoch: 2,
+    mutation_revision: 0,
+    claims: [{ id: "C1", status: "unverified", text: "Unknown", limitation: "No source was captured." }],
+  });
+  assert.match(sealed.seal, /^sha256:/u);
+  await assert.rejects(service.call("source_capture", { kind: "workspace", path: "one.md" }), /sealed/u);
+  await assert.rejects(service.call("research_seal", {
+    run_id: begun.run_id,
+    prompt_epoch: 2,
+    mutation_revision: 0,
+    claims: [{ id: "C1", status: "unverified", text: "Unknown", limitation: "No source was captured." }],
+  }), /sealed/u);
+
+  const replacement = new ResearchService({
+    workspaceRoot: service.workspaceRoot,
+    dataRoot: service.dataRoot,
+    sessionId: "sealed-reuse",
+  });
+  await assert.rejects(replacement.call("research_begin", {
+    question: "Q2",
+    scope: "S2",
+    as_of: "2026-08-08",
+    prompt_epoch: 3,
+    run_id: begun.run_id,
+  }), /open and unsealed/u);
+});
+
+test("automatic begin does not bind a malformed post-seal workflow", async () => {
+  const root = await mkdtemp(join(tmpdir(), "research-matrix-bind-"));
+  const workspace = join(root, "workspace");
+  const dataRoot = join(root, "data");
+  await mkdir(workspace);
+  const staleRunId = "r-20260808120000-stale01";
+  ensureRunSkeleton(workspace, staleRunId);
+  const workflow = defaultWorkflow({ runId: staleRunId, question: "old", scope: "old", asOf: "2026-08-08" });
+  workflow.phase = "handed_off";
+  workflow.completeness.sealed = false;
+  writeWorkflow(workspace, workflow);
+
+  const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "auto-bind" });
+  const begun = await service.call("research_begin", { question: "new", scope: "new", as_of: "2026-08-09", prompt_epoch: 1 });
+  assert.notEqual(begun.run_id, staleRunId);
 });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { validateSealedArtifacts, parseTrailer } from "./lib/seal-validator.mjs";
@@ -10,6 +10,7 @@ import {
   extractResearchRelativePaths,
   pathLooksLikeResearchWrite,
   SEALED_OR_LATER,
+  terminalizeWorkflow,
 } from "./lib/workflow-fs.mjs";
 import { assistantMessage, cwd, fileMutation, prompt, readStdinJson, shellCommand, toolInput, toolName, toolResponse, writeJson } from "./lib/hook-io.mjs";
 
@@ -54,6 +55,42 @@ function writeTargetClasses(event) {
   return [...new Set(paths.map((path) => classifyResearchPath(path)))];
 }
 
+function callsFirecrawlCli(command) {
+  return String(command ?? "")
+    .split(/(?:&&|\|\||[;|\n])/u)
+    .some((segment) => /^(?:(?:command|sudo)(?:\s+--?[^\s]+)*\s+)*(?:env(?:\s+[A-Za-z_][A-Za-z0-9_]*=[^\s]+)*\s+)?(?:npx(?:\s+--?[^\s]+)*\s+)?["']?(?:[^\s"']*\/)?firecrawl["']?(?:\s|$)/iu.test(segment.trim()));
+}
+
+function shellCommandIsReadOnly(command) {
+  const value = String(command ?? "").trim();
+  if (!value || /[\n;&|><`]|\$\(/u.test(value)) return false;
+  return /^(?:cat|pwd|ls|rg|grep|head|tail)\b/iu.test(value)
+    || (/^git\s+(?:status|diff|log|show)\b/iu.test(value) && !/--output(?:=|\s)/iu.test(value))
+    || /^node\s+--check\b/iu.test(value);
+}
+
+function trustedWorkflowCommand(command, subcommand) {
+  const pluginRoot = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT;
+  if (!pluginRoot) return false;
+  const script = join(resolve(pluginRoot), "scripts", "research-workflow.mjs");
+  const value = String(command ?? "").trim();
+  if (/[\n;&|><`]|\$\(/u.test(value)) return false;
+  const exact = [
+    `node "${script}" ${subcommand}`,
+    `node '${script}' ${subcommand}`,
+    `node ${script} ${subcommand}`,
+    `"${script}" ${subcommand}`,
+    `'${script}' ${subcommand}`,
+    `${script} ${subcommand}`,
+  ].some((prefix) => value === prefix || value.startsWith(`${prefix} `));
+  return exact;
+}
+
+function destructiveResearchCommand(command) {
+  const value = String(command ?? "");
+  return /(?:^|[\s;&|])(?:rm|mv|truncate)(?:\s|$)|\bfind\b[^\n]*(?:-delete|-exec\s+rm|-execdir\s+rm)\b/iu.test(value);
+}
+
 function preDecision(event, state) {
   const method = mcpMethod(event);
   if (method === "research_begin") {
@@ -75,21 +112,28 @@ function preDecision(event, state) {
   if (!state.active) return null;
 
   const command = shellCommand(event);
-  if (command && /(?:^|\s)(?:npx(?:\s+--[^\s]+)*\s+)?firecrawl(?:\s|$)/iu.test(command)) {
+  if (callsFirecrawlCli(command)) {
     return "Active research runs must use source_discover/source_capture through the research_provenance MCP service; direct Firecrawl CLI calls are blocked.";
   }
 
   const classes = writeTargetClasses(event);
-  const shellWrite = command && /(?:^|\s)(?:cp|install|mkdir|mv|perl\s+-p?i|rm|sed\s+-[^\s]*i|tee|touch|truncate)(?:\s|$)|>{1,2}/iu.test(command);
+  const shellWrite = command && !shellCommandIsReadOnly(command);
   const mutating = fileMutation(event) || shellWrite;
   if (!mutating || classes.length === 0) return null;
 
   if (classes.includes("seal")) {
     return "Direct writes to research.json/report.md are blocked; only research_seal may generate canonical evidence artifacts.";
   }
+  if (classes.includes("workflow")) {
+    return "Direct writes to workflow.json are blocked; use the research workflow CLI, MCP service, or the exact user abort prompt.";
+  }
+  if (destructiveResearchCommand(command)) {
+    return "Destructive changes to an active .research run are blocked; use the exact user abort prompt to abandon it.";
+  }
   const sealed = state.workflow && (state.workflow.completeness?.sealed === true || SEALED_OR_LATER.has(state.workflow.phase));
-  if (classes.includes("outbound") && !sealed) {
-    return "Outbound handoff files are blocked until the research run is sealed; finish capture, claims, and research_seal first.";
+  if (classes.includes("outbound")) {
+    if (!sealed) return "Outbound handoff files are blocked until the research run is sealed; finish capture, claims, and research_seal first.";
+    return "Direct outbound handoff writes are blocked; use research-workflow.mjs handoff-outbound with non-empty input files.";
   }
   return null;
 }
@@ -112,9 +156,10 @@ function post(event) {
     return null;
   }
   if (!state.active) return null;
+  if (trustedWorkflowCommand(shellCommand(event), "handoff-outbound")) return null;
   let mutated = false;
   if (fileMutation(event)) mutated = appendStateEvent(event, "mutation", { tool: toolName(event) });
-  else if (shellCommand(event) && !/^\s*(?:cat|echo|pwd|ls|find|rg|grep|sed|head|tail|git\s+(?:status|diff|log|show)|node\s+--check)\b/iu.test(shellCommand(event))) {
+  else if (shellCommand(event) && !shellCommandIsReadOnly(shellCommand(event))) {
     mutated = appendStateEvent(event, "mutation", { tool: toolName(event), conservative: true });
   }
   return mutated ? readState(event) : null;
@@ -137,6 +182,7 @@ export async function evaluateStop(event) {
     }
   }
   if (!state.seal?.seal) findings.push("no successful research_seal MCP receipt was observed in this session");
+  if (state.seal?.runId && state.runId && state.seal.runId !== state.runId) findings.push("research seal belongs to a different research run");
   if (trailer && state.seal?.seal && (trailer.seal !== state.seal.seal || trailer.runId !== state.seal.runId)) {
     findings.push("final trailer does not match the observed MCP seal receipt");
   }
@@ -163,12 +209,16 @@ async function main(mode = process.argv[2]) {
   } else if (mode === "prompt") {
     const text = prompt(event).trim();
     const abort = text === "# research-abort";
-    if (!appendStateEvent(event, "prompt", { abort }) && abort) {
+    const prior = readState(event);
+    if (!appendStateEvent(event, "prompt", { abort, runId: prior.runId }) && abort) {
       writeJson({ decision: "block", reason: "research plugin data is unavailable; cannot record research abort." });
       return;
     }
     if (abort) {
-      // Mark abort in hook stream; skill/CLI should also set workflow phase=aborted when possible
+      if (prior.workflow && !terminalizeWorkflow(resolve(cwd(event)), prior.workflow.run_id, "aborted")) {
+        writeJson({ decision: "block", reason: "research workflow could not be terminalized after the abort request." });
+        return;
+      }
       writeJson({
         hookSpecificOutput: {
           hookEventName: "UserPromptSubmit",
@@ -200,7 +250,11 @@ async function main(mode = process.argv[2]) {
         reason: `[Research Provenance Guard] Completion blocked.\n- ${result.findings.join("\n- ")}\nRecovery: open/use research-evidence-workflow, capture and anchor through research_provenance, call research_seal after the last mutation, paste its exact trailer. Outbound handoff only after seal. To abandon, submit exactly # research-abort.`,
       });
     } else if (result.trailer) {
-      appendStateEvent(event, "complete");
+      const terminalized = !result.state.workflow || terminalizeWorkflow(resolve(cwd(event)), result.trailer.runId, "complete");
+      const recorded = terminalized && appendStateEvent(event, "complete", { runId: result.trailer.runId });
+      if (!recorded || !terminalized) {
+        writeJson({ decision: "block", reason: "[Research Provenance Guard] Completion could not be recorded durably; retry Stop without changing the workspace." });
+      }
     }
   }
 }

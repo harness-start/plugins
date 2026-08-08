@@ -1,6 +1,6 @@
 {
   "name": "research-provenance-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Orchestrated hard research: project workflow files, MCP capture/anchors, seal, and post-seal handoff.",
   "author": {
     "name": "Harness Start",

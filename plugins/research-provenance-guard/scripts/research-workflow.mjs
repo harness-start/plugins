@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +49,12 @@ function loadWorkflow(cwd, runId) {
   return workflow;
 }
 
+function requirePreSeal(workflow, command) {
+  if (workflow.completeness?.sealed === true || SEALED_OR_LATER.has(workflow.phase) || workflow.phase === "aborted") {
+    throw new Error(`${command} requires an open, unsealed research run`);
+  }
+}
+
 function saveBrief(cwd, runId, workflow) {
   const path = join(cwd, ".research", "runs", runId, "brief.md");
   const body = [
@@ -92,6 +99,7 @@ function cmdBriefWrite(cwd, options) {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   const workflow = loadWorkflow(cwd, runId);
+  requirePreSeal(workflow, "brief-write");
   workflow.question = String(options.question ?? workflow.question ?? "").trim();
   workflow.scope = String(options.scope ?? workflow.scope ?? "").trim();
   workflow.as_of = String(options["as-of"] ?? options.as_of ?? workflow.as_of ?? "").trim();
@@ -111,6 +119,7 @@ function cmdHandoffInbound(cwd, options) {
   if (!runId) throw new Error("--run-id or an active run is required");
   if (!options.file) throw new Error("--file is required");
   const workflow = loadWorkflow(cwd, runId);
+  requirePreSeal(workflow, "handoff-inbound");
   const source = resolve(cwd, String(options.file));
   const raw = JSON.parse(readFileSync(source, "utf8"));
   const id = String(raw.id ?? "").trim();
@@ -145,8 +154,11 @@ function cmdHandoffResult(cwd, options) {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   const id = String(options.id ?? "").trim();
   if (!runId || !id) throw new Error("--run-id and --id are required");
+  if (!/^[a-zA-Z0-9._-]{1,96}$/u.test(id)) throw new Error("--id must be a safe inbound handoff identifier");
   if (!options.file) throw new Error("--file is required");
   const workflow = loadWorkflow(cwd, runId);
+  requirePreSeal(workflow, "handoff-result");
+  if (!(workflow.subagents ?? []).some((item) => item.id === id)) throw new Error(`unknown inbound handoff id: ${id}`);
   const source = resolve(cwd, String(options.file));
   const text = readFileSync(source, "utf8");
   const rel = `handoffs/inbound/${id}.result.md`;
@@ -163,6 +175,7 @@ function cmdClaimsDraft(cwd, options) {
   if (!runId) throw new Error("--run-id or an active run is required");
   if (!options.file) throw new Error("--file is required");
   const workflow = loadWorkflow(cwd, runId);
+  requirePreSeal(workflow, "claims-draft");
   const source = resolve(cwd, String(options.file));
   const claims = JSON.parse(readFileSync(source, "utf8"));
   if (!Array.isArray(claims) || claims.length === 0) throw new Error("claims must be a non-empty array");
@@ -196,7 +209,7 @@ function cmdHandoffOutbound(cwd, options) {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   const workflow = loadWorkflow(cwd, runId);
-  if (!workflow.completeness?.sealed && !SEALED_OR_LATER.has(workflow.phase)) {
+  if (workflow.completeness?.sealed !== true || !["sealed", "handed_off"].includes(workflow.phase)) {
     throw new Error("outbound handoff requires a sealed research run");
   }
   const handoffFile = options["handoff-file"] ? resolve(cwd, String(options["handoff-file"])) : null;
@@ -216,7 +229,7 @@ function cmdHandoffOutbound(cwd, options) {
     handoff_path: handoffRel,
     prompt_path: promptRel,
     at: new Date().toISOString(),
-    prompt_sha256_prefix: Buffer.from(prompt).toString("hex").slice(0, 16),
+    prompt_sha256_prefix: createHash("sha256").update(prompt).digest("hex").slice(0, 16),
   };
   writeWorkflow(cwd, workflow);
   appendSkillTrace(cwd, runId, {
@@ -237,28 +250,6 @@ function cmdStatus(cwd, options) {
   output({ active, runs: listWorkflows(cwd).map((item) => ({ run_id: item.run_id, phase: item.phase })) });
 }
 
-function cmdAbort(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
-  if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
-  workflow.phase = "aborted";
-  writeWorkflow(cwd, workflow);
-  appendSkillTrace(cwd, runId, { phase: "aborted", skill: "research-evidence-workflow", mode: "invoke", notes: "run-abort" });
-  output({ ok: true, run_id: runId, phase: "aborted" });
-}
-
-function cmdComplete(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
-  if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
-  if (!workflow.completeness?.sealed && workflow.phase !== "handed_off") {
-    throw new Error("complete requires sealed (or handed_off) research");
-  }
-  workflow.phase = "complete";
-  writeWorkflow(cwd, workflow);
-  output({ ok: true, run_id: runId, phase: "complete" });
-}
-
 async function main() {
   const { options, positionals } = parseArgs(process.argv.slice(2));
   const command = positionals[0];
@@ -272,8 +263,9 @@ async function main() {
   if (command === "completeness-check") return cmdCompleteness(cwd, options);
   if (command === "handoff-outbound") return cmdHandoffOutbound(cwd, options);
   if (command === "run-status") return cmdStatus(cwd, options);
-  if (command === "run-abort") return cmdAbort(cwd, options);
-  if (command === "run-complete") return cmdComplete(cwd, options);
+  if (command === "run-abort" || command === "run-complete") {
+    throw new Error(`${command} is hook-managed; use the exact user abort prompt or a validated Stop`);
+  }
   throw new Error(`unknown command: ${command}`);
 }
 

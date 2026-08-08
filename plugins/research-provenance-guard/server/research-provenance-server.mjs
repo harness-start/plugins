@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { resolve } from "node:path";
+import { realpath } from "node:fs/promises";
+import { isAbsolute, resolve } from "node:path";
 import { createInterface } from "node:readline";
 
 import { ResearchService } from "./lib/research-service.mjs";
@@ -92,8 +93,19 @@ class StdioPeer {
     if (!dataRoot) throw new Error("platform plugin data directory is unavailable");
     const result = await this.request("roots/list");
     const roots = result?.roots;
-    if (!Array.isArray(roots) || roots.length !== 1 || typeof roots[0]?.uri !== "string" || !roots[0].uri.startsWith("file:")) throw new Error("exactly one file workspace root is required");
-    const workspaceRoot = resolve(decodeURIComponent(new URL(roots[0].uri).pathname));
+    let workspaceRoot;
+    if (Array.isArray(roots) && roots.length === 1 && typeof roots[0]?.uri === "string" && roots[0].uri.startsWith("file:")) {
+      workspaceRoot = resolve(decodeURIComponent(new URL(roots[0].uri).pathname));
+    } else if (
+      Array.isArray(roots)
+      && roots.length === 0
+      && process.env.RESEARCH_PROVENANCE_HOST === "codex"
+      && isAbsolute(process.env.PWD ?? "")
+    ) {
+      workspaceRoot = await realpath(process.env.PWD);
+    } else {
+      throw new Error("exactly one file workspace root is required");
+    }
     this.service = new ResearchService({ workspaceRoot, dataRoot, sessionId });
     return this.service;
   }
@@ -112,7 +124,12 @@ class StdioPeer {
       let result;
       if (message.method === "initialize") {
         this.protocolVersion = message.params?.protocolVersion ?? this.protocolVersion;
-        result = { protocolVersion: this.protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "research_provenance", version: "0.2.0" } };
+        result = {
+          protocolVersion: this.protocolVersion,
+          capabilities: { tools: { listChanged: false } },
+          serverInfo: { name: "research_provenance", version: "0.2.1" },
+          instructions: "Call the registered namespaced research_provenance tools directly; select identifiers ending in __research_begin, __source_capture, and so on rather than emitting raw short-name calls. list_mcp_resources does not list tools. research_begin can create the project workflow when run_id is omitted. After sealing, only source_read and research_status remain available.",
+        };
       } else if (message.method === "ping") result = {};
       else if (message.method === "tools/list") result = { tools: TOOLS };
       else if (message.method === "tools/call") {

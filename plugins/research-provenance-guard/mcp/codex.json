@@ -1,10 +1,9 @@
 {
-  "mcpServers": {
-    "research_provenance": {
-      "command": "node",
-      "args": ["./server/research-provenance-server.mjs"],
-      "cwd": ".",
-      "env_vars": ["PLUGIN_DATA", "AI_EXPERTS_SESSION_ID"]
-    }
+  "research_provenance": {
+    "command": "node",
+    "args": ["./server/research-provenance-server.mjs"],
+    "cwd": ".",
+    "env": {"RESEARCH_PROVENANCE_HOST": "codex"},
+    "env_vars": ["PLUGIN_DATA", "AI_EXPERTS_SESSION_ID", "PWD"]
   }
 }
