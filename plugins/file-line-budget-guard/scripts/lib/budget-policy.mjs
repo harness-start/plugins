@@ -25,7 +25,7 @@ export function classifyBudgetState({
   if (currentLines > headLines) {
     const growth = currentLines - headLines;
     return growth <= settings.oversizeSoftGrowthLimit
-      ? { action: "warn", kind: "historical-soft-growth", growth }
+      ? { action: "allow", kind: "historical-soft-growth", growth }
       : { action: "block", kind: "historical-hard-growth", growth };
   }
   if (currentLines < headLines) {

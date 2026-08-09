@@ -1,6 +1,6 @@
 # file-line-budget-guard
 
-**棘轮（Ratchet）文件行数预算守卫**：在 Claude Code 和 Codex 中，对 `Edit`/`Write`/`MultiEdit`/`ApplyPatch` 操作后自动检查文件行数，按规则预设上限实施棘轮机制——超标文件只许缩小不许膨胀。
+**棘轮（Ratchet）文件行数预算守卫**：在 Claude Code 和 Codex 中，对 `Edit`/`Write`/`MultiEdit`/`ApplyPatch` 操作后自动检查文件行数，按规则预设上限实施棘轮机制——历史超标文件的小幅增长静默放行，超过软阈值的增长仍会阻断。
 
 ## 设计原理
 
@@ -29,8 +29,8 @@
                                      /        \      /        \
                                    Yes        No   Yes        No(=)
                                    │          │     │         │
-                                report     DENY  report    静默
-                                (小幅增长) (棘轮) (正向反馈)
+                                 静默      DENY  report    静默
+                               (小幅增长) (棘轮) (正向反馈)
 ```
 
 ### 规则系统（v0.2.0）
@@ -102,8 +102,9 @@ codex plugin add file-line-budget-guard@harness-start
 - 按棘轮分支决策：pass / report / deny
 - deny 时脚本以 exit code 2 退出，消息写入 stderr
 - 80% 预算预警带用户可配的冷却时间
+- 历史超标文件在软增长阈值内保持静默，超过阈值仍阻断
 - 不依赖当前工作目录
 - 不写入插件安装目录
 - 不记录文件内容、凭据或完整事件
 
-Version: `0.3.2`
+Version: `0.3.3`

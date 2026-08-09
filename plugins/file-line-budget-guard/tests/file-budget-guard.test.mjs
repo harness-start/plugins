@@ -148,7 +148,7 @@ test("budget policy ratchets historically oversized files", () => {
 
   assert.deepEqual(
     classifyBudgetState({ ...base, currentLines: 215, headLines: 200 }),
-    { action: "warn", kind: "historical-soft-growth", growth: 15 },
+    { action: "allow", kind: "historical-soft-growth", growth: 15 },
   );
   assert.deepEqual(
     classifyBudgetState({ ...base, currentLines: 221, headLines: 200 }),
@@ -187,7 +187,7 @@ test("entry fails open with empty output for malformed JSON", async () => {
   assert.equal(result.stderr, "");
 });
 
-test("entry resolves the HEAD baseline from the target repository, not process cwd", async () => {
+test("entry keeps small growth of a historically oversized file silent", async () => {
   const root = mkdtempSync(join(tmpdir(), "file-budget-cross-cwd-"));
   const target = join(root, "legacy.py");
   try {
@@ -206,7 +206,8 @@ test("entry resolves the HEAD baseline from the target repository, not process c
     }));
 
     assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stderr, /was already oversized and grew only slightly/u);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, "");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
