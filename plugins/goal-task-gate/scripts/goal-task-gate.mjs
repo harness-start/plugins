@@ -37,7 +37,6 @@ import { readState, updateState } from "./lib/state-store.mjs";
 import {
   auditPaths,
   createRun,
-  ensureGitignore,
   finalizeRunMeta,
   makeRunId,
   trailTipSummary,
@@ -102,10 +101,6 @@ function armRun(event, config, objective, { supersededFrom = null } = {}) {
   const openWhy = supersededFrom
     ? `supersedes=${supersededFrom}`
     : "goal armed from /goal prompt";
-
-  if (config.gitignoreEnsure) {
-    ensureGitignore(repoRoot);
-  }
 
   if (supersededFrom) {
     const oldPaths = auditPaths(repoRoot, config.auditRoot, supersededFrom);

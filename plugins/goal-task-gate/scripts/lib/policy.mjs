@@ -31,8 +31,6 @@ export const DECISION_KINDS = Object.freeze([
   "close",
 ]);
 
-export const GITIGNORE_PATTERN = ".goal-task/";
-
 /**
  * Strip skill blocks and fenced code for entry matching.
  */

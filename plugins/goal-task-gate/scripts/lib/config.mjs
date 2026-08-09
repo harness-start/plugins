@@ -13,7 +13,6 @@ export const DEFAULT_CONFIG = Object.freeze({
     softSparseWhileArmed: true,
     sparseMinRows: 1,
   }),
-  gitignoreEnsure: true,
   abortToken: "# goal-task-abort",
 });
 
@@ -31,7 +30,6 @@ function cloneDefault() {
     sessionTtlHours: DEFAULT_CONFIG.sessionTtlHours,
     softOnly: DEFAULT_CONFIG.softOnly,
     stopGate: { ...DEFAULT_CONFIG.stopGate },
-    gitignoreEnsure: DEFAULT_CONFIG.gitignoreEnsure,
     abortToken: DEFAULT_CONFIG.abortToken,
   };
 }
@@ -90,9 +88,6 @@ export function resolveConfig(raw, warn = () => {}) {
   }
   if (typeof raw.softOnly === "boolean") {
     config.softOnly = raw.softOnly;
-  }
-  if (typeof raw.gitignoreEnsure === "boolean") {
-    config.gitignoreEnsure = raw.gitignoreEnsure;
   }
   if (typeof raw.abortToken === "string" && raw.abortToken.trim()) {
     config.abortToken = raw.abortToken.trim();

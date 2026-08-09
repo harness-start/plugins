@@ -10,7 +10,6 @@ import {
   sameToolUseId,
 } from "./lib/command-policy.mjs";
 import { loadProjectConfig } from "./lib/config.mjs";
-import { ensureGitignore } from "./lib/gitignore.mjs";
 import {
   extractCwd,
   extractSessionId,
@@ -128,7 +127,6 @@ async function main() {
     const command = extractShellCommand(event);
     if (!command) return;
     try {
-      if (config.gitignoreEnsure) ensureGitignore(repoRoot, `${config.auditRoot}/`);
       const sessionKey = sanitizeSessionKey(extractSessionId(event), cwd);
       const paths = prepareTrail(repoRoot, config.auditRoot, sessionKey);
       appendRecord(paths.sessionPath, buildPendingRecord(event, command, config));
@@ -142,7 +140,6 @@ async function main() {
   if (!isShellTool(toolName)) return;
   const forceFailure = mode === "failure";
   try {
-    if (config.gitignoreEnsure) ensureGitignore(repoRoot, `${config.auditRoot}/`);
     const sessionKey = sanitizeSessionKey(extractSessionId(event), cwd);
     const paths = prepareTrail(repoRoot, config.auditRoot, sessionKey);
     const toolUseId = extractToolUseId(event);

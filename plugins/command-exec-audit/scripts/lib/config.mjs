@@ -5,7 +5,6 @@ import { pathToFileURL } from "node:url";
 export const DEFAULT_CONFIG = Object.freeze({
   enabled: true,
   auditRoot: ".command-exec-audit",
-  gitignoreEnsure: true,
   maxCommandChars: 2000,
   redactSecrets: true,
 });
@@ -39,7 +38,6 @@ export function resolveConfig(raw, warn = () => {}) {
   const config = {
     enabled: DEFAULT_CONFIG.enabled,
     auditRoot: DEFAULT_CONFIG.auditRoot,
-    gitignoreEnsure: DEFAULT_CONFIG.gitignoreEnsure,
     maxCommandChars: DEFAULT_CONFIG.maxCommandChars,
     redactSecrets: DEFAULT_CONFIG.redactSecrets,
   };
@@ -67,9 +65,6 @@ export function resolveConfig(raw, warn = () => {}) {
   } else if (raw.auditRoot !== undefined) {
     warn("auditRoot must be a non-empty string");
   }
-
-  if (typeof raw.gitignoreEnsure === "boolean") config.gitignoreEnsure = raw.gitignoreEnsure;
-  else if (raw.gitignoreEnsure !== undefined) warn("gitignoreEnsure must be boolean");
 
   if (typeof raw.maxCommandChars === "number" && Number.isFinite(raw.maxCommandChars)) {
     const value = Math.floor(raw.maxCommandChars);
