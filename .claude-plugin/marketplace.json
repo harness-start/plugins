@@ -105,6 +105,31 @@
       "name": "debugging-workflow-guard",
       "source": "./plugins/debugging-workflow-guard",
       "description": "Activates evidence-first, multi-bug debugging only through an explicit on-disk Debug Work Order."
+    },
+    {
+      "name": "pptx-project-delivery-guard",
+      "source": "./plugins/pptx-project-delivery-guard",
+      "description": "Guards PptxGenJS slide modules, source-bound previews, generated writers, and release evidence."
+    },
+    {
+      "name": "poster-project-delivery-guard",
+      "source": "./plugins/poster-project-delivery-guard",
+      "description": "Guards ordered Satori layers, paired proofs, generated writers, and poster release evidence."
+    },
+    {
+      "name": "video-project-delivery-guard",
+      "source": "./plugins/video-project-delivery-guard",
+      "description": "Guards Remotion visual/audio frame projections, media proofs, and final video evidence."
+    },
+    {
+      "name": "logo-project-delivery-guard",
+      "source": "./plugins/logo-project-delivery-guard",
+      "description": "Guards logo concepts, native-vector masters, construction sheets, variants, and release evidence."
+    },
+    {
+      "name": "print-publication-delivery-guard",
+      "source": "./plugins/print-publication-delivery-guard",
+      "description": "Guards static publication units, Paged Media sources, print PDFs, and preflight evidence."
     }
   ]
 }

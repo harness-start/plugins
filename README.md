@@ -196,7 +196,7 @@ If the plugin needs a public skill (skills.sh / GitHub skill repo), add `plugins
 
 ## Docs
 
-- [Artifact Delivery Evidence 插件拆分](docs/artifact-delivery-evidence-plugins.md)
+- [Artifact delivery guards](docs/artifact-delivery-guards.md)
 - [Claude Code plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
 - [Codex hooks](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)

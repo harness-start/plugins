@@ -1,0 +1,1 @@
+# Print direct-write fixture

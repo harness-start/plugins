@@ -1,0 +1,15 @@
+{
+  "name": "video-project-delivery-guard",
+  "version": "0.1.0",
+  "description": "Enforces frame-bound Remotion visual/audio units, proofs, and final video evidence.",
+  "author": {"name": "Harness Start", "email": "devtools@example.com"},
+  "interface": {
+    "displayName": "Video Project Delivery Guard",
+    "shortDescription": "Guard Remotion timelines, media proofs, and release evidence.",
+    "longDescription": "Enforces six-digit half-open frame intervals, visual/audio manifest projections, source-hash MP4/WAV proofs, protected writers, and required final-video evidence.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "defaultPrompt": "Validate the active Remotion video artifact project and explain each timeline or evidence finding.",
+    "capabilities": ["hooks"]
+  }
+}

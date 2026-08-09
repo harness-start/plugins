@@ -1,0 +1,20 @@
+{
+  "name": "pptx-project-delivery-guard",
+  "version": "0.1.0",
+  "description": "Enforces a source-bound, one-slide-per-module PptxGenJS project and fresh delivery evidence.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "interface": {
+    "displayName": "PPTX Project Delivery Guard",
+    "shortDescription": "Guard PptxGenJS source, previews, and release evidence.",
+    "longDescription": "Enforces PptxGenJS project paths, one-slide module ownership, source-hash previews, protected writers, and source/output-bound release receipts.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "defaultPrompt": "Validate the active PPTX artifact project and explain the exact recovery path for every finding.",
+    "capabilities": [
+      "hooks"
+    ]
+  }
+}

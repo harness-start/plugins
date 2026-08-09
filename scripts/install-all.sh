@@ -29,9 +29,11 @@ SKILL_DEPS_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins
 # Fallback when network/host list unavailable.
 # KEEP IN SYNC with .claude-plugin/marketplace.json plugins[].name
 FALLBACK_PLUGINS=(
+  research-provenance-guard
   verification-provenance-guard
   execution-loop-guard
   source-sanity-guard
+  git-delivery-guards
   code-quality-guard
   encoding-guard
   file-line-budget-guard
@@ -41,6 +43,17 @@ FALLBACK_PLUGINS=(
   subagent-workflow-guard
   intent-clarify-gate
   first-principles-gate
+  goal-task-gate
+  markdown-format-guard
+  file-access-audit
+  command-exec-audit
+  subagent-lifecycle-audit
+  debugging-workflow-guard
+  pptx-project-delivery-guard
+  poster-project-delivery-guard
+  video-project-delivery-guard
+  logo-project-delivery-guard
+  print-publication-delivery-guard
 )
 
 DO_CLAUDE=1
