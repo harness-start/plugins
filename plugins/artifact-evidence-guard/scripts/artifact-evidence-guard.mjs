@@ -11,7 +11,7 @@ const MAX_BLOCK_BYTES = 16 * 1024;
 const MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
 const MAX_ITEMS = 20;
 const SHA256 = /^[a-f0-9]{64}$/u;
-const FORMATS = new Set(["text", "json", "pdf", "png", "jpeg", "zip", "binary"]);
+const FORMATS = new Set(["text", "json", "pdf", "png", "jpeg", "svg", "zip", "binary"]);
 
 async function readEvent() {
   let raw = "";
@@ -102,6 +102,14 @@ function formatMatches(format, bytes) {
   if (format === "jpeg") return bytes.length >= 4
     && bytes[0] === 0xff && bytes[1] === 0xd8
     && bytes.at(-2) === 0xff && bytes.at(-1) === 0xd9;
+  if (format === "svg") {
+    try {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).trimStart();
+      return /^(?:<\?xml[\s\S]*?\?>\s*)?<svg(?:\s|>)/u.test(text);
+    } catch {
+      return false;
+    }
+  }
   if (format === "zip") return bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
   return false;
 }
@@ -146,7 +154,7 @@ function stopBlock(findings) {
   return {
     decision: "block",
     reason: [
-      "[Artifact Evidence Guard] Explicit artifact evidence contradicts the current workspace:",
+      "[Artifact Evidence Guard] Explicit artifact evidence could not be established from the current workspace:",
       ...findings.map((finding) => `- ${finding}`),
       "Correct or remove the artifact-evidence block; mark the artifact unverified when it cannot be checked.",
     ].join("\n"),
@@ -159,20 +167,20 @@ export async function main(mode = process.argv[2]) {
   const parsed = parseBlock(assistantMessage(event));
   if (parsed.kind === "absent") return;
   if (parsed.kind === "malformed") {
-    warn(`ignored malformed explicit evidence: ${parsed.reason}`);
+    process.stdout.write(`${JSON.stringify(stopBlock([`manifest: ${parsed.reason}`]))}\n`);
     return;
   }
   let root;
   try { root = await realpath(resolve(event?.cwd ?? process.cwd())); } catch {
-    warn("could not resolve the workspace; explicit evidence was not verified");
+    process.stdout.write(`${JSON.stringify(stopBlock(["workspace could not be resolved"]))}\n`);
     return;
   }
   const results = [];
   for (const item of parsed.artifacts) results.push(await inspectArtifact(root, item));
   const mismatches = results.filter((result) => result.kind === "mismatch").map((result) => result.reason);
   const indeterminate = results.filter((result) => result.kind === "indeterminate").map((result) => result.reason);
-  if (indeterminate.length > 0) warn(`evidence not verified: ${indeterminate.join("; ")}`);
-  if (mismatches.length > 0) process.stdout.write(`${JSON.stringify(stopBlock(mismatches))}\n`);
+  const findings = [...mismatches, ...indeterminate];
+  if (findings.length > 0) process.stdout.write(`${JSON.stringify(stopBlock(findings))}\n`);
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : null;
