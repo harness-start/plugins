@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.3.3] - 2026-08-09
+
+### Changed
+
+- Keep small growth of historically oversized files silent while preserving the hard-growth ratchet above `oversizeSoftGrowthLimit`.
+
 ## [0.3.2] - 2026-08-08
 
 ### Changed
