@@ -439,15 +439,6 @@ async function main() {
       "Move logic into separate files so each file remains within budget.",
     ].join("\n"));
   }
-  if (decision.kind === "historical-soft-growth") {
-    warn([
-      `[File Budget] ${filePath} was already oversized and grew only slightly`,
-      `  Before: ${headLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
-      `  Added ${decision.growth} lines (<= ${settings.oversizeSoftGrowthLimit}-line soft threshold)`,
-      "",
-      "Split this file in a follow-up and bring it back within budget.",
-    ].join("\n"));
-  }
   if (decision.kind === "historical-hard-growth") {
     block([
       `[File Budget] ${filePath} was already oversized; the ratchet prevents further growth`,
