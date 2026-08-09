@@ -17,6 +17,11 @@
       "description": "Enforces challenge-before-change workflow evidence and fresh completion provenance for code and artifact tasks."
     },
     {
+      "name": "artifact-evidence-guard",
+      "source": "./plugins/artifact-evidence-guard",
+      "description": "Validates explicit artifact paths, byte counts, SHA-256 digests, and bounded format evidence at Stop."
+    },
+    {
       "name": "execution-loop-guard",
       "source": "./plugins/execution-loop-guard",
       "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session."

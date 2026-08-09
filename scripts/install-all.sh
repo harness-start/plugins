@@ -31,6 +31,7 @@ SKILL_DEPS_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins
 FALLBACK_PLUGINS=(
   research-provenance-guard
   verification-provenance-guard
+  artifact-evidence-guard
   execution-loop-guard
   source-sanity-guard
   git-delivery-guards

@@ -1,0 +1,10 @@
+{
+  "name": "artifact-evidence-guard",
+  "version": "0.1.0",
+  "description": "Validates explicit artifact paths, sizes, SHA-256 digests, and bounded format evidence at Stop.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}
