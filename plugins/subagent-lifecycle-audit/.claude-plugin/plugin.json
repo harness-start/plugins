@@ -1,6 +1,6 @@
 {
   "name": "subagent-lifecycle-audit",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Records append-only subagent start and stop metadata and blocks common direct mutations of the lifecycle trail.",
   "author": {
     "name": "Harness Start",
