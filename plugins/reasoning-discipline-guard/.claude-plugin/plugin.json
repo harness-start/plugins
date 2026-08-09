@@ -1,7 +1,7 @@
 {
   "name": "reasoning-discipline-guard",
-  "version": "0.1.0",
-  "description": "Enforces an ordered, file-backed reasoning workflow before an activated analysis can conclude.",
+  "version": "0.2.0",
+  "description": "Routes exact, causal, and decision work into an ordered file-backed workflow before an activated analysis can conclude.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

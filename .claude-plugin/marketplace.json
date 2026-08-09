@@ -84,7 +84,7 @@
     {
       "name": "reasoning-discipline-guard",
       "source": "./plugins/reasoning-discipline-guard",
-      "description": "Enforces an ordered, file-backed reasoning workflow before an activated analysis can conclude."
+      "description": "Routes precise reasoning into an ordered, file-backed workflow before an activated analysis can conclude."
     },
     {
       "name": "goal-task-gate",

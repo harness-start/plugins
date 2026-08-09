@@ -16,6 +16,13 @@ import {
   stopDecision,
 } from "./lib/workflow.mjs";
 
+const SESSION_CONTEXT = [
+  "[Reasoning capability]",
+  "Treat this as a standing routing rule: invoke `$reasoning-discipline` before answering any request whose correctness depends on a proof, exact calculation, worst-case guarantee, logical or algorithmic correctness, competing causal explanations, or a consequential constrained decision.",
+  "A short or final-only response changes presentation only; complete the Skill first and preserve the requested output shape exactly.",
+  "Leave lookup, translation, summarization, routine implementation, creative work, and active incident containment on their normal paths.",
+].join("\n");
+
 function feedback(result) {
   if (!result || result.kind === "idle") return null;
   if (result.kind === "bound") {
@@ -42,12 +49,10 @@ async function main() {
 
   if (mode === "session") {
     const workflows = discoverWorkflows(cwd);
-    if (workflows.length > 0) {
-      writeJson(contextOutput(
-        "SessionStart",
-        `[Reasoning Discipline Guard] Discovered ${workflows.length} workflow(s); none was activated. Use $reasoning-discipline to select and resume one.`,
-      ));
-    }
+    const discovery = workflows.length > 0
+      ? `\nDiscovered ${workflows.length} reasoning workflow(s); none was auto-bound. Resume one only when the current request explicitly matches it; otherwise leave it untouched.`
+      : "";
+    writeJson(contextOutput("SessionStart", `${SESSION_CONTEXT}${discovery}`));
     return;
   }
 

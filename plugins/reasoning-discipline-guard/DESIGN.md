@@ -2,28 +2,31 @@
 
 ## Responsibility
 
-The plugin turns a Skill-created file into a durable activation signal, requires five observable stage transitions, and prevents an activated workflow from ending without a valid pause, abort, or receipt-bound conclusion.
+The plugin publishes a compact session-level routing instruction, turns a Skill-created file into a durable activation signal, requires five observable stage transitions, and prevents an activated workflow from ending without a valid pause, abort, or receipt-bound conclusion.
 
 Its hard claim is deliberately narrow: an activated conclusion cannot pass Stop unless the current files establish the configured structural and ordering contract. Receipt issuance, formatting compliance, and extra model turns are not evidence that the answer is correct.
 
 ## Causal chain
 
 ```text
-broad Skill route
+SessionStart routing contract
+  → model selects the broad Skill for an applicable request
   → workflow.md written alone
   → hook binds workspace + workflow id + epoch
   → five separate PostToolUse events
-  → branch validators + reference checks
+  → branch validators + source-linked observability checks
+  → finite partition allocations replay every joint hidden response
   → receipt and SHA-256 chain
   → workflow closes with RD-R5
   → Stop recomputes files and permits conclusion
 ```
 
-The file write, rather than Skill loading or a prompt regex, is the activation boundary. This avoids blocking simple questions when a broad Skill description is considered but not used.
+The file write, rather than Skill loading or a prompt regex, is the hard activation boundary. SessionStart improves route selection but does not claim enforcement before the write. This avoids blocking simple questions when a broad Skill description is considered but not used.
 
 ## Branches
 
-- `exact` requires an ordered quantifier model, dependent derivations, a boundary/counterexample attack, a dedicated quantifier-order attack, and an independent derivation or deterministic solver check. This makes participant/environment role inversions observable, while still stopping short of claiming that the resulting mathematics is true.
+- `exact` requires explicit control assignments, named strategy components, an ordered quantifier model, a fixed-strategy evaluation against `forall` environment variables, dependent derivations, a boundary/counterexample attack, dedicated control-assignment and quantifier-order attacks, and an independent derivation or deterministic solver check. A pattern check requires any given that states a dimension can be distinguished, sensed, observed, or selected to appear in an `observable: true` audit, so a model cannot hide an action-time signal inside a broader adversarial response. Blocking such a signal requires an explicit negative-selection statement marked as a verbatim user constraint; precommitment alone is not accepted as a causal override. Every allocation also needs an independent strategy search whose best assignment matches an analysis evaluation. Cross-stage validation requires analysis, challenge, and cross-check to preserve the framed component set. A finite capacity-bounded partition allocation additionally supplies a source-linked machine model. The guard enumerates complete joint hidden responses for every participant allocation, verifies the minimum, and binds that value to analysis and conclusion. This prevents separately feasible bad events from being combined as if they shared one witness or a verified result from drifting at final handoff.
+- Every conclusion declares `free-form` or `exact-payload`. The latter turns a strict user-facing output shape into a Stop-time equality check against the receipt-bound conclusion, without adding problem-solving hints to the session route.
 - `causal` requires observations, at least two falsifiable hypotheses, a discriminating test, an alternate-hypothesis/counterfactual attack, and a controlled or independent causal check.
 - `decision` requires objectives, constraints, at least two options, criteria/evaluations, a failure-mode/sensitivity attack, and sensitivity or scenario analysis.
 
@@ -45,8 +48,8 @@ Artifacts contain concise premises, claims, tests, and conclusions. They are not
 
 ## Non-goals
 
-- Automatically activating from prompt keywords
+- Classifying or blocking individual prompts in UserPromptSubmit
 - Blocking production or business-file edits
-- Proving semantic truth, optimality, or causal validity
+- Proving semantic truth, optimality, or causal validity outside the bounded `finite-partition-allocation` replay contract
 - Replacing deterministic solvers, tests, measurements, or authoritative sources
 - Persisting the artifact directory in project version control by default
