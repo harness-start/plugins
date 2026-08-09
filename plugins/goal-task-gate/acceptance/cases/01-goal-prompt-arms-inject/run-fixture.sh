@@ -8,7 +8,7 @@ DATA="$(mktemp -d "${TMPDIR:-/tmp}/gtg-01-XXXXXX")"
 SESSION="accept-01-arm"
 export PLUGIN_DATA="${DATA}"
 export CLAUDE_PLUGIN_DATA="${DATA}"
-cleanup() { rm -rf "${DATA}" "${WS}/.goal-task" "${WS}/.gitignore" "${WS}/.git"; }
+cleanup() { rm -rf "${DATA}" "${WS}/.goal-task" "${WS}/.git"; }
 trap cleanup EXIT
 rm -rf "${WS}/.git" "${WS}/.goal-task"
 git -C "${WS}" init -q
