@@ -93,7 +93,8 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | Plugin | Description |
 | --- | --- |
 | `research-provenance-guard` | Orchestrated hard research (`research-evidence-workflow`): project workflow files, MCP capture/anchors, typed claims, seal, post-seal handoff |
-| `verification-provenance-guard` | Requires machine-checkable provenance for test, artifact, Git, and CI conclusions in completion responses |
+| `artifact-evidence-guard` | Validates an explicit artifact path, size, SHA-256 digest, and format declaration at Stop; absent or indeterminate evidence fails open |
+| `git-state-evidence-guard` | Validates an explicit HEAD, branch/detached state, and clean-worktree declaration at Stop; absent or indeterminate evidence fails open |
 | `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
 | `source-sanity-guard` | Blocks backup artifacts and obvious replacement-character corruption in source files |
 | `git-delivery-guards` | Guards local Git commands, atomic commits, repository state, and unresolved merge markers |

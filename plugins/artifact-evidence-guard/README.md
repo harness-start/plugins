@@ -2,13 +2,13 @@
 
 Validates an explicit `artifact-evidence/v1` block in a final response against files in the current workspace. It checks path containment, regular-file identity, byte count, SHA-256 digest, and a bounded format signature.
 
-No evidence block is a no-op. Once a block is present, malformed, mismatched, unsafe, oversized, or otherwise unverifiable evidence blocks `Stop`.
+No evidence block is a no-op. Malformed blocks and artifacts that cannot be checked reliably are reported to stderr and fail open. Only a well-formed declaration that deterministically contradicts the observed artifact blocks `Stop`.
 
 ```artifact-evidence
 {"schema":"artifact-evidence/v1","artifacts":[{"path":"dist/manual.pdf","bytes":1234,"sha256":"<64 lowercase hex characters>","format":"pdf"}]}
 ```
 
-Supported formats are `text`, `json`, `pdf`, `png`, `jpeg`, `svg`, `zip`, and `binary`. `binary` checks identity, size, and digest but makes no native-format claim.
+Supported formats are `text`, `json`, `pdf`, `png`, `jpeg`, `zip`, and `binary`. `binary` checks identity, size, and digest but makes no native-format claim.
 
 Run the offline tests from the marketplace root:
 

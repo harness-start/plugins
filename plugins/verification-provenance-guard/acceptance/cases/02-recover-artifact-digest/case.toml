@@ -1,4 +1,0 @@
-id = "02-recover-artifact-digest"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["stop", "evidence", "artifact", "deny"]

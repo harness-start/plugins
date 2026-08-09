@@ -1,4 +1,0 @@
-id = "03-block-green-only-code"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["stop", "workflow", "tdd", "deny"]

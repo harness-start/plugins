@@ -1,0 +1,4 @@
+id = "02-ordinary-bypass"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["stop", "git-state-evidence", "bypass"]

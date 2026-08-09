@@ -17,10 +17,10 @@
       "category": "Productivity"
     },
     {
-      "name": "verification-provenance-guard",
+      "name": "git-state-evidence-guard",
       "source": {
         "source": "local",
-        "path": "./plugins/verification-provenance-guard"
+        "path": "./plugins/git-state-evidence-guard"
       },
       "policy": {
         "installation": "AVAILABLE",

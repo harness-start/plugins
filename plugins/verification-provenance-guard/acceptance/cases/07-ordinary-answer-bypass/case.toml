@@ -1,4 +1,0 @@
-id = "07-ordinary-answer-bypass"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["stop", "bypass", "allow"]

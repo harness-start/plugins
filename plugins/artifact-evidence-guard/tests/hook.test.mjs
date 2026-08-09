@@ -71,7 +71,7 @@ test("well-formed artifact evidence matching the workspace allows Stop", async (
   assert.deepEqual(result, { code: 0, stdout: "", stderr: "" });
 });
 
-test("malformed explicit artifact evidence blocks Stop", async () => {
+test("malformed explicit artifact evidence reports and fails open", async () => {
   const message = [
     "```artifact-evidence",
     JSON.stringify({
@@ -84,10 +84,41 @@ test("malformed explicit artifact evidence blocks Stop", async () => {
   const result = await runStop({ cwd: process.cwd(), last_assistant_message: message });
 
   assert.equal(result.code, 0);
-  assert.match(JSON.parse(result.stdout).reason, /unsupported segment/u);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /unsupported segment/u);
 });
 
-test("unresolvable workspace blocks explicit artifact evidence", async () => {
+test("an unclosed artifact evidence fence reports and fails open", async () => {
+  const result = await runStop({
+    cwd: process.cwd(),
+    last_assistant_message: "```artifact-evidence\n{\"schema\":\"artifact-evidence/v1\"}",
+  });
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /expected exactly one artifact-evidence block/u);
+});
+
+test("a complete block followed by an unclosed artifact block reports and fails open", async () => {
+  const message = [
+    "```artifact-evidence",
+    JSON.stringify({
+      schema: "artifact-evidence/v1",
+      artifacts: [{ path: "missing.txt", bytes: 1, sha256: "0".repeat(64), format: "text" }],
+    }),
+    "```",
+    "```artifact-evidence",
+    "{}",
+  ].join("\n");
+
+  const result = await runStop({ cwd: process.cwd(), last_assistant_message: message });
+
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /expected exactly one artifact-evidence block/u);
+});
+
+test("unresolvable workspace reports and fails open", async () => {
   const message = [
     "```artifact-evidence",
     JSON.stringify({
@@ -100,10 +131,11 @@ test("unresolvable workspace blocks explicit artifact evidence", async () => {
   const result = await runStop({ cwd: "/artifact-evidence-guard/missing", last_assistant_message: message });
 
   assert.equal(result.code, 0);
-  assert.match(JSON.parse(result.stdout).reason, /workspace could not be resolved/u);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /workspace could not be resolved/u);
 });
 
-test("artifact exceeding the bounded verification limit blocks Stop", async (context) => {
+test("artifact exceeding the bounded verification limit reports and fails open", async (context) => {
   const workspace = mkdtempSync(join(tmpdir(), "artifact-evidence-guard-"));
   context.after(() => rmSync(workspace, { recursive: true, force: true }));
   const bytes = 64 * 1024 * 1024 + 1;
@@ -122,10 +154,11 @@ test("artifact exceeding the bounded verification limit blocks Stop", async (con
   const result = await runStop({ cwd: workspace, last_assistant_message: message });
 
   assert.equal(result.code, 0);
-  assert.match(JSON.parse(result.stdout).reason, /verification limit/u);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /verification limit/u);
 });
 
-test("SVG artifact evidence validates its native format", async (context) => {
+test("unsupported artifact format reports and fails open", async (context) => {
   const workspace = mkdtempSync(join(tmpdir(), "artifact-evidence-guard-"));
   context.after(() => rmSync(workspace, { recursive: true, force: true }));
   const content = '<svg xmlns="http://www.w3.org/2000/svg"></svg>\n';
@@ -146,5 +179,7 @@ test("SVG artifact evidence validates its native format", async (context) => {
 
   const result = await runStop({ cwd: workspace, last_assistant_message: message });
 
-  assert.deepEqual(result, { code: 0, stdout: "", stderr: "" });
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /format is unsupported/u);
 });

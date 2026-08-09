@@ -16,8 +16,6 @@ const DETECTOR_ONLY_LINES = new Map([
   ["plugins/intent-clarify-gate/scripts/lib/policy.mjs", ["const IMPLEMENT_CLAIM", "/(?:开始实现"]],
   ["plugins/language-output-governance/scripts/lib/intent.mjs", ["const TRANSLATION_CUE", "const RESPONSE_CUE"]],
   ["plugins/language-output-governance/scripts/lib/profiles.mjs", ["aliases:"]],
-  ["plugins/verification-provenance-guard/scripts/lib/claims.mjs", ["const NEGATED", "const VALIDATION", "const CI", "const ARTIFACT", "const GIT"]],
-  ["plugins/verification-provenance-guard/scripts/lib/manifest.mjs", ["claim.predicate === \"test_suite_passed\""]],
 ]);
 
 function filesUnder(path) {

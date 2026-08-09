@@ -7,11 +7,12 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const FENCE = /```artifact-evidence[ \t]*\r?\n([\s\S]*?)\r?\n```/gu;
+const FENCE_OPEN = /^```artifact-evidence[ \t]*(?:\r?\n|$)/gmu;
 const MAX_BLOCK_BYTES = 16 * 1024;
 const MAX_ARTIFACT_BYTES = 64 * 1024 * 1024;
 const MAX_ITEMS = 20;
 const SHA256 = /^[a-f0-9]{64}$/u;
-const FORMATS = new Set(["text", "json", "pdf", "png", "jpeg", "svg", "zip", "binary"]);
+const FORMATS = new Set(["text", "json", "pdf", "png", "jpeg", "zip", "binary"]);
 
 async function readEvent() {
   let raw = "";
@@ -45,8 +46,9 @@ function exactKeys(value, expected) {
 
 function parseBlock(message) {
   const matches = [...message.matchAll(FENCE)];
-  if (matches.length === 0) return { kind: "absent" };
-  if (matches.length !== 1) return { kind: "malformed", reason: "expected exactly one artifact-evidence block" };
+  const openers = [...message.matchAll(FENCE_OPEN)];
+  if (openers.length === 0) return { kind: "absent" };
+  if (openers.length !== 1 || matches.length !== 1) return { kind: "malformed", reason: "expected exactly one artifact-evidence block" };
   const raw = matches[0][1];
   if (Buffer.byteLength(raw, "utf8") > MAX_BLOCK_BYTES) {
     return { kind: "malformed", reason: `block exceeds ${MAX_BLOCK_BYTES} bytes` };
@@ -102,14 +104,6 @@ function formatMatches(format, bytes) {
   if (format === "jpeg") return bytes.length >= 4
     && bytes[0] === 0xff && bytes[1] === 0xd8
     && bytes.at(-2) === 0xff && bytes.at(-1) === 0xd9;
-  if (format === "svg") {
-    try {
-      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes).trimStart();
-      return /^(?:<\?xml[\s\S]*?\?>\s*)?<svg(?:\s|>)/u.test(text);
-    } catch {
-      return false;
-    }
-  }
   if (format === "zip") return bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
   return false;
 }
@@ -167,20 +161,20 @@ export async function main(mode = process.argv[2]) {
   const parsed = parseBlock(assistantMessage(event));
   if (parsed.kind === "absent") return;
   if (parsed.kind === "malformed") {
-    process.stdout.write(`${JSON.stringify(stopBlock([`manifest: ${parsed.reason}`]))}\n`);
+    warn(`failed open: ${parsed.reason}`);
     return;
   }
   let root;
   try { root = await realpath(resolve(event?.cwd ?? process.cwd())); } catch {
-    process.stdout.write(`${JSON.stringify(stopBlock(["workspace could not be resolved"]))}\n`);
+    warn("failed open: workspace could not be resolved");
     return;
   }
   const results = [];
   for (const item of parsed.artifacts) results.push(await inspectArtifact(root, item));
   const mismatches = results.filter((result) => result.kind === "mismatch").map((result) => result.reason);
   const indeterminate = results.filter((result) => result.kind === "indeterminate").map((result) => result.reason);
-  const findings = [...mismatches, ...indeterminate];
-  if (findings.length > 0) process.stdout.write(`${JSON.stringify(stopBlock(findings))}\n`);
+  for (const finding of indeterminate) warn(`failed open: ${finding}`);
+  if (mismatches.length > 0) process.stdout.write(`${JSON.stringify(stopBlock(mismatches))}\n`);
 }
 
 const invokedPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : null;

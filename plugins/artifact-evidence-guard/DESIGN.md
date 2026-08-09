@@ -4,7 +4,7 @@
 
 The plugin is an opt-in `Stop` verifier for a single fenced `artifact-evidence/v1` JSON block. Each item names one workspace-relative POSIX path and declares its byte count, lowercase SHA-256 digest, and bounded format.
 
-Absent evidence does nothing. Explicit evidence fails closed: malformed schema, duplicate or escaping paths, symlinks, non-files, missing files, size/digest/format mismatch, unsafe open, verification races, and files over 64 MiB block completion.
+Absent evidence does nothing. Malformed, multiple, oversized, unreadable, unsafe, or changing observations are diagnostic-only and fail open. A valid declaration blocks only for deterministic contradictions: missing paths, symlinks, non-files, and byte-count, digest, or format mismatch.
 
 ## Causal boundary
 

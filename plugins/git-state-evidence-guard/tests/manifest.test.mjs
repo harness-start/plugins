@@ -8,19 +8,19 @@ async function json(path) {
   return JSON.parse(await readFile(new URL(path, root), "utf8"));
 }
 
-test("dual-host manifests register the Stop verifier", async () => {
+test("dual-host manifests register only completion-time verifiers", async () => {
   const claudePlugin = await json(".claude-plugin/plugin.json");
   const codexPlugin = await json(".codex-plugin/plugin.json");
   const claudeHooks = await json("hooks/claude.json");
   const codexHooks = await json("hooks/codex.json");
 
-  assert.equal(claudePlugin.name, "artifact-evidence-guard");
-  assert.equal(codexPlugin.name, "artifact-evidence-guard");
+  assert.equal(claudePlugin.name, "git-state-evidence-guard");
+  assert.equal(codexPlugin.name, "git-state-evidence-guard");
   assert.equal(claudePlugin.hooks, "./hooks/claude.json");
   assert.equal(codexPlugin.hooks, "./hooks/codex.json");
   assert.deepEqual(Object.keys(claudeHooks.hooks).sort(), ["Stop", "SubagentStop"]);
   assert.deepEqual(Object.keys(codexHooks.hooks).sort(), ["Stop", "SubagentStop"]);
-  assert.match(claudeHooks.hooks.Stop[0].hooks[0].command, /artifact-evidence-guard\.mjs/u);
+  assert.match(claudeHooks.hooks.Stop[0].hooks[0].command, /git-state-evidence-guard\.mjs/u);
   assert.match(codexHooks.hooks.Stop[0].hooks[0].command, /AI_EXPERTS_SESSION_ID/u);
   assert.match(codexHooks.hooks.Stop[0].hooks[0].command, /AI_EXPERTS_TRIGGER_FROM/u);
 });

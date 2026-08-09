@@ -6,6 +6,7 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Artifact Evidence Guard",
     "shortDescription": "Validate explicit artifact evidence at Stop.",

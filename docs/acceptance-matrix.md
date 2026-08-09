@@ -6,7 +6,8 @@
 | 插件 | 平台 | 已验收版本 | 触发场景 | 结果 | 证据 | 持久化位置 | 回滚 tag |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `research-provenance-guard` | Claude + Codex | 0.2.0 | `01-workspace-anchor-seal`、`02-unverified-limitation`、`03-ordinary-bypass`、`04-direct-firecrawl-denied` | ⚠️ 0.2.0 改为编排 skill + 项目内 workflow 激活（去掉 `$research`/skill 名触发）；Claude 旧 0.1.0 四场景曾通过，需按新入口回归；Codex MCP tools 暴露问题仍在 | 2026-08-08 合同改写后待 Docker 重跑 | 项目 `.research/runs/*/workflow.json` + 平台插件数据 0600 捕获/收据；seal 后才有 report/manifest；outbound handoff 需 seal | — |
-| `verification-provenance-guard` | Claude + Codex | 0.1.0 | `01-recover-bare-test-claim`、`02-recover-artifact-digest` | ✅ 通过：无证据测试结论和错误产物摘要均触发真实 Stop 阻断；模型按 Skill 补齐当前证据后放行 | 2026-08-07 Docker 定向汇总 `4/0/0`，honesty gate `24/0` | 插件数据目录中的 session/workspace 哈希、revision 与有界结构化 receipts；终态放行后清空 | — |
+| `artifact-evidence-guard` | Claude + Codex | 0.1.0 | `01-digest-mismatch`、`02-ordinary-bypass` | ✅ 显式错误 SHA-256 在两宿主触发真实 Stop 阻断；无声明的普通文件工作在两宿主均不被阻断 | 2026-08-09 Docker 定向汇总 `4/0/0`，honesty gate `118/0`；离线测试覆盖不确定状态放行 | 无持久化 | — |
+| `git-state-evidence-guard` | Claude + Codex | 0.1.0 | `01-head-mismatch`、`02-ordinary-bypass` | ✅ 显式错误 HEAD 在两宿主触发真实 Stop 阻断；无声明的普通文件工作在两宿主均不被阻断 | 2026-08-09 Docker 定向汇总 `4/0/0`，honesty gate `118/0`；离线测试覆盖 branch/clean、detached HEAD 与不确定状态放行 | 无持久化 | — |
 | `execution-loop-guard` | Claude + Codex | 0.1.0 | `01-block-edit-loop` | ✅ 通过：同一源码文件在测试阈值内重复编辑后，真实 PostToolUse 阻断并清空该文件计数周期 | 2026-08-07 Docker 定向汇总 `2/0/0` | 插件数据目录中的 session/workspace 哈希计数；不保存原始路径、命令或输出 | — |
 | `source-sanity-guard` | Claude + Codex | 0.1.0 | `01-deny-backup-artifact` | ✅ 通过：真实 PreToolUse 拒绝源码备份文件，目标始终不存在 | 2026-08-07 Docker 定向汇总 `2/0/0` | 无持久化 | — |
 | `code-quality-guard` | Claude + Codex | 0.1.0 | `01-repair-javascript-syntax` | ✅ 通过：真实 PostToolUse 捕获 JavaScript 语法错误，最终文件修复并通过 `node --check` | 2026-08-07 Docker 定向汇总 `2/0/0` | 插件数据目录中的会话去重与 PHP 文件列表 | — |

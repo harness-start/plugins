@@ -1,4 +1,0 @@
-interface:
-  display_name: "Evidence-Driven Delivery"
-  short_description: "Challenge, change, verify, review, and report evidence."
-  default_prompt: "Use $evidence-driven-delivery to complete this task with a falsifiable challenge and fresh final evidence."

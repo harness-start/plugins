@@ -1,4 +1,0 @@
-id = "01-recover-bare-test-claim"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["stop", "evidence", "command", "deny"]

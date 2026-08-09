@@ -12,9 +12,9 @@
       "description": "Enforces captured, anchored, fresh, machine-verifiable evidence for explicit research tasks."
     },
     {
-      "name": "verification-provenance-guard",
-      "source": "./plugins/verification-provenance-guard",
-      "description": "Enforces challenge-before-change workflow evidence and fresh completion provenance for code and artifact tasks."
+      "name": "git-state-evidence-guard",
+      "source": "./plugins/git-state-evidence-guard",
+      "description": "Validates an explicit HEAD, branch, and clean-worktree declaration at Stop."
     },
     {
       "name": "artifact-evidence-guard",
