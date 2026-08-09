@@ -4,7 +4,6 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadProjectConfig } from "./lib/config.mjs";
-import { ensureGitignore } from "./lib/gitignore.mjs";
 import {
   extractSessionId,
   extractStructuredFileAccess,
@@ -61,9 +60,6 @@ async function main() {
   if (!access || access.paths.length === 0) return;
 
   try {
-    if (config.gitignoreEnsure) {
-      ensureGitignore(repoRoot, `${config.auditRoot}/`);
-    }
     const sessionKey = sanitizeSessionKey(extractSessionId(event), cwd);
     const paths = prepareTrail(repoRoot, config.auditRoot, sessionKey);
     const record = {

@@ -9,6 +9,7 @@ Dual-host (Claude Code / Codex) plugin that audits host **`/goal`** long runs:
 5. **Clear** on `/goal clear` (and Claude clear aliases); **supersede** when a new `/goal <other>` starts mid-run.
 
 Does not block business code edits. Does not replace the host goal evaluator.
+Does not create or modify the repository's `.gitignore`; repository owners decide whether to ignore `.goal-task/`.
 
 ## Install
 

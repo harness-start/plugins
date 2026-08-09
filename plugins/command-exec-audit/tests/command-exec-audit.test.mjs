@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -118,9 +119,10 @@ test("shell protect path boundaries and mutators", () => {
   assert.equal(shellMutatesAuditRoot("find .command-exec-audit -type f -delete", rel, abs), true);
 });
 
-test("pre pending then post rewrites tip with duration and no stdout field", async () => {
+test("pre and post record commands without modifying the project gitignore", async () => {
   const root = workspace();
   try {
+    writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
     await runEntry("pre", {
       cwd: root,
       session_id: "sess-1",
@@ -149,8 +151,7 @@ test("pre pending then post rewrites tip with duration and no stdout field", asy
     assert.equal("stdout" in lines[0], false);
     assert.equal("stderr" in lines[0], false);
 
-    const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
-    assert.match(gitignore, /^\.command-exec-audit\/$/mu);
+    assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

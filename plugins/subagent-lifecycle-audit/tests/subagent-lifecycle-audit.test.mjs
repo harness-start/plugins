@@ -302,9 +302,10 @@ test("fails open without creating an audit root for malformed stdin", async () =
   }
 });
 
-test("adds the lifecycle audit root to gitignore on first observation", async () => {
+test("records the first observation without modifying the project gitignore", async () => {
   const root = workspace({ preignore: false });
   try {
+    writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
     const result = await runEntry("start", {
       cwd: root,
       session_id: "session-ignore",
@@ -312,8 +313,7 @@ test("adds the lifecycle audit root to gitignore on first observation", async ()
     });
     assert.equal(result.code, 0);
 
-    const body = readFileSync(join(root, ".gitignore"), "utf8");
-    assert.match(body, /^\.subagent-lifecycle-audit\/$/mu);
+    assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

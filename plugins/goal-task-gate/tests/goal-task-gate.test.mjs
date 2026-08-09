@@ -206,6 +206,7 @@ test("isProtectedTrailFile and shell guard", () => {
 test("hook: arm inject, clear, supersede, deny trail write, complete trailer", () => {
   const root = workspace();
   const data = workspace();
+  writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
   const session = "sess-gtg-1";
   const env = {
     PLUGIN_DATA: data,
@@ -229,6 +230,7 @@ test("hook: arm inject, clear, supersede, deny trail write, complete trailer", (
   const current = readFileSync(join(root, ".goal-task", "CURRENT"), "utf8").trim();
   assert.ok(current);
   assert.ok(existsSync(join(root, ".goal-task", "runs", current, "decisions.tsv")));
+  assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
 
   // deny write to decisions.tsv
   const deny = runHook(

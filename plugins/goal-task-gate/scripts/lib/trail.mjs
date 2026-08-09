@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { DECISION_KINDS, GITIGNORE_PATTERN } from "./policy.mjs";
+import { DECISION_KINDS } from "./policy.mjs";
 
 export const META_SCHEMA = "goal-task/meta/v1";
 export const WORK_SCHEMA = "goal-task/work/v1";
@@ -513,24 +513,4 @@ export function finalizeRunMeta(metaPath, patch) {
   }
   writeMeta(metaPath, meta);
   return meta;
-}
-
-export function ensureGitignore(repoRoot, pattern = GITIGNORE_PATTERN) {
-  if (!repoRoot) return { ok: false, action: "skipped" };
-  const path = join(repoRoot, ".gitignore");
-  const line = pattern.endsWith("\n") ? pattern.trimEnd() : pattern;
-  const already = /^\s*\.goal-task\/?\s*(?:#.*)?$/mu;
-  try {
-    if (!existsSync(path)) {
-      writeFileSync(path, `${line}\n`, "utf8");
-      return { ok: true, action: "created", path };
-    }
-    const content = readFileSync(path, "utf8");
-    if (already.test(content)) return { ok: true, action: "present", path };
-    const needsNl = content.length > 0 && !content.endsWith("\n");
-    writeFileSync(path, `${content}${needsNl ? "\n" : ""}${line}\n`, "utf8");
-    return { ok: true, action: "appended", path };
-  } catch {
-    return { ok: false, action: "error", path };
-  }
 }

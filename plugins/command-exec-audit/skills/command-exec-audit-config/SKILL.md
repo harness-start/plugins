@@ -1,7 +1,7 @@
 ---
 name: command-exec-audit-config
 description: Initialize or diagnose .command-exec-audit.mjs for the command-exec-audit trail plugin.
-version: 0.1.0
+version: 0.1.1
 ---
 
 # command-exec-audit-config
@@ -24,7 +24,6 @@ Git root, first existing file:
 export default {
   enabled: true,
   auditRoot: ".command-exec-audit",
-  gitignoreEnsure: true,
   maxCommandChars: 2000,
   redactSecrets: true,
 };
@@ -34,7 +33,6 @@ export default {
 | --- | --- | --- |
 | `enabled` | `boolean` | Default `true` |
 | `auditRoot` | `string` | Relative path without `..` |
-| `gitignoreEnsure` | `boolean` | Default `true` |
 | `maxCommandChars` | `number` | `64..20000`; default `2000` |
 | `redactSecrets` | `boolean` | Default `true` |
 

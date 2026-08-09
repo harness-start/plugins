@@ -121,9 +121,10 @@ test("shell protect allows node without audit root and denies /bin/rm of trail",
   assert.equal(shellMutatesAuditRoot("cat .file-access-audit/sessions/x.jsonl", rel, abs), false);
 });
 
-test("post records edit into per-session jsonl and ensures gitignore", async () => {
+test("post records edit without modifying the project gitignore", async () => {
   const root = workspace();
   try {
+    writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
     const result = await runEntry("post", {
       cwd: root,
       session_id: "sess-alpha",
@@ -147,8 +148,7 @@ test("post records edit into per-session jsonl and ensures gitignore", async () 
     assert.equal(readSessionLines(root, "sess-beta").length, 1);
     assert.equal(readSessionLines(root, "sess-alpha").length, 1);
 
-    const gitignore = readFileSync(join(root, ".gitignore"), "utf8");
-    assert.match(gitignore, /^\.file-access-audit\/$/mu);
+    assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -61,7 +61,6 @@ Best-effort: `TOKEN=…`, Bearer tokens, etc. Truncate to `maxCommandChars` (def
 export default {
   enabled: true,
   auditRoot: ".command-exec-audit",
-  gitignoreEnsure: true,
   maxCommandChars: 2000,
   redactSecrets: true,
 };
@@ -71,4 +70,5 @@ export default {
 
 - Full command output capture
 - Human terminal sessions outside agent tools
+- Automatic `.gitignore` changes
 - True WORM storage

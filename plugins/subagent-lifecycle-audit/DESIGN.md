@@ -70,7 +70,7 @@ It never maps lifecycle state to task outcome.
 - Retention: none; cleanup is an external operator decision.
 
 File modes are `0700` for directories and `0600` for generated files. The
-trail is project-local and ignored by Git.
+trail is project-local; the plugin does not create or modify `.gitignore`.
 
 ## Non-goals
 

@@ -5,6 +5,7 @@
 Arm when the user starts a host **`/goal <prompt>`**, force a **regular on-disk decision trail** under `.goal-task/`, protect that trail from generic rewrites (append + tip window only), and treat completion as **`GOAL_TASK_DONE` trailer ∩ `kind=close` trail tip** — not host-native goal status (hooks do not expose it reliably).
 
 Does **not** replace host `/goal` continuation/evaluators. Does **not** block ordinary business writes.
+Does **not** create or modify `.gitignore`.
 
 ## Host `/goal` and hooks (research)
 

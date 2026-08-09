@@ -3,7 +3,6 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ensureGitignore } from "./lib/gitignore.mjs";
 import {
   extractAgentId,
   extractAgentType,
@@ -57,7 +56,6 @@ async function main() {
     repoRoot,
     sanitizeSessionKey(sessionId, cwd),
   );
-  await ensureGitignore(repoRoot);
   await appendLifecycleRecord(paths, (rows) => buildLifecycleRecord({
     mode,
     host: inferHost(),
