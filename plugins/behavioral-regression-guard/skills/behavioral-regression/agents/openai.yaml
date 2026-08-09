@@ -1,0 +1,4 @@
+interface:
+  display_name: "Behavioral Regression"
+  short_description: "Design and prove behavior-preserving bug fixes"
+  default_prompt: "Use $behavioral-regression to define adversarial regression cases before fixing this bug."

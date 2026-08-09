@@ -269,6 +269,18 @@
       "category": "Productivity"
     },
     {
+      "name": "behavioral-regression-guard",
+      "source": {
+        "source": "local",
+        "path": "./plugins/behavioral-regression-guard"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "pptx-project-delivery-guard",
       "source": {"source": "local", "path": "./plugins/pptx-project-delivery-guard"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},

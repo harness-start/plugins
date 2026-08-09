@@ -1,0 +1,45 @@
+{
+  "schema": "behavioral-regression/v1",
+  "id": "BR-20260809-normalize",
+  "epoch": 1,
+  "status": "open",
+  "recovery": {
+    "nextAction": "activate this contract, then run all BEFORE commands",
+    "commands": ["node test/primary.cjs", "node test/boundary.cjs", "node test/representation.cjs", "node test/compat.cjs"]
+  },
+  "problem": {
+    "expected": "legacy representations normalize to canonical while supported values keep their behavior",
+    "actual": "legacy representations normalize to broken",
+    "successCriteria": ["primary and representation cases are repaired", "boundary and compatibility behavior remain correct"]
+  },
+  "scope": {
+    "productionPaths": ["src/normalize.cjs"],
+    "verificationPaths": ["test/primary.cjs", "test/boundary.cjs", "test/representation.cjs", "test/compat.cjs"]
+  },
+  "cases": [
+    {
+      "id": "BR-C1", "role": "primary", "dimension": "state-transition", "cwd": ".", "command": "node test/primary.cjs",
+      "before": { "outcome": "failure", "includes": ["PRIMARY_REPRO"] },
+      "after": { "outcome": "success", "includes": ["PRIMARY_FIXED"] },
+      "receipts": { "before": null, "after": null }
+    },
+    {
+      "id": "BR-C2", "role": "challenge", "dimension": "boundary", "cwd": ".", "command": "node test/boundary.cjs",
+      "before": { "outcome": "success", "includes": ["BOUNDARY_OK"] },
+      "after": { "outcome": "success", "includes": ["BOUNDARY_OK"] },
+      "receipts": { "before": null, "after": null }
+    },
+    {
+      "id": "BR-C3", "role": "challenge", "dimension": "representation", "cwd": ".", "command": "node test/representation.cjs",
+      "before": { "outcome": "failure", "includes": ["REPRESENTATION_REPRO"] },
+      "after": { "outcome": "success", "includes": ["REPRESENTATION_FIXED"] },
+      "receipts": { "before": null, "after": null }
+    },
+    {
+      "id": "BR-C4", "role": "invariant", "dimension": "compatibility", "cwd": ".", "command": "node test/compat.cjs",
+      "before": { "outcome": "success", "includes": ["COMPAT_OK"] },
+      "after": { "outcome": "success", "includes": ["COMPAT_OK"] },
+      "receipts": { "before": null, "after": null }
+    }
+  ]
+}

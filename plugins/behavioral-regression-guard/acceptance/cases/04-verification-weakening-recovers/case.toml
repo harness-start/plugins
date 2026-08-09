@@ -1,0 +1,4 @@
+id = "04-verification-weakening-recovers"
+hosts = ["claude", "codex"]
+timeout_sec = 540
+tags = ["verification-integrity", "recovery"]

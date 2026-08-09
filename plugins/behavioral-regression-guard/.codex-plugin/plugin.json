@@ -1,0 +1,17 @@
+{
+  "name": "behavioral-regression-guard",
+  "version": "0.1.0",
+  "description": "Binds bug-fix closure to pre-change reproductions, adversarial challenges, compatibility invariants, and fresh post-change evidence.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Behavioral Regression Guard",
+    "shortDescription": "Prove fixes across adversarial behavior cases.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

@@ -5,6 +5,7 @@
 
 | 插件 | 平台 | 已验收版本 | 触发场景 | 结果 | 证据 | 持久化位置 | 回滚 tag |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| `behavioral-regression-guard` | Claude + Codex | 0.1.0 | `01-ordinary-bypass`、`02-complete-fix`、`03-challenge-recovers`、`04-verification-weakening-recovers`、`05-stale-green-recovers`、`06-missing-command-pauses` | ✅ 普通任务无状态旁路；完整 RED→GREEN、遗漏挑战、测试篡改、过期 GREEN 均通过真实恢复链路；缺失命令不签回执并诚实暂停。Codex 无退出码回执明确标为 `literal-oracle`，外部 `expect.sh` 独立执行命令校验退出态 | 2026-08-09 Docker 定向汇总 `12/0/0`；honesty gate `142/0`；20 项离线测试覆盖合同、指纹、租约、伪造/跨 case 回执与双宿主载荷 | 平台插件数据目录中的 session/run 哈希状态；0600 原子写；不保存原始命令输出，仅保存输出摘要与哈希 | — |
 | `research-provenance-guard` | Claude + Codex | 0.2.0 | `01-workspace-anchor-seal`、`02-unverified-limitation`、`03-ordinary-bypass`、`04-direct-firecrawl-denied` | ⚠️ 0.2.0 改为编排 skill + 项目内 workflow 激活（去掉 `$research`/skill 名触发）；Claude 旧 0.1.0 四场景曾通过，需按新入口回归；Codex MCP tools 暴露问题仍在 | 2026-08-08 合同改写后待 Docker 重跑 | 项目 `.research/runs/*/workflow.json` + 平台插件数据 0600 捕获/收据；seal 后才有 report/manifest；outbound handoff 需 seal | — |
 | `artifact-evidence-guard` | Claude + Codex | 0.1.0 | `01-digest-mismatch`、`02-ordinary-bypass` | ✅ 显式错误 SHA-256 在两宿主触发真实 Stop 阻断；无声明的普通文件工作在两宿主均不被阻断 | 2026-08-09 Docker 定向汇总 `4/0/0`，honesty gate `118/0`；离线测试覆盖不确定状态放行 | 无持久化 | — |
 | `git-state-evidence-guard` | Claude + Codex | 0.1.0 | `01-head-mismatch`、`02-ordinary-bypass` | ✅ 显式错误 HEAD 在两宿主触发真实 Stop 阻断；无声明的普通文件工作在两宿主均不被阻断 | 2026-08-09 Docker 定向汇总 `4/0/0`，honesty gate `118/0`；离线测试覆盖 branch/clean、detached HEAD 与不确定状态放行 | 无持久化 | — |

@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "SessionStart": [{
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/behavioral-regression-guard.mjs\" session",
+        "statusMessage": "Discovering behavioral regression contracts",
+        "timeout": 10000
+      }]
+    }],
+    "PostToolUse": [{
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/behavioral-regression-guard.mjs\" post",
+        "statusMessage": "Recording behavioral regression evidence",
+        "timeout": 10000
+      }]
+    }],
+    "PostToolUseFailure": [{
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/behavioral-regression-guard.mjs\" failure",
+        "statusMessage": "Recording failing behavioral baseline",
+        "timeout": 10000
+      }]
+    }],
+    "Stop": [{
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/behavioral-regression-guard.mjs\" stop",
+        "statusMessage": "Validating behavioral regression closure",
+        "timeout": 10000
+      }]
+    }],
+    "SubagentStop": [{
+      "hooks": [{
+        "type": "command",
+        "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/behavioral-regression-guard.mjs\" stop",
+        "statusMessage": "Validating behavioral regression closure",
+        "timeout": 10000
+      }]
+    }]
+  }
+}

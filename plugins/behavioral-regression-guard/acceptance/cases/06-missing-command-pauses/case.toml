@@ -1,0 +1,4 @@
+id = "06-missing-command-pauses"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["missing-command", "honest-pause"]

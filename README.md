@@ -111,6 +111,7 @@ Each plugin is self-contained. Do not reference files outside its own directory 
 | `first-principles-gate` | Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes |
 | `reasoning-discipline-guard` | Uses a broad Skill to create a five-stage reasoning workflow, then requires ordered challenge and cross-check receipts before conclusion |
 | `debugging-workflow-guard` | Uses a focused Skill to create an explicit Debug Work Order, then attributes multi-bug evidence and gates unsafe fix loops through hooks |
+| `behavioral-regression-guard` | Uses a language-independent Skill to design primary, adversarial, and compatibility cases, then binds RED/GREEN receipts to unchanged verification assets and fresh production bytes |
 | `goal-task-gate` | Arms on host `/goal` prompts, forces append-only decision trails under `.goal-task/`, and completes only with `GOAL_TASK_DONE` trailer plus close row |
 | `file-access-audit` | Records structured agent file reads/writes to project-local `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | Records agent shell commands with status and duration to project-local `.command-exec-audit/sessions/<session>.jsonl` |
