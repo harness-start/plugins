@@ -1,0 +1,4 @@
+interface:
+  display_name: "Reasoning Discipline"
+  short_description: "Build a staged challenge-and-cross-check evidence trail"
+  default_prompt: "Analyze this problem with a file-backed reasoning workflow."

@@ -1,0 +1,4 @@
+id = "05-premature-conclusion-blocked"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["adversarial", "stop", "stage-order"]

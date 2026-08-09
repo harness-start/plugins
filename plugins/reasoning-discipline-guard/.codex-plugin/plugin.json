@@ -1,0 +1,16 @@
+{
+  "name": "reasoning-discipline-guard",
+  "version": "0.1.0",
+  "description": "Enforces an ordered, file-backed reasoning workflow before an activated analysis can conclude.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Reasoning Discipline Guard",
+    "shortDescription": "Require staged challenge and cross-check artifacts before conclusions.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

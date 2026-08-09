@@ -44,6 +44,7 @@ FALLBACK_PLUGINS=(
   subagent-workflow-guard
   intent-clarify-gate
   first-principles-gate
+  reasoning-discipline-guard
   goal-task-gate
   markdown-format-guard
   file-access-audit
