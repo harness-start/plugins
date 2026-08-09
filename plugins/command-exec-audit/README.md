@@ -10,7 +10,7 @@
   sessions/<session_id>.jsonl
 ```
 
-One host session maps to one JSONL file. The directory is added to `.gitignore` by default.
+One host session maps to one JSONL file. The plugin does not create or modify `.gitignore`; repository owners decide whether to ignore the audit directory.
 
 ## Lifecycle
 
@@ -32,7 +32,6 @@ Optional `.command-exec-audit.mjs` at the Git root:
 export default {
   enabled: true,
   auditRoot: ".command-exec-audit",
-  gitignoreEnsure: true,
   maxCommandChars: 2000,
   redactSecrets: true,
 };
@@ -46,4 +45,4 @@ Use `command-exec-audit-config` Skill for initialization. Full contract: [DESIGN
 node --test plugins/command-exec-audit/tests/*.test.mjs
 ```
 
-Version: `0.1.0`
+Version: `0.1.1`

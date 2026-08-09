@@ -22,7 +22,6 @@ Schema summary (defaults in parentheses):
 | `softOnly` | `false` | If true, Stop never hard-blocks |
 | `stopGate.mode` | `block` | `block` \| `report` \| `off` |
 | `stopGate.softSparseWhileArmed` | `true` | Soft warn when trail sparse |
-| `gitignoreEnsure` | `true` | Ensure `.goal-task/` in `.gitignore` |
 | `abortToken` | `# goal-task-abort` | Engineering abort |
 
 See `references/example-config.mjs` and plugin `DESIGN.md`.

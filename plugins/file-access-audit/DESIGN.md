@@ -16,7 +16,7 @@ Does **not** track human IDE opens/saves. Does **not** parse Bash `cat` / redire
 
 - One session → one file
 - Paths repo-relative when under git root
-- Default gitignore: `.file-access-audit/`
+- The plugin does not create or modify `.gitignore`
 
 ## Write policy
 
@@ -60,7 +60,6 @@ Optional `.file-access-audit.mjs` at git root:
 export default {
   enabled: true,
   auditRoot: ".file-access-audit",
-  gitignoreEnsure: true,
 };
 ```
 

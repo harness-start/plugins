@@ -2,5 +2,4 @@
 export default {
   enabled: true,
   auditRoot: ".file-access-audit",
-  gitignoreEnsure: true,
 };

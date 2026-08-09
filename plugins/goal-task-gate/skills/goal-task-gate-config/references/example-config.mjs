@@ -8,5 +8,4 @@ export default {
     mode: "block",
     softSparseWhileArmed: true,
   },
-  gitignoreEnsure: true,
 };

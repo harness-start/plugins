@@ -21,7 +21,7 @@ Shell-only IO (`cat`, redirects) is **not** recorded.
   sessions/<session_id>.jsonl
 ```
 
-One host session maps to one JSONL file. The directory is added to `.gitignore` by default.
+One host session maps to one JSONL file. The plugin does not create or modify `.gitignore`; repository owners decide whether to ignore the audit directory.
 
 ## Write policy
 
@@ -37,7 +37,6 @@ Optional `.file-access-audit.mjs` at the Git root:
 export default {
   enabled: true,
   auditRoot: ".file-access-audit",
-  gitignoreEnsure: true,
 };
 ```
 
@@ -49,4 +48,4 @@ Use the bundled `file-access-audit-config` Skill to initialize or diagnose confi
 node --test plugins/file-access-audit/tests/*.test.mjs
 ```
 
-Version: `0.1.0`
+Version: `0.1.1`

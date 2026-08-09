@@ -17,8 +17,8 @@ tool input/output. A `stopped` observation means only that the host emitted
   sessions/<session_key>.jsonl
 ```
 
-The plugin adds `.subagent-lifecycle-audit/` to the Git root `.gitignore` on
-the first observation. Session identifiers are path-normalized; when the host
+The plugin does not create or modify `.gitignore`; repository owners decide
+whether to ignore `.subagent-lifecycle-audit/`. Session identifiers are path-normalized; when the host
 omits one, a hash of the working directory is used as the session key.
 
 Every line uses schema `subagent-lifecycle/v1`. Start and Stop observations are
@@ -70,6 +70,8 @@ mutation attempts are fail-closed.
 
 Codex commands set `AI_EXPERTS_SESSION_ID` and
 `AI_EXPERTS_TRIGGER_FROM`; those values are retained as hook provenance.
+
+Version: `0.1.1`
 
 ## Verification
 
