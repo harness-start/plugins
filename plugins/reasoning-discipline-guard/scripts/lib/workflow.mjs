@@ -75,7 +75,7 @@ function priorClaims(state, includeCurrent = []) {
   ]);
 }
 
-function referenceFindings(stage, state) {
+function referenceFindings(stage, state, manifest) {
   const currentClaims = claimIds(stage);
   const known = priorClaims(state, currentClaims);
   const findings = [];
@@ -85,6 +85,146 @@ function referenceFindings(stage, state) {
   const seen = new Set(state.receipts.flatMap((receipt) => receipt.claimIds ?? []));
   for (const id of currentClaims) {
     if (seen.has(id)) findings.push(`claim id ${id} duplicates an earlier stage`);
+  }
+  if (manifest?.branch === "exact" && stage?.stage === "analysis") {
+    const framePath = resolve(dirname(state.workflowPath), STAGE_FILES.frame);
+    const frame = loadStage(framePath, manifest);
+    if (!frame.valid) {
+      findings.push("cannot audit analysis strategy coverage because frame is invalid");
+    } else {
+      const covered = new Set(
+        (stage.payload?.model?.quantifiers ?? [])
+          .filter((item) => item.kind === "exists")
+          .flatMap((item) => item.strategyRefs ?? []),
+      );
+      const existsQuantifiers = stage.payload?.model?.quantifiers?.filter((item) => item.kind === "exists") ?? [];
+      const forallVariables = new Set(
+        (stage.payload?.model?.quantifiers ?? [])
+          .filter((item) => item.kind === "forall")
+          .flatMap((item) => item.variables ?? []),
+      );
+      const evaluations = stage.payload?.strategyEvaluations ?? [];
+      for (const strategy of frame.value?.payload?.strategyVariables ?? []) {
+        const strategyId = strategy.id;
+        if (!covered.has(strategyId)) findings.push(`strategy ${strategyId} lacks an exists quantifier`);
+        const quantifiedVariables = new Set(
+          existsQuantifiers
+            .filter((item) => item.strategyRefs?.includes(strategyId))
+            .flatMap((item) => item.variables ?? []),
+        );
+        for (const component of strategy.components ?? []) {
+          if (!quantifiedVariables.has(component)) findings.push(`strategy ${strategyId} component ${component} lacks an exists quantifier variable`);
+        }
+        const strategyEvaluations = evaluations.filter((item) => item.strategyRef === strategyId);
+        if (strategyEvaluations.length === 0) findings.push(`strategy ${strategyId} lacks a fixed strategy evaluation`);
+        for (const evaluation of strategyEvaluations) {
+          const assignmentKeys = Object.keys(evaluation.fixedAssignment ?? {}).sort();
+          const componentKeys = [...(strategy.components ?? [])].sort();
+          if (assignmentKeys.join("\u0000") !== componentKeys.join("\u0000")) {
+            findings.push(`strategy ${strategyId} evaluation must fix exactly: ${componentKeys.join(", ")}`);
+          }
+          if (!(evaluation.variedEnvironment ?? []).some((item) => forallVariables.has(item))) {
+            findings.push(`strategy ${strategyId} evaluation must vary a forall environment variable`);
+          }
+        }
+      }
+    }
+  }
+  if (manifest?.branch === "exact" && stage?.stage === "challenge") {
+    const frame = loadStage(resolve(dirname(state.workflowPath), STAGE_FILES.frame), manifest);
+    const analysis = loadStage(resolve(dirname(state.workflowPath), STAGE_FILES.analysis), manifest);
+    if (!frame.valid || !analysis.valid) {
+      findings.push("cannot audit fixed control challenge because prior exact stages are invalid");
+    } else {
+      const forallVariables = new Set(
+        (analysis.value?.payload?.model?.quantifiers ?? [])
+          .filter((item) => item.kind === "forall")
+          .flatMap((item) => item.variables ?? []),
+      );
+      const attacks = stage.payload?.attacks?.filter((item) => item.kind === "control-assignment") ?? [];
+      for (const strategy of frame.value?.payload?.strategyVariables ?? []) {
+        const strategyAttacks = attacks.filter((item) => item.strategyRef === strategy.id);
+        if (strategyAttacks.length === 0) findings.push(`strategy ${strategy.id} lacks a control-assignment attack`);
+        for (const attack of strategyAttacks) {
+          const assignmentKeys = Object.keys(attack.fixedAssignment ?? {}).sort();
+          const componentKeys = [...(strategy.components ?? [])].sort();
+          if (assignmentKeys.join("\u0000") !== componentKeys.join("\u0000")) {
+            findings.push(`strategy ${strategy.id} challenge must fix exactly: ${componentKeys.join(", ")}`);
+          }
+          if (!(attack.variedEnvironment ?? []).some((item) => forallVariables.has(item))) {
+            findings.push(`strategy ${strategy.id} challenge must vary a forall environment variable`);
+          }
+        }
+      }
+    }
+  }
+  if (manifest?.branch === "exact" && stage?.stage === "cross-check") {
+    const frame = loadStage(resolve(dirname(state.workflowPath), STAGE_FILES.frame), manifest);
+    const analysis = loadStage(resolve(dirname(state.workflowPath), STAGE_FILES.analysis), manifest);
+    if (!frame.valid || !analysis.valid) {
+      findings.push("cannot audit strategy search because prior exact stages are invalid");
+    } else {
+      const forallVariables = new Set(
+        (analysis.value?.payload?.model?.quantifiers ?? [])
+          .filter((item) => item.kind === "forall")
+          .flatMap((item) => item.variables ?? []),
+      );
+      const searches = stage.payload?.strategySearches ?? [];
+      const evaluations = analysis.value?.payload?.strategyEvaluations ?? [];
+      const candidateAnswer = Number(analysis.value?.payload?.candidateAnswer);
+      const replaySearches = searches.filter((search) => search.replayModel && Number.isFinite(search.objectiveValue));
+      if (replaySearches.length > 0 && !Number.isFinite(candidateAnswer)) {
+        findings.push("numeric replay requires a numeric analysis candidateAnswer");
+      } else if (replaySearches.length > 0 && !replaySearches.some((search) => search.objectiveValue === candidateAnswer)) {
+        const objectives = [...new Set(searches.map((search) => search.objectiveValue))]
+          .filter(Number.isFinite)
+          .join(", ");
+        findings.push(`replayed objective ${objectives || "is missing"} must match analysis candidateAnswer ${analysis.value.payload.candidateAnswer}`);
+      }
+      for (const strategy of frame.value?.payload?.strategyVariables?.filter((item) => item.kind === "allocation") ?? []) {
+        const strategySearches = searches.filter((item) => item.strategyRef === strategy.id);
+        if (strategySearches.length === 0) findings.push(`allocation strategy ${strategy.id} lacks an independent strategy search`);
+        for (const search of strategySearches) {
+          const componentKeys = [...(strategy.components ?? [])].sort();
+          const searchedKeys = [...(search.searchedComponents ?? [])].sort();
+          const assignmentKeys = Object.keys(search.bestAssignment ?? {}).sort();
+          if (searchedKeys.join("\u0000") !== componentKeys.join("\u0000")) {
+            findings.push(`allocation strategy ${strategy.id} search must cover exactly: ${componentKeys.join(", ")}`);
+          }
+          if (assignmentKeys.join("\u0000") !== componentKeys.join("\u0000")) {
+            findings.push(`allocation strategy ${strategy.id} best assignment must set exactly: ${componentKeys.join(", ")}`);
+          }
+          if (!(search.variedEnvironment ?? []).some((item) => forallVariables.has(item))) {
+            findings.push(`allocation strategy ${strategy.id} search must vary a forall environment variable`);
+          }
+          const bestFingerprint = JSON.stringify(Object.entries(search.bestAssignment ?? {}).sort(([left], [right]) => left.localeCompare(right)));
+          const matchedEvaluation = evaluations.some((evaluation) => (
+            evaluation.strategyRef === strategy.id
+            && JSON.stringify(Object.entries(evaluation.fixedAssignment ?? {}).sort(([left], [right]) => left.localeCompare(right))) === bestFingerprint
+          ));
+          if (!matchedEvaluation) findings.push(`allocation strategy ${strategy.id} best assignment lacks a matching analysis evaluation`);
+        }
+      }
+    }
+  }
+  if (manifest?.branch === "exact" && stage?.stage === "conclusion") {
+    const crossCheck = loadStage(resolve(dirname(state.workflowPath), STAGE_FILES["cross-check"]), manifest);
+    if (!crossCheck.valid) {
+      findings.push("cannot audit conclusion against replay because cross-check is invalid");
+    } else {
+      const objectives = (crossCheck.value?.payload?.strategySearches ?? [])
+        .filter((search) => search.replayModel && Number.isFinite(search.objectiveValue))
+        .map((search) => search.objectiveValue);
+      if (objectives.length > 0) {
+        const conclusion = Number(stage.payload?.conclusion);
+        const uniqueObjectives = [...new Set(objectives)];
+        if (!Number.isFinite(conclusion)) {
+          findings.push("numeric replay requires a numeric conclusion");
+        } else if (!uniqueObjectives.includes(conclusion)) {
+          findings.push(`replayed objective ${uniqueObjectives.join(", ")} must match conclusion ${stage.payload.conclusion}`);
+        }
+      }
+    }
   }
   return findings;
 }
@@ -131,7 +271,7 @@ function rebuildReceipts(state, manifest) {
     if (checked.value?.previousReceipt !== previous) {
       findings.push(`${stageName}.previousReceipt must be ${previous ?? "null"}`);
     }
-    if (checked.valid) findings.push(...referenceFindings(checked.value, state));
+    if (checked.valid) findings.push(...referenceFindings(checked.value, state, manifest));
     if (findings.length > 0) return findings.map((finding) => `${stageName}: ${finding}`);
     state.receipts.push(receiptFor(index, checked));
     state.nextStageIndex = index + 1;
@@ -198,6 +338,8 @@ function refreshManifest({ path, cwd, sessionId, state }) {
   state.epoch = checked.value.run.epoch;
   state.status = checked.value.status;
   if (checked.value.status === "closed") {
+    state.invalid = false;
+    state.findings = [];
     const findings = completionFindings({ cwd, sessionId, state, manifest: checked.value });
     if (findings.length > 0) {
       state.invalid = true;
@@ -234,7 +376,7 @@ function signStage({ path, cwd, sessionId, state }) {
   if (checked.value?.previousReceipt !== previous) {
     findings.push(`${stageName}.previousReceipt must be ${previous ?? "null"}`);
   }
-  if (checked.valid) findings.push(...referenceFindings(checked.value, state));
+  if (checked.valid) findings.push(...referenceFindings(checked.value, state, manifestCheck.value));
   if (findings.length > 0) {
     state.invalid = true;
     state.findings = findings;
@@ -314,9 +456,32 @@ export function completionFindings({ cwd, sessionId, state = null, manifest = nu
 }
 
 function looksLikeConclusionClaim(message) {
-  return /\b(?:answer|conclusion|therefore|verified|proven|root cause|recommend(?:ation|ed)?)\b|\u7b54\u6848|\u7ed3\u8bba|\u56e0\u6b64|\u6839\u56e0|\u5efa\u8bae/iu.test(
-    String(message ?? ""),
-  );
+  const text = String(message ?? "")
+    .replace(/`[^`\r\n]+`/gu, " ")
+    .replace(/(?:^|\s)[\w./\\-]*(?:answer|conclusion|recommendation|root-cause)[\w./\\-]*\.(?:md|json|ya?ml|txt)(?=$|\s|[.,;:!?])/giu, " ")
+    .replace(/\bclaimed\s+(?:answer|conclusion|recommendation|root cause)\s*:\s*(?:none|null|not claimed|not presented)\b/giu, " ");
+  const claim = /\b(?:answer|conclusion|therefore|root cause|recommend(?:ation|ed)?)\b|\b(?:verified|proven)(?:\s+(?:answer|conclusion|result|value|root cause|recommendation)|\s*[:\uff1a])|\u7b54\u6848|\u7ed3\u8bba|\u56e0\u6b64|\u6839\u56e0|\u5efa\u8bae/iu;
+  const explicitUncertainty = [
+    /\b(?:no|cannot|can't|could not|couldn't|unable to|do not|don't|insufficient evidence to|not enough evidence to)\b.{0,100}\b(?:answer|conclu(?:de|sion)|verify|prove|identify|determine|recommend|root cause)\b/iu,
+    /\b(?:answer|conclusion|root cause|recommendation)\b.{0,80}\b(?:unknown|undetermined|unverified|unproven|unsupported|cannot be (?:determined|concluded|verified|proven|recommended))\b/iu,
+    /(?:\u65e0\u6cd5|\u4e0d\u80fd|\u4e0d\u8db3\u4ee5|\u8bc1\u636e\u4e0d\u8db3|\u672a\u80fd|\u4e0d\u5e94)[^\u3002\uff01\uff1f\n]{0,60}(?:\u786e\u5b9a|\u5f97\u51fa|\u9a8c\u8bc1|\u8bc1\u660e|\u7ed9\u51fa|\u65ad\u5b9a)?[^\u3002\uff01\uff1f\n]{0,30}(?:\u7b54\u6848|\u7ed3\u8bba|\u6839\u56e0|\u5efa\u8bae)/u,
+    /(?:\u7b54\u6848|\u7ed3\u8bba|\u6839\u56e0|\u5efa\u8bae)[^\u3002\uff01\uff1f\n]{0,40}(?:\u672a\u77e5|\u4e0d\u786e\u5b9a|\u65e0\u6cd5\u786e\u5b9a|\u5c1a\u672a\u9a8c\u8bc1|\u6ca1\u6709\u8bc1\u636e)/u,
+  ];
+  const rejectedClaimReport = [
+    /\bnot\s+(?:an?\s+|the\s+)?(?:answer|conclusion|recommendation|root cause)\b/iu,
+    /\bbefore\s+(?:any\s+|an?\s+|the\s+)?(?:answer|conclusion|recommendation|root cause)\b.{0,60}\b(?:valid|established|supported|verified|proven)\b/iu,
+    /\b(?:guard|hook)\b.{0,100}\b(?:blocked|rejected|denied)\b.{0,120}\b(?:answer|conclusion|recommendation|root cause)\b/iu,
+    /\b(?:premature|out-of-order|rejected|blocked|denied|invalid|unsupported|ungrounded)\b.{0,100}\b(?:answer|conclusion|recommendation|root cause)\b/iu,
+    /\breceived\s+(?:answer|conclusion|recommendation|root cause)\b/iu,
+    /\b(?:answer|conclusion|recommendation|root cause)\b.{0,100}\b(?:premature|out-of-order|rejected|blocked|denied|invalid|unsupported|ungrounded|was not presented|is not claimed)\b/iu,
+  ];
+  return text
+    .split(/(?<=[.!?;:\u3002\uff01\uff1f\uff1b\uff1a])|\r?\n|\b(?:but|however|yet)\b|(?:\u4f46\u662f|\u4e0d\u8fc7|\u7136\u800c|\u4f46)/giu)
+    .some((sentence) => (
+      claim.test(sentence)
+      && !explicitUncertainty.some((pattern) => pattern.test(sentence))
+      && !rejectedClaimReport.some((pattern) => pattern.test(sentence))
+    ));
 }
 
 export function stopDecision({ cwd, sessionId, assistantMessage = "" }) {
@@ -334,6 +499,17 @@ export function stopDecision({ cwd, sessionId, assistantMessage = "" }) {
     return { kind: "allow" };
   }
   const findings = completionFindings({ cwd, sessionId, state, manifest: checked.value });
+  if (findings.length === 0) {
+    const conclusionPath = resolve(dirname(state.workflowPath), STAGE_FILES.conclusion);
+    const conclusion = loadStage(conclusionPath, checked.value);
+    if (
+      conclusion.valid
+      && conclusion.value.payload.outputContract.mode === "exact-payload"
+      && String(assistantMessage).trim() !== conclusion.value.payload.conclusion.trim()
+    ) {
+      findings.push(`final response must exactly equal conclusion payload ${JSON.stringify(conclusion.value.payload.conclusion.trim())}`);
+    }
+  }
   return findings.length === 0 ? { kind: "allow" } : { kind: "block", findings };
 }
 

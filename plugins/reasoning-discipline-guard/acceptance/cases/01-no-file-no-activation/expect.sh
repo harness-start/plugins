@@ -12,4 +12,8 @@ if grep -Eq 'Bound RW-|Accepted (frame|analysis|challenge|cross-check|conclusion
   echo "expect fail: receipt signal present without a workflow" >&2
   exit 1
 fi
+if grep -Eq 'tool_dispatch_start tool=Skill|skills/reasoning-discipline/SKILL.md' "${ACCEPT_LOG}"; then
+  echo "expect fail: simple lookup invoked reasoning-discipline" >&2
+  exit 1
+fi
 echo "OK simple lookup did not activate reasoning workflow"

@@ -1,0 +1,4 @@
+id = "08-explicit-blind-draw"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["routing", "exact", "control", "outcome"]
