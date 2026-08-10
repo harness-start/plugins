@@ -40,6 +40,7 @@ FALLBACK_PLUGINS=(
   file-line-budget-guard
   protected-file-guard
   command-safety-guards
+  compact-context-journal
   language-output-governance
   subagent-workflow-guard
   intent-clarify-gate
