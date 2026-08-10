@@ -100,7 +100,7 @@ async function main() {
     const cwdInScope = /(?:^|[\\/])artifacts[\\/]logo[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
     const mutates = (/artifacts[\\/]logo[\\/]/u.test(command) || cwdInScope) && (/[>]{1,2}/u.test(command) || /(?:^|\s)(?:cp|mv|rm|touch|tee|node|npm|npx|python\d*)\b/u.test(command));
     const compoundShell = /(?:&&|\|\||[;&|><`\n]|\$\()/u.test(command);
-    const approvedWrapper = /logo-project-delivery-guard[\\/]scripts[\\/]tools[\\/](?:project-lint|project-release)\.mjs\b/u.test(command) && !compoundShell;
+    const approvedWrapper = /logo-project-delivery-guard[\\/]scripts[\\/]tools[\\/](?:project-lint|project-release|project-preview|project-validate)\.mjs\b/u.test(command) && !compoundShell;
     if (mutates && !approvedWrapper) process.stdout.write(`${JSON.stringify(deny("UNKNOWN_MUTATION_SHELL: logo mutations require a registered wrapper"))}\n`);
     return;
   }

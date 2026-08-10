@@ -23,7 +23,8 @@ invokes `claude` / `codex` for these suites.
 | --- | --- | --- |
 | Unit tests (`node:test`) | Host | `node --test plugins/*/tests/*.mjs` |
 | Expect honesty gate (no API) | Host or container | `./scripts/acceptance/run.sh --honesty-only` |
-| Live Claude + Codex suites | **Docker only** | `./scripts/acceptance/run.sh` (auto-wraps Docker) |
+| Live Claude + Codex suites (per-plugin) | **Docker only** | `./scripts/acceptance/run.sh` (auto-wraps Docker) |
+| Project scenarios (full `install-all`) | **Docker only** | `./scripts/acceptance/run-project.sh` |
 
 On the host, `./scripts/acceptance/run.sh` always builds/runs the acceptance
 image for smoke and live cases. Inside the container, the same script runs the
@@ -180,3 +181,51 @@ hook markers. Every expect must exit non-zero.
 
 Shared helpers: `scripts/acceptance/lib/expect-helpers.sh`
 (`require_guard_hook_signal` with product markers only — never path fragments).
+
+## Project-level acceptance (full install-all)
+
+Per-plugin suites install **one** plugin. Project scenarios under
+`acceptance/scenarios/` install the **entire** catalog the way users do:
+
+```bash
+scripts/install-all.sh --local <checkout>   # all plugins + skill-deps.json skills
+```
+
+into an isolated HOME (cached under the run out dir), then start Claude/Codex
+**without** `--plugin-dir` / single-plugin add so every installed hook and
+community skill is active.
+
+```bash
+# honesty only (no Docker / no API)
+./scripts/acceptance/run-project.sh --honesty-only
+
+# logo /goal e2e (Docker; full install-all + open brief)
+./scripts/acceptance/run-project.sh \
+  --case logo-design/01-goal-e2e-delivery \
+  --host claude
+
+# full project suite
+./scripts/acceptance/run-project.sh
+```
+
+Layout:
+
+```text
+acceptance/scenarios/<domain>/cases/<case-id>/
+  case.toml  prompt.md  expect.sh  quality-rubric.md  workspace/
+```
+
+CLI case id is `<domain>/<case-id>`. Prompts should be realistic `/goal …`
+briefs; expects judge final artifacts + quality notes, not a single scripted Write.
+
+| Path | Meaning |
+| --- | --- |
+| `acceptance/README.md` | Suite overview |
+| `scripts/acceptance/run-project.sh` | Runner (Docker-wrap + honesty) |
+| `scripts/acceptance/lib/project-common.sh` | install-all cache / seed / host skills |
+| `.acceptance-runs/project-latest/` | Default artifacts |
+
+`install-all.sh --local <path>` resolves the plugin catalog and skill-deps from
+that checkout (not GitHub master). When `$HOME/.agents/skills` exists, the
+Docker wrap mounts it so domain skills (e.g. `logo-design`) seed into case HOME.
+

@@ -1,0 +1,3 @@
+hosts = ["claude", "codex"]
+# Full /goal logo delivery is long: install-all cache + multi-step design.
+timeout_sec = 1800

@@ -539,7 +539,10 @@ install_plugin_skill_deps() {
   return 0
 }
 
-run_claude_session() {
+# Shared Claude -p invocation. When plugin_dir is non-empty, load only that
+# plugin (per-plugin acceptance). When empty, rely on marketplace plugins
+# already installed into HOME (project acceptance via install-all.sh).
+_run_claude_session_core() {
   local workspace="$1"
   local plugin_dir="$2"
   local prompt_file="$3"
@@ -562,18 +565,28 @@ run_claude_session() {
   prompt="$(cat "${prompt_file}")"
 
   local debug_file="${log_file%.log}.claude-debug.log"
-  local force_tools='You are running an automated plugin-acceptance fixture. You MUST attempt the requested file Write/Edit/apply_patch tool call even when the path looks like cache/runtime/log. Do not refuse with policy arguments; the suite measures whether hooks deny the tool. Shell redirection is forbidden when the prompt forbids it.'
+  local force_tools
+  if [ "${ACCEPT_SUITE:-plugin}" = "project" ]; then
+    force_tools='You are running a project-level acceptance scenario with the full plugin catalog installed. Pursue the user /goal to the best deliverable you can produce in this session. Create real files under the workspace. When goal-task protocol is injected, append decisions via the official logger. Prefer production-quality artifacts over placeholders. Do not claim completion without coherent on-disk deliverables. Shell redirection to bypass denied writes is forbidden.'
+  else
+    force_tools='You are running an automated plugin-acceptance fixture. You MUST attempt the requested file Write/Edit/apply_patch tool call even when the path looks like cache/runtime/log. Do not refuse with policy arguments; the suite measures whether hooks deny the tool. Shell redirection is forbidden when the prompt forbids it.'
+  fi
+  local -a claude_args=(
+    -p "${prompt}"
+    --model "${model}"
+    --dangerously-skip-permissions
+    --permission-mode bypassPermissions
+    --append-system-prompt "${force_tools}"
+    --output-format text
+    --debug
+    --debug-file "${debug_file}"
+  )
+  if [ -n "${plugin_dir}" ]; then
+    claude_args+=(--plugin-dir "${plugin_dir}")
+  fi
   (
     cd "${workspace}"
-    timeout "${timeout_sec}" claude -p "${prompt}" \
-      --model "${model}" \
-      --plugin-dir "${plugin_dir}" \
-      --dangerously-skip-permissions \
-      --permission-mode bypassPermissions \
-      --append-system-prompt "${force_tools}" \
-      --output-format text \
-      --debug \
-      --debug-file "${debug_file}"
+    timeout "${timeout_sec}" claude "${claude_args[@]}"
   ) >"${log_file}" 2>&1
   local code=$?
   if [ -f "${debug_file}" ]; then
@@ -588,16 +601,30 @@ run_claude_session() {
   fi
 }
 
-run_codex_session() {
+run_claude_session() {
   local workspace="$1"
-  local plugin="$2"
-  local marketplace="$3"
-  local prompt_file="$4"
-  local log_file="$5"
-  local timeout_sec="$6"
-  local model="${DEEPSEEK_MODEL}"
+  local plugin_dir="$2"
+  local prompt_file="$3"
+  local log_file="$4"
+  local timeout_sec="$5"
+  _run_claude_session_core "${workspace}" "${plugin_dir}" "${prompt_file}" "${log_file}" "${timeout_sec}"
+}
 
-  install_codex_plugin "${marketplace}" "${plugin}"
+# Project acceptance: marketplace plugins already installed under HOME.
+run_claude_session_installed() {
+  local workspace="$1"
+  local prompt_file="$2"
+  local log_file="$3"
+  local timeout_sec="$4"
+  _run_claude_session_core "${workspace}" "" "${prompt_file}" "${log_file}" "${timeout_sec}"
+}
+
+_run_codex_session_core() {
+  local workspace="$1"
+  local prompt_file="$2"
+  local log_file="$3"
+  local timeout_sec="$4"
+  local model="${DEEPSEEK_MODEL}"
 
   local prompt
   prompt="$(cat "${prompt_file}")"
@@ -616,6 +643,27 @@ run_codex_session() {
     printf '\n[accept] codex exit=%s\n' "${code}" >>"${log_file}"
     return "${code}"
   }
+}
+
+run_codex_session() {
+  local workspace="$1"
+  local plugin="$2"
+  local marketplace="$3"
+  local prompt_file="$4"
+  local log_file="$5"
+  local timeout_sec="$6"
+
+  install_codex_plugin "${marketplace}" "${plugin}"
+  _run_codex_session_core "${workspace}" "${prompt_file}" "${log_file}" "${timeout_sec}"
+}
+
+# Project acceptance: full catalog already installed via install-all.sh.
+run_codex_session_installed() {
+  local workspace="$1"
+  local prompt_file="$2"
+  local log_file="$3"
+  local timeout_sec="$4"
+  _run_codex_session_core "${workspace}" "${prompt_file}" "${log_file}" "${timeout_sec}"
 }
 
 assert_deepseek_in_log() {
