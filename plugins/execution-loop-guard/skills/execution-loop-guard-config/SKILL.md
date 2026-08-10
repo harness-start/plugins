@@ -6,7 +6,7 @@ version: 0.1.0
 
 # execution-loop-guard-config
 
-Manage the project configuration consumed by `execution-loop-guard`. The authoritative schema is the plugin sibling `DESIGN.md`; read it before editing configuration.
+Manage the project configuration consumed by `execution-loop-guard`. The authoritative schema is the plugin sibling `README.md`; read it before editing configuration.
 
 ## Discovery
 
@@ -63,7 +63,7 @@ export default {
 ## Workflow
 
 1. Classify the request as `init`, `show`, `set-mode`, `set-threshold`, `add-exemption`, `set-bypass`, or `diagnose`.
-2. Locate and read the entire existing config and plugin `DESIGN.md`.
+2. Locate and read the entire existing config and plugin `README.md`.
 3. For `init`, create only `.execution-loop-guard.mjs` with the minimal template below; do not copy every default field unless the user wants to own it.
 4. Apply the narrowest change. Preserve unrelated comments, order and formatting.
 5. Dynamically import the config with Node, validate field types and threshold ordering, then summarize effective changes.
@@ -91,5 +91,5 @@ export default {
 
 ## Reference
 
-- Plugin design: `${CLAUDE_PLUGIN_ROOT}/DESIGN.md` or the sibling `DESIGN.md`.
+- Plugin design: `${CLAUDE_PLUGIN_ROOT}/README.md` or the sibling `README.md`.
 - Complete example: `references/example-config.mjs`.

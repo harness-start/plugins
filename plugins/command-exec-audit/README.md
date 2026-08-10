@@ -1,8 +1,8 @@
 # command-exec-audit
 
-`command-exec-audit` records agent shell commands for Claude Code and Codex with **status and duration only** (no output body).
+`command-exec-audit` 为 Claude Code 和 Codex 记录 agent 执行的 shell 命令，只保存状态和耗时，不保存输出正文。记录按项目和会话写入 JSONL，并阻止 agent 工具改写审计轨迹。
 
-## Layout
+## 目录结构
 
 ```text
 .command-exec-audit/
@@ -10,23 +10,49 @@
   sessions/<session_id>.jsonl
 ```
 
-One host session maps to one JSONL file. The plugin does not create or modify `.gitignore`; repository owners decide whether to ignore the audit directory.
+一个宿主会话对应一个 JSONL 文件。插件不会创建或修改 `.gitignore`，是否忽略审计目录由仓库维护者决定。
 
-## Lifecycle
+## 生命周期
 
-1. **PreToolUse** appends a `pending` row (`started_at`)
-2. **PostToolUse** (or Claude `PostToolUseFailure`) rewrites the **last line** when `tool_use_id` matches, filling `status`, `ended_at`, `duration_ms`, and optional `exit_code`
-3. If the tip is not the matching pending row (parallel tools), a terminal row is **appended** instead — earlier lines stay immutable
+1. `PreToolUse` 追加一条带 `started_at` 的 `pending` 记录。
+2. `PostToolUse` 或 Claude `PostToolUseFailure` 在非空 `tool_use_id` 与末行待处理记录匹配时，只重写最后一行，补充 `status`、`ended_at`、`duration_ms` 和可选的 `exit_code`。
+3. 并行工具、空 ID 或锁未命中导致末行无法重写时，插件会追加一条终态记录，并通过向前扫描相同非空 ID 的待处理记录恢复 `started_at`；更早的行不会被改写。
 
-## Write policy
+空值或 `null` 的 `tool_use_id` 不参与末行重写匹配。没有明确的退出或成功信号时，状态记为 `unknown`，不会臆测为成功。
 
-- Append allowed
-- Only the last line may be rewritten (by the plugin)
-- Agent Edit/Write/shell mutation of the audit tree is denied
+## 写入策略
 
-## Config
+- 插件可以追加记录；只有匹配待处理 `tool_use_id` 时才能重写最后一行。
+- agent 的 Edit、Write 或 shell 工具不能修改审计目录。
+- 若并行导致末行不匹配，则追加终态记录，绝不改写非末行。
 
-Optional `.command-exec-audit.mjs` at the Git root:
+## 数据结构
+
+每行使用 `command-exec/v1` schema：
+
+```json
+{
+  "schema": "command-exec/v1",
+  "ts": "ISO-8601",
+  "session_id": "string|null",
+  "cwd": "string",
+  "tool_name": "string",
+  "tool_use_id": "string|null",
+  "command": "string",
+  "status": "pending|success|failure|unknown",
+  "started_at": "ISO-8601",
+  "ended_at": "ISO-8601|null",
+  "duration_ms": "number|null",
+  "exit_code": "number|null",
+  "host": "claude|codex|unknown"
+}
+```
+
+记录中没有 `stdout`、`stderr` 或原始 `tool_response` 字段。插件会尽力遮盖 `TOKEN=…`、Bearer token 等敏感值，并将命令截断到 `maxCommandChars`，默认上限为 2000 个字符。
+
+## 配置
+
+可在 Git 根目录创建 `.command-exec-audit.mjs`：
 
 ```js
 export default {
@@ -37,12 +63,19 @@ export default {
 };
 ```
 
-Use `command-exec-audit-config` Skill for initialization. Full contract: [DESIGN.md](./DESIGN.md).
+可使用 `command-exec-audit-config` Skill 初始化配置。
 
-## Verification
+## 验证
 
 ```bash
 node --test plugins/command-exec-audit/tests/*.test.mjs
 ```
 
-Version: `0.1.1`
+版本：`0.1.1`
+
+## 非目标
+
+- 捕获完整命令输出。
+- 记录 agent 工具以外的人类终端会话。
+- 自动修改 `.gitignore`。
+- 提供真正的 WORM 存储。

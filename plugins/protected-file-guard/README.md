@@ -14,7 +14,7 @@
 
 `dist/`、`build/`、`target/`、`coverage/`、`.next/` 和 `.nuxt/` 不在默认范围内。
 
-完整规则和责任边界见 [DESIGN.md](./DESIGN.md)。
+插件只强制一个可观察不变量：文件工具不能直接修改项目声明为受保护的依赖状态或第三方依赖路径。检查发生在 `PreToolUse`，因此命中规则时写入尚未发生；构建输出、缓存和任意 `generated/` 目录不在默认保护范围内。
 
 ## 项目配置
 
@@ -41,6 +41,28 @@ export default {
 
 用户规则在内置规则之前执行，first-match-wins。`mode` 只能是 `block` 或 `allow`，缺省为 `block`。使用插件自带的 `protected-file-guard-config` Skill 初始化、维护或诊断配置。
 
+完整规则结构为：
+
+```js
+{
+  id?: string,
+  match: RegExp,
+  mode?: "block" | "allow",
+  reason?: string,
+  recovery?: string,
+}
+```
+
+`match` 匹配仓库相对 POSIX 路径。每个目标都检查逻辑路径和可解析的真实路径，避免符号链接绕过；一次工具调用只要有一个目标被 `block`，整个调用就会拒绝。`allow` 应保持窄范围，只用于项目明确拥有的例外。
+
+配置按 `.protected-file-guard.mjs`、`.protected-file-guard.cjs`、`.protected-file-guard.js` 顺序从事件工作目录对应的 Git 根通过 `import()` 加载。非 Git 目录仍使用内置规则，但不加载项目配置。配置损坏时写一行警告并保留内置保护；非法单条规则只警告并跳过；Hook 输入畸形或意外运行错误时 fail-open。
+
+内置 lockfile 包括 `bun.lock`、`bun.lockb`、`deno.lock`、`npm-shrinkwrap.json`、`package-lock.json`、`pnpm-lock.yaml`、`yarn.lock`、`pdm.lock`、`Pipfile.lock`、`poetry.lock`、`uv.lock`、`composer.lock`、`Gemfile.lock`、`Cargo.lock`、`go.sum`、`gradle.lockfile`、`packages.lock.json`、`mix.lock`、`flake.lock`、`renv.lock`、`pubspec.lock`、`Package.resolved`、`Podfile.lock`、`.terraform.lock.hcl` 和 `gradle/dependency-locks/*.lockfile`。
+
+内置依赖目录包括 `node_modules/`、`vendor/`、`.venv/`、`venv/`、`__pypackages__/`、`Pods/`、`Carthage/Build/`、`.build/checkouts/`、`.terraform/`、`.dart_tool/`、`.gradle/`、`.nuget/packages/`、`renv/library/`、`packrat/lib/`、`bower_components/` 和 `jspm_packages/`。目录按完整路径段匹配，`vendorized/`、`node_modules_backup/` 不误命中；`deps/` 与 `packages/` 过于宽泛，不作为内置规则。
+
+拒绝结果使用宿主支持的 `PreToolUse permissionDecision: deny`，并包含受保护目标、命中规则、直接修改生成状态的风险、解除条件，以及修改依赖声明、生成源或增加窄范围 `allow` 的恢复路径。脚本没有持久状态，不写插件安装目录或项目目录。
+
 ## 安装
 
 ```bash
@@ -62,4 +84,4 @@ node --test plugins/protected-file-guard/tests/*.test.mjs
 
 第二条命令需要 Docker 和仓库 `.env` 中的 DeepSeek 验收凭据。
 
-Version: `0.1.0`
+版本：`0.1.0`

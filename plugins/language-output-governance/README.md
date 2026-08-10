@@ -1,43 +1,45 @@
 # language-output-governance
 
-`language-output-governance` keeps Claude Code and Codex natural-language prose aligned with one stable session profile. It replaces `in-chinese`; Simplified Chinese remains the default rather than a separate plugin.
+`language-output-governance` 让 Claude Code 和 Codex 在一个会话内使用稳定的自然语言 profile。它取代旧的 `in-chinese`，简体中文仍是默认 profile，不再作为独立插件。
 
-## Profiles
+插件只治理会话的自然语言输出语言，不控制语气、人格、详略、格式、翻译质量或工具输出。
 
-The plugin includes five profiles:
+## 语言 Profile
 
-| Profile | Natural-language scripts allowed by the profile |
+| Profile | 允许的自然语言文字系统 |
 | --- | --- |
 | `zh-CN` | Han |
-| `en-US` | Latin technical and prose text; Han, Hangul, Kana, and Thai are checked |
-| `ja-JP` | Han and Kana |
+| `en-US` | Latin 技术文本与散文；检查 Han、Hangul、Kana 和 Thai |
+| `ja-JP` | Han 和 Kana |
 | `ko-KR` | Hangul |
 | `th-TH` | Thai |
 
-Latin text is always allowed so commands, APIs, types, identifiers, and technical terms do not create false positives. The detector does not try to distinguish Chinese from Japanese when both use Han characters.
+Latin 始终允许，避免命令、API、类型、标识符和技术术语造成误报。检测器不会尝试区分同样使用 Han 字符的中文和日文。
 
-## Lifecycle
+## 生命周期与状态
 
-- `SessionStart` loads the configured default and injects the active profile marker.
-- `UserPromptSubmit` records an explicit response-language request for the session. Translation requests authorize their target language without changing the preferred profile.
-- `PostToolUse` checks only model-generated tool input for Bash, Write, Edit, MultiEdit, and apply_patch. Quoted shell payloads are checked as independent candidate segments so command syntax does not dilute natural-language text. It never scans command or tool output, and reports at most once per session.
-- `Stop` and `SubagentStop` request a complete rewrite when final prose contains an unauthorized script. Recursive Stop retries fail open.
+- `SessionStart` 加载默认配置并注入活动 profile 标记；startup/clear 会话重置，resume/compact 会话保留状态。
+- `UserPromptSubmit` 记录明确的回复语言请求。普通会话语言请求可替换首选 profile；翻译请求只授权目标语言，不改变首选 profile。
+- `PostToolUse` 只检查模型为 Bash、Write、Edit、MultiEdit 和 apply_patch 生成的工具输入。带引号的 shell payload 会作为独立候选片段检查，避免命令语法稀释自然语言比例。命令和工具输出从不扫描，每个会话最多报告一次。
+- `Stop` 和 `SubagentStop` 在最终散文含未授权文字系统时要求完整重写；递归 `Stop` 重试 fail-open。
 
-The main agent and subagents share the parent session state. State contains only profile IDs and one feedback flag; it never stores prompts, replies, commands, or file content.
+状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以 session ID 的 SHA-256 为键，在每会话锁内原子写到宿主插件数据目录，24 小时后过期。当前没有逐轮 profile 或撤销协议。
 
-Claude and standard Codex providers receive `PostToolUse.additionalContext`. Codex 0.146 loses the original tool result when the repository's DeepSeek acceptance provider receives model-visible PostToolUse feedback, so that specific runtime combination suppresses the advisory and leaves the feedback flag unclaimed; Stop remains the correction boundary. This compatibility branch is selected only when both `PLUGIN_ROOT` and `DEEPSEEK_MODEL` are present.
+Claude 和标准 Codex provider 通过 `hookSpecificOutput.additionalContext` 接收 `PostToolUse` 反馈。Codex 0.146 配合本仓库 DeepSeek 验收 provider 时，模型可见的 `PostToolUse` 反馈会丢失原始工具结果；只有同时存在 `PLUGIN_ROOT` 与 `DEEPSEEK_MODEL` 时才启用兼容分支，抑制该提示且不占用反馈标记，仍由 `Stop` 负责纠正。其他运行时继续使用正常软反馈。
 
-## Project configuration
+## 配置优先级
 
-The marketplace installer can persist a host-scoped user preference:
+配置优先级为：Git 根目录 `.language-output-governance.mjs` → 宿主级安装偏好 → 严格默认值。
+
+安装器可持久化宿主级偏好：
 
 ```bash
 bash scripts/install-all.sh --language en-US
 ```
 
-Claude Code reads `harness-start/language-output-governance.json` below `CLAUDE_CONFIG_DIR` (default `~/.claude`); Codex reads the same relative path below `CODEX_HOME` (default `~/.codex`). The file contains only `defaultProfile`.
+Claude Code 从 `CLAUDE_CONFIG_DIR`（默认 `~/.claude`）下的 `harness-start/language-output-governance.json` 读取；Codex 从 `CODEX_HOME`（默认 `~/.codex`）下的同一相对路径读取。JSON 只包含 `defaultProfile`。
 
-For a project override, create `.language-output-governance.mjs` at the Git root:
+项目覆盖配置示例：
 
 ```js
 export default {
@@ -51,25 +53,27 @@ export default {
 };
 ```
 
-Project configuration takes precedence over the host-scoped user preference. The project file is trusted executable configuration loaded through `import()`. Invalid fields or values produce a warning and retain the strict defaults. Thresholds are bounded to `1..100` script characters and `0.01..1` letter ratio.
+配置只接受以下字段：`defaultProfile`、`toolFeedback`、`stop`、`detection.minScriptCharacters` 和 `detection.minLetterRatio`。任一未知或非法字段都会使完整项目配置回退严格默认值。字符阈值范围为 `1..100`，字母比例范围为 `0.01..1`。自定义检测回调、任意 profile、路径覆盖和读取旧 `in-chinese` 配置均不在契约内。
 
-Use the bundled `language-output-governance-config` Skill to initialize or diagnose the file. The complete contract is in [DESIGN.md](./DESIGN.md).
+`.language-output-governance.mjs` 是项目拥有、通过 `import()` 加载的可信可执行配置。可使用内置 `language-output-governance-config` Skill 初始化或诊断。
 
-## Detection boundaries
+## 检测边界
 
-The detector checks each line and the complete candidate text. Fenced code, inline code, Markdown quotation lines, URLs, and link targets are excluded. It is a deterministic Unicode Script guard, not a general natural-language classifier.
+检测器会分别检查每一行和完整候选文本。profile 与显式授权形成允许的 Unicode Script 并集；其余 Han、Hangul、Kana 或 Thai 字符达到配置的最小数量和 Unicode 字母比例时才触发，Latin 不受守卫。
 
-## Migrating from `in-chinese`
+计数前会排除 fenced code、inline code、Markdown 引用行、URL 和链接目标。`PostToolUse` 只提取生成输入，包括命令文本及其带引号 payload、文件内容、替换字符串或 patch 新增行；`Stop` 只检查宿主提供的最终 assistant message。这是确定性的 Unicode Script 守卫，不是通用自然语言分类器。
 
-`language-output-governance@0.2.0` replaces the old plugin identity. `scripts/install-all.sh` removes marketplace plugins before reinstalling the current catalog. Manual installations should uninstall `in-chinese` and install `language-output-governance`; there is no compatibility alias or legacy configuration read.
+## 从 `in-chinese` 迁移
 
-## Verification
+`language-output-governance@0.2.0` 已取代旧插件身份。`scripts/install-all.sh` 会先移除 marketplace 插件，再安装当前 catalog。手动安装时应卸载 `in-chinese` 并安装 `language-output-governance`；没有兼容别名，也不会读取旧配置。
 
-From the marketplace root:
+## 验证
+
+在 marketplace 根目录运行：
 
 ```bash
 node --test plugins/language-output-governance/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin language-output-governance
 ```
 
-The acceptance command needs Docker and the DeepSeek credentials documented by the repository acceptance runner.
+验收命令需要 Docker，以及仓库验收 runner 所述的 DeepSeek 凭据。

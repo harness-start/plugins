@@ -8,7 +8,7 @@ version: 0.1.1
 
 Manage the project configuration consumed by `file-access-audit`.
 
-Authoritative schema: sibling plugin `DESIGN.md`.
+Authoritative schema: sibling plugin `README.md`.
 
 ## Discovery
 

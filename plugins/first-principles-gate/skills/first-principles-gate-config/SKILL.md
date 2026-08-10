@@ -7,7 +7,7 @@ description: "Change first-principles-gate project settings: write-block mode, e
 
 Manage the Git-root `.first-principles-gate.mjs` consumed by `first-principles-gate`.
 
-Read `../../DESIGN.md` before changing the interface.
+Read `../../README.md` before changing the interface.
 
 ## Default shape
 

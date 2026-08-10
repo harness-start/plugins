@@ -6,7 +6,7 @@ version: 0.2.0
 
 # source-sanity-guard-config
 
-Manage the Git-root `.source-sanity-guard.mjs` consumed by `source-sanity-guard`. Read `../../DESIGN.md` before changing configuration.
+Manage the Git-root `.source-sanity-guard.mjs` consumed by `source-sanity-guard`. Read `../../README.md` before changing configuration.
 
 ## Workflow
 

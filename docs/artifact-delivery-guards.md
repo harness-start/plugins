@@ -1,6 +1,6 @@
 # Artifact delivery guards
 
-这组插件把视觉产物当作可审计工程，而不是单个二进制文件。当前包含 PPTX、海报、Remotion 视频、Logo 和印刷出版物五个相互独立的插件；每个插件都自带 Hook、合同校验器、ESLint preset、release writer、测试与验收 fixture，不依赖共享 runtime，也不在安装阶段编译或下载渲染依赖。
+这组插件把视觉与音频产物当作可审计工程，而不是单个二进制文件。当前包含 PPTX、海报、Remotion 视频、Logo、印刷出版物和 Tone.js 音乐六个相互独立的插件；每个插件都自带 Hook、合同校验器、ESLint preset、release writer、测试与验收 fixture，不依赖共享 runtime，也不在插件安装阶段编译或下载渲染依赖。
 
 ## 共同边界
 
@@ -19,12 +19,12 @@
 
 ## 生成依赖与社区 Skill
 
-渲染器属于 artifact 工程：PptxGenJS、Satori/resvg、Remotion、React/Vivliostyle 及其版本应由项目 `package-lock.json` 固定。项目拥有的 render scripts 是受信任可执行配置；插件 writer 负责固定调用边界、测量输出并生成结构化 proof，不把脚本存在本身当作 operational evidence。视频 writer 还要求系统提供 ffmpeg/ffprobe。
+渲染依赖属于 artifact 工程：PptxGenJS、Satori/resvg、Remotion、React/Vivliostyle、Tone.js、Tonal、Playwright 及其版本应由项目 `package-lock.json` 固定。项目拥有的 render scripts 是受信任可执行配置；插件 writer 负责固定调用边界、测量输出并生成结构化 proof，不把脚本存在本身当作 operational evidence。音乐插件提供受控的浏览器离线渲染 wrapper；其他守卫不代替项目构建脚本。视频 writer 还要求系统提供 ffmpeg/ffprobe。
 
-社区 Skill 是知识层，不是执行层。PPTX 与海报插件通过 `skill-deps.json` 固定 `ui-ux-pro-max` 的来源 commit；其建议必须重新经过本插件的 source、proof 和 release 合同。Skill 激活、提示词质量或“看起来不错”都不是 operational evidence。
+Skill 是知识层，不是效果证据。PPTX 与海报插件通过 `skill-deps.json` 固定 `ui-ux-pro-max` 的来源 commit；音乐插件内置符号作曲与数学模型 Skill。所有建议都必须重新经过对应插件的 source、proof 和 release 合同。Skill 激活、提示词质量、优化分数或“听起来不错”的文字判断都不是完整 operational evidence。
 
 ## 强度声明
 
-当前是 `snapshot` profile：已登记的文件 Tool 写路径和常见 shell mutation 可在执行前拒绝，Post/Stop 会重新扫描实际工作区。它不是操作系统沙箱；如果宿主允许插件不可见的进程直接改磁盘，不能宣称 `closed`。审美、商标可注册性、印厂签字或内容真实性也不由这些 Hook 自动证明。
+当前是 `snapshot` profile：已登记的文件 Tool 写路径和常见 shell mutation 可在执行前拒绝，Post/Stop 会重新扫描实际工作区。它不是操作系统沙箱；如果宿主允许插件不可见的进程直接改磁盘，不能宣称 `closed`。审美、音乐品味、商标可注册性、印厂签字或内容真实性也不由这些 Hook 自动证明。
 
-载体细节见各插件的 `DESIGN.md`。
+载体细节见各插件的 `README.md`。

@@ -1,6 +1,6 @@
 {
   "name": "video-project-delivery-guard",
-  "version": "0.2.0+codex.20260810092909",
+  "version": "0.2.0",
   "description": "Enforces capability-bound Remotion renders, measured media proofs, independent review, and release evidence.",
   "author": {
     "name": "Harness Start",

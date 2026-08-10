@@ -1,12 +1,12 @@
 # Video Project Delivery Guard
 
-Guards Remotion projects under `artifacts/video/<video-id>/`. The release gate binds project inputs to measured MP4/WAV render proofs, final ffprobe evidence, extracted frame hashes, an accessibility checklist, an independently session-bound review, a release manifest, and a SHA-256 receipt.
+`video-project-delivery-guard` 保护 `artifacts/video/<video-id>/` 下的 Remotion 工程。release gate 把项目输入绑定到实测 MP4/WAV render proof、最终 ffprobe evidence、抽帧 hash、无障碍检查、独立宿主会话 review、release manifest 和 SHA-256 receipt。
 
-The plugin requires Node.js, npm, `ffmpeg`, and `ffprobe`. Render dependencies stay inside the artifact project and must be pinned by `package-lock.json`.
+插件要求 Node.js、npm、`ffmpeg` 和 `ffprobe`。渲染依赖由 artifact 工程自己的 `package-lock.json` 固定。
 
-## Project contract
+## 工程合同
 
-`plan.contract.json` must bind the artifact and closure stage:
+工程根固定为 `artifacts/video/<kebab-case-id>/`。`plan.contract.json` 必须绑定 artifact 和闭包阶段：
 
 ```json
 {
@@ -15,7 +15,7 @@ The plugin requires Node.js, npm, `ffmpeg`, and `ffprobe`. Render dependencies s
 }
 ```
 
-`video.project.json` supplies the measured media contract:
+`video.project.json` 定义实测媒体合同：
 
 ```json
 {
@@ -28,7 +28,11 @@ The plugin requires Node.js, npm, `ffmpeg`, and `ffprobe`. Render dependencies s
 }
 ```
 
-The artifact-owned `package.json` must pin `remotion`, `@remotion/cli`, `react`, and `react-dom`, and provide these trusted executable-config scripts:
+缺失或非法 JSON、未知 stage、非法目录、无效项目数量都会 fail closed。视觉和音频分别由 `src/visual/manifest.json` 与 `src/audio/manifest.json` 管理；manifest 必须非空，index 连续，id/source 唯一。
+
+视觉文件名为 `vNNN-slug.fSSSSSS-fEEEEEE.tsx`，音频 binding 为 `aNNN-role-slug.fSSSSSS-fEEEEEE.audio.json`。区间统一为 `[startFrame,endFrame)`，必须与 manifest 一致且不能超出 `durationInFrames`。音频素材规范化后必须仍位于 `public/` 下且真实存在。视觉 owner 检查覆盖相对 import 闭包、Remotion 禁止符号及其 alias、renderer、Node I/O、网络、全局 scheduling 与墙钟随机数；项目本地 ESLint rule 在同一 public seam 上提供 AST 检查。
+
+artifact 自己的 `package.json` 必须固定 `remotion`、`@remotion/cli`、`react` 和 `react-dom`，并提供这些受信任可执行配置脚本：
 
 ```json
 {
@@ -40,13 +44,15 @@ The artifact-owned `package.json` must pin `remotion`, `@remotion/cli`, `react`,
 }
 ```
 
-The render writer invokes each script through `npm run` and appends fixed `--output`, `--start-frame`, `--end-frame`, `--fps`, `--composition-id`, and, for unit proofs, `--source` arguments. A script must write only the requested temporary output; the writer probes it before atomically promoting it to a protected path.
+render writer 通过无 shell 的 `npm run` 调用脚本，并追加固定的 `--output`、`--start-frame`、`--end-frame`、`--fps`、`--composition-id` 参数；unit proof 还会追加 `--source`。脚本只能写指定临时输出，writer 实测通过后才会将其原子提升到受保护路径。
 
-## Writer flow
+## Writer capability 与调用流程
 
-Run writers through a host shell tool while the plugin is active. `PreToolUse` accepts only a pure, exact writer invocation and issues a 30-second, argv-bound, single-use capability. Calling a writer directly outside that path fails with `WRITER_CAPABILITY_MISSING`.
+普通文件 Tool 不能写 proof、dist、evidence、review、release、receipt 或 capability 文件。artifact scope 内只允许严格只读 shell 命令，或者形如 `node <精确插件 tools 路径> <精确项目根> ...` 的单一 writer 调用；shell compound、`node -e`、路径子串伪装、未知命令与无法解析的命令均拒绝。
 
-For each registered unit, then the final composition:
+writer 必须在插件生效时通过宿主 shell Tool 调用。`PreToolUse` 只接受纯净、精确的 writer 命令，并签发有效期 30 秒、绑定 project root、writer role、完整 argv digest 与真实 host session 的一次性 capability。grant 位于受保护且从 subject 排除的 `.tmp/video-guard/`，writer 原子消费后立即失效。直接运行 writer、重放不同 argv 或伪造 reviewer session 都不能通过。
+
+依次为每个已登记 unit 和最终 composition 运行：
 
 ```bash
 node "${PLUGIN_ROOT}/scripts/tools/project-render.mjs" artifacts/video/demo visual v001-intro.f000000-f000090.tsx
@@ -55,20 +61,30 @@ node "${PLUGIN_ROOT}/scripts/tools/project-render.mjs" artifacts/video/demo fina
 node "${PLUGIN_ROOT}/scripts/tools/project-probe.mjs" artifacts/video/demo
 ```
 
-Claude Code can use `${CLAUDE_PLUGIN_ROOT}` in place of `${PLUGIN_ROOT}`. An absolute installed-plugin path is also accepted.
+Claude Code 可用 `${CLAUDE_PLUGIN_ROOT}` 代替 `${PLUGIN_ROOT}`；也可以使用已安装插件的绝对路径。
 
-Review must run in a different real host session from rendering. Its input file must be outside the artifact root:
+## Render、probe、review 与 release
+
+`project-render.mjs` 将输出写入唯一临时路径，再用 ffprobe 验证：
+
+- visual proof：MP4、精确帧长/fps/宽高、无音轨；
+- audio proof：WAV、精确帧长、有效 sample rate/channels、无视频轨；
+- final：MP4、精确帧长/fps/宽高，同时存在视频与音频轨。
+
+媒体通过后才会被原子提升到保护路径并生成 `render-proof/v1`。proof 绑定完整非生成 subject digest、具体 source digest、输出原始字节 digest、实测媒体事实、writer capability 和生成 session。任何源码、素材、配置或工具链变化都会使旧 proof 失效。
+
+`project-probe.mjs` 重新测量最终 MP4，生成 `probe-evidence/v1` 与 `audio-evidence/v1`。review 必须运行在不同于 render 的真实宿主会话中，输入文件必须位于 artifact root 外：
 
 ```json
 {
   "schema": "video-project-delivery-guard/review-input/v1",
   "artifactId": "demo",
-  "outputSha256": "<64 lowercase hex characters>",
+  "outputSha256": "<64 个小写十六进制字符>",
   "verdict": "pass",
   "reviewer": {
     "kind": "independent-agent",
     "id": "reviewer-1",
-    "sessionId": "<current reviewer host session id>"
+    "sessionId": "<当前 reviewer 宿主会话 id>"
   },
   "frames": [0, 120, 239],
   "checks": {
@@ -80,22 +96,28 @@ Review must run in a different real host session from rendering. Its input file 
 }
 ```
 
-Then run:
+然后运行：
 
 ```bash
 node "${PLUGIN_ROOT}/scripts/tools/project-review.mjs" artifacts/video/demo /absolute/path/review-input.json
 node "${PLUGIN_ROOT}/scripts/tools/project-release.mjs" artifacts/video/demo
 ```
 
-The reviewer session is taken from the one-time capability, not trusted solely from the input JSON. The release writer refuses missing, stale, self-reviewed, malformed, or byte-mismatched evidence.
+reviewer session 取自一次性 capability，不能只信任输入 JSON。review writer 用 ffmpeg 抽取至少 start/interior/final 三帧并记录 PNG 字节 hash，同时生成结构化 accessibility 与 review evidence。release writer 会拒绝缺失、过期、自审、格式错误或字节不匹配的 evidence；只有全部 proof/evidence 当前且结构有效时，才生成绑定所有交付角色的 `release-manifest/v1` 和 receipt v2。
 
-## Verification
+## 原子性与资源边界
+
+各 writer 使用独占 `.video-delivery-journal.json`、唯一临时文件和 rename。只有完整成功后才回收 journal；报错或异常中断会留下 journal，`Stop` 会阻断完成态，直到操作者核对并清理半写入结果。
+
+项目 loader 对所有文件使用流式 SHA-256。二进制媒体不会被解码为 UTF-8，只有有界文本会载入合同模型。默认限制为 4096 个文件、单文件 8 GiB、单文本 4 MiB、最多 32 个视频项目；超过限制或读取期间发生变化均 fail closed。`SessionStart` 只做发现，Post/Failure/Stop 最多运行 120 秒且只哈希和校验，不启动编码器或 reviewer。
+
+## 验证与证明边界
 
 ```bash
 node --test plugins/video-project-delivery-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin video-project-delivery-guard
 ```
 
-The validator proves file and frame projections, actual media container/stream/dimension/duration facts, writer provenance inside the Hook trust boundary, evidence structure, and snapshot freshness. It does not automatically prove aesthetics, semantic subtitle accuracy, narrative quality, or content truthfulness; those remain reviewer conclusions recorded in the structured review.
+该机制在宿主可观察的 Tool/Hook 边界内建立 render → measure → independent-session review → release 的因果链，而不是操作系统沙箱。宿主不可见进程、被攻陷的项目自有 render script、被替换的系统 ffmpeg/ffprobe 或具备直接磁盘权限的操作者仍超出 `snapshot` profile。
 
-See [DESIGN.md](DESIGN.md) for ownership, trust, resource, and failure boundaries.
+校验器能证明文件与帧投影、实际 container/stream/尺寸/时长、Hook 信任边界内的 writer provenance、evidence 结构和 snapshot freshness；不能自动证明审美、叙事、字幕语义、内容真实性或真人身份。结构化 review 记录这些结论及 session provenance，但不等同于法律签名或真人身份认证。当前插件没有外部 Skill 依赖。

@@ -31,7 +31,19 @@ export default {
 };
 ```
 
-模式可以是 `block`、`report` 或 `off`。同一检查使用第一个匹配的 override；配置只能调整内置检查，不能定义新的内容扫描器。`0.1.0` 中的 `mergeConflict` 配置应迁移到 `.git-delivery-guards.mjs`。完整契约见 [DESIGN.md](./DESIGN.md)，也可以使用插件自带的 `source-sanity-guard-config` Skill 维护配置。
+模式可以是 `block`、`report` 或 `off`。同一检查使用第一个匹配的 override；配置只能调整内置检查，不能定义新的内容扫描器。`0.1.0` 中的 `mergeConflict` 配置应迁移到 `.git-delivery-guards.mjs`。也可以使用插件自带的 `source-sanity-guard-config` Skill 维护配置。
+
+## 设计与检查边界
+
+插件只负责不依赖外部工具、证据明确的写前源码卫生问题。技术债标记、类型抑制、格式化、语言 lint、依赖目录保护和未解决合并冲突由其他插件负责。
+
+`PreToolUse` 覆盖 `Edit`、`Write`、`MultiEdit`、`NotebookEdit` 和 `apply_patch`，不处理 shell 命令或 `PostToolUse`。`block` 在写前返回 `permissionDecision: deny`；`report` 只注入上下文。
+
+插件只从 Git 根加载 `.source-sanity-guard.mjs`。路径统一为仓库相对 POSIX 路径；每项检查使用第一个同时匹配路径并声明该检查的 override，之后依次回退顶层 `checks` 和默认值。非法字段警告后回退默认值，加载失败不取消内置保护。
+
+- 备份产物要求路径含常见源码根目录段，并以 `.bak`、`.backup`、`.old`、`.orig`、`.rej`、`.swp`、`.temp`、`.tmp` 或 `~` 结尾。
+- 乱码检查只扫描本次工具输入中待插入的文本。单个 `U+FFFD` 可能合法，不拦截；连续至少两个或累计至少三个才命中。
+- 第三方、生成、构建和缓存目录始终跳过，避免扫描不属于项目源码的产物。
 
 ## 验证
 
@@ -40,4 +52,4 @@ node --test plugins/source-sanity-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin source-sanity-guard
 ```
 
-Version: `0.2.0`
+版本：`0.2.0`

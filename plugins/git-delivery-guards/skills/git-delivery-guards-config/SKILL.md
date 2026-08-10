@@ -6,7 +6,7 @@ version: 0.2.0
 
 # git-delivery-guards-config
 
-Manage the Git-root `.git-delivery-guards.mjs` and `.ai-experts/commit-boundaries.json` consumed by `git-delivery-guards`. Read `../../DESIGN.md` before changing either interface.
+Manage the Git-root `.git-delivery-guards.mjs` and `.ai-experts/commit-boundaries.json` consumed by `git-delivery-guards`. Read `../../README.md` before changing either interface.
 
 ## Workflow
 

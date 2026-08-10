@@ -6,7 +6,7 @@ version: 0.2.0
 
 # language-output-governance-config
 
-Manage the Git-root `.language-output-governance.mjs` consumed by `language-output-governance`. Read `../../DESIGN.md` before changing the interface.
+Manage the Git-root `.language-output-governance.mjs` consumed by `language-output-governance`. Read `../../README.md` before changing the interface.
 
 ## Workflow
 

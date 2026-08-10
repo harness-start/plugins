@@ -6,7 +6,7 @@ version: 0.1.0
 
 # code-quality-guard-config
 
-Manage the Git-root `.code-quality-guard.mjs` consumed by `code-quality-guard`. Read the sibling `DESIGN.md` before editing configuration.
+Manage the Git-root `.code-quality-guard.mjs` consumed by `code-quality-guard`. Read the sibling `README.md` before editing configuration.
 
 ## Workflow
 
