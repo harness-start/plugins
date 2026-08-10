@@ -52,7 +52,10 @@ export function minimalPng(width = 1, height = 1) {
 
 function vector(role, width) {
   const id = `${role}-shape`;
-  return `<svg id="${role}-root" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} 100"><path id="${id}" d="M10 10H${width - 10}V90H10Z"/></svg>`;
+  const construction = role === "mark"
+    ? '<circle id="c3" cx="10" cy="10" r="6"/><circle id="c5" cx="14" cy="10" r="10"/><circle id="c8" cx="20" cy="10" r="16"/>'
+    : "";
+  return `<svg id="${role}-root" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} 100"><path id="${id}" d="M10 10H${width - 10}V90H10Z"/>${construction}</svg>`;
 }
 
 function component(role, width) {
@@ -92,6 +95,9 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
       { id: "mark-box", type: "rect", parameters: { x: 10, y: 10, width: 80, height: 80 } },
       { id: "wordmark-box", type: "rect", parameters: { x: 10, y: 10, width: 180, height: 80 } },
       { id: "lockup-box", type: "rect", parameters: { x: 10, y: 10, width: 280, height: 80 } },
+      { id: "c3", type: "circle", parameters: { cx: 10, cy: 10, r: 6 } },
+      { id: "c5", type: "circle", parameters: { cx: 14, cy: 10, r: 10 } },
+      { id: "c8", type: "circle", parameters: { cx: 20, cy: 10, r: 16 } },
     ],
     pathMappings: [
       { role: "mark", pathId: "mark-shape", primitiveIds: ["mark-box"] },
@@ -104,6 +110,20 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     masterDigest,
     sequence: [1, 1, 2, 3, 5, 8, 13],
     usage: "structural",
+    unit: 2,
+    tolerancePx: 1.5,
+    toleranceRatio: 0.08,
+    circles: [
+      { id: "c3", cx: 10, cy: 10, radiusUnits: 3 },
+      { id: "c5", cx: 14, cy: 10, radiusUnits: 5 },
+      { id: "c8", cx: 20, cy: 10, radiusUnits: 8 },
+    ],
+    spiral: { kind: "fibonacci-quarter-arcs", orderedCircleIds: ["c3", "c5", "c8"] },
+    pathBindings: [
+      { pathId: "mark-shape", role: "outline", circleId: "c3", feature: "center" },
+      { pathId: "mark-shape", role: "outline", circleId: "c5", feature: "rim" },
+      { pathId: "mark-shape", role: "turn", circleId: "c8", feature: "rim" },
+    ],
     anchors: [
       { id: "mark-outline-a", role: "mark", pathId: "mark-shape", primitiveId: "mark-box", kind: "outline", x: 10, y: 10, sequenceValue: 5 },
       { id: "mark-outline-b", role: "mark", pathId: "mark-shape", primitiveId: "mark-box", kind: "outline", x: 90, y: 90, sequenceValue: 8 },
@@ -119,9 +139,46 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     for (const [role, width] of [["mark", 100], ["wordmark", 200], ["lockup", 300]]) files[`dist/${variant}/${role}.svg`] = vector(role, width);
   }
   for (const role of ["mark", "wordmark", "lockup"]) files[`dist/primary/${role}.png`] = minimalPng(100, 100);
+  const stripPath = `evidence/preview/strip.${masterDigest}.png`;
+  const stripManifestPath = `evidence/preview/strip.${masterDigest}.manifest.json`;
+  const squintPath = `evidence/preview/squint.${masterDigest}.json`;
+  const strip = minimalPng(256, 256);
+  const stripDigest = sha256(strip);
+  const samples = [
+    { id: "black-16", row: "black", size: 16, locator: { bbox: [8, 8, 16, 16] } },
+    { id: "black-32", row: "black", size: 32, locator: { bbox: [32, 8, 32, 32] } },
+    { id: "black-64", row: "black", size: 64, locator: { bbox: [72, 8, 64, 64] } },
+    { id: "reverse-16", row: "reverse", size: 16, locator: { bbox: [8, 96, 16, 16] } },
+    { id: "reverse-32", row: "reverse", size: 32, locator: { bbox: [32, 96, 32, 32] } },
+    { id: "reverse-64", row: "reverse", size: 64, locator: { bbox: [72, 96, 64, 64] } },
+  ];
+  files[stripPath] = strip;
+  files[stripManifestPath] = JSON.stringify({ masterDigest, artifact: { sha256: stripDigest, kind: "image/png" }, samples });
+  files[squintPath] = JSON.stringify({
+    schemaVersion: 1,
+    masterDigest,
+    stripDigest,
+    method: "box-blur-threshold-connected-components",
+    pass: true,
+    observation: "Measured blur retains one dominant silhouette for every black and reverse sample.",
+    cells: samples.map((sample) => ({ ...sample, bbox: sample.locator.bbox, silhouetteIntact: true, density: 0.25, primaryShare: 0.9 })),
+  });
   const subjectDigest = computeLogoSubjectDigest(model);
   files["evidence.accessibility.json"] = JSON.stringify({ schema: "logo-project-delivery-guard/accessibility/v1", artifactId, subjectDigest, checks: [{ id: "minimum-size", status: "pass" }, { id: "contrast", status: "pass" }] });
-  files["review.logo.json"] = JSON.stringify({ schema: "logo-project-delivery-guard/review/v1", artifactId, subjectDigest, decision: "approved", checks: [{ id: "geometry", status: "pass" }, { id: "legibility", status: "pass" }, { id: "variants", status: "pass" }] });
+  files["review.logo.json"] = JSON.stringify({
+    schema: "logo-project-delivery-guard/review/v1",
+    artifactId,
+    subjectDigest,
+    masterDigest,
+    squintStripDigest: stripDigest,
+    decision: "approved",
+    checks: [{ id: "geometry", status: "pass" }, { id: "legibility", status: "pass" }, { id: "variants", status: "pass" }],
+    criteria: {
+      singleMemoryPoint: { score: 2, requiredMin: 2, note: "single orbital silhouette" },
+      opticalCraft: { score: 2, requiredMin: 2, note: "measured optical balance" },
+      markWordmarkSystem: { score: 2, requiredMin: 2, note: "shared geometric language" },
+    },
+  });
   files["release.manifest.json"] = JSON.stringify(createLogoReleaseManifest(model));
   files["receipt.release.json"] = JSON.stringify(createLogoReceipt(model));
   return model;

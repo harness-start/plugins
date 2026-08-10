@@ -92,6 +92,7 @@ Options:
   --claude-only           Only Claude Code
   --codex-only            Only Codex
   --ref <ref>             Git ref for Codex marketplace add (default: master)
+  --local <path>          Install from a local marketplace checkout (path to repo root)
   --scope <scope>         Claude install scope: user|project|local (default: user)
   --language <profile>    Default response profile: zh-CN|en-US|ja-JP|ko-KR|th-TH
   --dry-run               Print actions without running them
@@ -107,6 +108,7 @@ Environment:
   HARNESS_GIT_REF              default: master
   HARNESS_LANGUAGE_PROFILE     same as --language
   HARNESS_SKIP_SKILL_DEPS      set to 1 to skip skill-deps (same as --skip-skill-deps)
+  HARNESS_LOCAL_MARKETPLACE    absolute/relative path; same as --local
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
@@ -188,6 +190,10 @@ while [ "$#" -gt 0 ]; do
       GIT_REF="${2:?--ref requires a value}"
       shift 2
       ;;
+    --local)
+      MARKETPLACE_SOURCE="${2:?--local requires a path}"
+      shift 2
+      ;;
     --scope)
       CLAUDE_SCOPE="${2:?--scope requires a value}"
       shift 2
@@ -210,8 +216,24 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
+if [ -n "${HARNESS_LOCAL_MARKETPLACE:-}" ]; then
+  MARKETPLACE_SOURCE="${HARNESS_LOCAL_MARKETPLACE}"
+fi
+
 if [ "${HARNESS_SKIP_SKILL_DEPS:-0}" = "1" ]; then
   SKIP_SKILL_DEPS=1
+fi
+
+# Local marketplace path: absolute directory containing .claude-plugin/marketplace.json.
+# Used by project-level acceptance to install the checkout under test (not GitHub master).
+LOCAL_MARKETPLACE_PATH=""
+if [ -d "${MARKETPLACE_SOURCE}" ]; then
+  LOCAL_MARKETPLACE_PATH="$(cd "${MARKETPLACE_SOURCE}" && pwd)"
+  MARKETPLACE_SOURCE="${LOCAL_MARKETPLACE_PATH}"
+  if [ ! -f "${LOCAL_MARKETPLACE_PATH}/.claude-plugin/marketplace.json" ]; then
+    err "local marketplace missing .claude-plugin/marketplace.json: ${LOCAL_MARKETPLACE_PATH}"
+    exit 2
+  fi
 fi
 
 case "${CLAUDE_SCOPE}" in
@@ -316,10 +338,28 @@ resolve_plugins_from_codex_available() {
   ' | sed '/^$/d' | sort -u
 }
 
+resolve_plugins_from_marketplace_path() {
+  local root="$1"
+  local json
+  if [ ! -f "${root}/.claude-plugin/marketplace.json" ]; then
+    return 1
+  fi
+  json="$(cat "${root}/.claude-plugin/marketplace.json")"
+  parse_marketplace_plugin_names "${json}"
+}
+
 resolve_plugin_names() {
   local names=""
 
-  if names="$(resolve_plugins_from_github 2>/dev/null)" && [ -n "${names}" ]; then
+  # Prefer the local checkout catalog when installing from a path (project acceptance).
+  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
+    if names="$(resolve_plugins_from_marketplace_path "${LOCAL_MARKETPLACE_PATH}" 2>/dev/null)" && [ -n "${names}" ]; then
+      log "Plugin list from local marketplace ${LOCAL_MARKETPLACE_PATH}"
+    else
+      err "Failed to resolve plugins from local marketplace ${LOCAL_MARKETPLACE_PATH}"
+      return 1
+    fi
+  elif names="$(resolve_plugins_from_github 2>/dev/null)" && [ -n "${names}" ]; then
     log "Plugin list from GitHub marketplace.json (ref=${GIT_REF})"
   elif names="$(resolve_plugins_from_local_clone 2>/dev/null)" && [ -n "${names}" ]; then
     log "Plugin list from local .claude-plugin/marketplace.json"
@@ -448,6 +488,13 @@ claude_marketplace_present() {
 }
 
 ensure_claude_marketplace() {
+  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
+    # Local path: always re-add so the checkout under test is the source of truth.
+    log "Claude: adding local marketplace ${LOCAL_MARKETPLACE_PATH}"
+    run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || \
+      run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}" || true
+    return 0
+  fi
   if claude_marketplace_present; then
     log "Claude: updating marketplace ${MARKETPLACE_NAME}"
     run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}"
@@ -553,6 +600,13 @@ codex_marketplace_present() {
 }
 
 ensure_codex_marketplace() {
+  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
+    # Local path has no git ref; match host-acceptance local marketplace add.
+    log "Codex: adding local marketplace ${LOCAL_MARKETPLACE_PATH}"
+    run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json || \
+      run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true
+    return 0
+  fi
   if codex_marketplace_present; then
     log "Codex: upgrading marketplace ${MARKETPLACE_NAME}"
     run_cmd codex plugin marketplace upgrade "${MARKETPLACE_NAME}" --json
@@ -783,19 +837,24 @@ for i, item in enumerate(skills):
   return 1
 }
 
-# Load skill-deps for one plugin name. Prefer local clone, else GitHub raw.
+# Load skill-deps for one plugin name. Prefer local marketplace / clone, else GitHub raw.
 # Emits name<TAB>source lines to stdout. Missing file is not an error.
 load_skill_deps_for_plugin() {
   local plugin="$1"
   local root json url label
 
-  root="$(local_repo_root)"
+  root="${LOCAL_MARKETPLACE_PATH:-$(local_repo_root)}"
   label="plugins/${plugin}/skill-deps.json"
 
   if [ -f "${root}/plugins/${plugin}/skill-deps.json" ]; then
     json="$(cat "${root}/plugins/${plugin}/skill-deps.json")"
     parse_skill_deps_json "${json}" "${label}"
     return $?
+  fi
+
+  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
+    # Local install: absence means no community deps for this plugin.
+    return 0
   fi
 
   # shellcheck disable=SC2059
@@ -963,7 +1022,11 @@ sync_skill_deps() {
 
 main() {
   log "Harness Start installer"
-  log "Public source: https://github.com/harness-start/plugins (ref=${GIT_REF})"
+  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
+    log "Local marketplace: ${LOCAL_MARKETPLACE_PATH}"
+  else
+    log "Public source: https://github.com/harness-start/plugins (ref=${GIT_REF})"
+  fi
   log "Marketplace: ${MARKETPLACE_NAME}"
   log "Mode: detect installed marketplace plugins → remove → install catalog → skill-deps"
 

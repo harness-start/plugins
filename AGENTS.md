@@ -10,3 +10,11 @@
 - For substantial changes, follow contract → challenge or baseline → minimal change → targeted verification → complete verification → adversarial review → evidence report. Behavior-changing code requires an edited public-seam test and observed RED before production edits; refactors require a GREEN baseline.
 - Completion command evidence must follow the last mutation and run in the current user-prompt epoch. Missing workflow evidence permits only `blocked` or `needs_context`, not `done_with_concerns`.
 <!-- ai-experts:project-instructions:end -->
+
+## Host acceptance (mandatory container policy)
+
+- **Live acceptance must run inside the `docker/host-acceptance` container.** Do not run Claude Code / Codex live acceptance sessions on the host.
+- Entry points: `./scripts/acceptance/run.sh` (per-plugin) and `./scripts/acceptance/run-project.sh` (project scenarios). From the host these scripts **must** build/wrap Docker; there is no supported host-side live path.
+- Nested Docker wrap inside the acceptance image is rejected; inside the container set `ACCEPT_IN_CONTAINER=1` (entrypoint does this).
+- **Allowed on the host without Docker:** unit tests (`node --test …`), expect honesty gates (`--honesty-only` / `check-expect-honesty.sh`), and pure offline helpers that do not invoke `claude` / `codex` live sessions.
+- Details: `docs/host-acceptance.md`.

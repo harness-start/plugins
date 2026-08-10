@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   createLogoReceipt,
+  extractSvgCircles,
+  FIB_SEQUENCE,
   masterSubjectDigest,
   validateLogoModel,
   validateLogoReceipt,
@@ -38,12 +40,13 @@ test("rejects non-positive minimum size and unbound geometry or Fibonacci anchor
   const masterDigest = masterSubjectDigest(model);
   model.files["src/construction/standard-grid.json"] = JSON.stringify({ masterDigest, unit: 1, clearSpace: 1, minimumPixels: -999 });
   model.files["src/construction/geometry.json"] = JSON.stringify({ masterDigest, primitives: [{}], pathMappings: [{}] });
-  model.files["src/construction/fibonacci.json"] = JSON.stringify({ masterDigest, sequence: [1, 1, 2, 3, 5, 8, 13], usage: "structural", anchors: [{ kind: "outline" }, { kind: "outline" }, { kind: "turn" }] });
+  model.files["src/construction/fibonacci.json"] = JSON.stringify({ masterDigest, sequence: FIB_SEQUENCE, usage: "structural", anchors: [{ kind: "outline" }, { kind: "outline" }, { kind: "turn" }] });
 
   const codes = new Set(validateLogoModel(model, { stage: "release" }).map(({ code }) => code));
   assert.ok(codes.has("STANDARD_GRID_INVALID"));
   assert.ok(codes.has("GEOMETRY_MAPPING_INVALID"));
   assert.ok(codes.has("FIBONACCI_ANCHORS_INVALID"));
+  assert.ok(codes.has("FIBONACCI_CIRCLES_MISSING"));
 });
 
 test("rejects mappings to non-primitives, duplicate paths, and anchors bound to another path primitive", () => {
@@ -66,7 +69,7 @@ test("rejects fake concept previews, construction sheets, and final SVG or PNG o
   const model = validLogoModel();
   const conceptPreview = Object.keys(model.files).find((filePath) => /^src\/concepts\/.+\.png$/u.test(filePath));
   model.files[conceptPreview] = Buffer.from("not a png");
-  model.files["evidence/construction/standard." + masterSubjectDigest(model) + ".svg"] = "not an svg";
+  model.files[`evidence/construction/standard.${masterSubjectDigest(model)}.svg`] = "not an svg";
   model.files["dist/primary/mark.svg"] = "not an svg";
   model.files["dist/primary/mark.png"] = Buffer.from("not a png");
 
@@ -110,28 +113,22 @@ test("rejects a release variant that hides or transforms otherwise matching mast
   const model = validLogoModel();
   model.files["dist/mono/mark.svg"] = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><g transform=\"scale(0)\"><path id=\"mark-shape\" d=\"M10 10H90V90H10Z\"/></g></svg>";
 
-  const findings = validateLogoModel(model, { stage: "release" });
-  assert.ok(findings.some(({ code, path }) => ["RELEASE_SVG_INVALID", "RELEASE_GEOMETRY_MISMATCH"].includes(code) && path === "dist/mono/mark.svg"));
+  assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code, path }) => ["RELEASE_SVG_INVALID", "RELEASE_GEOMETRY_MISMATCH"].includes(code) && path === "dist/mono/mark.svg"));
 });
 
-test("rejects malformed SVG markup even when viewBox and path data look valid", () => {
-  const model = validLogoModel();
-  model.files["dist/primary/mark.svg"] = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path id=\"mark-shape\" d=\"M10 10H90V90H10Z\"></svg>";
+test("rejects malformed or non-renderable SVG geometry", () => {
+  const malformed = validLogoModel();
+  malformed.files["dist/primary/mark.svg"] = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><path id=\"mark-shape\" d=\"M10 10H90V90H10Z\"></svg>";
+  assert.ok(validateLogoModel(malformed, { stage: "release" }).some(({ code, path }) => code === "RELEASE_SVG_INVALID" && path === "dist/primary/mark.svg"));
 
-  assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code, path }) => code === "RELEASE_SVG_INVALID" && path === "dist/primary/mark.svg"));
-});
-
-test("rejects well-formed SVG markup with non-renderable primitive geometry", () => {
-  const model = validLogoModel();
-  model.files["build/master/mark.svg"] = '<svg viewBox="0 0 100 100"><path id="mark-shape" d="garbage"/></svg>';
-
-  assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code }) => code === "MASTER_SVG_INVALID"));
+  const nonRenderable = validLogoModel();
+  nonRenderable.files["build/master/mark.svg"] = '<svg viewBox="0 0 100 100"><path id="mark-shape" d="garbage"/></svg>';
+  assert.ok(validateLogoModel(nonRenderable, { stage: "release" }).some(({ code }) => code === "MASTER_SVG_INVALID"));
 });
 
 test("release receipt invalidates when built master or construction evidence changes", () => {
   const model = validLogoModel();
   assert.equal(validateLogoReceipt(model), true);
-
   model.files["build/master/mark.svg"] = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 2 2\"><path id=\"mark-shape\" d=\"M0 0H2V2Z\"/></svg>";
   assert.equal(validateLogoReceipt(model), false);
 
@@ -145,6 +142,67 @@ test("receipt cannot be self-issued over garbage outputs", () => {
   const model = validLogoModel();
   model.files["dist/primary/mark.svg"] = "garbage";
   model.files["receipt.release.json"] = JSON.stringify(createLogoReceipt(model));
-
   assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code }) => code === "RELEASE_SVG_INVALID"));
+});
+
+test("rejects concentric or schema-only Fibonacci construction", () => {
+  const concentric = validLogoModel({ stage: "source" });
+  const fibonacci = JSON.parse(concentric.files["src/construction/fibonacci.json"]);
+  fibonacci.circles = fibonacci.circles.map((circle) => ({ ...circle, cx: 40, cy: 40 }));
+  concentric.files["src/construction/fibonacci.json"] = JSON.stringify(fibonacci);
+  const concentricCodes = new Set(validateLogoModel(concentric, { stage: "source" }).map(({ code }) => code));
+  assert.ok(concentricCodes.has("FIBONACCI_SPIRAL_CONCENTRIC") || concentricCodes.has("FIBONACCI_SPIRAL_GEOMETRY_INVALID"));
+
+  const stub = validLogoModel({ stage: "source" });
+  stub.files["src/construction/fibonacci.json"] = JSON.stringify({ schema: "logo-project-delivery-guard/fibonacci/v1", masterDigest: masterSubjectDigest(stub), sequence: FIB_SEQUENCE, usage: "structural", anchors: [] });
+  const stubCodes = new Set(validateLogoModel(stub, { stage: "source" }).map(({ code }) => code));
+  assert.ok(stubCodes.has("FIBONACCI_CIRCLES_MISSING"));
+  assert.ok(stubCodes.has("FIBONACCI_SPIRAL_INVALID"));
+});
+
+test("rejects unrealized Fibonacci circles and radii outside the sequence", () => {
+  const unrealized = validLogoModel({ stage: "source" });
+  unrealized.files["build/master/mark.svg"] = '<svg viewBox="0 0 100 100"><path id="mark-shape" d="M0 0H10V10Z"/></svg>';
+  const unrealizedCodes = new Set(validateLogoModel(unrealized, { stage: "source" }).map(({ code }) => code));
+  assert.ok(unrealizedCodes.has("FIBONACCI_MARK_CIRCLE_UNREALIZED") || unrealizedCodes.has("FIBONACCI_BINDING_RIM_MISS"));
+
+  const wrongRadius = validLogoModel({ stage: "source" });
+  const fibonacci = JSON.parse(wrongRadius.files["src/construction/fibonacci.json"]);
+  fibonacci.circles[0].radiusUnits = 7;
+  wrongRadius.files["src/construction/fibonacci.json"] = JSON.stringify(fibonacci);
+  assert.ok(validateLogoModel(wrongRadius, { stage: "source" }).some(({ code }) => code === "FIBONACCI_RADIUS_NOT_IN_SEQUENCE"));
+});
+
+test("release requires measured squint evidence and passing aesthetic scores", () => {
+  const theater = validLogoModel();
+  const digest = masterSubjectDigest(theater);
+  const squintPath = `evidence/preview/squint.${digest}.json`;
+  const squint = JSON.parse(theater.files[squintPath]);
+  squint.method = "low-pass-proxy";
+  theater.files[squintPath] = JSON.stringify(squint);
+  theater.files["receipt.release.json"] = JSON.stringify(createLogoReceipt(theater));
+  assert.ok(validateLogoModel(theater, { stage: "release" }).some(({ code }) => code === "SQUINT_METHOD_INVALID"));
+
+  const missing = validLogoModel();
+  delete missing.files[`evidence/preview/squint.${masterSubjectDigest(missing)}.json`];
+  assert.ok(validateLogoModel(missing, { stage: "release" }).some(({ code }) => code === "REQUIRED_PATH_MISSING"));
+
+  const lowScore = validLogoModel();
+  const review = JSON.parse(lowScore.files["review.logo.json"]);
+  review.criteria.singleMemoryPoint.score = 0;
+  lowScore.files["review.logo.json"] = JSON.stringify(review);
+  assert.ok(validateLogoModel(lowScore, { stage: "release" }).some(({ code }) => code === "AESTHETIC_SCORE_BELOW_THRESHOLD"));
+});
+
+test("master changes stale preview bindings", () => {
+  const model = validLogoModel();
+  model.files["build/master/mark.svg"] = model.files["build/master/mark.svg"].replace("</svg>", '<circle cx="50" cy="50" r="1"/></svg>');
+  const codes = validateLogoModel(model, { stage: "release" }).map(({ code }) => code);
+  assert.ok(codes.some((code) => code.includes("PREVIEW") || code.includes("SQUINT") || code.includes("REVIEW") || code.includes("CONSTRUCTION")));
+});
+
+test("extractSvgCircles reads cx cy r", () => {
+  const circles = extractSvgCircles(`<svg><circle cx="10" cy="20" r="5"/><circle cx='1' cy='2' r='3'></circle></svg>`);
+  assert.equal(circles.length, 2);
+  assert.deepEqual(circles[0], { cx: 10, cy: 20, r: 5 });
 });

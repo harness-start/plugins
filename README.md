@@ -229,6 +229,10 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 ./scripts/acceptance/run.sh --plugin command-safety-guards  # 单个插件，Docker
 ./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
 bash scripts/acceptance/test-skill-deps-install.sh          # skill-deps 安装辅助（无 API）
+
+# 项目级场景：install-all 装全量插件 + 社区 skill，再 /goal 一把梭哈
+./scripts/acceptance/run-project.sh --honesty-only
+./scripts/acceptance/run-project.sh --case logo-design/01-goal-e2e-delivery --host claude
 ```
 
-详见 [宿主验收文档](docs/host-acceptance.md)。
+项目级用例见 `acceptance/scenarios/`；宿主验收说明见 [host-acceptance](docs/host-acceptance.md)。

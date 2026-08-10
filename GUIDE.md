@@ -1052,7 +1052,10 @@ plugins/<name>/skill-deps.json
 }
 ```
 
-`scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新。宿主验收 `scripts/acceptance` 在每个 live case 启动前也会读取**当前插件**的 `skill-deps.json`，用同样的 `npx skills add … --global` 把依赖装进 case 隔离 `HOME`（缓存目录：`.acceptance-runs/skill-deps-cache/`）。
+`scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新。宿主验收分两层：
+
+- **单插件** `scripts/acceptance/run.sh`：只装当前插件；并读取其 `skill-deps.json` 装进 case 隔离 `HOME`（缓存：`.acceptance-runs/skill-deps-cache/`）。
+- **项目级** `scripts/acceptance/run-project.sh`：对本地 checkout 执行 `install-all.sh --local <path>`，装**全部**插件与社区 skill，再跑 `acceptance/scenarios/<domain>/cases/` 场景（首例：LOGO `/goal` e2e）。
 
 用户安装路径：
 

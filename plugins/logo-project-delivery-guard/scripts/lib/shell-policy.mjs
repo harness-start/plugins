@@ -2,7 +2,7 @@ import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const TOOL_DIRECTORY = fileURLToPath(new URL("../tools/", import.meta.url));
-const WRITERS = new Set(["project-lint.mjs", "project-render.mjs", "project-release.mjs", "project-stage.mjs"]);
+const WRITERS = new Set(["project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-stage.mjs", "project-validate.mjs"]);
 const READ_ONLY = new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
 
 export function parseShellWords(command) {
@@ -45,6 +45,25 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (name === "project-release.mjs" && words.length !== 3) return null;
   if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3]))) return null;
   if (name === "project-stage.mjs" && (words.length !== 4 || words[3] !== "release")) return null;
+  if (name === "project-validate.mjs") {
+    const args = words.slice(3);
+    while (args.length > 0) {
+      const value = args.shift();
+      if (value === "--json") continue;
+      if (/^--stage=(?:source|release)$/u.test(value)) continue;
+      if (value === "--stage" && ["source", "release"].includes(args.shift())) continue;
+      return null;
+    }
+  }
+  if (name === "project-preview.mjs") {
+    const args = words.slice(3);
+    while (args.length > 0) {
+      const value = args.shift();
+      if (value === "--write-review") continue;
+      if (value === "--strip-tool" && args.length > 0 && !args.shift().startsWith("-")) continue;
+      return null;
+    }
+  }
   return { name, projectRoot };
 }
 
