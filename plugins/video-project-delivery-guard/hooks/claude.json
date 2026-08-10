@@ -33,7 +33,7 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" post",
             "statusMessage": "Revalidating Video artifact evidence",
-            "timeout": 10000
+            "timeout": 120000
           }
         ]
       }
@@ -46,7 +46,7 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" failure",
             "statusMessage": "Checking partial Video mutations",
-            "timeout": 10000
+            "timeout": 120000
           }
         ]
       }
@@ -58,7 +58,7 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Video artifact closure",
-            "timeout": 10000
+            "timeout": 120000
           }
         ]
       }
@@ -70,7 +70,7 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Video artifact closure",
-            "timeout": 10000
+            "timeout": 120000
           }
         ]
       }

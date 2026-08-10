@@ -9,3 +9,18 @@ test("video preset makes the owner rule mandatory for visual units", () => {
   assert.match(preset[0].files[0], /visual/u);
   assert.equal(typeof rule.create, "function");
 });
+
+test("owner rule rejects an aliased Audio import at the AST seam", () => {
+  const reports = [];
+  const listeners = rule.create({ report(value) { reports.push(value); } });
+  const node = {
+    type: "ImportDeclaration",
+    source: { value: "remotion" },
+    specifiers: [{ type: "ImportSpecifier", imported: { name: "Audio" }, local: { name: "Sound" } }],
+  };
+
+  listeners.ImportDeclaration(node);
+
+  assert.equal(reports.length, 1);
+  assert.equal(reports[0].messageId, "owner");
+});

@@ -1,45 +1,102 @@
 import { createHash } from "node:crypto";
+import { posix as path } from "node:path";
 
+export const RENDER_PROOF_SCHEMA = "video-project-delivery-guard/render-proof/v1";
+export const PROBE_SCHEMA = "video-project-delivery-guard/probe-evidence/v1";
+export const AUDIO_EVIDENCE_SCHEMA = "video-project-delivery-guard/audio-evidence/v1";
+export const FRAME_EVIDENCE_SCHEMA = "video-project-delivery-guard/frame-evidence/v1";
+export const ACCESSIBILITY_EVIDENCE_SCHEMA = "video-project-delivery-guard/accessibility-evidence/v1";
+export const VIDEO_REVIEW_SCHEMA = "video-project-delivery-guard/video-review/v1";
+export const RELEASE_MANIFEST_SCHEMA = "video-project-delivery-guard/release-manifest/v1";
+
+const PLUGIN = "video-project-delivery-guard";
+const STAGES = new Set(["source", "release"]);
 const VISUAL_SOURCE = /^v(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.tsx$/u;
 const AUDIO_SOURCE = /^a(?<index>[0-9]{3})-(?<role>music|voice|sfx|ambience)-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.audio\.json$/u;
-const GENERATED_PATH = /^(?:dist\/|evidence\.[^/]+\.json$|review\.video\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
-const VISUAL_OWNER = /(?:<\s*Audio\b|<\s*Composition\b|<\s*(?:Sequence|Series|TransitionSeries)\b|from\s+["']@remotion\/renderer["']|\b(?:fetch|setTimeout|setInterval)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|animation\s*:|https?:\/\/)/u;
-const RECEIPT_EXCLUDED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.video\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.video-delivery-journal\.json$)/u;
-const PROOF_PATH = /^src\/(?:visual\/.+\.mp4|audio\/.+\.wav)$/u;
+const GENERATED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.video\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.video-delivery-journal\.json$)/u;
+const PROOF_MEDIA_PATH = /^src\/(?:visual\/.+\.mp4|audio\/.+\.wav)$/u;
+const PROOF_RECORD_PATH = /^src\/(?:visual\/.+\.mp4\.proof\.json|audio\/.+\.wav\.proof\.json)$/u;
+const CAPABILITY_PATH = /^\.tmp\/video-guard\/capability\.video-(?:render|probe|review|release)\.json$/u;
+const VISUAL_OWNER = /(?:<\s*(?:Audio|Composition|Sequence|Series|TransitionSeries)\b|from\s+["']@remotion\/renderer["']|import\s*\(\s*["']@remotion\/renderer["']\s*\)|require\s*\(\s*["'](?:node:fs|node:child_process|@remotion\/renderer)["']\s*\)|\b(?:fetch|setTimeout|setInterval|XMLHttpRequest|WebSocket)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|animation\s*:|https?:\/\/)/u;
+const REQUIRED_PROJECT_PATHS = [
+  ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.storyboard.json",
+  "video.project.json", "src/index.ts", "src/Root.tsx", "src/Video.tsx",
+  "src/timelines/VisualTimeline.tsx", "src/timelines/AudioTimeline.tsx",
+  "src/visual/manifest.json", "src/audio/manifest.json",
+];
 
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
-const finding = (code, path, message) => ({ code, path, message });
+export const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const finding = (code, filePath, message) => ({ code, path: filePath, message });
+const hasFile = (model, filePath) => Object.prototype.hasOwnProperty.call(model?.files ?? {}, filePath);
 const fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
+const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const sixDigitHash = (value) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+
+function isGeneratedSubjectPath(filePath) {
+  return GENERATED_PATH.test(filePath) || PROOF_MEDIA_PATH.test(filePath) || PROOF_RECORD_PATH.test(filePath);
+}
 
 export function computeVideoSubjectDigest(model) {
-  const records = Object.entries(model?.files ?? {})
-    .filter(([filePath, value]) => typeof value === "string" && !RECEIPT_EXCLUDED_PATH.test(filePath) && !PROOF_PATH.test(filePath))
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([filePath]) => `${filePath}\0${fileDigest(model, filePath)}\n`)
+  const records = Object.keys(model?.digests ?? model?.files ?? {})
+    .filter((filePath) => !isGeneratedSubjectPath(filePath))
+    .sort((left, right) => left.localeCompare(right))
+    .map((filePath) => `${filePath}\0${fileDigest(model, filePath)}\n`)
     .join("");
   return sha256(records);
 }
 
-function videoOutputPaths(model) {
-  return [
-    `dist/${model.artifactId}.mp4`,
+export function visualProofPaths(sourcePath, source) {
+  const mediaPath = `${sourcePath.slice(0, -4)}.${sha256(source)}.mp4`;
+  return { mediaPath, proofPath: `${mediaPath}.proof.json` };
+}
+
+export function audioProofPaths(sourcePath, source) {
+  const mediaPath = `${sourcePath.slice(0, -11)}.${sha256(source)}.wav`;
+  return { mediaPath, proofPath: `${mediaPath}.proof.json` };
+}
+
+export function finalRenderPaths(model) {
+  const mediaPath = `dist/${model.artifactId}.mp4`;
+  return { mediaPath, proofPath: `${mediaPath}.proof.json` };
+}
+
+function manifestUnits(model, kind) {
+  try {
+    const parsed = JSON.parse(model?.files?.[`src/${kind}/manifest.json`] ?? "");
+    return Array.isArray(parsed?.units) ? parsed.units : [];
+  } catch { return []; }
+}
+
+export function releaseArtifactPaths(model) {
+  const paths = [];
+  for (const entry of manifestUnits(model, "visual")) {
+    const sourcePath = `src/visual/${entry?.source ?? ""}`;
+    if (typeof model?.files?.[sourcePath] === "string") paths.push(...Object.values(visualProofPaths(sourcePath, model.files[sourcePath])));
+  }
+  for (const entry of manifestUnits(model, "audio")) {
+    const sourcePath = `src/audio/${entry?.source ?? ""}`;
+    if (typeof model?.files?.[sourcePath] === "string") paths.push(...Object.values(audioProofPaths(sourcePath, model.files[sourcePath])));
+  }
+  paths.push(
+    ...Object.values(finalRenderPaths(model)),
     "evidence.probe.json",
     "evidence.frames.json",
     "evidence.audio.json",
     "evidence.accessibility.json",
     "review.video.json",
     "release.manifest.json",
-  ];
+  );
+  return [...new Set(paths)];
 }
 
 export function createVideoReceipt(model) {
   return {
-    schemaVersion: 1,
-    plugin: "video-project-delivery-guard",
+    schemaVersion: 2,
+    plugin: PLUGIN,
     artifactId: model?.artifactId,
     stage: "release",
     subjectDigest: computeVideoSubjectDigest(model),
-    outputs: Object.fromEntries(videoOutputPaths(model).map((filePath) => [filePath, fileDigest(model, filePath)])),
+    outputs: Object.fromEntries(releaseArtifactPaths(model).map((filePath) => [filePath, fileDigest(model, filePath)])),
   };
 }
 
@@ -53,29 +110,49 @@ export function validateVideoReceipt(model) {
       && actual?.stage === expected.stage
       && actual?.subjectDigest === expected.subjectDigest
       && JSON.stringify(actual?.outputs) === JSON.stringify(expected.outputs);
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-function parseJson(files, filePath, findings) {
+export function createVideoRenderProof(model, { kind, sourcePath = null, outputPath, media, script }) {
+  return {
+    schema: RENDER_PROOF_SCHEMA,
+    plugin: PLUGIN,
+    artifactId: model.artifactId,
+    kind,
+    subjectDigest: computeVideoSubjectDigest(model),
+    source: sourcePath ? { path: sourcePath, sha256: fileDigest(model, sourcePath) } : null,
+    output: { path: outputPath, sha256: fileDigest(model, outputPath) },
+    media,
+    writer: { capability: "video-render", script },
+  };
+}
+
+export function createVideoReleaseManifest(model) {
+  const outputs = releaseArtifactPaths(model).filter((filePath) => filePath !== "release.manifest.json");
+  return {
+    schema: RELEASE_MANIFEST_SCHEMA,
+    plugin: PLUGIN,
+    artifactId: model.artifactId,
+    subjectDigest: computeVideoSubjectDigest(model),
+    outputs: Object.fromEntries(outputs.map((filePath) => [filePath, fileDigest(model, filePath)])),
+  };
+}
+
+function parseJson(files, filePath, findings, code = "JSON_INVALID") {
   if (typeof files[filePath] !== "string") {
     findings.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
     return null;
   }
   try { return JSON.parse(files[filePath]); } catch {
-    findings.push(finding("JSON_INVALID", filePath, `${filePath} must contain valid JSON`));
+    findings.push(finding(code, filePath, `${filePath} must contain valid JSON`));
     return null;
   }
 }
 
 function validateRequired(files, findings) {
-  for (const filePath of [
-    ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.storyboard.json",
-    "video.project.json", "src/index.ts", "src/Root.tsx", "src/Video.tsx",
-    "src/timelines/VisualTimeline.tsx", "src/timelines/AudioTimeline.tsx",
-    "src/visual/manifest.json", "src/audio/manifest.json",
-  ]) if (!(filePath in files)) findings.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
+  for (const filePath of REQUIRED_PROJECT_PATHS) {
+    if (!(filePath in files)) findings.push(finding(filePath === "plan.contract.json" ? "PLAN_CONTRACT_MISSING" : "REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
+  }
 }
 
 function validateArtifactGitignore(files, findings) {
@@ -88,11 +165,107 @@ function validateArtifactGitignore(files, findings) {
   });
 }
 
+function validatePlan(model, stage, findings) {
+  const plan = parseJson(model.files, "plan.contract.json", findings, "PLAN_CONTRACT_INVALID");
+  if (plan && (!isObject(plan) || plan.artifactId !== model.artifactId || !STAGES.has(plan.targetStage))) findings.push(finding("PLAN_CONTRACT_INVALID", "plan.contract.json", "plan must bind artifactId and targetStage source|release"));
+  if (!STAGES.has(stage)) findings.push(finding("STAGE_INVALID", "plan.contract.json", "closure stage must be source or release"));
+}
+
+function validateProjectConfig(model, findings) {
+  const project = parseJson(model.files, "video.project.json", findings);
+  if (!isObject(project)) return;
+  if (project.artifactId !== model.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "video.project.json", "project artifactId must match directory id"));
+  for (const key of ["durationInFrames", "fps", "width", "height"]) if (!Number.isInteger(project[key]) || project[key] <= 0) findings.push(finding("VIDEO_PROJECT_INVALID", "video.project.json", `${key} must be a positive integer`));
+  if (typeof project.compositionId !== "string" || !project.compositionId.trim()) findings.push(finding("VIDEO_PROJECT_INVALID", "video.project.json", "compositionId must be a non-empty string"));
+}
+
+function validateToolchain(files, findings) {
+  const pkg = parseJson(files, "package.json", findings);
+  const lock = parseJson(files, "package-lock.json", findings);
+  const requiredDependencies = ["remotion", "@remotion/cli", "react", "react-dom"];
+  if (isObject(pkg)) {
+    const dependencies = { ...(pkg.dependencies ?? {}), ...(pkg.devDependencies ?? {}) };
+    for (const name of requiredDependencies) if (typeof dependencies[name] !== "string") findings.push(finding("REMOTION_TOOLCHAIN_INVALID", "package.json", `${name} must be pinned by the artifact package`));
+    for (const script of ["video:render:visual", "video:render:audio", "video:render:final"]) if (typeof pkg.scripts?.[script] !== "string" || !pkg.scripts[script].trim()) findings.push(finding("RENDER_SCRIPT_MISSING", "package.json", `${script} is required`));
+  }
+  if (isObject(lock) && (!Number.isInteger(lock.lockfileVersion) || !isObject(lock.packages))) findings.push(finding("PACKAGE_LOCK_INVALID", "package-lock.json", "npm lockfileVersion and packages map are required"));
+  else if (isObject(lock)) for (const name of requiredDependencies) if (typeof lock.packages[`node_modules/${name}`]?.version !== "string") findings.push(finding("PACKAGE_LOCK_DEPENDENCY_MISSING", "package-lock.json", `${name} must be present in the lockfile packages map`));
+}
+
+function validateEntrypoints(files, findings) {
+  const checks = [
+    ["src/index.ts", /registerRoot\s*\(/u, "registerRoot"],
+    ["src/Root.tsx", /<\s*Composition\b/u, "Composition"],
+    ["src/Video.tsx", /<\s*VisualTimeline\b/u, "VisualTimeline"],
+    ["src/Video.tsx", /<\s*AudioTimeline\b/u, "AudioTimeline"],
+    ["src/timelines/VisualTimeline.tsx", /visual\/manifest\.json/u, "visual manifest"],
+    ["src/timelines/AudioTimeline.tsx", /audio\/manifest\.json/u, "audio manifest"],
+  ];
+  for (const [filePath, pattern, label] of checks) if (typeof files[filePath] === "string" && !pattern.test(files[filePath])) findings.push(finding("REMOTION_ENTRYPOINT_INVALID", filePath, `${filePath} must wire ${label}`));
+}
+
 function interval(match, entry, duration, sourcePath, findings) {
   const start = Number(match.groups.start);
   const end = Number(match.groups.end);
   if (start !== entry.startFrame || end !== entry.endFrame) findings.push(finding("FRAME_PROJECTION_MISMATCH", sourcePath, "filename and manifest frame intervals must match"));
   if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start >= end || end > duration) findings.push(finding("FRAME_INTERVAL_INVALID", sourcePath, "frame interval must be a bounded half-open range"));
+}
+
+function relativeDependencies(files, sourcePath, visited = new Set()) {
+  if (visited.has(sourcePath)) return [];
+  visited.add(sourcePath);
+  const source = files[sourcePath];
+  if (typeof source !== "string") return [];
+  const closure = [{ path: sourcePath, source }];
+  for (const match of source.matchAll(/(?:from\s+|import\s*\()\s*["'](?<specifier>\.[^"']+)["']/gu)) {
+    const candidate = path.normalize(path.join(path.dirname(sourcePath), match.groups.specifier));
+    const paths = [candidate, `${candidate}.ts`, `${candidate}.tsx`, path.join(candidate, "index.ts"), path.join(candidate, "index.tsx")];
+    const resolved = paths.find((filePath) => typeof files[filePath] === "string");
+    if (resolved) closure.push(...relativeDependencies(files, resolved, visited));
+  }
+  return closure;
+}
+
+function ownerViolation(files, sourcePath) {
+  const forbidden = new Set(["Audio", "Composition", "Sequence", "Series", "TransitionSeries"]);
+  for (const { source } of relativeDependencies(files, sourcePath)) {
+    if (VISUAL_OWNER.test(source)) return true;
+    for (const match of source.matchAll(/import\s*\{(?<imports>[^}]+)\}\s*from\s*["']remotion["']/gu)) {
+      const names = match.groups.imports.split(",").map((part) => part.trim().split(/\s+as\s+/u)[0]);
+      if (names.some((name) => forbidden.has(name))) return true;
+    }
+    if (/import\s+\*\s+as\s+\w+\s+from\s*["']remotion["']/u.test(source)) return true;
+  }
+  return false;
+}
+
+function validRenderProof(model, { proofPath, kind, sourcePath, outputPath, startFrame, endFrame }) {
+  let proof;
+  try { proof = JSON.parse(model.files[proofPath] ?? ""); } catch { return false; }
+  const media = proof?.media;
+  const expectedFrames = endFrame - startFrame;
+  const outputOk = proof?.output?.path === outputPath && proof?.output?.sha256 === fileDigest(model, outputPath);
+  const sourceOk = sourcePath === null ? proof?.source === null : proof?.source?.path === sourcePath && proof?.source?.sha256 === fileDigest(model, sourcePath);
+  const videoFacts = media?.hasVideo === true && /(?:mp4|mov)/u.test(media?.format ?? "") && media?.width === model.project?.width && media?.height === model.project?.height;
+  const kindFacts = kind === "audio"
+    ? media?.hasVideo === false && media?.hasAudio === true && /wav/u.test(media?.format ?? "") && Number.isInteger(media?.sampleRate) && media.sampleRate > 0 && Number.isInteger(media?.channels) && media.channels > 0
+    : videoFacts && (kind === "visual" ? media?.hasAudio === false : media?.hasAudio === true);
+  return proof?.schema === RENDER_PROOF_SCHEMA
+    && proof?.plugin === PLUGIN
+    && proof?.artifactId === model.artifactId
+    && proof?.kind === kind
+    && proof?.subjectDigest === computeVideoSubjectDigest(model)
+    && sourceOk && outputOk
+    && proof?.writer?.capability === "video-render"
+    && proof?.writer?.script === `video:render:${kind === "final" ? "final" : kind}`
+    && typeof proof?.createdAt === "string"
+    && typeof proof?.sessionId === "string"
+    && proof.sessionId !== "unknown"
+    && typeof proof?.triggerFrom === "string"
+    && isObject(media)
+    && media.durationInFrames === expectedFrames
+    && media.fps === model.project?.fps
+    && kindFacts;
 }
 
 function validateVisual(model, entry, findings) {
@@ -103,9 +276,10 @@ function validateVisual(model, entry, findings) {
   interval(match, entry, model.project?.durationInFrames, sourcePath, findings);
   const source = model.files[sourcePath];
   if (typeof source !== "string") { findings.push(finding("VISUAL_SOURCE_MISSING", sourcePath, "visual source is missing")); return; }
-  const proof = `${sourcePath.slice(0, -4)}.${sha256(source)}.mp4`;
-  if (!(proof in model.files)) findings.push(finding("VISUAL_PROOF_MISSING", proof, "current source-hash muted MP4 proof is required"));
-  if (VISUAL_OWNER.test(source)) findings.push(finding("VISUAL_OWNER_VIOLATION", sourcePath, "visual unit may not own audio, composition, or global scheduling"));
+  const { mediaPath, proofPath } = visualProofPaths(sourcePath, source);
+  if (!hasFile(model, mediaPath)) findings.push(finding("VISUAL_PROOF_MISSING", mediaPath, "current source-hash muted MP4 proof is required"));
+  if (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "visual", sourcePath, outputPath: mediaPath, startFrame: entry.startFrame, endFrame: entry.endFrame })) findings.push(finding("VISUAL_RENDER_PROOF_INVALID", proofPath, "visual proof must carry a current structured render receipt"));
+  if (ownerViolation(model.files, sourcePath)) findings.push(finding("VISUAL_OWNER_VIOLATION", sourcePath, "visual unit closure may not own audio, composition, global scheduling, I/O, network, or wall-clock randomness"));
 }
 
 function validateAudio(model, entry, findings) {
@@ -117,47 +291,99 @@ function validateAudio(model, entry, findings) {
   const binding = parseJson(model.files, sourcePath, findings);
   if (!binding) return;
   if (binding.startFrame !== entry.startFrame || binding.endFrame !== entry.endFrame || binding.role !== entry.role) findings.push(finding("AUDIO_PROJECTION_MISMATCH", sourcePath, "audio binding and manifest must match"));
-  if (typeof binding.asset !== "string" || !binding.asset.startsWith("public/") || /^https?:/u.test(binding.asset)) findings.push(finding("AUDIO_ASSET_INVALID", sourcePath, "audio asset must be a registered local public path"));
-  const proof = `${sourcePath.slice(0, -11)}.${sha256(model.files[sourcePath])}.wav`;
-  if (!(proof in model.files)) findings.push(finding("AUDIO_PROOF_MISSING", proof, "current source-hash WAV proof is required"));
+  const normalizedAsset = typeof binding.asset === "string" ? path.normalize(binding.asset) : "";
+  if (!normalizedAsset.startsWith("public/") || normalizedAsset.includes("../") || normalizedAsset !== binding.asset) findings.push(finding("AUDIO_ASSET_INVALID", sourcePath, "audio asset must be a normalized path below public/"));
+  if (!normalizedAsset || !hasFile(model, normalizedAsset)) findings.push(finding("AUDIO_ASSET_MISSING", normalizedAsset || sourcePath, "registered audio asset must exist in the artifact"));
+  const { mediaPath, proofPath } = audioProofPaths(sourcePath, model.files[sourcePath]);
+  if (!hasFile(model, mediaPath)) findings.push(finding("AUDIO_PROOF_MISSING", mediaPath, "current source-hash WAV proof is required"));
+  if (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "audio", sourcePath, outputPath: mediaPath, startFrame: entry.startFrame, endFrame: entry.endFrame })) findings.push(finding("AUDIO_RENDER_PROOF_INVALID", proofPath, "audio proof must carry a current structured render receipt"));
 }
 
-export function validateVideoModel(model, { stage = "source" } = {}) {
+function validateManifest(entries, kind, findings) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    findings.push(finding(`${kind.toUpperCase()}_MANIFEST_INVALID`, `src/${kind}/manifest.json`, `${kind} manifest units must be a non-empty array`));
+    return;
+  }
+  const ids = new Set();
+  const sources = new Set();
+  entries.forEach((entry, offset) => {
+    if (entry?.index !== offset + 1 || typeof entry?.id !== "string" || !entry.id || ids.has(entry.id) || sources.has(entry?.source)) findings.push(finding(`${kind.toUpperCase()}_SEQUENCE_INVALID`, `src/${kind}/manifest.json`, `${kind} indexes, ids, and sources must be unique and contiguous`));
+    ids.add(entry?.id); sources.add(entry?.source);
+  });
+}
+
+function evidenceObject(model, filePath) {
+  try { const value = JSON.parse(model.files[filePath] ?? ""); return isObject(value) ? value : null; } catch { return null; }
+}
+
+function validEvidenceBase(model, value, schema) {
+  const finalPath = finalRenderPaths(model).mediaPath;
+  const expectedCapability = [PROBE_SCHEMA, AUDIO_EVIDENCE_SCHEMA].includes(schema) ? "video-probe" : "video-review";
+  return value?.schema === schema && value?.plugin === PLUGIN && value?.artifactId === model.artifactId && value?.subjectDigest === computeVideoSubjectDigest(model) && value?.output?.path === finalPath && value?.output?.sha256 === fileDigest(model, finalPath) && value?.capability === expectedCapability && typeof value?.createdAt === "string" && typeof value?.sessionId === "string" && value.sessionId !== "unknown" && typeof value?.triggerFrom === "string";
+}
+
+function validateReleaseEvidence(model, findings) {
+  const { mediaPath, proofPath } = finalRenderPaths(model);
+  if (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "final", sourcePath: null, outputPath: mediaPath, startFrame: 0, endFrame: model.project?.durationInFrames })) findings.push(finding("FINAL_RENDER_PROOF_INVALID", proofPath, "final MP4 requires a current structured render proof"));
+  const probe = evidenceObject(model, "evidence.probe.json");
+  if (!validEvidenceBase(model, probe, PROBE_SCHEMA) || !isObject(probe?.video) || probe.video.durationInFrames !== model.project?.durationInFrames || probe.video.fps !== model.project?.fps || probe.video.width !== model.project?.width || probe.video.height !== model.project?.height || probe.video.hasVideo !== true || probe.video.hasAudio !== true || !/(?:mp4|mov)/u.test(probe.video.format ?? "")) findings.push(finding("PROBE_EVIDENCE_INVALID", "evidence.probe.json", "probe evidence must bind measured final-video facts"));
+  const audio = evidenceObject(model, "evidence.audio.json");
+  if (!validEvidenceBase(model, audio, AUDIO_EVIDENCE_SCHEMA) || audio?.audio?.present !== true || !Number.isInteger(audio?.audio?.sampleRate) || audio.audio.sampleRate <= 0 || !Number.isInteger(audio?.audio?.channels) || audio.audio.channels <= 0 || audio?.audio?.durationInFrames !== model.project?.durationInFrames) findings.push(finding("AUDIO_EVIDENCE_INVALID", "evidence.audio.json", "audio evidence must bind a measured audio stream"));
+  const frames = evidenceObject(model, "evidence.frames.json");
+  const frameList = Array.isArray(frames?.frames) ? frames.frames : [];
+  const frameIndexes = frameList.map((item) => item?.frame);
+  if (!validEvidenceBase(model, frames, FRAME_EVIDENCE_SCHEMA) || frames?.tool?.name !== "ffmpeg" || typeof frames?.tool?.version !== "string" || !frames.tool.version || frameList.length < 3 || !frameList.every((item) => Number.isInteger(item?.frame) && item.frame >= 0 && item.frame < model.project?.durationInFrames && sixDigitHash(item?.sha256)) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes(model.project?.durationInFrames - 1)) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, and final extracted frame hashes"));
+  const accessibility = evidenceObject(model, "evidence.accessibility.json");
+  if (!validEvidenceBase(model, accessibility, ACCESSIBILITY_EVIDENCE_SCHEMA) || accessibility?.verdict !== "pass" || !sixDigitHash(accessibility?.reviewInputSha256) || !["captionsReviewed", "flashingReviewed", "contrastReviewed"].every((key) => accessibility?.checks?.[key] === true)) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", "evidence.accessibility.json", "accessibility evidence requires explicit passing checks"));
+  const review = evidenceObject(model, "review.video.json");
+  const finalProof = evidenceObject(model, proofPath);
+  if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || !["human", "independent-agent"].includes(review?.reviewer?.kind) || typeof review?.reviewer?.id !== "string" || typeof review?.reviewer?.sessionId !== "string" || review?.reviewer?.sessionId !== review?.sessionId || review?.reviewer?.sessionId === finalProof?.sessionId || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json")) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be an independent passing review bound to frame and accessibility evidence"));
+  const manifest = evidenceObject(model, "release.manifest.json");
+  const expectedManifest = createVideoReleaseManifest(model);
+  if (JSON.stringify(manifest) !== JSON.stringify(expectedManifest)) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind the current subject and every delivery output"));
+}
+
+export function validateVideoModel(model, { stage } = {}) {
   const findings = [];
   const files = model?.files ?? {};
-  if (".video-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".video-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(model?.artifactId ?? "")) findings.push(finding("ARTIFACT_DIRECTORY_INVALID", ".", "video artifact directory must use a kebab-case id"));
+  if (hasFile(model, ".video-delivery-journal.json")) findings.push(finding("MUTATION_JOURNAL_OPEN", ".video-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
   validateRequired(files, findings);
   validateArtifactGitignore(files, findings);
-  if (model?.project?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "video.project.json", "project artifactId must match directory id"));
-  const duration = model?.project?.durationInFrames;
-  if (!Number.isInteger(duration) || duration <= 0) findings.push(finding("DURATION_INVALID", "video.project.json", "durationInFrames must be a positive integer"));
+  validatePlan(model, stage, findings);
+  validateProjectConfig(model, findings);
+  validateToolchain(files, findings);
+  validateEntrypoints(files, findings);
   const visualManifest = parseJson(files, "src/visual/manifest.json", findings);
   const audioManifest = parseJson(files, "src/audio/manifest.json", findings);
   const visual = Array.isArray(visualManifest?.units) ? visualManifest.units : [];
   const audio = Array.isArray(audioManifest?.units) ? audioManifest.units : [];
-  visual.forEach((entry, offset) => {
-    if (entry?.index !== offset + 1) findings.push(finding("VISUAL_SEQUENCE_INVALID", "src/visual/manifest.json", "visual indexes must be contiguous"));
-    validateVisual(model, entry, findings);
-  });
-  audio.forEach((entry, offset) => {
-    if (entry?.index !== offset + 1) findings.push(finding("AUDIO_SEQUENCE_INVALID", "src/audio/manifest.json", "audio indexes must be contiguous"));
-    validateAudio(model, entry, findings);
-  });
+  validateManifest(visual, "visual", findings);
+  validateManifest(audio, "audio", findings);
+  visual.forEach((entry) => validateVisual(model, entry, findings));
+  audio.forEach((entry) => validateAudio(model, entry, findings));
   if (stage === "release") {
-    for (const filePath of [...videoOutputPaths(model), "receipt.release.json"]) {
-      if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
-    }
-    if ("receipt.release.json" in files && !validateVideoReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current video sources and outputs"));
+    for (const filePath of [...releaseArtifactPaths(model), "receipt.release.json"]) if (!hasFile(model, filePath)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
+    validateReleaseEvidence(model, findings);
+    if (hasFile(model, "receipt.release.json") && !validateVideoReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current video sources and outputs"));
   }
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
 
+const WRITER_PATHS = {
+  "video-render": /^(?:src\/visual\/.*\.mp4(?:\.proof\.json)?|src\/audio\/.*\.wav(?:\.proof\.json)?|dist\/[^/]+\.mp4(?:\.proof\.json)?)$/u,
+  "video-probe": /^evidence\.(?:probe|audio)\.json$/u,
+  "video-review": /^(?:evidence\.(?:frames|accessibility)\.json|review\.video\.json)$/u,
+  "video-release": /^(?:release\.manifest\.json|receipt\.release\.json|\.video-delivery-journal\.json)$/u,
+};
+
 export function evaluateVideoWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
-  const normalized = relativePath.replaceAll("\\", "/");
+  const normalized = String(relativePath).replaceAll("\\", "/");
   const match = normalized.match(/(?:^|\/)artifacts\/video\/[^/]+\/(?<inside>.+)$/u);
   if (!match) return { decision: "allow" };
   const inside = match.groups.inside;
-  const proof = /^(?:src\/visual\/.*\.mp4|src\/audio\/.*\.wav)$/u.test(inside);
-  if ((GENERATED_PATH.test(inside) || proof) && !writer.startsWith("video-")) return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a video guard tool, not ${toolName || "an unregistered tool"}` };
-  return { decision: "allow" };
+  const protectedPath = GENERATED_PATH.test(inside) || PROOF_MEDIA_PATH.test(inside) || PROOF_RECORD_PATH.test(inside) || CAPABILITY_PATH.test(inside);
+  if (!protectedPath) return { decision: "allow" };
+  if (WRITER_PATHS[writer]?.test(inside)) return { decision: "allow", capability: writer };
+  return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} requires its exact video writer capability, not ${toolName || "an unregistered tool"}` };
 }
