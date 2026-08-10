@@ -1,0 +1,93 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" session-start",
+            "statusMessage": "Compact Journal: restoring recovery card",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" user-prompt",
+            "statusMessage": "Compact Journal: recording submitted prompt",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" pre-compact",
+            "statusMessage": "Compact Journal: checkpointing before compact",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" post-compact",
+            "statusMessage": "Compact Journal: capturing compact summary",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" pre-tool",
+            "statusMessage": "Compact Journal: enforcing recovery and append-only protection",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" post-tool",
+            "statusMessage": "Compact Journal: confirming recovery receipt",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/compact-context-journal.mjs\" stop",
+            "statusMessage": "Compact Journal: checking recovery receipt",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
