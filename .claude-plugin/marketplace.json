@@ -160,6 +160,11 @@
       "name": "work-report-insights",
       "source": "./plugins/work-report-insights",
       "description": "Creates guided daily, weekly, and range work reports from local transcripts, then protects confirmed bodies with SHA-256 seals and append-only additions."
+    },
+    {
+      "name": "project-capability-governance",
+      "source": "./plugins/project-capability-governance",
+      "description": "Captures qualified project capability proposals through a recorder subagent and guides human-confirmed project-local adoption without blocking ordinary work."
     }
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "name": "project-capability-governance",
+  "version": "0.1.0",
+  "description": "Captures qualified project capability proposals through a recorder subagent, notifies humans without blocking work, and guides project-local capability adoption.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Project Capability Governance",
+    "shortDescription": "Review and land project-local agent capabilities.",
+    "longDescription": "Capture qualified SOP, instruction, Skill, and Hook proposals through a dedicated recorder subagent, then review and land them in the current project's Claude Code and Codex configuration.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": [
+      "Review pending project capability proposals.",
+      "Decide whether this project needs the proposed Skill.",
+      "Audit and land one project-local capability."
+    ]
+  }
+}
