@@ -1,0 +1,4 @@
+id = "01-protect-session-journal"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["compact", "journal", "prompt", "pre-tool", "deny"]

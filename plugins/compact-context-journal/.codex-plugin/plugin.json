@@ -1,0 +1,16 @@
+{
+  "name": "compact-context-journal",
+  "version": "0.1.0",
+  "description": "Append-only session journal and verified recovery gate for stable behavior after context compact.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Compact Context Journal",
+    "shortDescription": "Recover admitted requirements after context compact.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}
