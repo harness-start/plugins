@@ -327,6 +327,12 @@
       "source": {"source": "local", "path": "./plugins/tonejs-music-production"},
       "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
       "category": "Productivity"
+    },
+    {
+      "name": "work-report-insights",
+      "source": {"source": "local", "path": "./plugins/work-report-insights"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
     }
   ]
 }

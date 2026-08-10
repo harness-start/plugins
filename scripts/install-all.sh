@@ -59,6 +59,7 @@ FALLBACK_PLUGINS=(
   logo-project-delivery-guard
   print-publication-delivery-guard
   tonejs-music-production
+  work-report-insights
 )
 
 DO_CLAUDE=1

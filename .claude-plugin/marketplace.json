@@ -155,6 +155,11 @@
       "name": "tonejs-music-production",
       "source": "./plugins/tonejs-music-production",
       "description": "Creates deterministic mathematical Tone.js compositions with offline WAV proofs, listening review, audio metrics, and release receipts."
+    },
+    {
+      "name": "work-report-insights",
+      "source": "./plugins/work-report-insights",
+      "description": "Creates guided daily, weekly, and range work reports from local transcripts, then protects confirmed bodies with SHA-256 seals and append-only additions."
     }
   ]
 }

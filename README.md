@@ -125,6 +125,7 @@ codex plugin add <name>@harness-start --json
 | `print-publication-delivery-guard` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
 | `video-project-delivery-guard` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
 | `tonejs-music-production` | 用确定性数学模型生成并优化 Tone.js 乐谱，离线渲染 WAV，并绑定听审、音频指标与 release receipt |
+| `work-report-insights` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
 
 ## 前置条件
 

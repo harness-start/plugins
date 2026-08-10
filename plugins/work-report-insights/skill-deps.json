@@ -1,0 +1,9 @@
+{
+  "skills": [
+    {
+      "name": "grill-me",
+      "source": "https://github.com/mattpocock/skills",
+      "description": "Runs a low-effort, one-question-at-a-time interview before a work report is confirmed."
+    }
+  ]
+}

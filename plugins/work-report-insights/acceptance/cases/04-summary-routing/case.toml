@@ -1,0 +1,4 @@
+id = "04-summary-routing"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["user-prompt", "summary-report", "routing"]
