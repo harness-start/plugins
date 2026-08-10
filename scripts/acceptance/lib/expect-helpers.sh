@@ -48,6 +48,38 @@ require_guard_hook_signal() {
   fi
 }
 
+# require_hook_prompt_signal <regex>
+# Claude includes command-hook output in its debug log. Codex stores blocking
+# Stop details as a structured user hook_prompt in the rollout JSONL.
+require_hook_prompt_signal() {
+  local re="${1:?hook prompt regex required}"
+  if [ "${ACCEPT_HOST:-}" = "claude" ]; then
+    if grep -Eq "${re}" "${ACCEPT_LOG}"; then
+      return 0
+    fi
+  elif [ "${ACCEPT_HOST:-}" = "codex" ]; then
+    local rollout
+    while IFS= read -r -d '' rollout; do
+      if jq -se --arg re "${re}" '
+        any(.[ ];
+          .type == "response_item"
+          and .payload.type == "message"
+          and .payload.role == "user"
+          and any(.payload.content[]?;
+            .type == "input_text"
+            and (.text | startswith("<hook_prompt"))
+            and (.text | test($re))
+          )
+        )
+      ' "${rollout}" >/dev/null 2>&1; then
+        return 0
+      fi
+    done < <(find "${ACCEPT_OUT:?}/codex-home/sessions" -type f -name '*.jsonl' -print0 2>/dev/null)
+  fi
+  echo "expect fail: no structured hook prompt signal matching: ${re}" >&2
+  return 1
+}
+
 # require_session_context_signal <regex>
 # SessionStart context is surfaced differently by each host. Claude logs the
 # hook response; Codex records the injected developer message in its rollout.

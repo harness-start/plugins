@@ -88,7 +88,7 @@ container as `/out`:
 ## Image
 
 - Dockerfile: `docker/host-acceptance/Dockerfile`
-- Pins Claude Code + Codex, Node 20, git, jq, php-cli, composer
+- Pins Claude Code + Codex, Node 20, ffmpeg/ffprobe, git, jq, php-cli, composer
 - Entrypoint: `docker/host-acceptance/entrypoint.sh` → `scripts/acceptance/run.sh`
 - Models: `docker/host-acceptance/models.json` (Codex DeepSeek provider)
 - **Non-root only**: Claude rejects `--dangerously-skip-permissions` when running
@@ -106,7 +106,6 @@ docker build -t harness-host-acceptance:local \
   -f docker/host-acceptance/Dockerfile \
   docker/host-acceptance
 ```
-
 
 ## Case layout
 
@@ -127,6 +126,14 @@ Environment for `expect.sh`:
 | `ACCEPT_HOST` | `claude` or `codex` |
 | `ACCEPT_PLUGIN` | Plugin name |
 | `HOME` / `PLUGIN_DATA` / `CLAUDE_PLUGIN_DATA` | Isolated per case |
+
+When a blocking Hook intentionally terminates or holds the host loop,
+`case.toml` may declare `allowed_host_exits_<host>` (for example
+`allowed_host_exits_codex = [0, 1, 124]`).
+The exit code is accepted only after `expect.sh` independently proves the
+structured Hook signal and disk outcome. Codex Stop details are read from the
+rollout's structured `<hook_prompt>` message rather than inferred from a flat
+`hook: Stop Blocked` line.
 
 ## Host configuration (inside the image)
 

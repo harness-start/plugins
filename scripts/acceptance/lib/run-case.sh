@@ -45,6 +45,7 @@ mkdir -p "${CASE_OUT}/workspace" "${CASE_OUT}/home"
 
 copy_workspace "${CASE_DIR}" "${CASE_OUT}/workspace"
 TIMEOUT_SEC="$(read_case_timeout "${CASE_DIR}")"
+ALLOWED_HOST_EXITS="$(read_case_allowed_host_exits "${CASE_DIR}" "${HOST}")"
 LOG_FILE="${CASE_OUT}/host.log"
 STATUS_FILE="${CASE_OUT}/status.txt"
 
@@ -109,6 +110,7 @@ else
 fi
 
 printf 'host_exit=%s\n' "${HOST_EXIT}" >"${STATUS_FILE}"
+printf 'allowed_host_exits=%s\n' "${ALLOWED_HOST_EXITS}" >>"${STATUS_FILE}"
 printf 'model=%s\n' "${DEEPSEEK_MODEL}" >>"${STATUS_FILE}"
 printf 'host=%s\n' "${HOST}" >>"${STATUS_FILE}"
 
@@ -130,7 +132,7 @@ EXPECT_EXIT=$?
 set -e
 printf 'expect_exit=%s\n' "${EXPECT_EXIT}" >>"${STATUS_FILE}"
 
-if [ "${EXPECT_EXIT}" -eq 0 ] && [ "${HOST_EXIT}" -eq 0 ]; then
+if [ "${EXPECT_EXIT}" -eq 0 ] && host_exit_is_allowed "${HOST_EXIT}" "${ALLOWED_HOST_EXITS}"; then
   printf 'RESULT=PASS\n' >>"${STATUS_FILE}"
   printf 'PASS %s\n' "${RUN_ID}"
   exit 0

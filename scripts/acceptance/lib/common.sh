@@ -101,6 +101,34 @@ read_case_timeout() {
   fi
 }
 
+read_case_allowed_host_exits() {
+  local case_dir="$1"
+  local host="$2"
+  local toml="${case_dir}/case.toml"
+  local key="allowed_host_exits_${host}"
+  local values=""
+  if [ -f "${toml}" ]; then
+    values="$(sed -n "s/.*${key}[[:space:]]*=[[:space:]]*\[\([^]]*\)\].*/\1/p" "${toml}" | head -1 | tr ',' ' ' | tr -s ' ')"
+  fi
+  if [ -n "${values// /}" ]; then
+    printf '%s\n' "${values}"
+  else
+    printf '0\n'
+  fi
+}
+
+host_exit_is_allowed() {
+  local actual="$1"
+  local allowed="$2"
+  local candidate
+  for candidate in ${allowed}; do
+    if [ "${candidate}" = "${actual}" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 copy_workspace() {
   local case_dir="$1"
   local dest="$2"
