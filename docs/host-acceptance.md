@@ -8,6 +8,11 @@ with the plugin installed, and assert **post-session world state / host logs**.
 
 This is **not** unit-testing hook scripts via stdin.
 
+Each case installs **only** the plugin under test (not the full marketplace
+catalog). If that plugin declares `skill-deps.json`, the harness also installs
+those community skills into the isolated case `HOME` so Claude Code / Codex can
+load them the same way a user install via `install-all.sh` would.
+
 ## Policy: Docker only
 
 **Live host acceptance (Claude / Codex sessions) must run inside the
@@ -142,7 +147,23 @@ rollout's structured `<hook_prompt>` message rather than inferred from a flat
   `--plugin-dir`, `--dangerously-skip-permissions`.
 - **Codex**: `model_provider=deepseek`, Responses API base `https://api.deepseek.com/`,
   `models.json` from `docker/host-acceptance/models.json`,
-  `--dangerously-bypass-hook-trust`, marketplace install of the plugin.
+  `--dangerously-bypass-hook-trust`, marketplace install of the **single** plugin under test.
+- **skill-deps**: before each host session, `run-case.sh` reads
+  `plugins/<name>/skill-deps.json` (if present) and installs those community
+  skills into the **case-isolated HOME** via `npx skills add … --global`
+  (same sources as `install-all.sh`). Results are cached under
+  `.acceptance-runs/skill-deps-cache/<plugin>/` keyed by the manifest SHA-256.
+  Missing `skill-deps.json` is a no-op; invalid manifests or install failures
+  fail the case before the host starts. Emergency opt-out:
+  `ACCEPT_SKIP_SKILL_DEPS=1` (not for default live suites).
+
+Offline helper coverage (no API key):
+
+```bash
+bash scripts/acceptance/test-skill-deps-install.sh
+# optional live npx install smoke:
+ACCEPT_TEST_NETWORK=1 bash scripts/acceptance/test-skill-deps-install.sh
+```
 
 ## Adding a case
 

@@ -66,6 +66,19 @@ mkdir -p "${CLAUDE_PLUGIN_DATA}" "${PLUGIN_DATA}" "${HOME}/.harness-start/hook-s
 
 printf '==> %s / %s / %s (timeout=%ss)\n' "${PLUGIN}" "${CASE_ID}" "${HOST}" "${TIMEOUT_SEC}"
 
+# Community skill-deps must land in the isolated case HOME before the host
+# session starts (same deps install-all.sh would install globally for users).
+SKILL_DEPS_CACHE="${REPO_ROOT}/.acceptance-runs/skill-deps-cache"
+if ! install_plugin_skill_deps "${PLUGIN_DIR}" "${HOME}" "${SKILL_DEPS_CACHE}" "${HOST}"; then
+  printf 'skill-deps install failed for %s\n' "${PLUGIN}" >&2
+  printf 'RESULT=FAIL\n' >"${STATUS_FILE}"
+  printf 'skill_deps=fail\n' >>"${STATUS_FILE}"
+  printf 'expect_exit=n/a\n' >>"${STATUS_FILE}"
+  printf 'host_exit=n/a\n' >>"${STATUS_FILE}"
+  printf 'FAIL %s (skill-deps install)\n' "${RUN_ID}" >&2
+  exit 1
+fi
+
 HOST_EXIT=0
 if [ "${HOST}" = "claude" ]; then
   require_cmd claude
@@ -111,6 +124,7 @@ fi
 
 printf 'host_exit=%s\n' "${HOST_EXIT}" >"${STATUS_FILE}"
 printf 'allowed_host_exits=%s\n' "${ALLOWED_HOST_EXITS}" >>"${STATUS_FILE}"
+printf 'skill_deps=ok\n' >>"${STATUS_FILE}"
 printf 'model=%s\n' "${DEEPSEEK_MODEL}" >>"${STATUS_FILE}"
 printf 'host=%s\n' "${HOST}" >>"${STATUS_FILE}"
 
