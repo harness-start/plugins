@@ -94,7 +94,6 @@ codex plugin add <name>@harness-start --json
 | 插件 | 说明 |
 | --- | --- |
 | `research-provenance-guard` | 通过 `research-evidence-workflow` 编排硬研究：项目工作流、MCP 捕获与 anchor、typed claim、seal 和 seal 后 handoff |
-| `artifact-evidence-guard` | 在 `Stop` 校验明确声明的 artifact 路径、大小、SHA-256 与格式；证据缺失或无法确定时 fail-open |
 | `git-state-evidence-guard` | 在 `Stop` 校验明确声明的 HEAD、分支或 detached 状态及工作树清洁状态；证据缺失或无法确定时 fail-open |
 | `execution-loop-guard` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
 | `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
