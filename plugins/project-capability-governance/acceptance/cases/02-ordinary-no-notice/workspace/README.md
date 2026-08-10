@@ -1,0 +1,1 @@
+# Ordinary capability fixture
