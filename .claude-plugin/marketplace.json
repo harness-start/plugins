@@ -67,6 +67,11 @@
       "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
     },
     {
+      "name": "compact-context-journal",
+      "source": "./plugins/compact-context-journal",
+      "description": "Persists admitted requirements in a protected append-only journal and verifies recovery after context compact."
+    },
+    {
       "name": "subagent-workflow-guard",
       "source": "./plugins/subagent-workflow-guard",
       "description": "Provides application-first handoff, hook-backed gates on capable hosts, and sealed implementation-review closure."
