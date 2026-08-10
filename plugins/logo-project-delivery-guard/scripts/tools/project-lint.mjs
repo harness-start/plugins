@@ -4,9 +4,11 @@ import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createPreset } from "../../eslint/preset.mjs";
+import { assertLogoProjectRoot } from "../lib/project.mjs";
 
 async function main() {
   const root = resolve(process.argv[2] ?? "");
+  await assertLogoProjectRoot(root);
   const projectRequire = createRequire(join(root, "package.json"));
   let eslintEntry;
   let parserEntry;

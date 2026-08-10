@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
-import { basename, join, relative, resolve } from "node:path";
+import { access } from "node:fs/promises";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { evaluateLogoWrite, validateLogoModel } from "./lib/contract.mjs";
+import { findLogoProjects, loadLogoProject, resolveWorkspaceRoot } from "./lib/project.mjs";
+import { evaluateLogoShell } from "./lib/shell-policy.mjs";
 
 async function readEvent() {
   let raw = "";
@@ -17,12 +18,23 @@ const inputOf = (event) => event?.tool_input ?? event?.toolInput ?? event?.tool?
 const nameOf = (event) => event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
 const cwdOf = (event) => resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
 
+function objectTargets(input) {
+  if (!input || typeof input !== "object") return [];
+  const targets = [];
+  for (const key of [
+    "file_path", "filePath", "path", "target_file", "output_file", "outputFile", "notebook_path", "notebookPath",
+    "source_path", "sourcePath", "destination_path", "destinationPath", "old_path", "oldPath", "new_path", "newPath",
+  ]) if (typeof input[key] === "string") targets.push(input[key]);
+  if (Array.isArray(input.edits)) for (const edit of input.edits) targets.push(...objectTargets(edit));
+  return targets;
+}
+
 function targetsOf(event) {
   const input = inputOf(event);
-  const targets = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "outputFile"]) if (typeof input?.[key] === "string") targets.push(input[key]);
-  for (const value of [input?.patch, input?.input]) if (typeof value === "string") {
+  const targets = objectTargets(input);
+  for (const value of [input?.patch, input?.input, typeof input === "string" ? input : null]) if (typeof value === "string") {
     for (const match of value.matchAll(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/gmu)) targets.push(match[1].trim());
+    for (const match of value.matchAll(/^\*\*\*\s+Move to:\s+(.+)$/gmu)) targets.push(match[1].trim());
   }
   return [...new Set(targets)];
 }
@@ -35,83 +47,65 @@ function context(eventName, message) {
   return { hookSpecificOutput: { hookEventName: eventName, additionalContext: message } };
 }
 
-async function discover(cwd) {
-  const root = join(cwd, "artifacts", "logo");
-  try {
-    return (await readdir(root, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name))
-      .slice(0, 32)
-      .map((entry) => join(root, entry.name));
-  } catch (error) {
-    if (error?.code === "ENOENT") return [];
-    throw error;
-  }
+function stopBlock(reason) {
+  return { decision: "block", reason };
 }
 
-async function collect(root, directory, files, digests) {
-  if (Object.keys(files).length >= 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
-    if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
-    const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collect(root, absolute, files, digests);
-    else if (entry.isFile()) {
-      const filePath = relative(root, absolute).replaceAll("\\", "/");
-      const bytes = await readFile(absolute);
-      files[filePath] = bytes.toString("utf8");
-      digests[filePath] = createHash("sha256").update(bytes).digest("hex");
-    }
-  }
+async function existingPlanTarget(cwd, target) {
+  const absolute = resolve(cwd, target);
+  if (!/(?:^|[\\/])artifacts[\\/]logo[\\/][^\\/]+[\\/]plan\.contract\.json$/u.test(absolute)) return false;
+  try { await access(absolute); return true; } catch { return false; }
 }
 
 async function findingsFor(cwd) {
   const findings = [];
-  for (const root of await discover(cwd)) {
-    const files = {};
-    const digests = {};
-    await collect(root, root, files, digests);
-    if (!("plan.contract.json" in files)) continue;
-    let plan = null;
-    let project = null;
-    try { plan = JSON.parse(files["plan.contract.json"]); } catch {}
-    try { project = JSON.parse(files["logo.project.json"]); } catch {}
-    const model = { artifactId: basename(root), files, digests, plan, project };
-    for (const item of validateLogoModel(model, { stage: plan?.targetStage ?? "source" })) findings.push({ artifactId: model.artifactId, ...item });
+  const { roots } = await findLogoProjects(cwd);
+  for (const root of roots) {
+    const model = await loadLogoProject(root);
+    const stage = model.plan?.targetStage;
+    for (const item of validateLogoModel(model, { stage })) findings.push({ artifactId: model.artifactId, ...item });
   }
-  return findings;
+  findings.sort((left, right) => left.code.localeCompare(right.code) || left.artifactId.localeCompare(right.artifactId) || left.path.localeCompare(right.path));
+  return { findings, projectCount: roots.length };
 }
 
 function format(findings) {
-  return ["[Logo Project Delivery Guard] Project contract violations", ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`), "recovery: Fix the named variant, layer, proof, or output and rerun the registered logo tool."].join("\n");
+  return ["[Logo Project Delivery Guard] Project contract violations", ...findings.slice(0, 100).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`), "recovery: Fix the named contract, vector, proof, evidence, or output and rerun the registered logo tool."].join("\n");
 }
 
 async function main() {
   const mode = process.argv[2] ?? "session";
   const event = await readEvent();
-  if (event.__parseError) return;
+  if (event.__parseError) { process.stderr.write("[Logo Project Delivery Guard] invalid hook JSON\n"); process.exitCode = 2; return; }
+  if (mode === "stop" && (event?.stop_hook_active === true || event?.stopHookActive === true)) return;
   const cwd = cwdOf(event);
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
   if (mode === "pre") {
     for (const target of targetsOf(event)) {
-      const result = evaluateLogoWrite({ relativePath: relative(cwd, resolve(cwd, target)), toolName: nameOf(event) });
+      if (await existingPlanTarget(cwd, target)) { process.stdout.write(`${JSON.stringify(deny("PLAN_STAGE_WRITER_REQUIRED: existing plan changes require project-stage.mjs"))}\n`); return; }
+      const result = evaluateLogoWrite({ relativePath: resolve(cwd, target), toolName: nameOf(event) });
       if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
     }
     const input = inputOf(event);
     const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
-    const cwdInScope = /(?:^|[\\/])artifacts[\\/]logo[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const mutates = (/artifacts[\\/]logo[\\/]/u.test(command) || cwdInScope) && (/[>]{1,2}/u.test(command) || /(?:^|\s)(?:cp|mv|rm|touch|tee|node|npm|npx|python\d*)\b/u.test(command));
-    const compoundShell = /(?:&&|\|\||[;&|><`\n]|\$\()/u.test(command);
-    const approvedWrapper = /logo-project-delivery-guard[\\/]scripts[\\/]tools[\\/](?:project-lint|project-release)\.mjs\b/u.test(command) && !compoundShell;
-    if (mutates && !approvedWrapper) process.stdout.write(`${JSON.stringify(deny("UNKNOWN_MUTATION_SHELL: logo mutations require a registered wrapper"))}\n`);
+    if (command) {
+      const { roots } = await findLogoProjects(cwd);
+      const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
+      if (result.writer && !roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}\n`);
+      else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
+    }
     return;
   }
-  const findings = await findingsFor(cwd);
   if (mode === "session") {
-    if ((await discover(cwd)).length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", "[Logo Project Delivery Guard] active; generated outputs require registered writers."))}\n`);
-  } else if (mode === "post" || mode === "failure") {
+    const { roots } = await findLogoProjects(cwd);
+    if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s); generated outputs require project-render and release requires project-release.`))}\n`);
+    return;
+  }
+  const { findings } = await findingsFor(cwd);
+  if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);
   } else if (mode === "stop" && findings.length > 0) {
-    process.stderr.write(`${format(findings)}\n`);
-    process.exitCode = 2;
+    process.stdout.write(`${JSON.stringify(stopBlock(format(findings)))}\n`);
   }
 }
 

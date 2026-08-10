@@ -1,0 +1,5 @@
+id = "05-plan-downgrade-denied"
+hosts = ["claude", "codex"]
+timeout_sec = 120
+tags = ["logo", "pre-tool", "deny", "plan"]
+allowed_host_exits_codex = [0, 1]
