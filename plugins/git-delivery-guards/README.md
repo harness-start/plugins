@@ -46,7 +46,26 @@ export default {
 
 从 `source-sanity-guard@0.1.0` 升级时，将 `.source-sanity-guard.mjs` 中的 `mergeConflict` 模式和对应 override 原样移入 `.git-delivery-guards.mjs`；旧插件不再读取该字段。
 
-完整契约见 [DESIGN.md](./DESIGN.md)，也可以使用插件自带的 `git-delivery-guards-config` Skill 维护配置。
+也可以使用插件自带的 `git-delivery-guards-config` Skill 维护配置。
+
+## 命令、状态与提交边界
+
+`PreToolUse` 只监听 shell 工具；`PostToolUse` 只监听文件工具，并扫描本次写入后的最终文件，不执行全仓库扫描。
+
+- 宽范围 `git add`、批量 ours/theirs、非规范新分支，以及危险的历史或工作区覆盖操作会直接阻断。
+- 普通 commit 校验 Conventional Commits、具体描述、staged/unstaged 重叠和提交边界；amend、fixup 与 squash 跳过消息和 scope 检查。
+- 跨两个以上边界，或在一个边界内混入 source 与 config/infra 时阻断；超过 15 个文件只报告；纯 rename 不触发混合类型阻断。
+- `index.lock` 状态不确定时不会自动删除。只有锁超过五分钟、是普通非符号链接文件、包含有效且已确认退出的 PID，并在 unlink 前通过相同 inode/mtime 复核，才会清理。
+
+`.git-delivery-guards.mjs` 是项目拥有的可信可执行配置。路径统一为仓库相对 POSIX 路径；非法字段警告后使用严格默认，导入失败不会取消内置保护。
+
+`.ai-experts/commit-boundaries.json` 必须使用 `version: 1`，每个 boundary 都要有非空 `id` 和不含 `..` 的字符串 prefixes，并按最长前缀优先。只有文件不存在时才允许从 manifest 推导；文件存在但无效时，commit fail-closed。
+
+## 冲突标记扫描
+
+只扫描受支持的文本扩展名、普通文件和不超过 2 MiB 的最终文件。检查器只匹配行首七字符标准标记，并要求至少存在一个高特异性的 `<<<<<<<` 或 `>>>>>>>`；单独的 `=======` 可能是 RST 表格边框，不视为冲突。最多报告 10 个位置。
+
+`block` 会让 `PostToolUse` 失败，但不会回滚已经完成的写入；`report` 只注入上下文。
 
 ## 验证
 
@@ -55,4 +74,4 @@ node --test plugins/git-delivery-guards/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin git-delivery-guards
 ```
 
-Version: `0.2.0`
+版本：`0.2.1`

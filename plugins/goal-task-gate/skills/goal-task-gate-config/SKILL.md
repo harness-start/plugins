@@ -24,4 +24,4 @@ Schema summary (defaults in parentheses):
 | `stopGate.softSparseWhileArmed` | `true` | Soft warn when trail sparse |
 | `abortToken` | `# goal-task-abort` | Engineering abort |
 
-See `references/example-config.mjs` and plugin `DESIGN.md`.
+See `references/example-config.mjs` and the plugin `README.md`.

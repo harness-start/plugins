@@ -1,9 +1,45 @@
 # Behavioral Regression Guard
 
-A language-independent Skill and hook workflow for proving that a bug fix changes the intended behavior, survives adversarial cases, and preserves declared compatibility.
+`behavioral-regression-guard` 提供与语言无关的 Skill 和 Hook 工作流，用于证明缺陷修复确实改变目标行为、通过对抗用例，并保持声明的兼容性。
 
-The soft `behavioral-regression` Skill routes known bug/regression work into case design. Hard behavior begins only after a valid `.behavioral-regression/BR-*.json` contract is mutated. Ordinary sessions remain no-op.
+`SessionStart` 只发布一行精简协议。插件不在 `UserPromptSubmit` 猜测意图；当测试或复现型命令产生可观察失败后，才临时阻断生产文件写入，同时继续允许测试和 `.behavioral-regression/BR-*.json` 契约写入。有效契约绑定后，生产写入还要等到全部 BEFORE 回执冻结，避免“先改代码、再补基线”。
 
-The guard records command receipts only for exact, direct commands with matching literal behavioral signatures. Claude receipts also bind an observed exit status or failure event when the host provides it. Codex unified-exec receipts are explicitly labeled `literal-oracle` because that hook surface exposes raw output but not the exit status. The first BEFORE receipt freezes verification file bytes. AFTER receipts bind the current production file bytes. Stop rejects missing, forged, cross-case, weakened-test, or stale-after evidence.
+## 因果契约
 
-It intentionally has no `UserPromptSubmit` or `PreToolUse` hook. It complements `debugging-workflow-guard`: debugging establishes what is wrong; this plugin proves the repaired behavior and protected invariants. Both may observe the same direct test command without wrapping or rewriting it.
+```text
+已知行为不一致
+  -> 测试或复现命令产生可观察失败，临时武装写入关口
+  -> Skill 设计主用例、挑战用例与不变量
+  -> 显式修改契约，激活一次带租约的运行
+  -> 精确直接命令和字面签名生成 BEFORE 回执
+  -> PreToolUse 确认每个声明用例都有匹配的 BEFORE 回执
+  -> 生产文件字节偏离基线
+  -> 未变化的验证文件和精确命令生成 AFTER 回执
+  -> Stop 重新计算指纹并校验所有回执引用
+  -> 只有当前字节上的新鲜证据才能关闭流程
+```
+
+仅激活 Hook 不能证明插件有效。结果级证据由必需的字面输出、显式结果依据、不可变计划摘要、命令哈希、生产文件指纹、验证文件指纹、用例 ID、阶段、契约 ID 和运行 epoch 共同构成。Claude 回执通常绑定宿主提供的退出状态或失败事件；Codex unified exec 的 `PostToolUse` 只暴露精确命令和原始响应文本，不暴露退出状态，因此回执标为 `literal-oracle`，并依赖冻结验证资产中的阶段专用签名。
+
+## 触发与失败策略
+
+- Skill metadata 可路由已知缺陷、回归、兼容性和行为变更请求，但加载 Skill 本身只提供指导。
+- 插件不设置 `UserPromptSubmit` Hook；`SessionStart` 只做有限发现，不进行绑定。
+- 测试运行器、带测试/复现语义的命令，或输出明确失败签名的临时运行命令可以武装候选关口；干净重放同一命令会清除候选状态。
+- 候选关口只拦截可解析的文件修改工具，不拦截 shell；测试、fixture、spec 和契约路径继续可写。两小时无活动后候选状态自动过期。
+- 缺少命令、超时、未知结果和普通成功输出不会武装关口；空闲发现、状态目录不可用或运行错误均 fail-open。
+- 有效契约绑定后，修改其生产范围前必须先生成并引用全部 BEFORE 回执；未声明的生产路径要求重新冻结范围和基线。
+- 已绑定契约缺失、格式错误或状态损坏时，`Stop` fail-closed；`paused` 和 `aborted` 允许关闭并保留恢复路径。
+- 超时、未知结果、缺少命令和 Hook 错误都不能计为 RED 或 GREEN。
+- 至少一个主用例必须从失败转为成功；所有结果发生变化的用例都要声明不同的 BEFORE/AFTER 字面签名。
+
+## 完整性边界
+
+- 生产与验证范围只接受显式、有限的普通文件；拒绝路径穿越、重复项、绝对路径和符号链接。
+- BEFORE 只能绑定激活时的生产文件指纹；第一条 BEFORE 回执会冻结验证资产，之后字节一旦变化就清空回执并使运行失效。
+- `PreToolUse` 在生产写入前核对当前契约引用与 Hook 签发的全部 BEFORE 回执；仅在二者完整匹配时释放声明范围。
+- AFTER 绑定修改后的生产文件指纹；之后再次修改源码会使其过期。
+- 修改生产文件前改变计划会重置回执；修改后改变计划必须先还原或中止。
+- 共享运行记录只允许一个活动租约；单步 epoch 恢复会保留有效 BEFORE 回执并清除 AFTER 回执。
+
+该插件与 `debugging-workflow-guard` 互补：后者确定问题是什么，本插件证明修复后的行为和受保护不变量。两者可以观察同一条直接测试命令，不会包装或改写命令。

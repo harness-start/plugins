@@ -8,7 +8,7 @@ version: 0.1.0
 
 Manage the project configuration consumed by the `markdown-format-guard` PostToolUse hook and diagnose its findings.
 
-Authoritative schema: the plugin's sibling `DESIGN.md`. Read it before changing configuration.
+Authoritative schema: the plugin's sibling `README.md`. Read it before changing configuration.
 
 ## Config discovery
 
@@ -118,4 +118,4 @@ Do not commit unless the user asks.
 ## Reference
 
 - Example overrides: `references/example-config.mjs` in this skill directory.
-- Plugin design: sibling `DESIGN.md` at the plugin root.
+- Plugin design: sibling `README.md` at the plugin root.

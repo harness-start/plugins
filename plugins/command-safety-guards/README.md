@@ -1,6 +1,6 @@
 # command-safety-guards
 
-Deterministic PreToolUse and PostToolUse guards for high-risk commands and sensitive source patterns on Claude Code and Codex.
+为 Claude Code 和 Codex 提供确定性的 `PreToolUse` 与 `PostToolUse` 守卫，检查高风险命令和敏感源码模式。
 
 ## 规则系统（v0.3.0）
 
@@ -9,8 +9,6 @@ Deterministic PreToolUse and PostToolUse guards for high-risk commands and sensi
 - **用户配置**：项目根 `.command-safety-guards.mjs`（或 `.cjs` / `.js`）
 - **内置规则**：sed 原地写、cat heredoc、Redis/SQL、主动测试边界、凭据泄露、lark `--yes`
 - **引擎**（不可仅靠正则）：危险 `rm`、MySQL 复制 preflight、Read 敏感路径、写后 TLS/PII、deny 升级
-
-详见 [DESIGN.md](./DESIGN.md)。
 
 ### 默认拦截清单（零配置）
 
@@ -82,9 +80,9 @@ export default {
 
 Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放行，不阻塞用户操作。坏规则条目被跳过并写 stderr 警告。
 
-## Behavior
+## 执行顺序
 
-| Order | Check | Result |
+| 顺序 | 检查 | 结果 |
 | --- | --- | --- |
 | 1 | Read 敏感路径（engine） | Report |
 | 2 | 同目标短时多次 deny（engine） | Deny |
@@ -93,32 +91,61 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 | 5 | MySQL 复制切换缺 preflight（engine） | Deny |
 | 6 | 写后 TLS bypass / PII（engine） | PostToolUse report |
 
-Clean commands produce no stdout. Denials exit with status 0 and return the shared `permissionDecision: deny` JSON contract expected by both hosts.
+安全命令不产生 stdout。拒绝结果以状态 0 退出，并返回两个宿主共同使用的 `permissionDecision: deny` JSON 契约。
 
-## Layout
+## 配置设计
 
-| Path | Role |
+项目根通过 `git rev-parse --show-toplevel` 定位，按以下顺序加载，找到第一个文件后停止。配置通过 `import()` 加载：
+
+```text
+<project-root>/.command-safety-guards.mjs
+<project-root>/.command-safety-guards.cjs
+<project-root>/.command-safety-guards.js
+```
+
+用户 `rules` 会由 `resolveRules` 放到 `BUILTIN_RULES` 前面，`matchRule` 从头遍历并通过 `.test()` 在首次命中时停止。用户规则的 `match` 只接受 `RegExp`；内置规则还可使用 `{ test(command) }`。
+
+| 字段 | 类型 | 必需 | 说明 |
+| --- | --- | --- | --- |
+| `match` | `RegExp` | 是 | 匹配命令；此前会剥离 Git commit message 和内嵌 heredoc 字面量 |
+| `mode` | `"deny"`、`"report"`、`"allow"` | 否 | 默认 `"deny"` |
+| `id` | `string` | 推荐 | 稳定标识，缺省为 `user-rule[i]` |
+| `title` | `string` | 否 | 消息标题 |
+| `reason` | `string` | deny/report 推荐 | 命中原因 |
+| `recovery` | `string` | deny 推荐 | 恢复或替代路径 |
+
+声明式规则遵循“一条规则一个窄语义”，互斥类别使用互斥 tester；依赖 cwd、event 或文件内容的逻辑只进入引擎。声明式规则与引擎不得复制同一策略。
+
+配置不存在时使用内置规则和默认引擎。`import()` 失败、字段非法或匹配器抛错时，插件写一行 stderr 警告、跳过坏项并 fail-open；Git 根定位失败时不加载用户配置；Hook 自身异常也以状态 0 放行。
+
+## 目录结构
+
+| 路径 | 作用 |
 | --- | --- |
-| `scripts/lib/builtin-rules.mjs` | Built-in declarative rules (single source) |
-| `scripts/lib/rule-engine.mjs` | Config load / merge / match / format |
-| `scripts/engines/*` | Non-regex engines only (`dangerous-rm`, `mysql-preflight`, `secret-read`, `file-safety`) |
-| `scripts/lib/deny-state.mjs` | Deny escalation state |
-| `skills/command-safety-guards-config/` | Config init / edit / diagnose skill |
+| `scripts/lib/builtin-rules.mjs` | 内置声明式规则的唯一来源 |
+| `scripts/lib/rule-engine.mjs` | 配置加载、合并、匹配与格式化 |
+| `scripts/lib/sanitize-command.mjs` | 匹配前剥离 commit/heredoc 字面量 |
+| `scripts/engines/dangerous-rm.mjs` | `dangerousRm` 引擎 |
+| `scripts/engines/mysql-preflight.mjs` | MySQL replication preflight 引擎 |
+| `scripts/engines/secret-read.mjs` | Read 敏感路径引擎 |
+| `scripts/engines/file-safety.mjs` | `PostToolUse` TLS/PII 内容扫描引擎 |
+| `scripts/lib/deny-state.mjs` | deny 升级状态 |
+| `skills/command-safety-guards-config/` | 配置初始化、编辑与诊断 Skill |
 
-## Migrated from
+## 迁移来源
 
-| Source | Target |
+| 来源 | 目标 |
 | --- | --- |
 | `skills/command-safety-governance/src/hooks/dangerous-command-guard.ts` | `scripts/engines/dangerous-rm.mjs` |
 | `skills/command-safety-governance/src/hooks/sed-inplace-guard.ts` | `scripts/lib/builtin-rules.mjs` (`sed-inplace`) |
 | `skills/command-safety-governance/src/hooks/cat-write-guard.ts` | `scripts/lib/builtin-rules.mjs` (`cat-heredoc-*`) |
-| `core/hook-support/src/hook-bash-git-shell-utils.ts` | Minimal tokenizer in `scripts/lib/shell-parse.mjs` |
+| `core/hook-support/src/hook-bash-git-shell-utils.ts` | `scripts/lib/shell-parse.mjs` 中的最小 tokenizer |
 
-The plugin is self-contained and has no `@harness/*` runtime dependency. Escalation state deliberately counts only denials emitted by this plugin. State is JSONL under `PLUGIN_DATA` or `CLAUDE_PLUGIN_DATA`; nothing is written into the plugin installation directory.
+插件完全自包含，没有 `@harness/*` 运行时依赖。升级状态只统计本插件产生的拒绝，JSONL 状态写在 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA` 下，不会写入插件安装目录。
 
-## Verification
+## 验证
 
-From the marketplace root:
+在 marketplace 根目录运行：
 
 ```bash
 find plugins/command-safety-guards/scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
@@ -126,6 +153,16 @@ node --test plugins/command-safety-guards/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin command-safety-guards
 ```
 
-The unit suite only runs pure checks and local Node.js hook subprocesses. Live Claude Code and Codex acceptance is Docker-only and requires the repository `.env` described in [host acceptance](../../docs/host-acceptance.md).
+单元测试只执行纯检查和本地 Node.js Hook 子进程。Claude Code 与 Codex 的实时验收仅在 Docker 中运行，并要求仓库 `.env` 提供 [host acceptance](../../docs/host-acceptance.md) 所述配置。
 
-Version: `0.5.0`
+版本：`0.5.0`
+
+## 版本沿革
+
+| 版本 | 变更 |
+| --- | --- |
+| `0.5.0` | SQL encoding 检查迁移到独立 `encoding-guard`，`fileSafety` 保留 TLS / PII |
+| `0.4.0` | 增加 `command-safety-guards-config` Skill 管理项目配置 |
+| `0.3.0` | 引入声明式规则、项目配置和引擎开关，默认行为兼容 0.2.x 关键路径 |
+| `0.2.0` | 增加数据库、Redis、主动测试、凭据和升级计数规则 |
+| `0.1.0` | 增加危险删除、`sed -i` 和 `cat` heredoc 检查 |

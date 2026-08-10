@@ -36,7 +36,45 @@ export default {
 };
 ```
 
-模式支持 `block`、`report`、`off`。完整 schema 见 [DESIGN.md](./DESIGN.md)，也可使用插件自带的 `execution-loop-guard-config` Skill 初始化或诊断配置。
+模式支持 `block`、`report`、`off`。也可使用插件自带的 `execution-loop-guard-config` Skill 初始化或诊断配置。
+
+完整配置还支持：
+
+```js
+export default {
+  commandRepeat: {
+    failureReportAt: 2,
+    failureBlockAt: 3,
+    successReportAt: 6,
+    successBlockAt: 12,
+    windowMinutes: 10,
+    retryBypass: /(?:^|\s)#\s*retry-ok\b/i,
+  },
+  polling: {
+    sleepBudgetSeconds: 600,
+    queryBudgetCount: 20,
+    windowMinutes: 30,
+    cooldownMinutes: 5,
+    maxSleepPerCommandSeconds: 3600,
+    whileLoopAssumedIterations: 10,
+    pollBypass: /(?:^|\s)#\s*poll-ok\b/i,
+  },
+};
+```
+
+配置按 `.execution-loop-guard.mjs`、`.cjs`、`.js` 顺序通过 `import()` 加载 Git 根目录中的第一个文件。数值必须是合法非负或正整数，报告阈值必须小于阻断阈值；非法字段逐项回退默认值。`editLoop.exemptPaths` 追加到内置 Markdown 豁免，并匹配 Git 根相对 POSIX 路径。用户正则每次匹配前会克隆，避免 `g`/`y` 状态影响结果。
+
+## 设计与判定边界
+
+插件只识别有连续事件证据的执行空转，不会根据单次失败、单次编辑或任务耗时猜测 agent 表现，也不替代调试方法、任务账本、CI 监督器或交付完成门禁。
+
+`PreToolUse` 在命令执行前判断重复和轮询预算；`PostToolUse` 记录命令结果和文件编辑。Claude 的 `PostToolUseFailure` 补充失败结果，Codex 从 `PostToolUse` 响应退出码推断成败。
+
+状态按 session 和 cwd 摘要隔离，原子写入宿主插件数据目录，权限为 `0600`。磁盘只保存摘要、时间戳、计数和失败签名，不保存命令输出、文件内容、路径或规范化命令。状态目录不可用、状态损坏或 Hook 异常时 fail-open。
+
+命令规范化只删除尾部观察管道、最终重定向和无语义空白，保留参数差异。失败连续计数还要求最近失败输出签名一致，错误形状变化后重新计数。轮询预算识别字面 `sleep`、简单 `for {a..b}`/`while` 放大，以及 `glab`/`gh` 的 pipeline、job、run、checks、release、deploy 状态查询；默认只报告，因为等待可能是合法流程。
+
+阻断消息必须说明观察事实、潜在损害、解除条件和恢复路径。插件不会自动修改源码、终止外部任务或回滚已经发生的编辑。
 
 ## 验证
 
@@ -45,4 +83,4 @@ node --test plugins/execution-loop-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin execution-loop-guard
 ```
 
-Version: `0.1.0`
+版本：`0.1.0`

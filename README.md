@@ -1,145 +1,154 @@
 # harness-start
 
-Marketplace id: `harness-start` · Display name: **Harness Start**
+Marketplace ID：`harness-start` · 显示名称：**Harness Start**
 
-Harness Start dual-platform plugin marketplace for **Claude Code** and **Codex**.
+Harness Start 是同时面向 Claude Code 与 Codex 的双平台插件 marketplace。
 
 > [!WARNING]
-> This repository is under active development. Implementations and behavior may change at any time.
+> 本仓库仍在持续开发，具体实现与行为可能随时变化。
 
-**Public install source:** [https://github.com/harness-start/plugins](https://github.com/harness-start/plugins)
+**公开安装源：** [https://github.com/harness-start/plugins](https://github.com/harness-start/plugins)
 
-Both hosts share plugin business scripts. Marketplace indexes, plugin manifests, and hook configs are maintained separately because field names, environment variables, and lifecycle events differ across platforms.
+两个宿主共享插件业务脚本。由于字段名、环境变量和生命周期事件不同，marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护。
 
-## Install (one command)
+## 一键安装
 
-Adds/updates the marketplace and installs/updates **all** plugins for Claude Code and Codex (whichever CLIs are on `PATH`):
+以下命令会添加或更新 marketplace，并为 `PATH` 中可用的 Claude Code 与 Codex CLI 安装或更新全部插件：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash
 ```
 
-Common variants:
+常用变体：
 
 ```bash
-# Only Claude Code
+# 只安装 Claude Code 插件
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --claude-only
 
-# Only Codex
+# 只安装 Codex 插件
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --codex-only
 
-# Skip missing host CLIs instead of failing
+# 缺少某个宿主 CLI 时跳过，不让安装失败
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-missing-hosts
 
-# Select the default response language (Simplified Chinese remains the default)
+# 选择默认回复语言，默认仍为简体中文
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --language en-US
 
-# From a local clone
+# 从本地 clone 安装
 bash scripts/install-all.sh
 bash scripts/install-all.sh --dry-run
 
-# Skip community skill-deps (offline / no npx)
+# 跳过社区 Skill 依赖，适用于离线或没有 npx 的环境
 bash scripts/install-all.sh --skip-skill-deps
 ```
 
-Requirements: `bash`, network to GitHub, and **Claude Code CLI** and/or **Codex CLI**. `jq` is recommended. Community skill deps also need **Node.js / `npx`** (see below).
+要求：`bash`、可访问 GitHub 的网络，以及 Claude Code CLI 和/或 Codex CLI。建议安装 `jq`。社区 Skill 依赖还需要 Node.js 与 `npx`。
 
-After install:
+安装后：
 
-- **Claude Code:** start a new session (or `/reload-plugins` if prompted) so hooks load.
-- **Codex:** review and **trust** plugin hooks via `/hooks`. Install success does not mean hooks are trusted or running.
-- **Community skills:** plugins may declare `skill-deps.json`; `install-all.sh` installs/updates them into the **global** skills scope (`npx skills add … --global`).
+- **Claude Code：** 启动新会话，或在提示时执行 `/reload-plugins`，使 Hook 生效。
+- **Codex：** 通过 `/hooks` 审查并信任插件 Hook。安装成功不表示 Hook 已受信任或正在运行。
+- **社区 Skill：** 插件可声明 `skill-deps.json`；`install-all.sh` 会把这些依赖安装或更新到全局 Skill scope，即执行 `npx skills add … --global`。
 
-`--language <profile>` accepts `zh-CN`, `en-US`, `ja-JP`, `ko-KR`, or `th-TH`. When provided, the installer stores the selected profile in each installed host's own configuration directory. Without the option, `language-output-governance` keeps its built-in `zh-CN` default. A project's `.language-output-governance.mjs` overrides the installed user preference.
+`--language <profile>` 接受 `zh-CN`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将 profile 写入每个已安装宿主自己的配置目录。不传时，`language-output-governance` 使用内置 `zh-CN` 默认值。项目的 `.language-output-governance.mjs` 优先于用户级安装偏好。
 
-### Manual install (equivalent)
+### 手动安装
+
+以下命令与安装脚本的 marketplace 操作等价：
 
 ```bash
 # Claude Code
 claude plugin marketplace add harness-start/plugins
-# if already added:
+# 已添加时更新 marketplace
 claude plugin marketplace update harness-start
-claude plugin install <name>@harness-start   # repeat per plugin, or use install-all.sh
+# 每个插件执行一次，也可直接使用 install-all.sh
+claude plugin install <name>@harness-start
 
 # Codex
 codex plugin marketplace add harness-start/plugins --ref master
-# if already added:
+# 已添加时升级 marketplace
 codex plugin marketplace upgrade harness-start
 codex plugin add <name>@harness-start --json
 ```
 
-## Repository layout
+## 仓库结构
 
 ```text
 .
 ├── .claude-plugin/marketplace.json    # Claude Code marketplace
 ├── .agents/plugins/marketplace.json   # Codex marketplace
-├── plugins/                           # Self-contained plugins live here
-├── scripts/install-all.sh             # One-click marketplace + all plugins
-├── scripts/ci/validate-plugins.sh     # Shared GitHub/GitLab CI checks
+├── plugins/                           # 自包含插件目录
+├── scripts/install-all.sh             # marketplace 与全部插件的一键安装脚本
+├── scripts/ci/validate-plugins.sh     # GitHub/GitLab 共用 CI 检查
 ├── .github/workflows/validate-plugins.yml
 ├── .gitlab-ci.yml
-└── GUIDE.md                           # Full init / release guide
+└── GUIDE.md                           # 完整初始化与发布指南
 ```
 
-Default branch: `master`
+默认分支：`master`
 
-Each plugin is self-contained. Do not reference files outside its own directory at runtime; Claude Code copies a single plugin directory into cache.
+每个插件都必须自包含。运行时不得引用自身目录外的文件，因为 Claude Code 会将单个插件目录复制到缓存。
 
-`GUIDE.md` uses example plugin names such as `session-hooks` and `policy-checks` for illustration only. Real plugins are registered under `plugins/` and listed in both marketplace indexes.
+`GUIDE.md` 中的 `session-hooks`、`policy-checks` 等名称只用于示例。真实插件位于 `plugins/`，并同时登记在两个 marketplace 索引中。
 
-## Plugins
+## 插件列表
 
-| Plugin | Description |
+| 插件 | 说明 |
 | --- | --- |
-| `research-provenance-guard` | Orchestrated hard research (`research-evidence-workflow`): project workflow files, MCP capture/anchors, typed claims, seal, post-seal handoff |
-| `artifact-evidence-guard` | Validates an explicit artifact path, size, SHA-256 digest, and format declaration at Stop; absent or indeterminate evidence fails open |
-| `git-state-evidence-guard` | Validates an explicit HEAD, branch/detached state, and clean-worktree declaration at Stop; absent or indeterminate evidence fails open |
-| `execution-loop-guard` | Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session |
-| `source-sanity-guard` | Blocks backup artifacts and obvious replacement-character corruption in source files |
-| `git-delivery-guards` | Guards local Git commands, atomic commits, repository state, and unresolved merge markers |
-| `code-quality-guard` | Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits |
-| `encoding-guard` | Blocks BOM-bearing and invalid UTF-8 text files after AI writes |
-| `markdown-format-guard` | Checks Markdown heading structure and common formatting rules after AI writes |
-| `file-line-budget-guard` | Ratchet-enforced per-language file line budgets on Edit/Write |
-| `protected-file-guard` | Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories |
-| `command-safety-guards` | Denies broad recursive deletion, unbacked `sed` in-place edits, and non-temporary `cat` heredoc writes |
-| `language-output-governance` | Keeps main-agent and subagent prose aligned with one configurable session language; Simplified Chinese is the default profile |
-| `subagent-workflow-guard` | Provides scoped handoff applications, one-time receipts on hook-capable dispatch seams, and sealed review/closure validation |
-| `subagent-lifecycle-audit` | Records append-only subagent starts/stops and lifecycle gaps without storing work content |
-| `intent-clarify-gate` | Gates business writes during grill-me style intent clarification until `done` or complete-option close |
-| `first-principles-gate` | Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes |
-| `reasoning-discipline-guard` | Uses a broad Skill to create a five-stage reasoning workflow, then requires ordered challenge and cross-check receipts before conclusion |
-| `debugging-workflow-guard` | Uses a focused Skill to create an explicit Debug Work Order, then attributes multi-bug evidence and gates unsafe fix loops through hooks |
-| `behavioral-regression-guard` | Uses a language-independent Skill to design primary, adversarial, and compatibility cases, then binds RED/GREEN receipts to unchanged verification assets and fresh production bytes |
-| `goal-task-gate` | Arms on host `/goal` prompts, forces append-only decision trails under `.goal-task/`, and completes only with `GOAL_TASK_DONE` trailer plus close row |
-| `file-access-audit` | Records structured agent file reads/writes to project-local `.file-access-audit/sessions/<session>.jsonl` |
-| `command-exec-audit` | Records agent shell commands with status and duration to project-local `.command-exec-audit/sessions/<session>.jsonl` |
+| `research-provenance-guard` | 通过 `research-evidence-workflow` 编排硬研究：项目工作流、MCP 捕获与 anchor、typed claim、seal 和 seal 后 handoff |
+| `artifact-evidence-guard` | 在 `Stop` 校验明确声明的 artifact 路径、大小、SHA-256 与格式；证据缺失或无法确定时 fail-open |
+| `git-state-evidence-guard` | 在 `Stop` 校验明确声明的 HEAD、分支或 detached 状态及工作树清洁状态；证据缺失或无法确定时 fail-open |
+| `execution-loop-guard` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
+| `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
+| `git-delivery-guards` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
+| `code-quality-guard` | 写入后执行有界的 JS/TS、Python 和 PHP 语法、lint 与静态分析检查 |
+| `encoding-guard` | AI 写入后阻断带 BOM 或不符合严格 UTF-8 的文本文件 |
+| `markdown-format-guard` | 写入后检查 Markdown 标题结构和常见格式规则 |
+| `file-line-budget-guard` | 在 Edit/Write 后按语言实施棘轮式文件行数预算 |
+| `protected-file-guard` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
+| `command-safety-guards` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
+| `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言，默认简体中文 |
+| `subagent-workflow-guard` | 提供带 scope 的 handoff application、Hook-capable dispatch 一次性回执，以及 sealed review/closure 校验 |
+| `subagent-lifecycle-audit` | 以 append-only 形式记录 subagent 启停和生命周期缺口，不保存工作内容 |
+| `intent-clarify-gate` | grill-me 式意图澄清期间门禁业务写入，直到 `done` 或选择完成项 |
+| `first-principles-gate` | 第一性原理分析期间门禁业务写入，直到结构化磁盘 ledger 完成并关闭会话 |
+| `reasoning-discipline-guard` | 通过宽泛 Skill 建立五阶段推理工作流，并在输出结论前要求有序 challenge 和 cross-check 回执 |
+| `debugging-workflow-guard` | 通过聚焦 Skill 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
+| `behavioral-regression-guard` | 用语言无关 Skill 设计主用例、对抗用例和兼容性用例，并将 RED/GREEN 回执绑定到不变验证资产与新鲜生产文件字节 |
+| `goal-task-gate` | 响应宿主 `/goal` prompt，强制 `.goal-task/` 下 append-only 决策轨迹，并仅在 `GOAL_TASK_DONE` trailer 与 close 行一致时完成 |
+| `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
+| `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
+| `compact-context-journal` | 在上下文压缩前后持久记录已确认需求，强制先读 Recovery Card 再恢复修改 |
+| `logo-project-delivery-guard` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
+| `poster-project-delivery-guard` | 校验 React/Satori 海报工程的 layer 顺序、role、成对 SVG/PNG proof 和 release freshness |
+| `pptx-project-delivery-guard` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
+| `print-publication-delivery-guard` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
+| `video-project-delivery-guard` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
 
-## Prerequisites
+## 前置条件
 
 - Git
 - Node.js 20+
-- Claude Code CLI and/or Codex CLI (for install / host checks)
-- `jq` (recommended)
+- Claude Code CLI 和/或 Codex CLI，用于安装与宿主检查
+- `jq`，建议安装
 
-## Local static checks
+## 本地静态检查
 
-GitHub Actions and GitLab CI both run the same script:
+GitHub Actions 与 GitLab CI 都运行同一脚本：
 
 ```bash
 bash scripts/ci/validate-plugins.sh
 ```
 
-That script validates JSON, all plugin JavaScript syntax, dual-platform manifest versions, offline unit tests, dual-host acceptance case structure, inert-log honesty, Claude/Codex marketplace loading, and **requires every `plugins/*` directory to be registered in both marketplace indexes** (and rejects orphan marketplace entries).
+脚本会校验 JSON、全部插件 JavaScript 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。它还要求每个 `plugins/*` 目录同时登记在两个 marketplace 索引中，并拒绝孤立索引条目。
 
-Hosts already installed:
+宿主已安装时运行：
 
 ```bash
 SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```
 
-## Local marketplace (development)
+## 本地 Marketplace 开发
 
 ```bash
 # Claude Code
@@ -152,9 +161,9 @@ codex plugin list --marketplace harness-start --available --json
 codex plugin add <plugin-name>@harness-start --json
 ```
 
-## Community skill dependencies
+## 社区 Skill 依赖
 
-Some plugins need public Agent Skills (for example `intent-clarify-gate` → `grill-me`). Declare them per plugin:
+部分插件依赖公开 Agent Skill，例如 `intent-clarify-gate` → `grill-me`。在插件目录声明：
 
 ```text
 plugins/<name>/skill-deps.json
@@ -166,56 +175,53 @@ plugins/<name>/skill-deps.json
     {
       "name": "grill-me",
       "source": "https://github.com/mattpocock/skills",
-      "description": "optional note"
+      "description": "可选说明"
     }
   ]
 }
 ```
 
-`scripts/install-all.sh` collects every catalog plugin's `skill-deps.json` (local clone or GitHub raw for the curl one-liner), dedupes by skill name, and runs:
+`scripts/install-all.sh` 会收集 catalog 中每个插件的 `skill-deps.json`。本地 clone 直接读取文件，curl 一键安装则从 GitHub raw 读取；随后按 Skill 名称去重，并执行：
 
 ```bash
 npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a codex
 ```
 
-Flags / env:
-
-| Flag / env | Effect |
+| Flag / 环境变量 | 作用 |
 | --- | --- |
-| `--skip-skill-deps` | Do not install skill-deps |
-| `HARNESS_SKIP_SKILL_DEPS=1` | Same as above |
-| `--list-only` | Also prints resolved `name<TAB>source` pairs |
+| `--skip-skill-deps` | 不安装 Skill 依赖 |
+| `HARNESS_SKIP_SKILL_DEPS=1` | 与上项相同 |
+| `--list-only` | 同时输出解析后的 `name<TAB>source` |
 
-Omit `skill-deps.json` when the plugin has no community skill needs. The file is optional; CI validates schema when present.
+插件没有社区 Skill 依赖时不需要 `skill-deps.json`。该文件可选，存在时 CI 会校验 schema。
 
-## Adding a plugin
+## 添加插件
 
-See `GUIDE.md` section 16. Register the plugin in both:
+操作步骤见 `GUIDE.md` 第 16 节。新插件必须同时登记在：
 
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-If the plugin needs a public skill (skills.sh / GitHub skill repo), add `plugins/<name>/skill-deps.json` so `install-all.sh` can install it globally.
+若插件依赖 skills.sh 或 GitHub Skill 仓库中的公开 Skill，添加 `plugins/<name>/skill-deps.json`，让 `install-all.sh` 将其安装到全局 scope。
 
-## Docs
+## 相关文档
 
-- [Artifact delivery guards](docs/artifact-delivery-guards.md)
-- [Claude Code plugin marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
-- [Codex plugin packaging](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
-- [Codex hooks](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)
+- [Artifact 交付守卫](docs/artifact-delivery-guards.md)
+- [Claude Code 插件 Marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
+- [Codex 插件打包](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
+- [Codex Hook](https://learn.chatgpt.com/docs/hooks#plugin-bundled-hooks)
 
-## Host acceptance (Claude Code + Codex on DeepSeek)
+## 宿主验收：Claude Code、Codex 与 DeepSeek
 
-**Live acceptance is Docker-only** (`docker/host-acceptance`). From the host,
-`./scripts/acceptance/run.sh` always builds/runs that image for smoke and live
-cases (Claude + Codex). Unit tests and the honesty gate may still run on the
-host. Requires `.env` with `DEEPSEEK_API_KEY` and `DEEPSEEK_MODEL=deepseek-v4-flash`:
+实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，smoke 和 live case 都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和 honesty gate 仍可直接在宿主运行。
+
+验收要求 `.env` 包含 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash`：
 
 ```bash
-./scripts/acceptance/run.sh --smoke                         # DeepSeek smoke (Docker)
-./scripts/acceptance/run.sh                                 # all plugins × claude+codex (Docker)
-./scripts/acceptance/run.sh --plugin command-safety-guards  # one plugin (Docker)
-./scripts/acceptance/run.sh --honesty-only                  # inert expect gate only (no Docker)
+./scripts/acceptance/run.sh --smoke                         # DeepSeek smoke，Docker
+./scripts/acceptance/run.sh                                 # 全部插件 × Claude/Codex，Docker
+./scripts/acceptance/run.sh --plugin command-safety-guards  # 单个插件，Docker
+./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
 ```
 
-See [docs/host-acceptance.md](docs/host-acceptance.md).
+详见 [宿主验收文档](docs/host-acceptance.md)。

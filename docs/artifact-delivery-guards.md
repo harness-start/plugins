@@ -27,4 +27,4 @@
 
 当前是 `snapshot` profile：已登记的文件 Tool 写路径和常见 shell mutation 可在执行前拒绝，Post/Stop 会重新扫描实际工作区。它不是操作系统沙箱；如果宿主允许插件不可见的进程直接改磁盘，不能宣称 `closed`。审美、商标可注册性、印厂签字或内容真实性也不由这些 Hook 自动证明。
 
-载体细节见各插件的 `DESIGN.md`。
+载体细节见各插件的 `README.md`。

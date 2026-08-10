@@ -8,7 +8,7 @@ version: 0.1.0
 
 Manage the **project** config file consumed by the `file-line-budget-guard` PostToolUse hook.
 
-Authoritative schema: plugin `DESIGN.md` (same plugin package). Prefer that over memory.
+Authoritative schema: plugin `README.md` (same plugin package). Prefer that over memory.
 
 ## Config discovery
 
@@ -150,5 +150,5 @@ console.log("ok", (cfg.rules ?? []).length, "rules");
 
 ## Reference
 
-- Plugin DESIGN: `${CLAUDE_PLUGIN_ROOT}/DESIGN.md` or sibling `DESIGN.md` in this plugin.
+- Plugin documentation: `${CLAUDE_PLUGIN_ROOT}/README.md` or sibling `README.md` in this plugin.
 - Example snippets: `references/example-config.mjs` in this skill directory.

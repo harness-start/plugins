@@ -1,18 +1,48 @@
 # reasoning-discipline-guard
 
-`reasoning-discipline-guard` publishes a short SessionStart routing contract, bundles a broad `reasoning-discipline` Skill, and enforces an ordered, file-backed analysis after that Skill deliberately creates a workflow.
+`reasoning-discipline-guard` 在 `SessionStart` 发布精简路由契约，内置宽泛的 `reasoning-discipline` Skill，并在该 Skill 明确创建工作流后，强制执行有序、基于文件的分析。
 
-The SessionStart contract asks the model to invoke the Skill for exact, causal, or consequential decision work while leaving routine requests alone. This route is guidance, not hard enforcement. With no `.reasoning-discipline/*/workflow.md` write, Stop remains idle. After activation, the workflow must produce five separately signed artifacts:
+路由契约要求模型将精确推理、因果分析或后果重大的决策任务交给 Skill，普通请求不受影响。路由只是指导，不是硬约束；没有写入 `.reasoning-discipline/*/workflow.md` 时，`Stop` 保持空闲。文件写入而非 Skill 加载或 prompt 正则，是唯一硬激活边界。
 
-1. frame assumptions, typed strategy variables with independently fixed components, control assignments, and evidence-backed action-time observability;
-2. analyze through an exact, causal, or decision contract; exact workflows must state fixed/exists/forall quantifiers in execution order and evaluate every fixed participant strategy against environment variation;
-3. challenge the candidate with a branch-appropriate attack; exact control challenges must preserve the framed strategy assignment;
-4. cross-check it through an independent method and independently search every allocation strategy; finite partition allocations are replayed from a bounded machine model;
-5. state a calibrated conclusion.
+插件的硬声明范围很窄：已激活的结论只有在当前文件满足配置的结构和顺序契约时才能通过 `Stop`。回执、格式正确或增加模型轮次都不能证明答案正确。
 
-Hooks validate structure, order, references, per-stage SHA-256 digests, and session receipts. Exact framing also checks that a given which states action-time observability is not omitted from the positive observability audit. Blocking that signal requires a `user-verbatim` given with explicit no-selection language; a model-inferred consequence cannot serve as the override. For `finite-partition-allocation`, the guard enumerates joint hidden responses and verifies the claimed optimum. A conclusion marked `exact-payload` must match the final response exactly, so strict one-value formats cannot acquire status text or explanation. Other valid artifacts do not become semantically true merely because their structure passes.
+## 五阶段因果链
 
-## Artifact location
+```text
+SessionStart 路由契约
+  -> 模型为适用任务选择 Skill
+  -> 单独写入 workflow.md
+  -> Hook 绑定 workspace、workflow ID 和 epoch
+  -> 五个独立 PostToolUse 事件
+  -> 分支校验和来源关联的可观察性检查
+  -> 有限划分分配重放全部联合隐藏响应
+  -> receipt 与 SHA-256 链
+  -> 工作流以 RD-R5 关闭
+  -> Stop 重算文件并允许输出结论
+```
+
+五个分别签名的 artifact 必须依次完成：
+
+1. 框定假设、带独立固定 component 的 typed strategy variable、control assignment，以及有证据支持的行动时可观察性；
+2. 按 exact、causal 或 decision 契约分析；exact 工作流必须按执行顺序写出 fixed/exists/forall quantifier，并针对环境变化评估每个固定参与者 strategy；
+3. 用分支适用的攻击挑战候选；exact control challenge 必须保留 frame 中的 strategy assignment；
+4. 用独立方法 cross-check 并独立搜索每个 strategy；有限划分分配由有界机器模型重放，非分配类工具证据只能作为 supporting metric；
+5. 给出校准后的结论。
+
+Hook 校验结构、顺序、引用、每阶段 SHA-256 和会话回执。exact frame 还要求所有声明行动时可观察性的 given 以 `observable: true` 出现在 positive observability audit；只有标为 `user-verbatim` 且明确说明不可选择的 given 才能阻断该信号，模型推断的后果不能替代用户原话。
+
+对 `finite-partition-allocation`，守卫枚举联合隐藏响应并验证声明的最优值。每次搜索都要声明数值目标是最终答案还是辅助证据，避免分数覆盖语义算法结论。标为 `exact-payload` 的 conclusion 必须与最终回复完全相同，严格单值格式不能附加状态文字或解释。其他结构有效的 artifact 也不会因此自动成为语义事实。
+
+## 分支契约
+
+- `exact`：要求显式 control assignment、具名 strategy component、有序 quantifier 模型、固定 strategy 对全部环境变量的评估、依赖推导、边界或反例攻击、control-assignment 与 quantifier-order 专项攻击，以及独立推导或确定性 solver 检查。所有 allocation 还要执行独立 strategy search，最优 assignment 必须与 analysis 一致；有限容量划分还要提供来源关联的机器模型。
+- `causal`：要求 observation、至少两个可证伪 hypothesis、区分性测试、alternate-hypothesis/counterfactual 攻击，以及 controlled 或独立因果检查。
+- `decision`：要求 objective、constraint、至少两个 option、criterion/evaluation、failure-mode/sensitivity 攻击，以及 sensitivity 或 scenario analysis。
+- 每个 conclusion 声明 `free-form` 或 `exact-payload`。后者把严格用户输出格式转换为 `Stop` 时对 receipt-bound conclusion 的相等性检查。
+
+branch registry 是唯一预期扩展入口。新增分支前必须定义 analysis、challenge 与 cross-check validator，并补齐路由和 acceptance case。
+
+## 产物与生命周期
 
 ```text
 .reasoning-discipline/<yyyyMMdd>-<short-slug>/
@@ -24,42 +54,45 @@ Hooks validate structure, order, references, per-stage SHA-256 digests, and sess
 └── 05-conclusion.md
 ```
 
-On first activation the plugin adds `/.reasoning-discipline/` to the repository-local `.git/info/exclude`. It does not edit project `.gitignore`.
+首次激活时，插件把 `/.reasoning-discipline/` 写入仓库本地 `.git/info/exclude`，不修改项目 `.gitignore`。
 
-## Lifecycle
+- `open`：本轮结束前必须写入下一阶段。
+- `paused`：只有提供 `resume.nextStage` 和具体 `resume.nextAction` 时才允许 `Stop`。
+- `closed`：要求当前、有序的 `RD-R1` 到 `RD-R5` 回执，并设置 `completionReceipt: "RD-R5"`。
+- `aborted`：释放工作流，但不能声称已有 verified conclusion。
 
-- `open`: the next stage must be written before the turn can end.
-- `paused`: Stop is allowed only with `resume.nextStage` and a concrete `resume.nextAction`.
-- `closed`: requires current, ordered `RD-R1` through `RD-R5` receipts and `completionReceipt: "RD-R5"`.
-- `aborted`: releases the workflow without permitting a verified-conclusion claim.
+修改已接受阶段会使该阶段及所有下游回执失效，必须按顺序重写。跨会话恢复 paused 工作流时，要增加 `run.epoch`、重新打开 manifest，并让 `currentStage` 与 `resume.nextStage` 指向首个未完成阶段；绑定会重算全部早期 artifact，只恢复有效回执前缀。
 
-Changing an accepted stage invalidates it and every downstream receipt. Rewrite those files in order.
+## Hook、状态与完整性
 
-To resume a paused workflow in a later session, increment `run.epoch`, reopen the manifest, and leave `currentStage` plus `resume.nextStage` at the first incomplete stage. Binding recomputes all earlier artifacts and reconstructs only a valid receipt prefix.
-
-## Hooks
-
-| Event | Behavior |
+| 事件 | 行为 |
 | --- | --- |
-| `SessionStart` | Publishes the routing contract and reports discovered workflows without binding one |
-| `PostToolUse` | Binds `workflow.md`, validates one stage mutation, and issues the next receipt |
-| `PostToolUseFailure` | Confirms failed artifact writes did not advance state |
-| `Stop` | Blocks open, invalid, stale, or incompletely closed workflows |
+| `SessionStart` | 发布路由契约并报告发现的工作流，不绑定 |
+| `PostToolUse` | 绑定 `workflow.md`、校验单次阶段修改并签发下一回执 |
+| `PostToolUseFailure` | 确认失败的 artifact 写入没有推进状态 |
+| `Stop` | 阻断 open、无效、陈旧或未完整关闭的工作流 |
 
-There is no UserPromptSubmit classifier and no business-file write barrier. A compact or final-only response format does not waive the workflow; evidence stays in the artifacts while the final response follows the requested format.
+没有 `UserPromptSubmit` classifier，也没有业务文件写屏障。紧凑或只允许最终值的回复格式不会豁免工作流；证据保留在 artifact 中，最终回复仍遵循用户格式。
 
-Artifact writes must use the host's observable file channel—Codex `apply_patch` or Claude Code Write/Edit—with one artifact per call. Shell-based artifact writes cannot advance the receipt chain.
+artifact 必须通过宿主可观察文件通道写入：Codex 使用 `apply_patch`，Claude Code 使用 Write/Edit，每次调用只写一个 artifact。shell 写入不能推进回执链。
 
-## Local verification
+Hook 状态按 session ID 与 workspace 的哈希存于宿主插件数据目录，包含绑定路径、不可变 workflow ID 和 branch、epoch、有序回执、claim ID 与文件摘要。manifest 和每个阶段都必须恰好有一个 canonical fenced JSON 块，未知字段会被拒绝。`Stop` 重载所有文件并重算摘要，手工伪造 `completionReceipt` 无效。
 
-From the marketplace root:
+状态损坏或过期时 fail-open 到 idle，避免困住无关工作；可读但已绑定的 manifest 会 fail-closed，直到修正、暂停或中止。artifact 只需保存精简 premise、claim、test 和 conclusion，不要求泄露私有 token-level reasoning；机器块外的叙述可选且不作为证明。
+
+## 非目标
+
+- 在 `UserPromptSubmit` 分类或阻断单个 prompt；
+- 阻断生产或业务文件编辑；
+- 在有限 `finite-partition-allocation` 重放契约外证明语义真值、最优性或因果有效性；
+- 替代确定性 solver、测试、测量或权威来源；
+- 默认把 artifact 目录纳入版本控制。
+
+## 本地验证
+
+在 marketplace 根目录运行：
 
 ```bash
 node --test plugins/reasoning-discipline-guard/tests/*.test.mjs
-```
-
-Run the repository-wide validation after targeted tests:
-
-```bash
 SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```

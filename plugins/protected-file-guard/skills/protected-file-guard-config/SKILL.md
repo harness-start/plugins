@@ -8,7 +8,7 @@ version: 0.1.0
 
 Manage the project configuration consumed by the `protected-file-guard` PreToolUse hook.
 
-The authoritative schema is the plugin sibling `DESIGN.md`. Read it before changing configuration.
+The authoritative schema is in the plugin sibling `README.md`. Read it before changing configuration.
 
 ## Config discovery
 

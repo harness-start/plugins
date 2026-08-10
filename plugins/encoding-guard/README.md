@@ -11,7 +11,21 @@
 - JSON、YAML、TOML、INI/CFG、shell、Lua/Perl、Markdown/Text、XML、SQL
 - `.dockerignore`、`.editorconfig`、`.env`、`.env.*`、`.gitignore`
 
-依赖、构建和生成目录默认跳过。完整规则见 [DESIGN.md](./DESIGN.md)。
+依赖、构建和生成目录默认跳过。
+
+## 设计与检测边界
+
+插件只强制一个可观察不变量：配置范围内的文本文件必须是无 BOM 的严格 UTF-8。它不检查换行风格、Unicode 规范化、内容语义或 Windows 专用脚本的代码页约定。
+
+`PostToolUse` 能检查最终落盘字节，但不能撤销已经发生的写入。检测失败会阻断 agent 后续流程并给出恢复条件，agent 必须修复文件后重新验证。
+
+检测顺序固定：
+
+1. 按 UTF-32、UTF-8、UTF-16 顺序匹配文件头 BOM，较长签名优先，避免 UTF-32 LE 被误判为 UTF-16 LE。
+2. 无 BOM 时使用 Node.js `isUtf8()` 做严格字节校验。
+3. 空文件放行；文件超过 2 MiB、无法读取或 Hook 输入无效时 fail-open。
+
+不得通过 `Buffer.toString("utf8")` 是否产生 `U+FFFD` 判断原始编码，因为合法文件可以主动包含该字符，且解码会丢失首次分叉位置的原始字节证据。
 
 ## 项目配置
 
@@ -27,9 +41,19 @@ export default {
 };
 ```
 
-配置按 `.encoding-guard.mjs`、`.encoding-guard.cjs`、`.encoding-guard.js` 的顺序加载。用户规则前置到内置规则之前，因此可新增检查范围，也可用更具体的 `skip` 覆盖默认规则。
+配置按 `.encoding-guard.mjs`、`.encoding-guard.cjs`、`.encoding-guard.js` 的顺序通过 `import()` 加载。用户规则前置到内置规则之前，因此可新增检查范围，也可用更具体的 `skip` 覆盖默认规则。
+
+规则结构为 `{ match: RegExp, mode?: "block" | "skip" }`。`match` 针对仓库根相对路径，路径分隔符统一为 `/`；`mode` 默认为 `block`，全部规则按 first-match-wins 执行。无效用户规则警告后跳过，整个配置加载失败时回退内置规则。非 Git 目录只使用内置规则。
+
+内置规则先跳过 `node_modules`、`vendor`、`dist`、`build`、`coverage`、`target`、`.next`、`.nuxt`、`generated`、`__generated__`，再检查上列文本扩展名和 dotfile。确有编码测试样本或平台 BOM 契约时，应添加窄范围 `skip`，不应跳过整个 `src/`。
 
 使用插件自带的 `encoding-guard-config` skill 初始化、维护和诊断配置。
+
+## 恢复策略
+
+- UTF-8 BOM：只删除开头 `EF BB BF`，其余字节保持不变。
+- UTF-16、UTF-32 或其他已知编码：明确指定源编码做无损转换，再执行严格 UTF-8 校验。
+- 源编码未知：保留原文件和原始字节证据，停止猜测并请求确认；禁止用 replacement character 覆盖无法解码的内容。
 
 ## 安装
 
@@ -48,4 +72,4 @@ node --test plugins/encoding-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin encoding-guard
 ```
 
-Version: `0.1.0`
+版本：`0.1.0`

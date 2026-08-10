@@ -8,7 +8,7 @@ version: 0.1.0
 
 Manage the **project** config file consumed by the `command-safety-guards` Pre/PostToolUse hooks.
 
-Authoritative schema: plugin `DESIGN.md` (same plugin package). Prefer that over memory.
+Authoritative schema: plugin `README.md` 中的配置设计章节（同一插件包）。优先以该文档为准，不依赖记忆。
 
 ## Config discovery
 
@@ -187,5 +187,5 @@ console.log("ok", (cfg.rules ?? []).length, "rules");
 
 ## Reference
 
-- Plugin DESIGN: `${CLAUDE_PLUGIN_ROOT}/DESIGN.md` or sibling `DESIGN.md`.
+- 插件文档：`${CLAUDE_PLUGIN_ROOT}/README.md` 或同级 `README.md`。
 - Examples: `references/example-config.mjs` in this skill directory.
