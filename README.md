@@ -204,7 +204,7 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-若插件依赖 skills.sh 或 GitHub Skill 仓库中的公开 Skill，添加 `plugins/<name>/skill-deps.json`，让 `install-all.sh` 将其安装到全局 scope。
+若插件依赖 skills.sh 或 GitHub Skill 仓库中的公开 Skill，添加 `plugins/<name>/skill-deps.json`，让 `install-all.sh` 将其安装到全局 scope；宿主验收 (`scripts/acceptance`) 在跑每个 live case 时也会按同一清单把 skill-deps 装进 case 隔离的 `HOME`。
 
 ## 相关文档
 
@@ -215,7 +215,7 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 
 ## 宿主验收：Claude Code、Codex 与 DeepSeek
 
-实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，smoke 和 live case 都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和 honesty gate 仍可直接在宿主运行。
+实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，smoke 和 live case 都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和 honesty gate 仍可直接在宿主运行。每个 live case 只启用当前插件，并同步安装其 `skill-deps.json` 中声明的社区 Skill。
 
 验收要求 `.env` 包含 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash`：
 
@@ -224,6 +224,7 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 ./scripts/acceptance/run.sh                                 # 全部插件 × Claude/Codex，Docker
 ./scripts/acceptance/run.sh --plugin command-safety-guards  # 单个插件，Docker
 ./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
+bash scripts/acceptance/test-skill-deps-install.sh          # skill-deps 安装辅助（无 API）
 ```
 
 详见 [宿主验收文档](docs/host-acceptance.md)。

@@ -1052,7 +1052,9 @@ plugins/<name>/skill-deps.json
 }
 ```
 
-`scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新：
+`scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新。宿主验收 `scripts/acceptance` 在每个 live case 启动前也会读取**当前插件**的 `skill-deps.json`，用同样的 `npx skills add … --global` 把依赖装进 case 隔离 `HOME`（缓存目录：`.acceptance-runs/skill-deps-cache/`）。
+
+用户安装路径：
 
 ```bash
 npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a codex

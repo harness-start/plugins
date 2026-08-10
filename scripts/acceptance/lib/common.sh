@@ -186,6 +186,359 @@ install_codex_plugin() {
     || true
 }
 
+# --- community skill-deps (skill-deps.json) for acceptance isolation -----------
+#
+# Live acceptance uses an isolated HOME per case. Community skills declared in
+# plugins/<name>/skill-deps.json must be installed into that HOME so Claude Code
+# and Codex see the same deps install-all.sh would place in the user global
+# scope. Missing skill-deps.json is a no-op; present-but-invalid fails closed.
+
+plugin_skill_deps_file() {
+  local plugin_dir="$1"
+  printf '%s/skill-deps.json\n' "${plugin_dir}"
+}
+
+# Parse skill-deps JSON → stdout lines: name<TAB>source.
+# Returns 0 for valid object (including empty skills[]). Returns 1 on error.
+parse_skill_deps_json() {
+  local json="$1"
+  local label="${2:-skill-deps.json}"
+
+  if [ -z "${json}" ]; then
+    printf 'empty skill-deps payload: %s\n' "${label}" >&2
+    return 1
+  fi
+  if ! command -v jq >/dev/null 2>&1; then
+    printf 'jq is required to parse %s\n' "${label}" >&2
+    return 1
+  fi
+  if ! printf '%s' "${json}" | jq -e 'type == "object"' >/dev/null 2>&1; then
+    printf '%s: root must be a JSON object\n' "${label}" >&2
+    return 1
+  fi
+  if ! printf '%s' "${json}" | jq -e 'has("skills") and (.skills | type == "array")' >/dev/null 2>&1; then
+    printf '%s: missing required "skills" array\n' "${label}" >&2
+    return 1
+  fi
+  local bad
+  bad="$(
+    printf '%s' "${json}" | jq -r '
+      .skills
+      | to_entries[]
+      | select(
+          (.value | type != "object")
+          or ((.value.name // "") | type != "string")
+          or ((.value.name // "") | length == 0)
+          or ((.value.source // "") | type != "string")
+          or ((.value.source // "") | length == 0)
+        )
+      | "\(.key)"
+    '
+  )"
+  if [ -n "${bad}" ]; then
+    printf '%s: each skills[] entry needs non-empty string name and source\n' "${label}" >&2
+    return 1
+  fi
+  printf '%s' "${json}" | jq -r '
+    .skills[]?
+    | select((.name | type == "string") and (.name | length > 0)
+             and (.source | type == "string") and (.source | length > 0))
+    | "\(.name)\t\(.source)"
+  '
+  return 0
+}
+
+# List skill deps for a plugin dir. No skill-deps.json → exit 0, empty stdout.
+# Invalid manifest → non-zero.
+list_plugin_skill_deps() {
+  local plugin_dir="$1"
+  local deps_file
+  deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
+  if [ ! -f "${deps_file}" ]; then
+    return 0
+  fi
+  parse_skill_deps_json "$(cat "${deps_file}")" "${deps_file}"
+}
+
+skill_deps_agents_for_host() {
+  local host="$1"
+  case "${host}" in
+    claude) printf '%s\n' "claude-code" ;;
+    codex) printf '%s\n' "codex" ;;
+    both|"")
+      printf '%s\n' "claude-code"
+      printf '%s\n' "codex"
+      ;;
+    *)
+      # Unknown host: still dual-install so either CLI can load the skill.
+      printf '%s\n' "claude-code"
+      printf '%s\n' "codex"
+      ;;
+  esac
+}
+
+# Install one community skill into the current HOME (global user scope for that HOME).
+install_skill_into_home() {
+  local name="$1"
+  local source="$2"
+  local host="${3:-both}"
+  local agent
+  local -a agent_args=()
+
+  if ! command -v npx >/dev/null 2>&1; then
+    printf 'npx is required to install skill-deps (missing on PATH)\n' >&2
+    return 1
+  fi
+
+  while IFS= read -r agent; do
+    [ -n "${agent}" ] || continue
+    agent_args+=(-a "${agent}")
+  done < <(skill_deps_agents_for_host "${host}")
+
+  if [ "${#agent_args[@]}" -eq 0 ]; then
+    agent_args=(-a claude-code -a codex)
+  fi
+
+  printf 'skill-deps: install %s from %s (HOME=%s agents=%s)\n' \
+    "${name}" "${source}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
+
+  # Always re-run add so cache rebuilds and prior partial installs are overwritten.
+  # Route CLI noise to stderr: callers capture stdout for the cache path only.
+  if ! npx --yes skills add "${source}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
+    printf 'skill-deps: failed to install %s from %s\n' "${name}" "${source}" >&2
+    return 1
+  fi
+
+  if [ ! -f "${HOME}/.agents/skills/${name}/SKILL.md" ]; then
+    printf 'skill-deps: install reported success but SKILL.md missing for %s under %s\n' \
+      "${name}" "${HOME}/.agents/skills/${name}" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Populate cache_home with all skill-deps for plugin_dir (fresh install).
+populate_skill_deps_cache_home() {
+  local plugin_dir="$1"
+  local cache_home="$2"
+  local host="${3:-both}"
+  local deps_file line name source
+  local -a deps=()
+
+  deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
+  if [ ! -f "${deps_file}" ]; then
+    return 0
+  fi
+
+  local deps_lines
+  set +e
+  deps_lines="$(list_plugin_skill_deps "${plugin_dir}")"
+  local list_rc=$?
+  set -e
+  if [ "${list_rc}" -ne 0 ]; then
+    return 1
+  fi
+  deps=()
+  if [ -n "${deps_lines}" ]; then
+    mapfile -t deps <<<"${deps_lines}"
+  fi
+  if [ "${#deps[@]}" -eq 0 ]; then
+    # Valid empty skills[] — treat as no-op, but keep fingerprint stamp caller-side.
+    return 0
+  fi
+
+  rm -rf "${cache_home}"
+  mkdir -p "${cache_home}"
+
+  (
+    export HOME="${cache_home}"
+    # skills CLI may write npm cache under HOME; keep it inside cache_home.
+    export npm_config_cache="${cache_home}/.npm"
+    for line in "${deps[@]}"; do
+      [ -n "${line}" ] || continue
+      name="${line%%$'\t'*}"
+      source="${line#*$'\t'}"
+      if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
+        printf 'skill-deps: malformed line in %s: %s\n' "${deps_file}" "${line}" >&2
+        exit 1
+      fi
+      install_skill_into_home "${name}" "${source}" "${host}" || exit 1
+    done
+  )
+}
+
+skill_deps_fingerprint() {
+  local deps_file="$1"
+  if [ ! -f "${deps_file}" ]; then
+    printf 'none\n'
+    return 0
+  fi
+  sha256sum "${deps_file}" | awk '{print $1}'
+}
+
+# Ensure a durable per-plugin skill-deps cache exists under cache_root.
+# Prints absolute cache home path on stdout when deps exist; prints nothing when no deps file.
+ensure_plugin_skill_deps_cache() {
+  local plugin_dir="$1"
+  local cache_root="$2"
+  local host="${3:-both}"
+  local plugin_name deps_file fp cache_home stamp ready name line
+  local -a deps=()
+
+  plugin_name="$(basename "${plugin_dir}")"
+  deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
+  if [ ! -f "${deps_file}" ]; then
+    return 0
+  fi
+
+  local deps_lines
+  set +e
+  deps_lines="$(list_plugin_skill_deps "${plugin_dir}")"
+  local list_rc=$?
+  set -e
+  if [ "${list_rc}" -ne 0 ]; then
+    return 1
+  fi
+  deps=()
+  if [ -n "${deps_lines}" ]; then
+    mapfile -t deps <<<"${deps_lines}"
+  fi
+  # Empty skills[] is valid; still create a stamp so we do not re-parse forever.
+  fp="$(skill_deps_fingerprint "${deps_file}")"
+  mkdir -p "${cache_root}"
+  cache_home="$(cd "${cache_root}" && pwd)/${plugin_name}"
+  stamp="${cache_home}/.skill-deps-fingerprint"
+
+  ready=1
+  if [ ! -f "${stamp}" ] || [ "$(cat "${stamp}" 2>/dev/null || true)" != "${fp}" ]; then
+    ready=0
+  fi
+  if [ "${ready}" -eq 1 ] && [ "${#deps[@]}" -gt 0 ]; then
+    for line in "${deps[@]}"; do
+      name="${line%%$'\t'*}"
+      if [ ! -f "${cache_home}/.agents/skills/${name}/SKILL.md" ]; then
+        ready=0
+        break
+      fi
+    done
+  fi
+
+  if [ "${ready}" -ne 1 ]; then
+    printf 'skill-deps: building cache for %s (%s skill(s))\n' \
+      "${plugin_name}" "${#deps[@]}" >&2
+    if [ "${#deps[@]}" -eq 0 ]; then
+      rm -rf "${cache_home}"
+      mkdir -p "${cache_home}"
+    else
+      populate_skill_deps_cache_home "${plugin_dir}" "${cache_home}" "${host}" || return 1
+    fi
+    printf '%s\n' "${fp}" >"${stamp}"
+  fi
+
+  # Sole stdout payload: absolute cache home path for command substitution.
+  printf '%s\n' "${cache_home}"
+  return 0
+}
+
+# Copy cached skill trees into an isolated case HOME without clobbering settings.
+seed_skill_deps_into_home() {
+  local cache_home="$1"
+  local dest_home="$2"
+  local name
+
+  if [ -z "${cache_home}" ] || [ ! -d "${cache_home}" ]; then
+    return 0
+  fi
+  mkdir -p "${dest_home}"
+
+  if [ -d "${cache_home}/.agents" ]; then
+    mkdir -p "${dest_home}/.agents"
+    if [ -f "${cache_home}/.agents/.skill-lock.json" ]; then
+      cp -a "${cache_home}/.agents/.skill-lock.json" "${dest_home}/.agents/"
+    fi
+    if [ -d "${cache_home}/.agents/skills" ]; then
+      mkdir -p "${dest_home}/.agents/skills"
+      # Copy each skill dir so partial re-seeds do not wipe unrelated skills.
+      for name in "${cache_home}/.agents/skills"/*; do
+        [ -e "${name}" ] || continue
+        cp -a "${name}" "${dest_home}/.agents/skills/"
+      done
+    fi
+  fi
+
+  if [ -d "${cache_home}/.claude/skills" ]; then
+    mkdir -p "${dest_home}/.claude/skills"
+    for name in "${cache_home}/.claude/skills"/*; do
+      [ -e "${name}" ] || continue
+      cp -a "${name}" "${dest_home}/.claude/skills/"
+    done
+  fi
+  return 0
+}
+
+# Install skill-deps for plugin_dir into dest_home (isolated acceptance HOME).
+# Uses cache_root to avoid re-downloading on every case.
+# No skill-deps.json → success no-op.
+# ACCEPT_SKIP_SKILL_DEPS=1 → skip with warning (not for default live suites).
+install_plugin_skill_deps() {
+  local plugin_dir="$1"
+  local dest_home="$2"
+  local cache_root="$3"
+  local host="${4:-both}"
+  local deps_file cache_home line name
+  local -a deps=()
+
+  deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
+  if [ ! -f "${deps_file}" ]; then
+    return 0
+  fi
+
+  if [ "${ACCEPT_SKIP_SKILL_DEPS:-0}" = "1" ]; then
+    printf 'skill-deps: skipped (ACCEPT_SKIP_SKILL_DEPS=1) for %s\n' "${plugin_dir}" >&2
+    return 0
+  fi
+
+  if [ -z "${dest_home}" ]; then
+    printf 'skill-deps: dest_home is required\n' >&2
+    return 1
+  fi
+  if [ -z "${cache_root}" ]; then
+    printf 'skill-deps: cache_root is required\n' >&2
+    return 1
+  fi
+
+  local deps_lines
+  set +e
+  deps_lines="$(list_plugin_skill_deps "${plugin_dir}")"
+  local list_rc=$?
+  set -e
+  if [ "${list_rc}" -ne 0 ]; then
+    return 1
+  fi
+  deps=()
+  if [ -n "${deps_lines}" ]; then
+    mapfile -t deps <<<"${deps_lines}"
+  fi
+
+  cache_home="$(ensure_plugin_skill_deps_cache "${plugin_dir}" "${cache_root}" "${host}")" || return 1
+  seed_skill_deps_into_home "${cache_home}" "${dest_home}" || return 1
+
+  for line in "${deps[@]}"; do
+    [ -n "${line}" ] || continue
+    name="${line%%$'\t'*}"
+    if [ ! -f "${dest_home}/.agents/skills/${name}/SKILL.md" ]; then
+      printf 'skill-deps: after seed, missing %s in %s\n' \
+        "${name}" "${dest_home}/.agents/skills/${name}" >&2
+      return 1
+    fi
+  done
+
+  if [ "${#deps[@]}" -gt 0 ]; then
+    printf 'skill-deps: seeded %s skill(s) into %s\n' "${#deps[@]}" "${dest_home}" >&2
+  fi
+  return 0
+}
+
 run_claude_session() {
   local workspace="$1"
   local plugin_dir="$2"
