@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tone.js Music Production"
+  short_description: "Compose and optimize mathematical Tone.js music"
+  default_prompt: "Use $tonejs-music-production to compose, optimize, render, and validate a code-managed instrumental track."

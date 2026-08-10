@@ -150,6 +150,11 @@
       "name": "print-publication-delivery-guard",
       "source": "./plugins/print-publication-delivery-guard",
       "description": "Guards static publication units, Paged Media sources, print PDFs, and preflight evidence."
+    },
+    {
+      "name": "tonejs-music-production",
+      "source": "./plugins/tonejs-music-production",
+      "description": "Creates deterministic mathematical Tone.js compositions with offline WAV proofs, listening review, audio metrics, and release receipts."
     }
   ]
 }
