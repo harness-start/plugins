@@ -34,13 +34,13 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 # Select the default response language (Simplified Chinese remains the default)
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --language en-US
 
-# From a local clone
-bash scripts/install-all.sh
-bash scripts/install-all.sh --dry-run
-
 # Skip community skill-deps (offline / no npx)
-bash scripts/install-all.sh --skip-skill-deps
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-skill-deps
 ```
+
+Running `bash scripts/install-all.sh` from a clone still uses the public GitHub
+marketplace by default. To load edits from the current working tree, use the
+[local development commands](#local-development) below instead.
 
 Requirements: `bash`, network to GitHub, and **Claude Code CLI** and/or **Codex CLI**. `jq` is recommended. Community skill deps also need **Node.js / `npx`** (see below).
 
@@ -139,18 +139,30 @@ Hosts already installed:
 SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```
 
-## Local marketplace (development)
+## Local development
+
+Run these commands from the repository root. They load the current working
+tree rather than the public GitHub marketplace.
+
+For Claude Code, load the plugin directory directly. No installation is needed,
+and `/reload-plugins` picks up later edits in the same session:
 
 ```bash
-# Claude Code
-claude plugin marketplace add "$(pwd)"
-claude plugin install <plugin-name>@harness-start
+claude --plugin-dir "$PWD/plugins/<plugin-name>"
+```
 
-# Codex
-codex plugin marketplace add . --json
+For Codex, register the repository itself as a local marketplace. Do not pass
+`--ref`; that option applies only to Git-backed marketplace sources:
+
+```bash
+codex plugin marketplace add "$PWD" --json
 codex plugin list --marketplace harness-start --available --json
 codex plugin add <plugin-name>@harness-start --json
 ```
+
+If `harness-start` is already registered from GitHub, remove that existing
+marketplace entry before adding the local source; marketplace names must be
+unique.
 
 ## Community skill dependencies
 
