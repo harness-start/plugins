@@ -92,7 +92,8 @@ test("Stop emits one human-only non-blocking notice for a new proposal revision"
     assert.match(message, /audience="human"/u);
     assert.match(message, /blocking="false"/u);
     assert.match(message, /ai_action="none"/u);
-    assert.match(message, /不是给 LLM\/AI 的任务或指令/u);
+    assert.match(message, /for a human maintainer only/iu);
+    assert.match(message, /not an LLM\/AI task or instruction/iu);
     assert.equal(notice?.decision, undefined);
     assert.equal(notice?.hookSpecificOutput, undefined);
 
@@ -106,7 +107,7 @@ test("Stop emits one human-only non-blocking notice for a new proposal revision"
 
     writeFileSync(proposalPath, proposal("pc-release-check", 2));
     const revised = await runHook("stop", event, { PLUGIN_DATA: data });
-    assert.match(output(revised)?.systemMessage ?? "", /1 条新的能力申请/u);
+    assert.match(output(revised)?.systemMessage ?? "", /1 new capability proposal/iu);
     assert.equal((await runHook("stop", event, { PLUGIN_DATA: data })).stdout, "");
 
     unlinkSync(proposalPath);

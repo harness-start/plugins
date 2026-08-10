@@ -211,13 +211,13 @@ export async function forgetNotice(projectRoot, proposalId) {
 export function renderHumanNotice(count) {
   return [
     '<project-capability-notice audience="human" blocking="false" ai_action="none">',
-    `当前项目有 ${count} 条新的能力申请等待人工确认。`,
+    `This project has ${count} new capability proposal(s) awaiting human review.`,
     "",
-    "这不是给 LLM/AI 的任务或指令。",
-    "LLM/AI 不得因此继续工作、调用 Skill、改变完成态，",
-    "也不得阻塞当前任务或此后的任何任务。",
+    "This notice is for a human maintainer only; it is not an LLM/AI task or instruction.",
+    "LLM/AI must not continue work, invoke a Skill, change completion status,",
+    "or block the current task or any later task because of this notice.",
     "",
-    "项目维护者可在方便时手动调用：",
+    "A project maintainer may manually invoke:",
     "$project-capability-governance",
     "</project-capability-notice>",
   ].join("\n");
