@@ -37,6 +37,11 @@
       "description": "Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits."
     },
     {
+      "name": "tdd-guard",
+      "source": "./plugins/tdd-guard",
+      "description": "Blocks implementation writes until a related test case has been created or changed earlier in the session."
+    },
+    {
       "name": "encoding-guard",
       "source": "./plugins/encoding-guard",
       "description": "Encoding guard: blocks BOM-bearing and invalid UTF-8 text files after AI writes."
