@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +33,63 @@ test("resolveRules gives a valid user rule precedence over built-ins", () => {
   assert.equal(rules[0], custom);
   assert.equal(matchRule("src/legacy.php", rules), custom);
   assert.equal(settings.oversizeSoftGrowthLimit, 7);
+});
+
+test("resolveRules defaults an omitted user rule mode to block", () => {
+  const { rules } = resolveRules({
+    rules: [{ match: /src\/limited[.]php$/, budget: 1 }],
+  });
+
+  assert.deepEqual(rules[0], {
+    match: /src\/limited[.]php$/,
+    budget: 1,
+    mode: "block",
+  });
+  assert.equal(matchRule("src/limited.php", rules)?.mode, "block");
+});
+
+test("resolveRules rejects user rules with an unsupported mode", () => {
+  const previous = process.stderr.write;
+  process.stderr.write = () => true;
+  try {
+    const { rules } = resolveRules({
+      rules: [{ match: /[.]php$/, budget: 1, mode: "observe" }],
+    });
+
+    assert.equal(rules[0].mode, "skip");
+    assert.equal(matchRule("src/example.php", rules)?.budget, 500);
+    assert.equal(matchRule("src/example.php", rules)?.mode, "block");
+  } finally {
+    process.stderr.write = previous;
+  }
+});
+
+test("resolveRules ignores malformed and invalid settings", () => {
+  const previous = process.stderr.write;
+  process.stderr.write = () => true;
+  try {
+    const malformed = resolveRules({ settings: "invalid" }).settings;
+    assert.deepEqual(malformed, {
+      nearBudgetWarnRatio: 0.8,
+      warnCooldownMinutes: 30,
+      oversizeSoftGrowthLimit: 100,
+    });
+
+    const invalidValues = resolveRules({
+      settings: {
+        nearBudgetWarnRatio: 2,
+        warnCooldownMinutes: -1,
+        oversizeSoftGrowthLimit: Number.POSITIVE_INFINITY,
+      },
+    }).settings;
+    assert.deepEqual(invalidValues, {
+      nearBudgetWarnRatio: 0.8,
+      warnCooldownMinutes: 30,
+      oversizeSoftGrowthLimit: 100,
+    });
+  } finally {
+    process.stderr.write = previous;
+  }
 });
 
 test("default legacy growth allowance stays bounded but permits maintenance", () => {
@@ -185,6 +242,33 @@ test("entry fails open with empty output for malformed JSON", async () => {
   assert.equal(result.code, 0);
   assert.equal(result.stdout, "");
   assert.equal(result.stderr, "");
+});
+
+test("entry blocks an oversized file when the matching rule omits mode", async () => {
+  const root = mkdtempSync(join(tmpdir(), "file-budget-default-mode-"));
+  const sourceDir = join(root, "src");
+  const target = join(sourceDir, "limited.php");
+  try {
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    mkdirSync(sourceDir);
+    writeFileSync(
+      join(root, ".file-line-budget-guard.mjs"),
+      "export default { rules: [{ match: /src\\/limited[.]php$/, budget: 1 }] };\n",
+    );
+    writeFileSync(target, "<?php\nreturn 1;\n");
+
+    const result = await runEntry(JSON.stringify({
+      cwd: root,
+      tool_name: "Write",
+      tool_input: { file_path: target },
+    }));
+
+    assert.equal(result.code, 2, result.stderr);
+    assert.match(result.stderr, /exceeds its file line budget/);
+    assert.match(result.stderr, /Current: 2 lines \| Budget: 1 lines/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("entry keeps small growth of a historically oversized file silent", async () => {
