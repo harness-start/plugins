@@ -1,0 +1,4 @@
+id = "03-recorder-capture"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["recorder", "subagent-start", "proposal", "stop"]
