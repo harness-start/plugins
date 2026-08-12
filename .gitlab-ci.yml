@@ -33,9 +33,9 @@ cache:
 validate:plugins:
   stage: validate
   interruptible: true
-  # Healthy runs finish in about a minute. Bound runner/container stalls while
-  # leaving ample headroom for host installation and the complete test suite.
-  timeout: 5m
+  # The complete suite can approach five minutes on shared runners after
+  # dependency installation. Keep a bounded window without terminating tests.
+  timeout: 10m
   retry:
     max: 1
     when:
