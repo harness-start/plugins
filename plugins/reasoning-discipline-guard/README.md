@@ -1,8 +1,8 @@
 # reasoning-discipline-guard
 
-`reasoning-discipline-guard` 在 `SessionStart` 发布精简路由契约，内置宽泛的 `reasoning-discipline` Skill，并在该 Skill 明确创建工作流后，强制执行有序、基于文件的分析。
+`reasoning-discipline-guard` 在 `SessionStart` 发布一句五阶段路由协议，内置宽泛的 `reasoning-discipline` Skill，并在该 Skill 明确创建工作流后，强制执行有序、基于文件的分析。
 
-路由契约要求模型将精确推理、因果分析或后果重大的决策任务交给 Skill，普通请求不受影响。路由只是指导，不是硬约束；没有写入 `.reasoning-discipline/*/workflow.md` 时，`Stop` 保持空闲。文件写入而非 Skill 加载或 prompt 正则，是唯一硬激活边界。
+这句 standing rule 只列出 proof、exact、worst-case、algorithmic、causal、constrained-decision 六类工作、Skill 名、五阶段完成要求，以及 final-only 只约束回复格式；它不注入题型公式、领域提示或答案线索。路由契约要求模型将精确推理、因果分析或后果重大的决策任务交给 Skill，普通请求不受影响。路由只是指导，不是硬约束；没有写入 `.reasoning-discipline/*/workflow.md` 时，`Stop` 保持空闲。文件写入而非 Skill 加载或 prompt 正则，是唯一硬激活边界。
 
 插件的硬声明范围很窄：已激活的结论只有在当前文件满足配置的结构和顺序契约时才能通过 `Stop`。回执、格式正确或增加模型轮次都不能证明答案正确。
 

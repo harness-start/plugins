@@ -150,11 +150,20 @@ async function loadUserConfig(repoRoot) {
  * Validate a single rule. Returns true if the rule is usable.
  */
 function validateRule(rule, i) {
+  if (!rule || typeof rule !== "object" || Array.isArray(rule)) {
+    process.stderr.write(`[file-line-budget-guard] rule[${i}]: must be an object, skipping\n`);
+    return false;
+  }
   if (!(rule.match instanceof RegExp)) {
     process.stderr.write(`[file-line-budget-guard] rule[${i}]: "match" must be a RegExp, skipping\n`);
     return false;
   }
-  if (rule.mode !== "skip") {
+  const mode = rule.mode ?? "block";
+  if (!["block", "report", "skip"].includes(mode)) {
+    process.stderr.write(`[file-line-budget-guard] rule[${i}]: "mode" must be block|report|skip, skipping\n`);
+    return false;
+  }
+  if (mode !== "skip") {
     if (typeof rule.budget !== "number" || !Number.isFinite(rule.budget) || rule.budget <= 0) {
       process.stderr.write(`[file-line-budget-guard] rule[${i}]: "budget" must be a positive number (mode != "skip"), skipping\n`);
       return false;
@@ -163,14 +172,52 @@ function validateRule(rule, i) {
   return true;
 }
 
+function resolveSettings(rawSettings) {
+  if (rawSettings === undefined) return { ...DEFAULT_SETTINGS };
+  if (!rawSettings || typeof rawSettings !== "object" || Array.isArray(rawSettings)) {
+    process.stderr.write('[file-line-budget-guard] config "settings" must be an object, using defaults\n');
+    return { ...DEFAULT_SETTINGS };
+  }
+
+  const validators = {
+    nearBudgetWarnRatio: (value) =>
+      typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 1,
+    warnCooldownMinutes: (value) =>
+      typeof value === "number" && Number.isFinite(value) && value >= 0,
+    oversizeSoftGrowthLimit: (value) =>
+      typeof value === "number" && Number.isFinite(value) && value >= 0,
+  };
+  const settings = { ...DEFAULT_SETTINGS };
+  for (const [key, value] of Object.entries(rawSettings)) {
+    const validate = validators[key];
+    if (!validate) {
+      process.stderr.write(`[file-line-budget-guard] settings.${key}: unknown setting, ignoring\n`);
+      continue;
+    }
+    if (!validate(value)) {
+      process.stderr.write(`[file-line-budget-guard] settings.${key}: invalid value, using default\n`);
+      continue;
+    }
+    settings[key] = value;
+  }
+  return settings;
+}
+
 /**
  * Merge user config rules (prepended) with built-in rules.
  * Returns { rules, settings }.
  */
 export function resolveRules(userConfig) {
-  const userRules = (userConfig?.rules ?? []).filter(validateRule);
+  const rawRules = Array.isArray(userConfig?.rules) ? userConfig.rules : [];
+  if (userConfig?.rules !== undefined && !Array.isArray(userConfig.rules)) {
+    process.stderr.write('[file-line-budget-guard] config "rules" must be an array, using built-ins\n');
+  }
+  const userRules = rawRules
+    .map((rule, i) => ({ rule, i }))
+    .filter(({ rule, i }) => validateRule(rule, i))
+    .map(({ rule }) => rule.mode == null ? { ...rule, mode: "block" } : rule);
   const rules = [...userRules, ...BUILTIN_RULES];
-  const settings = { ...DEFAULT_SETTINGS, ...userConfig?.settings };
+  const settings = resolveSettings(userConfig?.settings);
   return { rules, settings };
 }
 

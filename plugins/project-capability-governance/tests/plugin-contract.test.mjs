@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -21,13 +21,12 @@ test("dual-host plugin contracts expose platform-scoped lifecycle hooks", () => 
   assert.equal(codex.name, "project-capability-governance");
   assert.equal(claude.name, codex.name);
   assert.equal(claude.version, codex.version);
-  assert.equal(codex.hooks, undefined);
+  assert.equal(codex.hooks, "./hooks/codex.json");
   assert.equal(claude.hooks, "./hooks/claude.json");
 
   const codexHooks = text("hooks/codex.json");
-  const discoveredCodexHooks = text("hooks/hooks.json");
   const claudeHooks = text("hooks/claude.json");
-  assert.deepEqual(JSON.parse(discoveredCodexHooks), JSON.parse(codexHooks));
+  assert.equal(existsSync(join(ROOT, "hooks", "hooks.json")), false);
   for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "SubagentStart", "Stop"]) {
     assert.match(codexHooks, new RegExp(`"${event}"`, "u"));
     assert.match(claudeHooks, new RegExp(`"${event}"`, "u"));

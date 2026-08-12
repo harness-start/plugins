@@ -73,7 +73,20 @@ export function extractFileTargets(event) {
 export function extractWriteContent(event) {
   const input = extractToolInput(event);
   const value = input?.content ?? input?.file_text ?? input?.text;
-  return typeof value === "string" ? value : null;
+  if (typeof value === "string") return value;
+  if (!/^(?:apply_patch|ApplyPatch)$/u.test(String(extractToolName(event)))) return null;
+  const patch = typeof input === "string" ? input : input?.patch ?? input?.input ?? "";
+  if (typeof patch !== "string") return null;
+  const lines = patch.split("\n");
+  const directives = lines
+    .map((line, index) => ({ line, index }))
+    .filter(({ line }) => /^\*\*\*\s+(?:Add|Update|Delete) File:\s+/u.test(line));
+  if (directives.length !== 1 || !/^\*\*\*\s+Add File:\s+/u.test(directives[0].line)) return null;
+  const end = lines.indexOf("*** End Patch", directives[0].index + 1);
+  if (end < 0) return null;
+  const body = lines.slice(directives[0].index + 1, end);
+  if (body.length === 0 || body.some((line) => !line.startsWith("+"))) return null;
+  return body.map((line) => line.slice(1)).join("\n");
 }
 
 export function isAgentTool(event) {

@@ -16,6 +16,7 @@ import {
 } from "./lib/hook-io.mjs";
 import {
   commandHash,
+  commandInputFingerprint,
   countRemotePolls,
   estimateSleepSeconds,
   failureSignature,
@@ -92,7 +93,7 @@ function pollingMessage(action, command, sleepSum, querySum, settings) {
   return lines.join("\n");
 }
 
-function runPre(event, config) {
+function runPre(event, config, repoRoot, cwd) {
   const command = extractShellCommand(event);
   if (!command?.trim()) return;
   const now = Date.now();
@@ -106,10 +107,11 @@ function runPre(event, config) {
       state.command = null;
     } else if (!isReadOnlyCommand(command)) {
       const normalizedHash = commandHash(command);
+      const inputFingerprint = commandInputFingerprint(command, cwd, repoRoot);
       const previous = state.command && now - Number(state.command.lastSeen) <= repeat.windowMinutes * 60_000
         ? state.command
         : null;
-      if (previous?.commandHash === normalizedHash) {
+      if (previous?.commandHash === normalizedHash && (previous.inputFingerprint ?? null) === inputFingerprint) {
         const failed = previous.lastOutcome === "failure";
         const streak = (failed ? Number(previous.failStreak) : Number(previous.successStreak)) + 1;
         const mode = failed ? config.checks.failedCommandRetry : config.checks.successfulCommandRepeat;
@@ -170,7 +172,7 @@ function runPre(event, config) {
   else if (decision.reports.length > 0) writeJson(contextOutput("PreToolUse", decision.reports.join("\n\n")));
 }
 
-function recordCommandOutcome(event, config, forceFailure) {
+function recordCommandOutcome(event, config, forceFailure, repoRoot, cwd) {
   const command = extractShellCommand(event);
   if (!command?.trim()) return;
   const now = Date.now();
@@ -182,9 +184,11 @@ function recordCommandOutcome(event, config, forceFailure) {
     if (isReadOnlyCommand(command)) return;
     const outcome = inferCommandOutcome(event, forceFailure);
     const normalizedHash = commandHash(command);
+    const inputFingerprint = commandInputFingerprint(command, cwd, repoRoot);
     const previous = state.command &&
       now - Number(state.command.lastSeen) <= config.commandRepeat.windowMinutes * 60_000 &&
-      state.command.commandHash === normalizedHash
+      state.command.commandHash === normalizedHash &&
+      (state.command.inputFingerprint ?? null) === inputFingerprint
       ? state.command
       : null;
     const signature = outcome === "failure"
@@ -195,6 +199,7 @@ function recordCommandOutcome(event, config, forceFailure) {
       previous.failureSignature === signature;
     state.command = {
       commandHash: normalizedHash,
+      inputFingerprint,
       failStreak: outcome === "failure" ? (sameFailure ? Number(previous.failStreak) + 1 : 1) : 0,
       successStreak: outcome === "success" && previous?.lastOutcome === "success"
         ? Number(previous.successStreak) + 1
@@ -276,10 +281,10 @@ export async function main(mode = process.argv[2]) {
   const cwd = resolve(extractCwd(event));
   const { config, repoRoot } = await loadProjectConfig(cwd, warn);
   if (mode === "pre") {
-    runPre(event, config);
+    runPre(event, config, repoRoot, cwd);
     return;
   }
-  recordCommandOutcome(event, config, mode === "failure");
+  recordCommandOutcome(event, config, mode === "failure", repoRoot, cwd);
   if (mode === "post") recordEdits(event, config, repoRoot, cwd);
 }
 

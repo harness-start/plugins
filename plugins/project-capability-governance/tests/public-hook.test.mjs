@@ -17,6 +17,9 @@ import { fileURLToPath } from "node:url";
 const ENTRY = fileURLToPath(
   new URL("../scripts/project-capability-governance-hook.mjs", import.meta.url),
 );
+const RECORDER_ENTRY = fileURLToPath(
+  new URL("../scripts/project-capability-recorder.mjs", import.meta.url),
+);
 
 function proposal(id, revision = 1) {
   return [
@@ -65,6 +68,21 @@ function runHook(mode, event, env) {
   });
 }
 
+function runRecorder(args, env) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(process.execPath, [RECORDER_ENTRY, ...args], {
+      env: { ...process.env, ...env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.stderr.on("data", (chunk) => { stderr += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => resolvePromise({ code, stdout, stderr }));
+  });
+}
+
 function output(result) {
   const line = result.stdout.trim();
   return line ? JSON.parse(line.split("\n").at(-1)) : null;
@@ -72,6 +90,15 @@ function output(result) {
 
 function pendingPath(root) {
   return join(root, ".project-capabilities", "inbox", "pending");
+}
+
+function addFilePatch(path, content) {
+  return [
+    "*** Begin Patch",
+    `*** Add File: ${path}`,
+    ...content.split("\n").map((line) => `+${line}`),
+    "*** End Patch",
+  ].join("\n");
 }
 
 test("Stop emits one human-only non-blocking notice for a new proposal revision", async () => {
@@ -238,6 +265,136 @@ test("only one bound recorder subagent per prompt epoch may create proposals", a
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("Codex lifecycle consumes an explicit reservation without a dispatch PreToolUse event", async () => {
+  const root = mkdtempSync(join(tmpdir(), "project-capability-codex-start-"));
+  const decoyData = mkdtempSync(join(tmpdir(), "project-capability-data-"));
+  const codexHome = mkdtempSync(join(tmpdir(), "project-capability-codex-home-"));
+  const hookData = join(
+    codexHome,
+    "plugins",
+    "data",
+    "project-capability-governance-harness-start",
+  );
+  const recorderEnv = { CODEX_HOME: codexHome, PLUGIN_DATA: decoyData };
+  const hookEnv = { PLUGIN_DATA: hookData };
+  const base = { cwd: root, session_id: "codex-recorder-session" };
+  const secondPrompt = "PROJECT_CAPABILITY_RECORDER batch-second\nRecord qualified project capabilities only.";
+  const target = join(pendingPath(root), "pc-codex-release.md");
+  const request = "Create pc-codex-release.md as the requested repeatable release-check SOP proposal.";
+
+  try {
+    const session = await runHook("session", base, hookEnv);
+    assert.match(
+      output(session)?.hookSpecificOutput?.additionalContext ?? "",
+      new RegExp(`--data-root '${hookData.replaceAll("'", "'\"'\"'")}'`, "u"),
+    );
+    await runHook("prompt", { ...base, prompt: "Standardize the release check" }, hookEnv);
+
+    const reservationCommand = `node '${RECORDER_ENTRY}' reserve --cwd "$PWD" --batch "batch-codex" --request "Create .project-capabilities/inbox/pending/pc-codex-release.md\nInclude the complete proposal contract." --data-root '${hookData}'`;
+    const allowedReservation = await runHook("pre", {
+      ...base,
+      tool_name: "exec_command",
+      tool_input: { cmd: reservationCommand, workdir: root },
+    }, hookEnv);
+    assert.equal(output(allowedReservation), null, allowedReservation.stdout || allowedReservation.stderr);
+
+    const chainedMutation = await runHook("pre", {
+      ...base,
+      tool_name: "exec_command",
+      tool_input: { cmd: `${reservationCommand}; touch .project-capabilities/inbox/pending/bypass.md`, workdir: root },
+    }, hookEnv);
+    assert.equal(output(chainedMutation)?.hookSpecificOutput?.permissionDecision, "deny");
+
+    const reserved = await runRecorder([
+      "reserve",
+      "--cwd", root,
+      "--batch", "batch-codex",
+      "--session", base.session_id,
+      "--data-root", hookData,
+      "--request", request,
+    ], recorderEnv);
+    assert.equal(reserved.code, 0, reserved.stderr);
+    assert.deepEqual(JSON.parse(reserved.stdout), {
+      ok: true,
+      batchId: "batch-codex",
+      marker: "PROJECT_CAPABILITY_RECORDER batch-codex",
+    });
+
+    const firstStart = await runHook("start", {
+      ...base,
+      agent_id: "agent-codex-recorder",
+    }, hookEnv);
+    assert.match(
+      output(firstStart)?.hookSpecificOutput?.additionalContext ?? "",
+      /dedicated recorder/iu,
+    );
+    assert.match(
+      output(firstStart)?.hookSpecificOutput?.additionalContext ?? "",
+      /Create pc-codex-release\.md as the requested repeatable release-check SOP proposal\./u,
+    );
+    assert.match(
+      output(firstStart)?.hookSpecificOutput?.additionalContext ?? "",
+      /proposal_revision: 1[\s\S]*explicit_standardization: true[\s\S]*## Evidence[\s\S]*## Reuse scenarios[\s\S]*## Acceptance[\s\S]*## Counterexample/u,
+    );
+    assert.match(
+      output(firstStart)?.hookSpecificOutput?.additionalContext ?? "",
+      /at least two dash-prefixed bullet items/iu,
+    );
+    assert.equal(
+      readFileSync(join(root, ".project-capabilities", ".gitignore"), "utf8"),
+      "*\n",
+    );
+
+    const secondStart = await runHook("start", {
+      ...base,
+      agent_id: "agent-codex-nested",
+      agent_prompt: secondPrompt,
+    }, hookEnv);
+    assert.match(
+      output(secondStart)?.hookSpecificOutput?.additionalContext ?? "",
+      /not authorized/iu,
+    );
+
+    const acceptedPatch = await runHook("pre", {
+      ...base,
+      agent_id: "agent-codex-recorder",
+      tool_name: "apply_patch",
+      tool_input: { patch: addFilePatch(target, proposal("pc-codex-release")) },
+    }, hookEnv);
+    assert.equal(output(acceptedPatch), null, acceptedPatch.stdout || acceptedPatch.stderr);
+
+    const nestedPatch = await runHook("pre", {
+      ...base,
+      agent_id: "agent-codex-nested",
+      tool_name: "apply_patch",
+      tool_input: {
+        patch: addFilePatch(
+          join(pendingPath(root), "pc-nested.md"),
+          proposal("pc-nested"),
+        ),
+      },
+    }, hookEnv);
+    assert.equal(output(nestedPatch)?.hookSpecificOutput?.permissionDecision, "deny");
+
+    const malformedPatch = await runHook("pre", {
+      ...base,
+      agent_id: "agent-codex-recorder",
+      tool_name: "apply_patch",
+      tool_input: {
+        patch: addFilePatch(
+          join(pendingPath(root), "pc-invalid.md"),
+          proposal("pc-invalid").replace("## Acceptance", "## Validation"),
+        ),
+      },
+    }, hookEnv);
+    assert.equal(output(malformedPatch)?.hookSpecificOutput?.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(decoyData, { recursive: true, force: true });
+    rmSync(codexHome, { recursive: true, force: true });
   }
 });
 

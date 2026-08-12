@@ -87,7 +87,7 @@ export default {
 
 Hook 自身出错（超时、异常、无效 JSON）时放行，不阻塞用户操作。
 
-配置不存在或 Git 根定位失败时静默回退内置规则；配置 `import()` 失败会写一行 stderr 警告并回退内置规则；`match` 不是 `RegExp`、非 skip 规则缺少 `budget` 或正则执行异常时只跳过对应规则。
+配置不存在或 Git 根定位失败时静默回退内置规则；配置 `import()` 失败会写一行 stderr 警告并回退内置规则；`match` 不是 `RegExp`、`mode` 不在允许集合、非 skip 规则缺少 `budget` 或正则执行异常时只跳过对应规则。非法 `settings` 字段会输出警告并回退该字段的默认值。
 
 ## 组件
 

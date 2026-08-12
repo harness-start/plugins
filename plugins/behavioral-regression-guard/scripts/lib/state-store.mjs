@@ -41,10 +41,17 @@ function read(path) {
 
 export function readSession(sessionId, repoRoot) { return read(pathFor("sessions", `${sessionId}\0${resolve(repoRoot)}`)); }
 export function writeSession(sessionId, repoRoot, value) { return atomicWrite(pathFor("sessions", `${sessionId}\0${resolve(repoRoot)}`), { version: VERSION, ...value, updatedAt: Date.now() }); }
+export function readProbe(sessionId, repoRoot) { return read(pathFor("probes", `${sessionId}\0${resolve(repoRoot)}`)); }
+export function writeProbe(sessionId, repoRoot, value) { return atomicWrite(pathFor("probes", `${sessionId}\0${resolve(repoRoot)}`), { version: VERSION, ...value, updatedAt: Date.now() }); }
+export function clearProbe(sessionId, repoRoot) {
+  const path = pathFor("probes", `${sessionId}\0${resolve(repoRoot)}`);
+  if (!path) return false;
+  try { rmSync(path, { force: true }); return true; } catch { return false; }
+}
 export function readRun(repoRoot, contractId) { return read(pathFor("runs", `${resolve(repoRoot)}\0${contractId}`)); }
 export function writeRun(repoRoot, contractId, value) { return atomicWrite(pathFor("runs", `${resolve(repoRoot)}\0${contractId}`), { version: VERSION, ...value, updatedAt: Date.now() }); }
 
-export function newRun({ contract, path, plan, productionFingerprint, sessionId }) {
+export function newRun({ contract, path, plan, productionFingerprint, sessionId, reviewMode = "advisory", taskAnchorText = null }) {
   return {
     contractId: contract.id,
     contractPath: resolve(path),
@@ -53,6 +60,15 @@ export function newRun({ contract, path, plan, productionFingerprint, sessionId 
     baselineProductionFingerprint: productionFingerprint,
     verificationFingerprint: null,
     receipts: [],
+    reviewMode,
+    taskAnchor: taskAnchorText ? {
+      source: "claude-parent-transcript",
+      text: taskAnchorText,
+      digest: digest(taskAnchorText),
+      truncated: false,
+    } : null,
+    reviews: { oracle: null, patch: null },
+    reviewReservation: null,
     sequence: 0,
     invalidReason: null,
     lease: contract.status === "open" ? { sessionId, active: true } : { sessionId: null, active: false },

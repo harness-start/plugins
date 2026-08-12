@@ -1,6 +1,6 @@
 {
   "name": "project-capability-governance",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Captures qualified project capability proposals through a recorder subagent, notifies humans without blocking work, and guides project-local capability adoption.",
   "author": {
     "name": "Harness Start",

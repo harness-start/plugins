@@ -20,6 +20,15 @@ test("Codex bundled MCP config uses a supported direct server map", async () => 
   assert.equal(models.models.find((model) => model.slug === "deepseek-v4-flash").supports_search_tool, false);
 });
 
+test("Claude MCP config inherits the platform plugin-data directory", async () => {
+  const path = fileURLToPath(new URL("../.mcp.json", import.meta.url));
+  const config = JSON.parse(await readFile(path, "utf8"));
+  const server = config.mcpServers.research_provenance;
+  assert.equal(server.command, "node");
+  assert.deepEqual(server.args, ["${CLAUDE_PLUGIN_ROOT}/server/research-provenance-server.mjs"]);
+  assert.equal(server.env, undefined, "self-referential env values remain literal and create workspace artifacts");
+});
+
 test("stdio MCP exposes seven tools and binds research_begin through roots/list", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "research-mcp-"));
   const workspace = join(root, "workspace");

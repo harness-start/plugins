@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Bind a command-repetition cycle to content hashes of the workspace files named directly by that command. Re-running the same RED or verification command after changing its script/test input now observes a new input state instead of being misclassified as a blind retry; editing an unrelated file or rewriting identical bytes cannot launder the cycle, and the independent edit-loop budget still tracks file churn.
+
 ## 0.1.0
 
 - Add dual-host edit-loop, command-repeat, and remote-polling guards.
