@@ -4,6 +4,38 @@
 
 插件要求 Node.js、npm、`ffmpeg` 和 `ffprobe`。渲染依赖由 artifact 工程自己的 `package-lock.json` 固定。
 
+## 最小目录
+
+```text
+artifacts/video/demo/
+  .gitignore
+  package.json
+  package-lock.json
+  plan.contract.json
+  plan.storyboard.json
+  video.project.json
+  src/
+    index.ts
+    Root.tsx
+    Video.tsx
+    timelines/
+      VisualTimeline.tsx
+      AudioTimeline.tsx
+    visual/
+      manifest.json
+      v001-intro.f000000-f000090.tsx
+    audio/
+      manifest.json
+      a001-music-bed.f000000-f000240.audio.json
+  public/audio/music-bed.wav
+  tools/{render-visual,render-audio}.mjs
+  dist/
+  evidence.*.json
+  review.video.json
+  release.manifest.json
+  receipt.release.json
+```
+
 ## 工程合同
 
 工程根固定为 `artifacts/video/<kebab-case-id>/`。`plan.contract.json` 必须绑定 artifact 和闭包阶段：
@@ -52,16 +84,17 @@ render writer 通过无 shell 的 `npm run` 调用脚本，并追加固定的 `-
 
 writer 必须在插件生效时通过宿主 shell Tool 调用。`PreToolUse` 只接受纯净、精确的 writer 命令，并签发有效期 30 秒、绑定 project root、writer role、完整 argv digest 与真实 host session 的一次性 capability。grant 位于受保护且从 subject 排除的 `.tmp/video-guard/`，writer 原子消费后立即失效。直接运行 writer、重放不同 argv 或伪造 reviewer session 都不能通过。
 
-依次为每个已登记 unit 和最终 composition 运行：
+在 marketplace 根目录依次为每个已登记 unit 和最终 composition 运行；每条 writer 命令都应单独提交：
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-render.mjs" artifacts/video/demo visual v001-intro.f000000-f000090.tsx
-node "${PLUGIN_ROOT}/scripts/tools/project-render.mjs" artifacts/video/demo audio a001-music-bed.f000000-f000240.audio.json
-node "${PLUGIN_ROOT}/scripts/tools/project-render.mjs" artifacts/video/demo final
-node "${PLUGIN_ROOT}/scripts/tools/project-probe.mjs" artifacts/video/demo
+node plugins/video-project-delivery-guard/scripts/tools/project-lint.mjs artifacts/video/demo
+node plugins/video-project-delivery-guard/scripts/tools/project-render.mjs artifacts/video/demo visual v001-intro.f000000-f000090.tsx
+node plugins/video-project-delivery-guard/scripts/tools/project-render.mjs artifacts/video/demo audio a001-music-bed.f000000-f000240.audio.json
+node plugins/video-project-delivery-guard/scripts/tools/project-render.mjs artifacts/video/demo final
+node plugins/video-project-delivery-guard/scripts/tools/project-probe.mjs artifacts/video/demo
 ```
 
-Claude Code 可用 `${CLAUDE_PLUGIN_ROOT}` 代替 `${PLUGIN_ROOT}`；也可以使用已安装插件的绝对路径。
+这些 writer 必须作为启用插件的宿主 shell Tool 中的单一命令执行，Hook 才能签发一次性 capability；在普通终端直接运行会被拒绝。干净环境还需先在 artifact root 按 `package-lock.json` 安装依赖，并确认 `ffmpeg`、`ffprobe` 可执行。
 
 ## Render、probe、review 与 release
 
@@ -99,8 +132,8 @@ Claude Code 可用 `${CLAUDE_PLUGIN_ROOT}` 代替 `${PLUGIN_ROOT}`；也可以�
 然后运行：
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-review.mjs" artifacts/video/demo /absolute/path/review-input.json
-node "${PLUGIN_ROOT}/scripts/tools/project-release.mjs" artifacts/video/demo
+node plugins/video-project-delivery-guard/scripts/tools/project-review.mjs artifacts/video/demo /tmp/video-review-input.json
+node plugins/video-project-delivery-guard/scripts/tools/project-release.mjs artifacts/video/demo
 ```
 
 reviewer session 取自一次性 capability，不能只信任输入 JSON。review writer 用 ffmpeg 抽取至少 start/interior/final 三帧并记录 PNG 字节 hash，同时生成结构化 accessibility 与 review evidence。release writer 会拒绝缺失、过期、自审、格式错误或字节不匹配的 evidence；只有全部 proof/evidence 当前且结构有效时，才生成绑定所有交付角色的 `release-manifest/v1` 和 receipt v2。
@@ -108,6 +141,15 @@ reviewer session 取自一次性 capability，不能只信任输入 JSON。revie
 ## 原子性与资源边界
 
 各 writer 使用独占 `.video-delivery-journal.json`、唯一临时文件和 rename。只有完整成功后才回收 journal；报错或异常中断会留下 journal，`Stop` 会阻断完成态，直到操作者核对并清理半写入结果。
+
+## 失败恢复
+
+- `*_RENDER_PROOF_INVALID`：重新运行 finding 对应的 `project-render.mjs`；不要手改 proof JSON 或重命名旧媒体。
+- `PROBE_*` 或音轨/时长/尺寸不匹配：检查 artifact render script 与 `video.project.json`，重新渲染 final，再运行 probe。
+- `FRAME_EVIDENCE_INVALID`、`ACCESSIBILITY_EVIDENCE_INVALID` 或自审错误：在不同宿主会话重新审查，并确保输入文件位于 artifact root 外且摘要绑定当前 final MP4。
+- `RECEIPT_INVALID`：任一输入或输出在 release 后变化；从最早失效阶段重新生成，再执行 release。
+- `MUTATION_JOURNAL_OPEN`：先确认没有 writer 仍在运行，检查 journal 指示的阶段和 `.tmp/video-guard/` 临时文件；在停用本插件 Hook 的维护窗口只清理该项目残留 journal/临时文件，然后从该阶段重跑。
+- capability missing/expired/argv mismatch 表示 writer 没有获得当前宿主授权；用相同宿主会话重新提交一条精确、无串联的 writer 命令。
 
 项目 loader 对所有文件使用流式 SHA-256。二进制媒体不会被解码为 UTF-8，只有有界文本会载入合同模型。默认限制为 4096 个文件、单文件 8 GiB、单文本 4 MiB、最多 32 个视频项目；超过限制或读取期间发生变化均 fail closed。`SessionStart` 只做发现，Post/Failure/Stop 最多运行 120 秒且只哈希和校验，不启动编码器或 reviewer。
 
@@ -121,3 +163,5 @@ node --test plugins/video-project-delivery-guard/tests/*.test.mjs
 该机制在宿主可观察的 Tool/Hook 边界内建立 render → measure → independent-session review → release 的因果链，而不是操作系统沙箱。宿主不可见进程、被攻陷的项目自有 render script、被替换的系统 ffmpeg/ffprobe 或具备直接磁盘权限的操作者仍超出 `snapshot` profile。
 
 校验器能证明文件与帧投影、实际 container/stream/尺寸/时长、Hook 信任边界内的 writer provenance、evidence 结构和 snapshot freshness；不能自动证明审美、叙事、字幕语义、内容真实性或真人身份。结构化 review 记录这些结论及 session provenance，但不等同于法律签名或真人身份认证。当前插件没有外部 Skill 依赖。
+
+Claude Code 使用 `CLAUDE_PLUGIN_ROOT` 并可观察 `PostToolUseFailure`；Codex 使用 `PLUGIN_ROOT`，Hook 命令设置 `AI_EXPERTS_SESSION_ID` 和 `AI_EXPERTS_TRIGGER_FROM`。安装态 writer 使用对应变量或已安装插件的精确绝对路径，不能使用 `...` 占位。reviewer 身份以 capability 里的真实宿主 session 为准，不能由输入 JSON 自报。live acceptance 必须通过仓库脚本进入 `docker/host-acceptance`，不能直接在宿主机启动 Claude Code 或 Codex 会话。

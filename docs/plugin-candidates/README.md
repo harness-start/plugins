@@ -45,7 +45,7 @@
 
 | 原候选 | 处理 | 原因 |
 | --- | --- | --- |
-| `completion-evidence-gate` | 删除 | 通用自然语言完成声明没有权威证据源；外部 effect gate 又依赖源仓 tool registry，移植后只剩可伪造 receipt。现有 `artifact-evidence-guard`、`git-state-evidence-guard` 和领域 delivery guard 已覆盖可确定声明。 |
+| `completion-evidence-gate` | 删除 | 通用自然语言完成声明没有权威证据源；外部 effect gate 又依赖源仓 tool registry，移植后只剩可伪造 receipt。现有 `git-state-evidence-guard` 和领域 delivery guard 已覆盖可确定声明。 |
 | `tdd-sequence-gate` | 删除 | “某测试失败 → 某源码被改 → 某测试通过”的会话时序不绑定 public seam、测试资产或生产字节，不能证明 TDD 目标成立；`behavioral-regression-guard` 已提供更强的 BEFORE / AFTER 指纹与回执。 |
 | `git-delivery-closure-gate` + `gitlab-review-gate` | 合并并改名 | 源实现依赖 GitLab 和 operational facts；按 GitLab 单平台收口，删除只检查最终回复中 URL/status 字样的弱路径。 |
 | `infra-ops-safety` | 改为现有插件扩展 | 都是 shell `PreToolUse` 风险判断；独立插件会复制 tokenizer、配置与 deny 升级逻辑。 |

@@ -2,7 +2,7 @@
 
 为 Claude Code 和 Codex 提供确定性的 `PreToolUse` 与 `PostToolUse` 守卫，检查高风险命令和敏感源码模式。
 
-## 规则系统（v0.3.0）
+## 规则系统
 
 与 `file-line-budget-guard` 同构：**项目配置前置 + 内置默认 + 先命中先生效**。
 

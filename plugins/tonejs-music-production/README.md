@@ -102,17 +102,9 @@ node "$PLUGIN_ROOT/scripts/tools/project-release.mjs" \
 
 ## 开发与验证
 
-在插件仓库根目录运行单元测试和 Skill 校验：
+在插件仓库根目录运行单元测试；仓库级校验会同时检查插件结构和 Skill：
 
 ```bash
 node --test plugins/tonejs-music-production/tests/*.test.mjs
-
-python3 /srv/workspaces/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
-  plugins/tonejs-music-production/skills/tonejs-music-production
-```
-
-完整的仓库级验证命令为：
-
-```bash
 SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```
