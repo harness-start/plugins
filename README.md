@@ -124,6 +124,46 @@ codex plugin add <name>@harness-start --json
 | `tonejs-music-production` | 用确定性数学模型生成并优化 Tone.js 乐谱，离线渲染 WAV，并绑定听审、音频指标与 release receipt |
 | `work-report-insights` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
 
+## 插件分类与设计
+
+31 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+
+| 类别 | 插件 | 核心机制 |
+| --- | --- | --- |
+| 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`command-safety-guards`、`git-state-evidence-guard`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
+| Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`behavioral-regression-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
+| 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate`、`goal-task-gate` | 会话阶段锁：意图澄清、第一性原理分析或 `/goal` 轨迹未关闭期间 deny 业务写入，直到显式关闭 |
+| 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`subagent-lifecycle-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
+| 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`tonejs-music-production` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
+| 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 跨会话 / 跨子代理治理：提案写入权限、会话语言、报告封印与追加 |
+
+### 通用结构
+
+每个插件必须自包含：Claude Code 会把单插件目录复制到缓存，运行时不得引用自身目录之外的文件。
+
+```text
+plugins/<name>/
+├── .claude-plugin/plugin.json   # Claude manifest（指向 hooks/claude.json）
+├── .codex-plugin/plugin.json    # Codex manifest（版本必须与 Claude 一致）
+├── hooks/claude.json            # Claude Hook 配置
+├── hooks/codex.json             # Codex Hook 配置
+├── scripts/*.mjs                # Node ESM 校验脚本，零运行时依赖
+├── skills/                      # 可选 Skill，大部分插件附带
+├── acceptance/cases/            # 宿主验收用例（case.toml + prompt.md + expect.sh + workspace/）
+├── tests/*.test.mjs             # node --test 单元测试
+└── skill-deps.json              # 可选社区 Skill 依赖声明
+```
+
+两个宿主的字段名、环境变量与生命周期事件不同，因此 marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护，业务脚本在插件目录内共享。Hook 事件覆盖：`SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`PostToolUseFailure`、`Stop`、`SubagentStart`、`SubagentStop`、`PreCompact`、`PostCompact`。
+
+### 设计约定
+
+- **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出放行/阻断决策，stderr 输出给人读的消息；解析失败一律 fail-open。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
+- **证据驱动**：工作流类插件以磁盘回执与 SHA-256 receipt 绑定新鲜度，交付前要求回执与 trail 一致；Hook 激活、格式合规或额外模型轮次本身不构成有效性。
+- **fail-open 与 fail-closed 分级**：解析失败与证据缺失放行；写入安全、trail 完整性与交付新鲜度违规则阻断。
+- **可配置**：多数守卫支持项目级配置（如 `.encoding-guard.mjs`、`.language-output-governance.mjs`），解析失败回退内置规则。
+- **验证配套**：每个插件至少一个 `node --test` 单元测试与一套 acceptance cases；CI 统一运行 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
+
 ## 前置条件
 
 - Git
