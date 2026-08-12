@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { relative, resolve } from "node:path";
 
 import { extractToolResponse } from "./hook-io.mjs";
 
@@ -67,6 +69,52 @@ export function isReadOnlyCommand(command) {
 
 export function commandHash(command) {
   return createHash("sha256").update(normalizeCommand(command)).digest("hex");
+}
+
+function directCommandWords(command) {
+  const words = [];
+  let word = "";
+  let quote = null;
+  let escaped = false;
+  const source = String(command ?? "").trim();
+  if (!source || /[\r\n]/u.test(source)) return null;
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (escaped) {
+      word += character;
+      escaped = false;
+    } else if (character === "\\") escaped = true;
+    else if (quote) {
+      if (character === quote) quote = null;
+      else word += character;
+    } else if (character === "'" || character === '"') quote = character;
+    else if (/\s/u.test(character)) {
+      if (word) words.push(word);
+      word = "";
+    } else if (";&|<>`".includes(character) || (character === "$" && source[index + 1] === "(")) return null;
+    else word += character;
+  }
+  if (quote || escaped) return null;
+  if (word) words.push(word);
+  return words;
+}
+
+export function commandInputFingerprint(command, cwd, repoRoot) {
+  const words = directCommandWords(command);
+  if (!words?.length) return null;
+  const root = resolve(repoRoot);
+  const inputs = [];
+  for (const word of words) {
+    const candidate = resolve(cwd, word.replace(/^\.\//u, ""));
+    try {
+      const real = realpathSync(candidate);
+      const rel = relative(root, real).replaceAll("\\", "/");
+      if (!rel || rel === ".." || rel.startsWith("../") || !existsSync(real) || !lstatSync(real).isFile()) continue;
+      inputs.push(`${rel}\0${createHash("sha256").update(readFileSync(real)).digest("hex")}`);
+    } catch {}
+  }
+  if (inputs.length === 0) return null;
+  return createHash("sha256").update([...new Set(inputs)].sort().join("\0")).digest("hex");
 }
 
 export function failureSignature(command, response) {
