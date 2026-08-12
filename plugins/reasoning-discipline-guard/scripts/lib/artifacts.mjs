@@ -599,7 +599,7 @@ function validateCrossCheck(payload, branch, findings) {
   if (branch === "exact") {
     const searches = entries(payload?.strategySearches, "cross-check.payload.strategySearches", true, findings);
     for (const [index, item] of searches.entries()) {
-      exactKeys(item, ["id", "strategyRef", "method", "searchedComponents", "variedEnvironment", "bestAssignment", "objectiveValue", "replayModel", "result", "evidence"], `cross-check.payload.strategySearches[${index}]`, findings);
+      exactKeys(item, ["id", "strategyRef", "method", "searchedComponents", "variedEnvironment", "bestAssignment", "objectiveValue", "answerBinding", "replayModel", "result", "evidence"], `cross-check.payload.strategySearches[${index}]`, findings);
       if (![item?.id, item?.strategyRef, item?.method, item?.result, item?.evidence].every(text)) {
         findings.push(`cross-check.payload.strategySearches[${index}] text fields must be non-empty`);
       }
@@ -620,12 +620,17 @@ function validateCrossCheck(payload, branch, findings) {
       if (!Number.isInteger(item?.objectiveValue)) {
         findings.push(`cross-check.payload.strategySearches[${index}].objectiveValue must be an integer`);
       }
-      const replay = validateReplayModel(
-        item?.replayModel,
-        item?.searchedComponents,
-        `cross-check.payload.strategySearches[${index}].replayModel`,
-        findings,
-      );
+      if (!["objective", "supporting"].includes(item?.answerBinding)) {
+        findings.push(`cross-check.payload.strategySearches[${index}].answerBinding must be objective or supporting`);
+      }
+      const replay = item?.replayModel === null
+        ? null
+        : validateReplayModel(
+          item?.replayModel,
+          item?.searchedComponents,
+          `cross-check.payload.strategySearches[${index}].replayModel`,
+          findings,
+        );
       if (replay) {
         if (!Number.isFinite(replay.bestValue)) {
           findings.push(`cross-check.payload.strategySearches[${index}] replay found no guaranteeing assignment`);

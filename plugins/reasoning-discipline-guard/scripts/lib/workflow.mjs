@@ -172,7 +172,11 @@ function referenceFindings(stage, state, manifest) {
       const searches = stage.payload?.strategySearches ?? [];
       const evaluations = analysis.value?.payload?.strategyEvaluations ?? [];
       const candidateAnswer = Number(analysis.value?.payload?.candidateAnswer);
-      const replaySearches = searches.filter((search) => search.replayModel && Number.isFinite(search.objectiveValue));
+      const replaySearches = searches.filter((search) => (
+        search.answerBinding === "objective"
+        && search.replayModel
+        && Number.isFinite(search.objectiveValue)
+      ));
       if (replaySearches.length > 0 && !Number.isFinite(candidateAnswer)) {
         findings.push("numeric replay requires a numeric analysis candidateAnswer");
       } else if (replaySearches.length > 0 && !replaySearches.some((search) => search.objectiveValue === candidateAnswer)) {
@@ -185,6 +189,9 @@ function referenceFindings(stage, state, manifest) {
         const strategySearches = searches.filter((item) => item.strategyRef === strategy.id);
         if (strategySearches.length === 0) findings.push(`allocation strategy ${strategy.id} lacks an independent strategy search`);
         for (const search of strategySearches) {
+          if (!search.replayModel) {
+            findings.push(`allocation strategy ${strategy.id} requires a replayModel`);
+          }
           const componentKeys = [...(strategy.components ?? [])].sort();
           const searchedKeys = [...(search.searchedComponents ?? [])].sort();
           const assignmentKeys = Object.keys(search.bestAssignment ?? {}).sort();
@@ -213,7 +220,11 @@ function referenceFindings(stage, state, manifest) {
       findings.push("cannot audit conclusion against replay because cross-check is invalid");
     } else {
       const objectives = (crossCheck.value?.payload?.strategySearches ?? [])
-        .filter((search) => search.replayModel && Number.isFinite(search.objectiveValue))
+        .filter((search) => (
+          search.answerBinding === "objective"
+          && search.replayModel
+          && Number.isFinite(search.objectiveValue)
+        ))
         .map((search) => search.objectiveValue);
       if (objectives.length > 0) {
         const conclusion = Number(stage.payload?.conclusion);

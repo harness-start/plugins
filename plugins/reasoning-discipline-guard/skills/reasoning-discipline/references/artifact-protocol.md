@@ -255,6 +255,7 @@ Every exact strategy needs a `control-assignment` attack. Its `fixedAssignment` 
         "variedEnvironment": ["response"],
         "bestAssignment": { "categoryOneCount": 1, "categoryTwoCount": 2 },
         "objectiveValue": 3,
+        "answerBinding": "objective",
         "replayModel": {
           "kind": "finite-partition-allocation",
           "domains": [
@@ -316,11 +317,13 @@ Allowed methods:
 - `causal`: `controlled-probe`, `counterfactual`, `source-triangulation`
 - `decision`: `sensitivity-analysis`, `alternative-weighting`, `scenario-analysis`
 
-Exact cross-checks also require `strategySearches`. Every framed allocation strategy must be independently searched over exactly its components while varying a `forall` environment variable. `method` is `deterministic-tool`, `symbolic-solver`, or `exhaustive-proof`; `bestAssignment` must match one fixed assignment already evaluated in analysis. Enumerating uncontrolled outcomes without optimizing the participant strategy is invalid.
+Exact cross-checks also require `strategySearches`. Every framed strategy must be independently searched over exactly its components while varying a `forall` environment variable. `method` is `deterministic-tool`, `symbolic-solver`, or `exhaustive-proof`; `bestAssignment` must match one fixed assignment already evaluated in analysis. Enumerating uncontrolled outcomes without optimizing the participant strategy is invalid.
+
+Set `answerBinding` to `objective` only when `objectiveValue` is itself the requested answer. Set it to `supporting` when the integer is a score, count, cost, failure total, or other measurement used to choose or validate a semantic algorithm or policy conclusion. A supporting value does not constrain the text in analysis `candidateAnswer` or the final `conclusion`. For a non-allocation strategy whose independent evidence is not a finite partition model, set `replayModel` to `null`; the recorded method and evidence remain auditable but are not mechanically replayed by this guard.
 
 For a finite allocation where each controlled component is the total selected from a capacity-bounded hidden partition, `replayModel` is mandatory. Each domain component has exactly one `responseGroups` entry, and every member gives the hidden category variable plus its capacity. The guard enumerates all integer member counts whose sum equals the fixed component. It evaluates `successCondition` on each complete joint response, then minimizes the sum of `objective.terms` across guaranteeing strategies. This matters: separately feasible bad events are not a joint counterexample unless one enumerated response makes them true together.
 
-Conditions use `and`, `or`, and `not`, or an integer comparison with `op` equal to `eq`, `ne`, `gt`, `gte`, `lt`, or `lte`. Comparison objects have exactly `op`, `variable`, and `value`. `sourceRefs` must resolve to earlier claims that justify capacities and the success predicate. `objectiveValue`, `bestAssignment`, a numeric analysis `candidateAnswer`, and the final `conclusion` must agree with the guard's replay. The replay is capped at 100,000 participant strategies and 1,000,000 capacity combinations in the hidden response space; use another exact method when the finite model exceeds either bound.
+Conditions use `and`, `or`, and `not`, or an integer comparison with `op` equal to `eq`, `ne`, `gt`, `gte`, `lt`, or `lte`. Comparison objects have exactly `op`, `variable`, and `value`. `sourceRefs` must resolve to earlier claims that justify capacities and the success predicate. `objectiveValue` and `bestAssignment` must agree with the guard's replay. When `answerBinding` is `objective`, a numeric analysis `candidateAnswer` and the final `conclusion` must also agree; `supporting` keeps those semantic fields independent. The replay is capped at 100,000 participant strategies and 1,000,000 capacity combinations in the hidden response space; use another exact method when the finite model exceeds either bound.
 
 ## 05-conclusion.md
 

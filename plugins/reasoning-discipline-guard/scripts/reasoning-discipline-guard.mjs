@@ -16,12 +16,7 @@ import {
   stopDecision,
 } from "./lib/workflow.mjs";
 
-const SESSION_CONTEXT = [
-  "[Reasoning capability]",
-  "Treat this as a standing routing rule: invoke `$reasoning-discipline` before answering any request whose correctness depends on a proof, exact calculation, worst-case guarantee, logical or algorithmic correctness, competing causal explanations, or a consequential constrained decision.",
-  "A short or final-only response changes presentation only; complete the Skill first and preserve the requested output shape exactly.",
-  "Leave lookup, translation, summarization, routine implementation, creative work, and active incident containment on their normal paths.",
-].join("\n");
+const SESSION_CONTEXT = "Standing rule: proof, exact, worst-case, algorithmic, causal, and constrained-decision answers must invoke `$reasoning-discipline`; finish five stages before replying, even for final-only formats.";
 
 function feedback(result) {
   if (!result || result.kind === "idle") return null;
