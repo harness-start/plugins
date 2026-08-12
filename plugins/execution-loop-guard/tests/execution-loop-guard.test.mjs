@@ -191,6 +191,28 @@ test("failed command reports on the second attempt and blocks the third", async 
   assert.equal(freshPre.stdout, "");
 });
 
+test("changing a command's direct file input resets only that repetition cycle", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "execution-loop-state-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  const env = { PLUGIN_DATA: data };
+  writeFileSync(join(root, "proof.mjs"), "throw new Error('red v1');\n");
+  writeFileSync(join(root, "other.mjs"), "export const other = 1;\n");
+  const failure = shellEvent(root, "node proof.mjs", { exit_code: 1, stderr: "still red" });
+
+  await runEntry("failure", failure, env);
+  writeFileSync(join(root, "proof.mjs"), "throw new Error('red v2');\n");
+  await runEntry("post", fileEvent(root, "session-1", "proof.mjs"), env);
+  const afterEdit = await runEntry("pre", failure, env);
+  await runEntry("failure", failure, env);
+  writeFileSync(join(root, "other.mjs"), "export const other = 2;\n");
+  await runEntry("post", fileEvent(root, "session-1", "other.mjs"), env);
+  const afterUnrelatedEdit = await runEntry("pre", failure, env);
+
+  assert.equal(afterEdit.stdout, "", "the same verification command now observes a changed workspace");
+  assert.match(afterUnrelatedEdit.stdout, /failed command repeated 2 times/u, "an unrelated edit must not launder the retry cycle");
+});
+
 test("retry bypass clears the command cycle", async (context) => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "execution-loop-state-"));

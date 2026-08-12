@@ -1,0 +1,4 @@
+id = "09-failure-armed-write"
+hosts = ["claude", "codex"]
+timeout_sec = 420
+tags = ["failure-probe", "write-gate", "closure"]

@@ -138,6 +138,7 @@ function stages(branch = "exact") {
       variedEnvironment: ["flavorAssignment"],
       bestAssignment: { roundDraws: 9, starDraws: 12 },
       objectiveValue: 21,
+      answerBinding: "objective",
       replayModel: {
         kind: "finite-partition-allocation",
         domains: [
@@ -390,6 +391,16 @@ test("exact cross-check rejects a prose-only deterministic allocation search", (
   assert.equal(validateStage(exact.crossCheck, manifest()).valid, false);
 });
 
+test("exact cross-check accepts supporting tool evidence without an allocation replay model", () => {
+  const exact = stages("exact");
+  exact.crossCheck.payload.strategySearches[0].answerBinding = "supporting";
+  exact.crossCheck.payload.strategySearches[0].replayModel = null;
+  exact.crossCheck.payload.strategySearches[0].objectiveValue = 0;
+  exact.crossCheck.payload.strategySearches[0].result = "the selected policy has no counterexamples in the bounded probe";
+  const result = validateStage(exact.crossCheck, manifest());
+  assert.equal(result.valid, true, result.findings.join("; "));
+});
+
 test("finite replay rejects an excessive hidden response space before enumeration", () => {
   const exact = stages("exact");
   exact.crossCheck.payload.strategySearches[0].replayModel.responseGroups[0].members[0].capacity = 10000;
@@ -602,7 +613,37 @@ test("hook rejects a conclusion that contradicts the replayed objective", async 
   assert.match(result.stdout, /replayed objective 21 must match conclusion 27/u, result.stdout || result.stderr);
 });
 
-test("SessionStart publishes a compact reasoning route without modeling hints", async () => {
+test("supporting numeric evidence does not replace a semantic algorithm conclusion", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "reasoning-supporting-objective-data-"));
+  const dir = workflowDir(root);
+  const session = "supporting-objective-session";
+  const env = { PLUGIN_DATA: data };
+  const artifacts = stages("exact");
+  const semanticConclusion = "use the wave-stable merge policy";
+  artifacts.analysis.payload.candidateAnswer = semanticConclusion;
+  artifacts.crossCheck.payload.strategySearches[0].answerBinding = "supporting";
+  artifacts.conclusion.payload.conclusion = semanticConclusion;
+
+  const workflowPath = join(dir, "workflow.md");
+  writeArtifact(workflowPath, manifest());
+  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: workflowPath } }, env);
+
+  for (const [file, artifact, receipt] of [
+    ["01-frame.md", artifacts.frame, "RD-R1"],
+    ["02-analysis.md", artifacts.analysis, "RD-R2"],
+    ["03-challenge.md", artifacts.challenge, "RD-R3"],
+    ["04-cross-check.md", artifacts.crossCheck, "RD-R4"],
+    ["05-conclusion.md", artifacts.conclusion, "RD-R5"],
+  ]) {
+    const path = join(dir, file);
+    writeArtifact(path, artifact);
+    const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    assert.match(result.stdout, new RegExp(receipt, "u"), result.stdout || result.stderr);
+  }
+});
+
+test("SessionStart publishes a compact five-stage reasoning route", async () => {
   const root = workspace();
   const result = await runHook("session", {
     cwd: root,
@@ -614,9 +655,9 @@ test("SessionStart publishes a compact reasoning route without modeling hints", 
   const context = output?.hookSpecificOutput?.additionalContext ?? "";
   assert.equal(output?.hookSpecificOutput?.hookEventName, "SessionStart");
   assert.match(context, /`\$reasoning-discipline`/u);
-  assert.match(context, /requested output shape/iu);
-  assert.ok(context.length <= 650, `SessionStart context is ${context.length} characters`);
-  assert.doesNotMatch(context, /observability|quantifier|strategy components|exhaustive enumeration|workflow\.md/iu);
+  assert.match(context, /standing rule.*proof.*exact.*worst-case.*algorithmic.*causal.*constrained-decision.*must invoke.*reasoning-discipline.*finish five stages.*before replying.*final-only/iu);
+  assert.ok(context.length <= 200, `SessionStart context is ${context.length} characters`);
+  assert.doesNotMatch(context, /ordering|boundary|representation|observability|quantifier|strategy|workflow\.md/iu);
 });
 
 test("hook remains idle until workflow.md is written", async () => {

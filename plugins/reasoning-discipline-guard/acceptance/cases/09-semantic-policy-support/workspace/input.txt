@@ -1,0 +1,14 @@
+A record stream contains blue and amber records. The output must group blue records before amber records while preserving the original relative order inside each color. A violation is either a blue record after an amber record or a reversal of two records that had the same color.
+
+Two candidate policies are available:
+
+- global-sort: sort all records by color and then by record identifier.
+- stable-partition: scan once, append each record to its color bucket, then concatenate the buckets.
+- alternating-drain: alternate between the next blue and next amber record while either bucket remains.
+
+Evaluate the candidates against both probe streams:
+
+1. amber-9, blue-8, blue-2, amber-1
+2. blue-7, amber-6, blue-3, amber-4
+
+Choose the policy with zero violations on both probes and justify internally why the contract holds for any input stream. The requested answer is the policy identifier, not the numeric violation count.
