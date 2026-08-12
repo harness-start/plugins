@@ -103,4 +103,4 @@ export default {
 - `wshobson/agents/debugging-strategies` @ `c4b82b0ad771190355eb8e204b1329732a18449a`：差分、二分和 trace 隔离策略；
 - `pproenca/dot-skills/debug` @ `c9228d2d0c1391190168845824ceb4e33bb844fb`：先定位行为在哪里偏离，再判断哪里损坏，并使用 last-known-good 与 fault propagation。
 
-本地 `/srv/workspaces/work/infra/harness-starter` 实现还提供了紧凑 RED 循环、reset sample、唯一 debug prefix、因果链记录、精确复现验证、有限状态和双宿主 provenance 约定。
+本插件还提供紧凑的 RED 循环、重置样例、唯一调试前缀、因果链记录、精确复现验证、有限状态和双宿主来源记录约定。

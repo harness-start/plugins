@@ -33,7 +33,7 @@
                                (小幅增长) (棘轮) (正向反馈)
 ```
 
-### 规则系统（v0.2.0）
+### 规则系统
 
 所有规则统一为 `{ match: RegExp, budget?: number, mode: "block"|"report"|"skip" }`。
 

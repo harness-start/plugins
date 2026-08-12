@@ -76,11 +76,15 @@ seal 后使用 workflow CLI 的 `handoff-outbound`，记录 `handoffs/outbound/h
 ## 工作流 CLI
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/research-workflow.mjs" run-open --cwd "$PWD"
-node ".../research-workflow.mjs" brief-write --cwd "$PWD" --question "..." --scope "..." --as-of "..."
-node ".../research-workflow.mjs" handoff-inbound --cwd "$PWD" --file /tmp/inbound.json
-node ".../research-workflow.mjs" completeness-check --cwd "$PWD"
-node ".../research-workflow.mjs" handoff-outbound --cwd "$PWD" --handoff-file ... --prompt-file ...
+RESEARCH_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}"
+test -n "${RESEARCH_PLUGIN_ROOT}" || { echo "research-provenance-guard plugin root is unavailable" >&2; exit 1; }
+RESEARCH_WORKFLOW="${RESEARCH_PLUGIN_ROOT}/scripts/research-workflow.mjs"
+
+node "${RESEARCH_WORKFLOW}" run-open --cwd "$PWD"
+node "${RESEARCH_WORKFLOW}" brief-write --cwd "$PWD" --question "研究问题" --scope "研究范围" --as-of "2026-08-13"
+node "${RESEARCH_WORKFLOW}" handoff-inbound --cwd "$PWD" --file /tmp/research-inbound.json
+node "${RESEARCH_WORKFLOW}" completeness-check --cwd "$PWD"
+node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/research-handoff.md --prompt-file /tmp/research-prompt.md
 ```
 
 ## Skill 组合

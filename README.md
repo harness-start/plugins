@@ -93,7 +93,7 @@ codex plugin add <name>@harness-start --json
 
 | 插件 | 说明 |
 | --- | --- |
-| `research-provenance-guard` | 通过 `research-evidence-workflow` 编排硬研究：项目工作流、MCP 捕获与 anchor、typed claim、seal 和 seal 后 handoff |
+| `research-provenance-guard` | 保存网页或本地资料为可引用片段，要求每条结论绑定来源；证据封存后才允许交付 |
 | `git-state-evidence-guard` | 在 `Stop` 校验明确声明的 HEAD、分支或 detached 状态及工作树清洁状态；证据缺失或无法确定时 fail-open |
 | `execution-loop-guard` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
 | `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
@@ -105,7 +105,7 @@ codex plugin add <name>@harness-start --json
 | `protected-file-guard` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
 | `command-safety-guards` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
 | `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言，默认简体中文 |
-| `subagent-workflow-guard` | 提供带 scope 的 handoff application、Hook-capable dispatch 一次性回执，以及 sealed review/closure 校验 |
+| `subagent-workflow-guard` | 先登记子任务范围再派发；交付前要求实现、规格复核、质量复核和最终复核全部完成 |
 | `subagent-lifecycle-audit` | 以 append-only 形式记录 subagent 启停和生命周期缺口，不保存工作内容 |
 | `intent-clarify-gate` | grill-me 式意图澄清期间门禁业务写入，直到 `done` 或选择完成项 |
 | `first-principles-gate` | 第一性原理分析期间门禁业务写入，直到结构化磁盘 ledger 完成并关闭会话 |
