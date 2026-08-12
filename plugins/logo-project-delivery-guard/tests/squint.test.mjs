@@ -1,78 +1,41 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { homedir } from "node:os";
-import { access } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 
 import { decodePngToRgba } from "../scripts/lib/png-decode.mjs";
+import { renderPreviewStrip } from "../scripts/lib/preview-strip.mjs";
 import { analyzeSquintCell, buildSquintEvidence } from "../scripts/lib/squint.mjs";
 
-async function resolveStripTool() {
-  const candidates = [
-    process.env.LOGO_PREVIEW_STRIP_TOOL,
-    join(homedir(), ".agents/skills/logo-design/scripts/logo-preview-strip.mjs"),
-    "/srv/workspaces/.agents/skills/logo-design/scripts/logo-preview-strip.mjs",
-  ].filter(Boolean);
-  for (const c of candidates) {
-    try {
-      await access(c);
-      return c;
-    } catch {
-      /* try next */
-    }
-  }
-  return null;
-}
+const PREVIEW_ENTRY = fileURLToPath(new URL("../scripts/tools/project-preview.mjs", import.meta.url));
 
 async function makeStripFixture() {
-  const tool = await resolveStripTool();
-  if (!tool) return null;
   const dir = await mkdtemp(join(tmpdir(), "logo-squint-"));
   const svgPath = join(dir, "mark.svg");
   const pngPath = join(dir, "strip.png");
-  const manifestPath = join(dir, "strip.manifest.json");
-  await writeFile(
-    svgPath,
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="22" fill="#111"/><path d="M10 54 H54" stroke="#111" stroke-width="4"/></svg>\n`,
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="22" fill="#111"/><path d="M10 54 H54" stroke="#111" stroke-width="4"/></svg>\n`;
+  await writeFile(svgPath, svg);
+  const rendered = await renderPreviewStrip(
+    { svgSource: svg, outputPath: pngPath },
   );
-  const env = {
-    ...process.env,
-    AI_EXPERTS_SESSION_ID: process.env.AI_EXPERTS_SESSION_ID ?? "squint-test",
-    AI_EXPERTS_TRIGGER_FROM: process.env.AI_EXPERTS_TRIGGER_FROM ?? "squint-test",
-  };
-  const result = spawnSync(
-    process.execPath,
-    [tool, svgPath, pngPath, "--sizes", "16,32,64", "--manifest", manifestPath, "--overwrite"],
-    { env, encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(`logo-preview-strip failed: ${result.stderr || result.stdout}`);
-  }
   const buf = await readFile(pngPath);
-  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const manifest = { samples: rendered.samples };
   return { buf, manifest };
 }
 
-test("decodePngToRgba reads logo-preview-strip output", async (t) => {
+test("decodePngToRgba reads the bundled preview-strip output", async () => {
   const fixture = await makeStripFixture();
-  if (!fixture) {
-    t.skip("logo-preview-strip tool not available");
-    return;
-  }
   const { width, height, rgba } = decodePngToRgba(fixture.buf);
-  assert.ok(width > 0 && height > 0);
+  assert.equal(width, 192);
+  assert.equal(height, 192);
   assert.equal(rgba.length, width * height * 4);
 });
 
-test("buildSquintEvidence binds real bboxes and can fail empty cells", async (t) => {
+test("buildSquintEvidence binds real bboxes and can fail empty cells", async () => {
   const fixture = await makeStripFixture();
-  if (!fixture) {
-    t.skip("logo-preview-strip tool not available");
-    return;
-  }
   const { width, height, rgba } = decodePngToRgba(fixture.buf);
   const samples = (fixture.manifest.samples ?? []).filter((s) =>
     ["black", "mono", "reverse"].includes(s.row) && [16, 32, 64].includes(Number(s.size)),
@@ -93,4 +56,59 @@ test("buildSquintEvidence binds real bboxes and can fail empty cells", async (t)
   // empty corner cell should fail silhouette
   const empty = analyzeSquintCell(rgba, width, height, [0, 0, 8, 8]);
   assert.equal(empty.silhouetteIntact, false);
+});
+
+test("project preview runs with an isolated HOME and no external Skill tool", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "logo-preview-self-contained-"));
+  const project = join(sandbox, "artifacts", "logo", "orbit");
+  const isolatedHome = join(sandbox, "home");
+  try {
+    await mkdir(join(project, "build", "master"), { recursive: true });
+    await mkdir(isolatedHome, { recursive: true });
+    await writeFile(
+      join(project, "build", "master", "mark.svg"),
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="#111"/></svg>\n',
+    );
+    const result = spawnSync(process.execPath, [PREVIEW_ENTRY, project], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        HOME: isolatedHome,
+        LOGO_PREVIEW_STRIP_TOOL: join(isolatedHome, "missing-logo-preview-strip.mjs"),
+      },
+    });
+    assert.equal(result.status, 0, result.stderr || result.stdout);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.ok, true);
+    assert.equal(output.sampleCount, 6);
+    await readFile(join(project, output.stripPath));
+    await readFile(join(project, output.manifestPath));
+    await readFile(join(project, output.squintPath));
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("distributed preview sources do not name undeclared logo Skill dependencies", async () => {
+  const sources = await Promise.all([
+    new URL("../README.md", import.meta.url),
+    new URL("../scripts/tools/project-preview.mjs", import.meta.url),
+  ].map((url) => readFile(url, "utf8")));
+  assert.doesNotMatch(sources.join("\n"), /logo-design|logo-audit|lettering-design|visual-evidence|\/srv\/workspaces\//u);
+});
+
+test("bundled preview fails closed when its declared renderer is unavailable", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "logo-preview-renderer-missing-"));
+  try {
+    await assert.rejects(
+      renderPreviewStrip({
+        svgSource: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4"/></svg>',
+        outputPath: join(sandbox, "strip.png"),
+        renderer: join(sandbox, "missing-ffmpeg"),
+      }),
+      /FFmpeg with SVG input support is required/u,
+    );
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
 });

@@ -129,6 +129,7 @@ codex plugin add <name>@harness-start --json
 - Git
 - Node.js 20+
 - Claude Code CLI 和/或 Codex CLI，用于安装与宿主检查
+- FFmpeg，用于 Logo 预览以及视音频类插件的本地生成与验证
 - `jq`，建议安装
 
 ## 本地静态检查

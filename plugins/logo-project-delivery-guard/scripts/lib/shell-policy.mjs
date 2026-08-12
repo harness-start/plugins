@@ -60,7 +60,6 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
     while (args.length > 0) {
       const value = args.shift();
       if (value === "--write-review") continue;
-      if (value === "--strip-tool" && args.length > 0 && !args.shift().startsWith("-")) continue;
       return null;
     }
   }
