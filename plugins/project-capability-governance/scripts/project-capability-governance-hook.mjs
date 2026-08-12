@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from "node:child_process";
-import { lstat } from "node:fs/promises";
+import { appendFile, lstat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +13,7 @@ import {
   extractFileTargets,
   extractShellCommand,
   extractShellWorkingDirectory,
+  extractSessionId,
   extractToolName,
   extractWriteContent,
   isAgentTool,
@@ -34,14 +35,68 @@ import {
 import { readWorkflowState, updateWorkflowState } from "./lib/workflow-state.mjs";
 
 const RECORDER_MARKER = /^PROJECT_CAPABILITY_RECORDER\s+([a-z0-9][a-z0-9-]{2,63})\s*$/mu;
-const SESSION_CONTEXT = [
-  "[Project Capability Discovery] Observe only durable, project-specific capability candidates.",
-  "Qualify an SOP only after two occurrences or an explicit future-standardization request, with a reusable multi-step flow and measurable acceptance.",
-  "Qualify a hard Hook only after one severe or two ordinary violations, with an observable event, deterministic predicate, target harm, recovery, and near-miss.",
-  "Exclude current-task TODOs, one-offs, generic advice, and hooks whose only evidence is activation or extra model turns.",
-  "When a candidate qualifies, dispatch at most one dedicated subagent in this user-prompt epoch. Start its prompt with `PROJECT_CAPABILITY_RECORDER <batch-id>` and ask it to create at most three pending proposals.",
-  "The main agent must never write proposal Markdown. If a recorder subagent cannot be started, create no proposal and continue the user's task normally.",
-].join("\n");
+const RECORDER_ENTRY = fileURLToPath(new URL("./project-capability-recorder.mjs", import.meta.url));
+
+function shellSingleQuote(value) {
+  return `'${String(value).replaceAll("'", `'"'"'`)}'`;
+}
+
+function sessionContext() {
+  const hookDataRoot = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA;
+  const dataRootOption = hookDataRoot
+    ? ` --data-root ${shellSingleQuote(resolve(hookDataRoot))}`
+    : "";
+  return [
+    "[Project Capability Discovery] Observe only durable, project-specific capability candidates.",
+    "Qualify an SOP only after two occurrences or an explicit future-standardization request, with a reusable multi-step flow and measurable acceptance.",
+    "Qualify a hard Hook only after one severe or two ordinary violations, with an observable event, deterministic predicate, target harm, recovery, and near-miss.",
+    "Exclude current-task TODOs, one-offs, generic advice, and hooks whose only evidence is activation or extra model turns.",
+    "When a candidate qualifies, reserve then dispatch at most one dedicated subagent in this user-prompt epoch.",
+    `Before dispatch, run this exact command shape without adding shell operators: \`node ${shellSingleQuote(RECORDER_ENTRY)} reserve --cwd "$PWD" --batch "<batch-id>" --request "<complete standalone recorder request>"${dataRootOption}\`.`,
+    "Use the returned `PROJECT_CAPABILITY_RECORDER <batch-id>` marker as the first line of the recorder task and ask it to create at most three pending proposals.",
+    "The main agent must never write proposal Markdown. If a recorder subagent cannot be started, create no proposal and continue the user's task normally.",
+  ].join("\n");
+}
+
+function hasUnsafeShellSyntax(command) {
+  let quote = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (character === "`" || (character === "$" && command[index + 1] === "(")) return true;
+    if (quote) {
+      if (character === quote && command[index - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (/[;&|<>\n\r]/u.test(character)) return true;
+  }
+  return quote !== null;
+}
+
+function isSafeRecorderReservation(command) {
+  const hookDataRoot = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA;
+  if (!hookDataRoot || hasUnsafeShellSyntax(command)) return false;
+  const prefix = `node ${shellSingleQuote(RECORDER_ENTRY)} reserve --cwd "$PWD" --batch `;
+  const suffix = ` --data-root ${shellSingleQuote(resolve(hookDataRoot))}`;
+  return command.startsWith(prefix)
+    && command.endsWith(suffix)
+    && /\s--request\s+["']/u.test(command);
+}
+
+async function persistClaudeSession(event) {
+  const environmentFile = process.env.CLAUDE_ENV_FILE;
+  if (!environmentFile) return;
+  const lines = [
+    `export AI_EXPERTS_SESSION_ID=${shellSingleQuote(extractSessionId(event))}`,
+  ];
+  if (process.env.CLAUDE_PLUGIN_ROOT) {
+    lines.push(`export PROJECT_CAPABILITY_GOVERNANCE_ROOT=${shellSingleQuote(process.env.CLAUDE_PLUGIN_ROOT)}`);
+  }
+  await appendFile(environmentFile, `${lines.join("\n")}\n`, "utf8");
+}
 
 function recorderMarker(prompt) {
   return String(prompt ?? "").match(RECORDER_MARKER)?.[1] ?? null;
@@ -77,8 +132,9 @@ async function runStop(event) {
   writeJson(systemMessageOutput(renderHumanNotice(delta.length)));
 }
 
-async function runSession() {
-  writeJson(contextOutput("SessionStart", SESSION_CONTEXT));
+async function runSession(event) {
+  await persistClaudeSession(event);
+  writeJson(contextOutput("SessionStart", sessionContext()));
 }
 
 async function runPrompt(event) {
@@ -92,21 +148,47 @@ async function runPrompt(event) {
 
 async function runStart(event) {
   const projectRoot = resolveProjectRoot(extractCwd(event));
-  const batchId = recorderMarker(extractAgentPrompt(event));
+  const agentPrompt = extractAgentPrompt(event);
+  const batchId = recorderMarker(agentPrompt);
   const agentId = extractAgentId(event);
-  if (!batchId || !agentId) return;
+  if (!agentId) return;
   const bound = await updateWorkflowState(event, projectRoot, (state) => {
-    const reservation = state.reservations[batchId];
-    if (!reservation || reservation.epoch !== state.epoch) return false;
-    state.bindings[agentId] = { batchId, epoch: state.epoch, submitted: 0, proposalIds: [] };
-    return true;
+    const current = Object.entries(state.reservations)
+      .filter(([, reservation]) => reservation?.epoch === state.epoch);
+    const selected = batchId
+      ? current.find(([reservedBatchId]) => reservedBatchId === batchId)
+      : (current.length === 1 ? current[0] : null);
+    if (!selected) return false;
+    const [reservedBatchId, reservation] = selected;
+    delete state.reservations[reservedBatchId];
+    state.bindings[agentId] = {
+      batchId: reservedBatchId,
+      epoch: state.epoch,
+      submitted: 0,
+      proposalIds: [],
+    };
+    return {
+      request: String(reservation?.request ?? agentPrompt ?? "").trim(),
+    };
   });
-  if (!bound) return;
+  if (!bound) {
+    writeJson(contextOutput("SubagentStart", [
+      "[Project Capability Recorder] This subagent is not authorized as the recorder for the current prompt epoch.",
+      "Do not use tools, write proposal files, or dispatch another agent. Return to the parent without changes.",
+    ].join("\n")));
+    return;
+  }
+  await ensureCapabilityWorkspace(projectRoot);
   writeJson(contextOutput("SubagentStart", [
     "[Project Capability Recorder] You are the dedicated recorder for this batch.",
-    "Re-check the hard qualification criteria; returning without a file is valid.",
-    "Create at most three new files under `.project-capabilities/inbox/pending/` using Write/create_file only.",
+    "Read the assigned task once. If it explicitly requests a qualifying proposal, create it immediately without inspecting source, history, acceptance infrastructure, or unrelated files; otherwise returning without a file is valid.",
+    "Create at most three new files under `.project-capabilities/inbox/pending/` using Write, create_file, or one apply_patch Add File operation per proposal.",
     "Each filename must equal `<proposal_id>.md`; do not edit existing proposals or dispatch another agent.",
+    "Every SOP must use YAML frontmatter with these required fields: `proposal_id: <id>`, `proposal_revision: 1`, `kind: sop`, `title: <title>`, and `status: pending`. For an explicit future-standardization request, also include `explicit_standardization: true`.",
+    "After the frontmatter, use these exact level-two headings in order: `## Evidence`, `## Reuse scenarios`, `## Acceptance`, and `## Counterexample`.",
+    "Under `## Reuse scenarios`, write at least two dash-prefixed bullet items (`- ...`), not a numbered list. Use dash-prefixed bullets under `## Evidence` and `## Acceptance` as well.",
+    "Assigned request:",
+    bound.request || "No standalone proposal request was reserved; return without changes.",
   ].join("\n")));
 }
 
@@ -118,6 +200,9 @@ async function handleRecorderDispatch(event, projectRoot) {
     return true;
   }
   const allowed = await updateWorkflowState(event, projectRoot, (state) => {
+    if (state.reservations[batchId]?.epoch === state.epoch && state.recorderDispatches === 1) {
+      return true;
+    }
     if (state.recorderDispatches >= 1) return false;
     state.recorderDispatches += 1;
     state.reservations[batchId] = { epoch: state.epoch };
@@ -146,11 +231,13 @@ async function handleProposalWrite(event, projectRoot, locations) {
     writeJson(preToolDeny("[Project Capability Governance] only the bound recorder subagent may create proposal Markdown"));
     return true;
   }
-  if (location.status !== "pending" || !/^(?:Write|create_file)$/iu.test(String(extractToolName(event)))) {
-    writeJson(preToolDeny("[Project Capability Governance] a recorder may only create a new pending proposal with Write/create_file"));
+  const toolName = String(extractToolName(event));
+  const content = extractWriteContent(event);
+  if (location.status !== "pending" || !/^(?:Write|create_file|apply_patch)$/iu.test(toolName) || content === null) {
+    writeJson(preToolDeny("[Project Capability Governance] a recorder may only create one new pending proposal with Write/create_file or a single Add File patch"));
     return true;
   }
-  const checked = validateProposalDocument(extractWriteContent(event) ?? "", location.fileName);
+  const checked = validateProposalDocument(content, location.fileName);
   if (!checked.ok) {
     writeJson(preToolDeny(`[Project Capability Governance] invalid proposal: ${checked.reason}`));
     return true;
@@ -193,6 +280,7 @@ async function runPre(event) {
   }
   if (isShellTool(event)) {
     const command = extractShellCommand(event) ?? "";
+    if (isSafeRecorderReservation(command)) return;
     const commandNamesInbox = /\.project-capabilities[\\/]inbox/iu.test(command);
     const workingDirectory = extractShellWorkingDirectory(event);
     const targetsInbox = commandNamesInbox
