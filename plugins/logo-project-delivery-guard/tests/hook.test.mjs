@@ -84,6 +84,17 @@ test("pre hook allows only an exact registered render invocation for the project
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test("pre hook rejects the removed external strip-tool override", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-preview-override-"));
+  try {
+    mkdirSync(join(root, "artifacts", "logo", "orbit"), { recursive: true });
+    const wrapper = fileURLToPath(new URL("../scripts/tools/project-preview.mjs", import.meta.url));
+    const command = `node ${wrapper} artifacts/logo/orbit --strip-tool /tmp/external-tool.mjs`;
+    const result = await runHook("pre", { cwd: root, tool_name: "Bash", tool_input: { command } });
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("pre hook denies a registered writer aimed through a symlink project root", async () => {
   const root = mkdtempSync(join(tmpdir(), "logo-writer-symlink-"));
   try {

@@ -36,7 +36,9 @@ Release 在 Source 闭包之上还必须包含：
 
 按顺序使用 `project-render.mjs`、`project-validate.mjs`、`project-preview.mjs`、`project-stage.mjs`、`project-release.mjs` 完成生成、实测预览、单调升级和 receipt 签发。
 
-`project-preview.mjs` 调用宿主的 `logo-design` / `logo-preview-strip` 生成条带，再对真实 PNG 像素做 squint 分析；它不会自动伪造通过的审美分数。可以通过 `LOGO_PREVIEW_STRIP_TOOL` 指定工具路径。
+`project-preview.mjs` 在插件内构建多尺寸黑稿/反白稿条带，通过 FFmpeg 栅格化为真实 PNG，再做 squint 分析；它不查找外部 Skill，也不会自动伪造通过的审美分数。运行环境需提供支持 SVG 输入的 FFmpeg；非标准安装位置可通过 `LOGO_PREVIEW_RENDERER` 指定可执行文件。仓库规定的 host-acceptance 容器已包含该运行时。
+
+标志质量复核、定制字形制作和视觉证据判读是可选的上游或人工能力，不是本插件的运行时依赖。插件只校验进入工程契约的产物和证据，不声称替代这些专业判断。
 
 `project-render.mjs` 与 `project-release.mjs` 使用独占 journal；失败会保留 journal 并阻止 Stop。已有 plan 不能通过普通编辑工具删除或降级，只能使用 `project-stage.mjs` 单调升级。
 
