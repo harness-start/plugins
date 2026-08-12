@@ -29,6 +29,8 @@
 
 Hook 激活、`SessionStart` 文本、安装 skill-deps 或额外模型轮次都不是结果证据。结果级检查包括 workflow phase、anchor 解析、claim 状态规则、canonical artifact 生成、artifact 哈希重算、回执匹配，以及最后一次可观察修改后的 freshness。
 
+Claude MCP 服务继承平台注入的 `CLAUDE_PLUGIN_DATA`；`.mcp.json` 不得用同名占位符覆盖它，否则未展开的字面量会把私有研究数据写入工作区。Codex 则只转发 `mcp/codex.json` 明确列出的平台环境变量。
+
 ## 项目目录与写入权限
 
 ```text
