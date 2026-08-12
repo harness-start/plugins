@@ -99,6 +99,7 @@ codex plugin add <name>@harness-start --json
 | `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
 | `git-delivery-guards` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
 | `code-quality-guard` | 写入后执行有界的 JS/TS、Python 和 PHP 语法、lint 与静态分析检查 |
+| `tdd-guard` | 在当前会话中先记录关联测试文件的真实变化，再允许写入 PHP、Python、JS、TS、Rust 或 Go 实现文件 |
 | `encoding-guard` | AI 写入后阻断带 BOM 或不符合严格 UTF-8 的文本文件 |
 | `markdown-format-guard` | 写入后检查 Markdown 标题结构和常见格式规则 |
 | `file-line-budget-guard` | 在 Edit/Write 后按语言实施棘轮式文件行数预算 |
@@ -126,11 +127,11 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-31 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+32 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
-| 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`command-safety-guards`、`git-state-evidence-guard`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
+| 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`git-state-evidence-guard`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
 | Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`behavioral-regression-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
 | 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate`、`goal-task-gate` | 会话阶段锁：意图澄清、第一性原理分析或 `/goal` 轨迹未关闭期间 deny 业务写入，直到显式关闭 |
 | 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`subagent-lifecycle-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |

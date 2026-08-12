@@ -1,0 +1,16 @@
+{
+  "name": "tdd-guard",
+  "version": "0.1.0",
+  "description": "Blocks implementation writes until a related test case has been created or changed earlier in the session.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "TDD Guard",
+    "shortDescription": "Require test files before implementation files.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

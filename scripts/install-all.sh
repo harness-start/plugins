@@ -35,6 +35,7 @@ FALLBACK_PLUGINS=(
   source-sanity-guard
   git-delivery-guards
   code-quality-guard
+  tdd-guard
   encoding-guard
   file-line-budget-guard
   protected-file-guard
