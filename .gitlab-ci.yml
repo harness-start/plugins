@@ -44,10 +44,11 @@ validate:plugins:
       - job_execution_timeout
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends jq ca-certificates git
+    - apt-get install -y --no-install-recommends jq ca-certificates git ffmpeg
     - node --version
     - npm --version
     - jq --version
+    - ffmpeg -version
     - mkdir -p "${CODEX_HOME}"
   script:
     - bash scripts/ci/validate-plugins.sh

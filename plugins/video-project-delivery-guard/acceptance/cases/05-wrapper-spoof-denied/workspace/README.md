@@ -1,0 +1,1 @@
+# Video wrapper-spoof fixture
