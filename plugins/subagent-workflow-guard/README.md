@@ -44,7 +44,7 @@ reviewer 和 researcher 没有文件修改或 shell 权限。implementer 的 she
 
 Claude Code 的 `Agent` 工具会提供完整 dispatch/start/stop Hook 链，是硬门禁路径。Claude Code 2.1.170 会产生必需的 `PreToolUse -> SubagentStart -> SubagentStop` 链，live acceptance 已证明拒绝发生在启动前。
 
-在已测试的 Codex 0.146 中，namespaced `collaboration.spawn_agent` API 不发出 `PreToolUse` 或 `SubagentStart`，插件无法阻止该 API 启动未注册 worker；修改 manifest matcher 不能创造宿主缺失的事件。Codex 仍不能在缺少 sealed review graph 时通过 workflow CLI 关闭为 `DONE`，但这不是 dispatch sandbox。Codex manifest 与 `SessionStart` 上下文都不能作为 pre-dispatch enforcement 证据。
+在已测试的 Codex 0.146 中，namespaced `collaboration.spawn_agent` API 不发出 dispatch `PreToolUse`，但会发出 `SubagentStart` 和 `SubagentStop`。因此插件无法在启动前阻止未注册 worker；`SubagentStart` 只能把缺少 reservation 的 worker 记录为 orphan 并注入恢复指令。修改 manifest matcher 不能创造缺失的 pre-dispatch 事件。Codex 仍不能在缺少 sealed review graph 时通过 workflow CLI 关闭为 `DONE`，但这不是 dispatch sandbox。Codex manifest 与 `SessionStart` 上下文都不能作为 pre-dispatch enforcement 证据。
 
 ## 状态、回执与关联
 
