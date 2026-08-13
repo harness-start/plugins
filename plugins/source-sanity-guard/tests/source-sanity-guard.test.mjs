@@ -113,7 +113,30 @@ test("target and content extraction cover direct, nested, patch, and move inputs
   };
   assert.deepEqual(extractFileTargets(event), ["/repo/src/main.js", "/repo/src/other.js"]);
   assert.match(extractInsertedText(event), /\uFFFD\uFFFD/u);
-  assert.deepEqual(extractFileTargets({ ...event, tool_name: "Bash" }), []);
+  assert.deepEqual(extractFileTargets({
+    cwd: "/repo",
+    tool_name: "Bash",
+    tool_input: { command: "printf x > src/app.js.bak" },
+  }), ["/repo/src/app.js.bak"]);
+});
+
+test("pre hook denies shell writes of backup artifacts", async () => {
+  const root = gitRoot("source-sanity-shell-backup-");
+  try {
+    mkdirSync(join(root, "src"));
+    const result = await runEntry({
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: {
+        command: "python3 -c \"open('src/app.js.bak','w').write('temporary')\"",
+      },
+    });
+    assert.equal(result.code, 0);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("pre hook denies backup artifacts before the file exists", async () => {
