@@ -179,7 +179,28 @@ export function pathMatchesGlob(relPath, pattern) {
   return path === pat || path.endsWith(`/${pat}`);
 }
 
+function normalizeRel(relPath) {
+  return String(relPath ?? "").replaceAll("\\", "/").replace(/^\.\//u, "");
+}
+
+function pathUnderTree(path, prefix) {
+  const p = normalizeRel(path);
+  const root = normalizeRel(prefix).replace(/\/+$/u, "");
+  if (!root || root === ".") return false;
+  if (p === root || p.startsWith(`${root}/`)) return true;
+  const nested = `/workspace/${root}`;
+  return p.includes(`${nested}/`) || p.endsWith(nested);
+}
+
+export const STATE_DIR_RELATIVE = ".grill-ledgers/.state";
+
+export function isProtectedStatePath(relPath) {
+  const path = normalizeRel(relPath);
+  return path === STATE_DIR_RELATIVE || pathUnderTree(path, STATE_DIR_RELATIVE);
+}
+
 export function isLedgerPath(relPath, config) {
+  if (isProtectedStatePath(relPath)) return false;
   const writeBlock = config?.writeBlock ?? {};
   const allows = writeBlock.ledgerAllow ?? [".grill-ledgers/**", "docs/decisions/**"];
   if (allows.some((pattern) => pathMatchesGlob(relPath, pattern))) return true;
@@ -356,6 +377,13 @@ export function classifyInjectText(classification, state = {}) {
     default:
       return null;
   }
+}
+
+export function stateProtectMessage() {
+  return [
+    "[intent-clarify-gate] Session state under `.grill-ledgers/.state/` is plugin-owned.",
+    "Ledger notes may go under `.grill-ledgers/` or `docs/decisions/`; do not edit hook state files.",
+  ].join("\n");
 }
 
 export function writeDenyMessage() {

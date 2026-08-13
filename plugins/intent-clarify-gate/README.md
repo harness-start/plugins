@@ -52,7 +52,7 @@ idle -> 入口前缀 -> open -> 已记录选项后的 done / Done 选项编号 /
 | 选择 `N. Done — …` 中的 `N` | `done` | closed |
 | `# grill-abort` | `abort` | closed |
 
-状态按 `sessionId + cwd` 摘要隔离，以 `0600` 权限原子写入 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA` 下的 `intent-clarify-gate/`。数据目录不可用时，本轮仍可计算，但不持久化并 fail-open。
+会话状态写在当前工作目录的 `.grill-ledgers/.state/`，按 `sessionId` 的 SHA-256 分文件，默认 TTL 为 24 小时。这个目录由插件自己写，并带 `*` 的 `.gitignore`；agent 改这里会被拒绝。没有宿主 `PLUGIN_DATA` 时也会落盘。状态缺失或损坏时回到 `idle` 并 fail-open。
 
 阻断文本会包含 `observedFacts`、`harm`、`unblockWhen` 和 `recovery`。用户回复 `done`、选择 Done 选项或发送 `# grill-abort` 后解除写屏障。
 

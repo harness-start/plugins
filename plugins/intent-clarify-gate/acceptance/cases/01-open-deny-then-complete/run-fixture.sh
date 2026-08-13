@@ -12,7 +12,7 @@ SESSION="accept-01-open-deny"
 export PLUGIN_DATA="${DATA}"
 export CLAUDE_PLUGIN_DATA="${DATA}"
 
-cleanup() { rm -rf "${DATA}"; }
+cleanup() { rm -rf "${DATA}" "${WS}/.grill-ledgers"; }
 trap cleanup EXIT
 
 run_hook() {
@@ -29,6 +29,17 @@ echo "${ENTRY_OUT}" | grep -q 'intent-clarify-gate' || {
   echo "${ENTRY_OUT}" >&2
   exit 1
 }
+
+echo "==> session state must land in the project"
+STATE_COUNT="$(find "${WS}/.grill-ledgers/.state" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+[ "${STATE_COUNT}" -ge 1 ] || {
+  echo "FAIL missing project session state under .grill-ledgers/.state" >&2
+  exit 1
+}
+if [ -d "${DATA}/intent-clarify-gate" ]; then
+  echo "FAIL state still written to PLUGIN_DATA" >&2
+  exit 1
+fi
 
 echo "==> pre write business path must deny"
 DENY_OUT="$(run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg path "${WS}/src/app.js" \

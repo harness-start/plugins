@@ -25,6 +25,7 @@ import {
   classifyUserInput,
   isExpired,
   isLedgerPath,
+  isProtectedStatePath,
   looksLikeImplementClaim,
   matchEntry,
   openFromEntry,
@@ -32,6 +33,7 @@ import {
   protocolInjectText,
   shellLooksMutating,
   shouldReportWrite,
+  stateProtectMessage,
   writeBlockActive,
   writeDenyMessage,
 } from "./lib/policy.mjs";
@@ -58,6 +60,24 @@ function relativeToRoot(absPath, repoRoot, cwd) {
   const base = repoRoot ?? cwd;
   const candidate = relative(base, absPath).replaceAll("\\", "/");
   return candidate.startsWith("../") ? absPath.replaceAll("\\", "/") : candidate;
+}
+
+function stateProtectionHits(event, cwd, repoRoot) {
+  const hits = [];
+  if (isFileMutationTool(event)) {
+    for (const abs of extractFileTargets(event)) {
+      const rel = relativeToRoot(abs, repoRoot, cwd);
+      if (isProtectedStatePath(rel)) hits.push(rel);
+    }
+    return hits;
+  }
+  if (!isShellTool(event)) return hits;
+  const command = extractShellCommand(event);
+  if (!command || !shellLooksMutating(command)) return hits;
+  if (/(?:^|[/"'\s])\.grill-ledgers\/\.state(?:\/|$)/u.test(command)) {
+    hits.push(".grill-ledgers/.state");
+  }
+  return hits;
 }
 
 function expireIfNeeded(state, config, now = Date.now()) {
@@ -102,6 +122,13 @@ function runPrompt(event, config) {
 }
 
 function runPre(event, config) {
+  const cwd = extractCwd(event);
+  const repoRoot = resolveRepoRoot(cwd);
+  if (stateProtectionHits(event, cwd, repoRoot).length > 0) {
+    writeJson(preToolDeny(stateProtectMessage()));
+    return;
+  }
+
   const state = readState(event);
   expireIfNeeded(state, config);
   // Persist TTL expiry if needed
@@ -120,8 +147,6 @@ function runPre(event, config) {
     return;
   }
 
-  const cwd = extractCwd(event);
-  const repoRoot = resolveRepoRoot(cwd);
   const reasons = [];
 
   if (isFileMutationTool(event)) {

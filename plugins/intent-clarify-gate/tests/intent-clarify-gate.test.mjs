@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -21,6 +22,7 @@ import {
   classifyUserInput,
   isExpired,
   isLedgerPath,
+  isProtectedStatePath,
   matchEntry,
   openFromEntry,
   parseCompleteOptions,
@@ -151,6 +153,8 @@ test("ledger path allowlist and write-block phase gate", () => {
   assert.equal(isLedgerPath(".grill-ledgers/a.md", config), true);
   assert.equal(isLedgerPath("spec.md", config), true);
   assert.equal(isLedgerPath("src/app.js", config), false);
+  assert.equal(isProtectedStatePath(".grill-ledgers/.state/abc.json"), true);
+  assert.equal(isLedgerPath(".grill-ledgers/.state/abc.json", config), false);
   assert.equal(pathMatchesGlob("docs/decisions/a.md", "docs/decisions/**"), true);
   assert.equal(writeBlockActive("open", config), true);
   assert.equal(writeBlockActive("closed", config), false);
@@ -422,9 +426,8 @@ test("corrupt state file fails open (no permanent write lock)", async () => {
       { cwd: root, session_id: session, prompt: "/grill-me x" },
       env,
     );
-    // Corrupt all state files under plugin data
-    const pluginDir = join(data, "intent-clarify-gate");
-    for (const name of readdirSync(pluginDir)) {
+    const pluginDir = join(root, ".grill-ledgers", ".state");
+    for (const name of readdirSync(pluginDir).filter((item) => item.endsWith(".json"))) {
       writeFileSync(join(pluginDir, name), "{not-json", "utf8");
     }
     const pre = await runEntry(
@@ -513,5 +516,136 @@ test("abort unlocks writes", async () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("hook: nested cwd keeps state in that workspace, not the parent git root", async () => {
+  const parent = workspace("icg-parent-git-");
+  const nested = join(parent, "pkg");
+  mkdirSync(nested, { recursive: true });
+  writeFileSync(join(nested, "app.js"), "export const value = 0;\n");
+  try {
+    await runEntry(
+      "prompt",
+      { cwd: nested, session_id: "sess-nested-cwd", prompt: "/grill-me nest" },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(existsSync(join(nested, ".grill-ledgers", ".state")), true);
+    assert.equal(
+      existsSync(join(parent, ".grill-ledgers")),
+      false,
+      "must not write session state to the parent git root",
+    );
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("hook: session state lives under the project, not PLUGIN_DATA", async () => {
+  const root = workspace("icg-project-state-");
+  const data = mkdtempSync(join(tmpdir(), "icg-data-unused-"));
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  const session = "sess-project-state";
+  try {
+    const entry = await runEntry(
+      "prompt",
+      { cwd: root, session_id: session, prompt: "/grill-me cache" },
+      env,
+    );
+    assert.equal(entry.code, 0, entry.stderr);
+
+    const stateDir = join(root, ".grill-ledgers", ".state");
+    assert.equal(existsSync(stateDir), true, "expected project .grill-ledgers/.state");
+    const files = readdirSync(stateDir).filter((name) => name.endsWith(".json"));
+    assert.equal(files.length, 1, `expected one state file, got ${files.join(",")}`);
+    const saved = JSON.parse(readFileSync(join(stateDir, files[0]), "utf8"));
+    assert.equal(saved.phase, "open");
+    assert.equal(
+      existsSync(join(data, "intent-clarify-gate")),
+      false,
+      "must not write host PLUGIN_DATA/intent-clarify-gate",
+    );
+
+    const deny = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Write",
+        tool_input: { file_path: join(root, "src", "app.js"), content: "x\n" },
+      },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(
+      parseStdout(deny.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      "open phase must persist without PLUGIN_DATA",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("hook: idle prompt does not create project state files", async () => {
+  const root = workspace("icg-idle-state-");
+  try {
+    const idle = await runEntry(
+      "prompt",
+      { cwd: root, session_id: "sess-idle", prompt: "ordinary request" },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(idle.code, 0, idle.stderr);
+    assert.equal(parseStdout(idle.stdout), null);
+    assert.equal(existsSync(join(root, ".grill-ledgers")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("hook: agent cannot rewrite project session state", async () => {
+  const root = workspace("icg-protect-state-");
+  const session = "sess-protect-state";
+  try {
+    await runEntry(
+      "prompt",
+      { cwd: root, session_id: session, prompt: "/grill-me cache" },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    const denyWrite = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Write",
+        tool_input: {
+          file_path: join(root, ".grill-ledgers", ".state", "forged.json"),
+          content: "{\"phase\":\"idle\"}\n",
+        },
+      },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(
+      parseStdout(denyWrite.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      denyWrite.stdout || denyWrite.stderr,
+    );
+    const denyRm = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Bash",
+        tool_input: { command: "rm -rf .grill-ledgers/.state" },
+      },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(
+      parseStdout(denyRm.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      denyRm.stdout || denyRm.stderr,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });
