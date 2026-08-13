@@ -73,7 +73,7 @@ test("invalid config values warn and preserve bounded defaults", () => {
   assert.equal(warnings.length, 5);
 });
 
-test("file extraction covers direct, nested, patch, move, and ignores shell", () => {
+test("file extraction covers direct, nested, patch, move, and shell writers", () => {
   assert.deepEqual(extractFileTargets({
     cwd: "/repo",
     tool_name: "MultiEdit",
@@ -87,7 +87,12 @@ test("file extraction covers direct, nested, patch, move, and ignores shell", ()
     cwd: "/repo",
     tool_name: "Bash",
     tool_input: { command: "echo bad > src/app.js" },
-  }), []);
+  }), ["/repo/src/app.js"]);
+  assert.deepEqual(extractFileTargets({
+    cwd: "/repo",
+    tool_name: "Bash",
+    tool_input: { command: "python3 -c \"open('src/lib.js','w').write('x')\"" },
+  }), ["/repo/src/lib.js"]);
 });
 
 test("output capping preserves the limit and reports omitted lines", () => {

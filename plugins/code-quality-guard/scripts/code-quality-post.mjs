@@ -22,6 +22,21 @@ import {
 } from "./lib/code-quality-core.mjs";
 
 const FILE_TOOLS = new Set(["applypatch", "edit", "multiedit", "notebookedit", "write"]);
+const SHELL_TOOLS = new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
+
+function extractShellWriteTargets(command) {
+  const text = String(command ?? "");
+  const paths = [];
+  const push = (raw) => {
+    const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of text.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const match of text.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const match of text.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const match of text.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
+  return [...new Set(paths)];
+}
 const ESLINT_PATH = /\.(?:cjs|cts|js|jsx|mjs|mts|ts|tsx)$/iu;
 
 function warn(message) {
@@ -82,9 +97,17 @@ function nestedPaths(input) {
 
 export function extractFileTargets(event) {
   const toolName = String(extractToolName(event)).replaceAll("_", "").toLowerCase();
-  if (!FILE_TOOLS.has(toolName)) return [];
   const input = extractToolInput(event);
   const cwd = extractCwd(event);
+  if (SHELL_TOOLS.has(toolName)) {
+    const command = typeof input?.command === "string"
+      ? input.command
+      : typeof input?.cmd === "string" ? input.cmd : "";
+    return [...new Set(extractShellWriteTargets(command).map(stripMatchingQuotes).filter(Boolean).map((path) =>
+      isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")),
+    ))];
+  }
+  if (!FILE_TOOLS.has(toolName)) return [];
   const paths = nestedPaths(input);
   const patch = typeof input === "string"
     ? input
