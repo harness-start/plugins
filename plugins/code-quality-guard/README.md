@@ -15,7 +15,7 @@
 
 检查器优先从项目依赖、虚拟环境或 `vendor/bin` 发现，再查找 PATH。插件不会安装依赖、访问网络或执行配置提供的命令。工具、配置或运行环境不可用时，每个会话和工作区只报告一次。
 
-PHPStan 使用 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。插件不向项目目录或安装目录写状态。
+PHPStan 使用当前工作目录的 `.code-quality-guard/.state/` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。该目录带 `*` 的 `.gitignore`，不写入插件安装目录。
 
 ## 项目配置
 

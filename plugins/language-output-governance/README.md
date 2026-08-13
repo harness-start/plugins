@@ -24,7 +24,7 @@ Latin 始终允许，避免命令、API、类型、标识符和技术术语造�
 - `PostToolUse` 只检查模型为 Bash、Write、Edit、MultiEdit 和 apply_patch 生成的工具输入。带引号的 shell payload 会作为独立候选片段检查，避免命令语法稀释自然语言比例。命令和工具输出从不扫描，每个会话最多报告一次。
 - `Stop` 和 `SubagentStop` 在最终散文含未授权文字系统时要求完整重写；宿主带 `stop_hook_active` 的重试仍会阻断，直到散文不再漂移。
 
-状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以 session ID 的 SHA-256 为键，在每会话锁内原子写到宿主插件数据目录，24 小时后过期。当前没有逐轮 profile 或撤销协议。
+状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以 session ID 的 SHA-256 为键，原子写到当前工作目录的 `.language-output-governance/.state/`，带 `*` 的 `.gitignore`，24 小时后过期。当前没有逐轮 profile 或撤销协议。
 
 Claude 和标准 Codex provider 通过 `hookSpecificOutput.additionalContext` 接收 `PostToolUse` 反馈。Codex 0.146 配合本仓库 DeepSeek 验收 provider 时，模型可见的 `PostToolUse` 反馈会丢失原始工具结果；只有同时存在 `PLUGIN_ROOT` 与 `DEEPSEEK_MODEL` 时才启用兼容分支，抑制该提示且不占用反馈标记，仍由 `Stop` 负责纠正。其他运行时继续使用正常软反馈。
 

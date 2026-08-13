@@ -42,8 +42,7 @@ function contextFrom(options) {
   const explicitSession = String(options.session ?? "").trim();
   const sessionId = String(explicitSession || process.env.AI_EXPERTS_SESSION_ID || platformSession || "").trim();
   const cwd = resolve(String(options.cwd ?? process.cwd()));
-  const dataAvailable = host === "claude" ? Boolean(process.env.CLAUDE_PLUGIN_DATA) : Boolean(process.env.PLUGIN_DATA);
-  const direct = Boolean(explicitSession && explicitSession !== "hook" && dataAvailable);
+  const direct = Boolean(explicitSession && explicitSession !== "hook");
   if (!sessionId || sessionId === "hook") throw new Error("--session or a platform session environment variable is required");
   return { host, sessionId, cwd, direct };
 }

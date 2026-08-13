@@ -334,9 +334,9 @@ CLAUDE_PLUGIN_DATA
 ```
 
 - `CLAUDE_PLUGIN_ROOT` 指向当前安装版本的插件目录；
-- `CLAUDE_PLUGIN_DATA` 指向插件持久化数据目录。
+- `CLAUDE_PLUGIN_DATA` 是宿主提供的插件数据目录，本仓库插件不把生产状态写到那里。
 
-需要跨插件升级保存的数据应写入 `CLAUDE_PLUGIN_DATA`，不要写入插件安装目录。
+插件自己产生的会话状态、回执和捕获文件写在当前工作目录下该插件拥有的 `.state/`（例如 `.reasoning-discipline/.state/`），并带 `*` 的 `.gitignore`。不要写入插件安装目录。
 
 ### 8.2 Codex hook
 
@@ -980,7 +980,7 @@ codex plugin marketplace upgrade harness-start
 - 修改过的 hook 已重新审查；
 - 真实事件能够触发新 hook；
 - hook 返回预期退出码；
-- 持久化数据仍位于 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA`；
+- 持久化数据位于工作区插件拥有的 `.state/`，而不是 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA`；
 - 旧版本仍有明确回滚 tag。
 
 不要用以下证据单独判定更新成功：
@@ -1178,7 +1178,7 @@ CI 不能替代真实 hook 验收。发布前还应分别启动 Claude Code 和 
 - 不在 hook 中执行交互命令；
 - 不在 hook 中运行 `npm install`、`curl | sh` 等动态安装；
 - 不写入插件安装目录；
-- 持久化状态写入 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA`；
+- 持久化状态写入工作区插件拥有的 `.state/`，不写入 `PLUGIN_DATA`、`CLAUDE_PLUGIN_DATA` 或插件安装目录；
 - macOS/Linux、Windows 专用命令分别维护；
 - 插件更新后重新审查 hook；
 - 私有插件仓库使用最小化 Git 读取权限。

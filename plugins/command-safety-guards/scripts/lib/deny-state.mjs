@@ -1,19 +1,30 @@
 import { createHash } from "node:crypto";
-import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { tokenizeShell } from "./shell-parse.mjs";
 
 const DEFAULT_WINDOW_MS = 10 * 60 * 1000;
 const DEFAULT_THRESHOLD = 3;
+export const STATE_DIR_RELATIVE = ".command-safety-guards/.state";
 
-function root() {
-  return process.env.PLUGIN_DATA || process.env.CLAUDE_PLUGIN_DATA || null;
+function stateFile(cwd) {
+  return join(resolve(cwd), STATE_DIR_RELATIVE, "denies.jsonl");
 }
 
-function file() {
-  const dir = root();
-  if (!dir) return null;
-  return resolve(dir, "command-safety-denies.jsonl");
+function ensureStateFile(event) {
+  const cwd = event?.cwd || process.cwd();
+  const path = stateFile(cwd);
+  try {
+    const directory = join(resolve(cwd), STATE_DIR_RELATIVE);
+    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    const ignore = join(directory, ".gitignore");
+    if (!existsSync(ignore)) {
+      writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+    }
+    return path;
+  } catch {
+    return null;
+  }
 }
 
 function hash(value) {
@@ -52,8 +63,8 @@ function target(event, command) {
   return hash(`${operation}:${path ?? tokens[1] ?? ""}`);
 }
 
-function entries() {
-  const path = file();
+function entries(event) {
+  const path = stateFile(event?.cwd || process.cwd());
   if (!path) return [];
   try {
     return readFileSync(path, "utf8")
@@ -83,7 +94,7 @@ export function escalationMessage(event, command, options = {}) {
   const key = target(event, command);
   const cutoff = Date.now() - windowMs;
   const currentTurn = event?.turn_id ?? event?.turnId ?? "";
-  const recent = entries().filter(
+  const recent = entries(event).filter(
     (entry) =>
       entry.ts >= cutoff &&
       entry.target === key &&
@@ -100,10 +111,9 @@ export function escalationMessage(event, command, options = {}) {
 }
 
 export function recordDeny(event, command, hook) {
-  const path = file();
+  const path = ensureStateFile(event);
   if (!path) return;
   try {
-    mkdirSync(dirname(path), { recursive: true });
     appendFileSync(
       path,
       `${JSON.stringify({

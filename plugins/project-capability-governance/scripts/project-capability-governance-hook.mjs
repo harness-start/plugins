@@ -42,17 +42,13 @@ function shellSingleQuote(value) {
 }
 
 function sessionContext() {
-  const hookDataRoot = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA;
-  const dataRootOption = hookDataRoot
-    ? ` --data-root ${shellSingleQuote(resolve(hookDataRoot))}`
-    : "";
   return [
     "[Project Capability Discovery] Observe only durable, project-specific capability candidates.",
     "Qualify an SOP only after two occurrences or an explicit future-standardization request, with a reusable multi-step flow and measurable acceptance.",
     "Qualify a hard Hook only after one severe or two ordinary violations, with an observable event, deterministic predicate, target harm, recovery, and near-miss.",
     "Exclude current-task TODOs, one-offs, generic advice, and hooks whose only evidence is activation or extra model turns.",
     "When a candidate qualifies, reserve then dispatch at most one dedicated subagent in this user-prompt epoch.",
-    `Before dispatch, run this exact command shape without adding shell operators: \`node ${shellSingleQuote(RECORDER_ENTRY)} reserve --cwd "$PWD" --batch "<batch-id>" --request "<complete standalone recorder request>"${dataRootOption}\`.`,
+    `Before dispatch, run this exact command shape without adding shell operators: \`node ${shellSingleQuote(RECORDER_ENTRY)} reserve --cwd "$PWD" --batch "<batch-id>" --request "<complete standalone recorder request>"\`.`,
     "Use the returned `PROJECT_CAPABILITY_RECORDER <batch-id>` marker as the first line of the recorder task and ask it to create at most three pending proposals.",
     "The main agent must never write proposal Markdown. If a recorder subagent cannot be started, create no proposal and continue the user's task normally.",
   ].join("\n");
@@ -77,13 +73,11 @@ function hasUnsafeShellSyntax(command) {
 }
 
 function isSafeRecorderReservation(command) {
-  const hookDataRoot = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA;
-  if (!hookDataRoot || hasUnsafeShellSyntax(command)) return false;
+  if (hasUnsafeShellSyntax(command)) return false;
   const prefix = `node ${shellSingleQuote(RECORDER_ENTRY)} reserve --cwd "$PWD" --batch `;
-  const suffix = ` --data-root ${shellSingleQuote(resolve(hookDataRoot))}`;
   return command.startsWith(prefix)
-    && command.endsWith(suffix)
-    && /\s--request\s+["']/u.test(command);
+    && /\s--request\s+["']/u.test(command)
+    && !/\s--data-root\s/u.test(command);
 }
 
 async function persistClaudeSession(event) {

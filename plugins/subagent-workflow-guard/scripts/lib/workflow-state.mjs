@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 import { mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 const VERSION = 1;
-const PLUGIN_NAME = "subagent-workflow-guard";
+export const STATE_DIR_RELATIVE = ".subagent-workflow/.state";
 
 export function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
@@ -22,14 +22,7 @@ export function emptyState(sessionId, cwd) {
 }
 
 export function dataRoot(host, cwd) {
-  const configured = host === "claude"
-    ? process.env.CLAUDE_PLUGIN_DATA
-    : process.env.PLUGIN_DATA;
-  if (!configured) {
-    const variable = host === "claude" ? "CLAUDE_PLUGIN_DATA" : "PLUGIN_DATA";
-    throw new Error(`${variable} is unavailable; durable workflow enforcement cannot start`);
-  }
-  return join(resolve(configured), PLUGIN_NAME, host);
+  return join(resolve(cwd), STATE_DIR_RELATIVE, host);
 }
 
 export function statePath({ host, sessionId, cwd }) {
@@ -78,6 +71,17 @@ async function readStateFile(path, sessionId, cwd) {
 
 async function atomicWrite(path, value) {
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
+  let cursor = dirname(path);
+  while (basename(cursor) !== ".state" && dirname(cursor) !== cursor) {
+    cursor = dirname(cursor);
+  }
+  if (basename(cursor) === ".state") {
+    try {
+      await writeFile(join(cursor, ".gitignore"), "*\n", { encoding: "utf8", mode: 0o600, flag: "wx" });
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+    }
+  }
   const temporary = join(dirname(path), `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
   await rename(temporary, path);

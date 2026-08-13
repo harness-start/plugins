@@ -29,7 +29,7 @@
 
 Hook 被调用、`SessionStart` 打了字、装了 skill-deps，或多走几轮模型，都不算研究做完。真正看的是 workflow phase、anchor 能不能解析、claim 状态规则、正式产物是否生成、哈希能不能重算、回执是否对得上，以及最后一次看得见的修改之后证据还新不新。
 
-Claude MCP 服务继承平台注入的 `CLAUDE_PLUGIN_DATA`；`.mcp.json` 不得用同名占位符覆盖它，否则未展开的字面量会把私有研究数据写入工作区。Codex 则只转发 `mcp/codex.json` 明确列出的平台环境变量。
+捕获内容和 hook 事件写在当前工作目录的 `.research/.state/`，带 `*` 的 `.gitignore`。`.mcp.json` 不得用 `CLAUDE_PLUGIN_DATA` 占位符覆盖平台环境；工作区路径由 MCP workspace root 解析。
 
 ## 项目目录与写入权限
 

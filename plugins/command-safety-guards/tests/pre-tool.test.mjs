@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -464,21 +464,18 @@ test("entry reports sensitive Read without opening the file", async () => {
 
 test("plugin-local deny state escalates after three distinct turns", () => {
   const root = mkdtempSync(join(tmpdir(), "deny-state-"));
-  const previous = process.env.PLUGIN_DATA;
-  process.env.PLUGIN_DATA = root;
   try {
     const command = "redis-cli FLUSHALL";
     for (const turn_id of ["turn-1", "turn-2", "turn-3"]) {
-      recordDeny({ turn_id }, command, "redis-cli-risk");
+      recordDeny({ turn_id, cwd: root }, command, "redis-cli-risk");
     }
-    assert.match(escalationMessage({ turn_id: "turn-4" }, command), /denied the same target 3 times/u);
+    assert.match(escalationMessage({ turn_id: "turn-4", cwd: root }, command), /denied the same target 3 times/u);
     assert.equal(
-      escalationMessage({ turn_id: "turn-4" }, `${command} # escalation-ok`),
+      escalationMessage({ turn_id: "turn-4", cwd: root }, `${command} # escalation-ok`),
       null,
     );
+    assert.equal(existsSync(join(root, ".command-safety-guards", ".state", "denies.jsonl")), true);
   } finally {
-    if (previous === undefined) delete process.env.PLUGIN_DATA;
-    else process.env.PLUGIN_DATA = previous;
     rmSync(root, { recursive: true, force: true });
   }
 });

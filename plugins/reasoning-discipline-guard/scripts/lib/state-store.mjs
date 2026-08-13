@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -10,13 +11,18 @@ import { dirname, join, resolve } from "node:path";
 
 const VERSION = 1;
 const TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const STATE_DIR_RELATIVE = ".reasoning-discipline/.state";
 
 export function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-function dataRoot() {
-  return process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA ?? null;
+function ensureStateDir(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const ignore = join(directory, ".gitignore");
+  if (!existsSync(ignore)) {
+    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+  }
 }
 
 export function emptyState() {
@@ -55,10 +61,8 @@ function sanitize(value) {
 }
 
 function statePath(sessionId, cwd) {
-  const root = dataRoot();
-  if (!root || !sessionId) return null;
-  const key = digest(`${sessionId}\0${resolve(cwd)}`);
-  return join(resolve(root), "reasoning-discipline-guard", "sessions", `${key}.json`);
+  const session = sessionId || "default";
+  return join(resolve(cwd), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 
 function atomicWrite(path, value) {
@@ -69,7 +73,7 @@ function atomicWrite(path, value) {
     `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`,
   );
   try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureStateDir(directory);
     writeFileSync(temporary, `${JSON.stringify(value)}\n`, {
       encoding: "utf8",
       mode: 0o600,

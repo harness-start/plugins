@@ -56,9 +56,6 @@ async function reserve(options) {
   if (!session || session === "hook") throw new Error("--session or a platform session environment variable is required");
   const root = projectRoot(cwd);
   const event = { cwd: root, session_id: session };
-  const workflowEnvironment = options["data-root"]
-    ? { ...process.env, PLUGIN_DATA: resolve(String(options["data-root"])) }
-    : process.env;
   await updateWorkflowState(event, root, (state) => {
     const existing = state.reservations[batchId];
     if (existing?.epoch === state.epoch && existing.request === request && state.recorderDispatches === 1) return;
@@ -67,7 +64,7 @@ async function reserve(options) {
     }
     state.recorderDispatches = 1;
     state.reservations = { [batchId]: { epoch: state.epoch, request } };
-  }, workflowEnvironment);
+  });
   await ensureCapabilityWorkspace(root);
   process.stdout.write(`${JSON.stringify({
     ok: true,

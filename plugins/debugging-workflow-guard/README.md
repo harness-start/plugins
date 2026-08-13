@@ -87,7 +87,7 @@ export default {
 
 ## 边界
 
-- 伪造的 Work Order 回执会被拒绝，因为 `Stop` 会从插件数据状态解析 ID。
+- 伪造的 Work Order 回执会被拒绝，因为 `Stop` 会从 `.debug-workflow/.state/` 解析 ID。
 - 缺陷各自记账，不能拿 A 的复现去给 B 交差；最后一次相关修改之前的验证算过期。
 - 租约和 epoch watermark 会拒绝并发恢复。
 - 已绑定后，无效、过大、符号链接、多代码块或含未知字段的 Work Order 会 fail-closed。首次写入失败且没留下文件时保持空闲；暂时坏掉的已绑定文件会保留回执，只能原地修，不能改 ID 或 epoch。

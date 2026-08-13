@@ -141,7 +141,7 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 | `skills/command-safety-governance/src/hooks/cat-write-guard.ts` | `scripts/lib/builtin-rules.mjs` (`cat-heredoc-*`) |
 | `core/hook-support/src/hook-bash-git-shell-utils.ts` | `scripts/lib/shell-parse.mjs` 中的最小 tokenizer |
 
-插件完全自包含，没有 `@harness/*` 运行时依赖。升级状态只统计本插件产生的拒绝，JSONL 状态写在 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA` 下，不会写入插件安装目录。
+插件完全自包含，没有 `@harness/*` 运行时依赖。升级状态只统计本插件产生的拒绝，JSONL 写在当前工作目录的 `.command-safety-guards/.state/`，带 `*` 的 `.gitignore`，不会写入插件安装目录。
 
 ## 验证
 

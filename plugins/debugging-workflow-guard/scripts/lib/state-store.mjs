@@ -1,12 +1,20 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const VERSION = 1;
 const TTL_MS = 24 * 60 * 60 * 1000;
+export const STATE_DIR_RELATIVE = ".debug-workflow/.state";
 
 export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
-function dataRoot() { return process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA ?? null; }
+
+function ensureStateDir(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const ignore = join(directory, ".gitignore");
+  if (!existsSync(ignore)) {
+    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+  }
+}
 
 export function emptyState() {
   return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, reviews: { reservation: null, diagnosis: null, architecture: null }, invalid: false, updatedAt: 0 };
@@ -23,9 +31,8 @@ function sanitize(value) {
 }
 
 function statePath(sessionId, cwd) {
-  const root = dataRoot();
-  if (!root || !sessionId) return null;
-  return join(resolve(root), "debugging-workflow-guard", "sessions", `${digest(`${sessionId}\0${resolve(cwd)}`)}.json`);
+  const session = sessionId || "default";
+  return join(resolve(cwd), STATE_DIR_RELATIVE, "sessions", `${digest(session)}.json`);
 }
 
 function atomicWrite(path, value) {
@@ -33,7 +40,7 @@ function atomicWrite(path, value) {
   const directory = dirname(path);
   const temp = join(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureStateDir(directory);
     writeFileSync(temp, `${JSON.stringify(value)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
     renameSync(temp, path);
     return true;
@@ -63,9 +70,7 @@ export function updateState(sessionId, cwd, updater) {
 }
 
 function registryPath(repoRoot, workOrderId) {
-  const root = dataRoot();
-  if (!root) return null;
-  return join(resolve(root), "debugging-workflow-guard", "leases", `${digest(`${resolve(repoRoot)}\0${workOrderId}`)}.json`);
+  return join(resolve(repoRoot), STATE_DIR_RELATIVE, "leases", `${digest(workOrderId)}.json`);
 }
 
 export function acquireLease({ repoRoot, workOrderId, epoch, sessionId, leaseMinutes, now = Date.now() }) {

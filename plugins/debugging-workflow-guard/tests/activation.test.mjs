@@ -269,8 +269,9 @@ test("stderr redirection to dev null does not count as a production mutation", a
     tool_response: { exit_code: 1 },
   }, { PLUGIN_DATA: data });
 
-  const sessions = join(data, "debugging-workflow-guard", "sessions");
-  const state = JSON.parse(readFileSync(join(sessions, readdirSync(sessions)[0]), "utf8"));
+  const sessions = join(root, ".debug-workflow", ".state", "sessions");
+  const stateFile = readdirSync(sessions).find((name) => name.endsWith(".json"));
+  const state = JSON.parse(readFileSync(join(sessions, stateFile), "utf8"));
   assert.equal(state.mutationSeq, 0);
   assert.equal(state.receipts.at(-1).kind, "command");
 });
@@ -333,8 +334,9 @@ test("correcting a transiently invalid bound work order preserves prior receipts
   const corrected = await runHook("post", event, { PLUGIN_DATA: data });
   assert.match(corrected.stdout, /Corrected and bound|Work Order .* refreshed/u);
 
-  const sessions = join(data, "debugging-workflow-guard", "sessions");
-  const state = JSON.parse(readFileSync(join(sessions, readdirSync(sessions)[0]), "utf8"));
+  const sessions = join(root, ".debug-workflow", ".state", "sessions");
+  const stateFile = readdirSync(sessions).find((name) => name.endsWith(".json"));
+  const state = JSON.parse(readFileSync(join(sessions, stateFile), "utf8"));
   assert.deepEqual(state.receipts.map((receipt) => receipt.id), ["R-2"]);
   assert.equal(state.receipts[0].kind, "reproduction");
 });

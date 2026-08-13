@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -1054,9 +1055,10 @@ test("hook blocks a skipped stage and invalidates downstream receipts after rewr
   const stopped = await runHook("stop", { cwd: root, session_id: session, last_assistant_message: "Answer: 21" }, env);
   assert.equal(parseOutput(stopped.stdout)?.decision, "block");
 
-  const stateDir = join(data, "reasoning-discipline-guard", "sessions");
-  assert.equal(readdirSync(stateDir).length, 1);
-  assert.match(readFileSync(join(stateDir, readdirSync(stateDir)[0]), "utf8"), /RW-20260809-candy/u);
+  const stateDir = join(root, ".reasoning-discipline", ".state");
+  assert.equal(readdirSync(stateDir).filter((name) => name.endsWith(".json")).length, 1);
+  assert.match(readFileSync(join(stateDir, readdirSync(stateDir).find((name) => name.endsWith(".json"))), "utf8"), /RW-20260809-candy/u);
+  assert.equal(existsSync(join(data, "reasoning-discipline-guard")), false);
 });
 
 test("paused workflow passes Stop without conclusion receipts", async () => {
@@ -1206,4 +1208,33 @@ test("failed workflow write does not activate the session", async () => {
     last_assistant_message: "The answer is 21.",
   }, env);
   assert.equal(stopped.stdout, "");
+});
+
+test("session state lives under the workspace, not PLUGIN_DATA", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "reasoning-unused-data-"));
+  const dir = workflowDir(root);
+  const session = "workspace-state-session";
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  writeArtifact(join(dir, "workflow.md"), manifest());
+  const bound = await runHook("post", {
+    cwd: root,
+    session_id: session,
+    tool_name: "Write",
+    tool_input: { file_path: join(dir, "workflow.md") },
+  }, env);
+  assert.match(bound.stdout, /Bound RW-20260809-candy/u, bound.stdout);
+
+  const stateDir = join(root, ".reasoning-discipline", ".state");
+  const files = readdirSync(stateDir).filter((name) => name.endsWith(".json"));
+  assert.equal(files.length, 1);
+  assert.equal(existsSync(join(data, "reasoning-discipline-guard")), false);
+  assert.equal(readFileSync(join(stateDir, ".gitignore"), "utf8").trim(), "*");
+
+  const noHostData = await runHook("stop", {
+    cwd: root,
+    session_id: session,
+    last_assistant_message: "The answer is 21.",
+  }, { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" });
+  assert.equal(parseOutput(noHostData.stdout)?.decision, "block");
 });

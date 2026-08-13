@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { realpath } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 
 import { ResearchService } from "./lib/research-service.mjs";
@@ -88,9 +88,7 @@ class StdioPeer {
 
   async ensureService() {
     if (this.service) return this.service;
-    const dataRoot = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA ?? process.env.RESEARCH_PLUGIN_DATA;
     const sessionId = process.env.AI_EXPERTS_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? process.env.CODEX_SESSION_ID ?? `mcp-${process.pid}`;
-    if (!dataRoot) throw new Error("platform plugin data directory is unavailable");
     const result = await this.request("roots/list");
     const roots = result?.roots;
     let workspaceRoot;
@@ -106,7 +104,11 @@ class StdioPeer {
     } else {
       throw new Error("exactly one file workspace root is required");
     }
-    this.service = new ResearchService({ workspaceRoot, dataRoot, sessionId });
+    this.service = new ResearchService({
+      workspaceRoot,
+      dataRoot: join(workspaceRoot, ".research", ".state"),
+      sessionId,
+    });
     return this.service;
   }
 

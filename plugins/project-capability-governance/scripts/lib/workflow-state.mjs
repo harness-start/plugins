@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
+import { existsSync, writeFileSync } from "node:fs";
 import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import { extractSessionId } from "./hook-io.mjs";
+
+export const STATE_DIR_RELATIVE = ".project-capabilities/.state";
 
 function emptyState() {
   return {
@@ -15,15 +17,22 @@ function emptyState() {
   };
 }
 
-function dataRoot(env) {
-  return resolve(env.PLUGIN_DATA ?? env.CLAUDE_PLUGIN_DATA ?? join(tmpdir(), "project-capability-governance"));
+function dataRoot(projectRoot) {
+  const directory = join(resolve(projectRoot), STATE_DIR_RELATIVE);
+  return directory;
 }
 
-function statePath(event, projectRoot, env) {
+function ensureStateDir(directory) {
+  if (!existsSync(join(directory, ".gitignore"))) {
+    writeFileSync(join(directory, ".gitignore"), "*\n", { encoding: "utf8", mode: 0o600 });
+  }
+}
+
+function statePath(event, projectRoot) {
   const key = createHash("sha256")
-    .update(`${resolve(projectRoot)}\0${extractSessionId(event)}`)
+    .update(String(extractSessionId(event) || "default"))
     .digest("hex");
-  return join(dataRoot(env), "sessions", `${key}.json`);
+  return join(dataRoot(projectRoot), `${key}.json`);
 }
 
 async function read(path) {
@@ -60,16 +69,18 @@ async function withLock(path, operation) {
   }
 }
 
-export async function readWorkflowState(event, projectRoot, env = process.env) {
-  return read(statePath(event, projectRoot, env));
+export async function readWorkflowState(event, projectRoot) {
+  return read(statePath(event, projectRoot));
 }
 
-export async function updateWorkflowState(event, projectRoot, mutate, env = process.env) {
-  const path = statePath(event, projectRoot, env);
+export async function updateWorkflowState(event, projectRoot, mutate) {
+  const path = statePath(event, projectRoot);
   return withLock(path, async () => {
     const state = await read(path);
     const result = await mutate(state);
     const temporary = `${path}.${process.pid}.tmp`;
+    await mkdir(join(path, ".."), { recursive: true, mode: 0o700 });
+    ensureStateDir(join(path, ".."));
     await writeFile(temporary, `${JSON.stringify(state)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(temporary, path);
     return result;

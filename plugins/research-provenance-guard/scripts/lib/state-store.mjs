@@ -11,17 +11,29 @@ function hash(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
+export const STATE_DIR_RELATIVE = ".research/.state";
+
+function ensureStateDir(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const ignore = join(directory, ".gitignore");
+  try {
+    readFileSync(ignore, "utf8");
+  } catch {
+    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+  }
+}
+
 function directory(event) {
-  const data = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA ?? process.env.RESEARCH_PLUGIN_DATA;
-  const session = sessionId(event);
-  if (!data || !session) return null;
-  return join(resolve(data), "research-provenance-guard", "hook-events", hash(`${session}\0${resolve(cwd(event))}`));
+  const session = sessionId(event) || "default";
+  const target = join(resolve(cwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
+  return target;
 }
 
 export function appendStateEvent(event, type, payload = {}) {
   const target = directory(event);
   if (!target) return false;
   try {
+    ensureStateDir(join(resolve(cwd(event)), STATE_DIR_RELATIVE));
     mkdirSync(target, { recursive: true, mode: 0o700 });
     const stamp = `${String(Date.now()).padStart(13, "0")}-${process.hrtime.bigint()}-${process.pid}-${randomBytes(5).toString("hex")}`;
     writeFileSync(join(target, `${stamp}.json`), `${JSON.stringify({ version: 1, type, at: Date.now(), payload })}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });

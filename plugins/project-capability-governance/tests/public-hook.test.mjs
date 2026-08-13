@@ -289,11 +289,15 @@ test("Codex lifecycle consumes an explicit reservation without a dispatch PreToo
     const session = await runHook("session", base, hookEnv);
     assert.match(
       output(session)?.hookSpecificOutput?.additionalContext ?? "",
-      new RegExp(`--data-root '${hookData.replaceAll("'", "'\"'\"'")}'`, "u"),
+      /reserve --cwd "\$PWD" --batch "<batch-id>" --request/u,
+    );
+    assert.doesNotMatch(
+      output(session)?.hookSpecificOutput?.additionalContext ?? "",
+      /--data-root/u,
     );
     await runHook("prompt", { ...base, prompt: "Standardize the release check" }, hookEnv);
 
-    const reservationCommand = `node '${RECORDER_ENTRY}' reserve --cwd "$PWD" --batch "batch-codex" --request "Create .project-capabilities/inbox/pending/pc-codex-release.md\nInclude the complete proposal contract." --data-root '${hookData}'`;
+    const reservationCommand = `node '${RECORDER_ENTRY}' reserve --cwd "$PWD" --batch "batch-codex" --request "Create .project-capabilities/inbox/pending/pc-codex-release.md\nInclude the complete proposal contract."`;
     const allowedReservation = await runHook("pre", {
       ...base,
       tool_name: "exec_command",
@@ -313,7 +317,6 @@ test("Codex lifecycle consumes an explicit reservation without a dispatch PreToo
       "--cwd", root,
       "--batch", "batch-codex",
       "--session", base.session_id,
-      "--data-root", hookData,
       "--request", request,
     ], recorderEnv);
     assert.equal(reserved.code, 0, reserved.stderr);

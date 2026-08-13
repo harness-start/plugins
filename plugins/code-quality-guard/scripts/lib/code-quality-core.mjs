@@ -349,14 +349,15 @@ export function extractSessionId(event) {
   return event?.session_id ?? event?.sessionId ?? event?.sessionID ?? event?.context?.session_id ?? "session";
 }
 
+export const STATE_DIR_RELATIVE = ".code-quality-guard/.state";
+
 function stateFile(event, repoRoot) {
-  const dataRoot = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA;
-  if (!dataRoot) return null;
+  const root = resolve(repoRoot ?? process.cwd());
   const key = createHash("sha256")
-    .update(`${resolve(repoRoot ?? process.cwd())}\0${extractSessionId(event)}`)
+    .update(extractSessionId(event))
     .digest("hex")
     .slice(0, 24);
-  return join(dataRoot, "code-quality-guard", `${key}.json`);
+  return join(root, STATE_DIR_RELATIVE, `${key}.json`);
 }
 
 export function readState(event, repoRoot) {
@@ -377,7 +378,11 @@ export function readState(event, repoRoot) {
 export function writeState(state) {
   if (!state.path) return false;
   try {
-    mkdirSync(dirname(state.path), { recursive: true });
+    mkdirSync(dirname(state.path), { recursive: true, mode: 0o700 });
+    const ignore = join(dirname(state.path), ".gitignore");
+    if (!existsSync(ignore)) {
+      writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+    }
     const temporary = `${state.path}.${process.pid}.tmp`;
     writeFileSync(temporary, `${JSON.stringify({
       missing: [...new Set(state.missing)].sort(),

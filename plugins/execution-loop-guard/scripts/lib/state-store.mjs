@@ -1,25 +1,28 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import { extractCwd, extractSessionId } from "./hook-io.mjs";
 
 const VERSION = 1;
+export const STATE_DIR_RELATIVE = ".execution-loop-guard/.state";
 
 export function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-function dataRoot() {
-  return process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA ?? null;
+function ensureStateDir(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const ignore = join(directory, ".gitignore");
+  if (!existsSync(ignore)) {
+    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+  }
 }
 
 function statePath(event) {
-  const root = dataRoot();
-  if (!root) return null;
   const cwd = resolve(extractCwd(event));
-  const session = extractSessionId(event) ?? `cwd:${cwd}`;
-  return join(resolve(root), "execution-loop-guard", `${digest(`${session}\0${cwd}`)}.json`);
+  const session = extractSessionId(event) ?? "default";
+  return join(cwd, STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 
 function emptyState() {
@@ -48,7 +51,7 @@ function writeState(path, state) {
   const directory = dirname(path);
   const temporary = join(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureStateDir(directory);
     writeFileSync(temporary, `${JSON.stringify(state)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
     renameSync(temporary, path);
     return true;

@@ -428,7 +428,7 @@ test("corrupt durable state fails closed for Agent dispatch and parent Stop", as
   const opened = await run(CLI, ["run-open", "--host", "codex", "--session", "corrupt-state-session", "--cwd", fx.root, "--run-id", "corrupt-state-run"], "", fx.env);
   assert.equal(opened.code, 0, opened.stderr);
   const stateKey = createHash("sha256").update(`corrupt-state-session\0${fx.root}`).digest("hex");
-  const statePath = join(fx.env.PLUGIN_DATA, "subagent-workflow-guard", "codex", "sessions", `${stateKey}.json`);
+  const statePath = join(fx.root, ".subagent-workflow", ".state", "codex", "sessions", `${stateKey}.json`);
   writeFileSync(statePath, "{broken-state\n");
 
   const dispatch = await run(HOOK, ["pre", "codex"], JSON.stringify({

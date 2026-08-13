@@ -79,7 +79,7 @@ branch registry 是唯一预期扩展入口。新增分支前必须定义 analys
 
 artifact 必须通过宿主可观察文件通道写入：Codex 使用 `apply_patch`，Claude Code 使用 Write/Edit，每次调用只写一个 artifact。shell 写入不能推进回执链。
 
-Hook 状态按 session ID 与 workspace 的哈希存于宿主插件数据目录，包含绑定路径、不可变 workflow ID 和 branch、epoch、有序回执、claim ID 与文件摘要。manifest 和每个阶段都必须恰好有一个 canonical fenced JSON 块，未知字段会被拒绝。`Stop` 重载所有文件并重算摘要，手工伪造 `completionReceipt` 无效。
+Hook 状态写在当前工作目录的 `.reasoning-discipline/.state/`，按 `sessionId` 的 SHA-256 分文件，并带 `*` 的 `.gitignore`。它包含绑定路径、不可变 workflow ID 和 branch、epoch、有序回执、claim ID 与文件摘要。manifest 和每个阶段都必须恰好有一个 canonical fenced JSON 块，未知字段会被拒绝。`Stop` 重载所有文件并重算摘要，手工伪造 `completionReceipt` 无效。
 
 状态损坏或过期时 fail-open 到 idle，避免困住无关工作；可读但已绑定的 manifest 会 fail-closed，直到修正、暂停或中止。artifact 只需保存精简 premise、claim、test 和 conclusion，不要求泄露私有 token-level reasoning；机器块外的叙述可选且不作为证明。
 

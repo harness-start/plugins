@@ -1,15 +1,23 @@
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const VERSION = 2;
+export const STATE_DIR_RELATIVE = ".tdd-guard/.state";
 
 export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
 
+function ensureStateDir(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const ignore = join(directory, ".gitignore");
+  if (!existsSync(ignore)) {
+    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+  }
+}
+
 function statePath(sessionId, root) {
-  const data = process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA;
-  if (!data) return null;
-  return join(resolve(data), "tdd-guard", "sessions", `${digest(`${sessionId}\0${resolve(root)}`)}.json`);
+  const session = sessionId || "default";
+  return join(resolve(root), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 
 export function readState(sessionId, root) {
@@ -30,7 +38,7 @@ export function writeState(sessionId, root, state) {
   const directory = dirname(path);
   const temporary = join(directory, `.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureStateDir(directory);
     writeFileSync(temporary, `${JSON.stringify({ ...state, version: VERSION })}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
     renameSync(temporary, path);
     return true;

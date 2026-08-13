@@ -110,7 +110,7 @@ node "${CLAUDE_PLUGIN_ROOT:-$PLUGIN_ROOT}/scripts/subagent-workflow.mjs" run-clo
   --host codex --session "$AI_EXPERTS_SESSION_ID" --cwd "$PWD" --status DONE
 ```
 
-只有在不携带平台环境的受控 Claude Code 脚本中才显式使用 `--host claude`。运行文件按平台分别写入 `CLAUDE_PLUGIN_DATA` 或 `PLUGIN_DATA`，权限为 `0600`。显式 `--session` 表示选择直接访问 plugin data；隐式平台 session 始终通过 bridge，因为不能假设交互 shell 与 Hook 看到相同的 plugin-data 视图。
+只有在不携带平台环境的受控 Claude Code 脚本中才显式使用 `--host claude`。运行状态写在当前工作目录的 `.subagent-workflow/.state/<host>/`，权限为 `0600`，并带 `*` 的 `.gitignore`。显式 `--session` 走工作区状态；隐式平台 session 仍通过 Git mailbox bridge。
 
 ## 失败与恢复
 

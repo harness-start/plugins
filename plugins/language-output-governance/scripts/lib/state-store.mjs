@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -7,10 +8,9 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
-import { extractSessionId } from "./hook-io.mjs";
+import { extractCwd, extractSessionId } from "./hook-io.mjs";
 import { isProfileId } from "./profiles.mjs";
 
 const VERSION = 1;
@@ -19,21 +19,23 @@ const LOCK_STALE_MS = 30_000;
 const LOCK_ATTEMPTS = 100;
 const LOCK_WAIT_MS = 10;
 const WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+export const STATE_DIR_RELATIVE = ".language-output-governance/.state";
 
 function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-function dataRoot() {
-  return process.env.PLUGIN_DATA
-    ?? process.env.CLAUDE_PLUGIN_DATA
-    ?? join(tmpdir(), "harness-start-plugin-data");
+function ensureStateDir(directory) {
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const ignore = join(directory, ".gitignore");
+  if (!existsSync(ignore)) {
+    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+  }
 }
 
 function statePath(event) {
-  const session = extractSessionId(event);
-  if (!session) return null;
-  return join(resolve(dataRoot()), "language-output-governance", `${digest(session)}.json`);
+  const session = extractSessionId(event) ?? "default";
+  return join(resolve(extractCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 
 export function emptyState(defaultProfile = "zh-CN") {
@@ -80,7 +82,7 @@ function write(path, state) {
   const directory = dirname(path);
   const temporary = join(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    mkdirSync(directory, { recursive: true, mode: 0o700 });
+    ensureStateDir(directory);
     writeFileSync(temporary, `${JSON.stringify(state)}\n`, {
       encoding: "utf8",
       mode: 0o600,
@@ -97,7 +99,7 @@ function write(path, state) {
 function withLock(path, operation) {
   if (!path) return operation();
   const lock = `${path}.lock`;
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  ensureStateDir(dirname(path));
   for (let attempt = 0; attempt < LOCK_ATTEMPTS; attempt += 1) {
     try {
       mkdirSync(lock, { mode: 0o700 });

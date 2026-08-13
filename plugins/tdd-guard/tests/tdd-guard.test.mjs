@@ -661,16 +661,17 @@ test("state stores hashes instead of raw test source", async () => {
     writeFileSync(join(fx.root, "tests", "test_order_service.py"), content);
     await runHook("post", event, env);
     const stateFiles = [];
-    const queue = [fx.data];
+    const queue = [join(fx.root, ".tdd-guard", ".state")];
     while (queue.length > 0) {
       const directory = queue.pop();
       for (const name of (await import("node:fs")).readdirSync(directory)) {
         const path = join(directory, name);
         if ((await import("node:fs")).statSync(path).isDirectory()) queue.push(path);
-        else stateFiles.push(path);
+        else if (name.endsWith(".json")) stateFiles.push(path);
       }
     }
     assert.equal(stateFiles.length, 1);
+    assert.equal((await import("node:fs")).existsSync(join(fx.data, "tdd-guard")), false);
     const stored = readFileSync(stateFiles[0], "utf8");
     assert.equal(JSON.parse(stored).version, 2);
     assert.doesNotMatch(stored, /def test_total/u);

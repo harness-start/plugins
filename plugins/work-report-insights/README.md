@@ -22,7 +22,7 @@
 
 ## Hook boundary
 
-`PreToolUse` 拒绝 Write、Edit、apply_patch 和 shell 对 `~/.ai-experts/*-reports/*` 的直接修改，同时检查真实路径、symlink 和递归父目录操作。只读检查不受影响。`Stop` 仅在活动报告流程声称已经保存、但没有成功封印回执时阻断；普通请求不建立状态，也不产生 hook 输出。
+`PreToolUse` 拒绝 Write、Edit、apply_patch 和 shell 对 `~/.ai-experts/*-reports/*` 的直接修改，同时检查真实路径、symlink 和递归父目录操作。只读检查不受影响。`Stop` 仅在活动报告流程声称已经保存、但没有成功封印回执时阻断；普通请求不建立状态，也不产生 hook 输出。会话 hook 状态写在当前工作目录的 `.work-report-insights/.state/`，带 `*` 的 `.gitignore`。
 
 这个边界保护的是经过 Claude/Codex 工具调用的 AI 操作。用户在宿主之外直接修改文件不经过插件 hook；下次校验会把正文摘要不匹配视为损坏并拒绝继续追加。
 

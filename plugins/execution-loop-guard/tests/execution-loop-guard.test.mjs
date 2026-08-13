@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -267,14 +267,17 @@ test("state does not persist raw paths, commands, or command output", async (con
   await runEntry("post", fileEvent(root), env);
   await runEntry("failure", shellEvent(root, "node secret-command.mjs", { exit_code: 1, stderr: "private-output" }), env);
 
-  const directory = join(data, "execution-loop-guard");
-  const state = readFileSync(join(directory, readdirSync(directory)[0]), "utf8");
+  const directory = join(root, ".execution-loop-guard", ".state");
+  const state = readFileSync(join(directory, readdirSync(directory).find((name) => name.endsWith(".json"))), "utf8");
   assert.doesNotMatch(state, /src\/app\.js|secret-command|private-output/u);
+  assert.equal(existsSync(join(data, "execution-loop-guard")), false);
 });
 
-test("malformed input and missing plugin data fail open", async () => {
+test("malformed input fails open and missing PLUGIN_DATA still persists", async () => {
   const malformed = await runEntry("pre", "{");
-  const noData = await runEntry("post", fileEvent("/tmp"), { PLUGIN_DATA: "" });
+  const root = workspace();
+  const noData = await runEntry("post", fileEvent(root), { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" });
   assert.deepEqual({ code: malformed.code, stdout: malformed.stdout, stderr: malformed.stderr }, { code: 0, stdout: "", stderr: "" });
   assert.equal(noData.code, 0);
+  assert.equal(existsSync(join(root, ".execution-loop-guard", ".state")), true);
 });
