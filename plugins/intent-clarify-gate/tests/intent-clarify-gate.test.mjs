@@ -186,6 +186,8 @@ test("shell mutating heuristic", () => {
   assert.equal(shellLooksMutating("cat > src/a.js <<'EOF'\nx\nEOF"), true);
   assert.equal(shellLooksMutating("git status"), false);
   assert.equal(shellLooksMutating("rm -rf src"), true);
+  assert.equal(shellLooksMutating("node -e \"require('fs').writeFileSync('src/app.js','x')\""), true);
+  assert.equal(shellLooksMutating("python3 -c \"open('src/app.js','w').write('x')\""), true);
 });
 
 test("config rejects invalid writeBlock mode", () => {
@@ -300,7 +302,41 @@ test("hook integration: open denies business write, allows ledger, done unlocks"
   }
 });
 
-test("hook integration: done meta closes without complete option", async () => {
+test("hook integration: open denies interpreter writes of business files", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "icg-data-"));
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  const session = "sess-node-e";
+  try {
+    await runEntry(
+      "prompt",
+      { cwd: root, session_id: session, prompt: "/grill-me dashboard" },
+      env,
+    );
+    const deny = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Bash",
+        tool_input: {
+          command: "node -e \"require('fs').writeFileSync('src/app.js','x')\"",
+        },
+      },
+      env,
+    );
+    assert.equal(
+      parseStdout(deny.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      deny.stdout || deny.stderr,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("hook integration: bare done without a decision artifact keeps the write barrier", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "icg-data-"));
   const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
@@ -316,7 +352,7 @@ test("hook integration: done meta closes without complete option", async () => {
       { cwd: root, session_id: session, prompt: "done" },
       env,
     );
-    const allow = await runEntry(
+    const deny = await runEntry(
       "pre",
       {
         cwd: root,
@@ -330,7 +366,11 @@ test("hook integration: done meta closes without complete option", async () => {
       },
       env,
     );
-    assert.equal(parseStdout(allow.stdout), null);
+    assert.equal(
+      parseStdout(deny.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      deny.stdout || deny.stderr,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });

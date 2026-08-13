@@ -89,7 +89,7 @@ function runPrompt(event, config) {
 
     const classification = classifyUserInput(prompt, state, config);
     Object.assign(state, applyClassification(state, classification));
-    const inject = classifyInjectText(classification);
+    const inject = classifyInjectText(classification, state);
     if (inject && (classification.class !== "constraint" || config.constraintInject)) {
       contexts.push(inject);
     }

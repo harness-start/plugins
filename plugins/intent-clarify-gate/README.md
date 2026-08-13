@@ -7,7 +7,7 @@
 1. 用户 prompt 以 `/grill-me`、`$grill-me`、`/grilling` 或 `$grilling` 开头时进入。
 2. 会话处于 `open` 时阻断非 ledger 的文件或 shell 修改。
 3. 将用户回复机械分类为 `1|2|3`、带说明的 `N`、自由文本约束、`done` 或 `# grill-abort`。
-4. `Stop` 把 `N. Done — …` 解析为完成选项；用户选择该 `N` 后关闭会话。
+4. `Stop` 把 `N. Done — …` 解析为完成选项；用户选择该 `N`，或在已记录选项后回复 `done`，才会关闭写屏障。单独一句 `done` 且没有已记录决策制品时，会话保持 `open`。
 5. 状态损坏、TTL 到期、已关闭或空闲时 fail-open，避免永久写锁。
 
 ## 安装
@@ -38,7 +38,7 @@ npx --yes skills add https://github.com/mattpocock/skills --skill grill-me --glo
 插件只实现会话 phase 的机械约束：入口前缀匹配、用户输入分类、open 期间业务写屏障、`Stop` 解析 Done 选项编号，以及状态损坏或 TTL 到期时 fail-open。它不生成题干、不替用户决策、不猜测是否应该进入 grill，也不默认联网安装 Skill。
 
 ```text
-idle -> 入口前缀 -> open -> done / Done 选项编号 / # grill-abort -> closed
+idle -> 入口前缀 -> open -> 已记录选项后的 done / Done 选项编号 / # grill-abort -> closed
 ```
 
 写屏障条件为 `phase === open && writeBlock.mode === "block"`。默认 ledger allowlist 为 `.grill-ledgers/**`、`docs/decisions/**`，以及可选的 `**/spec.md`。

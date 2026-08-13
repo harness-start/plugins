@@ -199,6 +199,7 @@ export function shellLooksMutating(command) {
   if (/(?:^|[\s;|&])(?:cat|tee)\s+.*>/u.test(cmd)) return true;
   if (/(?:^|[\s;|&])(?:rm|mv|cp|chmod|chown|mkdir|touch|install)\b/u.test(cmd)) return true;
   if (/(?:^|[\s;|&])(?:sed|perl|ruby|python3?)\s+[^\n]*\s-i\b/u.test(cmd)) return true;
+  if (/(?:^|[\s;|&])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/u.test(cmd)) return true;
   if (/(?:^|[\s;|&])(?:npm|pnpm|yarn|pip|cargo|go)\s+(?:install|add|remove|uninstall)\b/u.test(cmd)) return true;
   if (/>\s*[^|&\s]/u.test(cmd) && !/\|\s*(?:head|tail|less|more|wc|rg|grep)\b/u.test(cmd)) return true;
   if (/\bgit\s+(?:commit|add|checkout|merge|rebase|reset|push|tag)\b/u.test(cmd)) return true;
@@ -242,13 +243,23 @@ export function applyClassification(state, classification, now = Date.now()) {
       next.turnIndex = Number(next.turnIndex || 0) + 1;
       next.phase = "open";
       return next;
-    case "done":
+    case "done": {
+      const hasArtifact = classification.via === "choice"
+        || next.lastChoice
+        || next.lastUserClass === "choice"
+        || next.lastUserClass === "choice_note";
+      if (!hasArtifact) {
+        next.lastUserClass = "done_rejected";
+        next.phase = "open";
+        return next;
+      }
       next.phase = "closed";
       next.closeReason = classification.closeReason || "completed";
       next.lastUserClass = "done";
       next.lastChoice = classification.choice ?? next.lastChoice ?? null;
       next.lastNote = classification.note ?? null;
       return next;
+    }
     case "abort":
       next.phase = "closed";
       next.closeReason = "aborted";
@@ -314,7 +325,7 @@ export function protocolInjectText() {
   ].join("\n");
 }
 
-export function classifyInjectText(classification) {
+export function classifyInjectText(classification, state = {}) {
   switch (classification.class) {
     case "choice":
       return `[intent-clarify-gate] The user selected ${classification.choice}. Record the decision and ask the next 1/2/3 question; include \`N. Done — …\` once the path is clear.`;
@@ -329,6 +340,12 @@ export function classifyInjectText(classification) {
         "Merge the constraint and present this question's 1/2/3 again; do not end the interview or modify business code.",
       ].join("\n");
     case "done":
+      if (state.phase !== "closed") {
+        return [
+          "[intent-clarify-gate] `done` does not close the interview until a recorded decision artifact exists (a 1/2/3 choice or the offered complete option).",
+          "The write barrier remains. Continue the interview or have the user select a numbered option.",
+        ].join("\n");
+      }
       return [
         "[intent-clarify-gate] The interview is closed; the write barrier is released.",
         classification.note ? `Closing note: ${classification.note}` : null,

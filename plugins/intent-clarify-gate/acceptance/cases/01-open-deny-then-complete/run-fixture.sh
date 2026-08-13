@@ -43,22 +43,31 @@ echo "${DENY_OUT}" | grep -q 'intent-clarify-gate' || {
   exit 1
 }
 
-echo "==> close with done"
-DONE_OUT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,prompt:"done"}')")"
-echo "${DONE_OUT}" | grep -q 'write barrier is released\|interview is closed' || {
-  echo "FAIL missing close context" >&2
-  echo "${DONE_OUT}" >&2
+echo "==> interpreter write of business path must deny"
+NODE_OUT="$(run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
+  '{cwd:$cwd,session_id:$s,tool_name:"Bash",tool_input:{command:"node -e \"require('\''fs'\'').writeFileSync('\''src/app.js'\'','\''x'\'')\""}}')")"
+echo "${NODE_OUT}" | grep -q '"permissionDecision":"deny"' || {
+  echo "FAIL expected interpreter write deny" >&2
+  echo "${NODE_OUT}" >&2
   exit 1
 }
 
-echo "==> pre write after close must not deny"
-ALLOW_OUT="$(run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg path "${WS}/src/app.js" \
-  '{cwd:$cwd,session_id:$s,tool_name:"Write",tool_input:{file_path:$path,content:"y\n"}}')")"
-if echo "${ALLOW_OUT}" | grep -q '"permissionDecision":"deny"'; then
-  echo "FAIL residual deny after done" >&2
-  echo "${ALLOW_OUT}" >&2
+echo "==> bare done without a recorded decision must keep the barrier"
+DONE_OUT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
+  '{cwd:$cwd,session_id:$s,prompt:"done"}')")"
+if echo "${DONE_OUT}" | grep -q 'write barrier is released\|interview is closed'; then
+  echo "FAIL bare done released the write barrier" >&2
+  echo "${DONE_OUT}" >&2
   exit 1
 fi
+
+echo "==> pre write after bare done must still deny"
+STILL_DENY="$(run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg path "${WS}/src/app.js" \
+  '{cwd:$cwd,session_id:$s,tool_name:"Write",tool_input:{file_path:$path,content:"y\n"}}')")"
+echo "${STILL_DENY}" | grep -q '"permissionDecision":"deny"' || {
+  echo "FAIL expected residual deny after bare done" >&2
+  echo "${STILL_DENY}" >&2
+  exit 1
+}
 
 echo "OK intent-clarify-gate open-deny-then-complete fixture"
