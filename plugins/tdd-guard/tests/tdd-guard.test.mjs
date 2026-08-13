@@ -623,6 +623,29 @@ test("common shell redirection cannot create implementation before a test", asyn
   }
 });
 
+test("interpreter write cannot create implementation before a test", async () => {
+  const fx = fixture("tdd-guard-python-");
+  try {
+    const result = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "Bash",
+      tool_use_id: "shell-py",
+      tool_input: {
+        command: "python3 -c \"open('src/OrderService.php','w').write('<?php class OrderService {}')\"",
+      },
+    }, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("state stores hashes instead of raw test source", async () => {
   const fx = fixture("tdd-guard-state-");
   try {

@@ -74,9 +74,14 @@ function contentFromPatch(input, target, cwd, currentText) {
 function shellPaths(input) {
   const command = String(input?.command ?? input?.cmd ?? "");
   const paths = [];
-  for (const match of command.matchAll(/(?:^|[^>])>>?\s*["']?([^\s;&|"']+)/gu)) paths.push(match[1]);
-  for (const match of command.matchAll(/\btee\s+(?:-[A-Za-z]+\s+)*["']?([^\s;&|"']+)/gu)) paths.push(match[1]);
-  for (const match of command.matchAll(/\btouch\s+(?:--\s+)?["']?([^\s;&|"']+)/gu)) paths.push(match[1]);
+  const push = (raw) => {
+    const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const match of command.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
   return paths;
 }
 
