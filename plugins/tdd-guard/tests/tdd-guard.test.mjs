@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   classifyPath,
+  expectedTestExample,
   extractTestEvidence,
   resolveLanguageContext,
   sourceAuthorizedByTest,
@@ -52,9 +53,49 @@ function writeEvent(root, relativePath, content, toolUseId) {
   };
 }
 
+const HOOK_ENV = {
+  AI_EXPERTS_SESSION_ID: "session-1",
+  AI_EXPERTS_TRIGGER_FROM: "test",
+};
+
+function hookEnv(data) {
+  return { ...HOOK_ENV, PLUGIN_DATA: data };
+}
+
+function phpOrderServicePair() {
+  return {
+    testPath: "tests/Unit/Service/OrderServiceTest.php",
+    sourcePath: "src/Service/OrderService.php",
+    testContent: [
+      "<?php",
+      "namespace Tests\\Unit\\Service;",
+      "use PHPUnit\\Framework\\Attributes\\CoversClass;",
+      "use App\\Service\\OrderService;",
+      "#[CoversClass(OrderService::class)]",
+      "final class OrderServiceTest extends TestCase {",
+      "    public function test_creates_an_order(): void {",
+      "        $service = new OrderService();",
+      "    }",
+      "}",
+      "",
+    ].join("\n"),
+    sourceContent: "<?php\nnamespace App\\Service;\nfinal class OrderService {}\n",
+  };
+}
+
+function seedPhpOrderService(root) {
+  const pair = phpOrderServicePair();
+  mkdirSync(join(root, "tests", "Unit", "Service"), { recursive: true });
+  mkdirSync(join(root, "src", "Service"), { recursive: true });
+  writeFileSync(join(root, pair.testPath), pair.testContent);
+  writeFileSync(join(root, pair.sourcePath), pair.sourceContent);
+  return pair;
+}
+
 test("classifies fixed test and implementation patterns for six languages", () => {
   const cases = [
-    ["tests/Unit/OrderServiceTest.php", "test", "php"],
+    ["tests/Unit/Service/OrderServiceTest.php", "test", "php"],
+    ["tests/Service/OrderServiceTest.php", "test", "php"],
     ["src/Service/OrderService.php", "source", "php"],
     ["tests/test_order_service.py", "test", "python"],
     ["src/order_service.py", "source", "python"],
@@ -310,6 +351,77 @@ test("language context uses the nearest Cargo and Go manifests", () => {
   }
 });
 
+test("expected test examples keep the source-relative directory for every language", () => {
+  assert.equal(
+    expectedTestExample("src/Service/OrderService.php", "php"),
+    "tests/Service/OrderServiceTest.php or tests/Unit/Service/OrderServiceTest.php or a test with #[CoversClass(Target::class)]",
+  );
+  assert.equal(
+    expectedTestExample("src/service/order_service.py", "python"),
+    "tests/service/test_order_service.py or tests/unit/service/test_order_service.py or a test importing the exact module",
+  );
+  assert.equal(
+    expectedTestExample("src/service/order-service.js", "javascript"),
+    "tests/service/order-service.test.js or tests/unit/service/order-service.test.js or src/service/order-service.test.js or a test with an exact relative import",
+  );
+  assert.equal(
+    expectedTestExample("src/service/order-service.ts", "typescript"),
+    "tests/service/order-service.test.ts or tests/unit/service/order-service.test.ts or src/service/order-service.test.ts or a test with an exact relative import",
+  );
+  assert.equal(
+    expectedTestExample("src/service/order_service.rs", "rust"),
+    "tests/service/order_service.rs or tests/Unit/service/order_service.rs or a test using the exact crate module item",
+  );
+  assert.equal(
+    expectedTestExample("service/order_service.go", "go"),
+    "service/order_service_test.go in the same package referencing a declared symbol",
+  );
+  assert.equal(
+    expectedTestExample("crates/shop/src/billing.rs", "rust"),
+    "crates/shop/tests/billing.rs or crates/shop/tests/Unit/billing.rs or a test using the exact crate module item",
+  );
+});
+
+test("directory mirror accepts suite-prefixed and suite-free copies of the source-relative path", () => {
+  const cases = [
+    ["php", "src/Service/OrderService.php", "<?php class OrderService {}\n", [
+      "tests/Service/OrderServiceTest.php",
+      "tests/Unit/Service/OrderServiceTest.php",
+    ], ["tests/Unit/OrderServiceTest.php", "tests/OrderServiceTest.php"], "<?php function test_creates(): void {}\n"],
+    ["python", "src/service/order_service.py", "class OrderService:\n    pass\n", [
+      "tests/service/test_order_service.py",
+      "tests/unit/service/test_order_service.py",
+    ], ["tests/unit/test_order_service.py", "tests/test_order_service.py"], "def test_creates():\n    assert True\n"],
+    ["javascript", "src/service/order-service.js", "export class OrderService {}\n", [
+      "tests/service/order-service.test.js",
+      "tests/unit/service/order-service.test.js",
+      "src/service/order-service.test.js",
+    ], ["tests/unit/order-service.test.js", "tests/order-service.test.js"], "test('creates', () => true);\n"],
+    ["typescript", "src/service/order-service.ts", "export class OrderService {}\n", [
+      "tests/service/order-service.test.ts",
+      "tests/unit/service/order-service.test.ts",
+      "src/service/order-service.test.ts",
+    ], ["tests/unit/order-service.test.ts"], "it('creates', () => true);\n"],
+    ["rust", "src/service/order_service.rs", "pub struct OrderService;\n", [
+      "tests/service/order_service.rs",
+      "tests/Unit/service/order_service.rs",
+    ], ["tests/order_service.rs"], "#[test]\nfn creates() {}\n"],
+    ["go", "service/order_service.go", "package service\ntype OrderService struct{}\n", [
+      "service/order_service_test.go",
+    ], ["tests/service/order_service_test.go", "tests/Unit/service/order_service_test.go"], "package service\nfunc TestCreate(t *testing.T) {}\n"],
+  ];
+  for (const [language, sourcePath, sourceContent, allowed, rejected, testContent] of cases) {
+    for (const testPath of allowed) {
+      const record = { path: testPath, language, evidence: extractTestEvidence(language, testContent, testPath) };
+      assert.equal(sourceAuthorizedByTest({ path: sourcePath, language, content: sourceContent }, record), true, `${language} ${testPath}`);
+    }
+    for (const testPath of rejected) {
+      const record = { path: testPath, language, evidence: extractTestEvidence(language, testContent, testPath) };
+      assert.equal(sourceAuthorizedByTest({ path: sourcePath, language, content: sourceContent }, record), false, `${language} ${testPath} must not drop directories`);
+    }
+  }
+});
+
 test("directory mirror fallback requires the complete relative path in every language", () => {
   const cases = [
     ["php", "tests/Acceptance/Exception/InvalidArgumentTest.php", "<?php function test_message(): void {}\n", "src/Exception/InvalidArgument.php", "src/Domain/InvalidArgument.php", "<?php class InvalidArgument {}\n"],
@@ -365,7 +477,8 @@ test("public hook blocks a PHP class write before a related test mutation", asyn
     assert.equal(result.code, 0, result.stderr);
     const output = JSON.parse(result.stdout);
     assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
-    assert.match(output.hookSpecificOutput.permissionDecisionReason, /OrderServiceTest\.php/u);
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /tests\/Service\/OrderServiceTest\.php/u);
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /tests\/Unit\/Service\/OrderServiceTest\.php/u);
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });
@@ -403,11 +516,11 @@ test("public pre hook fails closed when its input is malformed", async () => {
 test("public hook records a test-first write and then allows related implementation", async () => {
   const fx = fixture("tdd-guard-allow-");
   try {
-    mkdirSync(join(fx.root, "tests", "Unit"), { recursive: true });
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
     mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
     const testContent = [
       "<?php",
-      "namespace Tests\\Unit;",
+      "namespace Tests\\Unit\\Service;",
       "use PHPUnit\\Framework\\Attributes\\CoversClass;",
       "use App\\Service\\OrderService;",
       "#[CoversClass(OrderService::class)]",
@@ -418,14 +531,14 @@ test("public hook records a test-first write and then allows related implementat
       "}",
       "",
     ].join("\n");
-    const testWrite = writeEvent(fx.root, "tests/Unit/OrderServiceTest.php", testContent, "test-1");
+    const testWrite = writeEvent(fx.root, "tests/Unit/Service/OrderServiceTest.php", testContent, "test-1");
     const before = await runHook("pre", testWrite, {
       PLUGIN_DATA: fx.data,
       AI_EXPERTS_SESSION_ID: "session-1",
       AI_EXPERTS_TRIGGER_FROM: "test",
     });
     assert.equal(before.stdout, "");
-    writeFileSync(join(fx.root, "tests", "Unit", "OrderServiceTest.php"), testContent);
+    writeFileSync(join(fx.root, "tests", "Unit", "Service", "OrderServiceTest.php"), testContent);
     const after = await runHook("post", testWrite, {
       PLUGIN_DATA: fx.data,
       AI_EXPERTS_SESSION_ID: "session-1",
@@ -434,13 +547,13 @@ test("public hook records a test-first write and then allows related implementat
     assert.equal(after.stdout, "");
 
     const revisedContent = testContent.replace("$service = new OrderService();", "$service = new OrderService();\n        self::assertNotNull($service);");
-    const revisedWrite = writeEvent(fx.root, "tests/Unit/OrderServiceTest.php", revisedContent, "test-2");
+    const revisedWrite = writeEvent(fx.root, "tests/Unit/Service/OrderServiceTest.php", revisedContent, "test-2");
     await runHook("pre", revisedWrite, {
       PLUGIN_DATA: fx.data,
       AI_EXPERTS_SESSION_ID: "session-1",
       AI_EXPERTS_TRIGGER_FROM: "test",
     }, "claude");
-    writeFileSync(join(fx.root, "tests", "Unit", "OrderServiceTest.php"), revisedContent);
+    writeFileSync(join(fx.root, "tests", "Unit", "Service", "OrderServiceTest.php"), revisedContent);
     const claudeAfter = await runHook("post", revisedWrite, {
       PLUGIN_DATA: fx.data,
       AI_EXPERTS_SESSION_ID: "session-1",
@@ -676,6 +789,128 @@ test("state stores hashes instead of raw test source", async () => {
     assert.equal(JSON.parse(stored).version, 2);
     assert.doesNotMatch(stored, /def test_total/u);
     assert.match(stored, /[a-f0-9]{64}/u);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("public hook names existing corresponding tests when blocking a historical source edit", async () => {
+  const fx = fixture("tdd-guard-historical-name-");
+  try {
+    const pair = seedPhpOrderService(fx.root);
+    const revised = pair.sourceContent.replace("final class OrderService {}", "final class OrderService {\n    public function total(): int { return 1; }\n}");
+    const result = await runHook("pre", writeEvent(fx.root, pair.sourcePath, revised, "hist-source-1"), hookEnv(fx.data));
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /tests\/Unit\/Service\/OrderServiceTest\.php/u);
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /already exist/u);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("a new extra test cannot unlock a source that already has corresponding tests on disk", async () => {
+  const fx = fixture("tdd-guard-historical-extra-");
+  try {
+    const pair = seedPhpOrderService(fx.root);
+    const extraPath = "tests/Scratch/OrderServiceScratchTest.php";
+    const extraContent = [
+      "<?php",
+      "namespace Tests\\Scratch;",
+      "use PHPUnit\\Framework\\Attributes\\CoversClass;",
+      "use App\\Service\\OrderService;",
+      "#[CoversClass(OrderService::class)]",
+      "final class OrderServiceScratchTest extends TestCase {",
+      "    public function test_scratch(): void { new OrderService(); }",
+      "}",
+      "",
+    ].join("\n");
+    mkdirSync(join(fx.root, "tests", "Scratch"), { recursive: true });
+    const extraWrite = writeEvent(fx.root, extraPath, extraContent, "extra-test-1");
+    await runHook("pre", extraWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, extraPath), extraContent);
+    await runHook("post", extraWrite, hookEnv(fx.data));
+
+    const revised = pair.sourceContent.replace("final class OrderService {}", "final class OrderService {\n    public function total(): int { return 1; }\n}");
+    const blocked = await runHook("pre", writeEvent(fx.root, pair.sourcePath, revised, "hist-source-2"), hookEnv(fx.data));
+    const output = JSON.parse(blocked.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny", blocked.stdout);
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /tests\/Unit\/Service\/OrderServiceTest\.php/u);
+    assert.doesNotMatch(output.hookSpecificOutput.permissionDecisionReason, /Scratch/u);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("mutating an existing corresponding test unlocks a historical source edit", async () => {
+  const fx = fixture("tdd-guard-historical-update-");
+  try {
+    const pair = seedPhpOrderService(fx.root);
+    const revisedTest = pair.testContent.replace(
+      "$service = new OrderService();",
+      "$service = new OrderService();\n        self::assertSame(1, $service->total());",
+    );
+    const testWrite = writeEvent(fx.root, pair.testPath, revisedTest, "hist-test-1");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), revisedTest);
+    await runHook("post", testWrite, hookEnv(fx.data));
+
+    const revisedSource = pair.sourceContent.replace("final class OrderService {}", "final class OrderService {\n    public function total(): int { return 1; }\n}");
+    const allowed = await runHook("pre", writeEvent(fx.root, pair.sourcePath, revisedSource, "hist-source-3"), hookEnv(fx.data));
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("unrelated existing tests do not change greenfield source-first denial", async () => {
+  const fx = fixture("tdd-guard-historical-unrelated-");
+  try {
+    seedPhpOrderService(fx.root);
+    mkdirSync(join(fx.root, "src", "Billing"), { recursive: true });
+    const invoice = writeEvent(
+      fx.root,
+      "src/Billing/InvoiceService.php",
+      "<?php\nnamespace App\\Billing;\nfinal class InvoiceService {}\n",
+      "invoice-1",
+    );
+    const result = await runHook("pre", invoice, hookEnv(fx.data));
+    const reason = JSON.parse(result.stdout).hookSpecificOutput.permissionDecisionReason;
+    assert.match(reason, /Blocked src\/Billing\/InvoiceService\.php/u);
+    assert.doesNotMatch(reason, /already exist/u);
+    assert.doesNotMatch(reason, /OrderServiceTest/u);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("directory-mirror historical tests must be updated before the mirrored source", async () => {
+  const fx = fixture("tdd-guard-historical-mirror-");
+  try {
+    mkdirSync(join(fx.root, "tests", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+    const testPath = "tests/Service/PriceCalculatorTest.php";
+    const sourcePath = "src/Service/PriceCalculator.php";
+    writeFileSync(join(fx.root, testPath), "<?php\nfunction test_keeps_zero(): void {}\n");
+    writeFileSync(join(fx.root, sourcePath), "<?php\nfinal class PriceCalculator {}\n");
+
+    const extraPath = "tests/Other/PriceCalculatorOtherTest.php";
+    const extraContent = "<?php\nfunction test_other(): void {}\n";
+    mkdirSync(join(fx.root, "tests", "Other"), { recursive: true });
+    const extraWrite = writeEvent(fx.root, extraPath, extraContent, "mirror-extra-1");
+    await runHook("pre", extraWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, extraPath), extraContent);
+    await runHook("post", extraWrite, hookEnv(fx.data));
+
+    const blocked = await runHook("pre", writeEvent(fx.root, sourcePath, "<?php\nfinal class PriceCalculator { public function total(): int { return 0; } }\n", "mirror-source-1"), hookEnv(fx.data));
+    const output = JSON.parse(blocked.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny", blocked.stdout);
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /tests\/Service\/PriceCalculatorTest\.php/u);
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });

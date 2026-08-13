@@ -17,6 +17,10 @@ import {
   writeJson,
 } from "./lib/hook-io.mjs";
 import {
+  formatTestPathList,
+  historicalCorrespondingTests,
+} from "./lib/existing-tests.mjs";
+import {
   classifyPath,
   expectedTestExample,
   extractTestEvidence,
@@ -62,6 +66,12 @@ async function runPre(event) {
       const current = readText(target.absolutePath);
       const source = { ...target, content: proposedContent(event, target.absolutePath, current) };
       const context = resolveLanguageContext(root, target.path, target.language);
+      const historical = historicalCorrespondingTests(root, source, state, context);
+      if (historical.length > 0) {
+        if (tests.some((record) => historical.includes(record.path) && sourceAuthorizedByTest(source, record, context))) continue;
+        writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: matching tests already exist (${formatTestPathList(historical)}). Update one of those existing test files first in this session so the change goes through a red-green cycle, then retry the implementation edit in a separate tool call.`));
+        return;
+      }
       if (tests.some((record) => sourceAuthorizedByTest(source, record, context))) continue;
       const expected = expectedTestExample(target.path, target.language);
       writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: no matching test file was created or changed earlier in this session. Create or update ${expected} with a real test case that references the implementation, then retry in a separate tool call.`));
@@ -92,7 +102,14 @@ async function runPost(event, platform) {
     const evidence = extractTestEvidence(target.language, readText(absolutePath), target.path, context);
     if (!evidence.valid) continue;
     state.sequence = (state.sequence ?? 0) + 1;
-    state.tests.push({ path: target.path, language: target.language, hash: afterHash, sequence: state.sequence, evidence });
+    state.tests.push({
+      path: target.path,
+      language: target.language,
+      hash: afterHash,
+      sequence: state.sequence,
+      created: target.beforeHash === "missing",
+      evidence,
+    });
     recorded.push(target.path);
   }
   state.pending = null;

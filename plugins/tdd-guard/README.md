@@ -1,6 +1,6 @@
 # TDD Guard
 
-`tdd-guard` 是一个纯 Hook 文件顺序守卫。它要求 agent 在当前 workspace 和 session 中先创建或修改关联测试，再写实现文件。
+`tdd-guard` 是一个纯 Hook 文件顺序守卫。它要求 agent 在当前 workspace 和 session 中先创建或修改关联测试，再写实现文件。已有实现和测试的历史代码同样走这条顺序：如果磁盘上已经找得到对应测试，必须先改那些现有测试，再改源码。另写一份新测试不能用来绕过。
 
 插件暂不运行测试，也不判断命令是否经历 RED 或 GREEN。它检查的是文件状态和关联关系：测试文件字节先变化，文件中有可识别的测试声明，然后测试必须通过语言实体绑定或完整目录镜像指向实现文件。会话队列写在当前工作目录的 `.tdd-guard/.state/`，带 `*` 的 `.gitignore`。
 
@@ -43,6 +43,14 @@ Write src/Exception/InvalidArgumentException.php
 
 同一个工具调用不能同时修改测试和实现。agent 必须先单独写测试，让 `PostToolUse` 观察最终字节，再发起实现写入。
 
+### 历史代码
+
+审计或修补已经同时存在实现和测试的文件时，插件会扫描工作区里同语言的测试文件，用和写前授权相同的实体绑定 / 目录镜像规则找出对应测试。
+
+- 找到现有对应测试后，本会话必须先改动其中至少一个文件；拒绝文案会列出这些路径。
+- 本会话新建的另一份测试即使也能对上同一个 FQCN 或镜像，也不能解锁这份历史源码。
+- 磁盘上没有对应测试时，仍走原来的新写路径：先创建匹配测试，再写实现。
+
 ## 两级匹配
 
 ### 1. 语言实体绑定
@@ -69,21 +77,36 @@ Write src/Exception/InvalidArgumentException.php
 - 剥离语言测试后缀，例如 PHP 的 `Test`、Python/Go 的 `_test`、JS/TS 的 `.test` / `.spec`；
 - 保留其余完整相对目录，不能只靠文件名相同。
 
-例如：
+例如 `src/Service/OrderService.php` 对应的测试路径必须保留 `Service`：
 
 ```text
-tests/Acceptance/Exception/InvalidArgumentTest.php
-  -> src/Exception/InvalidArgument.php       允许
-  -> src/Domain/InvalidArgument.php          拒绝
+src/Service/OrderService.php
+  -> tests/Service/OrderServiceTest.php           允许
+  -> tests/Unit/Service/OrderServiceTest.php      允许
+  -> tests/Unit/OrderServiceTest.php              拒绝（丢掉了 Service）
 ```
 
-JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/feature/parser.ts`。Go fallback 要求测试与实现位于同一目录。
+`tests/Acceptance/Exception/InvalidArgumentTest.php` 同样只对应 `src/Exception/InvalidArgument.php`，不能对应 `src/Domain/InvalidArgument.php`。
+
+其他语言用同一条相对目录规则：
+
+| 语言 | 实现 | 对应测试 |
+| --- | --- | --- |
+| PHP | `src/Service/OrderService.php` | `tests/Service/OrderServiceTest.php`、`tests/Unit/Service/OrderServiceTest.php` |
+| Python | `src/service/order_service.py` | `tests/service/test_order_service.py`、`tests/unit/service/test_order_service.py` |
+| JavaScript | `src/service/order-service.js` | `tests/service/order-service.test.js`、`tests/unit/service/order-service.test.js`，或同目录 `src/service/order-service.test.js` |
+| TypeScript | `src/service/order-service.ts` | `tests/service/order-service.test.ts`、`tests/unit/service/order-service.test.ts`，或同目录 `.test.ts` / `.spec.ts` |
+| Rust | `src/service/order_service.rs` | `tests/service/order_service.rs`、`tests/Unit/service/order_service.rs` |
+| Go | `service/order_service.go` | 同目录 `service/order_service_test.go` |
+
+JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/feature/parser.ts`。Go 不走 `tests/` 镜像，只认同一 package 目录。显式实体绑定（例如 PHP `#[CoversClass]`）仍可指向别的测试文件；没有实体证据时，不能只靠文件名相同。
 
 ## 生效条件
 
 测试文件必须同时满足：
 
 - 在当前 workspace 和 session 中真实创建或发生字节变化；
+- 磁盘上已有对应测试时，变化必须发生在那些现有文件上，本会话新建的另一份测试不算；
 - 命中语言的固定测试路径或文件名；
 - 包含实际测试函数或测试调用，只有空文件、测试类或 `describe()` 不够；
 - 命中语言实体绑定或完整目录镜像之一。
@@ -105,7 +128,7 @@ JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/featur
 
 ## 效果边界
 
-它核对的是：关联测试的文件状态先变，实现文件后变。普通文件工具、补丁和常见重定向 Shell 的 source-first 跳步会被拦住。
+它核对的是：关联测试的文件状态先变，实现文件后变。已有对应测试时，改的必须是那些文件，而不是另写一份新测试。普通文件工具、补丁和常见重定向 Shell 的 source-first 跳步会被拦住。
 
 它不核对断言对不对、覆盖够不够、测试有没有跑绿。两个文件如果声明了完全相同的 FQCN 或 package symbol，语言本身已经重复声明；插件按实体处理，不替代 autoload、编译器或静态分析。Rust 第一版仍只支持独立 `tests/*.rs`，同文件 `#[cfg(test)]` 区域不能建立跨工具调用的文件顺序。
 

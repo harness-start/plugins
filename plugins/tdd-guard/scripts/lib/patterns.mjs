@@ -27,6 +27,10 @@ function normalize(path) {
   return String(path ?? "").replaceAll("\\", "/").replace(/^\.\//u, "");
 }
 
+export function isSkippedPath(path) {
+  return SKIPPED.test(normalize(path));
+}
+
 function insideRoot(root, path) {
   const value = relative(resolve(root), resolve(path));
   return value === "" || (!value.startsWith("..") && !value.startsWith("/"));
@@ -449,13 +453,52 @@ function pascal(value) {
   return String(value).split(/[-_]/u).filter(Boolean).map((part) => part[0]?.toUpperCase() + part.slice(1)).join("");
 }
 
+function languageTestFileName(stem, language) {
+  if (language === "php") return `${pascal(stem)}Test.php`;
+  if (language === "python") return `test_${stem}.py`;
+  if (language === "javascript") return `${stem}.test.js`;
+  if (language === "typescript") return `${stem}.test.ts`;
+  if (language === "rust") return `${stem}.rs`;
+  if (language === "go") return `${stem}_test.go`;
+  return stem;
+}
+
+function suiteExampleName(language) {
+  return ["python", "javascript", "typescript"].includes(language) ? "unit" : "Unit";
+}
+
+export function expectedMirrorTestPaths(sourcePath, language) {
+  const normalized = normalize(sourcePath);
+  if (language === "go") {
+    const directory = posix.dirname(normalized);
+    const fileName = languageTestFileName(stripExtension(posix.basename(normalized)), language);
+    return [directory === "." ? fileName : `${directory}/${fileName}`];
+  }
+  const descriptor = rootDescriptor(normalized, SOURCE_ROOTS);
+  const rest = descriptor ? [...descriptor.rest] : normalized.split("/").filter(Boolean);
+  const stem = stripExtension(rest.pop() ?? "");
+  const relativeDir = rest.join("/");
+  const scopePrefix = descriptor?.scope ? `${descriptor.scope}/` : "";
+  const fileName = languageTestFileName(stem, language);
+  const withDir = relativeDir ? `${relativeDir}/` : "";
+  const paths = [
+    `${scopePrefix}tests/${withDir}${fileName}`,
+    `${scopePrefix}tests/${suiteExampleName(language)}/${withDir}${fileName}`,
+  ];
+  if (["javascript", "typescript"].includes(language)) {
+    const sourceDir = posix.dirname(normalized);
+    paths.push(sourceDir === "." ? fileName : `${sourceDir}/${fileName}`);
+  }
+  return paths;
+}
+
 export function expectedTestExample(sourcePath, language) {
-  const stem = stripExtension(posix.basename(sourcePath));
-  if (language === "php") return `a mirrored tests/**/${pascal(stem)}Test.php or a test with #[CoversClass(Target::class)]`;
-  if (language === "python") return `a mirrored tests/test_${stem}.py or a test importing the exact module`;
-  if (language === "javascript") return `a mirrored ${stem}.test.js or a test with an exact relative import`;
-  if (language === "typescript") return `a mirrored ${stem}.test.ts or a test with an exact relative import`;
-  if (language === "rust") return `a mirrored tests/${stem}.rs or a test using the exact crate module item`;
-  if (language === "go") return `${stem}_test.go in the same package referencing a declared symbol`;
-  return "a matching test file";
+  const listed = expectedMirrorTestPaths(sourcePath, language).join(" or ");
+  if (!listed) return "a matching test file";
+  if (language === "php") return `${listed} or a test with #[CoversClass(Target::class)]`;
+  if (language === "python") return `${listed} or a test importing the exact module`;
+  if (language === "javascript" || language === "typescript") return `${listed} or a test with an exact relative import`;
+  if (language === "rust") return `${listed} or a test using the exact crate module item`;
+  if (language === "go") return `${listed} in the same package referencing a declared symbol`;
+  return listed;
 }

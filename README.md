@@ -98,7 +98,7 @@ codex plugin add <name>@harness-start --json
 | `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
 | `git-delivery-guards` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
 | `code-quality-guard` | 写入后执行有界的 JS/TS、Python 和 PHP 语法、lint 与静态分析检查 |
-| `tdd-guard` | 先记录测试文件变化，再按 FQCN、module/package 身份或完整目录镜像允许 PHP、Python、JS、TS、Rust、Go 实现写入 |
+| `tdd-guard` | 先记录测试文件变化，再按 FQCN、module/package 身份或完整目录镜像允许 PHP、Python、JS、TS、Rust、Go 实现写入；已有对应测试时必须先改那些文件 |
 | `encoding-guard` | AI 写入后阻断带 BOM 或不符合严格 UTF-8 的文本文件 |
 | `markdown-format-guard` | 写入后检查 Markdown 标题结构和常见格式规则 |
 | `file-line-budget-guard` | 在 Edit/Write 后按语言实施棘轮式文件行数预算 |

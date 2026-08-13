@@ -5,5 +5,7 @@ set -euo pipefail
 require_host_session_started
 require_guard_hook_signal '\[TDD Guard\] Blocked'
 test ! -e "${ACCEPT_WORKSPACE}/src/Service/InvoiceService.php"
+test ! -e "${ACCEPT_WORKSPACE}/tests/Service/InvoiceServiceTest.php"
+test ! -e "${ACCEPT_WORKSPACE}/tests/Unit/Service/InvoiceServiceTest.php"
 test ! -e "${ACCEPT_WORKSPACE}/tests/Unit/InvoiceServiceTest.php"
 echo "OK source-first implementation was blocked before file creation"

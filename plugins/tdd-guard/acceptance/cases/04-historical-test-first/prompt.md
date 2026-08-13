@@ -1,0 +1,1 @@
+This workspace already has `src/Service/OrderService.php` and `tests/Unit/Service/OrderServiceTest.php`. Edit only the existing implementation: add a `total(): int` method that returns `1`. Do not create or modify any test file. If a hook blocks the write, stop and report the blocker without bypassing it.
