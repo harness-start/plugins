@@ -93,7 +93,7 @@ Options:
   --local <path>          Install from a local marketplace checkout (path to repo root)
   --scope <scope>         Claude install scope: user|project|local (default: user)
   --language <profile>    Response profile: zh-CN|zh-TW|en-US|ja-JP|ko-KR|th-TH
-                          (default: map the current system locale; fallback: en-US)
+                          (default: macOS AppleLanguages, else POSIX locale; fallback: en-US)
   --dry-run               Print actions without running them
   --skip-missing-hosts    Skip missing claude/codex instead of failing
   --skip-skill-deps       Skip community skill install/update from skill-deps.json
@@ -136,31 +136,64 @@ run_cmd() {
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+map_language_tag_to_profile() {
+  local normalized
+  normalized="$(printf '%s' "${1:-}" | sed 's/[.@].*$//' | tr '[:upper:]_' '[:lower:]-')"
+  case "${normalized}" in
+    zh-hant*|zh-tw*|zh-hk*|zh-mo*) printf '%s\n' "zh-TW" ;;
+    zh*) printf '%s\n' "zh-CN" ;;
+    ja*) printf '%s\n' "ja-JP" ;;
+    ko*) printf '%s\n' "ko-KR" ;;
+    th*) printf '%s\n' "th-TH" ;;
+    en*|c|posix) printf '%s\n' "en-US" ;;
+    *) return 1 ;;
+  esac
+}
+
+first_macos_language_tag() {
+  local raw
+  raw="$(defaults read -g AppleLanguages 2>/dev/null || true)"
+  [ -n "${raw}" ] || return 1
+  printf '%s\n' "${raw}" | tr -d '"' | tr ',' '\n' | sed 's/[[:space:]();]//g' | grep -E '^[A-Za-z]{2}' | head -n 1
+}
+
+resolve_macos_language_profile() {
+  local tag profile
+  [ "$(uname -s 2>/dev/null)" = "Darwin" ] || return 1
+  have_cmd defaults || return 1
+  tag="$(first_macos_language_tag || true)"
+  if [ -n "${tag}" ] && profile="$(map_language_tag_to_profile "${tag}")"; then
+    log "Language: macOS AppleLanguages ${tag} mapped to ${profile}"
+    printf '%s\n' "${profile}"
+    return 0
+  fi
+  tag="$(defaults read -g AppleLocale 2>/dev/null || true)"
+  if [ -n "${tag}" ] && profile="$(map_language_tag_to_profile "${tag}")"; then
+    log "Language: macOS AppleLocale ${tag} mapped to ${profile}"
+    printf '%s\n' "${profile}"
+    return 0
+  fi
+  return 1
+}
+
 resolve_system_language_profile() {
-  local system_locale normalized profile
+  local system_locale profile
+  if profile="$(resolve_macos_language_profile)"; then
+    printf '%s\n' "${profile}"
+    return 0
+  fi
   system_locale="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
   if [ -z "${system_locale}" ] && have_cmd locale; then
     system_locale="$(locale 2>/dev/null | sed -n 's/^LC_MESSAGES=//p' | tr -d '"' | head -n 1)"
   fi
   system_locale="${system_locale:-C}"
-  normalized="$(printf '%s' "${system_locale}" | sed 's/[.@].*$//' | tr '[:upper:]_' '[:lower:]-')"
-
-  case "${normalized}" in
-    zh-hant*|zh-tw*|zh-hk*|zh-mo*) profile="zh-TW" ;;
-    zh*) profile="zh-CN" ;;
-    ja*) profile="ja-JP" ;;
-    ko*) profile="ko-KR" ;;
-    th*) profile="th-TH" ;;
-    en*|c|posix) profile="en-US" ;;
-    *)
-      profile="en-US"
-      warn "unsupported system locale ${system_locale}; using ${profile}"
-      printf '%s\n' "${profile}"
-      return 0
-      ;;
-  esac
-
-  log "Language: system locale ${system_locale} mapped to ${profile}"
+  if profile="$(map_language_tag_to_profile "${system_locale}")"; then
+    log "Language: system locale ${system_locale} mapped to ${profile}"
+    printf '%s\n' "${profile}"
+    return 0
+  fi
+  profile="en-US"
+  warn "unsupported system locale ${system_locale}; using ${profile}"
   printf '%s\n' "${profile}"
 }
 

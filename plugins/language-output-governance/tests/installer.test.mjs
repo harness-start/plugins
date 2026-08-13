@@ -98,6 +98,45 @@ test("installer writes host-scoped language preferences", () => {
   }
 });
 
+test("installer prefers macOS AppleLanguages over an English POSIX locale", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "language-installer-macos-"));
+  const bin = join(fixture, "bin");
+  const claudeRoot = join(fixture, "claude");
+  mkdirSync(bin, { recursive: true });
+  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
+  executable(join(bin, "claude"), "#!/bin/sh\nprintf '[]\\n'\n");
+  executable(join(bin, "uname"), "#!/bin/sh\nprintf 'Darwin\\n'\n");
+  executable(join(bin, "defaults"), `#!/bin/sh
+if [ "\$1" = "read" ] && [ "\$2" = "-g" ] && [ "\$3" = "AppleLanguages" ]; then
+  cat <<'EOF'
+(
+    "zh-Hans-CN",
+    "en-US"
+)
+EOF
+  exit 0
+fi
+exit 1
+`);
+
+  try {
+    const result = runInstaller(["--claude-only", "--skip-skill-deps"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CLAUDE_CONFIG_DIR: claudeRoot,
+      LC_ALL: "en_US.UTF-8",
+      LC_MESSAGES: "en_US.UTF-8",
+      LANG: "en_US.UTF-8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const path = join(claudeRoot, "harness-start", "language-output-governance.json");
+    assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { defaultProfile: "zh-CN" });
+    assert.match(result.stderr, /AppleLanguages zh-Hans-CN mapped to zh-CN/u);
+    assert.doesNotMatch(result.stderr, /system locale en_US\.UTF-8 mapped to en-US/u);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
 test("installer uses a supported system locale when language is omitted", () => {
   const fixture = mkdtempSync(join(tmpdir(), "language-installer-system-locale-"));
   const bin = join(fixture, "bin");
