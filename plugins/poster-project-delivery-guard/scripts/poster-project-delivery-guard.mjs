@@ -2,10 +2,11 @@
 
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
-import { basename, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { evaluatePosterWrite, validatePosterModel } from "./lib/contract.mjs";
+import { evaluatePosterShell } from "./lib/shell-policy.mjs";
 
 async function readEvent() {
   let raw = "";
@@ -17,10 +18,19 @@ const inputOf = (event) => event?.tool_input ?? event?.toolInput ?? event?.tool?
 const nameOf = (event) => event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
 const cwdOf = (event) => resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
 
+function objectTargets(input) {
+  if (!input || typeof input !== "object") return [];
+  const targets = [];
+  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "outputFile", "notebook_path", "notebookPath"]) {
+    if (typeof input[key] === "string" && input[key]) targets.push(input[key]);
+  }
+  if (Array.isArray(input.edits)) for (const edit of input.edits) targets.push(...objectTargets(edit));
+  return targets;
+}
+
 function targetsOf(event) {
   const input = inputOf(event);
-  const targets = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "outputFile"]) if (typeof input?.[key] === "string") targets.push(input[key]);
+  const targets = objectTargets(input);
   for (const value of [input?.patch, input?.input]) if (typeof value === "string") {
     for (const match of value.matchAll(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/gmu)) targets.push(match[1].trim());
   }
@@ -35,8 +45,20 @@ function context(eventName, message) {
   return { hookSpecificOutput: { hookEventName: eventName, additionalContext: message } };
 }
 
+function resolveWorkspaceRoot(cwd) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === "poster" && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+
 async function discover(cwd) {
-  const root = join(cwd, "artifacts", "poster");
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
+  const root = join(workspaceRoot, "artifacts", "poster");
   try {
     return (await readdir(root, { withFileTypes: true }))
       .filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name))
@@ -48,17 +70,18 @@ async function discover(cwd) {
   }
 }
 
-async function collect(root, directory, files, digests) {
+async function collect(root, directory, files, digests, bytesMap) {
   if (Object.keys(files).length >= 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
     if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
     const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collect(root, absolute, files, digests);
+    if (entry.isDirectory()) await collect(root, absolute, files, digests, bytesMap);
     else if (entry.isFile()) {
       const filePath = relative(root, absolute).replaceAll("\\", "/");
       const bytes = await readFile(absolute);
       files[filePath] = bytes.toString("utf8");
+      bytesMap[filePath] = bytes;
       digests[filePath] = createHash("sha256").update(bytes).digest("hex");
     }
   }
@@ -69,13 +92,14 @@ async function findingsFor(cwd) {
   for (const root of await discover(cwd)) {
     const files = {};
     const digests = {};
-    await collect(root, root, files, digests);
+    const bytes = {};
+    await collect(root, root, files, digests, bytes);
     if (!("plan.contract.json" in files)) continue;
     let plan = null;
     let project = null;
     try { plan = JSON.parse(files["plan.contract.json"]); } catch {}
     try { project = JSON.parse(files["poster.project.json"]); } catch {}
-    const model = { artifactId: basename(root), files, digests, plan, project };
+    const model = { artifactId: basename(root), files, digests, bytes, plan, project };
     for (const item of validatePosterModel(model, { stage: plan?.targetStage ?? "source" })) findings.push({ artifactId: model.artifactId, ...item });
   }
   return findings;
@@ -92,16 +116,21 @@ async function main() {
   const cwd = cwdOf(event);
   if (mode === "pre") {
     for (const target of targetsOf(event)) {
-      const result = evaluatePosterWrite({ relativePath: relative(cwd, resolve(cwd, target)), toolName: nameOf(event) });
+      const result = evaluatePosterWrite({
+        relativePath: relative(cwd, resolve(cwd, target)),
+        toolName: nameOf(event),
+        cwd,
+      });
       if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
     }
     const input = inputOf(event);
     const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
-    const cwdInScope = /(?:^|[\\/])artifacts[\\/]poster[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const mutates = (/artifacts[\\/]poster[\\/]/u.test(command) || cwdInScope) && (/[>]{1,2}/u.test(command) || /(?:^|\s)(?:cp|mv|rm|touch|tee|node|npm|npx|python\d*)\b/u.test(command));
-    const compoundShell = /(?:&&|\|\||[;&|><`\n]|\$\()/u.test(command);
-    const approvedWrapper = /poster-project-delivery-guard[\\/]scripts[\\/]tools[\\/](?:project-lint|project-release)\.mjs\b/u.test(command) && !compoundShell;
-    if (mutates && !approvedWrapper) process.stdout.write(`${JSON.stringify(deny("UNKNOWN_MUTATION_SHELL: poster mutations require a registered wrapper"))}\n`);
+    if (command) {
+      const result = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+      if (result.decision === "deny") {
+        process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
+      }
+    }
     return;
   }
   const findings = await findingsFor(cwd);

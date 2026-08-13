@@ -7,13 +7,20 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { computePosterSubjectDigest } from "../scripts/lib/contract.mjs";
+
 const ENTRY = fileURLToPath(new URL("../scripts/tools/project-release.mjs", import.meta.url));
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const MINIMAL_PNG = Buffer.from(
+  "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da636000000200018ffd09d40000000049454e44ae426082",
+  "hex",
+);
+const MINIMAL_SVG = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1 1\"></svg>";
 
 function writeFixture(root) {
   const layer = "export function buildLayer(){return <div style={{display:'flex'}}>Poster</div>;}\n";
   const layerDigest = sha256(layer);
-  const files = {
+  const sourceFiles = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": "{}\n",
     "package-lock.json": "{}\n",
@@ -27,12 +34,33 @@ function writeFixture(root) {
     "src/variants/001-main/variant.json": JSON.stringify({ id: "main", width: 1200, height: 1600 }),
     "src/variants/001-main/layers/manifest.json": JSON.stringify({ layers: [{ index: 1, role: "background", source: "001-background-base.tsx" }] }),
     "src/variants/001-main/layers/001-background-base.tsx": layer,
-    [`src/variants/001-main/layers/001-background-base.${layerDigest}.svg`]: "<svg/>",
-    [`src/variants/001-main/layers/001-background-base.${layerDigest}.png`]: "PNG",
+  };
+  const subjectDigest = computePosterSubjectDigest({ artifactId: "poster", files: sourceFiles });
+  const files = {
+    ...sourceFiles,
+    [`src/variants/001-main/layers/001-background-base.${layerDigest}.svg`]: MINIMAL_SVG,
+    [`src/variants/001-main/layers/001-background-base.${layerDigest}.png`]: MINIMAL_PNG,
     "dist/poster.main.png": Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]),
-    "evidence.accessibility.json": "{}\n",
-    "review.poster.json": `${JSON.stringify({ schema: "poster-project-delivery-guard/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "poster-review-session" } })}\n`,
-    "release.manifest.json": "{}\n",
+    "evidence.accessibility.json": `${JSON.stringify({
+      schema: "poster-project-delivery-guard/accessibility/v1",
+      artifactId: "poster",
+      subjectDigest,
+      tool: "axe-core",
+      verdict: "pass",
+      checks: [{ id: "contrast", status: "pass" }],
+    })}\n`,
+    "review.poster.json": `${JSON.stringify({
+      schema: "poster-project-delivery-guard/review/v1",
+      verdict: "pass",
+      reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "poster-review-session" },
+      subjectDigest,
+    })}\n`,
+    "release.manifest.json": `${JSON.stringify({
+      schema: "poster-project-delivery-guard/release-manifest/v1",
+      artifactId: "poster",
+      subjectDigest,
+      variants: [{ id: "main", output: "dist/poster.main.png" }],
+    })}\n`,
   };
   for (const [relativePath, content] of Object.entries(files)) {
     const target = join(root, relativePath);

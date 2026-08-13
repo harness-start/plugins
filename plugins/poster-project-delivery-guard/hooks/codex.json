@@ -38,6 +38,19 @@
         ]
       }
     ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"poster-project-delivery-guard:failure\" node \"${PLUGIN_ROOT}/scripts/poster-project-delivery-guard.mjs\" failure",
+            "statusMessage": "Checking partial Poster mutations",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

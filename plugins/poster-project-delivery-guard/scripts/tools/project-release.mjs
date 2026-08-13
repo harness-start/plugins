@@ -12,18 +12,19 @@ const receiptPath = join(root, "receipt.release.json");
 const temporaryPath = join(root, `.receipt.release.${process.pid}.tmp`);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-async function collect(directory, files, digests, limits) {
+async function collect(directory, files, digests, bytesMap, limits) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
     if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
     const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collect(absolute, files, digests, limits);
+    if (entry.isDirectory()) await collect(absolute, files, digests, bytesMap, limits);
     else if (entry.isFile()) {
       if (++limits.files > 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
       const bytes = await readFile(absolute);
       if (bytes.byteLength > 32 * 1024 * 1024) throw new Error(`PROJECT_FILE_SIZE_EXCEEDED:${entry.name}`);
       const filePath = relative(root, absolute).replaceAll("\\", "/");
       files[filePath] = bytes.toString("utf8");
+      bytesMap[filePath] = bytes;
       digests[filePath] = sha256(bytes);
     }
   }
@@ -32,11 +33,12 @@ async function collect(directory, files, digests, limits) {
 async function load() {
   const files = {};
   const digests = {};
-  await collect(root, files, digests, { files: 0 });
+  const bytes = {};
+  await collect(root, files, digests, bytes, { files: 0 });
   const parse = (filePath) => {
     try { return JSON.parse(files[filePath] ?? ""); } catch { return null; }
   };
-  return { artifactId: basename(root), files, digests, plan: parse("plan.contract.json"), project: parse("poster.project.json") };
+  return { artifactId: basename(root), files, digests, bytes, plan: parse("plan.contract.json"), project: parse("poster.project.json") };
 }
 
 async function main() {

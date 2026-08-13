@@ -10,7 +10,8 @@ const PROOF_PATH = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const finding = (code, path, message) => ({ code, path, message });
 
-function validateIndependentReviewFile(files, filePath, schema, findings) {
+function validateIndependentReviewFile(model, filePath, schema, findings) {
+  const files = model?.files ?? {};
   let review;
   try { review = JSON.parse(files[filePath] ?? "null"); } catch { review = null; }
   if (!review || review.schema !== schema || review.verdict !== "pass") {
@@ -24,8 +25,30 @@ function validateIndependentReviewFile(files, filePath, schema, findings) {
   if (review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
     findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
   }
+  if (review.subjectDigest !== computePosterSubjectDigest(model)) {
+    findings.push(finding("REVIEW_SUBJECT_STALE", filePath, "review subjectDigest must match the current source subject"));
+  }
 }
-const fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
+const fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(rawBytes(model, filePath) ?? "");
+
+function rawBytes(model, filePath) {
+  const fromBytes = model?.bytes?.[filePath];
+  if (Buffer.isBuffer(fromBytes)) return fromBytes;
+  const value = model?.files?.[filePath];
+  if (Buffer.isBuffer(value)) return value;
+  if (typeof value === "string") return Buffer.from(value, "utf8");
+  return Buffer.alloc(0);
+}
+
+function pngProofValid(bytes) {
+  return Buffer.isBuffer(bytes)
+    && bytes.byteLength >= 8
+    && bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"));
+}
+
+function svgProofValid(bytes) {
+  return Buffer.isBuffer(bytes) && /<svg\b/iu.test(bytes.toString("utf8"));
+}
 
 function digestFileMap(model, predicate) {
   const entries = Object.entries(model?.files ?? {})
@@ -117,7 +140,8 @@ function validateArtifactGitignore(files, findings) {
   });
 }
 
-function validateLayer(files, directory, entry, findings) {
+function validateLayer(model, directory, entry, findings) {
+  const files = model?.files ?? {};
   const sourceName = entry?.source;
   const match = typeof sourceName === "string" ? sourceName.match(LAYER_SOURCE) : null;
   const sourcePath = `src/variants/${directory}/layers/${sourceName ?? "manifest.json"}`;
@@ -138,12 +162,51 @@ function validateLayer(files, directory, entry, findings) {
   for (const extension of ["png", "svg"]) {
     const proof = `${stem}.${digest}.${extension}`;
     if (!(proof in files)) findings.push(finding("LAYER_PROOF_MISSING", proof, `current ${extension.toUpperCase()} proof is required`));
+    else if (!(extension === "png" ? pngProofValid(rawBytes(model, proof)) : svgProofValid(rawBytes(model, proof)))) {
+      findings.push(finding("LAYER_PROOF_INVALID", proof, `current ${extension.toUpperCase()} proof must be a real ${extension.toUpperCase()} document, not a stub`));
+    }
   }
   if (OWNER_VIOLATION.test(source)) findings.push(finding("LAYER_OWNER_VIOLATION", sourcePath, "layer violates the pure Satori TSX boundary"));
   if ((source.match(/export\s+(?:async\s+)?function\s+buildLayer\s*\(/gu) ?? []).length !== 1) {
     findings.push(finding("LAYER_EXPORT_INVALID", sourcePath, "layer must export exactly one buildLayer function"));
   }
   if (/from\s+["']\.\/[0-9]{3}-[^"']+["']/u.test(source)) findings.push(finding("CROSS_LAYER_IMPORT", sourcePath, "layers may not import sibling layers"));
+}
+
+function validateAccessibilityEvidence(model, findings) {
+  const filePath = "evidence.accessibility.json";
+  if (!(filePath in (model?.files ?? {}))) return;
+  let record;
+  try { record = JSON.parse(model.files[filePath] ?? "null"); } catch { record = null; }
+  const ok = record
+    && record.schema === "poster-project-delivery-guard/accessibility/v1"
+    && record.artifactId === model.artifactId
+    && record.subjectDigest === computePosterSubjectDigest(model)
+    && typeof record.tool === "string"
+    && record.tool.trim()
+    && ["pass", "fail"].includes(record.verdict)
+    && Array.isArray(record.checks)
+    && record.checks.length > 0
+    && record.checks.every((check) => typeof check?.id === "string" && check.id && typeof check?.status === "string" && check.status);
+  if (!ok) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", filePath, "accessibility evidence must bind the current subject, name a tool, and record at least one check"));
+}
+
+function validateReleaseManifestFile(model, variants, findings) {
+  const filePath = "release.manifest.json";
+  if (!(filePath in (model?.files ?? {}))) return;
+  let record;
+  try { record = JSON.parse(model.files[filePath] ?? "null"); } catch { record = null; }
+  const expectedIds = variants.map((variant) => variant?.id).filter(Boolean);
+  const listed = Array.isArray(record?.variants) ? record.variants : [];
+  const ok = record
+    && record.schema === "poster-project-delivery-guard/release-manifest/v1"
+    && record.artifactId === model.artifactId
+    && record.subjectDigest === computePosterSubjectDigest(model)
+    && expectedIds.length > 0
+    && listed.length === expectedIds.length
+    && expectedIds.every((id, index) => listed[index]?.id === id)
+    && listed.every((entry) => entry?.output === `dist/${model.artifactId}.${entry.id}.png`);
+  if (!ok) findings.push(finding("RELEASE_MANIFEST_INVALID", filePath, "release manifest must list current variants and their dist output paths"));
 }
 
 export function validatePosterModel(model, { stage = "source" } = {}) {
@@ -168,7 +231,7 @@ export function validatePosterModel(model, { stage = "source" } = {}) {
     layers.forEach((entry, layerOffset) => {
       if (entry?.index !== layerOffset + 1 || ids.has(entry?.source)) findings.push(finding("LAYER_SEQUENCE_INVALID", layersPath, "layer indexes and sources must be unique and contiguous"));
       ids.add(entry?.source);
-      validateLayer(files, variant.directory, entry, findings);
+      validateLayer(model, variant.directory, entry, findings);
     });
     if (layers[0]?.role !== "background") findings.push(finding("BACKGROUND_LAYER_REQUIRED", layersPath, "background must be the first painted layer"));
   });
@@ -177,7 +240,9 @@ export function validatePosterModel(model, { stage = "source" } = {}) {
     for (const filePath of [...expected, "evidence.accessibility.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) {
       if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
     }
-    validateIndependentReviewFile(files, "review.poster.json", "poster-project-delivery-guard/review/v1", findings);
+    validateIndependentReviewFile(model, "review.poster.json", "poster-project-delivery-guard/review/v1", findings);
+    validateAccessibilityEvidence(model, findings);
+    validateReleaseManifestFile(model, variants, findings);
     if ("receipt.release.json" in files && !validatePosterReceipt(model)) {
       findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind the current source subject and release outputs"));
     }
@@ -185,11 +250,20 @@ export function validatePosterModel(model, { stage = "source" } = {}) {
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
 
-export function evaluatePosterWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
-  const normalized = relativePath.replaceAll("\\", "/");
-  const match = normalized.match(/(?:^|\/)artifacts\/poster\/[^/]+\/(?<inside>.+)$/u);
-  if (!match) return { decision: "allow" };
-  const inside = match.groups.inside;
+function posterProjectInside(relativePath = "", cwd = "") {
+  const normalized = String(relativePath ?? "").replaceAll("\\", "/");
+  const fromPath = normalized.match(/(?:^|\/)artifacts\/poster\/[^/]+\/(?<inside>.+)$/u);
+  if (fromPath?.groups?.inside) return fromPath.groups.inside;
+  const cwdNorm = String(cwd ?? "").replaceAll("\\", "/");
+  if (/(?:^|\/)artifacts\/poster\/[^/]+(?:\/|$)/u.test(cwdNorm)) {
+    return normalized.replace(/^\.\//u, "");
+  }
+  return "";
+}
+
+export function evaluatePosterWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
+  const inside = posterProjectInside(relativePath, cwd);
+  if (!inside) return { decision: "allow" };
   const isProof = inside.startsWith("src/variants/") && /\.(?:png|svg)$/u.test(inside);
   if ((GENERATED_PATH.test(inside) || isProof) && !writer.startsWith("poster-")) {
     return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a poster guard tool, not ${toolName || "an unregistered tool"}` };

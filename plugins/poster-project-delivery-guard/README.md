@@ -39,15 +39,17 @@ artifacts/poster/launch-poster/
 
 ## 生成 proof 和 evidence
 
-项目渲染器对每个 layer 源文件的原始字节计算小写 SHA-256，并在同目录生成 `<stem>.<sha256>.svg` 与 `.png`。两份预览都必须来自同一次当前源码渲染。随后组合各 variant，写入 `dist/<poster-id>.<variant-id>.png`，并由实际无障碍检查和具名审查流程写入：
+项目渲染器对每个 layer 源文件的原始字节计算小写 SHA-256，并在同目录生成 `<stem>.<sha256>.svg` 与 `.png`。两份预览都必须来自同一次当前源码渲染，且分别为可识别的 SVG 文档和 PNG（至少有 PNG 签名）。随后组合各 variant，写入 `dist/<poster-id>.<variant-id>.png`，并由实际无障碍检查和具名审查流程写入：
 
-- `evidence.accessibility.json`：检查工具、检查项、结论和被检查成品摘要；
-- `review.poster.json`：reviewer、结论、备注和被检查成品摘要；
-- `release.manifest.json`：本次交付的 variant 和输出角色。
+- `evidence.accessibility.json`：schema、当前 `subjectDigest`、检查工具、结论和至少一项 check；
+- `review.poster.json`：独立 reviewer、`pass` 结论，以及与当前源码一致的 `subjectDigest`；
+- `release.manifest.json`：schema、当前 `subjectDigest`，以及每个 variant 的 dist 输出路径。
 
-当前插件只检查这些路径存在并将原始字节纳入 receipt，不校验三份 JSON 的业务 schema。不要把空 JSON 当作真实审查证据。
+空 `{}`、假 SVG/PNG 文本、或绑在过期 subject 上的 review 都不能签发。这仍不能证明像素一定由该 TSX 渲出，只排除桩文件和过期回执。
 
 受保护路径只能由登记 writer 写入，而当前版本没有登记 render/review writer。因此已启用 Hook 的 agent 不能直接生成上述文件；应由安装前或宿主外的受信任项目流水线生成，再进入插件校验与签发阶段。`project-release.mjs` 只签发 receipt，不会补生成预览、PNG 或 evidence。
+
+写保护和 Stop 按仓库根解析：即使 cwd 在 `artifacts/poster/<id>/` 里，也不能用相对路径手写 `dist/` 或 proof。shell 只允许只读命令，或参数形状精确匹配的 `project-lint.mjs` / `project-release.mjs`；`sed`、`dd`、`node -e` 以及只在命令里提到 wrapper 路径的调用都会被拒绝。仓库根上与海报无关的命令不受影响。
 
 ## 校验与发布
 
