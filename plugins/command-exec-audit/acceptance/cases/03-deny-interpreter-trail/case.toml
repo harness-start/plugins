@@ -1,0 +1,4 @@
+id = "03-deny-interpreter-trail"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["pre-tool", "deny", "audit", "interpreter"]

@@ -117,6 +117,39 @@ test("shell protect path boundaries and mutators", () => {
   assert.equal(shellMutatesAuditRoot("/bin/rm -rf .command-exec-audit", rel, abs), true);
   assert.equal(isAuditMutationCommand("find .command-exec-audit -delete"), true);
   assert.equal(shellMutatesAuditRoot("find .command-exec-audit -type f -delete", rel, abs), true);
+  assert.equal(
+    shellMutatesAuditRoot(
+      "python3 -c \"open('.command-exec-audit/sessions/s.jsonl','w').write('forged\\n')\"",
+      rel,
+      abs,
+    ),
+    true,
+  );
+  assert.equal(
+    shellMutatesAuditRoot(
+      "node -e \"require('fs').writeFileSync('.command-exec-audit/sessions/s.jsonl','x')\"",
+      rel,
+      abs,
+    ),
+    true,
+  );
+});
+
+test("pre denies interpreter rewrite of the audit trail", async () => {
+  const root = workspace();
+  try {
+    const deny = await runEntry("pre", {
+      cwd: root,
+      session_id: "sess-py",
+      tool_name: "Bash",
+      tool_input: {
+        command: "python3 -c \"open('.command-exec-audit/sessions/s.jsonl','w').write('forged\\n')\"",
+      },
+    });
+    assert.equal(JSON.parse(deny.stdout.trim()).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("pre and post record commands without modifying the project gitignore", async () => {
