@@ -244,6 +244,7 @@ function recoveryContext(location, recovery) {
     `Raw session ID (JSON): ${JSON.stringify(location.sessionId)}`,
     `Active boundary: ${recovery.activeBoundaryId ?? "none"}`,
     `Recovery Card: lines ${recovery.cardStartLine}-${recovery.cardEndLine}`,
+    "After the card read, dispatch a read-only recoverer with only CCJ_REVIEW_REQUEST recover.",
     `Context source: ${recovery.contextSource}`,
     "Integrity: verified",
     `After the receipt, inspect the verified admitted index on demand: node ${singleQuote(QUERY)} index --journal ${singleQuote(location.path)} --session-id ${singleQuote(location.sessionId)}`,

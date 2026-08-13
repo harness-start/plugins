@@ -14,6 +14,7 @@ SessionStart 路由契约
   -> 单独写入 workflow.md
   -> Hook 绑定 workspace、workflow ID 和 epoch
   -> 五个独立 PostToolUse 事件
+  -> challenge / cross-check 由不同 agent_id 的只读子代理审批后才能签发 RD-R3 / RD-R4
   -> 分支校验和来源关联的可观察性检查
   -> 有限划分分配重放全部联合隐藏响应
   -> receipt 与 SHA-256 链

@@ -76,7 +76,7 @@ test("release receipt binds publication sources, PDFs, and preflight evidence", 
     "evidence/pagination.json": "{}\n",
     "evidence/preflight.json": "{}\n",
     "evidence.accessibility.json": "{}\n",
-    "review.print.json": "{}\n",
+    "review.print.json": `${JSON.stringify({ schema: "print-publication-delivery-guard/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "print-review-session" } })}\n`,
     "release.manifest.json": "{}\n",
   });
   const receipt = createPrintReceipt(model);

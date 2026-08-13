@@ -172,6 +172,7 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     masterDigest,
     squintStripDigest: stripDigest,
     decision: "approved",
+    reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: "logo-review-session" },
     checks: [{ id: "geometry", status: "pass" }, { id: "legibility", status: "pass" }, { id: "variants", status: "pass" }],
     criteria: {
       singleMemoryPoint: { score: 2, requiredMin: 2, note: "single orbital silhouette" },

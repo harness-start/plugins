@@ -69,4 +69,5 @@ Hooks do **not** judge whether atoms are irreducible.
 
 1. Create or edit `.first-principles/ledger.json` under the workspace root.
 2. Fix listed findings (missing fields / unknown atom ids).
-3. Re-stop; do not claim completion until the file validates.
+3. Dispatch a read-only subagent with only `FP_REVIEW_REQUEST challenger`. Give it the ledger atoms, not your rebuild conclusion.
+4. Re-stop; do not claim completion until the file validates and the challenger approval is current.

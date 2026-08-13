@@ -117,11 +117,13 @@ Do not patch by intuition. If the original reproduction is unavailable, keep the
 ## Fix and verify
 
 1. Move the active bug to `fixing`; record the supported root cause before the production edit.
-2. Make the smallest causal change. Set `fix.firstRevision` on the first production mutation and list every bug affected by a shared fix in `fix.affectedBugIds`.
-3. Run the exact original reproduction again after the last production mutation. It must succeed.
-4. Run at least one regression check for each affected bug. Never reuse another bug's receipt.
-5. Remove debug instrumentation. Run a cleanup command that exits 0 only when the marker is absent, and record its receipt.
-6. Update `verification` with the successful receipt IDs, then set the bug `resolved`.
+2. Dispatch a read-only subagent whose prompt contains only `DBG_REVIEW_REQUEST diagnosis`. Do not give it your chosen root cause as authority. Production edits stay blocked until that reviewer approves.
+3. After three failed post-mutation reproductions, dispatch a *different* read-only subagent with `DBG_REVIEW_REQUEST architecture` before treating `architecture-review` as complete.
+4. Make the smallest causal change. Set `fix.firstRevision` on the first production mutation and list every bug affected by a shared fix in `fix.affectedBugIds`.
+5. Run the exact original reproduction again after the last production mutation. It must succeed.
+6. Run at least one regression check for each affected bug. Never reuse another bug's receipt.
+7. Remove debug instrumentation. Run a cleanup command that exits 0 only when the marker is absent, and record its receipt.
+8. Update `verification` with the successful receipt IDs, then set the bug `resolved`.
 
 For a single-bug close, preserve the exact receipt shapes below. Receipt fields contain no prose annotations:
 

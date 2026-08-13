@@ -129,6 +129,31 @@ function writeLedger(root, ledger = validLedger()) {
   );
 }
 
+async function approveChallenger(env, { cwd, session }) {
+  const reserved = await runEntry("pre", {
+    cwd,
+    session_id: session,
+    tool_name: "Agent",
+    tool_input: { prompt: "FP_REVIEW_REQUEST challenger" },
+  }, env);
+  assert.doesNotMatch(reserved.stdout, /rejected/u, reserved.stdout || reserved.stderr);
+  const started = await runEntry("review-start", {
+    cwd,
+    session_id: session,
+    agent_id: "fp-challenger",
+    agent_prompt: "FP_REVIEW_REQUEST challenger",
+  }, env);
+  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(parseStdout(started.stdout)?.hookSpecificOutput?.additionalContext ?? "")?.[1];
+  assert.ok(nonce, started.stdout || started.stderr);
+  const stopped = await runEntry("subagent-stop", {
+    cwd,
+    session_id: session,
+    agent_id: "fp-challenger",
+    last_assistant_message: `FP_REVIEW_RESULT ${JSON.stringify({ stage: "challenger", reviewNonce: nonce, decision: "approve" })}`,
+  }, env);
+  assert.match(stopped.stdout, /approve/u, stopped.stdout || stopped.stderr);
+}
+
 // ---------------------------------------------------------------------------
 // Pure policy: entry surface must stay narrow
 // ---------------------------------------------------------------------------
@@ -388,6 +413,7 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
     );
     assert.equal(parseStdout(allowLedger.stdout), null);
     writeLedger(root);
+    await approveChallenger(env, { cwd: root, session });
 
     const done = await runEntry(
       "prompt",

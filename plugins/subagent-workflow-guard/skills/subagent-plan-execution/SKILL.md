@@ -5,7 +5,7 @@ description: "Execute an implementation plan through application-bound implement
 
 # Subagent Plan Execution
 
-Use this skill when an implementation plan is already decision complete and subagent isolation or parallelism has a concrete benefit.
+Use this skill when an implementation plan is already decision complete and subagent isolation or parallelism has a concrete benefit. After `$reasoning-discipline` selects a behavior-changing contract, or after `$debug-workflow` / a delivery guard reaches implementation, open a governed run here instead of implementing in the parent session.
 
 ## Start
 

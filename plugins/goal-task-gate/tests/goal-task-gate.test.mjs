@@ -306,6 +306,31 @@ test("hook: arm inject, clear, supersede, deny trail write, complete trailer", (
   assert.match(arm3.stdout, /armed run_id=/);
   const runId = readFileSync(join(root, ".goal-task", "CURRENT"), "utf8").trim();
 
+  const verify = spawnSync(
+    process.execPath,
+    [
+      LOG_DECISION,
+      "--workspace",
+      root,
+      "--phase",
+      "end",
+      "--kind",
+      "verify",
+      "--decision",
+      "independent verification passed",
+      "--why",
+      "fresh evidence",
+      "--evidence",
+      "tests green",
+      "--result",
+      "ok",
+      "--session-id",
+      `${session}-verifier`,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(verify.status, 0, verify.stderr);
+
   // append close via helper
   const close = spawnSync(
     process.execPath,

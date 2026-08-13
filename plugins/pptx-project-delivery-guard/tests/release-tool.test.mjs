@@ -30,7 +30,7 @@ function fixtureFiles() {
     "dist/pages/001.png": "PNG",
     "evidence.structure.json": "{}\n",
     "evidence.accessibility.json": "{}\n",
-    "review.pptx.json": "{}\n",
+    "review.pptx.json": `${JSON.stringify({ schema: "pptx-project-delivery-guard/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "pptx-review-session" } })}\n`,
     "release.manifest.json": "{}\n",
   };
 }

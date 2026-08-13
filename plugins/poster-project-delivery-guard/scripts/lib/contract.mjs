@@ -9,6 +9,22 @@ const PROOF_PATH = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const finding = (code, path, message) => ({ code, path, message });
+
+function validateIndependentReviewFile(files, filePath, schema, findings) {
+  let review;
+  try { review = JSON.parse(files[filePath] ?? "null"); } catch { review = null; }
+  if (!review || review.schema !== schema || review.verdict !== "pass") {
+    findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
+    return;
+  }
+  if (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId) {
+    findings.push(finding("REVIEWER_INVALID", filePath, "reviewer must declare kind and sessionId"));
+    return;
+  }
+  if (review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+    findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
+  }
+}
 const fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
 
 function digestFileMap(model, predicate) {
@@ -160,6 +176,7 @@ export function validatePosterModel(model, { stage = "source" } = {}) {
     for (const filePath of [...expected, "evidence.accessibility.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) {
       if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
     }
+    validateIndependentReviewFile(files, "review.poster.json", "poster-project-delivery-guard/review/v1", findings);
     if ("receipt.release.json" in files && !validatePosterReceipt(model)) {
       findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind the current source subject and release outputs"));
     }

@@ -262,6 +262,55 @@ function parseOutput(stdout) {
   return line ? JSON.parse(line.split("\n").at(-1)) : null;
 }
 
+async function postStage(env, { cwd, session, path }) {
+  const name = String(path).split(/[/\\]/u).pop();
+  if (name === "03-challenge.md") {
+    await approveIndependentReview(env, { cwd, session, stage: "challenge", agentId: `${session}-challenge-reviewer` });
+  } else if (name === "04-cross-check.md") {
+    await approveIndependentReview(env, { cwd, session, stage: "cross-check", agentId: `${session}-cross-reviewer` });
+  }
+  return runHook("post", { cwd, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+}
+
+async function approveIndependentReview(env, { cwd, session, stage, agentId }) {
+  const reserved = await runHook("pre", {
+    cwd,
+    session_id: session,
+    tool_name: "Agent",
+    tool_input: { prompt: `RD_REVIEW_REQUEST ${stage}` },
+  }, env);
+  assert.equal(reserved.code, 0, reserved.stderr);
+  assert.doesNotMatch(reserved.stdout, /rejected/u);
+
+  const started = await runHook("review-start", {
+    cwd,
+    session_id: session,
+    agent_id: agentId,
+    hook_event_name: "SubagentStart",
+    agent_prompt: `RD_REVIEW_REQUEST ${stage}`,
+  }, env);
+  const context = parseOutput(started.stdout)?.hookSpecificOutput?.additionalContext ?? "";
+  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(context)?.[1];
+  const anchorsMatch = /evidencePaths=(\[[^\]]*\])/u.exec(context);
+  assert.ok(nonce, `missing review nonce in ${started.stdout || started.stderr}`);
+  const anchors = anchorsMatch ? JSON.parse(anchorsMatch[1]) : [];
+
+  const stopped = await runHook("subagent-stop", {
+    cwd,
+    session_id: session,
+    agent_id: agentId,
+    hook_event_name: "SubagentStop",
+    last_assistant_message: `RD_REVIEW_RESULT ${JSON.stringify({
+      stage,
+      reviewNonce: nonce,
+      decision: "approve",
+      evidenceAnchors: anchors,
+    })}`,
+  }, env);
+  assert.match(stopped.stdout, /approval recorded/u, stopped.stdout || stopped.stderr);
+  return { nonce, agentId };
+}
+
 test("extractMachineBlock requires exactly one canonical fenced JSON block", () => {
   const good = markdown("Workflow", manifest());
   assert.equal(extractMachineBlock(good, "reasoning-workflow/v1").ok, true);
@@ -492,7 +541,7 @@ test("hook rejects a control challenge that changes the fixed strategy", async (
   for (const [file, artifact] of [["01-frame.md", artifacts.frame], ["02-analysis.md", artifacts.analysis]]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    const result = await postStage(env, { cwd: root, session, path });
     assert.match(result.stdout, /RD-R[12]/u, result.stdout || result.stderr);
   }
 
@@ -521,13 +570,13 @@ test("hook rejects replay models with an unknown source reference", async () => 
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    await postStage(env, { cwd: root, session, path });
   }
 
   artifacts.crossCheck.payload.strategySearches[0].replayModel.sourceRefs = ["G404"];
   const path = join(dir, "04-cross-check.md");
   writeArtifact(path, artifacts.crossCheck);
-  const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+  const result = await postStage(env, { cwd: root, session, path });
   assert.match(result.stdout, /unknown claim reference G404/u, result.stdout || result.stderr);
 });
 
@@ -549,12 +598,12 @@ test("hook rejects a replay objective that contradicts the analysis answer", asy
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    await postStage(env, { cwd: root, session, path });
   }
 
   const path = join(dir, "04-cross-check.md");
   writeArtifact(path, artifacts.crossCheck);
-  const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+  const result = await postStage(env, { cwd: root, session, path });
   assert.match(result.stdout, /replayed objective 21 must match analysis candidateAnswer 27/u, result.stdout || result.stderr);
 });
 
@@ -576,12 +625,12 @@ test("hook rejects a nonnumeric analysis answer when a numeric replay exists", a
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    await postStage(env, { cwd: root, session, path });
   }
 
   const path = join(dir, "04-cross-check.md");
   writeArtifact(path, artifacts.crossCheck);
-  const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+  const result = await postStage(env, { cwd: root, session, path });
   assert.match(result.stdout, /numeric replay requires a numeric analysis candidateAnswer/u, result.stdout || result.stderr);
 });
 
@@ -604,12 +653,12 @@ test("hook rejects a conclusion that contradicts the replayed objective", async 
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    await postStage(env, { cwd: root, session, path });
   }
 
   const path = join(dir, "05-conclusion.md");
   writeArtifact(path, artifacts.conclusion);
-  const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+  const result = await postStage(env, { cwd: root, session, path });
   assert.match(result.stdout, /replayed objective 21 must match conclusion 27/u, result.stdout || result.stderr);
 });
 
@@ -638,9 +687,57 @@ test("supporting numeric evidence does not replace a semantic algorithm conclusi
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    const result = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    const result = await postStage(env, { cwd: root, session, path });
     assert.match(result.stdout, new RegExp(receipt, "u"), result.stdout || result.stderr);
   }
+});
+
+test("challenge stage is unsigned until an independent reviewer approval is bound", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "reasoning-review-required-data-"));
+  const dir = workflowDir(root);
+  const session = "review-required-session";
+  const env = { PLUGIN_DATA: data };
+  writeArtifact(join(dir, "workflow.md"), manifest());
+  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "workflow.md") } }, env);
+  for (const [name, value] of [["01-frame.md", stages().frame], ["02-analysis.md", stages().analysis]]) {
+    const path = join(dir, name);
+    writeArtifact(path, value);
+    const signed = await postStage(env, { cwd: root, session, path });
+    assert.match(signed.stdout, /RD-R[12]/u, signed.stdout || signed.stderr);
+  }
+
+  const challengePath = join(dir, "03-challenge.md");
+  writeArtifact(challengePath, stages().challenge);
+  const unsigned = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: challengePath } }, env);
+  assert.match(unsigned.stdout, /RD_REVIEW_REQUEST challenge/u, unsigned.stdout || unsigned.stderr);
+  assert.doesNotMatch(unsigned.stdout, /RD-R3/u);
+
+  await approveIndependentReview(env, { cwd: root, session, stage: "challenge", agentId: "challenge-reviewer" });
+  const signed = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: challengePath } }, env);
+  assert.match(signed.stdout, /RD-R3/u, signed.stdout || signed.stderr);
+
+  const reused = await runHook("review-start", {
+    cwd: root,
+    session_id: session,
+    agent_id: "challenge-reviewer",
+    hook_event_name: "SubagentStart",
+    agent_prompt: "RD_REVIEW_REQUEST cross-check",
+  }, env);
+  await runHook("pre", {
+    cwd: root,
+    session_id: session,
+    tool_name: "Agent",
+    tool_input: { prompt: "RD_REVIEW_REQUEST cross-check" },
+  }, env);
+  const rebound = await runHook("review-start", {
+    cwd: root,
+    session_id: session,
+    agent_id: "challenge-reviewer",
+    hook_event_name: "SubagentStart",
+    agent_prompt: "RD_REVIEW_REQUEST cross-check",
+  }, env);
+  assert.match(rebound.stdout, /different agent/u, `${reused.stdout}\n${rebound.stdout}`);
 });
 
 test("SessionStart publishes a compact five-stage reasoning route", async () => {
@@ -699,12 +796,7 @@ test("hook binds manifest, signs sequential stages, and passes a closed workflow
   for (const [name, value, receipt] of files) {
     const path = join(dir, name);
     writeArtifact(path, value);
-    const signed = await runHook("post", {
-      cwd: root,
-      session_id: session,
-      tool_name: "Write",
-      tool_input: { file_path: path },
-    }, env);
+    const signed = await postStage(env, { cwd: root, session, path });
     assert.match(signed.stdout, new RegExp(receipt, "u"), signed.stdout || signed.stderr);
   }
 
@@ -766,7 +858,7 @@ test("exact-payload conclusion blocks commentary around the requested payload", 
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    await postStage(env, { cwd: root, session, path });
   }
   writeArtifact(workflowPath, manifest({
     status: "closed",
@@ -811,7 +903,7 @@ test("a corrected close clears stale manifest validation findings", async () => 
   ]) {
     const path = join(dir, file);
     writeArtifact(path, artifact);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+    await postStage(env, { cwd: root, session, path });
   }
 
   writeArtifact(workflowPath, {
@@ -865,12 +957,7 @@ test("a new epoch rebuilds prior receipts and resumes at the declared stage", as
 
   const crossCheckPath = join(dir, "04-cross-check.md");
   writeArtifact(crossCheckPath, artifacts.crossCheck);
-  const accepted = await runHook("post", {
-    cwd: root,
-    session_id: session,
-    tool_name: "Write",
-    tool_input: { file_path: crossCheckPath },
-  }, env);
+  const accepted = await postStage(env, { cwd: root, session, path: crossCheckPath });
   assert.match(accepted.stdout, /Accepted cross-check as RD-R4/u, accepted.stdout);
 });
 

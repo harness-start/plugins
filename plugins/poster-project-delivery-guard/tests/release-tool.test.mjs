@@ -31,7 +31,7 @@ function writeFixture(root) {
     [`src/variants/001-main/layers/001-background-base.${layerDigest}.png`]: "PNG",
     "dist/poster.main.png": Buffer.from([0x89, 0x50, 0x4e, 0x47, 0xff, 0x00]),
     "evidence.accessibility.json": "{}\n",
-    "review.poster.json": "{}\n",
+    "review.poster.json": `${JSON.stringify({ schema: "poster-project-delivery-guard/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "poster-review-session" } })}\n`,
     "release.manifest.json": "{}\n",
   };
   for (const [relativePath, content] of Object.entries(files)) {

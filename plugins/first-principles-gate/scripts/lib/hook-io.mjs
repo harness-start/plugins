@@ -22,6 +22,15 @@ export function extractCwd(event) {
   return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
 }
 
+export function extractAgentId(event) {
+  return event?.agent_id ?? event?.agentId ?? "";
+}
+
+export function extractAgentPrompt(event) {
+  const input = extractToolInput(event);
+  return event?.agent_prompt ?? event?.agentPrompt ?? input?.prompt ?? input?.message ?? input?.task ?? input?.description ?? "";
+}
+
 export function extractToolName(event) {
   return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
 }

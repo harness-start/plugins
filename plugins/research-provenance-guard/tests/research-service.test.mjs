@@ -46,6 +46,34 @@ test("public MCP service creates anchored evidence and a verifiable seal", async
   assert.deepEqual(await validateSealedArtifacts({ workspaceRoot: workspace, runId: begun.run_id, seal: sealed.seal }), []);
 });
 
+test("multi-source seal requires a delivered inbound researcher unless solo main", async () => {
+  const { workspace, dataRoot } = await fixture();
+  await writeFile(join(workspace, "other.md"), "Gamma is extra.\n", "utf8");
+  const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "session-multi" });
+  const begun = await service.call("research_begin", {
+    question: "What is documented?",
+    scope: "fixture only",
+    as_of: "2026-08-08",
+    prompt_epoch: 1,
+  });
+  const first = await service.call("source_capture", { kind: "workspace", path: "source.md" });
+  await service.call("source_capture", { kind: "workspace", path: "other.md" });
+  const anchor = await service.call("source_anchor", {
+    source_id: first.source_id,
+    kind: "exact_quote",
+    value: "Alpha is documented.",
+  });
+  await assert.rejects(
+    service.call("research_seal", {
+      run_id: begun.run_id,
+      prompt_epoch: 1,
+      mutation_revision: 0,
+      claims: [{ id: "C1", status: "anchored", text: "Alpha is documented.", anchor_ids: [anchor.anchor_id] }],
+    }),
+    /inbound researcher handoff/u,
+  );
+});
+
 test("claim status contracts fail closed", async () => {
   const { workspace, dataRoot } = await fixture();
   const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "session-2" });

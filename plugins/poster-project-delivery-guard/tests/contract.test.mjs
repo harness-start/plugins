@@ -68,7 +68,7 @@ test("release receipt becomes stale after a poster source dependency changes", (
   Object.assign(model.files, {
     "dist/launch-poster.main.png": "FINAL",
     "evidence.accessibility.json": "{}\n",
-    "review.poster.json": "{}\n",
+    "review.poster.json": `${JSON.stringify({ schema: "poster-project-delivery-guard/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "poster-review-session" } })}\n`,
     "release.manifest.json": "{}\n",
   });
   const receipt = createPosterReceipt(model);

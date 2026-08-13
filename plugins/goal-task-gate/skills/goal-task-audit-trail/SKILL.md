@@ -5,7 +5,7 @@ description: "Maintain the goal-task decision/work trail while a host goal run i
 
 # goal-task-audit-trail
 
-When `goal-task-gate` is **armed** (user started `/goal <prompt>`), keep a reviewable trail under `.goal-task/runs/<run_id>/`.
+When `goal-task-gate` is **armed** (user started `/goal <prompt>`), keep a reviewable trail under `.goal-task/runs/<run_id>/`. Before `kind=close`, dispatch an independent verifier and log `kind=verify`; close is rejected without that row.
 
 ## Locate the run
 

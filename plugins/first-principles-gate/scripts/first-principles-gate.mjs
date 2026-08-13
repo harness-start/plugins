@@ -5,13 +5,17 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadProjectConfig } from "./lib/config.mjs";
+import { readFileSync } from "node:fs";
 import {
   contextOutput,
+  extractAgentId,
+  extractAgentPrompt,
   extractAssistantMessage,
   extractCwd,
   extractFileTargets,
   extractPrompt,
   extractShellCommand,
+  extractToolName,
   isFileMutationTool,
   isShellTool,
   preToolDeny,
@@ -19,6 +23,15 @@ import {
   stopDeny,
   writeJson,
 } from "./lib/hook-io.mjs";
+import {
+  bindReviewer,
+  ledgerFingerprint,
+  observeReview,
+  parseReviewRequest,
+  parseReviewResult,
+  reserveReview,
+  reviewSatisfied,
+} from "./lib/independent-review.mjs";
 import { loadAndValidateLedger } from "./lib/ledger.mjs";
 import {
   applyClassification,
@@ -149,6 +162,25 @@ function runPrompt(event, config) {
 }
 
 function runPre(event, config) {
+  const request = parseReviewRequest(extractAgentPrompt(event));
+  if (request && !extractAgentId(event)) {
+    const cwd = extractCwd(event);
+    const check = loadLedger(cwd, resolveRepoRoot(cwd), config);
+    const raw = check.path ? readFileSync(check.path, "utf8") : "";
+    const reserved = updateState(event, (state) => reserveReview(state, ledgerFingerprint(raw)));
+    if (reserved?.kind === "rejected") {
+      writeJson(preToolDeny(`[first-principles-gate] independent review dispatch rejected: ${reserved.reason}`));
+    }
+    return;
+  }
+  if (extractAgentId(event) && !/^(?:Read|Grep)$/u.test(extractToolName(event))) {
+    const live = readState(event);
+    if (live.reviewReservation?.state === "bound" && live.reviewReservation.agentId === extractAgentId(event)) {
+      writeJson(preToolDeny("[first-principles-gate] this is a bounded local review: only Read/Grep are allowed."));
+      return;
+    }
+  }
+
   const state = readState(event);
   expireIfNeeded(state, config);
   if (state.closeReason === "ttl" && state.phase === "idle") {
@@ -272,6 +304,16 @@ function runStop(event, config) {
 
     const boundOk = isSessionBoundLedger(check, state);
     const findings = sessionBoundFindings(check, state);
+    const raw = check.path ? readFileSync(check.path, "utf8") : "";
+    const reviewOk = reviewSatisfied(state, ledgerFingerprint(raw));
+
+    if (requiresLedger && boundOk && !reviewOk) {
+      state.stopAttempts = Number(state.stopAttempts || 0) + 1;
+      if (state.stopAttempts > MAX_STOP_BLOCKS) {
+        return { kind: "fail_open", findings: ["independent challenger review is missing"] };
+      }
+      return { kind: "block_review" };
+    }
 
     if (requiresLedger && !boundOk) {
       state.stopAttempts = Number(state.stopAttempts || 0) + 1;
@@ -307,6 +349,16 @@ function runStop(event, config) {
     } else {
       writeJson(contextOutput("Stop", body));
     }
+    return;
+  }
+
+  if (outcome.kind === "block_review") {
+    const body = [
+      "[first-principles-gate] Independent challenger review is required before closing.",
+      "Dispatch a read-only subagent with only FP_REVIEW_REQUEST challenger. Do not give it your rebuild conclusion.",
+    ].join("\n");
+    if (stopMode === "block") writeJson(stopDeny(body));
+    else writeJson(contextOutput("Stop", body));
     return;
   }
 
@@ -356,6 +408,30 @@ async function main() {
       runPost(event, config);
     } else if (mode === "stop" || mode === "Stop") {
       runStop(event, config);
+    } else if (mode === "review-start") {
+      const request = parseReviewRequest(extractAgentPrompt(event)) ?? { stage: "challenger" };
+      const bound = updateState(event, (state) => bindReviewer(state, extractAgentId(event)));
+      if (bound?.kind !== "bound-reviewer") {
+        writeJson(contextOutput("SubagentStart", `[first-principles-gate] ${bound?.reason ?? "review reservation is unavailable"}. Return without reviewing.`));
+      } else {
+        writeJson(contextOutput("SubagentStart", [
+          "[First Principles Challenger] Attack at least one assumption from the atoms only; do not trust the parent's rebuild.",
+          `stage=${request.stage} reviewNonce=${bound.reservation.nonce}`,
+          `FP_REVIEW_RESULT {"stage":"challenger","reviewNonce":"${bound.reservation.nonce}","decision":"approve|challenge"}`,
+        ].join("\n")));
+      }
+    } else if (mode === "subagent-stop") {
+      const parsed = parseReviewResult(extractAssistantMessage(event));
+      const live = readState(event);
+      if (!parsed) {
+        if (live.reviewReservation && (!live.reviewReservation.agentId || live.reviewReservation.agentId === extractAgentId(event))) {
+          writeJson(stopDeny(`[first-principles-gate] Finish with FP_REVIEW_RESULT {"stage":"challenger","reviewNonce":"${live.reviewReservation.nonce}","decision":"approve|challenge"}`));
+        }
+      } else {
+        const observed = updateState(event, (state) => observeReview(state, { agentId: extractAgentId(event), result: parsed }));
+        if (observed?.kind === "rejected") writeJson(stopDeny(`[first-principles-gate] independent review result rejected: ${observed.reason}`));
+        else if (observed?.kind === "review-recorded") writeJson(contextOutput("SubagentStop", `[first-principles-gate] challenger review ${observed.receipt.decision}.`));
+      }
     } else {
       warn(`unknown mode: ${mode}`);
     }

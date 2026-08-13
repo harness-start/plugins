@@ -52,7 +52,7 @@ Read [platform-projection.md](references/platform-projection.md) before mutating
 
 Keep platform mechanisms separate. If `CLAUDE.md` is a relative symlink to canonical `AGENTS.md`, edit only the allowed managed block in `AGENTS.md`.
 
-Before mutation, show the human the exact paths, whether each path is new or merged, the verification command, and the rollback boundary. Preserve unrelated changes.
+Before mutation, dispatch a read-only subagent with only `PCG_REVIEW_REQUEST adoption`. It reviews the causal chain, reuse evidence, and whether a Hook is justified. Do not mutate project instructions until that reviewer approves. Then show the human the exact paths, whether each path is new or merged, the verification command, and the rollback boundary. Preserve unrelated changes.
 
 ## Resolve the application
 

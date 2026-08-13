@@ -43,7 +43,7 @@ test("releases only a reviewed current mix and writes digest-bound evidence", as
   ]) renderOutputs[filePath] = createHash("sha256").update(await readFile(join(root, filePath))).digest("hex");
   await writeFile(join(root, "build", `render.${sourceDigest}.json`), JSON.stringify({ schema: "tonejs-render-receipt/v1", sourceDigest, outputs: renderOutputs }));
   const mixSha256 = createHash("sha256").update(wav).digest("hex");
-  await writeFile(join(root, "review", "music-review.md"), `# Music review\n\nsourceDigest: ${sourceDigest}\nmixSha256: ${mixSha256}\nmethod: listened\nfindings: no blocking defect\n`);
+  await writeFile(join(root, "review", "music-review.md"), `# Music review\n\nsourceDigest: ${sourceDigest}\nmixSha256: ${mixSha256}\nmethod: listened\nreviewerKind: independent-agent\nreviewerSession: music-review-session\nfindings: no blocking defect\n`);
 
   const result = await releaseProject(root);
   const receipt = JSON.parse(await readFile(join(root, "receipt.release.json"), "utf8"));
@@ -58,5 +58,6 @@ test("releases only a reviewed current mix and writes digest-bound evidence", as
 test("rejects listening claims without concrete findings", () => {
   const binding = { sourceDigest: "a".repeat(64), mixSha256: "b".repeat(64) };
   assert.equal(validateListeningReview(`sourceDigest: ${binding.sourceDigest}\nmixSha256: ${binding.mixSha256}\nmethod: listened\n`, binding), false);
-  assert.equal(validateListeningReview(`sourceDigest: ${binding.sourceDigest}\nmixSha256: ${binding.mixSha256}\nmethod: listened\nfindings: no blocking defect\n`, binding), true);
+  assert.equal(validateListeningReview(`sourceDigest: ${binding.sourceDigest}\nmixSha256: ${binding.mixSha256}\nmethod: listened\nreviewerKind: independent-agent\nreviewerSession: music-review-session\nfindings: no blocking defect\n`, binding), true);
+  assert.equal(validateListeningReview(`sourceDigest: ${binding.sourceDigest}\nmixSha256: ${binding.mixSha256}\nmethod: listened\nreviewerKind: independent-agent\nreviewerSession: unknown\nfindings: no blocking defect\n`, { ...binding, releaseSessionId: "unknown" }), false);
 });

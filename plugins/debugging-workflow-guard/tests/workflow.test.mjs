@@ -11,6 +11,7 @@ import {
   bindWorkOrderAfterMutation,
   completionFindings,
   preMutationDecision,
+  recordDebugReview,
   recordReceipt,
   refreshBoundWorkOrder,
 } from "../scripts/lib/workflow.mjs";
@@ -170,6 +171,7 @@ test("three failed post-mutation reproductions freeze only the current bug", () 
     next.bugs[1].fix.status = "in-progress";
     next.bugs[1].fix.affectedBugIds = ["BUG-002"];
     writeOrder(fx.path, next);
+    recordDebugReview({ cwd: fx.root, sessionId: "s1", stage: "diagnosis", agentId: "diagnosis-reviewer" });
     const allowed = preMutationDecision({ cwd: fx.root, sessionId: "s1", paths: [join(fx.root, "src.js")] });
     assert.equal(allowed.action, "allow");
   });
@@ -195,6 +197,8 @@ test("production mutation requires an exact failing baseline and evidenced root 
     ready.bugs[0].fix.status = "in-progress";
     ready.bugs[0].fix.affectedBugIds = ["BUG-001"];
     writeOrder(fx.path, ready);
+    assert.match(preMutationDecision({ cwd: fx.root, sessionId: "s1", paths: [codePath] }).reason, /DBG_REVIEW_REQUEST diagnosis/u);
+    recordDebugReview({ cwd: fx.root, sessionId: "s1", stage: "diagnosis", agentId: "diagnosis-reviewer" });
     assert.equal(preMutationDecision({ cwd: fx.root, sessionId: "s1", paths: [codePath] }).action, "allow");
 
     ready.bugs[0].fix.affectedBugIds = ["BUG-001", "BUG-002"];
@@ -210,6 +214,7 @@ test("production mutation requires an exact failing baseline and evidenced root 
     ready.bugs[0].status = "fixing";
     ready.bugs[1].status = "queued";
     writeOrder(fx.path, ready);
+    recordDebugReview({ cwd: fx.root, sessionId: "s1", stage: "diagnosis", agentId: "diagnosis-reviewer" });
     assert.equal(preMutationDecision({ cwd: fx.root, sessionId: "s1", paths: [codePath] }).action, "allow");
   });
 });

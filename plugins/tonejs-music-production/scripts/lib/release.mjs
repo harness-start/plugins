@@ -51,12 +51,16 @@ function assessQuality(analysis, quality) {
   return { pass: Object.values(checks).every(Boolean), checks };
 }
 
-export function validateListeningReview(review, { sourceDigest, mixSha256 }) {
+export function validateListeningReview(review, { sourceDigest, mixSha256, releaseSessionId = process.env.AI_EXPERTS_SESSION_ID ?? "unknown" }) {
   if (typeof review !== "string") return false;
   const findings = review.match(/^findings:\s*(?<value>.+)$/mu)?.groups?.value.trim() ?? "";
+  const reviewerSession = review.match(/^reviewerSession:\s*(?<value>\S+)\s*$/mu)?.groups?.value ?? "";
   return new RegExp(`^sourceDigest: ${sourceDigest}$`, "mu").test(review)
     && new RegExp(`^mixSha256: ${mixSha256}$`, "mu").test(review)
     && /^method:\s*listened\s*$/mu.test(review)
+    && /^reviewerKind:\s*(?:human|independent-agent)\s*$/mu.test(review)
+    && reviewerSession.length > 0
+    && reviewerSession !== releaseSessionId
     && findings.length > 0
     && !/^(?:<.*>|TODO|TBD)$/iu.test(findings);
 }

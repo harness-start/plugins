@@ -33,6 +33,18 @@ function output(result) {
   return line ? JSON.parse(line.split("\n").at(-1)) : null;
 }
 
+async function approveCritic(env, base) {
+  const started = await runHook("review-start", { ...base, agent_id: "work-report-critic", agent_prompt: "WRI_REVIEW_REQUEST critic" }, env);
+  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(output(started)?.hookSpecificOutput?.additionalContext ?? "")?.[1];
+  assert.ok(nonce, started.stdout || started.stderr);
+  const stopped = await runHook("subagent-stop", {
+    ...base,
+    agent_id: "work-report-critic",
+    last_assistant_message: `WRI_REVIEW_RESULT ${JSON.stringify({ stage: "critic", reviewNonce: nonce, decision: "approve" })}`,
+  }, env);
+  assert.match(stopped.stdout, /critic approval recorded/u, stopped.stdout || stopped.stderr);
+}
+
 test("ordinary prompt is an exact no-op while report prompts route to the compatible skill", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-public-"));
   const env = { HOME: home, PLUGIN_DATA: join(home, "state") };
@@ -67,6 +79,7 @@ test("save is denied before confirmation and allowed only for the prepared body 
     assert.equal(output(denied)?.hookSpecificOutput?.permissionDecision, "deny");
 
     await runHook("prompt", { ...base, prompt: "确认保存" }, env);
+    await approveCritic(env, base);
     const allowed = await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: saveCommand } }, env);
     assert.equal(output(allowed), null);
 
@@ -109,6 +122,7 @@ test("addition confirmation binds both the new content and every existing report
     const append = `node ${APPEND} --report ${saved.path} --input ${addition}`;
     await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: prepare } }, env);
     await runHook("prompt", { ...base, prompt: "确认" }, env);
+    await approveCritic(env, base);
     assert.equal(output(await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: append } }, env)), null);
 
     writeFileSync(saved.path, `${readFileSync(saved.path, "utf8")}外部变化\n`);

@@ -87,6 +87,8 @@ Listen to the complete mix and relevant proofs. Create `review/music-review.md` 
 sourceDigest: <64-hex source digest>
 mixSha256: <64-hex mix hash>
 method: listened
+reviewerKind: independent-agent
+reviewerSession: <reviewer host session id, different from the render/release session>
 findings: <specific audible findings and disposition>
 ```
 

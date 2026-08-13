@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { ResearchService } from "../server/lib/research-service.mjs";
 import { parseTrailer } from "../scripts/lib/seal-validator.mjs";
-import { defaultWorkflow, ensureRunSkeleton, writeWorkflow } from "../scripts/lib/workflow-fs.mjs";
+import { defaultWorkflow, ensureRunSkeleton, readWorkflowFile, workflowPath, writeWorkflow } from "../scripts/lib/workflow-fs.mjs";
 
 async function setup(sessionId = "matrix") {
   const root = await mkdtemp(join(tmpdir(), "research-matrix-"));
@@ -22,7 +22,10 @@ async function setup(sessionId = "matrix") {
 }
 
 test("multi-source, inference, contested, and JSON-pointer contracts seal together", async () => {
-  const { service, begun } = await setup();
+  const { workspace, service, begun } = await setup();
+  const workflow = readWorkflowFile(workflowPath(workspace, begun.run_id));
+  workflow.allow_solo_main = true;
+  writeWorkflow(workspace, workflow);
   const one = await service.call("source_capture", { kind: "workspace", path: "one.md" });
   const two = await service.call("source_capture", { kind: "workspace", path: "two.md" });
   const json = await service.call("source_capture", { kind: "workspace", path: "data.json" });

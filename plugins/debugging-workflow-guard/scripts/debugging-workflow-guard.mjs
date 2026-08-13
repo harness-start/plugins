@@ -7,11 +7,14 @@ import { relative, resolve } from "node:path";
 import { loadProjectConfig } from "./lib/config.mjs";
 import {
   contextOutput,
+  extractAgentId,
+  extractAgentPrompt,
   extractAssistantMessage,
   extractCwd,
   extractFileTargets,
   extractSessionId,
   extractShellCommand,
+  extractToolName,
   inferOutcome,
   isMutationTool,
   preToolDeny,
@@ -19,16 +22,20 @@ import {
   stopDeny,
   writeJson,
 } from "./lib/hook-io.mjs";
+import { parseReviewRequest, parseReviewResult } from "./lib/independent-review.mjs";
 import { readState, writeState } from "./lib/state-store.mjs";
 import {
+  bindDebugReviewer,
   bindWorkOrderAfterMutation,
   classifyPath,
   closeBinding,
   completionFindings,
   configuredOutcome,
+  observeDebugReview,
   preMutationDecision,
   recordReceipt,
   refreshBoundWorkOrder,
+  reserveDebugReview,
 } from "./lib/workflow.mjs";
 import { isWorkOrderPath, scanWorkOrders } from "./lib/work-order.mjs";
 
@@ -77,6 +84,19 @@ async function runSession(event) {
 async function runPre(event) {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
+  const request = parseReviewRequest(extractAgentPrompt(event));
+  if (request && !extractAgentId(event)) {
+    const reserved = reserveDebugReview({ cwd, sessionId, stage: request.stage, config });
+    if (reserved.kind === "rejected") writeJson(preToolDeny(`[Debugging Workflow Guard] independent review dispatch rejected: ${reserved.reason}`));
+    return;
+  }
+  if (extractAgentId(event) && !/^(?:Read|Grep)$/u.test(extractToolName(event))) {
+    const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+    if (live.state?.reviews?.reservation?.state === "bound" && live.state.reviews.reservation.agentId === extractAgentId(event)) {
+      writeJson(preToolDeny("[Debugging Workflow Guard] this is a bounded local review: only Read/Grep are allowed."));
+      return;
+    }
+  }
   const command = extractShellCommand(event);
   let paths = extractFileTargets(event);
   if (command && shellMutates(command)) paths = [resolve(root, "__unknown_shell_mutation__")];
@@ -177,12 +197,54 @@ async function runStop(event) {
 
 const event = await readStdinJson();
 const mode = process.argv[2];
+async function runReviewStart(event) {
+  const { cwd, config, sessionId } = await context(event);
+  if (config.mode === "off") return;
+  const request = parseReviewRequest(extractAgentPrompt(event))
+    ?? (refreshBoundWorkOrder({ cwd, sessionId, config }).state?.reviews?.reservation
+      ? { stage: refreshBoundWorkOrder({ cwd, sessionId, config }).state.reviews.reservation.stage }
+      : null);
+  if (!request) return;
+  const bound = bindDebugReviewer({ cwd, sessionId, stage: request.stage, agentId: extractAgentId(event), config });
+  if (bound.kind !== "bound-reviewer") {
+    writeJson(contextOutput("SubagentStart", `[Debugging Workflow Guard] ${bound.reason ?? "review reservation is unavailable"}. Return without reviewing.`));
+    return;
+  }
+  writeJson(contextOutput("SubagentStart", [
+    "[Debugging Workflow Independent Reviewer] Derive the causal story from the Work Order and receipts; do not trust the parent's selected root cause.",
+    `stage=${bound.reservation.stage} reviewNonce=${bound.reservation.nonce}`,
+    "Read the bound Work Order and cited receipt ids only. Do not write files or run shell.",
+    `DBG_REVIEW_RESULT {"stage":"${bound.reservation.stage}","reviewNonce":"${bound.reservation.nonce}","decision":"approve|challenge"}`,
+  ].join("\n")));
+}
+
+async function runSubagentStop(event) {
+  const { cwd, config, sessionId } = await context(event);
+  if (config.mode === "off") return;
+  const parsed = parseReviewResult(extractAssistantMessage(event));
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  const reservation = live.state?.reviews?.reservation;
+  if (!parsed) {
+    if (reservation && (!reservation.agentId || reservation.agentId === extractAgentId(event))) {
+      writeJson(stopDeny(`[Debugging Workflow Guard] Finish the independent review with DBG_REVIEW_RESULT {"stage":"${reservation.stage}","reviewNonce":"${reservation.nonce}","decision":"approve|challenge"}`));
+    }
+    return;
+  }
+  const observed = observeDebugReview({ cwd, sessionId, agentId: extractAgentId(event), result: parsed, config });
+  if (observed.kind === "rejected") writeJson(stopDeny(`[Debugging Workflow Guard] independent review result rejected: ${observed.reason}`));
+  else if (observed.kind === "review-recorded") {
+    writeJson(contextOutput("SubagentStop", `[Debugging Workflow Guard] ${observed.receipt.stage} review ${observed.receipt.decision}.`));
+  }
+}
+
 try {
   if (mode === "session") await runSession(event);
   else if (mode === "pre") await runPre(event);
   else if (mode === "post") await runPost(event, false);
   else if (mode === "failure") await runPost(event, true);
   else if (mode === "stop") await runStop(event);
+  else if (mode === "review-start") await runReviewStart(event);
+  else if (mode === "subagent-stop") await runSubagentStop(event);
   else { warn(`unknown mode: ${mode}`); process.exitCode = 2; }
 } catch (error) {
   warn(error?.stack ?? error);

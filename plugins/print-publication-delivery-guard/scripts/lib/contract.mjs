@@ -7,6 +7,22 @@ const RECEIPT_EXCLUDED_PATH = /^(?:build\/|dist\/|evidence(?:\.|\/)|review\.prin
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const finding = (code, path, message) => ({ code, path, message });
+
+function validateIndependentReviewFile(files, filePath, schema, findings) {
+  let review;
+  try { review = JSON.parse(files[filePath] ?? "null"); } catch { review = null; }
+  if (!review || review.schema !== schema || review.verdict !== "pass") {
+    findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
+    return;
+  }
+  if (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId) {
+    findings.push(finding("REVIEWER_INVALID", filePath, "reviewer must declare kind and sessionId"));
+    return;
+  }
+  if (review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+    findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
+  }
+}
 const fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
 
 export function computePrintSubjectDigest(model) {
@@ -122,6 +138,7 @@ export function validatePrintModel(model, { stage = "source" } = {}) {
     }
     for (const filePath of pdfs) if (typeof files[filePath] === "string" && !files[filePath].startsWith("%PDF-")) findings.push(finding("PDF_MAGIC_INVALID", filePath, "PDF output must have PDF magic and be directly probed"));
     if ("receipt.release.json" in files && !validatePrintReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current publication sources and outputs"));
+    validateIndependentReviewFile(files, "review.print.json", "print-publication-delivery-guard/review/v1", findings);
   }
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }

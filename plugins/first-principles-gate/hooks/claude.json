@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "matcher": "Agent|Task|Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
         "hooks": [
           {
             "type": "command",
@@ -33,6 +33,30 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/first-principles-gate.mjs\" post",
             "statusMessage": "First-principles ledger revision",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/first-principles-gate.mjs\" review-start",
+            "statusMessage": "Binding first-principles challenger",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/first-principles-gate.mjs\" subagent-stop",
+            "statusMessage": "Recording first-principles challenge",
             "timeout": 10000
           }
         ]

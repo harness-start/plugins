@@ -850,6 +850,11 @@ function validateRelease(model, findings) {
   validateEvidenceRecord(model, "evidence.accessibility.json", ACCESSIBILITY_SCHEMA, ["minimum-size", "contrast"], "ACCESSIBILITY_EVIDENCE_INVALID", findings);
   const review = validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, ["geometry", "legibility", "variants"], "REVIEW_INVALID", findings);
   if (review?.decision !== "approved") findings.push(finding("REVIEW_INVALID", "review.logo.json", "logo review decision must be approved"));
+  if (review && (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId)) {
+    findings.push(finding("REVIEWER_INVALID", "review.logo.json", "logo review must name an independent reviewer kind and sessionId"));
+  } else if (review?.reviewer?.sessionId && review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+    findings.push(finding("REVIEW_SELF", "review.logo.json", "logo reviewer session must differ from the current release session"));
+  }
   if (hasFile(model, "release.manifest.json") && !exactJson(model.files["release.manifest.json"], createLogoReleaseManifest(model))) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind current source and every delivery byte"));
   if (!hasFile(model, "receipt.release.json")) findings.push(finding("RELEASE_PATH_MISSING", "receipt.release.json", "receipt.release.json is required for release"));
   else if (!validateLogoReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current logo sources, masters, evidence, and outputs"));

@@ -9,7 +9,7 @@ export function digest(value) { return createHash("sha256").update(String(value)
 function dataRoot() { return process.env.PLUGIN_DATA ?? process.env.CLAUDE_PLUGIN_DATA ?? null; }
 
 export function emptyState() {
-  return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, invalid: false, updatedAt: 0 };
+  return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, reviews: { reservation: null, diagnosis: null, architecture: null }, invalid: false, updatedAt: 0 };
 }
 
 function sanitize(value) {

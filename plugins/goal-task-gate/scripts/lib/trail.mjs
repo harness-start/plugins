@@ -288,6 +288,9 @@ export function appendDecision(decisionsPath, fields, { runId, sessionId, tipWin
   if (!DECISION_KINDS.includes(row.kind)) {
     return { ok: false, error: `invalid kind: ${row.kind}` };
   }
+  if (row.kind === "close" && !rows.some((item) => item.kind === "verify")) {
+    return { ok: false, error: "close requires a prior verify decision; dispatch an independent verifier and log kind=verify first" };
+  }
   row.row_hash = computeRowHash(row);
   mkdirSync(dirname(decisionsPath), { recursive: true });
   if (!loaded.exists || loaded.rawLines.length === 0) {

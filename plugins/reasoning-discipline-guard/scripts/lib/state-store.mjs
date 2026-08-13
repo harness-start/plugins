@@ -30,6 +30,10 @@ export function emptyState() {
     status: null,
     nextStageIndex: 0,
     receipts: [],
+    reviews: {
+      challenge: { reservation: null, approval: null },
+      "cross-check": { reservation: null, approval: null },
+    },
     invalid: false,
     findings: [],
     updatedAt: 0,
@@ -44,6 +48,9 @@ function sanitize(value) {
     ...value,
     receipts: Array.isArray(value.receipts) ? value.receipts.slice(-20) : [],
     findings: Array.isArray(value.findings) ? value.findings.slice(-20) : [],
+    reviews: value.reviews && typeof value.reviews === "object"
+      ? value.reviews
+      : emptyState().reviews,
   };
 }
 

@@ -18,16 +18,47 @@ export function extractSessionId(event) {
     ?? null;
 }
 
+export function extractToolName(event) {
+  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? event?.name ?? "";
+}
+
+export function extractToolInput(event) {
+  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+}
+
+export function extractToolUseId(event) {
+  return event?.tool_use_id ?? event?.toolUseId ?? "";
+}
+
+export function extractAgentId(event) {
+  return event?.agent_id ?? event?.agentId ?? "";
+}
+
+export function extractAgentPrompt(event) {
+  const input = extractToolInput(event);
+  return event?.agent_prompt ?? event?.agentPrompt ?? input?.prompt ?? input?.message ?? input?.task ?? input?.description ?? "";
+}
+
+export function preToolDeny(reason) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason,
+    },
+  };
+}
+
 export function extractCwd(event) {
   return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
 }
 
 function toolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? event?.name ?? "";
+  return extractToolName(event);
 }
 
 function toolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+  return extractToolInput(event);
 }
 
 function toolResponse(event) {
