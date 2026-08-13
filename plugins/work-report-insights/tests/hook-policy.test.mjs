@@ -5,19 +5,10 @@ import { join } from "node:path";
 import { test } from "node:test";
 
 import {
-  detectReportIntent,
   officialScriptTrusted,
   parseOfficialCommand,
   protectionDecision,
 } from "../scripts/lib/hook-policy.mjs";
-
-test("detectReportIntent routes three report skills and ignores ordinary requests", () => {
-  assert.equal(detectReportIntent("请帮我写今天的日报"), "daily");
-  assert.equal(detectReportIntent("生成本周周报"), "weekly");
-  assert.equal(detectReportIntent("做一份阶段工作总结"), "summary");
-  assert.equal(detectReportIntent("补充今天的日报"), "daily");
-  assert.equal(detectReportIntent("修复这个单元测试"), null);
-});
 
 test("protectionDecision denies direct report writes and recursive parent deletion", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-hook-"));

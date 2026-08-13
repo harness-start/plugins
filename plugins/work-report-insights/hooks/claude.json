@@ -1,17 +1,5 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" prompt",
-            "statusMessage": "Routing work report workflow",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Agent|Task|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",

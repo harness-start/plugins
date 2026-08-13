@@ -20,11 +20,14 @@ test("dual-host manifests expose the same plugin and platform-scoped hooks", () 
   assert.equal(codex.hooks, undefined);
   assert.equal(codex.interface.displayName, "Work Report Insights");
 
+  const claudeHooks = readFileSync(join(ROOT, "hooks/claude.json"), "utf8");
   const codexHooks = readFileSync(join(ROOT, "hooks/codex.json"), "utf8");
   assert.match(codexHooks, /AI_EXPERTS_SESSION_ID/u);
   assert.match(codexHooks, /AI_EXPERTS_TRIGGER_FROM/u);
   assert.doesNotMatch(codexHooks, /CLAUDE_PLUGIN_ROOT/u);
-  assert.doesNotMatch(readFileSync(join(ROOT, "hooks/claude.json"), "utf8"), /\$\{PLUGIN_ROOT\}/u);
+  assert.doesNotMatch(claudeHooks, /\$\{PLUGIN_ROOT\}/u);
+  assert.doesNotMatch(claudeHooks, /UserPromptSubmit/u);
+  assert.doesNotMatch(codexHooks, /UserPromptSubmit/u);
 });
 
 test("plugin keeps the daily skill id, adds weekly and summary skills, and declares grill-me", () => {

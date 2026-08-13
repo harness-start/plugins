@@ -12,7 +12,7 @@
 
 ## Confirm and seal
 
-报告先在受保护目录之外形成草稿。`prepare` 记录候选正文摘要，员工明确确认后，`save` 才能写入最终路径。保存工具在确认正文末尾加入唯一标签：
+报告先在受保护目录之外形成草稿。`prepare` 记录候选正文摘要；派只读 critic 通过后，`save` 才能写入最终路径。员工是否口头同意由 skill 约定，hook 不再读取用户下一句话。保存工具在确认正文末尾加入唯一标签：
 
 ```html
 <!-- work-report-insights:sha256:<64-hex-digest> -->
@@ -22,7 +22,7 @@
 
 ## Hook boundary
 
-`PreToolUse` 拒绝 Write、Edit、apply_patch 和 shell 对 `~/.ai-experts/*-reports/*` 的直接修改，同时检查真实路径、symlink 和递归父目录操作。只读检查不受影响。`Stop` 仅在活动报告流程声称已经保存、但没有成功封印回执时阻断；普通请求不建立状态，也不产生 hook 输出。会话 hook 状态写在当前工作目录的 `.work-report-insights/.state/`，带 `*` 的 `.gitignore`。
+`PreToolUse` 拒绝 Write、Edit、apply_patch 和 shell 对 `~/.ai-experts/*-reports/*` 的直接修改，同时检查真实路径、symlink 和递归父目录操作。只读检查不受影响。工作流由官方 `prepare` / `collect` 启动，不使用 `UserPromptSubmit`。`Stop` 仅在已经 prepare、却声称已经保存且没有封印回执时阻断；普通请求不建立状态，也不产生 hook 输出。会话 hook 状态写在当前工作目录的 `.work-report-insights/.state/`，带 `*` 的 `.gitignore`。
 
 这个边界保护的是经过 Claude/Codex 工具调用的 AI 操作。用户在宿主之外直接修改文件不经过插件 hook；下次校验会把正文摘要不匹配视为损坏并拒绝继续追加。
 

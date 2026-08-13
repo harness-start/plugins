@@ -1,17 +1,5 @@
 {
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"work-report-insights:prompt\" node \"${PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" prompt",
-            "statusMessage": "Routing work report workflow",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "collaboration.spawn_agent|Agent|Task|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",

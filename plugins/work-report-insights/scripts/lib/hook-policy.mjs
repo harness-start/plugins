@@ -28,18 +28,6 @@ const OFFICIAL = new Map([
 ]);
 const DEFAULT_PLUGIN_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
-export function detectReportIntent(prompt) {
-  const text = String(prompt ?? "");
-  if (/(?:\$|\/)?daily-work-report\b|(?:\u4eca\u5929|\u4eca\u65e5|\u5f53\u65e5).{0,8}(?:\u65e5\u62a5|\u5de5\u4f5c\u603b\u7ed3)|(?:\u5199|\u751f\u6210|\u505a|\u8865\u5145).{0,5}\u65e5\u62a5/iu.test(text)) return "daily";
-  if (/(?:\$|\/)?weekly-work-report\b|\u5468\u62a5|\u672c\u5468.{0,8}(?:\u603b\u7ed3|\u590d\u76d8)/iu.test(text)) return "weekly";
-  if (/(?:\$|\/)?work-summary-report\b|\u9636\u6bb5.{0,6}(?:\u603b\u7ed3|\u590d\u76d8)|\u5de5\u4f5c\u603b\u7ed3/iu.test(text)) return "summary";
-  return null;
-}
-
-export function isConfirmation(prompt) {
-  return /^(?:\u786e\u8ba4|\u786e\u8ba4\u4fdd\u5b58|\u786e\u8ba4\u5199\u5165|\u53ef\u4ee5\u4fdd\u5b58|approved?|confirm(?:ed)?|yes)[\u3002.!\uFF01\s]*$/iu.test(String(prompt ?? "").trim());
-}
-
 function tokenize(command) {
   if (/[;&|<>`\n]|\$\(/u.test(command)) return null;
   return (command.match(/"(?:\\.|[^"])*"|'[^']*'|[^\s]+/gu) ?? []).map((token) => {
@@ -166,7 +154,7 @@ export async function protectionDecision(event, options = {}) {
       return { deny: true, reason: denyReason("A reserved official command name was invoked from an untrusted script path.") };
     }
     if (!new Set(["save", "append"]).has(official.action)) return { deny: false, official };
-    if (state.phase !== "confirmed" || state.operation !== official.action) return { deny: true, reason: denyReason("The candidate has not been confirmed by the user.") };
+    if (state.phase !== "prepared" || state.operation !== official.action) return { deny: true, reason: denyReason("The candidate has not been prepared.") };
     const input = resolve(extractCwd(event), official.args.input);
     if (state.candidatePath !== input || state.candidateSha256 !== await candidateDigest(input)) return { deny: true, reason: denyReason("The candidate bytes changed after confirmation.") };
     const target = official.action === "save"

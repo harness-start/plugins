@@ -17,7 +17,6 @@ export function emptyState() {
     version: VERSION,
     phase: "idle",
     kind: null,
-    answerCount: 0,
     candidateSha256: null,
     candidatePath: null,
     reportSha256: null,

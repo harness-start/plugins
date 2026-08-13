@@ -1,1 +1,0 @@
-# Summary routing fixture
