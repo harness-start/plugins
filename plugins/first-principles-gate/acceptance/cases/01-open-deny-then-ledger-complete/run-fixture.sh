@@ -33,6 +33,17 @@ echo "${ENTRY_OUT}" | grep -q 'business writes are blocked' || {
   exit 1
 }
 
+echo "==> session state must land in the project"
+STATE_COUNT="$(find "${WS}/.first-principles/.state" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+[ "${STATE_COUNT}" -ge 1 ] || {
+  echo "FAIL missing project session state under .first-principles/.state" >&2
+  exit 1
+}
+if [ -d "${DATA}/first-principles-gate" ]; then
+  echo "FAIL state still written to PLUGIN_DATA" >&2
+  exit 1
+fi
+
 echo "==> pre write business path must deny"
 DENY_OUT="$(run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg path "${WS}/src/app.js" \
   '{cwd:$cwd,session_id:$s,tool_name:"Write",tool_input:{file_path:$path,content:"x\n"}}')")"

@@ -22,7 +22,7 @@
 | `PostToolUse` | allowlist 路径变化后按需记录 ledger revision |
 | `Stop` | open 时软报告不完整 ledger；完成声明或 `closed(completed)` 无有效 ledger 时阻断；open 时也阻断实现完成声明 |
 
-状态保存在宿主插件数据目录中，以 `sessionId\0cwd` 的 SHA-256 为键，默认 TTL 为 24 小时。状态缺失或损坏时回到 `idle` 并 fail-open。
+会话状态写在当前工作目录的 `.first-principles/.state/`，按 `sessionId` 的 SHA-256 分文件，默认 TTL 为 24 小时。这个目录由插件自己写，并带 `*` 的 `.gitignore`；agent 改这里会被拒绝。没有宿主 `PLUGIN_DATA` 时也会落盘。状态缺失或损坏时回到 `idle` 并 fail-open。
 
 ## Ledger 契约
 

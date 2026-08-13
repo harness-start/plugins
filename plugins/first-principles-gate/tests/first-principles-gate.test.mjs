@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   rmSync,
   utimesSync,
@@ -27,6 +29,7 @@ import {
   isExpired,
   isLedgerArtifactPath,
   isLedgerPath,
+  isProtectedStatePath,
   isSessionBoundLedger,
   normalizeRelPath,
   looksLikeCompletionClaim,
@@ -699,8 +702,8 @@ test("hook: corrupt state file fails open (no permanent write lock)", async () =
       { cwd: root, session_id: session, prompt: "/first-principles x" },
       env,
     );
-    const pluginDir = join(data, "first-principles-gate");
-    for (const name of readdirSync(pluginDir)) {
+    const pluginDir = join(root, ".first-principles", ".state");
+    for (const name of readdirSync(pluginDir).filter((item) => item.endsWith(".json"))) {
       writeFileSync(join(pluginDir, name), "{not-json", "utf8");
     }
     const pre = await runEntry(
@@ -1041,6 +1044,11 @@ test("normalizeRelPath collapses .. so allowlist cannot be traversed", () => {
   assert.equal(isLedgerPath("docs/decisions/../../src/app.js", config), false);
   assert.equal(isLedgerArtifactPath(".first-principles", config), false);
   assert.equal(isLedgerArtifactPath(".first-principles/ledger.json", config), true);
+  assert.equal(isProtectedStatePath(".first-principles/.state"), true);
+  assert.equal(isProtectedStatePath(".first-principles/.state/abc.json"), true);
+  assert.equal(isProtectedStatePath(".first-principles/ledger.json"), false);
+  assert.equal(isLedgerPath(".first-principles/.state/abc.json", config), false);
+  assert.equal(isLedgerArtifactPath(".first-principles/.state/abc.json", config), false);
 });
 
 test("isLedgerPath includes configured primaryRelativePath", () => {
@@ -1281,5 +1289,136 @@ test("hook: configured primary ledger path is writable while open", async () => 
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("hook: nested cwd keeps state in that workspace, not the parent git root", async () => {
+  const parent = workspace("fp-parent-git-");
+  const nested = join(parent, "pkg");
+  mkdirSync(nested, { recursive: true });
+  writeFileSync(join(nested, "app.js"), "export const value = 0;\n");
+  try {
+    await runEntry(
+      "prompt",
+      { cwd: nested, session_id: "sess-nested-cwd", prompt: "/first-principles nest" },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(existsSync(join(nested, ".first-principles", ".state")), true);
+    assert.equal(
+      existsSync(join(parent, ".first-principles")),
+      false,
+      "must not write session state to the parent git root",
+    );
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("hook: session state lives under the project, not PLUGIN_DATA", async () => {
+  const root = workspace("fp-project-state-");
+  const data = mkdtempSync(join(tmpdir(), "fp-data-unused-"));
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  const session = "sess-project-state";
+  try {
+    const entry = await runEntry(
+      "prompt",
+      { cwd: root, session_id: session, prompt: "/first-principles cache" },
+      env,
+    );
+    assert.equal(entry.code, 0, entry.stderr);
+
+    const stateDir = join(root, ".first-principles", ".state");
+    assert.equal(existsSync(stateDir), true, "expected project .first-principles/.state");
+    const files = readdirSync(stateDir).filter((name) => name.endsWith(".json"));
+    assert.equal(files.length, 1, `expected one state file, got ${files.join(",")}`);
+    const saved = JSON.parse(readFileSync(join(stateDir, files[0]), "utf8"));
+    assert.equal(saved.phase, "open");
+    assert.equal(
+      existsSync(join(data, "first-principles-gate")),
+      false,
+      "must not write host PLUGIN_DATA/first-principles-gate",
+    );
+
+    const deny = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Write",
+        tool_input: { file_path: join(root, "src", "app.js"), content: "x\n" },
+      },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(
+      parseStdout(deny.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      "open phase must persist without PLUGIN_DATA",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("hook: idle prompt does not create project state files", async () => {
+  const root = workspace("fp-idle-state-");
+  try {
+    const idle = await runEntry(
+      "prompt",
+      { cwd: root, session_id: "sess-idle", prompt: "ordinary request" },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(idle.code, 0, idle.stderr);
+    assert.equal(parseStdout(idle.stdout), null);
+    assert.equal(existsSync(join(root, ".first-principles")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("hook: agent cannot rewrite project session state", async () => {
+  const root = workspace("fp-protect-state-");
+  const session = "sess-protect-state";
+  try {
+    await runEntry(
+      "prompt",
+      { cwd: root, session_id: session, prompt: "/first-principles cache" },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    const denyWrite = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Write",
+        tool_input: {
+          file_path: join(root, ".first-principles", ".state", "forged.json"),
+          content: "{\"phase\":\"idle\"}\n",
+        },
+      },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(
+      parseStdout(denyWrite.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      denyWrite.stdout || denyWrite.stderr,
+    );
+    const denyRm = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Bash",
+        tool_input: { command: "rm -rf .first-principles/.state" },
+      },
+      { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+    );
+    assert.equal(
+      parseStdout(denyRm.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      denyRm.stdout || denyRm.stderr,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

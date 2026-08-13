@@ -179,6 +179,17 @@ function pathUnderTree(path, prefix) {
   return p.includes(`${nested}/`) || p.endsWith(nested);
 }
 
+export const STATE_DIR_RELATIVE = ".first-principles/.state";
+
+/**
+ * Plugin-owned session files. These live under the ledger tree but must never
+ * be treated as writable ledger artifacts.
+ */
+export function isProtectedStatePath(relPath) {
+  const path = normalizeRelPath(relPath);
+  return path === STATE_DIR_RELATIVE || pathUnderTree(path, STATE_DIR_RELATIVE);
+}
+
 /**
  * True when a path is an allowlisted *ledger artifact file* (not a bare directory).
  * Used so mkdir on `.first-principles` cannot credit session ledger revision.
@@ -200,6 +211,7 @@ export function isLedgerArtifactPath(relPath, config) {
  * Always allows the configured primary ledger path and its parent directory.
  */
 export function isLedgerPath(relPath, config) {
+  if (isProtectedStatePath(relPath)) return false;
   const writeBlock = config?.writeBlock ?? {};
   const allows = writeBlock.ledgerAllow ?? [
     ".first-principles/**",
@@ -554,6 +566,13 @@ export function classifyInjectText(classification) {
     default:
       return null;
   }
+}
+
+export function stateProtectMessage() {
+  return [
+    "[first-principles-gate] Session state under `.first-principles/.state/` is plugin-owned.",
+    "Write the ledger to `.first-principles/ledger.json`; do not edit hook state files.",
+  ].join("\n");
 }
 
 export function writeDenyMessage() {

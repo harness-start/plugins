@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { execFileSync } from "node:child_process";
 import { isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -41,6 +40,7 @@ import {
   isExpired,
   isLedgerArtifactPath,
   isLedgerPath,
+  isProtectedStatePath,
   isSessionBoundLedger,
   ledgerBlockMessage,
   looksLikeCompletionClaim,
@@ -53,10 +53,11 @@ import {
   shellWriteDecision,
   shouldReportWrite,
   softLedgerReport,
+  stateProtectMessage,
   writeBlockActive,
   writeDenyMessage,
 } from "./lib/policy.mjs";
-import { readState, updateState } from "./lib/state-store.mjs";
+import { readState, resolveProjectRoot, updateState } from "./lib/state-store.mjs";
 
 const MAX_STOP_BLOCKS = 2;
 
@@ -65,16 +66,7 @@ function warn(message) {
 }
 
 function resolveRepoRoot(cwd) {
-  try {
-    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
-      cwd,
-      encoding: "utf8",
-      timeout: 5000,
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return resolve(cwd);
-  }
+  return resolveProjectRoot(cwd);
 }
 
 function relativeToRoot(absPath, repoRoot, cwd) {
@@ -107,6 +99,32 @@ function persistExpiry(event, config) {
       s.stopAttempts = 0;
     }
   });
+}
+
+function stateProtectionHits(event, cwd, repoRoot) {
+  const hits = [];
+  if (isFileMutationTool(event)) {
+    for (const abs of extractFileTargets(event)) {
+      const rel = relativeToRoot(abs, repoRoot, cwd);
+      if (isProtectedStatePath(rel)) hits.push(rel);
+    }
+    return hits;
+  }
+  if (!isShellTool(event)) return hits;
+  const command = extractShellCommand(event);
+  if (!command || !shellLooksMutating(command)) return hits;
+  const targets = extractShellMutationTargets(command);
+  for (const target of targets) {
+    const rel = relativeToRoot(resolveShellTarget(target, cwd), repoRoot, cwd);
+    if (isProtectedStatePath(rel)) hits.push(rel);
+  }
+  if (
+    targets.length === 0 &&
+    /(?:^|[/"'\s])\.first-principles\/\.state(?:\/|$)/u.test(command)
+  ) {
+    hits.push(".first-principles/.state");
+  }
+  return hits;
 }
 
 /**
@@ -181,6 +199,13 @@ function runPre(event, config) {
     }
   }
 
+  const cwd = extractCwd(event);
+  const repoRoot = resolveRepoRoot(cwd);
+  if (stateProtectionHits(event, cwd, repoRoot).length > 0) {
+    writeJson(preToolDeny(stateProtectMessage()));
+    return;
+  }
+
   const state = readState(event);
   expireIfNeeded(state, config);
   if (state.closeReason === "ttl" && state.phase === "idle") {
@@ -193,8 +218,6 @@ function runPre(event, config) {
     return;
   }
 
-  const cwd = extractCwd(event);
-  const repoRoot = resolveRepoRoot(cwd);
   const reasons = [];
 
   if (isFileMutationTool(event)) {
