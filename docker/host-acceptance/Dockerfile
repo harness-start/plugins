@@ -7,7 +7,7 @@
 FROM node:20-bookworm
 
 ARG CLAUDE_CODE_VERSION=2.1.170
-ARG CODEX_VERSION=0.146.0
+ARG CODEX_VERSION=0.147.0
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
