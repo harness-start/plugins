@@ -211,6 +211,24 @@ test("Codex never invents a compact summary that its hook contract does not expo
   }
 });
 
+test("pre-tool still denies journal mutation when the event carries agent_id", async () => {
+  const root = workspace();
+  try {
+    await run("user-prompt", event(root, { prompt: "protect journal for children" }));
+    const location = journalLocation({ cwd: root, host: "codex", sessionId: "session/raw:一" });
+    const denied = await run("pre-tool", event(root, {
+      hook_event_name: "PreToolUse",
+      agent_id: "child-1",
+      tool_name: "Write",
+      tool_input: { file_path: location.path, content: "replace" },
+    }));
+    assert.equal(output(denied)?.hookSpecificOutput?.permissionDecision, "deny");
+    assert.match(output(denied).hookSpecificOutput.permissionDecisionReason, /append-only journal/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("journal writes and indirect destructive commands are denied", async () => {
   const root = workspace();
   try {

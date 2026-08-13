@@ -409,7 +409,8 @@ function runLocked(mode, event, location) {
 
 export async function main(mode = process.argv[2]) {
   const event = await readStdinJson();
-  if (event.__parseError || isSubagentEvent(event)) return;
+  if (event.__parseError) return;
+  if (isSubagentEvent(event) && mode !== "pre-tool") return;
   if (!["user-prompt", "pre-compact", "post-compact", "session-start", "pre-tool", "post-tool", "stop"].includes(mode)) return;
   const sessionId = extractSessionId(event);
   if (!sessionId) {
