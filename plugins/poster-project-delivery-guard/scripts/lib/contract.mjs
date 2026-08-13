@@ -50,6 +50,7 @@ function posterOutputPaths(model) {
   const variants = Array.isArray(manifest?.variants) ? manifest.variants : [];
   return [
     ...variants.map(({ id }) => `dist/${model.artifactId}.${id}.png`),
+    ...Object.keys(files).filter((filePath) => PROOF_PATH.test(filePath)).sort(),
     "evidence.accessibility.json",
     "review.poster.json",
     "release.manifest.json",

@@ -94,7 +94,12 @@ test("release receipt becomes stale after a poster source dependency changes", (
   model.files["receipt.release.json"] = JSON.stringify(receipt);
 
   assert.equal(receipt.outputs["dist/launch-poster.main.png"], sha256("FINAL"));
+  const proofPath = Object.keys(model.files).find((filePath) => filePath.endsWith(".png") && filePath.includes("001-background-base."));
+  assert.equal(receipt.outputs[proofPath], sha256("PNG"));
   assert.equal(validatePosterReceipt(model), true);
+  model.files[proofPath] = "SWAPPED-PNG";
+  assert.equal(validatePosterReceipt(model), false);
+  model.files[proofPath] = "PNG";
   model.files["src/theme.ts"] += "export const changed = true;\n";
   assert.equal(validatePosterReceipt(model), false);
 });
