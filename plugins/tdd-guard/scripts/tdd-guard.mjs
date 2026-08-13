@@ -16,7 +16,13 @@ import {
   toolUseIdOf,
   writeJson,
 } from "./lib/hook-io.mjs";
-import { classifyPath, expectedTestExample, extractTestEvidence, sourceAuthorizedByTest } from "./lib/patterns.mjs";
+import {
+  classifyPath,
+  expectedTestExample,
+  extractTestEvidence,
+  resolveLanguageContext,
+  sourceAuthorizedByTest,
+} from "./lib/patterns.mjs";
 import { digest, readState, writeState } from "./lib/state-store.mjs";
 
 function warn(message) { process.stderr.write(`[tdd-guard] ${message}\n`); }
@@ -55,7 +61,8 @@ async function runPre(event) {
     for (const target of targets) {
       const current = readText(target.absolutePath);
       const source = { ...target, content: proposedContent(event, target.absolutePath, current) };
-      if (tests.some((record) => sourceAuthorizedByTest(source, record))) continue;
+      const context = resolveLanguageContext(root, target.path, target.language);
+      if (tests.some((record) => sourceAuthorizedByTest(source, record, context))) continue;
       const expected = expectedTestExample(target.path, target.language);
       writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: no matching test file was created or changed earlier in this session. Create or update ${expected} with a real test case that references the implementation, then retry in a separate tool call.`));
       return;
@@ -81,7 +88,8 @@ async function runPost(event, platform) {
     const afterHash = hashPath(absolutePath);
     state.tests = (state.tests ?? []).filter((record) => record.path !== target.path);
     if (afterHash === "missing" || afterHash === target.beforeHash) continue;
-    const evidence = extractTestEvidence(target.language, readText(absolutePath));
+    const context = resolveLanguageContext(root, target.path, target.language);
+    const evidence = extractTestEvidence(target.language, readText(absolutePath), target.path, context);
     if (!evidence.valid) continue;
     state.sequence = (state.sequence ?? 0) + 1;
     state.tests.push({ path: target.path, language: target.language, hash: afterHash, sequence: state.sequence, evidence });

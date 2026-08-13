@@ -33,7 +33,7 @@ function nestedPaths(input) {
 }
 
 function patchPaths(input) {
-  const text = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
+  const text = patchText(input);
   const paths = [];
   for (const line of text.split("\n")) {
     const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
@@ -42,6 +42,33 @@ function patchPaths(input) {
     if (move) paths.push(stripQuotes(move[1]));
   }
   return paths;
+}
+
+function patchText(input) {
+  return typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
+}
+
+function contentFromPatch(input, target, cwd, currentText) {
+  const targetPath = resolve(target);
+  let active = false;
+  let targetMode = "";
+  const added = [];
+  for (const line of patchText(input).split("\n")) {
+    const file = line.match(/^\*\*\*\s+(Add|Update|Delete) File:\s+(.+)$/u);
+    if (file) {
+      active = resolve(cwd, stripQuotes(file[2])) === targetPath;
+      if (active) targetMode = file[1].toLowerCase();
+      continue;
+    }
+    if (/^\*\*\*\s+/u.test(line)) {
+      active = false;
+      continue;
+    }
+    if (active && line.startsWith("+") && !line.startsWith("+++")) added.push(line.slice(1));
+  }
+  if (targetMode === "add" && added.length > 0) return added.join("\n");
+  if (targetMode === "update" && added.length > 0) return `${currentText}\n${added.join("\n")}`;
+  return currentText;
 }
 
 function shellPaths(input) {
@@ -68,7 +95,7 @@ export function proposedContent(event, target, currentText = "") {
   if (paths.includes(resolve(target)) && typeof input.new_string === "string" && typeof input.old_string === "string" && currentText.includes(input.old_string)) {
     return currentText.replace(input.old_string, input.new_string);
   }
-  return currentText;
+  return contentFromPatch(input, target, cwdOf(event), currentText);
 }
 
 export function relativePath(root, path) { return relative(root, resolve(path)).replaceAll("\\", "/") || "."; }
