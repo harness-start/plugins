@@ -68,7 +68,7 @@ printf '==> %s / %s / %s (timeout=%ss)\n' "${PLUGIN}" "${CASE_ID}" "${HOST}" "${
 
 # Community skill-deps must land in the isolated case HOME before the host
 # session starts (same deps install-all.sh would install globally for users).
-SKILL_DEPS_CACHE="${REPO_ROOT}/.acceptance-runs/skill-deps-cache"
+SKILL_DEPS_CACHE="${ACCEPT_SKILL_DEPS_CACHE:-${OUT_DIR}/skill-deps-cache}"
 if ! install_plugin_skill_deps "${PLUGIN_DIR}" "${HOME}" "${SKILL_DEPS_CACHE}" "${HOST}"; then
   printf 'skill-deps install failed for %s\n' "${PLUGIN}" >&2
   printf 'RESULT=FAIL\n' >"${STATUS_FILE}"

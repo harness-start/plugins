@@ -112,6 +112,10 @@ assert_ok "seed copies claude skill link" test -e "${dest_home}/.claude/skills/d
 assert_ok "install no-op without skill-deps.json" \
   install_plugin_skill_deps "${plugin_none}" "${dest_home}" "${tmp}/cache" "claude"
 
+assert_ok "container run-case keeps skill cache under writable output" \
+  grep -Fq 'SKILL_DEPS_CACHE="${ACCEPT_SKILL_DEPS_CACHE:-${OUT_DIR}/skill-deps-cache}"' \
+  "${REPO_ROOT}/scripts/acceptance/lib/run-case.sh"
+
 plugin_bad="${tmp}/plugin-bad"
 mkdir -p "${plugin_bad}"
 printf '{"skills":[{"name":"x"}]}\n' >"${plugin_bad}/skill-deps.json"

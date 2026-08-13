@@ -180,6 +180,43 @@ test("public hook denies reviewer writes and records a diagnosis approval", asyn
   assert.match(recorded.stdout, /diagnosis review approve/u, recorded.stdout || recorded.stderr);
 });
 
+test("review-start directly reserves a request and embeds the bound work order when dispatch PreToolUse is unavailable", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-direct-review-data-"));
+  const codexHome = mkdtempSync(join(tmpdir(), "debug-direct-codex-home-"));
+  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
+  mkdirSync(join(codexHome, "sessions"), { recursive: true });
+  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
+  const path = join(root, ".debug-workflow", "20260808-login.md");
+  const ready = workOrder();
+  ready.bugs[0].status = "fixing";
+  ready.bugs[0].fix.status = "in-progress";
+  ready.bugs[0].fix.affectedBugIds = ["BUG-001"];
+  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(ready, null, 2)}\n\`\`\`\n`);
+  await runHook("post", { cwd: root, session_id: "debug-direct-review", tool_name: "Write", tool_input: { file_path: path } }, env);
+
+  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "direct-diagnosis-reviewer", parent_thread_id: "debug-direct-review", cwd: root,
+    thread_source: "subagent", agent_path: "/root/dbg_diagnosis_case",
+    source: { subagent: { thread_spawn: { parent_thread_id: "debug-direct-review", depth: 1, agent_path: "/root/dbg_diagnosis_case" } } },
+  } })}\n`);
+  const started = await runHook("review-start", {
+    cwd: root,
+    session_id: "debug-direct-review",
+    agent_id: "direct-diagnosis-reviewer",
+    transcript_path: transcriptPath,
+  }, env);
+  const context = JSON.parse(started.stdout).hookSpecificOutput.additionalContext;
+  assert.match(context, /reviewNonce=[a-f0-9]+/u);
+  assert.match(context, /workOrderEvidence=/u);
+  assert.match(context, /DWO-20260808-login/u);
+  const replay = await runHook("review-start", {
+    cwd: root, session_id: "debug-direct-review", agent_id: "second-debug-reviewer",
+    agent_prompt: "DBG_REVIEW_REQUEST diagnosis",
+  }, env);
+  assert.doesNotMatch(replay.stdout, /reviewNonce=/u);
+});
+
 test("public hook permits a paused architecture-review handoff without completion evidence", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-paused-stop-data-"));

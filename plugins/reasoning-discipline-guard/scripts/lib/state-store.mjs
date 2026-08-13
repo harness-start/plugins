@@ -2,6 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
+  openSync,
+  closeSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -65,6 +67,26 @@ function statePath(sessionId, cwd) {
   return join(resolve(cwd), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 
+function withLock(path, operation) {
+  const lockPath = `${path}.lock`;
+  ensureStateDir(dirname(path));
+  let fd;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try {
+      fd = openSync(lockPath, "wx", 0o600);
+      break;
+    } catch (error) {
+      if (error?.code !== "EEXIST" || attempt === 39) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  try { return operation(); }
+  finally {
+    if (fd !== undefined) closeSync(fd);
+    rmSync(lockPath, { force: true });
+  }
+}
+
 function atomicWrite(path, value) {
   if (!path) return false;
   const directory = dirname(path);
@@ -105,8 +127,11 @@ export function writeState(sessionId, cwd, state) {
 }
 
 export function updateState(sessionId, cwd, updater) {
-  const state = readState(sessionId, cwd);
-  const result = updater(state);
-  writeState(sessionId, cwd, state);
-  return { state, result };
+  const path = statePath(sessionId, cwd);
+  return withLock(path, () => {
+    const state = readState(sessionId, cwd);
+    const result = updater(state);
+    writeState(sessionId, cwd, state);
+    return { state, result };
+  });
 }

@@ -41,6 +41,7 @@ import {
 } from "./lib/workflow-mailbox.mjs";
 import { closeRun, stageApplication } from "./lib/workflow-run.mjs";
 import { readState, updateState, writeApplicationArtifact } from "./lib/workflow-state.mjs";
+import { codexSubagentIdentity } from "./lib/codex-identity.mjs";
 
 const SESSION_CONTEXT = [
   "[Subagent Workflow Guard] Application-first dispatch is enabled.",
@@ -239,12 +240,16 @@ async function runStart(event, context, config) {
   const state = await readState(context);
   const marker = parseApplicationMarker(extractAgentPrompt(event));
   const agentId = extractAgentId(event);
-  if (!marker) {
+  const codexIdentity = !marker && context.host === "codex"
+    ? codexSubagentIdentity(event)
+    : null;
+  if (!marker && !codexIdentity?.valid) {
     if (state.run?.phase === "open" && config.dispatch !== "off") {
       writeJson(additionalContext("SubagentStart", [
         "[Subagent Workflow Guard: orphan-spawn] No registered application was bound to this subagent.",
+        codexIdentity?.reason ? `Codex identity rejected: ${codexIdentity.reason}.` : "",
         "Stop work and return `Status: NEEDS_CONTEXT`; ask the parent to prepare and dispatch a valid application.",
-      ].join("\n")));
+      ].filter(Boolean).join("\n")));
     } else {
       writeJson(additionalContext("SubagentStart", ORDINARY_CONTEXT));
     }
@@ -253,11 +258,24 @@ async function runStart(event, context, config) {
   let application;
   try {
     await updateState(context, (next) => {
-      application = next.applications[marker.applicationId];
+      const applicationId = marker?.applicationId ?? codexIdentity.taskName;
+      application = next.applications[applicationId];
       if (!agentId) throw new Error("SubagentStart does not contain agent_id");
-      if (!application || application.nonce !== marker.nonce || application.state !== "reserved") {
+      if (!application || application.runId !== next.run?.id || next.run?.phase !== "open") {
+        throw new Error("spawn has no matching active application");
+      }
+      if (marker && (application.nonce !== marker.nonce || application.state !== "reserved")) {
         throw new Error("spawn has no matching reserved application");
       }
+      if (!marker && !["prepared", "reserved"].includes(application.state)) {
+        throw new Error(`Codex application cannot bind from state ${application.state}`);
+      }
+      for (const dependency of application.dependencies) {
+        if (next.applications[dependency]?.state !== "delivered") {
+          throw new Error(`dependency is not delivered: ${dependency}`);
+        }
+      }
+      if (next.bindings[agentId]) throw new Error("agent is already bound");
       application.state = "bound";
       application.agentId = agentId;
       application.boundAt = Date.now();

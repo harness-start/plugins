@@ -157,6 +157,58 @@ async function approveChallenger(env, { cwd, session }) {
   assert.match(stopped.stdout, /approve/u, stopped.stdout || stopped.stderr);
 }
 
+test("review-start ignores subagents that do not carry an FP review request", async () => {
+  const root = workspace("fp-unrelated-review-");
+  const data = mkdtempSync(join(tmpdir(), "fp-unrelated-review-data-"));
+  const result = await runEntry("review-start", {
+    cwd: root,
+    session_id: "unrelated-session",
+    agent_id: "unrelated-agent",
+    agent_prompt: "DBG_REVIEW_REQUEST diagnosis",
+  }, { PLUGIN_DATA: data });
+  assert.equal(result.stdout, "", result.stdout || result.stderr);
+});
+
+test("review-start directly reserves an FP request and embeds ledger evidence", async () => {
+  const root = workspace("fp-direct-review-");
+  const data = mkdtempSync(join(tmpdir(), "fp-direct-review-data-"));
+  const codexHome = mkdtempSync(join(tmpdir(), "fp-direct-codex-home-"));
+  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
+  mkdirSync(join(codexHome, "sessions"), { recursive: true });
+  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
+  const session = "fp-direct-review-session";
+  await runEntry("prompt", { cwd: root, session_id: session, prompt: "/first-principles direct review" }, env);
+  writeLedger(root);
+  const ledgerPath = join(root, ".first-principles", "ledger.json");
+  await runEntry("post", {
+    cwd: root,
+    session_id: session,
+    tool_name: "Write",
+    tool_input: { file_path: ledgerPath },
+  }, env);
+
+  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "direct-fp-reviewer", parent_thread_id: session, cwd: root,
+    thread_source: "subagent", agent_path: "/root/fp_challenger_case",
+    source: { subagent: { thread_spawn: { parent_thread_id: session, depth: 1, agent_path: "/root/fp_challenger_case" } } },
+  } })}\n`);
+  const started = await runEntry("review-start", {
+    cwd: root,
+    session_id: session,
+    agent_id: "direct-fp-reviewer",
+    transcript_path: transcriptPath,
+  }, env);
+  const context = parseStdout(started.stdout)?.hookSpecificOutput?.additionalContext ?? "";
+  assert.match(context, /reviewNonce=[a-f0-9]+/u);
+  assert.match(context, /ledgerEvidence=/u);
+  assert.match(context, /first-principles\/v1/u);
+  const replay = await runEntry("review-start", {
+    cwd: root, session_id: session, agent_id: "second-fp-reviewer",
+    agent_prompt: "FP_REVIEW_REQUEST challenger",
+  }, env);
+  assert.doesNotMatch(parseStdout(replay.stdout)?.hookSpecificOutput?.additionalContext ?? "", /reviewNonce=/u);
+});
+
 // ---------------------------------------------------------------------------
 // Pure policy: entry surface must stay narrow
 // ---------------------------------------------------------------------------

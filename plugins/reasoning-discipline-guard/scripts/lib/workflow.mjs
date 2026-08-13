@@ -21,6 +21,7 @@ import {
   clearReviewsFrom,
   observeReview,
   reserveReview,
+  reviewEvidenceSnapshot,
   reviewEvidencePaths,
   reviewFingerprint,
   reviewRequirement,
@@ -546,22 +547,17 @@ export function stopDecision({ cwd, sessionId, assistantMessage = "" }) {
 }
 
 export function reserveIndependentReview({ cwd, sessionId, stage, toolUseId }) {
-  const state = readState(sessionId, cwd);
-  if (!state.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
-  const result = reserveReview(state, {
-    stage,
-    fingerprint: reviewFingerprint(state.workflowPath, stage),
-    toolUseId,
-  });
-  if (result.kind === "reserved") writeState(sessionId, cwd, state);
-  return result;
+  return updateState(sessionId, cwd, (state) => {
+    if (!state.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
+    return reserveReview(state, { stage, fingerprint: reviewFingerprint(state.workflowPath, stage), toolUseId });
+  }).result;
 }
 
 export function bindIndependentReviewer({ cwd, sessionId, stage, agentId }) {
-  const state = readState(sessionId, cwd);
-  if (!state.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
-  const result = bindReviewer(state, { stage, agentId });
-  if (result.kind === "bound-reviewer") writeState(sessionId, cwd, state);
+  const { state, result } = updateState(sessionId, cwd, (next) => {
+    if (!next.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
+    return bindReviewer(next, { stage, agentId });
+  });
   return {
     ...result,
     evidencePaths: reviewEvidencePaths(state.workflowPath, stage),
@@ -569,11 +565,26 @@ export function bindIndependentReviewer({ cwd, sessionId, stage, agentId }) {
   };
 }
 
+export function reserveAndBindIndependentReviewer({ cwd, sessionId, stage, agentId, toolUseId }) {
+  const initial = readState(sessionId, cwd);
+  if (!initial.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
+  const snapshot = reviewEvidenceSnapshot(initial.workflowPath, stage);
+  if (!snapshot) return { kind: "rejected", reason: "review evidence snapshot is unavailable" };
+  return updateState(sessionId, cwd, (state) => {
+    if (!state.bound || state.workflowPath !== initial.workflowPath) return { kind: "rejected", reason: "reasoning workflow changed before reviewer bind" };
+    if (reviewFingerprint(state.workflowPath, stage) !== snapshot.fingerprint) return { kind: "rejected", reason: "review evidence changed before reviewer bind" };
+    const draft = structuredClone(state);
+    const reserved = reserveReview(draft, { stage, fingerprint: snapshot.fingerprint, toolUseId });
+    if (reserved.kind !== "reserved") return reserved;
+    const bound = bindReviewer(draft, { stage, agentId });
+    if (bound.kind !== "bound-reviewer") return bound;
+    Object.assign(state, draft);
+    return { ...bound, evidencePaths: snapshot.paths, evidenceBundle: snapshot.bundle };
+  }).result;
+}
+
 export function observeIndependentReview({ cwd, sessionId, agentId, result }) {
-  const state = readState(sessionId, cwd);
-  const observed = observeReview(state, { agentId, result });
-  if (observed.kind !== "rejected") writeState(sessionId, cwd, state);
-  return observed;
+  return updateState(sessionId, cwd, (state) => observeReview(state, { agentId, result })).result;
 }
 
 export function independentReviewerBinding({ cwd, sessionId, agentId }) {

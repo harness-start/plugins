@@ -23,15 +23,19 @@ export function parseReviewResult(text) {
   }
 }
 
-export function diagnosisFingerprint(workOrder, state) {
+export function diagnosisEvidence(workOrder, state) {
   const bug = workOrder?.bugs?.find((item) => item.id === workOrder.activeBugId);
-  return createHash("sha256").update(JSON.stringify({
+  return {
     id: workOrder?.id,
     bug: workOrder?.activeBugId,
     root: bug?.rootCause ?? null,
     hypotheses: bug?.hypotheses ?? [],
     receipts: (state?.receipts ?? []).filter((receipt) => receipt.bugId === workOrder?.activeBugId).map((receipt) => receipt.id),
-  })).digest("hex");
+  };
+}
+
+export function diagnosisFingerprint(workOrder, state) {
+  return createHash("sha256").update(JSON.stringify(diagnosisEvidence(workOrder, state))).digest("hex");
 }
 
 export function emptyReviews() {
@@ -41,6 +45,9 @@ export function emptyReviews() {
 export function reserveReview(state, { stage, fingerprint }) {
   if (!REVIEW_STAGES.includes(stage)) return { kind: "rejected", reason: "unknown independent review stage" };
   if (!fingerprint) return { kind: "rejected", reason: "review fingerprint is unavailable" };
+  if (state.reviews?.reservation && ["reserved", "bound"].includes(state.reviews.reservation.state)) {
+    return { kind: "rejected", reason: "a debug review is already reserved or bound" };
+  }
   const current = state.reviews?.[stage];
   if (current?.decision === "approve" && current.fingerprint === fingerprint) {
     return { kind: "rejected", reason: `current ${stage} approval already matches the frozen work order; reuse it` };
@@ -62,6 +69,9 @@ export function bindReviewer(state, { stage, agentId }) {
     return { kind: "rejected", reason: "no reserved independent review exists" };
   }
   if (!agentId) return { kind: "rejected", reason: "reviewer agent_id is missing" };
+  if (reservation.state === "bound" && reservation.agentId !== agentId) {
+    return { kind: "rejected", reason: "review reservation is already bound to a different agent" };
+  }
   if (stage === "architecture" && state.reviews?.diagnosis?.agentId === agentId) {
     return { kind: "rejected", reason: "architecture reviewer must be a different agent than the diagnosis reviewer" };
   }

@@ -6,13 +6,14 @@ import { DEFAULT_CONFIG } from "./config.mjs";
 import {
   bindReviewer,
   currentApproval,
+  diagnosisEvidence,
   diagnosisFingerprint,
   observeReview,
   parseReviewRequest,
   parseReviewResult,
   reserveReview,
 } from "./independent-review.mjs";
-import { acquireLease, emptyState, readState, releaseLease, writeState } from "./state-store.mjs";
+import { acquireLease, emptyState, readState, releaseLease, updateState, writeState } from "./state-store.mjs";
 import { isWorkOrderPath, loadWorkOrder } from "./work-order.mjs";
 
 function gitRoot(cwd) {
@@ -207,6 +208,27 @@ export function bindDebugReviewer({ cwd, sessionId, stage, agentId, config = DEF
   const result = bindReviewer(live.state, { stage, agentId });
   if (result.kind === "bound-reviewer") writeState(sessionId, live.repoRoot, live.state);
   return result;
+}
+
+export function reserveAndBindDebugReviewer({ cwd, sessionId, stage, agentId, config = DEFAULT_CONFIG }) {
+  const repoRoot = gitRoot(cwd);
+  return updateState(sessionId, repoRoot, (state) => {
+    if (!state.bound || !state.workOrderPath) return { kind: "rejected", reason: "no active bound work order" };
+    const checked = loadWorkOrder(state.workOrderPath, config);
+    if (!checked.valid || checked.workOrder.id !== state.workOrderId || checked.workOrder.run.epoch !== state.epoch || checked.workOrder.status !== "open" || checked.workOrder.run.state !== "active") {
+      return { kind: "rejected", reason: "bound work order is invalid or inactive" };
+    }
+    const evidence = diagnosisEvidence(checked.workOrder, state);
+    const evidenceBytes = JSON.stringify(evidence);
+    if (Buffer.byteLength(evidenceBytes) > 48 * 1024) return { kind: "rejected", reason: "review evidence exceeds 48 KiB" };
+    const draft = structuredClone(state);
+    const reserved = reserveReview(draft, { stage, fingerprint: hash(evidenceBytes) });
+    if (reserved.kind !== "reserved") return reserved;
+    const bound = bindReviewer(draft, { stage, agentId });
+    if (bound.kind !== "bound-reviewer") return bound;
+    Object.assign(state, draft);
+    return { ...bound, evidenceBundle: JSON.stringify({ schema: "debug-review-evidence/v1", sha256: hash(evidenceBytes), evidence }) };
+  }).result;
 }
 
 export function observeDebugReview({ cwd, sessionId, agentId, result, config = DEFAULT_CONFIG }) {

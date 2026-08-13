@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import { extractCwd, extractSessionId } from "./hook-io.mjs";
@@ -121,6 +121,24 @@ function writeStateFile(path, state) {
   }
 }
 
+function withLock(path, operation) {
+  const lockPath = `${path}.lock`;
+  ensureStateDir(dirname(path));
+  let fd;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    try { fd = openSync(lockPath, "wx", 0o600); break; }
+    catch (error) {
+      if (error?.code !== "EEXIST" || attempt === 39) throw error;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+  }
+  try { return operation(); }
+  finally {
+    if (fd !== undefined) closeSync(fd);
+    rmSync(lockPath, { force: true });
+  }
+}
+
 export function readState(event) {
   return readStateFile(statePath(event));
 }
@@ -132,19 +150,32 @@ export function updateState(event, updater) {
     return updater(ephemeral);
   }
   try {
-    const state = readStateFile(path);
-    const result = updater(state);
-    state.updatedAt = Date.now();
-    if (isDormant(state) && !existsSync(path)) {
-      return result;
+    if (!existsSync(path)) {
+      const initial = emptyState();
+      const result = updater(initial);
+      initial.updatedAt = Date.now();
+      if (isDormant(initial)) return result;
+      return withLock(path, () => {
+        if (!existsSync(path)) {
+          writeStateFile(path, initial);
+          return result;
+        }
+        const current = readStateFile(path);
+        const concurrentResult = updater(current);
+        current.updatedAt = Date.now();
+        writeStateFile(path, current);
+        return concurrentResult;
+      });
     }
-    if (!writeStateFile(path, state)) {
+    return withLock(path, () => {
+      const state = readStateFile(path);
+      const result = updater(state);
+      state.updatedAt = Date.now();
+      if (isDormant(state) && !existsSync(path)) return result;
+      writeStateFile(path, state);
       return result;
-    }
-    return result;
-  } catch {
-    return updater(emptyState());
-  }
+    });
+  } catch { return updater(emptyState()); }
 }
 
 export function inspectState(event) {

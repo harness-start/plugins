@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { STAGE_FILES } from "./artifacts.mjs";
@@ -49,18 +49,37 @@ export function parseReviewResult(text) {
 }
 
 export function reviewFingerprint(workflowPath, stage) {
+  return reviewEvidenceSnapshot(workflowPath, stage)?.fingerprint ?? null;
+}
+
+export function reviewEvidenceSnapshot(workflowPath, stage, maxBytes = 48 * 1024) {
   const spec = REVIEW_STAGES[stage];
   if (!spec || !workflowPath) return null;
-  const hash = createHash("sha256");
-  for (const prior of spec.priors) {
-    const path = join(dirname(workflowPath), STAGE_FILES[prior]);
-    if (!existsSync(path)) return null;
-    hash.update(STAGE_FILES[prior]);
-    hash.update("\0");
-    hash.update(readFileSync(path));
-    hash.update("\n");
-  }
-  return hash.digest("hex");
+  const fingerprint = createHash("sha256");
+  const files = [];
+  let total = 0;
+  try {
+    for (const prior of spec.priors) {
+      const name = STAGE_FILES[prior];
+      const path = join(dirname(workflowPath), name);
+      const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+      try {
+        const stat = fstatSync(fd);
+        if (!stat.isFile() || stat.nlink !== 1 || stat.size > maxBytes || total + stat.size > maxBytes) return null;
+        const bytes = readFileSync(fd);
+        if (bytes.length !== stat.size) return null;
+        const content = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+        total += bytes.length;
+        fingerprint.update(name).update("\0").update(bytes).update("\n");
+        files.push({ path, sha256: createHash("sha256").update(bytes).digest("hex"), content });
+      } finally { closeSync(fd); }
+    }
+    return {
+      fingerprint: fingerprint.digest("hex"),
+      paths: files.map((file) => file.path),
+      bundle: JSON.stringify({ schema: "reasoning-review-evidence/v1", files }),
+    };
+  } catch { return null; }
 }
 
 export function reviewEvidencePaths(workflowPath, stage) {
@@ -79,6 +98,9 @@ export function reserveReview(state, { stage, fingerprint, toolUseId }) {
   if (!REVIEW_STAGES[stage]) return { kind: "rejected", reason: "unknown independent review stage" };
   if (!fingerprint) return { kind: "rejected", reason: "review fingerprint is unavailable; finish prior stages first" };
   const current = slot(state, stage);
+  if (current.reservation && ["reserved", "bound"].includes(current.reservation.state)) {
+    return { kind: "rejected", reason: `${stage} review is already reserved or bound` };
+  }
   if (current.approval?.decision === "approve" && current.approval.fingerprint === fingerprint) {
     return { kind: "rejected", reason: `current ${stage} approval already matches the frozen artifacts; reuse it instead of dispatching another reviewer` };
   }
@@ -100,6 +122,9 @@ export function bindReviewer(state, { stage, agentId }) {
     return { kind: "rejected", reason: "no reserved independent review exists" };
   }
   if (!agentId) return { kind: "rejected", reason: "reviewer agent_id is missing" };
+  if (reservation.state === "bound" && reservation.agentId !== agentId) {
+    return { kind: "rejected", reason: "review reservation is already bound to a different agent" };
+  }
   if (stage === "cross-check") {
     const challengeAgent = state.reviews?.challenge?.approval?.agentId;
     if (challengeAgent && challengeAgent === agentId) {

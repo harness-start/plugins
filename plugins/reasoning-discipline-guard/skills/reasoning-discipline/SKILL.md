@@ -24,9 +24,9 @@ When signals overlap, use that priority: concrete causal diagnosis, then exact c
 3. After the hook reports `Bound <id>`, create exactly one stage file per file-mutation tool call, in this order:
    - `01-frame.md`
    - `02-analysis.md`
-   - After `RD-R2`, dispatch a read-only subagent whose prompt contains only `RD_REVIEW_REQUEST challenge`. Do not write `03-challenge.md` until that reviewer returns an approval bound to the current frame and analysis. Do not give the reviewer your planned attacks or conclusion.
+   - After `RD-R2`, dispatch a read-only subagent whose prompt contains only `RD_REVIEW_REQUEST challenge`. On Codex, use a task name beginning with `rd_challenge_`. Do not write `03-challenge.md` until that reviewer returns an approval bound to the current frame and analysis. Do not give the reviewer your planned attacks or conclusion.
    - `03-challenge.md`
-   - After `RD-R3`, dispatch a *different* read-only subagent whose prompt contains only `RD_REVIEW_REQUEST cross-check`. Do not write `04-cross-check.md` until that approval is recorded.
+   - After `RD-R3`, dispatch a *different* read-only subagent whose prompt contains only `RD_REVIEW_REQUEST cross-check`. On Codex, use a task name beginning with `rd_cross_check_`. Do not write `04-cross-check.md` until that approval is recorded.
    - `04-cross-check.md`
    - `05-conclusion.md`
 4. Wait for each hook-issued receipt. Put it unchanged in the next stage's `previousReceipt`. Never predict or invent a receipt.

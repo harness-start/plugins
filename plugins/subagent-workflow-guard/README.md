@@ -44,7 +44,7 @@ reviewer 和 researcher 没有文件修改或 shell 权限。implementer 的 she
 
 Claude Code 的 `Agent` 工具会打出完整 dispatch/start/stop Hook 链，才能在启动前拦住。Claude Code 2.1.170 会产生必需的 `PreToolUse -> SubagentStart -> SubagentStop` 链，live acceptance 已证明拒绝发生在启动前。
 
-在已测试的 Codex 0.146 中，namespaced `collaboration.spawn_agent` API 不发出 dispatch `PreToolUse`，但会发出 `SubagentStart` 和 `SubagentStop`。因此插件无法在启动前阻止未注册 worker；`SubagentStart` 只能把缺少 reservation 的 worker 记录为 orphan 并注入恢复指令。修改 manifest matcher 不能创造缺失的 pre-dispatch 事件。Codex 仍不能在缺少 sealed review graph 时通过 workflow CLI 关闭为 `DONE`，但这不是 dispatch sandbox。Codex manifest 与 `SessionStart` 上下文都不能作为 pre-dispatch enforcement 证据。
+在已测试的 Codex 0.147 中，namespaced `collaboration.spawn_agent` API 不发出 dispatch `PreToolUse`，但会发出 `SubagentStart` 和 `SubagentStop`。因此插件仍无法在启动前阻止未注册 worker；不过 `SubagentStart.transcript_path` 指向的子会话首条 `session_meta` 提供完整 `agent_path`。插件只在 transcript 位于本机 `CODEX_HOME/sessions`、身份字段一致、路径无链接且 application ID 与规范化 task name 完全相等时绑定；否则记录为 orphan，且不会消耗 application。Codex 仍不能在缺少 sealed review graph 时通过 workflow CLI 关闭为 `DONE`，但这不是 pre-dispatch sandbox。
 
 ## 状态、回执与关联
 
@@ -62,7 +62,7 @@ prepared -> reserved -> bound -> delivered
               +-> prepared  # SubagentStart 前 dispatch 失败
 ```
 
-reservation 使用 application ID、随机 nonce、active run、session/workspace 状态、依赖，以及可用时的 `tool_use_id`。`SubagentStart` 通过 agent prompt 中重复的 marker 与真实 `agent_id` 绑定，不假设宿主在跨事件时重复 `tool_use_id`。
+reservation 使用 application ID、随机 nonce、active run、session/workspace 状态、依赖，以及可用时的 `tool_use_id`。Claude 的 `SubagentStart` 通过 agent prompt 中重复的 marker 与真实 `agent_id` 绑定；Codex 0.147 则要求 dispatch 的 `task_name` 与 application ID 使用同一个规范化小写字母、数字、下划线标识，并通过子会话 `session_meta.agent_path` 精确关联。
 
 ## Role 与 Review Graph
 

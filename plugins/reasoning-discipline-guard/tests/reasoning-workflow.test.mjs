@@ -741,6 +741,46 @@ test("challenge stage is unsigned until an independent reviewer approval is boun
   assert.match(rebound.stdout, /different agent/u, `${reused.stdout}\n${rebound.stdout}`);
 });
 
+test("review-start directly reserves a request and embeds prior stages when dispatch PreToolUse is unavailable", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "reasoning-direct-review-data-"));
+  const dir = workflowDir(root);
+  const session = "direct-review-session";
+  const codexHome = mkdtempSync(join(tmpdir(), "reasoning-direct-codex-home-"));
+  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
+  mkdirSync(join(codexHome, "sessions"), { recursive: true });
+  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
+  writeArtifact(join(dir, "workflow.md"), manifest());
+  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "workflow.md") } }, env);
+  for (const [name, value] of [["01-frame.md", stages().frame], ["02-analysis.md", stages().analysis]]) {
+    const path = join(dir, name);
+    writeArtifact(path, value);
+    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
+  }
+
+  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "direct-challenge-reviewer", parent_thread_id: session, cwd: root,
+    thread_source: "subagent", agent_path: "/root/rd_challenge_case",
+    source: { subagent: { thread_spawn: { parent_thread_id: session, depth: 1, agent_path: "/root/rd_challenge_case" } } },
+  } })}\n`);
+  const started = await runHook("review-start", {
+    cwd: root,
+    session_id: session,
+    agent_id: "direct-challenge-reviewer",
+    hook_event_name: "SubagentStart",
+    transcript_path: transcriptPath,
+  }, env);
+  const context = parseOutput(started.stdout)?.hookSpecificOutput?.additionalContext ?? "";
+  assert.match(context, /reviewNonce=[a-f0-9]+/u);
+  assert.match(context, /evidenceBundle=/u);
+  assert.match(context, /reasoning-stage\/v1/u);
+  const replay = await runHook("review-start", {
+    cwd: root, session_id: session, agent_id: "second-reviewer", hook_event_name: "SubagentStart",
+    agent_prompt: "RD_REVIEW_REQUEST challenge",
+  }, env);
+  assert.doesNotMatch(parseOutput(replay.stdout)?.hookSpecificOutput?.additionalContext ?? "", /reviewNonce=/u);
+});
+
 test("independent review rejects a forged nonce, a write from the reviewer, and a stale approval", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "reasoning-review-adversarial-data-"));

@@ -26,6 +26,9 @@ export function ledgerFingerprint(raw) {
 
 export function reserveReview(state, fingerprint) {
   if (!fingerprint) return { kind: "rejected", reason: "ledger fingerprint is unavailable" };
+  if (state.reviewReservation && ["reserved", "bound"].includes(state.reviewReservation.state)) {
+    return { kind: "rejected", reason: "challenger review is already reserved or bound" };
+  }
   if (state.review?.decision === "approve" && state.review.fingerprint === fingerprint) {
     return { kind: "rejected", reason: "current challenger approval already matches the ledger; reuse it" };
   }
@@ -45,6 +48,9 @@ export function bindReviewer(state, agentId) {
     return { kind: "rejected", reason: "no reserved independent review exists" };
   }
   if (!agentId) return { kind: "rejected", reason: "reviewer agent_id is missing" };
+  if (reservation.state === "bound" && reservation.agentId !== agentId) {
+    return { kind: "rejected", reason: "review reservation is already bound to a different agent" };
+  }
   reservation.state = "bound";
   reservation.agentId = agentId;
   return { kind: "bound-reviewer", reservation };

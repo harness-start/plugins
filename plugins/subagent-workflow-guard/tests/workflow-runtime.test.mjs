@@ -3,7 +3,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
@@ -40,6 +40,36 @@ function fixture() {
       AI_EXPERTS_SESSION_ID: "session-1",
       AI_EXPERTS_TRIGGER_FROM: "test",
     },
+  };
+}
+
+function codexStartEvent(fx, { agentId, taskName, sessionId = "session-1" }) {
+  fx.env.CODEX_HOME ??= mkdtempSync(join(tmpdir(), "swg-codex-home-"));
+  const transcriptPath = join(fx.env.CODEX_HOME, "sessions", `${agentId}.jsonl`);
+  mkdirSync(dirname(transcriptPath), { recursive: true });
+  writeFileSync(transcriptPath, `${JSON.stringify({
+    type: "session_meta",
+    payload: {
+      id: agentId,
+      session_id: sessionId,
+      parent_thread_id: sessionId,
+      cwd: fx.root,
+      thread_source: "subagent",
+      agent_path: `/root/${taskName}`,
+      source: { subagent: { thread_spawn: {
+        parent_thread_id: sessionId,
+        depth: 1,
+        agent_path: `/root/${taskName}`,
+      } } },
+    },
+  })}\n`);
+  return {
+    hook_event_name: "SubagentStart",
+    session_id: sessionId,
+    cwd: fx.root,
+    agent_id: agentId,
+    agent_type: "default",
+    transcript_path: transcriptPath,
   };
 }
 
@@ -128,6 +158,77 @@ test("run-open activates a governed run for the current session", async () => {
   assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /application/i);
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /\[subagent-workflow-guard\] DENY run=run-1 tool=tool-1 reason=missing-application/u);
+});
+
+test("Codex SubagentStart binds an exact application-id and transcript task match when dispatch metadata is unavailable", async () => {
+  const fx = fixture();
+  await openRun(fx);
+  await prepareApplication(fx, {
+    id: "codex_direct_start",
+    runId: "run-1",
+    role: "implementer",
+    objective: "Review the supplied evidence",
+    acceptance: ["return a result card"],
+    writeScope: ["src/**"],
+  });
+
+  const started = await run(HOOK, ["start", "codex"], JSON.stringify(codexStartEvent(fx, {
+    agentId: "direct-agent",
+    taskName: "codex_direct_start",
+  })), fx.env);
+  assert.match(JSON.parse(started.stdout).hookSpecificOutput.additionalContext, /Role: implementer/u);
+
+  const replayed = await run(HOOK, ["start", "codex"], JSON.stringify(codexStartEvent(fx, {
+    agentId: "replay-agent",
+    taskName: "codex_direct_start",
+  })), fx.env);
+  assert.match(JSON.parse(replayed.stdout).hookSpecificOutput.additionalContext, /orphan-spawn/u);
+});
+
+test("Codex SubagentStart rejects a transcript task mismatch without consuming the prepared application", async () => {
+  const fx = fixture();
+  await openRun(fx);
+  await prepareApplication(fx, {
+    id: "intended_worker",
+    runId: "run-1",
+    role: "implementer",
+    objective: "Implement intended worker",
+    acceptance: ["return a result card"],
+    writeScope: ["src/**"],
+  });
+
+  const started = await run(HOOK, ["start", "codex"], JSON.stringify(codexStartEvent(fx, {
+    agentId: "unrelated-agent",
+    taskName: "unrelated_worker",
+  })), fx.env);
+  assert.match(JSON.parse(started.stdout).hookSpecificOutput.additionalContext, /orphan-spawn/u);
+
+  const intended = await run(HOOK, ["start", "codex"], JSON.stringify(codexStartEvent(fx, {
+    agentId: "intended-agent",
+    taskName: "intended_worker",
+  })), fx.env);
+  assert.match(JSON.parse(intended.stdout).hookSpecificOutput.additionalContext, /Role: implementer/u);
+});
+
+test("concurrent Codex SubagentStart calls bind a prepared application at most once", async () => {
+  const fx = fixture();
+  await openRun(fx);
+  await prepareApplication(fx, {
+    id: "single_consumer",
+    runId: "run-1",
+    role: "implementer",
+    objective: "Bind once",
+    acceptance: ["return a result card"],
+    writeScope: ["src/**"],
+  });
+  const event = codexStartEvent(fx, { agentId: "same-agent", taskName: "single_consumer" });
+  const results = await Promise.all([
+    run(HOOK, ["start", "codex"], JSON.stringify(event), fx.env),
+    run(HOOK, ["start", "codex"], JSON.stringify(event), fx.env),
+  ]);
+  const contexts = results.map((result) => JSON.parse(result.stdout).hookSpecificOutput.additionalContext);
+  assert.equal(contexts.filter((value) => /Role: implementer/u.test(value)).length, 1);
+  assert.equal(contexts.filter((value) => /orphan-spawn/u.test(value)).length, 1);
 });
 
 test("an application receipt is single-use and binds the Result Card lifecycle", async () => {
