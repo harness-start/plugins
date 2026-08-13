@@ -172,6 +172,7 @@ async function runStart(event) {
     };
   });
   if (!bound) {
+    if (!batchId) return;
     writeJson(contextOutput("SubagentStart", [
       "[Project Capability Recorder] This subagent is not authorized as the recorder for the current prompt epoch.",
       "Do not use tools, write proposal files, or dispatch another agent. Return to the parent without changes.",

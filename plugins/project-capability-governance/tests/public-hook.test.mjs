@@ -487,3 +487,27 @@ test("PreToolUse denies non-canonical descendants and mixed writes under the inb
     rmSync(data, { recursive: true, force: true });
   }
 });
+
+test("unbound ordinary SubagentStart does not tell the child to abandon tools", async () => {
+  const root = mkdtempSync(join(tmpdir(), "project-capability-ordinary-"));
+  const data = mkdtempSync(join(tmpdir(), "project-capability-data-"));
+  try {
+    await runHook("prompt", {
+      cwd: root,
+      session_id: "ordinary-session",
+      prompt: "Implement the feature",
+    }, { PLUGIN_DATA: data });
+    const started = await runHook("start", {
+      cwd: root,
+      session_id: "ordinary-session",
+      agent_id: "explore-1",
+      agent_prompt: "Explore the repository and report findings.",
+    }, { PLUGIN_DATA: data });
+    const context = output(started)?.hookSpecificOutput?.additionalContext ?? "";
+    assert.doesNotMatch(context, /Do not use tools/u);
+    assert.doesNotMatch(context, /not authorized as the recorder/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});

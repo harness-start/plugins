@@ -1,0 +1,1 @@
+Dispatch one ordinary explore or research subagent to list files in this workspace. Do not mention PROJECT_CAPABILITY_RECORDER. After it returns, write `notes.txt` with a one-line summary of what it saw.
