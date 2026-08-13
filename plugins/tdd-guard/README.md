@@ -1,25 +1,83 @@
 # TDD Guard
 
-`tdd-guard` 是一个纯 Hook 文件顺序守卫。它阻止 agent 在当前会话尚未先创建或修改关联测试用例时写入实现文件。
+`tdd-guard` 是一个纯 Hook 文件顺序守卫。它要求 agent 在当前 workspace 和 session 中先创建或修改关联测试，再写实现文件。
 
-第一版不运行测试，也不判断测试是否 RED 或 GREEN。它只建立一条可机械复验的因果链：测试文件字节先变化，测试内容包含可识别的测试声明并引用目标实现，然后实现文件才允许写入。
+插件暂不运行测试，也不判断命令是否经历 RED 或 GREEN。它检查的是文件状态和关联关系：测试文件字节先变化，文件中有可识别的测试声明，然后测试必须通过语言实体绑定或完整目录镜像指向实现文件。
 
 ## 工作流程
 
-以 PHP 新增 `OrderService` 为例：
+以 PHP 新增异常类为例，测试文件可以显式声明覆盖目标：
 
-```text
-Write tests/Unit/OrderServiceTest.php
-  -> PostToolUse 验证测试方法、OrderService 引用和新文件摘要
-  -> 插件数据目录记录当前 session 的 test-first evidence
-Write src/Service/OrderService.php
-  -> PreToolUse 匹配 OrderServiceTest.php <-> OrderService.php
-  -> 允许写入
+```php
+<?php
+
+namespace Acme\Tests\Exception;
+
+use Acme\Exception\InvalidArgumentException;
+use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\TestCase;
+
+#[CoversClass(InvalidArgumentException::class)]
+final class InvalidArgumentExceptionTest extends TestCase
+{
+    public function testKeepsMessage(): void
+    {
+        self::assertSame('bad input', (new InvalidArgumentException('bad input'))->getMessage());
+    }
+}
 ```
 
-如果 agent 先写 `src/Service/OrderService.php`，`PreToolUse` 会在文件产生副作用前拒绝，并给出预期测试文件，例如 `tests/**/OrderServiceTest.php`。
+Hook 的处理顺序是：
 
-同一个工具调用不能同时修改测试和实现。agent 必须先单独写测试，让 `PostToolUse` 观察到最终字节，再发起实现写入。
+```text
+Write tests/Exception/InvalidArgumentExceptionTest.php
+  -> PostToolUse 确认字节变化和 testKeepsMessage
+  -> 解析 CoversClass + use，记录 php:Acme\Exception\InvalidArgumentException
+
+Write src/Exception/InvalidArgumentException.php
+  -> PreToolUse 从 namespace + class 得到同一个 FQCN
+  -> 实体键精确相等，允许写入
+```
+
+如果第二次写入的是 `Acme\Transport\InvalidArgumentException`，即使类名仍是 `InvalidArgumentException`，也会被拒绝。插件不再使用 basename 或全局 simple name 解锁实现。
+
+同一个工具调用不能同时修改测试和实现。agent 必须先单独写测试，让 `PostToolUse` 观察最终字节，再发起实现写入。
+
+## 两级匹配
+
+### 1. 语言实体绑定
+
+这是优先级最高的匹配方式。
+
+| 语言 | 测试侧证据 | 实现侧身份 | 同名消歧边界 |
+| --- | --- | --- | --- |
+| PHP | `#[CoversClass(Foo::class)]`、`@covers`，解析 `use` 和 alias | `namespace` + class/interface/trait/enum/function | FQCN |
+| Python | 被测试体实际使用的绝对 `from ... import ...` 或 `import ...` | source root 后的 module path + class/function | module + symbol |
+| JavaScript | 被测试体使用的相对 `import` / `require` | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
+| TypeScript | 被测试体使用的相对 `import` / `require`，含 named/type alias | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
+| Rust | 外部测试中的 `use crate_name::module::Item`，支持一层 grouped use 和 alias | 同一 crate scope 下的 `src` module + item | crate scope + module + item |
+| Go | 同 package 测试引用的声明 symbol，或外部测试的 import alias + qualified symbol | directory/package + func/type | package directory + symbol |
+
+无法解析的 Python 相对 import、JS/TS path alias、Rust 宏生成 item 等不会退化为 simple-name 匹配。它们只有命中下面的完整目录镜像时才会放行，否则保持阻断。
+
+### 2. 完整目录镜像 fallback
+
+没有显式实体证据时，测试路径必须与实现路径一一对应。匹配会：
+
+- 在同一 monorepo package scope 内映射 `test/tests/spec/specs` 到 `src/app/lib`；
+- 只剥离测试根后的 `Unit`、`Integration`、`Acceptance`、`Functional`、`Feature` suite 层；
+- 剥离语言测试后缀，例如 PHP 的 `Test`、Python/Go 的 `_test`、JS/TS 的 `.test` / `.spec`；
+- 保留其余完整相对目录，不能只靠文件名相同。
+
+例如：
+
+```text
+tests/Acceptance/Exception/InvalidArgumentTest.php
+  -> src/Exception/InvalidArgument.php       允许
+  -> src/Domain/InvalidArgument.php          拒绝
+```
+
+JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/feature/parser.ts`。Go fallback 要求测试与实现位于同一目录。
 
 ## 生效条件
 
@@ -28,11 +86,11 @@ Write src/Service/OrderService.php
 - 在当前 workspace 和 session 中真实创建或发生字节变化；
 - 命中语言的固定测试路径或文件名；
 - 包含实际测试函数或测试调用，只有空文件、测试类或 `describe()` 不够；
-- 通过文件名、import/module 路径或声明符号关联目标实现。
+- 命中语言实体绑定或完整目录镜像之一。
 
-已存在但当前 session 未修改的测试不能解锁实现。测试记录只保存摘要、相对路径、测试名称和引用标识符，不保存测试源码。
+测试记录只保存摘要、相对路径、测试名称、语言实体键和必要的标识符，不保存测试源码。修改测试文件后，记录的 SHA 与当前文件不一致时，旧证据立即失效。
 
-## 语言规则
+## 语言文件 pattern
 
 | 语言 | 测试文件 | 实现文件 | 测试声明 |
 | --- | --- | --- | --- |
@@ -47,9 +105,9 @@ Write src/Service/OrderService.php
 
 ## 效果边界
 
-插件能够证明测试文件状态先于关联实现文件状态，并阻断普通文件工具、补丁和常见重定向 Shell 写入的跳步。
+插件能证明测试文件状态先于一个明确关联的实现文件状态，并阻断普通文件工具、补丁和常见重定向 Shell 的 source-first 跳步。
 
-它不证明测试断言正确、覆盖率充分或测试运行成功。Rust 第一版支持独立 `tests/*.rs`；同文件 `#[cfg(test)]` 区域尚不作为解锁证据，因为一个文件工具事件不能证明测试区先于生产区落盘。
+它不证明测试断言正确、覆盖率充分或测试运行成功。两个文件如果声明完全相同的 FQCN 或 package symbol，语言本身已处于重复声明状态；插件按实体处理，不替代 autoload、编译器或静态分析。Rust 第一版仍只支持独立 `tests/*.rs`，同文件 `#[cfg(test)]` 区域不能建立跨工具调用的文件顺序。
 
 ## 验证
 

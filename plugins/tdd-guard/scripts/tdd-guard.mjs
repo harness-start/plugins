@@ -81,7 +81,7 @@ async function runPost(event, platform) {
     const afterHash = hashPath(absolutePath);
     state.tests = (state.tests ?? []).filter((record) => record.path !== target.path);
     if (afterHash === "missing" || afterHash === target.beforeHash) continue;
-    const evidence = extractTestEvidence(target.language, readText(absolutePath));
+    const evidence = extractTestEvidence(target.language, readText(absolutePath), target.path);
     if (!evidence.valid) continue;
     state.sequence = (state.sequence ?? 0) + 1;
     state.tests.push({ path: target.path, language: target.language, hash: afterHash, sequence: state.sequence, evidence });

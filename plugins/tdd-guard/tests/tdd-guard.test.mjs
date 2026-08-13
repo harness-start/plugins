@@ -11,6 +11,7 @@ import {
   extractTestEvidence,
   sourceAuthorizedByTest,
 } from "../scripts/lib/patterns.mjs";
+import { proposedContent } from "../scripts/lib/hook-io.mjs";
 
 const ENTRY = fileURLToPath(new URL("../scripts/tdd-guard.mjs", import.meta.url));
 
@@ -106,28 +107,159 @@ test("commented-out declarations do not count as test-first evidence", () => {
   }
 });
 
-test("authorizes only conventionally or symbol-related implementation files", () => {
+test("PHP CoversClass binds the exact FQCN and rejects a same-named class", () => {
+  const testPath = "tests/Unit/Billing/OrderServiceTest.php";
   const testRecord = {
-    path: "tests/Unit/OrderServiceTest.php",
+    path: testPath,
     language: "php",
     evidence: extractTestEvidence("php", [
       "<?php",
+      "namespace Tests\\Unit\\Billing;",
+      "use PHPUnit\\Framework\\Attributes\\CoversClass;",
       "use App\\Service\\OrderService;",
+      "#[CoversClass(OrderService::class)]",
       "final class OrderServiceTest extends TestCase {",
-      "    public function test_creates_an_order(): void {}",
+      "    public function test_creates_an_order(): void { new OrderService(); }",
       "}",
-    ].join("\n")),
+    ].join("\n"), testPath),
   };
   assert.equal(sourceAuthorizedByTest({
     path: "src/Service/OrderService.php",
     language: "php",
-    content: "<?php\nfinal class OrderService {}\n",
+    content: "<?php\nnamespace App\\Service;\nfinal class OrderService {}\n",
   }, testRecord), true);
   assert.equal(sourceAuthorizedByTest({
-    path: "src/Service/InvoiceService.php",
+    path: "src/Shipping/OrderService.php",
     language: "php",
-    content: "<?php\nfinal class InvoiceService {}\n",
+    content: "<?php\nnamespace App\\Shipping;\nfinal class OrderService {}\n",
   }, testRecord), false);
+});
+
+test("language-specific identities reject same-named entities in another module or package", () => {
+  const cases = [
+    {
+      language: "python",
+      testPath: "tests/unit/test_order_service.py",
+      testContent: "from app.billing.order_service import OrderService\ndef test_create():\n    OrderService()\n",
+      sourcePath: "src/app/billing/order_service.py",
+      sourceContent: "class OrderService:\n    pass\n",
+      wrongPath: "src/app/shipping/order_service.py",
+    },
+    {
+      language: "javascript",
+      testPath: "tests/billing/order-service.test.js",
+      testContent: "import { OrderService } from '../../src/billing/order-service.js';\ntest('creates', () => new OrderService());\n",
+      sourcePath: "src/billing/order-service.js",
+      sourceContent: "export class OrderService {}\n",
+      wrongPath: "src/shipping/order-service.js",
+    },
+    {
+      language: "typescript",
+      testPath: "tests/billing/order-service.test.ts",
+      testContent: "import { OrderService } from '../../src/billing/order-service';\nit('creates', () => new OrderService());\n",
+      sourcePath: "src/billing/order-service.ts",
+      sourceContent: "export class OrderService {}\n",
+      wrongPath: "src/shipping/order-service.ts",
+    },
+    {
+      language: "rust",
+      testPath: "crates/shop/tests/order_service.rs",
+      testContent: "use shop::billing::{OrderService, Price};\n#[test]\nfn creates() { OrderService::new(); }\n",
+      sourcePath: "crates/shop/src/billing.rs",
+      sourceContent: "pub struct OrderService;\n",
+      wrongPath: "crates/shop/src/shipping.rs",
+    },
+    {
+      language: "go",
+      testPath: "billing/order_service_test.go",
+      testContent: "package billing\nfunc TestCreate(t *testing.T) { _ = NewOrderService() }\n",
+      sourcePath: "billing/order_service.go",
+      sourceContent: "package billing\nfunc NewOrderService() *OrderService { return &OrderService{} }\ntype OrderService struct{}\n",
+      wrongPath: "shipping/order_service.go",
+    },
+  ];
+
+  for (const sample of cases) {
+    const record = {
+      path: sample.testPath,
+      language: sample.language,
+      evidence: extractTestEvidence(sample.language, sample.testContent, sample.testPath),
+    };
+    assert.equal(sourceAuthorizedByTest({
+      path: sample.sourcePath,
+      language: sample.language,
+      content: sample.sourceContent,
+    }, record), true, `${sample.language} expected target`);
+    assert.equal(sourceAuthorizedByTest({
+      path: sample.wrongPath,
+      language: sample.language,
+      content: sample.sourceContent,
+    }, record), false, `${sample.language} same-name collision`);
+  }
+});
+
+test("import aliases preserve the target identity instead of the local simple name", () => {
+  const cases = [
+    [
+      "php",
+      "tests/Service/CheckoutTest.php",
+      "<?php\nuse App\\Billing\\OrderService as BillingOrder;\n#[CoversClass(BillingOrder::class)]\nfunction test_checkout(): void { new BillingOrder(); }",
+      "src/Billing/OrderService.php",
+      "<?php namespace App\\Billing; class OrderService {}",
+    ],
+    [
+      "python",
+      "tests/test_checkout.py",
+      "from app.billing.order_service import OrderService as BillingOrder\ndef test_checkout():\n    BillingOrder()\n",
+      "src/app/billing/order_service.py",
+      "class OrderService:\n    pass",
+    ],
+    [
+      "javascript",
+      "tests/checkout.test.js",
+      "import { OrderService as BillingOrder } from '../src/billing/order-service.js';\ntest('checkout', () => new BillingOrder());",
+      "src/billing/order-service.js",
+      "export class OrderService {}",
+    ],
+    [
+      "typescript",
+      "tests/checkout.test.ts",
+      "import { OrderService as BillingOrder } from '../src/billing/order-service';\nit('checkout', () => new BillingOrder());",
+      "src/billing/order-service.ts",
+      "export class OrderService {}",
+    ],
+    [
+      "go",
+      "billing/order_service_test.go",
+      "package billing_test\nimport billingapi \"example.com/shop/billing\"\nfunc TestCheckout(t *testing.T) { _ = billingapi.NewOrderService() }",
+      "billing/order_service.go",
+      "package billing\nfunc NewOrderService() {}",
+    ],
+  ];
+  for (const [language, testPath, testContent, sourcePath, sourceContent] of cases) {
+    const record = { path: testPath, language, evidence: extractTestEvidence(language, testContent, testPath) };
+    assert.equal(sourceAuthorizedByTest({ path: sourcePath, language, content: sourceContent }, record), true, language);
+  }
+});
+
+test("directory mirror fallback requires the complete relative path in every language", () => {
+  const cases = [
+    ["php", "tests/Acceptance/Exception/InvalidArgumentTest.php", "<?php function test_message(): void {}\n", "src/Exception/InvalidArgument.php", "src/Domain/InvalidArgument.php", "<?php class InvalidArgument {}\n"],
+    ["python", "tests/unit/billing/test_order_service.py", "def test_create():\n    assert True\n", "src/billing/order_service.py", "src/shipping/order_service.py", "class OrderService:\n    pass\n"],
+    ["javascript", "src/billing/__tests__/order-service.test.js", "test('creates', () => true);\n", "src/billing/order-service.js", "src/shipping/order-service.js", "export class OrderService {}\n"],
+    ["typescript", "tests/Feature/billing/order-service.test.ts", "it('creates', () => true);\n", "src/billing/order-service.ts", "src/shipping/order-service.ts", "export class OrderService {}\n"],
+    ["rust", "crates/shop/tests/Integration/billing.rs", "#[test]\nfn creates() {}\n", "crates/shop/src/billing.rs", "crates/shop/src/shipping.rs", "pub struct OrderService;\n"],
+    ["go", "billing/order_service_test.go", "package billing\nfunc TestCreate(t *testing.T) {}\n", "billing/order_service.go", "shipping/order_service.go", "package billing\ntype OrderService struct{}\n"],
+  ];
+  for (const [language, testPath, testContent, sourcePath, wrongPath, sourceContent] of cases) {
+    const record = {
+      path: testPath,
+      language,
+      evidence: extractTestEvidence(language, testContent, testPath),
+    };
+    assert.equal(sourceAuthorizedByTest({ path: sourcePath, language, content: sourceContent }, record), true, `${language} mirrored path`);
+    assert.equal(sourceAuthorizedByTest({ path: wrongPath, language, content: sourceContent }, record), false, `${language} wrong directory`);
+  }
 });
 
 test("recognizes concrete test declarations for every supported language", () => {
@@ -207,7 +339,10 @@ test("public hook records a test-first write and then allows related implementat
     mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
     const testContent = [
       "<?php",
+      "namespace Tests\\Unit;",
+      "use PHPUnit\\Framework\\Attributes\\CoversClass;",
       "use App\\Service\\OrderService;",
+      "#[CoversClass(OrderService::class)]",
       "final class OrderServiceTest extends TestCase {",
       "    public function test_creates_an_order(): void {",
       "        $service = new OrderService();",
@@ -248,7 +383,7 @@ test("public hook records a test-first write and then allows related implementat
     const sourceWrite = writeEvent(
       fx.root,
       "src/Service/OrderService.php",
-      "<?php\nfinal class OrderService {}\n",
+      "<?php\nnamespace App\\Service;\nfinal class OrderService {}\n",
       "source-1",
     );
     const allowed = await runHook("pre", sourceWrite, {
@@ -322,6 +457,41 @@ test("Codex apply_patch command payload cannot bypass source-first denial", asyn
   }
 });
 
+test("Codex apply_patch exposes added source declarations to entity matching", () => {
+  const root = "/workspace";
+  const content = proposedContent({
+    cwd: root,
+    tool_name: "apply_patch",
+    tool_input: {
+      command: [
+        "*** Begin Patch",
+        "*** Add File: src/Service/OrderService.php",
+        "+<?php",
+        "+namespace App\\Service;",
+        "+final class OrderService {}",
+        "*** End Patch",
+      ].join("\n"),
+    },
+  }, `${root}/src/Service/OrderService.php`, "");
+  assert.match(content, /namespace App\\Service;/u);
+  assert.match(content, /class OrderService/u);
+
+  const followedByDocumentation = proposedContent({
+    cwd: root,
+    tool_name: "apply_patch",
+    tool_input: {
+      command: [
+        "*** Begin Patch",
+        "*** Add File: src/Service/OrderService.php",
+        "+<?php namespace App\\Service; class OrderService {}",
+        "*** Delete File: stale.txt",
+        "*** End Patch",
+      ].join("\n"),
+    },
+  }, `${root}/src/Service/OrderService.php`, "");
+  assert.match(followedByDocumentation, /class OrderService/u);
+});
+
 test("common shell redirection cannot create implementation before a test", async () => {
   const fx = fixture("tdd-guard-shell-");
   try {
@@ -369,6 +539,7 @@ test("state stores hashes instead of raw test source", async () => {
     }
     assert.equal(stateFiles.length, 1);
     const stored = readFileSync(stateFiles[0], "utf8");
+    assert.equal(JSON.parse(stored).version, 2);
     assert.doesNotMatch(stored, /def test_total/u);
     assert.match(stored, /[a-f0-9]{64}/u);
   } finally {
