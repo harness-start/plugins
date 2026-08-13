@@ -159,6 +159,9 @@ export function extractFilePaths(event) {
   )) {
     paths.push(stripMatchingQuotes(match[1]));
   }
+  for (const match of command.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) {
+    paths.push(stripMatchingQuotes(match[1]));
+  }
 
   return [
     ...new Set(

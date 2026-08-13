@@ -114,6 +114,14 @@ test("extractFilePaths normalizes direct, patch, and quoted redirect targets", (
     "/repo/src/patched.ts",
     "/repo/src/generated.ts",
   ]);
+  const interpreter = extractFilePaths({
+    cwd: "/repo",
+    tool_name: "Bash",
+    tool_input: {
+      command: "python3 -c \"open('src/app.js','w').write('x')\"",
+    },
+  });
+  assert.ok(interpreter.includes("/repo/src/app.js"));
 });
 
 function runEntry(input) {
