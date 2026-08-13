@@ -15,11 +15,16 @@ const SAMPLES = {
   thai: "กขคฆงจฉชซฌญฎ",
 };
 
+const SIMPLIFIED_HAN = SAMPLES.han;
+const TRADITIONAL_HAN = "這是十二個以上的中文漢字內容用於檢測";
+const JAPANESE_PROSE = "設定を保存してからテストを実行してください。";
+const SHARED_HAN = "一二三四五六七八九十是的人不大小上下";
+
 const EXPECTED_DRIFT = {
   "zh-CN": ["hangul", "kana", "thai"],
-  "zh-TW": ["hangul", "kana", "thai"],
+  "zh-TW": ["han", "hangul", "kana", "thai"],
   "en-US": ["han", "hangul", "kana", "thai"],
-  "ja-JP": ["hangul", "thai"],
+  "ja-JP": ["han", "hangul", "thai"],
   "ko-KR": ["han", "kana", "thai"],
   "th-TH": ["han", "hangul", "kana"],
 };
@@ -145,4 +150,78 @@ test("Traditional Chinese translation cues authorize without changing the profil
     preferredProfile: null,
     authorizedProfiles: ["zh-TW"],
   });
+});
+
+test("zh-CN reports Traditional Chinese Han as drift and keeps Simplified Chinese", () => {
+  const traditional = detectLanguageDrift(TRADITIONAL_HAN, { preferredProfile: "zh-CN" });
+  assert.equal(traditional[0]?.script, "han-traditional");
+  assert.ok(traditional[0].scriptCharacters >= 3);
+  assert.deepEqual(detectLanguageDrift(SIMPLIFIED_HAN, { preferredProfile: "zh-CN" }), []);
+});
+
+test("zh-TW reports Simplified Chinese Han as drift and keeps Traditional Chinese", () => {
+  const simplified = detectLanguageDrift(SIMPLIFIED_HAN, { preferredProfile: "zh-TW" });
+  assert.equal(simplified[0]?.script, "han-simplified");
+  assert.ok(simplified[0].scriptCharacters >= 3);
+  assert.deepEqual(detectLanguageDrift(TRADITIONAL_HAN, { preferredProfile: "zh-TW" }), []);
+});
+
+test("shared Han without simplified or traditional variants is not orthography drift", () => {
+  assert.deepEqual(detectLanguageDrift(SHARED_HAN, { preferredProfile: "zh-CN" }), []);
+  assert.deepEqual(detectLanguageDrift(SHARED_HAN, { preferredProfile: "zh-TW" }), []);
+});
+
+test("ja-JP reports Chinese Han without kana as drift and keeps Japanese prose", () => {
+  const chinese = detectLanguageDrift(SIMPLIFIED_HAN, { preferredProfile: "ja-JP" });
+  assert.equal(chinese[0]?.script, "han-chinese");
+  assert.deepEqual(detectLanguageDrift(JAPANESE_PROSE, { preferredProfile: "ja-JP" }), []);
+  assert.deepEqual(detectLanguageDrift(TRADITIONAL_HAN, { preferredProfile: "ja-JP" })[0]?.script, "han-chinese");
+});
+
+test("authorizing the other Chinese profile lifts Han orthography drift", () => {
+  assert.deepEqual(
+    detectLanguageDrift(TRADITIONAL_HAN, {
+      preferredProfile: "zh-CN",
+      authorizedProfiles: ["zh-TW"],
+    }),
+    [],
+  );
+  assert.deepEqual(
+    detectLanguageDrift(SIMPLIFIED_HAN, {
+      preferredProfile: "zh-TW",
+      authorizedProfiles: ["zh-CN"],
+    }),
+    [],
+  );
+});
+
+test("authorizing a Chinese profile on ja-JP allows Chinese Han without kana", () => {
+  assert.deepEqual(
+    detectLanguageDrift(SIMPLIFIED_HAN, {
+      preferredProfile: "ja-JP",
+      authorizedProfiles: ["zh-CN"],
+    }),
+    [],
+  );
+});
+
+test("Han orthography drift still ignores fenced Traditional Chinese", () => {
+  assert.deepEqual(
+    detectLanguageDrift(`\`\`\`text\n${TRADITIONAL_HAN}\n\`\`\``, { preferredProfile: "zh-CN" }),
+    [],
+  );
+});
+
+test("fewer than three distinctive variant characters is not orthography drift", () => {
+  assert.deepEqual(
+    detectLanguageDrift("這個字是的人不大小上下中文", { preferredProfile: "zh-CN" }),
+    [],
+  );
+});
+
+test("one kana character does not count as Japanese prose", () => {
+  assert.equal(
+    detectLanguageDrift(`${SIMPLIFIED_HAN}あ`, { preferredProfile: "ja-JP" })[0]?.script,
+    "han-chinese",
+  );
 });

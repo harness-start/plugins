@@ -64,6 +64,8 @@ export default {
 
 检测器会分别检查每一行和完整候选文本。profile 与显式授权形成允许的 Unicode Script 并集；其余 Han、Hangul、Kana 或 Thai 字符达到配置的最小数量和 Unicode 字母比例时才触发，Latin 不受守卫。
 
+Han 还会再做一层字形判断：`zh-CN` 会拦成段繁体专用字，`zh-TW` 会拦成段简体专用字，`ja-JP` 会拦没有假名的成段汉字（当作中文）。两边都授权时不报。一对多异体（后/发/里/台 等）不参与计分，避免误报。
+
 计数前会排除 fenced code、inline code、Markdown 引用行、URL 和链接目标。`PostToolUse` 只提取生成输入，包括命令文本及其带引号 payload、文件内容、替换字符串或 patch 新增行；`Stop` 只检查宿主提供的最终 assistant message。这是确定性的 Unicode Script 守卫，不是通用自然语言分类器。
 
 ## 从 `in-chinese` 迁移

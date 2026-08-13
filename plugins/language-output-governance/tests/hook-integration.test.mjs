@@ -182,6 +182,49 @@ test("Stop blocks drift including host retries with stop_hook_active", async () 
   assert.match(JSON.parse(retry.stdout).reason, /profile zh-CN/u);
 });
 
+test("Stop blocks Traditional Chinese on the zh-CN profile", async () => {
+  const cwd = root();
+  const data = root();
+  const env = { PLUGIN_DATA: data };
+  await runEntry("session-start", event(cwd, "trad-on-cn"), env);
+  const blocked = await runEntry("stop", event(cwd, "trad-on-cn", {
+    last_assistant_message: "這是十二個以上的中文漢字內容用於檢測",
+  }), env);
+  assert.equal(JSON.parse(blocked.stdout).decision, "block");
+  assert.match(JSON.parse(blocked.stdout).reason, /Traditional Chinese/u);
+});
+
+test("Stop blocks Simplified Chinese on the zh-TW profile", async () => {
+  const cwd = root();
+  const data = root();
+  writeFileSync(join(cwd, ".language-output-governance.mjs"), "export default { defaultProfile: 'zh-TW' };\n");
+  const env = { PLUGIN_DATA: data };
+  await runEntry("session-start", event(cwd, "simp-on-tw"), env);
+  const blocked = await runEntry("stop", event(cwd, "simp-on-tw", {
+    last_assistant_message: "这是十二个以上的中文汉字内容用于检测",
+  }), env);
+  assert.equal(JSON.parse(blocked.stdout).decision, "block");
+  assert.match(JSON.parse(blocked.stdout).reason, /Simplified Chinese/u);
+});
+
+test("Stop blocks Chinese Han without kana on the ja-JP profile", async () => {
+  const cwd = root();
+  const data = root();
+  writeFileSync(join(cwd, ".language-output-governance.mjs"), "export default { defaultProfile: 'ja-JP' };\n");
+  const env = { PLUGIN_DATA: data };
+  await runEntry("session-start", event(cwd, "zh-on-ja"), env);
+  const blocked = await runEntry("stop", event(cwd, "zh-on-ja", {
+    last_assistant_message: "这是十二个以上的中文汉字内容用于检测",
+  }), env);
+  assert.equal(JSON.parse(blocked.stdout).decision, "block");
+  assert.match(JSON.parse(blocked.stdout).reason, /Chinese Han/u);
+
+  const allowed = await runEntry("stop", event(cwd, "zh-on-ja", {
+    last_assistant_message: "設定を保存してからテストを実行してください。",
+  }), env);
+  assert.equal(allowed.stdout, "");
+});
+
 test("invalid project configuration warns and keeps the strict default", async () => {
   const cwd = root();
   const data = root();
