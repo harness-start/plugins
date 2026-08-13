@@ -73,6 +73,16 @@ test("UserPromptSubmit records a stable preferred profile shared with Stop", asy
   assert.match(JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext, /profile=ja-JP/u);
 });
 
+test("Traditional Chinese response intent updates the persisted session profile", async () => {
+  const cwd = root();
+  const data = root();
+  const env = { PLUGIN_DATA: data };
+  await runEntry("session-start", event(cwd, "traditional-intent"), env);
+  await runEntry("user-prompt", event(cwd, "traditional-intent", { prompt: "請用繁體中文回覆。" }), env);
+  const resumed = await runEntry("session-start", event(cwd, "traditional-intent", { source: "resume" }), env);
+  assert.match(JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext, /profile=zh-TW/u);
+});
+
 test("translation authorization does not change the preferred profile", async () => {
   const cwd = root();
   const data = root();

@@ -48,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 - **Codex：** 通过 `/hooks` 审查并信任插件 Hook。安装成功不表示 Hook 已受信任或正在运行。
 - **社区 Skill：** 插件可声明 `skill-deps.json`；`install-all.sh` 会把这些依赖安装或更新到全局 Skill scope，即执行 `npx skills add … --global`。
 
-`--language <profile>` 接受 `zh-CN`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将 profile 写入每个已安装宿主自己的配置目录。不传时，`language-output-governance` 使用内置 `zh-CN` 默认值。项目的 `.language-output-governance.mjs` 优先于用户级安装偏好。
+`--language <profile>` 接受 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将 profile 写入每个已安装宿主自己的配置目录。不传时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale，并映射到支持的 profile；无法映射或系统使用 `C`/`POSIX` locale 时使用 `en-US`。项目的 `.language-output-governance.mjs` 优先于用户级安装偏好。
 
 ### 手动安装
 
@@ -105,7 +105,7 @@ codex plugin add <name>@harness-start --json
 | `file-line-budget-guard` | 在 Edit/Write 后按语言实施棘轮式文件行数预算 |
 | `protected-file-guard` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
 | `command-safety-guards` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
-| `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言，默认简体中文 |
+| `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
 | `subagent-workflow-guard` | 先登记子任务范围再派发；交付前要求实现、规格复核、质量复核和最终复核全部完成 |
 | `subagent-lifecycle-audit` | 以 append-only 形式记录 subagent 启停和生命周期缺口，不保存工作内容 |
 | `intent-clarify-gate` | grill-me 式意图澄清期间门禁业务写入，直到 `done` 或选择完成项 |

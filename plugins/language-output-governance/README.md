@@ -1,6 +1,6 @@
 # language-output-governance
 
-`language-output-governance` 让 Claude Code 和 Codex 在一个会话内使用稳定的自然语言 profile。它取代旧的 `in-chinese`，简体中文仍是默认 profile，不再作为独立插件。
+`language-output-governance` 让 Claude Code 和 Codex 在一个会话内使用稳定的自然语言 profile。它取代旧的 `in-chinese`；安装器默认根据系统 locale 选择 profile，没有宿主或项目配置时仍严格回退到简体中文。
 
 插件只治理会话的自然语言输出语言，不控制语气、人格、详略、格式、翻译质量或工具输出。
 
@@ -9,6 +9,7 @@
 | Profile | 允许的自然语言文字系统 |
 | --- | --- |
 | `zh-CN` | Han |
+| `zh-TW` | Han；提示词要求繁体中文 |
 | `en-US` | Latin 技术文本与散文；检查 Han、Hangul、Kana 和 Thai |
 | `ja-JP` | Han 和 Kana |
 | `ko-KR` | Hangul |
@@ -37,6 +38,8 @@ Claude 和标准 Codex provider 通过 `hookSpecificOutput.additionalContext` �
 bash scripts/install-all.sh --language en-US
 ```
 
+未传 `--language` 且未设置 `HARNESS_LANGUAGE_PROFILE` 时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale。简体中文、繁体中文、英文、日文、韩文和泰文 locale 分别映射到对应内置 profile；未知 locale 会告警并使用 `en-US`。`C` 和 `POSIX` 也使用 `en-US`。显式参数或环境变量始终优先。
+
 Claude Code 从 `CLAUDE_CONFIG_DIR`（默认 `~/.claude`）下的 `harness-start/language-output-governance.json` 读取；Codex 从 `CODEX_HOME`（默认 `~/.codex`）下的同一相对路径读取。JSON 只包含 `defaultProfile`。
 
 项目覆盖配置示例：
@@ -53,7 +56,7 @@ export default {
 };
 ```
 
-配置只接受以下字段：`defaultProfile`、`toolFeedback`、`stop`、`detection.minScriptCharacters` 和 `detection.minLetterRatio`。任一未知或非法字段都会使完整项目配置回退严格默认值。字符阈值范围为 `1..100`，字母比例范围为 `0.01..1`。自定义检测回调、任意 profile、路径覆盖和读取旧 `in-chinese` 配置均不在契约内。
+配置只接受以下字段：`defaultProfile`、`toolFeedback`、`stop`、`detection.minScriptCharacters` 和 `detection.minLetterRatio`。`defaultProfile` 可使用 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。任一未知或非法字段都会使完整项目配置回退严格默认值。字符阈值范围为 `1..100`，字母比例范围为 `0.01..1`。自定义检测回调、任意其他 profile、路径覆盖和读取旧 `in-chinese` 配置均不在契约内。
 
 `.language-output-governance.mjs` 是项目拥有、通过 `import()` 加载的可信可执行配置。可使用内置 `language-output-governance-config` Skill 初始化或诊断。
 

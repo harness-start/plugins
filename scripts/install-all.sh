@@ -95,7 +95,8 @@ Options:
   --ref <ref>             Git ref for Codex marketplace add (default: master)
   --local <path>          Install from a local marketplace checkout (path to repo root)
   --scope <scope>         Claude install scope: user|project|local (default: user)
-  --language <profile>    Default response profile: zh-CN|en-US|ja-JP|ko-KR|th-TH
+  --language <profile>    Response profile: zh-CN|zh-TW|en-US|ja-JP|ko-KR|th-TH
+                          (default: map the current system locale; fallback: en-US)
   --dry-run               Print actions without running them
   --skip-missing-hosts    Skip missing claude/codex instead of failing
   --skip-skill-deps       Skip community skill install/update from skill-deps.json
@@ -137,6 +138,34 @@ run_cmd() {
 }
 
 have_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+resolve_system_language_profile() {
+  local system_locale normalized profile
+  system_locale="${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}"
+  if [ -z "${system_locale}" ] && have_cmd locale; then
+    system_locale="$(locale 2>/dev/null | sed -n 's/^LC_MESSAGES=//p' | tr -d '"' | head -n 1)"
+  fi
+  system_locale="${system_locale:-C}"
+  normalized="$(printf '%s' "${system_locale}" | sed 's/[.@].*$//' | tr '[:upper:]_' '[:lower:]-')"
+
+  case "${normalized}" in
+    zh-hant*|zh-tw*|zh-hk*|zh-mo*) profile="zh-TW" ;;
+    zh*) profile="zh-CN" ;;
+    ja*) profile="ja-JP" ;;
+    ko*) profile="ko-KR" ;;
+    th*) profile="th-TH" ;;
+    en*|c|posix) profile="en-US" ;;
+    *)
+      profile="en-US"
+      warn "unsupported system locale ${system_locale}; using ${profile}"
+      printf '%s\n' "${profile}"
+      return 0
+      ;;
+  esac
+
+  log "Language: system locale ${system_locale} mapped to ${profile}"
+  printf '%s\n' "${profile}"
+}
 
 # Read non-empty lines from stdin into a named array variable.
 read_lines_into() {
@@ -225,6 +254,10 @@ if [ "${HARNESS_SKIP_SKILL_DEPS:-0}" = "1" ]; then
   SKIP_SKILL_DEPS=1
 fi
 
+if [ -z "${LANGUAGE_PROFILE}" ]; then
+  LANGUAGE_PROFILE="$(resolve_system_language_profile)"
+fi
+
 # Local marketplace path: absolute directory containing .claude-plugin/marketplace.json.
 # Used by project-level acceptance to install the checkout under test (not GitHub master).
 LOCAL_MARKETPLACE_PATH=""
@@ -246,9 +279,9 @@ case "${CLAUDE_SCOPE}" in
 esac
 
 case "${LANGUAGE_PROFILE}" in
-  ""|zh-CN|en-US|ja-JP|ko-KR|th-TH) ;;
+  zh-CN|zh-TW|en-US|ja-JP|ko-KR|th-TH) ;;
   *)
-    err "--language must be zh-CN, en-US, ja-JP, ko-KR, or th-TH"
+    err "--language must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH"
     exit 2
     ;;
 esac

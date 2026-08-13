@@ -25,7 +25,7 @@ function runInstaller(args, env = {}) {
 test("installer rejects unsupported language profiles", () => {
   const result = runInstaller(["--language", "fr-FR", "--list-only"]);
   assert.equal(result.status, 2);
-  assert.match(result.stderr, /--language must be zh-CN, en-US, ja-JP, ko-KR, or th-TH/u);
+  assert.match(result.stderr, /--language must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH/u);
 });
 
 test("installer fallback exposes every marketplace plugin", () => {
@@ -72,6 +72,9 @@ test("installer writes host-scoped language preferences", () => {
     PATH: `${bin}:${process.env.PATH}`,
     CLAUDE_CONFIG_DIR: claudeRoot,
     CODEX_HOME: codexRoot,
+    LC_ALL: "zh_TW.UTF-8",
+    LC_MESSAGES: "",
+    LANG: "zh_TW.UTF-8",
   };
 
   try {
@@ -90,6 +93,56 @@ test("installer writes host-scoped language preferences", () => {
     assert.equal(codex.status, 0, codex.stderr);
     const codexPath = join(codexRoot, "harness-start", "language-output-governance.json");
     assert.deepEqual(JSON.parse(readFileSync(codexPath, "utf8")), { defaultProfile: "ja-JP" });
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("installer uses a supported system locale when language is omitted", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "language-installer-system-locale-"));
+  const bin = join(fixture, "bin");
+  const codexRoot = join(fixture, "codex");
+  mkdirSync(bin, { recursive: true });
+  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
+  executable(join(bin, "codex"), "#!/bin/sh\nprintf '[]\\n'\n");
+
+  try {
+    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CODEX_HOME: codexRoot,
+      LC_ALL: "zh_TW.UTF-8",
+      LC_MESSAGES: "",
+      LANG: "en_US.UTF-8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const path = join(codexRoot, "harness-start", "language-output-governance.json");
+    assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { defaultProfile: "zh-TW" });
+    assert.match(result.stderr, /system locale zh_TW\.UTF-8 mapped to zh-TW/u);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("installer falls back to English when the system locale is unsupported", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "language-installer-locale-fallback-"));
+  const bin = join(fixture, "bin");
+  const claudeRoot = join(fixture, "claude");
+  mkdirSync(bin, { recursive: true });
+  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
+  executable(join(bin, "claude"), "#!/bin/sh\nprintf '[]\\n'\n");
+
+  try {
+    const result = runInstaller(["--claude-only", "--skip-skill-deps"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CLAUDE_CONFIG_DIR: claudeRoot,
+      LC_ALL: "fr_FR.UTF-8",
+      LC_MESSAGES: "",
+      LANG: "fr_FR.UTF-8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const path = join(claudeRoot, "harness-start", "language-output-governance.json");
+    assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { defaultProfile: "en-US" });
+    assert.match(result.stderr, /unsupported system locale fr_FR\.UTF-8; using en-US/u);
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }

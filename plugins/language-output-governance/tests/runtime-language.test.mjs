@@ -14,7 +14,7 @@ const DETECTOR_ONLY_LINES = new Map([
   ["plugins/git-delivery-guards/scripts/checks/command-rules.mjs", ["const GENERIC ="]],
   ["plugins/goal-task-gate/scripts/lib/policy.mjs", ["/(?:任务|goal|目标)", "/(?:全部完成"]],
   ["plugins/intent-clarify-gate/scripts/lib/policy.mjs", ["const IMPLEMENT_CLAIM", "/(?:开始实现"]],
-  ["plugins/language-output-governance/scripts/lib/intent.mjs", ["const TRANSLATION_CUE", "const RESPONSE_CUE"]],
+  ["plugins/language-output-governance/scripts/lib/intent.mjs", ["const TRANSLATION_CUE", "const RESPONSE_CUE", "const GENERIC_CHINESE"]],
   ["plugins/language-output-governance/scripts/lib/profiles.mjs", ["aliases:"]],
   ["plugins/compact-context-journal/scripts/compact-context-journal.mjs", ["const HISTORY_CUE ="]],
 ]);

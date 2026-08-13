@@ -33,7 +33,7 @@ export function resolveConfig(source) {
     throw new Error("unsupported top-level field");
   }
   if (source.defaultProfile !== undefined && !isProfileId(source.defaultProfile)) {
-    throw new Error("defaultProfile must be zh-CN, en-US, ja-JP, ko-KR, or th-TH");
+    throw new Error("defaultProfile must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
   }
   if (source.toolFeedback !== undefined && !["report", "off"].includes(source.toolFeedback)) {
     throw new Error("toolFeedback must be report or off");

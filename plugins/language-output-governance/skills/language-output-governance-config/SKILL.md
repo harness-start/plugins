@@ -11,7 +11,7 @@ Manage the Git-root `.language-output-governance.mjs` consumed by `language-outp
 ## Workflow
 
 1. Resolve the root with `git rev-parse --show-toplevel` and read an existing configuration in full.
-2. Select one built-in `defaultProfile`: `zh-CN`, `en-US`, `ja-JP`, `ko-KR`, or `th-TH`.
+2. Select one built-in `defaultProfile`: `zh-CN`, `zh-TW`, `en-US`, `ja-JP`, `ko-KR`, or `th-TH`.
 3. Keep `toolFeedback: "report"` and `stop: "block"` unless the user explicitly requests a narrower policy.
 4. Keep detection thresholds at `12` characters and `0.25` ratio unless observed false positives justify a bounded change.
 5. Run the plugin unit tests after schema-sensitive changes.

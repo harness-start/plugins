@@ -17,14 +17,15 @@ const SAMPLES = {
 
 const EXPECTED_DRIFT = {
   "zh-CN": ["hangul", "kana", "thai"],
+  "zh-TW": ["hangul", "kana", "thai"],
   "en-US": ["han", "hangul", "kana", "thai"],
   "ja-JP": ["hangul", "thai"],
   "ko-KR": ["han", "kana", "thai"],
   "th-TH": ["han", "hangul", "kana"],
 };
 
-test("built-in profiles expose the five supported language IDs", () => {
-  assert.deepEqual(PROFILE_IDS, ["zh-CN", "en-US", "ja-JP", "ko-KR", "th-TH"]);
+test("built-in profiles expose the six supported language IDs", () => {
+  assert.deepEqual(PROFILE_IDS, ["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR", "th-TH"]);
 });
 
 for (const profile of PROFILE_IDS) {
@@ -83,6 +84,7 @@ test("Markdown code, quotes, URLs, and link targets are excluded", () => {
 
 for (const [prompt, profile] of [
   ["后续请使用简体中文回答。", "zh-CN"],
+  ["後續請使用繁體中文回答。", "zh-TW"],
   ["Please continue to answer in English.", "en-US"],
   ["后续请使用日文回答。", "ja-JP"],
   ["后续请使用韩文回答。", "ko-KR"],
@@ -114,5 +116,33 @@ test("ambiguous multi-language response intent authorizes without guessing a pre
   assert.deepEqual(classifyLanguageIntent("请用日文和韩文回答。"), {
     preferredProfile: null,
     authorizedProfiles: ["ja-JP", "ko-KR"],
+  });
+});
+
+test("generic Chinese keeps selecting the Simplified Chinese profile", () => {
+  assert.deepEqual(classifyLanguageIntent("后续请使用中文回答。"), {
+    preferredProfile: "zh-CN",
+    authorizedProfiles: ["zh-CN"],
+  });
+});
+
+test("Simplified and Traditional Chinese intent remains explicitly ambiguous", () => {
+  assert.deepEqual(classifyLanguageIntent("请同时使用简体中文和繁體中文回答。"), {
+    preferredProfile: null,
+    authorizedProfiles: ["zh-CN", "zh-TW"],
+  });
+});
+
+test("Traditional Chinese response cues select the Traditional Chinese profile", () => {
+  assert.deepEqual(classifyLanguageIntent("請用繁體中文回覆。"), {
+    preferredProfile: "zh-TW",
+    authorizedProfiles: ["zh-TW"],
+  });
+});
+
+test("Traditional Chinese translation cues authorize without changing the profile", () => {
+  assert.deepEqual(classifyLanguageIntent("請把這段內容翻譯成繁體中文。"), {
+    preferredProfile: null,
+    authorizedProfiles: ["zh-TW"],
   });
 });
