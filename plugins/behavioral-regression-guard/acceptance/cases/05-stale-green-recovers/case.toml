@@ -1,4 +1,0 @@
-id = "05-stale-green-recovers"
-hosts = ["claude", "codex"]
-timeout_sec = 540
-tags = ["freshness", "stale-green", "recovery"]

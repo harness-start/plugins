@@ -1,4 +1,0 @@
-id = "11-auto-existing-constraint-seam"
-hosts = ["claude", "codex"]
-timeout_sec = 1500
-tags = ["auto-route", "composition-depth", "constraint-seam", "closure"]

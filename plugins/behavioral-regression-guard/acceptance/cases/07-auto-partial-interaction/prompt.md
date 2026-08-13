@@ -1,1 +1,0 @@
-Fix the known regression in `src/align-columns.cjs`: each output column must preserve the complete corresponding input column even when its peer is empty. The tests are the executable behavior contract. Do not modify verification files. Make the smallest production change and report the result.

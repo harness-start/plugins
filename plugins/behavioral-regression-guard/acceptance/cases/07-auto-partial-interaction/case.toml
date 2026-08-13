@@ -1,4 +1,0 @@
-id = "07-auto-partial-interaction"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["auto-route", "partial-input", "composition", "closure"]

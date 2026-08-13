@@ -1,4 +1,0 @@
-id = "08-auto-wave-order"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["auto-route", "ordering", "independent-chains", "closure"]

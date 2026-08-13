@@ -1,4 +1,0 @@
-id = "02-complete-fix"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["activation", "red-green", "closure"]

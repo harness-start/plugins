@@ -1,4 +1,0 @@
-id = "10-auto-variadic-public-seam"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["auto-route", "public-seam", "variadic", "closure"]

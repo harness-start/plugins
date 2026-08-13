@@ -1,1 +1,0 @@
-A confirmed ordering defect exists in this workspace. Combining three source declarations pairwise introduces an ordering constraint that none of the original sources asserted. Reproduce the incorrect resolved order, repair it with the smallest source change, and verify adversarial boundaries and compatibility. Do not modify acceptance scripts.

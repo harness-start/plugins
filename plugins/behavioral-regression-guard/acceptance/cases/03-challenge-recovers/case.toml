@@ -1,4 +1,0 @@
-id = "03-challenge-recovers"
-hosts = ["claude", "codex"]
-timeout_sec = 480
-tags = ["challenge", "incomplete-fix", "recovery"]

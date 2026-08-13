@@ -1,4 +1,0 @@
-id = "14-auto-source-bound-python-order"
-hosts = ["claude", "codex"]
-timeout_sec = 1800
-tags = ["auto-route", "ordering", "python-warning", "v11", "closure"]

@@ -1,1 +1,0 @@
-A confirmed boundary defect exists in this workspace: a supported multi-channel transformation loses information when exactly one channel is degenerate. Reproduce the behavior, make the smallest correct source change, and verify asymmetric boundaries plus compatibility. Do not modify acceptance scripts.

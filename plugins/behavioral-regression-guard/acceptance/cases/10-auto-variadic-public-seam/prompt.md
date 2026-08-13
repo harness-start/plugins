@@ -1,1 +1,0 @@
-A confirmed behavior defect exists in this workspace: the public contributor combiner drops later contributors when called with three inputs. Reproduce it, make the smallest source fix, and verify the repair against adversarial boundaries and existing supported behavior. Do not modify acceptance scripts.

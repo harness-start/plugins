@@ -1,1 +1,0 @@
-Fix the known ordering regression in `src/merge-sequences.cjs`. When several items are ready together, preserve that complete sorted wave before emitting items unlocked by it. The tests define supported boundaries and compatibility. Do not modify verification files. Make the smallest production change and report the result.
