@@ -79,6 +79,9 @@ test("save is denied before confirmation and allowed only for the prepared body 
     assert.equal(output(denied)?.hookSpecificOutput?.permissionDecision, "deny");
 
     await runHook("prompt", { ...base, prompt: "确认保存" }, env);
+    const stillDenied = await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: saveCommand } }, env);
+    assert.equal(output(stillDenied)?.hookSpecificOutput?.permissionDecision, "deny");
+    assert.match(output(stillDenied)?.hookSpecificOutput?.permissionDecisionReason ?? "", /WRI_REVIEW_REQUEST critic/u);
     await approveCritic(env, base);
     const allowed = await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: saveCommand } }, env);
     assert.equal(output(allowed), null);

@@ -1,0 +1,4 @@
+id = "07-challenger-required"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["stop", "first-principles", "subagent", "review"]

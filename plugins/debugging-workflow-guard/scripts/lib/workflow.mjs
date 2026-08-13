@@ -181,7 +181,7 @@ export function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CO
 
 export function recordDebugReview({ cwd, sessionId, stage, agentId, config = DEFAULT_CONFIG }) {
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
-  if (live.kind !== "active") return live;
+  if (!["active", "inactive"].includes(live.kind)) return live;
   live.state.reviews = live.state.reviews ?? { reservation: null, diagnosis: null, architecture: null };
   live.state.reviews[stage] = {
     decision: "approve",

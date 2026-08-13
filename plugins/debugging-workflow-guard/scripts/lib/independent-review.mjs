@@ -84,6 +84,7 @@ export function observeReview(state, { agentId, result }) {
     return { kind: "review-recorded", receipt: { stage: result.stage, decision: "challenge", agentId } };
   }
   state.reviews[result.stage] = {
+    stage: result.stage,
     decision: "approve",
     agentId,
     nonce: reservation.nonce,

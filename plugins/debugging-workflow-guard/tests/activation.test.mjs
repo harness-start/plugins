@@ -144,6 +144,42 @@ test("public hook entry activates on ledger write and blocks an active turn stop
   assert.match(stopped.stdout, /remains active/u);
 });
 
+test("public hook denies reviewer writes and records a diagnosis approval", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-review-hook-data-"));
+  const env = { PLUGIN_DATA: data };
+  const path = join(root, ".debug-workflow", "20260808-login.md");
+  const ready = workOrder();
+  ready.bugs[0].status = "fixing";
+  ready.bugs[0].fix.status = "in-progress";
+  ready.bugs[0].fix.affectedBugIds = ["BUG-001"];
+  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(ready, null, 2)}\n\`\`\`\n`);
+  await runHook("post", { cwd: root, session_id: "debug-review", tool_name: "Write", tool_input: { file_path: path } }, env);
+
+  await runHook("pre", {
+    cwd: root, session_id: "debug-review", tool_name: "Agent",
+    tool_input: { prompt: "DBG_REVIEW_REQUEST diagnosis" },
+  }, env);
+  const started = await runHook("review-start", {
+    cwd: root, session_id: "debug-review", agent_id: "diagnosis-reviewer",
+    agent_prompt: "DBG_REVIEW_REQUEST diagnosis",
+  }, env);
+  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(started.stdout)?.[1];
+  assert.ok(nonce, started.stdout || started.stderr);
+
+  const denied = await runHook("pre", {
+    cwd: root, session_id: "debug-review", agent_id: "diagnosis-reviewer",
+    tool_name: "Write", tool_input: { file_path: join(root, "src.js"), content: "x\n" },
+  }, env);
+  assert.match(denied.stdout, /permissionDecision":"deny"/u);
+
+  const recorded = await runHook("subagent-stop", {
+    cwd: root, session_id: "debug-review", agent_id: "diagnosis-reviewer",
+    last_assistant_message: `DBG_REVIEW_RESULT ${JSON.stringify({ stage: "diagnosis", reviewNonce: nonce, decision: "approve" })}`,
+  }, env);
+  assert.match(recorded.stdout, /diagnosis review approve/u, recorded.stdout || recorded.stderr);
+});
+
 test("public hook permits a paused architecture-review handoff without completion evidence", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-paused-stop-data-"));

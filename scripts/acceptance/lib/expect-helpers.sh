@@ -163,8 +163,9 @@ require_composer_json_without_repositories() {
 # Plugin-specific real marker sets (never path fragments).
 MARKERS_INTENT_CLARIFY='\[intent-clarify-gate\]|business writes are blocked|write barrier is released|interview is still open|interview is closed'
 MARKERS_FIRST_PRINCIPLES='\[first-principles-gate\]|First-principles mode is open|business writes are blocked|write barrier is released|first-principles session is closed'
-MARKERS_FIRST_PRINCIPLES_STOP='Completion or closure requires|on-disk first-principles ledger|stale for this session|First-principles mode is still open'
-MARKERS_REASONING_DISCIPLINE='\[Reasoning Discipline Guard\]|Bound RW-|Accepted (frame|analysis|challenge|cross-check|conclusion) as RD-R[1-5]|Workflow closed with RD-R5'
+MARKERS_FIRST_PRINCIPLES_STOP='Completion or closure requires|on-disk first-principles ledger|stale for this session|First-principles mode is still open|Independent challenger review is required|FP_REVIEW_REQUEST challenger'
+MARKERS_REASONING_DISCIPLINE='\[Reasoning Discipline Guard\]|Bound RW-|Accepted (frame|analysis|challenge|cross-check|conclusion) as RD-R[1-5]|Workflow closed with RD-R5|RD_REVIEW_REQUEST (challenge|cross-check)|independent (challenge|cross-check) review'
+MARKERS_INDEPENDENT_REVIEW='RD_REVIEW_REQUEST|DBG_REVIEW_REQUEST|FP_REVIEW_REQUEST|WRI_REVIEW_REQUEST|independent (challenge|cross-check|diagnosis|challenger|critic) review'
 MARKERS_GOAL_TASK='\[goal-task-gate\]|GOAL_TASK_DONE|armed run_id=|cleared run_id=|superseded run_id='
 MARKERS_FILE_BUDGET='\[File Budget\]|exceeds its file line budget|exceeds the build-recipe reference budget'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|Protected file modification blocked'

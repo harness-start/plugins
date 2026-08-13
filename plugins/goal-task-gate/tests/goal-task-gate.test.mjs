@@ -120,6 +120,20 @@ test("trail append + hash chain + tip rewrite", () => {
     { runId, sessionId: "s1", tipWindow: 3 },
   );
   assert.equal(a1.ok, true);
+  const closedTooSoon = appendDecision(
+    paths.decisionsPath,
+    {
+      phase: "end",
+      kind: "close",
+      decision: "goal complete",
+      why: "author says so",
+      evidence: "none",
+      result: "ok",
+    },
+    { runId, sessionId: "s1", tipWindow: 3 },
+  );
+  assert.equal(closedTooSoon.ok, false);
+  assert.match(closedTooSoon.error ?? "", /prior verify decision/u);
   const loaded = loadDecisions(paths.decisionsPath);
   assert.equal(loaded.rows.length, 2);
   const chain = validateDecisionChain(loaded.rows);

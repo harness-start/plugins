@@ -192,6 +192,18 @@ test("release requires measured squint evidence and passing aesthetic scores", (
   review.criteria.singleMemoryPoint.score = 0;
   lowScore.files["review.logo.json"] = JSON.stringify(review);
   assert.ok(validateLogoModel(lowScore, { stage: "release" }).some(({ code }) => code === "AESTHETIC_SCORE_BELOW_THRESHOLD"));
+
+  const missingReviewer = validLogoModel();
+  const unsigned = JSON.parse(missingReviewer.files["review.logo.json"]);
+  delete unsigned.reviewer;
+  missingReviewer.files["review.logo.json"] = JSON.stringify(unsigned);
+  assert.ok(validateLogoModel(missingReviewer, { stage: "release" }).some(({ code }) => code === "REVIEWER_INVALID"));
+
+  const selfReview = validLogoModel();
+  const self = JSON.parse(selfReview.files["review.logo.json"]);
+  self.reviewer.sessionId = "unknown";
+  selfReview.files["review.logo.json"] = JSON.stringify(self);
+  assert.ok(validateLogoModel(selfReview, { stage: "release" }).some(({ code }) => code === "REVIEW_SELF"));
 });
 
 test("master changes stale preview bindings", () => {

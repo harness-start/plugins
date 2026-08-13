@@ -219,6 +219,32 @@ test("production mutation requires an exact failing baseline and evidenced root 
   });
 });
 
+test("closed architecture-review requires a different independent reviewer", () => {
+  const fx = fixture();
+  withData(fx.data, () => {
+    bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [fx.path] });
+    const next = order({
+      status: "closed",
+      run: { epoch: 1, state: "closed", mode: "investigate-and-fix" },
+      activeBugId: null,
+    });
+    next.bugs[0].status = "architecture-review";
+    next.bugs[1].status = "deferred";
+    writeOrder(fx.path, next);
+    const live = refreshBoundWorkOrder({ cwd: fx.root, sessionId: "s1" });
+    assert.match(completionFindings(live).join("\n"), /DBG_REVIEW_REQUEST architecture/u);
+
+    recordDebugReview({ cwd: fx.root, sessionId: "s1", stage: "diagnosis", agentId: "same-reviewer" });
+    recordDebugReview({ cwd: fx.root, sessionId: "s1", stage: "architecture", agentId: "same-reviewer" });
+    const same = refreshBoundWorkOrder({ cwd: fx.root, sessionId: "s1" });
+    assert.match(completionFindings(same).join("\n"), /must differ from the diagnosis reviewer/u);
+
+    recordDebugReview({ cwd: fx.root, sessionId: "s1", stage: "architecture", agentId: "architecture-reviewer" });
+    const distinct = refreshBoundWorkOrder({ cwd: fx.root, sessionId: "s1" });
+    assert.doesNotMatch(completionFindings(distinct).join("\n"), /DBG_REVIEW_REQUEST architecture|must differ from the diagnosis reviewer/u);
+  });
+});
+
 test("completion rejects forged and cross-bug evidence", () => {
   const fx = fixture();
   withData(fx.data, () => {

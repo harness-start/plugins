@@ -460,6 +460,35 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
   }
 });
 
+test("hook: valid ledger without challenger review still blocks completion", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "fp-data-"));
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  const session = "sess-no-challenger";
+  try {
+    await runEntry("prompt", { cwd: root, session_id: session, prompt: "/first-principles cache" }, env);
+    writeLedger(root);
+    await runEntry("post", {
+      cwd: root,
+      session_id: session,
+      tool_name: "Write",
+      tool_input: { file_path: join(root, ".first-principles", "ledger.json") },
+    }, env);
+    await runEntry("prompt", { cwd: root, session_id: session, prompt: "done" }, env);
+    const stop = await runEntry("stop", {
+      cwd: root,
+      session_id: session,
+      last_assistant_message: "First-principles analysis is complete.",
+    }, env);
+    const out = parseStdout(stop.stdout);
+    assert.equal(out?.decision, "block");
+    assert.match(out?.reason ?? "", /Independent challenger review is required/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});
+
 test("hook: /fp and $fp never open write-block", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "fp-data-"));

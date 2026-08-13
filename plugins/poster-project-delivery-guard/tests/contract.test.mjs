@@ -63,6 +63,25 @@ test("denies direct poster proof and dist writes but allows layer source", () =>
   assert.deepEqual(evaluatePosterWrite({ relativePath: "artifacts/poster/launch/src/variants/001-main/layers/001-background.tsx", toolName: "apply_patch" }), { decision: "allow" });
 });
 
+test("release rejects an empty or self-session poster review", () => {
+  const model = validModel();
+  Object.assign(model.files, {
+    "dist/launch-poster.main.png": "FINAL",
+    "evidence.accessibility.json": "{}\n",
+    "review.poster.json": "{}\n",
+    "release.manifest.json": "{}\n",
+    "receipt.release.json": "{}\n",
+  });
+  assert.ok(validatePosterModel(model, { stage: "release" }).some(({ code }) => code === "REVIEW_INVALID"));
+
+  model.files["review.poster.json"] = `${JSON.stringify({
+    schema: "poster-project-delivery-guard/review/v1",
+    verdict: "pass",
+    reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "unknown" },
+  })}\n`;
+  assert.ok(validatePosterModel(model, { stage: "release" }).some(({ code }) => code === "REVIEW_SELF"));
+});
+
 test("release receipt becomes stale after a poster source dependency changes", () => {
   const model = validModel();
   Object.assign(model.files, {

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { ResearchService } from "../server/lib/research-service.mjs";
+import { readWorkflowFile, workflowPath, writeWorkflow } from "../scripts/lib/workflow-fs.mjs";
 import { validateSealedArtifacts } from "../scripts/lib/seal-validator.mjs";
 
 async function fixture() {
@@ -72,6 +73,17 @@ test("multi-source seal requires a delivered inbound researcher unless solo main
     }),
     /inbound researcher handoff/u,
   );
+
+  const workflow = readWorkflowFile(workflowPath(workspace, begun.run_id));
+  workflow.subagents = [{ id: "researcher-1", role: "researcher", status: "delivered", handoff_path: "handoffs/inbound/researcher-1.json", result_path: "handoffs/inbound/researcher-1.result.md" }];
+  writeWorkflow(workspace, workflow);
+  const sealed = await service.call("research_seal", {
+    run_id: begun.run_id,
+    prompt_epoch: 1,
+    mutation_revision: 0,
+    claims: [{ id: "C1", status: "anchored", text: "Alpha is documented.", anchor_ids: [anchor.anchor_id] }],
+  });
+  assert.match(sealed.seal, /^sha256:[a-f0-9]{64}$/u);
 });
 
 test("claim status contracts fail closed", async () => {
