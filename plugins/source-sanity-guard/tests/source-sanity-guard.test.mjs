@@ -120,6 +120,68 @@ test("target and content extraction cover direct, nested, patch, and move inputs
   }), ["/repo/src/app.js.bak"]);
 });
 
+test("create_file and search_replace extract and deny backup artifacts", async () => {
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "create_file",
+      tool_input: { file_path: "src/app.js.bak" },
+    }),
+    ["/repo/src/app.js.bak"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "search_replace",
+      tool_input: { path: "src/legacy.ts.orig" },
+    }),
+    ["/repo/src/legacy.ts.orig"],
+  );
+
+  for (const name of ["claude.json", "codex.json"]) {
+    const hooks = JSON.parse(
+      readFileSync(new URL(`../hooks/${name}`, import.meta.url), "utf8"),
+    );
+    const matcher = hooks.hooks.PreToolUse[0].matcher;
+    assert.match(matcher, /create_file/u, name);
+    assert.match(matcher, /search_replace/u, name);
+  }
+
+  const root = gitRoot("source-sanity-host-writers-");
+  try {
+    mkdirSync(join(root, "src"));
+    const created = await runEntry({
+      cwd: root,
+      tool_name: "create_file",
+      tool_input: { file_path: "src/app.js.bak", content: "temporary" },
+    });
+    assert.equal(
+      JSON.parse(created.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+    const replaced = await runEntry({
+      cwd: root,
+      tool_name: "search_replace",
+      tool_input: { path: "src/app.js.bak", old_string: "a", new_string: "b" },
+    });
+    assert.equal(
+      JSON.parse(replaced.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+    const garbled = await runEntry({
+      cwd: root,
+      tool_name: "create_file",
+      tool_input: { file_path: "src/app.js", content: "const value = '\uFFFD\uFFFD';" },
+    });
+    assert.equal(
+      JSON.parse(garbled.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("pre hook denies shell writes of backup artifacts", async () => {
   const root = gitRoot("source-sanity-shell-backup-");
   try {
@@ -134,6 +196,117 @@ test("pre hook denies shell writes of backup artifacts", async () => {
     assert.equal(result.code, 0);
     const output = JSON.parse(result.stdout);
     assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("shell copy, move, delete, and sed expose backup write targets", () => {
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "sed -i 's/x/y/' src/app.js.bak" },
+    }),
+    ["/repo/src/app.js.bak"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "timeout 5 sed -i.bak 's/x/y/' src/app.js.bak" },
+    }),
+    ["/repo/src/app.js.bak"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "cp /tmp/x src/app.js.bak" },
+    }),
+    ["/repo/src/app.js.bak"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "mv src/app.js.bak /tmp/old.bak" },
+    }),
+    ["/repo/src/app.js.bak", "/tmp/old.bak"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "rm -f src/app.js.bak" },
+    }),
+    ["/repo/src/app.js.bak"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "sed 's/x/y/' src/app.js.bak" },
+    }),
+    [],
+  );
+});
+
+test("entry denies shell copy, move, delete, and sed of backup artifacts", async () => {
+  const root = gitRoot("source-sanity-shell-writers-");
+  try {
+    mkdirSync(join(root, "src"));
+    for (const command of [
+      "sed -i 's/x/y/' src/app.js.bak",
+      "cp /tmp/x src/app.js.bak",
+      "mv src/app.js.bak /tmp/old.bak",
+      "rm -f src/app.js.bak",
+    ]) {
+      const result = await runEntry({
+        cwd: root,
+        tool_name: "Bash",
+        tool_input: { command },
+      });
+      assert.equal(
+        JSON.parse(result.stdout).hookSpecificOutput.permissionDecision,
+        "deny",
+        command,
+      );
+    }
+    const allowed = await runEntry({
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: { command: "ls src" },
+    });
+    assert.equal(allowed.stdout, "");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("entry denies shell writes that insert replacement characters into source", async () => {
+  const root = gitRoot("source-sanity-shell-garbled-");
+  try {
+    mkdirSync(join(root, "src"));
+    const blocked = await runEntry({
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: { command: "printf '\uFFFD\uFFFD' > src/app.js" },
+    });
+    assert.equal(
+      JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+    assert.match(extractInsertedText({
+      tool_name: "Bash",
+      tool_input: { command: "printf '\uFFFD\uFFFD' > src/app.js" },
+    }), /\uFFFD\uFFFD/u);
+    const clean = await runEntry({
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: { command: "printf ok > src/app.js" },
+    });
+    assert.equal(clean.stdout, "");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

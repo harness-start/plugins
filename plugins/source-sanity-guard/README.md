@@ -2,7 +2,7 @@
 
 `source-sanity-guard` 在 Claude Code 和 Codex 编辑源码时拦截两类低误报问题：源码目录中的备份或临时文件，以及明显由解码损坏产生的 `U+FFFD` 替换字符。
 
-检查只监听文件工具，不分析 Bash 或其他命令。未解决合并冲突标记现由 `git-delivery-guards` 在写入后负责。
+文件工具覆盖 `Edit`、`Write`、`MultiEdit`、`NotebookEdit`、`create_file`、`search_replace` 和 `apply_patch`。Shell（`Bash` / `Shell` / `exec_command` 等）只提取命令里的显式写路径：重定向、`tee`、`touch`、`sed -i`、`cp`、`mv`、`rm`，以及 `writeFile` / `open(`。乱码检查会扫这些写入的待插入文本，包括 shell 命令字面量。`ls`、`git status` 等不写出路径的命令会放行。未解决合并冲突标记现由 `git-delivery-guards` 在写入后负责。
 
 ## 默认行为
 
@@ -37,7 +37,7 @@ export default {
 
 插件只负责不依赖外部工具、证据明确的写前源码卫生问题。技术债标记、类型抑制、格式化、语言 lint、依赖目录保护和未解决合并冲突由其他插件负责。
 
-`PreToolUse` 覆盖 `Edit`、`Write`、`MultiEdit`、`NotebookEdit` 和 `apply_patch`，不处理 shell 命令或 `PostToolUse`。`block` 在写前返回 `permissionDecision: deny`；`report` 只注入上下文。
+`PreToolUse` 覆盖文件工具和带显式写路径的 shell，没有 `PostToolUse`。`block` 在写前返回 `permissionDecision: deny`；`report` 只注入上下文。
 
 插件只从 Git 根加载 `.source-sanity-guard.mjs`。路径统一为仓库相对 POSIX 路径；每项检查使用第一个同时匹配路径并声明该检查的 override，之后依次回退顶层 `checks` 和默认值。非法字段警告后回退默认值，加载失败不取消内置保护。
 

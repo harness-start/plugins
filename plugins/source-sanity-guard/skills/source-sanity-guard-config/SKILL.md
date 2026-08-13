@@ -38,4 +38,4 @@ export default {
 };
 ```
 
-The first matching override that declares a check wins for that check. Keep exceptions narrower than built-in skipped directories. Configure merge conflict detection through `git-delivery-guards`, not this plugin.
+The first matching override that declares a check wins for that check. Keep exceptions narrower than built-in skipped directories. Configure merge conflict detection through `git-delivery-guards`, not this plugin. Shell commands without an explicit write path are not source-sanity-guard inputs.
