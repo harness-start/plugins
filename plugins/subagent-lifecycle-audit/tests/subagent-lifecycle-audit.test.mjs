@@ -181,6 +181,26 @@ test("denies shell mutation of the lifecycle audit trail", async () => {
   }
 });
 
+test("denies interpreter rewrite of the lifecycle audit trail", async () => {
+  const root = workspace();
+  try {
+    const result = await runEntry("protect", {
+      hook_event_name: "PreToolUse",
+      cwd: root,
+      session_id: "session-protect-py",
+      tool_name: "Bash",
+      tool_input: {
+        command: "python3 -c \"open('.subagent-lifecycle-audit/sessions/s.jsonl','w').write('x')\"",
+      },
+    });
+    assert.equal(result.code, 0);
+    const payload = JSON.parse(result.stdout.trim());
+    assert.equal(payload.hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("reports an unmatched start as open without claiming failure", async () => {
   const root = workspace();
   try {
