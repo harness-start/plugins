@@ -5,6 +5,7 @@ import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -208,6 +209,57 @@ test("file target extraction supports direct, nested edit, notebook, and patch i
   );
 });
 
+test("create_file and search_replace extract and deny protected lockfiles", async () => {
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "create_file",
+      tool_input: { file_path: "package-lock.json" },
+    }),
+    ["/repo/package-lock.json"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "search_replace",
+      tool_input: { path: "yarn.lock" },
+    }),
+    ["/repo/yarn.lock"],
+  );
+
+  for (const name of ["claude.json", "codex.json"]) {
+    const hooks = JSON.parse(
+      readFileSync(new URL(`../hooks/${name}`, import.meta.url), "utf8"),
+    );
+    const matcher = hooks.hooks.PreToolUse[0].matcher;
+    assert.match(matcher, /create_file/u, name);
+    assert.match(matcher, /search_replace/u, name);
+  }
+
+  const created = await runEntry(
+    JSON.stringify({
+      cwd: "/repo",
+      tool_name: "create_file",
+      tool_input: { file_path: "package-lock.json", content: "{}" },
+    }),
+  );
+  assert.equal(
+    JSON.parse(created.stdout).hookSpecificOutput.permissionDecision,
+    "deny",
+  );
+  const replaced = await runEntry(
+    JSON.stringify({
+      cwd: "/repo",
+      tool_name: "search_replace",
+      tool_input: { path: "vendor/acme/file.php", old_string: "a", new_string: "b" },
+    }),
+  );
+  assert.equal(
+    JSON.parse(replaced.stdout).hookSpecificOutput.permissionDecision,
+    "deny",
+  );
+});
+
 test("resolved paths expose protected symlink destinations", () => {
   const root = mkdtempSync(join(tmpdir(), "protected-file-symlink-"));
   try {
@@ -321,6 +373,125 @@ test("project config can narrowly allow a built-in protected path", async () => 
       root,
     );
     assert.equal(JSON.parse(denied.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("shell copy, move, delete, sed, install, and dd expose write targets", () => {
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "sed -i 's/x/y/' package-lock.json" },
+    }),
+    ["/repo/package-lock.json"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "timeout 5 sed -i.bak 's/x/y/' yarn.lock" },
+    }),
+    ["/repo/yarn.lock"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "cp /tmp/x package-lock.json" },
+    }),
+    ["/repo/package-lock.json"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "mv package-lock.json /tmp/old-lock" },
+    }),
+    ["/repo/package-lock.json", "/tmp/old-lock"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "rm -f vendor/acme/file.php" },
+    }),
+    ["/repo/vendor/acme/file.php"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "install /tmp/x package-lock.json" },
+    }),
+    ["/repo/package-lock.json"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "dd if=/dev/zero of=package-lock.json bs=1 count=1" },
+    }),
+    ["/repo/package-lock.json"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "pnpm install" },
+    }),
+    [],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "sed 's/x/y/' package-lock.json" },
+    }),
+    [],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: { command: "cp package-lock.json /tmp/backup" },
+    }),
+    ["/tmp/backup"],
+  );
+});
+
+test("entry denies shell copy, move, delete, sed, install, and dd of lockfiles", async () => {
+  const root = mkdtempSync(join(tmpdir(), "protected-file-shell-writers-"));
+  try {
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    for (const command of [
+      "sed -i 's/x/y/' package-lock.json",
+      "cp /tmp/x yarn.lock",
+      "mv composer.lock /tmp/old-composer.lock",
+      "rm -f Cargo.lock",
+      "install /tmp/x go.sum",
+      "dd if=/dev/zero of=pnpm-lock.yaml",
+    ]) {
+      const result = await runEntry(
+        JSON.stringify({ cwd: root, tool_name: "Bash", tool_input: { command } }),
+        root,
+      );
+      assert.equal(
+        JSON.parse(result.stdout).hookSpecificOutput.permissionDecision,
+        "deny",
+        command,
+      );
+    }
+    const allowed = await runEntry(
+      JSON.stringify({
+        cwd: root,
+        tool_name: "Bash",
+        tool_input: { command: "pnpm install" },
+      }),
+      root,
+    );
+    assert.equal(allowed.stdout, "");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -75,4 +75,4 @@ export default {
 - Using string patterns instead of RegExp literals.
 - Adding `allow` for `/.*/`, the repository root, all `vendor/`, or all `node_modules/`.
 - Adding unsupported `report`, glob, settings, or replacement semantics.
-- Treating Shell commands as protected-file-guard inputs; v1 intentionally covers file tools only.
+- Treating package-manager commands such as `pnpm install` as protected-file-guard inputs; the hook only inspects explicit write paths.

@@ -1,8 +1,8 @@
 # protected-file-guard
 
-`protected-file-guard` 在 Claude Code 和 Codex 的文件工具执行前检查全部目标路径，禁止直接创建、修改、移动或删除依赖 lockfile 和包管理器拥有的第三方依赖文件。
+`protected-file-guard` 在 Claude Code 和 Codex 的写入发生前检查目标路径，禁止直接创建、修改、移动或删除依赖 lockfile 和包管理器拥有的第三方依赖文件。
 
-插件只监听 `Edit`、`Write`、`MultiEdit`、`NotebookEdit` 和 `apply_patch`。它不分析或拦截 Bash、Shell、`exec_command`，因此 `pnpm install`、`composer install` 等正常依赖流程不受影响。
+文件工具覆盖 `Edit`、`Write`、`MultiEdit`、`NotebookEdit`、`create_file`、`search_replace` 和 `apply_patch`。Shell（`Bash` / `Shell` / `exec_command` 等）只提取命令里的显式写路径：重定向、`tee`、`touch`、`sed -i`、`cp`、`mv`、`rm`、`install`、`dd of=`，以及 `writeFile` / `open(`。`pnpm install`、`composer install`、`go mod tidy` 这类不写出 lockfile 或 `vendor/` 路径的包管理命令会放行。
 
 ## 默认保护
 
@@ -14,7 +14,7 @@
 
 `dist/`、`build/`、`target/`、`coverage/`、`.next/` 和 `.nuxt/` 不在默认范围内。
 
-规则很简单：文件工具不能直接改项目声明为受保护的 lockfile 或第三方依赖路径。检查发生在 `PreToolUse`，命中时写入还没发生。构建输出、缓存和任意 `generated/` 目录默认不管。
+规则很简单：文件工具或带显式写路径的 shell 不能直接改项目声明为受保护的 lockfile 或第三方依赖路径。检查发生在 `PreToolUse`，命中时写入还没发生。构建输出、缓存和任意 `generated/` 目录默认不管。
 
 ## 项目配置
 

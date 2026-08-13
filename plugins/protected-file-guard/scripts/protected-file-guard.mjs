@@ -28,9 +28,11 @@ const CONFIG_FILE_NAMES = [
 
 const FILE_TOOL_NAMES = new Set([
   "applypatch",
+  "createfile",
   "edit",
   "multiedit",
   "notebookedit",
+  "searchreplace",
   "write",
 ]);
 
@@ -42,6 +44,244 @@ const SHELL_TOOL_NAMES = new Set([
   "shell",
   "shellcommand",
 ]);
+
+const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
+const SIMPLE_WRAPPERS = new Set(["busybox", "command", "exec", "nohup", "time"]);
+
+function tokenizeShell(command) {
+  const tokens = [];
+  let current = "";
+  let quote = null;
+  let escaped = false;
+  const text = String(command ?? "");
+  const flush = () => {
+    if (current) {
+      tokens.push(current);
+      current = "";
+    }
+  };
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+        continue;
+      }
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      flush();
+      continue;
+    }
+    if (char === ";") {
+      flush();
+      tokens.push(";");
+      continue;
+    }
+    if (char === "|" || char === "&") {
+      flush();
+      if (text[index + 1] === char) {
+        tokens.push(char + char);
+        index += 1;
+      } else {
+        tokens.push(char);
+      }
+      continue;
+    }
+    current += char;
+  }
+  flush();
+  return tokens;
+}
+
+function splitSimpleCommands(tokens) {
+  const commands = [];
+  let current = [];
+  for (const token of tokens) {
+    if (COMMAND_SEPARATORS.has(token)) {
+      if (current.length) commands.push(current);
+      current = [];
+      continue;
+    }
+    current.push(token);
+  }
+  if (current.length) commands.push(current);
+  return commands;
+}
+
+function tokenBasename(token) {
+  return String(token ?? "").replaceAll("\\", "/").split("/").at(-1) ?? "";
+}
+
+function unwrapCommand(tokens) {
+  let index = 0;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
+      index += 1;
+      continue;
+    }
+    const name = tokenBasename(token);
+    if (SIMPLE_WRAPPERS.has(name)) {
+      index += 1;
+      while (index < tokens.length && tokens[index].startsWith("-") && tokens[index] !== "--") {
+        index += 1;
+      }
+      if (tokens[index] === "--") index += 1;
+      continue;
+    }
+    if (name === "sudo") {
+      index += 1;
+      while (index < tokens.length && tokens[index].startsWith("-")) {
+        const option = tokens[index];
+        index += 1;
+        if (["-C", "-g", "-u", "--group", "--user"].includes(option)) index += 1;
+      }
+      continue;
+    }
+    if (name === "env") {
+      index += 1;
+      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      continue;
+    }
+    if (name === "timeout") {
+      index += 1;
+      while (index < tokens.length && tokens[index].startsWith("-")) {
+        const option = tokens[index];
+        index += 1;
+        if (["-k", "-s", "--kill-after", "--signal"].includes(option)) index += 1;
+      }
+      if (index < tokens.length && !tokens[index].startsWith("-")) index += 1;
+      continue;
+    }
+    if (name === "nice" || name === "stdbuf") {
+      index += 1;
+      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      continue;
+    }
+    break;
+  }
+  return tokens.slice(index);
+}
+
+function nonFlagOperands(args) {
+  const operands = [];
+  let skipNext = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    if (arg === "--") {
+      operands.push(...args.slice(index + 1));
+      break;
+    }
+    if (arg.startsWith("-")) {
+      if (arg === "-t" || arg === "--target-directory") skipNext = true;
+      continue;
+    }
+    operands.push(arg);
+  }
+  return operands;
+}
+
+function targetDirectory(args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "-t" || arg === "--target-directory") {
+      return args[index + 1] ?? "";
+    }
+    if (arg.startsWith("--target-directory=")) {
+      return arg.slice("--target-directory=".length);
+    }
+  }
+  return "";
+}
+
+function copyDestTargets(args) {
+  const dest = targetDirectory(args);
+  if (dest) return [dest];
+  const operands = nonFlagOperands(args);
+  return operands.length ? [operands.at(-1)] : [];
+}
+
+function moveWriteTargets(args) {
+  const dest = targetDirectory(args);
+  const operands = nonFlagOperands(args);
+  return dest ? [dest, ...operands] : operands;
+}
+
+function looksLikeSedScript(token) {
+  return /(?:^|[0-9,${}]*[!]*s)[/#@|]./u.test(token);
+}
+
+function sedWriteTargets(args) {
+  const inplace = args.some(
+    (arg) => arg === "--in-place" || arg.startsWith("--in-place=") || /^-[A-Za-z]*i/u.test(arg),
+  );
+  if (!inplace) return [];
+  const files = [];
+  let skipNext = false;
+  let skippedScript = false;
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    if (arg === "--") {
+      files.push(...args.slice(index + 1));
+      break;
+    }
+    if (arg === "-e" || arg === "-f" || arg === "--expression" || arg === "--file") {
+      skipNext = true;
+      skippedScript = true;
+      continue;
+    }
+    if (arg.startsWith("-") || arg === "") continue;
+    if (!skippedScript && looksLikeSedScript(arg)) {
+      skippedScript = true;
+      continue;
+    }
+    files.push(arg);
+  }
+  return files;
+}
+
+function ddWriteTargets(args) {
+  return args
+    .filter((arg) => arg.startsWith("of="))
+    .map((arg) => arg.slice(3));
+}
+
+function commandWriteTargets(tokens) {
+  const invocation = unwrapCommand(tokens);
+  if (!invocation.length) return [];
+  const name = tokenBasename(invocation[0]);
+  const args = invocation.slice(1);
+  if (name === "sed") return sedWriteTargets(args);
+  if (name === "cp") return copyDestTargets(args);
+  if (name === "mv") return moveWriteTargets(args);
+  if (name === "rm") return nonFlagOperands(args);
+  if (name === "install") return copyDestTargets(args);
+  if (name === "dd") return ddWriteTargets(args);
+  return [];
+}
 
 export function extractShellWriteTargets(command) {
   const text = String(command ?? "");
@@ -61,6 +301,9 @@ export function extractShellWriteTargets(command) {
   }
   for (const match of text.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) {
     push(match[1]);
+  }
+  for (const tokens of splitSimpleCommands(tokenizeShell(text))) {
+    for (const path of commandWriteTargets(tokens)) push(path);
   }
   return [...new Set(paths)];
 }
