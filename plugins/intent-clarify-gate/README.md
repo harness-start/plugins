@@ -1,6 +1,6 @@
 # intent-clarify-gate
 
-`intent-clarify-gate` 同时支持 Claude Code 和 Codex，在业务写入前强制执行 grill-me 风格的意图澄清。
+`intent-clarify-gate` 同时支持 Claude Code 和 Codex。业务写入之前，先走一轮 grill-me 风格的意图澄清。
 
 插件实现 [`docs/grill-me-hooks-design.md`](./docs/grill-me-hooks-design.md) v3.1 定义的工作流：
 

@@ -1,6 +1,6 @@
 # command-exec-audit
 
-`command-exec-audit` 为 Claude Code 和 Codex 记录 agent 执行的 shell 命令，只保存状态和耗时，不保存输出正文。记录按项目和会话写入 JSONL，并阻止 agent 工具改写审计轨迹。
+`command-exec-audit` 记录 Claude Code 和 Codex 里 agent 跑过的 shell 命令：只记状态和耗时，不记输出正文。记录按项目和会话写成 JSONL，并拦住改审计文件。
 
 ## 目录结构
 

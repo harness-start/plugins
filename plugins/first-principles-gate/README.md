@@ -1,6 +1,6 @@
 # first-principles-gate
 
-`first-principles-gate` 同时支持 Claude Code 和 Codex，在业务写入前建立一个短期的第一性原理分析会话：
+`first-principles-gate` 同时支持 Claude Code 和 Codex。用户用指定入口打开后，业务写入先停一停，先把第一性原理分析写到磁盘：
 
 1. 只有用户 prompt 以 `/first-principles` 或 `$first-principles` 开头时进入；`/fp`、`$fp` 等短别名和句中提及都不会触发。
 2. 会话处于 `open` 时阻断非 ledger 的文件或 shell 修改，默认只允许 `.first-principles/**`、`docs/decisions/**`，以及启用 `allowSpecMd` 后的 `**/spec.md`。

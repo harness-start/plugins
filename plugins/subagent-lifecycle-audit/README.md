@@ -1,6 +1,6 @@
 # subagent-lifecycle-audit
 
-`subagent-lifecycle-audit` 记录 Claude Code 和 Codex 的 subagent 生命周期 metadata。它观察启动与停止事件，按宿主 session 和 `agent_id` 关联，并阻断 agent 直接修改项目本地轨迹的常见方式。
+`subagent-lifecycle-audit` 记录 Claude Code 和 Codex 里 subagent 的启停。按宿主 session 和 `agent_id` 对上号，并拦住常见的直接改本地轨迹的写法。
 
 插件不记录 prompt、response、命令、文件路径、工具名或工具输入输出。观察到 `stopped` 只表示宿主发出了 `SubagentStop`，不能证明任务成功。
 

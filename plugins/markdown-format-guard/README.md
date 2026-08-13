@@ -21,7 +21,7 @@
 
 ## 设计与检查边界
 
-插件只强制 Markdown 文件可观察的结构与排版不变量，不检查拼写、链接可达性、语义内容或中英混排风格，也不自动 format 或回写文件。规则语义参考常见 markdownlint MD001、MD003、MD009、MD010、MD012、MD018、MD022、MD040、MD047 等规则，但不是 markdownlint 全量兼容实现。
+它只查 Markdown 落盘后的结构和排版，不查拼写、链接能不能打开、语义或中英混排，也不会自动 format 或回写文件。规则语义参考常见 markdownlint（MD001、MD003、MD009、MD010、MD012、MD018、MD022、MD040、MD047），但不是全量兼容实现。
 
 作用范围为 `.md`、`.markdown`、`.mdown`、`.mkd`。默认跳过 `node_modules`、`vendor`、`dist`、`build`、`coverage`、`target`、`.next`、`.nuxt`、`generated`、`__generated__` 和 `.git` 等目录。YAML front matter 中的 `#` 不作为标题，fenced code 内文本不参与标题规则。文件超过 2 MiB、无法读取或 Hook 输入无效时 fail-open。
 

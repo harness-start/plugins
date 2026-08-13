@@ -105,9 +105,9 @@ JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/featur
 
 ## 效果边界
 
-插件能证明测试文件状态先于一个明确关联的实现文件状态，并阻断普通文件工具、补丁和常见重定向 Shell 的 source-first 跳步。
+它核对的是：关联测试的文件状态先变，实现文件后变。普通文件工具、补丁和常见重定向 Shell 的 source-first 跳步会被拦住。
 
-它不证明测试断言正确、覆盖率充分或测试运行成功。两个文件如果声明完全相同的 FQCN 或 package symbol，语言本身已处于重复声明状态；插件按实体处理，不替代 autoload、编译器或静态分析。Rust 第一版仍只支持独立 `tests/*.rs`，同文件 `#[cfg(test)]` 区域不能建立跨工具调用的文件顺序。
+它不核对断言对不对、覆盖够不够、测试有没有跑绿。两个文件如果声明了完全相同的 FQCN 或 package symbol，语言本身已经重复声明；插件按实体处理，不替代 autoload、编译器或静态分析。Rust 第一版仍只支持独立 `tests/*.rs`，同文件 `#[cfg(test)]` 区域不能建立跨工具调用的文件顺序。
 
 ## 验证
 

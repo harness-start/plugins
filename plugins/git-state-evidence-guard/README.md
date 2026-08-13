@@ -10,9 +10,9 @@
 
 声明包含精确的小写 `HEAD`、分支名或 detached HEAD 对应的 `null`，以及覆盖 staged、unstaged 和 untracked 状态的 `clean` 布尔值。修正或删除冲突证据块即可立即恢复，插件不保存会话状态。
 
-## 因果边界
+## 它查什么
 
-Hook 在 `Stop` 时直接读取 Git，不维护修改历史或 session ledger，也不检查命令和自然语言声明。它只能建立一次有限的本地 Git 状态观察，不能证明 commit 已推送、经过评审或测试、被 CI 接受或已经合并。
+Hook 在 `Stop` 时直接读 Git，不记修改历史，也不扫命令或自然语言声明。它只能看这一次本地仓库状态，不能说明 commit 已经推送、评审、测试、过 CI 或合并。
 
 ## 验证
 

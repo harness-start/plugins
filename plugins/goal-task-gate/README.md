@@ -1,6 +1,6 @@
 # goal-task-gate
 
-`goal-task-gate` 同时支持 Claude Code 和 Codex，用于审计宿主 `/goal` 长任务：
+`goal-task-gate` 同时支持 Claude Code 和 Codex。宿主 `/goal` 长任务会留下可核对的决策轨迹：
 
 1. 用户 prompt 以 `/goal <objective>` 开头时启动；status、pause、resume 和裸 `/goal` 不启动。
 2. 注入简短协议，要求通过 `log-decision.mjs` 将决策写入 `.goal-task/runs/<run_id>/decisions.tsv`。

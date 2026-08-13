@@ -1,6 +1,6 @@
 # language-output-governance
 
-`language-output-governance` 让 Claude Code 和 Codex 在一个会话内使用稳定的自然语言 profile。它取代旧的 `in-chinese`；安装器默认根据系统 locale 选择 profile，没有宿主或项目配置时仍严格回退到简体中文。
+`language-output-governance` 让 Claude Code 和 Codex 在一次会话里用同一个自然语言 profile。它取代旧的 `in-chinese`。安装器默认按系统 locale 选 profile；宿主和项目都没配时，仍用简体中文。
 
 插件只治理会话的自然语言输出语言，不控制语气、人格、详略、格式、翻译质量或工具输出。
 

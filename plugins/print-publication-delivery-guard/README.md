@@ -1,8 +1,8 @@
 # Print Publication Delivery Guard
 
-`print-publication-delivery-guard` 保护 `artifacts/print/<publication-id>/` 下的手册、目录册和杂志式出版物。它校验静态 React 出版单元、章节顺序、Paged Media CSS、四种 PDF 交付角色、preflight evidence 和 release receipt 的新鲜度。
+`print-publication-delivery-guard` 管 `artifacts/print/<publication-id>/` 下的手册、目录册和杂志。它查静态 React 出版单元、章节顺序、Paged Media CSS、四种 PDF 交付角色、preflight evidence，以及 release receipt 还新不新。
 
-插件不会把 `.pdf` 后缀当作印刷证明，也不自带 Vivliostyle renderer 或 preflight 工具。项目流水线负责生成 HTML、PDF 和 evidence；插件负责结构校验、PDF magic 检查和最终字节绑定。
+文件叫 `.pdf` 不等于能印。插件不自带 Vivliostyle renderer 或 preflight 工具。HTML、PDF 和 evidence 由项目流水线生成；插件核对结构、PDF magic 和最终字节。
 
 ## 最小目录
 

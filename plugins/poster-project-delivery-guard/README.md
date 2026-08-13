@@ -1,8 +1,8 @@
 # Poster Project Delivery Guard
 
-`poster-project-delivery-guard` 保护 `artifacts/poster/<poster-id>/` 下由 React/TSX、Satori 和 resvg 渲染的海报工程。它校验 variant 与 layer 顺序、文件 role、source-hash SVG/PNG 预览、交付文件和 release receipt 的新鲜度。
+`poster-project-delivery-guard` 管 `artifacts/poster/<poster-id>/` 下用 React/TSX、Satori 和 resvg 做的海报工程。它查 variant 和 layer 顺序、文件 role、带 source-hash 的 SVG/PNG 预览、交付文件，以及 release receipt 还新不新。
 
-插件不判断视觉品味，也不自带海报 renderer 或 reviewer。当前登记的工具只有 lint 和 release：项目自己的渲染/审查流水线负责生成预览、成品和 evidence，插件负责拒绝结构不合格或已经过期的交付。
+它不打分审美，也不自带 renderer 或 reviewer。登记的工具只有 lint 和 release：预览、成品和 evidence 由项目自己的流水线生成；结构不对或已经过期的交付会被拒。
 
 ## 最小目录
 
@@ -78,4 +78,4 @@ Claude Code 注入 `CLAUDE_PLUGIN_ROOT` 并提供 `PostToolUseFailure`；Codex �
 node --test plugins/poster-project-delivery-guard/tests/*.test.mjs
 ```
 
-`skill-deps.json` 声明的可选设计顾问只提供只读建议，不能充当 renderer、reviewer 或 release writer。
+`skill-deps.json` 声明的可选设计顾问只给只读建议，不能当 renderer、reviewer 或 release writer。

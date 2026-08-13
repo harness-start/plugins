@@ -1,6 +1,6 @@
 # git-delivery-guards
 
-`git-delivery-guards` 在 Claude Code 和 Codex 中统一保护本地 Git 交付：阻止宽范围暂存、破坏性命令、无效分支名、模糊提交信息、跨边界提交和批量冲突选择，并报告 partial staging、大提交与安全清理的陈旧 Git 锁。
+`git-delivery-guards` 在 Claude Code 和 Codex 里管本地 Git 交付：拦住宽范围暂存、破坏性命令、无效分支名、含糊的提交信息、跨边界提交和批量冲突选择，并报告 partial staging、大提交，以及可以安全清掉的陈旧 Git 锁。
 
 插件还在文件工具写入后读取最终文件，阻断仍含标准合并冲突标记的文本文件。GitHub、GitLab、CI、SVN 和远端交付闭环不属于本插件。
 

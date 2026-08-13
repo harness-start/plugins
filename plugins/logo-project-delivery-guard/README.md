@@ -1,8 +1,8 @@
 # Logo Project Delivery Guard
 
-`logo-project-delivery-guard` 保护 Logo 工程，不把范围扩张为完整 VI。它建立 concept source → master render → construction/preview/review → release receipt 的可验证链，拒绝只靠文件名、空壳图片、schema 桩或伪造 wrapper 完成交付。
+`logo-project-delivery-guard` 管 Logo 工程，不管整套 VI。交付要从 concept source 走到 master、制图/预览/审查，再到 release receipt。只改文件名、交空图、交 schema 桩或伪造 wrapper，过不了。
 
-Fibonacci / φ 检查证明的是可复算、绑定当前 master 的构造关系；它不表示黄金比例构造必然更美，也不证明商标可注册。
+Fibonacci / φ 检查的是：构造关系能按当前 master 复算。它不说黄金比例一定更好看，也不等于商标能注册。
 
 ## 工程契约
 
@@ -48,7 +48,7 @@ Hook 采用 fail-closed shell policy：Logo scope 只允许窄化的只读命令
 
 注册工具只能指向 workspace 内已发现、非 symlink 的 Logo 项目实体目录。路径伪装的同名二进制、`rg --pre`、可写 `sed`/`find`、wrapper 路径仅作为普通参数、`node -e`、compound shell 和畸形 hook JSON 都不会放行。没有 Logo 项目的普通会话不受这组 shell allowlist 影响。
 
-Hook、receipt 和形式化几何都不能证明商标可注册、独创性或市场识别度；这些结论必须由人工或法律审查承担。
+Hook、receipt 和几何检查都不等于商标能注册、一定原创或一定好认。那些要人审或法务看。
 
 ## 验证
 

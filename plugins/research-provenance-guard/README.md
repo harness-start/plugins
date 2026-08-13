@@ -1,8 +1,8 @@
 # Research Provenance Guard
 
-`research-provenance-guard` 是 Claude Code 和 Codex 上按需启用的硬研究 harness。它通过 `research-evidence-workflow` orchestrator 和项目工作流文件，将来源转换为捕获回执、精确 anchor、typed claim、canonical report 和新鲜 completion seal；不会依靠 Skill 名称启发式激活。
+`research-provenance-guard` 是按需打开的研究流程，Claude Code 和 Codex 都能用。它不靠 Skill 名字猜你在做研究。`research-evidence-workflow` 和项目里的工作流文件会把来源收成捕获回执、精确 anchor、typed claim、正式报告，以及带新鲜度的 completion seal。
 
-## 入口与因果链
+## 入口和工作顺序
 
 1. 安装插件，以及可选的 `research`、`firecrawl`、`handoff` Skill 依赖。
 2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，不能直接从裸 `firecrawl` / `research` 开始。
@@ -27,7 +27,7 @@
   -> Hook 写入 `complete`，或精确用户指令触发 `aborted`
 ```
 
-Hook 激活、`SessionStart` 文本、安装 skill-deps 或额外模型轮次都不是结果证据。结果级检查包括 workflow phase、anchor 解析、claim 状态规则、canonical artifact 生成、artifact 哈希重算、回执匹配，以及最后一次可观察修改后的 freshness。
+Hook 被调用、`SessionStart` 打了字、装了 skill-deps，或多走几轮模型，都不算研究做完。真正看的是 workflow phase、anchor 能不能解析、claim 状态规则、正式产物是否生成、哈希能不能重算、回执是否对得上，以及最后一次看得见的修改之后证据还新不新。
 
 Claude MCP 服务继承平台注入的 `CLAUDE_PLUGIN_DATA`；`.mcp.json` 不得用同名占位符覆盖它，否则未展开的字面量会把私有研究数据写入工作区。Codex 则只转发 `mcp/codex.json` 明确列出的平台环境变量。
 

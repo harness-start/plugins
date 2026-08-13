@@ -159,8 +159,8 @@ plugins/<name>/
 ### 设计约定
 
 - **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出放行/阻断决策，stderr 输出给人读的消息；解析失败一律 fail-open。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
-- **证据驱动**：工作流类插件以磁盘回执与 SHA-256 receipt 绑定新鲜度，交付前要求回执与 trail 一致；Hook 激活、格式合规或额外模型轮次本身不构成有效性。
-- **fail-open 与 fail-closed 分级**：解析失败与证据缺失放行；写入安全、trail 完整性与交付新鲜度违规则阻断。
+- **证据**：工作流插件用磁盘回执和 SHA-256 receipt 绑新鲜度；交付前要求回执和 trail 对得上。Hook 被调用、格式对、或多走几轮模型，都不算做完。
+- **fail-open / fail-closed**：解析失败和证据缺失就放行；写入安全、trail 完整性和交付新鲜度出问题就拦住。
 - **可配置**：多数守卫支持项目级配置（如 `.encoding-guard.mjs`、`.language-output-governance.mjs`），解析失败回退内置规则。
 - **验证配套**：每个插件至少一个 `node --test` 单元测试与一套 acceptance cases；CI 统一运行 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
 

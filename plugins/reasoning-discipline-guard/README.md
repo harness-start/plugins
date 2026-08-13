@@ -1,12 +1,14 @@
 # reasoning-discipline-guard
 
-`reasoning-discipline-guard` 在 `SessionStart` 发布一句五阶段路由协议，内置宽泛的 `reasoning-discipline` Skill，并在该 Skill 明确创建工作流后，强制执行有序、基于文件的分析。
+`reasoning-discipline-guard` 在 `SessionStart` 发一句路由说明，并带一份宽泛的 `reasoning-discipline` Skill。只有这份 Skill 真正写出工作流文件后，Hook 才会按文件顺序检查分析过程。
 
-这句 standing rule 只列出 proof、exact、worst-case、algorithmic、causal、constrained-decision 六类工作、Skill 名、五阶段完成要求，以及 final-only 只约束回复格式；它不注入题型公式、领域提示或答案线索。路由契约要求模型将精确推理、因果分析或后果重大的决策任务交给 Skill，普通请求不受影响。路由只是指导，不是硬约束；没有写入 `.reasoning-discipline/*/workflow.md` 时，`Stop` 保持空闲。文件写入而非 Skill 加载或 prompt 正则，是唯一硬激活边界。
+那句 standing rule 只点名六类工作（proof、exact、worst-case、algorithmic、causal、constrained-decision）、Skill 名、五阶段要求，以及 final-only 只约束回复格式。它不塞题型公式、领域提示或答案线索。精确推理、因果分析或后果比较大的决策，模型应走 Skill；普通请求不受影响。
 
-插件的硬声明范围很窄：已激活的结论只有在当前文件满足配置的结构和顺序契约时才能通过 `Stop`。回执、格式正确或增加模型轮次都不能证明答案正确。
+路由只是提醒。没有 `.reasoning-discipline/*/workflow.md` 时，`Stop` 什么也不做。真正开门的是写出这个文件，不是加载 Skill，也不是 prompt 正则。
 
-## 五阶段因果链
+已经激活时，`Stop` 只看当前文件是否符合配置的结构和顺序。回执对、格式对、多跑几轮模型，都不等于答案对。
+
+## 五个阶段怎么接
 
 ```text
 SessionStart 路由契约
@@ -28,7 +30,7 @@ SessionStart 路由契约
 2. 按 exact、causal 或 decision 契约分析；exact 工作流必须按执行顺序写出 fixed/exists/forall quantifier，并针对环境变化评估每个固定参与者 strategy；
 3. 用分支适用的攻击挑战候选；exact control challenge 必须保留 frame 中的 strategy assignment；
 4. 用独立方法 cross-check 并独立搜索每个 strategy；有限划分分配由有界机器模型重放，非分配类工具证据只能作为 supporting metric；
-5. 给出校准后的结论。
+5. 给出结论，并写清还不确定什么。
 
 Hook 校验结构、顺序、引用、每阶段 SHA-256 和会话回执。exact frame 还要求所有声明行动时可观察性的 given 以 `observable: true` 出现在 positive observability audit；只有标为 `user-verbatim` 且明确说明不可选择的 given 才能阻断该信号，模型推断的后果不能替代用户原话。
 

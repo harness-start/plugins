@@ -1,12 +1,12 @@
 # subagent-workflow-guard
 
-`subagent-workflow-guard` 使用范围明确的 application 作为主 agent 与每个受治理 subagent 之间的持久交接。Hook 决策将 application 依次关联到 dispatch、startup、工具范围、Result Card 校验和父运行关闭。
+`subagent-workflow-guard` 用磁盘上的 application 交接主 agent 和受治理的 subagent。Hook 按这份文件决定能不能派发、启动子进程、放开哪些工具、Result Card 过不过、父运行能不能关。
 
-插件取代旧的 `subagent-discipline`。`subagent-lifecycle-audit` 仍是独立插件：它记录所有 subagent 的生命周期事实，本插件只保存与 application 绑定的工作流回执。
+它取代旧的 `subagent-discipline`。`subagent-lifecycle-audit` 还是单独记所有 subagent 启停；本插件只存跟 application 绑在一起的工作流回执。
 
-## 可证明结果与因果边界
+## 实际挡住什么
 
-硬结果范围很窄：活动 governed run 中，主 agent 通过确实产生匹配 `PreToolUse` 事件的宿主工具 dispatch 前，必须先登记有效的一次性 application。只有所有 application-bound subagent 返回有效 Result Card 且 review graph 通过校验，governed run 才能通过确定性命令关闭为完成。
+活动 governed run 里，主 agent 必须先登记一份一次性 application，而且宿主工具确实发出匹配的 `PreToolUse`，才能派发。绑在 application 上的 subagent 都交回有效 Result Card，review graph 校验通过后，才能用确定性命令把 run 标成完成。
 
 ```text
 application artifact
@@ -42,7 +42,7 @@ reviewer 和 researcher 没有文件修改或 shell 权限。implementer 的 she
 
 ## 宿主能力边界
 
-Claude Code 的 `Agent` 工具会提供完整 dispatch/start/stop Hook 链，是硬门禁路径。Claude Code 2.1.170 会产生必需的 `PreToolUse -> SubagentStart -> SubagentStop` 链，live acceptance 已证明拒绝发生在启动前。
+Claude Code 的 `Agent` 工具会打出完整 dispatch/start/stop Hook 链，才能在启动前拦住。Claude Code 2.1.170 会产生必需的 `PreToolUse -> SubagentStart -> SubagentStop` 链，live acceptance 已证明拒绝发生在启动前。
 
 在已测试的 Codex 0.146 中，namespaced `collaboration.spawn_agent` API 不发出 dispatch `PreToolUse`，但会发出 `SubagentStart` 和 `SubagentStop`。因此插件无法在启动前阻止未注册 worker；`SubagentStart` 只能把缺少 reservation 的 worker 记录为 orphan 并注入恢复指令。修改 manifest matcher 不能创造缺失的 pre-dispatch 事件。Codex 仍不能在缺少 sealed review graph 时通过 workflow CLI 关闭为 `DONE`，但这不是 dispatch sandbox。Codex manifest 与 `SessionStart` 上下文都不能作为 pre-dispatch enforcement 证据。
 

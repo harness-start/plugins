@@ -1,10 +1,10 @@
 # Debugging Workflow Guard
 
-`debugging-workflow-guard` 为具体软件故障提供范围明确的 `debug-workflow` Skill 和由 Hook 约束的证据工作流。它与编程语言无关，并能让多个缺陷分别归属证据，避免互相混用。
+`debugging-workflow-guard` 管具体软件故障怎么修。它带一份 `debug-workflow` Skill，并用 Hook 卡住证据顺序。语言不限。多个缺陷各自记账，不会混在一起。
 
-Skill 负责识别意图，Hook 不分类 prompt；仅加载 Skill 不会激活任何硬行为。会话只有创建或恢复有效的 `.debug-workflow/*.md` Debug Work Order 后才进入工作流。
+只加载 Skill 不会打开硬规则。要先创建或恢复一份有效的 `.debug-workflow/*.md` Work Order，会话才进入工作流。Hook 不靠读 prompt 判断你在干什么。
 
-## 因果链
+## 怎么跑
 
 ```text
 具体故障请求
@@ -12,12 +12,12 @@ Skill 负责识别意图，Hook 不分类 prompt；仅加载 Skill 不会激活�
   -> PostToolUse 将该文件和 epoch 绑定到会话
   -> 命令与修改回执归属 activeBugId
   -> PreToolUse 要求精确失败基线和因果证据，并在三轮失败修复后冻结该缺陷
-  -> Stop 用当前会话回执校验关闭声明；暂停订单保留诚实交接
+  -> Stop 用当前会话回执核对关闭声明；暂停的订单只当交接，不当完成
 ```
 
-插件能证明工作流证据和执行顺序，不能证明假设在科学上一定正确。agent 仍须检查命令输出，并记录可证伪的因果解释。
+它核对的是工作流有没有按顺序留下证据，不核对假设对不对。agent 还是要看命令输出，把能证伪的解释写进订单。
 
-## 激活、状态与存储
+## 激活和状态
 
 - `SessionStart` 只报告可恢复的 Work Order，从不选择或激活它。
 - 成功修改一个有效 Work Order 的 `PostToolUse` 是唯一激活入口，会把稳定 ID 和 epoch 绑定到当前宿主会话。
@@ -28,11 +28,11 @@ Skill 负责识别意图，Hook 不分类 prompt；仅加载 Skill 不会激活�
 - `status`、`run.state`、缺陷状态、假设状态、根因状态和修复状态是彼此独立的状态机。内置 Skill 列出所有允许值，schema 错误也会给出这些值。
 - 临时无效的已绑定 Work Order 会阻断无关生产写入，但允许在同一路径修复；其 ID、epoch 和已有回执不能被静默替换。
 
-## 核心不变量
+## 必须满足的条件
 
 1. 有效 Work Order 修改绑定当前会话前，Hook 保持惰性；以暂停状态创建只记录入口，不留下活动守卫。
 2. 同一时间只有一个活动缺陷，所有回执都带该缺陷 ID。
-3. 修改生产文件前，活动缺陷以及共享修复列出的每个缺陷都必须分别拥有归属明确、精确且发生在修改前的失败复现。活动缺陷还须有当前会话支持的假设和根因，并处于 `fixing` / `in-progress`。
+3. 修改生产文件前，活动缺陷以及共享修复列出的每个缺陷，都要各自有归属明确、精确、发生在修改前的失败复现。活动缺陷还须有当前会话支持的假设和根因，并处于 `fixing` / `in-progress`。
 4. 生产修改前必须有独立 `DBG_REVIEW_REQUEST diagnosis` 审批。缺陷标为 resolved 前，必须有已应用的修复修改、修改前失败、受支持的假设与根因、最后一次相关修改后原复现成功、回归成功以及非失败的清理回执；`Stop` 还会独立扫描 Work Order debug marker。`architecture-review` 需要另一个 agent 的 `DBG_REVIEW_REQUEST architecture` 审批。
 5. 回执引用必须存在于已绑定会话，并归属同一缺陷。
 6. 三次修改后复现失败只冻结当前缺陷。
@@ -85,14 +85,14 @@ export default {
 
 正则配置使用不带分隔符的 JavaScript 正则表达式；无效表达式永不匹配。
 
-## 威胁模型与边界
+## 边界
 
 - 伪造的 Work Order 回执会被拒绝，因为 `Stop` 会从插件数据状态解析 ID。
-- 缺陷归属可阻止跨缺陷复用证据；发生在最后一次相关修改前的验证会被判定过期。
-- 租约与 epoch watermark 会拒绝并发恢复。
-- 已绑定后，无效、过大、符号链接、多代码块或含未知字段的 Work Order 会 fail-closed。首次写入失败且未留下文件时保持惰性；暂时无效的已绑定文件会保留回执，只能原地修复且不能改变 ID 或 epoch。
+- 缺陷各自记账，不能拿 A 的复现去给 B 交差；最后一次相关修改之前的验证算过期。
+- 租约和 epoch watermark 会拒绝并发恢复。
+- 已绑定后，无效、过大、符号链接、多代码块或含未知字段的 Work Order 会 fail-closed。首次写入失败且没留下文件时保持空闲；暂时坏掉的已绑定文件会保留回执，只能原地修，不能改 ID 或 epoch。
 
-这是流程守卫，不是定理证明器。命令成功和 ledger 结构正确只是修复真实缺陷的必要条件，不是充分条件。
+命令成功、ledger 结构对，只说明流程走完了，不说明缺陷真修好了。
 
 ## 方法来源
 
@@ -103,4 +103,4 @@ export default {
 - `wshobson/agents/debugging-strategies` @ `c4b82b0ad771190355eb8e204b1329732a18449a`：差分、二分和 trace 隔离策略；
 - `pproenca/dot-skills/debug` @ `c9228d2d0c1391190168845824ceb4e33bb844fb`：先定位行为在哪里偏离，再判断哪里损坏，并使用 last-known-good 与 fault propagation。
 
-本插件还提供紧凑的 RED 循环、重置样例、唯一调试前缀、因果链记录、精确复现验证、有限状态和双宿主来源记录约定。
+本插件还约定了紧凑的 RED 循环、重置样例、唯一调试前缀、按缺陷记录因果、精确复现验证、有限状态，以及双宿主怎么记来源。

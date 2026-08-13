@@ -1,6 +1,6 @@
 # work-report-insights
 
-`work-report-insights` 从本机 Claude Code 与 Codex transcript 生成日报、周报和指定日期范围的工作总结。它通过逐题访谈降低员工填写成本，并把工作方法与执行不足放进员工确认的报告。
+`work-report-insights` 从本机 Claude Code 和 Codex 的 transcript 生成日报、周报和指定日期范围的工作总结。员工按题回答；报告会写工作方法和执行上的缺口，正文要员工确认后才能落盘。
 
 ## Skills
 

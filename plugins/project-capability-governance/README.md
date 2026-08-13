@@ -1,8 +1,8 @@
 # project-capability-governance
 
-`project-capability-governance` is a dual-host plugin for Claude Code and Codex. During ordinary work it can capture hard-qualified, project-specific capability proposals through a dedicated recorder subagent. It does not automatically adopt those proposals: the Stop notice is informational, and a human maintainer must explicitly invoke `$project-capability-governance` before any project instruction, Skill, Script, or Hook is changed.
+`project-capability-governance` works on Claude Code and Codex. During ordinary work it can park project-specific capability proposals through a dedicated recorder subagent. It does not apply them: the Stop notice is only a heads-up. A human maintainer must run `$project-capability-governance` before any project instruction, Skill, Script, or Hook changes.
 
-A proposal is evidence to review, not an instruction to execute. Current-task TODOs, one-offs, generic advice, secrets, raw transcript dumps, machine-specific absolute paths, and Hook ideas without an outcome-level causal chain do not qualify.
+A proposal is something to review, not something to execute. Current-task TODOs, one-offs, generic advice, secrets, raw transcript dumps, machine-specific absolute paths, and Hook ideas that cannot be traced to a real outcome do not qualify.
 
 ## Runtime flow
 

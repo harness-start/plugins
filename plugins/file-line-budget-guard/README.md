@@ -1,6 +1,6 @@
 # file-line-budget-guard
 
-**棘轮（Ratchet）文件行数预算守卫**：在 Claude Code 和 Codex 中，对 `Edit`/`Write`/`MultiEdit`/`ApplyPatch` 操作后自动检查文件行数，按规则预设上限实施棘轮机制——历史超标文件的小幅增长静默放行，超过软阈值的增长仍会阻断。
+`file-line-budget-guard` 在 Claude Code 和 Codex 里，于 `Edit`/`Write`/`MultiEdit`/`ApplyPatch` 之后按行数上限做棘轮检查：历史上已经超标的文件，小幅变长可以过；超过软阈值的增长仍会拦住。
 
 ## 设计原理
 

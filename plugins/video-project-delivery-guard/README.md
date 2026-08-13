@@ -1,6 +1,6 @@
 # Video Project Delivery Guard
 
-`video-project-delivery-guard` 保护 `artifacts/video/<video-id>/` 下的 Remotion 工程。release gate 把项目输入绑定到实测 MP4/WAV render proof、最终 ffprobe evidence、抽帧 hash、无障碍检查、独立宿主会话 review、release manifest 和 SHA-256 receipt。
+`video-project-delivery-guard` 管 `artifacts/video/<video-id>/` 下的 Remotion 工程。要发布，项目输入必须对得上实测 MP4/WAV render proof、最终 ffprobe evidence、抽帧 hash、无障碍检查、独立宿主会话 review、release manifest 和 SHA-256 receipt。
 
 插件要求 Node.js、npm、`ffmpeg` 和 `ffprobe`。渲染依赖由 artifact 工程自己的 `package-lock.json` 固定。
 
@@ -160,8 +160,8 @@ node --test plugins/video-project-delivery-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin video-project-delivery-guard
 ```
 
-该机制在宿主可观察的 Tool/Hook 边界内建立 render → measure → independent-session review → release 的因果链，而不是操作系统沙箱。宿主不可见进程、被攻陷的项目自有 render script、被替换的系统 ffmpeg/ffprobe 或具备直接磁盘权限的操作者仍超出 `snapshot` profile。
+这套检查发生在宿主能看到的 Tool/Hook 边界里，顺序是 render → measure → 独立会话 review → release。它不是操作系统沙箱。宿主看不见的进程、被改过的项目 render 脚本、被换掉的系统 ffmpeg/ffprobe，或手里有直接磁盘权限的人，都不在 `snapshot` profile 里。
 
-校验器能证明文件与帧投影、实际 container/stream/尺寸/时长、Hook 信任边界内的 writer provenance、evidence 结构和 snapshot freshness；不能自动证明审美、叙事、字幕语义、内容真实性或真人身份。结构化 review 记录这些结论及 session provenance，但不等同于法律签名或真人身份认证。当前插件没有外部 Skill 依赖。
+校验器能核对文件和帧投影、实际 container/stream/尺寸/时长、Hook 信任边界内的 writer 来源、evidence 结构，以及 snapshot 还新不新。审美、叙事、字幕语义、内容真假或真人身份，它自动判不了。结构化 review 会记下这些判断和 session 来源，但那不是法律签名，也不是身份认证。当前插件没有外部 Skill 依赖。
 
 Claude Code 使用 `CLAUDE_PLUGIN_ROOT` 并可观察 `PostToolUseFailure`；Codex 使用 `PLUGIN_ROOT`，Hook 命令设置 `AI_EXPERTS_SESSION_ID` 和 `AI_EXPERTS_TRIGGER_FROM`。安装态 writer 使用对应变量或已安装插件的精确绝对路径，不能使用 `...` 占位。reviewer 身份以 capability 里的真实宿主 session 为准，不能由输入 JSON 自报。live acceptance 必须通过仓库脚本进入 `docker/host-acceptance`，不能直接在宿主机启动 Claude Code 或 Codex 会话。

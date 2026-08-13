@@ -1,6 +1,6 @@
 # file-access-audit
 
-`file-access-audit` 将 Claude Code 和 Codex 中 agent 的结构化文件读取与写入记录到项目本地、按会话划分的 JSONL 轨迹，并阻止 agent 改写该轨迹。普通业务工具只会被观察，不会因此阻断。
+`file-access-audit` 把 Claude Code 和 Codex 里 agent 的结构化文件读写记到项目本地、按会话拆的 JSONL，并拦住改这条轨迹。普通业务工具只被记录，不会因此被拒。
 
 插件不跟踪人类在 IDE 中打开或保存文件，也不解析只通过 shell 完成的 `cat` 或重定向操作。
 

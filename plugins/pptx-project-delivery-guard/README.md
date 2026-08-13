@@ -1,8 +1,8 @@
 # PPTX Project Delivery Guard
 
-`pptx-project-delivery-guard` 保护 `artifacts/pptx/<deck-id>/` 下使用 PptxGenJS 构建的工程。它校验连续 slide manifest、单页模块 owner、source-hash 预览、PPTX/PDF/逐页图片、审查文件和 release receipt 的新鲜度。
+`pptx-project-delivery-guard` 管 `artifacts/pptx/<deck-id>/` 下用 PptxGenJS 做的工程。它查连续 slide manifest、单页模块 owner、source-hash 预览、PPTX/PDF/逐页图片、审查文件，以及 release receipt 还新不新。
 
-插件不判断 deck 是否有说服力，也不自带 PptxGenJS renderer、PDF 转换器或 reviewer。项目流水线负责生成预览和 evidence；插件负责校验结构并将当前输入与输出字节绑定到 receipt。
+它不判断 deck 好不好讲，也不自带 PptxGenJS renderer、PDF 转换器或 reviewer。预览和 evidence 由项目流水线生成；插件核对结构，并把当前输入输出字节绑到 receipt。
 
 ## 最小目录
 
