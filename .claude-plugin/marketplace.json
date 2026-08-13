@@ -12,11 +12,6 @@
       "description": "Enforces captured, anchored, fresh, machine-verifiable evidence for explicit research tasks."
     },
     {
-      "name": "git-state-evidence-guard",
-      "source": "./plugins/git-state-evidence-guard",
-      "description": "Validates an explicit HEAD, branch, and clean-worktree declaration at Stop."
-    },
-    {
       "name": "execution-loop-guard",
       "source": "./plugins/execution-loop-guard",
       "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session."

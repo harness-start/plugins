@@ -94,7 +94,6 @@ codex plugin add <name>@harness-start --json
 | 插件 | 说明 |
 | --- | --- |
 | `research-provenance-guard` | 保存网页或本地资料为可引用片段，要求每条结论绑定来源；证据封存后才允许交付 |
-| `git-state-evidence-guard` | 在 `Stop` 校验明确声明的 HEAD、分支或 detached 状态及工作树清洁状态；证据缺失或无法确定时 fail-open |
 | `execution-loop-guard` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
 | `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
 | `git-delivery-guards` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
@@ -126,11 +125,11 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-31 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+30 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
-| 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`git-state-evidence-guard`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
+| 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
 | Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
 | 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate`、`goal-task-gate` | 会话阶段锁：意图澄清、第一性原理分析或 `/goal` 轨迹未关闭期间 deny 业务写入，直到显式关闭 |
 | 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`subagent-lifecycle-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
