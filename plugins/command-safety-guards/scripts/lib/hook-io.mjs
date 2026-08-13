@@ -138,8 +138,6 @@ export function additionalContextOutput(hookEventName, text) {
   };
   if (process.env.PLUGIN_ROOT && hookEventName === "PostToolUse") {
     process.stderr.write(`${text}\n`);
-    process.exitCode = 2;
-    return null;
   }
   return output;
 }

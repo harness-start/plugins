@@ -51,6 +51,55 @@ function recursiveRmTarget(args, cwd, stdinDriven) {
   return null;
 }
 
+function expandPathToken(argument, cwd) {
+  return argument
+    .replace(/^\$\{HOME\}(?=\/|$)/u, homedir())
+    .replace(/^\$HOME(?=\/|$)/u, homedir())
+    .replace(/^~(?=\/|$)/u, homedir())
+    .replace(/^\$\{PWD\}(?=\/|$)/u, cwd)
+    .replace(/^\$PWD(?=\/|$)/u, cwd)
+    .replace(/^\$\(pwd\)(?=\/|$)/u, cwd);
+}
+
+function broadDeleteReason(argument, cwd, verb) {
+  const homeReference = /^(?:~|\$HOME|\$\{HOME\})(?=\/|$)/u.test(argument);
+  const expanded = expandPathToken(argument, cwd);
+  const absolute = resolve(cwd, expanded);
+  if (/^\/+$/u.test(expanded)) return `${verb} / would delete the entire filesystem`;
+  if (absolute === resolve(cwd) || expanded.startsWith("./*") || expanded === ".") {
+    return `${verb} . would delete everything in the current directory`;
+  }
+  if (homeReference || absolute === homedir()) {
+    return `${verb} ~ targets the home directory and is extremely dangerous`;
+  }
+  if (dirname(absolute) === "/" || /^\/\*+$/u.test(expanded)) {
+    return `${verb} targeting a top-level directory such as /tmp or /home is extremely dangerous`;
+  }
+  return null;
+}
+
+function findDeleteReason(args, cwd) {
+  if (!args.some((argument) => argument === "-delete")) return null;
+  const paths = [];
+  let optionsEnded = false;
+  for (const argument of args) {
+    if (argument === "--") {
+      optionsEnded = true;
+      continue;
+    }
+    if (!optionsEnded && argument.startsWith("-")) continue;
+    if (!argument.startsWith("-")) paths.push(argument);
+  }
+  if (paths.length === 0) {
+    return "find -delete without an explicit path defaults to the current directory";
+  }
+  for (const argument of paths) {
+    const reason = broadDeleteReason(argument, cwd, "find -delete");
+    if (reason) return reason;
+  }
+  return null;
+}
+
 function dangerousCommandReason(command, cwd, depth = 0) {
   for (const logicalLine of splitShellLogicalLines(command)) {
     const tokens = tokenizeShell(logicalLine);
@@ -69,6 +118,20 @@ function dangerousCommandReason(command, cwd, depth = 0) {
           invocation.stdinDriven,
         );
         if (reason) return reason;
+      }
+      if (invocation?.executable === "find") {
+        const reason = findDeleteReason(invocation.args, cwd);
+        if (reason) return reason;
+      }
+      if (invocation?.executable === "eval") {
+        const nestedCommand = invocation.args.join(" ");
+        if (nestedCommand) {
+          if (depth >= 4) {
+            return "nested eval commands are too deep to prove the deletion scope safe";
+          }
+          const reason = dangerousCommandReason(nestedCommand, cwd, depth + 1);
+          if (reason) return reason;
+        }
       }
       if (invocation && SHELL_COMMANDS.has(invocation.executable)) {
         const commandIndex = invocation.args.findIndex((argument) =>

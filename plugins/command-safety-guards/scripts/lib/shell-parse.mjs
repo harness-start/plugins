@@ -41,7 +41,7 @@ function decodeAnsiCQuoteEscape(command, slashIndex) {
 }
 
 const EMPTY_OPTIONS = new Set();
-const SIMPLE_COMMAND_WRAPPERS = new Set(["command", "exec", "nohup"]);
+const SIMPLE_COMMAND_WRAPPERS = new Set(["command", "exec", "nohup", "busybox", "time"]);
 const SUDO_OPTIONS_WITH_VALUE = new Set([
   "-C", "-D", "-g", "-h", "-p", "-R", "-T", "-u",
   "--chdir", "--close-from", "--group", "--host", "--prompt", "--role",
@@ -54,6 +54,16 @@ const XARGS_OPTIONS_WITH_VALUE = new Set([
   "-a", "-d", "-E", "-I", "-L", "-n", "-P", "-s", "--arg-file",
   "--delimiter", "--eof", "--max-args", "--max-chars", "--max-lines",
   "--max-procs", "--replace",
+]);
+const TIMEOUT_OPTIONS_WITH_VALUE = new Set([
+  "-s", "--signal", "-k", "--kill-after",
+]);
+const NICE_OPTIONS_WITH_VALUE = new Set(["-n", "--adjustment"]);
+const STDBUF_OPTIONS_WITH_VALUE = new Set([
+  "-i", "--input", "-o", "--output", "-e", "--error",
+]);
+const IONICE_OPTIONS_WITH_VALUE = new Set([
+  "-c", "--class", "-n", "--classdata", "-p", "--pid",
 ]);
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
 
@@ -68,6 +78,10 @@ function skipWrapperOptions(tokens, start, optionsWithValue) {
   return index;
 }
 
+function tokenBasename(token) {
+  return String(token ?? "").split("/").at(-1) ?? "";
+}
+
 export function commandInvocation(tokens) {
   let index = 0;
   let stdinDriven = false;
@@ -78,25 +92,45 @@ export function commandInvocation(tokens) {
       index += 1;
       continue;
     }
-    if (SIMPLE_COMMAND_WRAPPERS.has(token)) {
+    const name = tokenBasename(token);
+    if (SIMPLE_COMMAND_WRAPPERS.has(name)) {
       index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
       continue;
     }
-    if (token === "sudo") {
+    if (name === "sudo") {
       index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
       continue;
     }
-    if (token === "env") {
+    if (name === "env") {
       index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
       continue;
     }
-    if (token === "xargs") {
+    if (name === "xargs") {
       stdinDriven = true;
       index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
       continue;
     }
+    if (name === "timeout") {
+      index = skipWrapperOptions(tokens, index + 1, TIMEOUT_OPTIONS_WITH_VALUE);
+      if (index < tokens.length && !COMMAND_SEPARATORS.has(tokens[index])) {
+        index += 1;
+      }
+      continue;
+    }
+    if (name === "nice") {
+      index = skipWrapperOptions(tokens, index + 1, NICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "stdbuf") {
+      index = skipWrapperOptions(tokens, index + 1, STDBUF_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "ionice") {
+      index = skipWrapperOptions(tokens, index + 1, IONICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
     return {
-      executable: token.split("/").at(-1) ?? token,
+      executable: name || token,
       args: tokens.slice(index + 1),
       stdinDriven,
     };

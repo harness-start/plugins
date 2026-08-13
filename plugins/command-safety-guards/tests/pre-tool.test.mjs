@@ -192,6 +192,41 @@ test("dangerous-rm detects wrappers, xargs, and nested shells", () => {
   }
 });
 
+test("dangerous-rm detects timing wrappers, busybox, eval, and find -delete", () => {
+  for (const command of [
+    "timeout 5 rm -rf /",
+    "nice rm -rf /",
+    "time rm -rf /",
+    "stdbuf -oL rm -rf /",
+    "ionice -c3 rm -rf /",
+    "busybox rm -rf /",
+    "eval rm -rf /",
+    "eval 'rm -rf /'",
+    "timeout 5 bash -c \"rm -rf /\"",
+    "find / -delete",
+    "find . -type f -delete",
+    "find /tmp -delete",
+    "find ~ -delete",
+  ]) {
+    assert.equal(dangerousCommandHits(command, CWD).length, 1, command);
+  }
+});
+
+test("dangerous-rm classifies wrappers by basename, including absolute paths", () => {
+  for (const command of [
+    "/usr/bin/timeout 5 rm -rf /",
+    "/usr/bin/nice rm -rf /",
+    "/usr/bin/time rm -rf /",
+    "/usr/bin/stdbuf -oL rm -rf /",
+    "/usr/bin/ionice -c3 rm -rf /",
+    "/bin/busybox rm -rf /",
+    "/usr/bin/sudo -u root rm -rf /",
+    "/usr/bin/env MODE=test command rm -rf /",
+  ]) {
+    assert.equal(dangerousCommandHits(command, CWD).length, 1, command);
+  }
+});
+
 test("dangerous-rm allows non-recursive and narrow recursive deletion", () => {
   for (const command of [
     "rm -f /repo/project/file.txt",
@@ -231,6 +266,30 @@ function runHook(event) {
     child.stdin.end(JSON.stringify(event));
   });
 }
+
+test("entry denies wrapped recursive deletion", async () => {
+  const { code, stdout } = await runHook({
+    cwd: CWD,
+    tool_name: "Bash",
+    tool_input: { command: "timeout 5 rm -rf /" },
+  });
+  assert.equal(code, 0);
+  const output = JSON.parse(stdout);
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(output.hookSpecificOutput.permissionDecisionReason, /Dangerous Command/u);
+});
+
+test("entry denies absolute-path timeout wrapping recursive deletion", async () => {
+  const { code, stdout } = await runHook({
+    cwd: CWD,
+    tool_name: "Bash",
+    tool_input: { command: "/usr/bin/timeout 5 rm -rf /" },
+  });
+  assert.equal(code, 0);
+  const output = JSON.parse(stdout);
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(output.hookSpecificOutput.permissionDecisionReason, /Dangerous Command/u);
+});
 
 test("entry denies dangerous command before lower-priority checks", async () => {
   const { code, stdout } = await runHook({

@@ -38,6 +38,44 @@ function createGitWorkspace(prefix) {
   });
 }
 
+test("PostToolUse report stays non-blocking when PLUGIN_ROOT is set", async () => {
+  const root = await createGitWorkspace("cmd-safety-post-plugin-root-");
+  try {
+    writeFileSync(
+      join(root, "unsafe.js"),
+      "const agent = { rejectUnauthorized: false };\n",
+    );
+
+    const result = await new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [POST], {
+        env: { ...process.env, PLUGIN_ROOT: join(root, "plugin") },
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => (stdout += chunk));
+      child.stderr.on("data", (chunk) => (stderr += chunk));
+      child.on("error", reject);
+      child.on("close", (code) => resolve({ code, stdout, stderr }));
+      child.stdin.end(JSON.stringify({
+        cwd: root,
+        tool_name: "Write",
+        tool_input: { file_path: "unsafe.js" },
+      }));
+    });
+
+    assert.equal(result.code, 0);
+    const combined = `${result.stdout}\n${result.stderr}`;
+    assert.match(combined, /Insecure TLS/u);
+    if (result.stdout.trim()) {
+      const output = JSON.parse(result.stdout);
+      assert.match(output.hookSpecificOutput.additionalContext, /Insecure TLS/u);
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("post entry resolves relative write targets from the event cwd", async () => {
   const root = await createGitWorkspace("cmd-safety-post-relative-");
   try {
