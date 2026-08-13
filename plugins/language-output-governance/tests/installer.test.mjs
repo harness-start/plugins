@@ -147,3 +147,96 @@ test("installer falls back to English when the system locale is unsupported", ()
     rmSync(fixture, { recursive: true, force: true });
   }
 });
+
+function writeCodexStub(bin, logFile, listJson) {
+  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
+  executable(join(bin, "codex"), `#!/bin/sh
+printf '%s\\n' "$*" >> "${logFile}"
+case " $* " in
+  *" marketplace list "*)
+    cat <<'JSON'
+${listJson}
+JSON
+    ;;
+  *" marketplace upgrade "*)
+    printf '%s\\n' "Error: marketplace \\\`harness-start\\\` is not configured as a Git marketplace" >&2
+    exit 1
+    ;;
+  *)
+    printf '%s\\n' "[]"
+    ;;
+esac
+`);
+}
+
+test("installer re-adds a local Codex marketplace instead of aborting on upgrade", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-codex-local-mp-"));
+  const bin = join(fixture, "bin");
+  const logFile = join(fixture, "codex.log");
+  mkdirSync(bin, { recursive: true });
+  writeCodexStub(bin, logFile, JSON.stringify({
+    marketplaces: [{
+      name: "harness-start",
+      root: "/tmp/old-harness-start",
+      marketplaceSource: { sourceType: "local", source: "/tmp/old-harness-start" },
+    }],
+  }, null, 2));
+
+  try {
+    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CODEX_HOME: join(fixture, "codex"),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logFile, "utf8");
+    assert.match(result.stderr, /not a Git marketplace|replacing|adding marketplace/u);
+    assert.doesNotMatch(log, /marketplace upgrade harness-start/u);
+    assert.match(log, /marketplace add /u);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("installer upgrades a Git Codex marketplace", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-codex-git-mp-"));
+  const bin = join(fixture, "bin");
+  const logFile = join(fixture, "codex.log");
+  mkdirSync(bin, { recursive: true });
+  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
+  executable(join(bin, "codex"), `#!/bin/sh
+printf '%s\\n' "$*" >> "${logFile}"
+case " $* " in
+  *" marketplace list "*)
+    cat <<'JSON'
+{
+  "marketplaces": [
+    {
+      "name": "harness-start",
+      "marketplaceSource": { "sourceType": "git", "source": "https://github.com/harness-start/plugins.git" }
+    }
+  ]
+}
+JSON
+    ;;
+  *" marketplace upgrade "*)
+    printf '%s\\n' '{"upgraded":true}'
+    ;;
+  *)
+    printf '%s\\n' "[]"
+    ;;
+esac
+`);
+
+  try {
+    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CODEX_HOME: join(fixture, "codex"),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logFile, "utf8");
+    assert.match(result.stderr, /upgrading marketplace harness-start/u);
+    assert.match(log, /marketplace upgrade harness-start/u);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});

@@ -615,18 +615,29 @@ sync_claude_plugins() {
 
 # --- Codex -------------------------------------------------------------------
 
-codex_marketplace_present() {
+codex_marketplace_source_type() {
   have_cmd codex || return 1
   local raw
   raw="$(codex plugin marketplace list --json 2>/dev/null || true)"
   [ -n "${raw}" ] || return 1
   if have_cmd jq; then
-    printf '%s' "${raw}" | jq -e --arg n "${MARKETPLACE_NAME}" '
+    printf '%s' "${raw}" | jq -r --arg n "${MARKETPLACE_NAME}" '
       (if type == "array" then . else (.marketplaces // []) end)
-      | [.[]? | select(.name == $n)] | length > 0
-    ' >/dev/null 2>&1
+      | [.[]? | select(.name == $n) | (.marketplaceSource.sourceType // .sourceType // "unknown")]
+      | first // empty
+    '
   else
-    printf '%s' "${raw}" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_NAME}\""
+    if printf '%s' "${raw}" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_NAME}\""; then
+      printf '%s\n' "unknown"
+    fi
+  fi
+}
+
+add_codex_git_marketplace() {
+  log "Codex: adding marketplace ${MARKETPLACE_SOURCE} --ref ${GIT_REF}"
+  if ! run_cmd codex plugin marketplace add "${MARKETPLACE_SOURCE}" --ref "${GIT_REF}" --json; then
+    warn "Codex marketplace add via ${MARKETPLACE_SOURCE} failed; trying ${GITHUB_HTTPS_URL}"
+    run_cmd codex plugin marketplace add "${GITHUB_HTTPS_URL}" --ref "${GIT_REF}" --json
   fi
 }
 
@@ -638,16 +649,19 @@ ensure_codex_marketplace() {
       run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true
     return 0
   fi
-  if codex_marketplace_present; then
+  local source_type=""
+  source_type="$(codex_marketplace_source_type || true)"
+  if [ "${source_type}" = "git" ]; then
     log "Codex: upgrading marketplace ${MARKETPLACE_NAME}"
-    run_cmd codex plugin marketplace upgrade "${MARKETPLACE_NAME}" --json
-  else
-    log "Codex: adding marketplace ${MARKETPLACE_SOURCE} --ref ${GIT_REF}"
-    if ! run_cmd codex plugin marketplace add "${MARKETPLACE_SOURCE}" --ref "${GIT_REF}" --json; then
-      warn "Codex marketplace add via ${MARKETPLACE_SOURCE} failed; trying ${GITHUB_HTTPS_URL}"
-      run_cmd codex plugin marketplace add "${GITHUB_HTTPS_URL}" --ref "${GIT_REF}" --json
+    if run_cmd codex plugin marketplace upgrade "${MARKETPLACE_NAME}" --json; then
+      return 0
     fi
+    warn "Codex marketplace upgrade failed; re-adding ${MARKETPLACE_SOURCE}"
+  elif [ -n "${source_type}" ]; then
+    log "Codex: marketplace ${MARKETPLACE_NAME} is ${source_type}, not a Git marketplace; replacing with ${MARKETPLACE_SOURCE}"
+    run_cmd codex plugin marketplace remove "${MARKETPLACE_NAME}" --json || true
   fi
+  add_codex_git_marketplace
 }
 
 uninstall_codex_plugin() {
