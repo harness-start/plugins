@@ -3,7 +3,6 @@ import { loadConfig } from "./lib/config.mjs";
 import {
   extractAssistantMessage,
   extractCwd,
-  isStopHookActive,
   readStdinJson,
   stopBlock,
   warn,
@@ -15,7 +14,7 @@ import { readState } from "./lib/state-store.mjs";
 
 async function main() {
   const event = await readStdinJson();
-  if (event.__parseError || isStopHookActive(event)) return;
+  if (event.__parseError) return;
   const message = extractAssistantMessage(event);
   if (!message) return;
   const { config } = await loadConfig(extractCwd(event), warn);

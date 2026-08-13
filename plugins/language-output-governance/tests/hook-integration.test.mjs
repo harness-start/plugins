@@ -163,7 +163,7 @@ test("DeepSeek-backed Codex defers PostToolUse feedback without consuming the se
   assert.match(output.hookSpecificOutput.additionalContext, /Hangul/u);
 });
 
-test("Stop blocks drift once per boundary and recursive retries fail open", async () => {
+test("Stop blocks drift including host retries with stop_hook_active", async () => {
   const cwd = root();
   const data = root();
   const env = { PLUGIN_DATA: data };
@@ -178,12 +178,8 @@ test("Stop blocks drift once per boundary and recursive retries fail open", asyn
     stop_hook_active: true,
     last_assistant_message: "あいうえおかきくけこさし",
   }), env);
-  assert.equal(retry.stdout, "");
-
-  const later = await runEntry("stop", event(cwd, "stop", {
-    last_assistant_message: "あいうえおかきくけこさし",
-  }), env);
-  assert.equal(JSON.parse(later.stdout).decision, "block");
+  assert.equal(JSON.parse(retry.stdout).decision, "block");
+  assert.match(JSON.parse(retry.stdout).reason, /profile zh-CN/u);
 });
 
 test("invalid project configuration warns and keeps the strict default", async () => {
