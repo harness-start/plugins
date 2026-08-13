@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Project /goal logo e2e: full install-all + open brief → final artifacts + quality notes.
+# Project logo e2e: full install-all + open brief → final artifacts + quality notes.
 set -euo pipefail
 
 # acceptance/scenarios/<domain>/cases/<id>/expect.sh → repo root is 5 levels up
@@ -38,51 +38,12 @@ if [ -s "${HOME}/install-all.log" ] && grep -Eq 'logo-project-delivery-guard' "$
 else
   bad "install-all did not install logo-project-delivery-guard"
 fi
-if [ -s "${HOME}/install-all.log" ] && grep -Eq 'goal-task-gate' "${HOME}/install-all.log"; then
-  ok "catalog includes goal-task-gate"
-else
-  bad "install-all did not install goal-task-gate"
-fi
 if [ -f "${HOME}/.agents/skills/grill-me/SKILL.md" ] \
   || [ -f "${HOME}/.claude/skills/grill-me/SKILL.md" ]; then
   ok "skill-deps canary grill-me present"
   score=$((score + 1))
 else
   bad "community skill-deps not installed (grill-me missing under .agents or .claude skills)"
-fi
-
-# --- /goal trail (soft for first e2e: logo delivery is primary signal) -------
-# goal-task-gate is fail-open on hook errors; marketplace install may not always
-# inject/arm visibly in Claude -p logs. Prefer deliverables over trail for now.
-goal_root="${ACCEPT_WORKSPACE}/.goal-task"
-if [ -d "${goal_root}/runs" ]; then
-  ok "goal-task audit root exists"
-  score=$((score + 1))
-elif grep -Eq "${MARKERS_GOAL_TASK}|goal-task-gate|/goal " "${ACCEPT_LOG}"; then
-  soft "goal-task signal in log but no .goal-task/runs on disk"
-  score=$((score + 1))
-else
-  soft "no .goal-task trail observed (soft; logo artifacts remain the hard bar)"
-fi
-
-if [ -f "${goal_root}/CURRENT" ]; then
-  run_id="$(tr -d '[:space:]' <"${goal_root}/CURRENT" || true)"
-  soft "CURRENT run_id=${run_id}"
-  if [ -n "${run_id}" ] && [ -f "${goal_root}/runs/${run_id}/decisions.tsv" ]; then
-    ok "decisions.tsv present for CURRENT"
-    score=$((score + 1))
-    if tail -n 1 "${goal_root}/runs/${run_id}/decisions.tsv" | grep -Eq $'\tclose\t'; then
-      soft "trail tip looks like close"
-      score=$((score + 1))
-    else
-      soft "trail has no close tip yet"
-    fi
-  fi
-fi
-
-if grep -Eq 'GOAL_TASK_DONE' "${ACCEPT_LOG}"; then
-  soft "GOAL_TASK_DONE seen in host log"
-  score=$((score + 1))
 fi
 
 # --- logo artifacts ----------------------------------------------------------
@@ -194,5 +155,5 @@ if [ "${score}" -lt 4 ]; then
   exit 1
 fi
 
-echo "OK project logo /goal e2e: structural bar met; review ${notes} for quality"
+echo "OK project logo e2e: structural bar met; review ${notes} for quality"
 exit 0

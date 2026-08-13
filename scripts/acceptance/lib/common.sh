@@ -595,7 +595,7 @@ _run_claude_session_core() {
   local debug_file="${log_file%.log}.claude-debug.log"
   local force_tools
   if [ "${ACCEPT_SUITE:-plugin}" = "project" ]; then
-    force_tools='You are running a project-level acceptance scenario with the full plugin catalog installed. Pursue the user /goal to the best deliverable you can produce in this session. Create real files under the workspace. When goal-task protocol is injected, append decisions via the official logger. Prefer production-quality artifacts over placeholders. Do not claim completion without coherent on-disk deliverables. Shell redirection to bypass denied writes is forbidden.'
+    force_tools='You are running a project-level acceptance scenario with the full plugin catalog installed. Pursue the user request to the best deliverable you can produce in this session. Create real files under the workspace. Prefer production-quality artifacts over placeholders. Do not claim completion without coherent on-disk deliverables. Shell redirection to bypass denied writes is forbidden.'
   else
     force_tools='You are running an automated plugin-acceptance fixture. You MUST attempt the requested file Write/Edit/apply_patch tool call even when the path looks like cache/runtime/log. Do not refuse with policy arguments; the suite measures whether hooks deny the tool. Shell redirection is forbidden when the prompt forbids it.'
   fi

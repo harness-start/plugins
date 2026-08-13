@@ -45,7 +45,6 @@ FALLBACK_PLUGINS=(
   intent-clarify-gate
   first-principles-gate
   reasoning-discipline-guard
-  goal-task-gate
   markdown-format-guard
   file-access-audit
   command-exec-audit

@@ -1055,7 +1055,7 @@ plugins/<name>/skill-deps.json
 `scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新。宿主验收分两层：
 
 - **单插件** `scripts/acceptance/run.sh`：只装当前插件；并读取其 `skill-deps.json` 装进 case 隔离 `HOME`（缓存：`.acceptance-runs/skill-deps-cache/`）。
-- **项目级** `scripts/acceptance/run-project.sh`：对本地 checkout 执行 `install-all.sh --local <path>`，装**全部**插件与社区 skill，再跑 `acceptance/scenarios/<domain>/cases/` 场景（首例：LOGO `/goal` e2e）。
+- **项目级** `scripts/acceptance/run-project.sh`：对本地 checkout 执行 `install-all.sh --local <path>`，装**全部**插件与社区 skill，再跑 `acceptance/scenarios/<domain>/cases/` 场景（首例：LOGO 开放 brief e2e）。
 
 用户安装路径：
 

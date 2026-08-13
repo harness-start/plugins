@@ -206,7 +206,7 @@ community skill is active.
 # honesty only (no Docker / no API)
 ./scripts/acceptance/run-project.sh --honesty-only
 
-# logo /goal e2e (Docker; full install-all + open brief)
+# logo e2e (Docker; full install-all + open brief)
 ./scripts/acceptance/run-project.sh \
   --case logo-design/01-goal-e2e-delivery \
   --host claude
@@ -222,8 +222,8 @@ acceptance/scenarios/<domain>/cases/<case-id>/
   case.toml  prompt.md  expect.sh  quality-rubric.md  workspace/
 ```
 
-CLI case id is `<domain>/<case-id>`. Prompts should be realistic `/goal …`
-briefs; expects judge final artifacts + quality notes, not a single scripted Write.
+CLI case id is `<domain>/<case-id>`. Prompts should be realistic open briefs;
+expects judge final artifacts + quality notes, not a single scripted Write.
 
 | Path | Meaning |
 | --- | --- |

@@ -111,7 +111,6 @@ codex plugin add <name>@harness-start --json
 | `first-principles-gate` | 第一性原理分析期间门禁业务写入，直到结构化磁盘 ledger 完成并关闭会话 |
 | `reasoning-discipline-guard` | 通过宽泛 Skill 建立五阶段推理工作流，并在输出结论前要求有序 challenge 和 cross-check 回执 |
 | `debugging-workflow-guard` | 通过聚焦 Skill 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
-| `goal-task-gate` | 响应宿主 `/goal` prompt，强制 `.goal-task/` 下 append-only 决策轨迹，并仅在 `GOAL_TASK_DONE` trailer 与 close 行一致时完成 |
 | `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
 | `compact-context-journal` | 在上下文压缩前后持久记录已确认需求，强制先读 Recovery Card 再恢复修改 |
@@ -125,13 +124,13 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-30 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+29 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
 | 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
 | Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
-| 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate`、`goal-task-gate` | 会话阶段锁：意图澄清、第一性原理分析或 `/goal` 轨迹未关闭期间 deny 业务写入，直到显式关闭 |
+| 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate` | 会话阶段锁：意图澄清或第一性原理分析未关闭期间 deny 业务写入，直到显式关闭 |
 | 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`subagent-lifecycle-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
 | 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`tonejs-music-production` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
 | 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 跨会话 / 跨子代理治理：提案写入权限、会话语言、报告封印与追加 |
@@ -270,7 +269,7 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 ./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
 bash scripts/acceptance/test-skill-deps-install.sh          # skill-deps 安装辅助（无 API）
 
-# 项目级场景：install-all 装全量插件 + 社区 skill，再 /goal 一把梭哈
+# 项目级场景：install-all 装全量插件 + 社区 skill，再跑开放 brief
 ./scripts/acceptance/run-project.sh --honesty-only
 ./scripts/acceptance/run-project.sh --case logo-design/01-goal-e2e-delivery --host claude
 ```

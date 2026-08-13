@@ -87,11 +87,6 @@
       "description": "Routes precise reasoning into an ordered, file-backed workflow before an activated analysis can conclude."
     },
     {
-      "name": "goal-task-gate",
-      "source": "./plugins/goal-task-gate",
-      "description": "Arms on host /goal prompts, forces append-only decision trails under .goal-task/, and completes only with GOAL_TASK_DONE trailer plus close row."
-    },
-    {
       "name": "markdown-format-guard",
       "source": "./plugins/markdown-format-guard",
       "description": "Checks Markdown heading structure and common formatting rules after AI write operations."

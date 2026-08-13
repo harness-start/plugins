@@ -1,4 +1,4 @@
-# Quality rubric — Northline logo `/goal` e2e
+# Quality rubric — Northline logo e2e
 
 Score each row 0–2 (0 = missing/fail, 1 = partial, 2 = solid).
 Minimum for “quality ok” in this first project case: **total ≥ 6** and no hard structural fail in `expect.sh`.
@@ -10,6 +10,5 @@ Minimum for “quality ok” in this first project case: **total ≥ 6** and no 
 | Vector craft | Raster/text-in-SVG/system font outline | Native SVG but rough geometry | Clean self-contained paths, single focus, scales |
 | Black-and-white first | Only color showpiece | Partial mono | Mark/wordmark work in pure mono/reverse |
 | Delivery structure | No `artifacts/logo/…` tree | Partial contract paths | Meaningful progress toward logo project contract |
-| Goal hygiene | No `/goal` trail or fake close | Trail without coherent close | Decisions trail + honest close or explicit incomplete |
 
 **Not auto-proven by hooks:** trademark clearance, market uniqueness, final aesthetic excellence.

@@ -6,7 +6,7 @@ End-to-end **scenarios** that install the full catalog the way a user would
 against a workspace fixture.
 
 Unlike `plugins/*/acceptance/` (single-plugin, tightly scripted tool probes),
-project scenarios use open-ended `/goal <objective>` prompts and judge **final
+project scenarios use open-ended briefs and judge **final
 world state + quality**, not a prescribed single tool call.
 
 ## Layout
@@ -20,7 +20,7 @@ acceptance/
       cases/
         <case-id>/
           case.toml
-          prompt.md              # typically starts with /goal …
+          prompt.md              # open client brief
           expect.sh              # structural gates
           quality-rubric.md      # human-readable quality bar
           workspace/             # initial cwd
@@ -61,4 +61,4 @@ The Docker wrap auto-mounts `$HOME/.agents/skills` when present.
 
 | Domain | Case | Intent |
 | --- | --- | --- |
-| `logo-design` | `01-goal-e2e-delivery` | `/goal` logo brief → observe logo artifact tree, goal trail, quality notes |
+| `logo-design` | `01-goal-e2e-delivery` | open logo brief → observe logo artifact tree and quality notes |

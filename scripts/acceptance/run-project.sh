@@ -4,7 +4,7 @@
 # Unlike per-plugin acceptance (single --plugin-dir / single plugin add), project
 # cases install every marketplace plugin and all skill-deps.json community skills
 # through scripts/install-all.sh --local <checkout>, then run real Claude/Codex
-# sessions against a workspace fixture using open-ended /goal prompts.
+# sessions against a workspace fixture using open-ended briefs.
 #
 # Live sessions are Docker-only (same image as plugin acceptance).
 #

@@ -9,7 +9,7 @@
 
 ## 为什么保留
 
-`harness-starter` 的 `skills/long-task-context-governance/src/hooks/task-ledger-*` 与 `ai-experts` 的 `src/experts/planning/hooks/task-ledger-*` 都有三条机械链路：受控写入、完成门禁、会话恢复。本仓的 `goal-task-gate` 只处理 `/goal` 决策轨迹，`compact-context-journal` 只恢复压缩后的需求；两者都不维护跨会话分片状态。
+`harness-starter` 的 `skills/long-task-context-governance/src/hooks/task-ledger-*` 与 `ai-experts` 的 `src/experts/planning/hooks/task-ledger-*` 都有三条机械链路：受控写入、完成门禁、会话恢复。本仓的 `compact-context-journal` 只恢复压缩后的需求，也不维护跨会话分片状态。
 
 这项能力不能靠一份普通 Markdown 代替。普通文件既可被任意重写，也没有并发更新和 evidence freshness 约束。
 
@@ -38,7 +38,6 @@ Skill 编排 CLI 创建或激活账本
 
 | 插件 | 边界 |
 | --- | --- |
-| `goal-task-gate` | `/goal` 回合、append-only 决策 trail 与 trailer |
 | `compact-context-journal` | 上下文压缩后的需求恢复，不维护任务状态机 |
 | `subagent-workflow-guard` | agent handoff 与 review closure，不拥有全局任务进度 |
 

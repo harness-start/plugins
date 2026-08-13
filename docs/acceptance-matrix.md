@@ -17,8 +17,6 @@
 | `subagent-workflow-guard` | Claude + Codex | 0.2.0 | `01-application-dispatch` | ⚠️ Claude 的 `Agent` 已证明在 `SubagentStart` 前硬拒绝无申请单派发；Codex 0.146 的 `collaboration.spawn_agent` 不产生 `PreToolUse`/`SubagentStart`，因此不宣称 Codex 派发硬门禁 | 2026-08-08 Docker：Claude 真实 deny，且无 `SubagentStart`；Codex 对照 trace 证明 namespaced spawn 绕过该 hook seam；honesty gate `84/0` | 平台各自 plugin data 下的 session/application 状态；交互 CLI mailbox 位于 Git 私有目录中的 host/session 哈希路径；0600 文件 | — |
 | `subagent-lifecycle-audit` | Claude + Codex | 0.1.0 | `01-record-lifecycle`、`02-deny-trail-mutation` | ✅ 通过：真实 SubagentStart/Stop 形成 matched 生命周期记录；真实 PreToolUse 拒绝删除审计目录；记录不含 prompt、response、command、路径或工具输入输出 | 2026-08-08 Docker 定向汇总 `4/0/0`，honesty gate `84/0` | 工作区 `.subagent-lifecycle-audit/sessions/<session>.jsonl`，append-only JSONL、0600 文件；不承诺 WORM | — |
 | `first-principles-gate` | Claude + Codex | 0.1.0 | `01-open-deny-then-ledger-complete`、`02-completion-claim-blocks-without-ledger`、`03-short-alias-no-entry`、`04-abort-unlocks-without-ledger`、`05-invalid-ledger-blocks-close`、`06-soft-report-while-open` | ⏳ 待 Docker 宿主验收；离线 6 场景 fixture + 严格单元测试；入口仅 `/first-principles` 与 `$first-principles` | 本地 unit + 全量 `run-fixture.sh`；honesty gate 覆盖 6 cases | 插件数据目录 session/workspace 哈希；24h TTL | — |
-| `goal-task-gate` | Claude + Codex | 0.1.0 | `01-goal-prompt-arms-inject`、`02-deny-trail-rewrite`、`03-fake-trailer-blocks` | ⏳ 待 Docker 宿主验收；离线 fixture + unit；clear/supersede 在 offline + unit | 本地 unit + run-fixture | `.goal-task/` + 插件数据目录 session 哈希；48h TTL | — |
-
 ## 说明
 
 - **验收方式**：宿主只从 Docker 启动；Claude Code / Codex 新会话安装插件、触发真实工具调用，再同时检查世界状态与产品 hook 信号。
