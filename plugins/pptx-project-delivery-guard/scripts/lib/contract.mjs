@@ -52,6 +52,7 @@ function releaseOutputPaths(model) {
       filePath === `dist/${model.artifactId}.pptx`
       || filePath === `dist/${model.artifactId}.pdf`
       || /^dist\/pages\/[0-9]{3}\.png$/u.test(filePath)
+      || /^src\/slides\/.+\.[0-9a-f]{64}\.png$/u.test(filePath)
       || filePath === "evidence.structure.json"
       || filePath === "evidence.accessibility.json"
       || filePath === "review.pptx.json"

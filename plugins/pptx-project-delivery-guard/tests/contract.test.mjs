@@ -3,8 +3,10 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  createPptxReceipt,
   evaluatePptxWrite,
   validatePptxModel,
+  validatePptxReceipt,
 } from "../scripts/lib/contract.mjs";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -85,6 +87,19 @@ test("reports stable findings when a slide creates a page and lacks its hash pre
   const codes = validatePptxModel(model, { stage: "source" }).map(({ code }) => code);
 
   assert.deepEqual(codes, ["PREVIEW_MISSING", "SLIDE_OWNER_VIOLATION"]);
+});
+
+test("release receipt fails after a source-hash preview byte swap", () => {
+  const model = validModel();
+  const receipt = createPptxReceipt(model);
+  const previewPath = Object.keys(model.files).find((filePath) =>
+    filePath.startsWith("src/slides/") && filePath.endsWith(".png"),
+  );
+  assert.equal(receipt.outputs[previewPath], sha256("PNG"));
+  model.files["receipt.release.json"] = JSON.stringify(receipt);
+  assert.equal(validatePptxReceipt(model), true);
+  model.files[previewPath] = "SWAPPED-PNG";
+  assert.equal(validatePptxReceipt(model), false);
 });
 
 test("denies direct generated writes while allowing a slide source write", () => {
