@@ -194,7 +194,17 @@ test("file target extraction supports direct, nested edit, notebook, and patch i
       tool_name: "Bash",
       tool_input: { command: "printf x > vendor/acme/file.php" },
     }),
-    [],
+    ["/repo/vendor/acme/file.php"],
+  );
+  assert.deepEqual(
+    extractFileTargets({
+      cwd: "/repo",
+      tool_name: "Bash",
+      tool_input: {
+        command: "python3 -c \"open('package-lock.json','w').write('{}')\"",
+      },
+    }),
+    ["/repo/package-lock.json"],
   );
 });
 
@@ -311,6 +321,41 @@ test("project config can narrowly allow a built-in protected path", async () => 
       root,
     );
     assert.equal(JSON.parse(denied.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("entry denies shell and interpreter writes of lockfiles", async () => {
+  const root = mkdtempSync(join(tmpdir(), "protected-file-shell-"));
+  try {
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    const redirect = await runEntry(
+      JSON.stringify({
+        cwd: root,
+        tool_name: "Bash",
+        tool_input: { command: "printf x > package-lock.json" },
+      }),
+      root,
+    );
+    assert.equal(
+      JSON.parse(redirect.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+    const interpreter = await runEntry(
+      JSON.stringify({
+        cwd: root,
+        tool_name: "Bash",
+        tool_input: {
+          command: "python3 -c \"open('yarn.lock','w').write('x')\"",
+        },
+      }),
+      root,
+    );
+    assert.equal(
+      JSON.parse(interpreter.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
