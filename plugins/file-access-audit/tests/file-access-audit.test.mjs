@@ -119,6 +119,31 @@ test("shell protect allows node without audit root and denies /bin/rm of trail",
   assert.equal(shellMutatesAuditRoot("node build.js --out logs", rel, abs), false);
   assert.equal(shellMutatesAuditRoot("/bin/rm -rf .file-access-audit", rel, abs), true);
   assert.equal(shellMutatesAuditRoot("cat .file-access-audit/sessions/x.jsonl", rel, abs), false);
+  assert.equal(
+    shellMutatesAuditRoot(
+      "python3 -c \"open('.file-access-audit/sessions/x.jsonl','w').write('x')\"",
+      rel,
+      abs,
+    ),
+    true,
+  );
+});
+
+test("pre denies interpreter rewrite of the file-access trail", async () => {
+  const root = workspace();
+  try {
+    const deny = await runEntry("pre", {
+      cwd: root,
+      session_id: "sess-py",
+      tool_name: "Bash",
+      tool_input: {
+        command: "node -e \"require('fs').writeFileSync('.file-access-audit/sessions/s.jsonl','x')\"",
+      },
+    });
+    assert.equal(JSON.parse(deny.stdout.trim()).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("post records edit without modifying the project gitignore", async () => {

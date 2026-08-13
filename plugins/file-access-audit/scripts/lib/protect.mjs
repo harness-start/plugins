@@ -70,6 +70,7 @@ export function isAuditMutationCommand(command) {
   if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
   return false;
 }
 
