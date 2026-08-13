@@ -26,10 +26,13 @@ import {
 import {
   classifyGoalPrompt,
   clearInjectText,
+  extractShellMutationTargets,
   isExpired,
+  isProtectedStatePath,
   isProtectedTrailFile,
   looksLikeCompletionClaim,
   protocolInjectText,
+  shellLooksMutating,
   shellTouchesProtectedTrail,
   supersedeInjectText,
 } from "./lib/policy.mjs";
@@ -210,19 +213,54 @@ function runPrompt(event, config) {
     }
 
     // other: if armed, optionally re-inject short reminder (skip to save tokens)
-  });
+  }, config.auditRoot);
 
   if (contexts.length === 0) return;
   writeJson(contextOutput("UserPromptSubmit", contexts.join("\n\n")));
 }
 
 function runPre(event, config) {
-  const state = readState(event);
-  expireIfNeeded(state, config);
-  if (state.phase !== "armed") return;
-
   const cwd = extractCwd(event);
   const repoRoot = resolveRepoRoot(cwd);
+
+  if (isFileMutationTool(event)) {
+    for (const abs of extractFileTargets(event)) {
+      const rel = relativeToRoot(abs, repoRoot, cwd);
+      if (isProtectedStatePath(rel, config.auditRoot)) {
+        writeJson(
+          preToolDeny(
+            `[goal-task-gate] Session state under \`${config.auditRoot}/.state/\` is plugin-owned.`,
+          ),
+        );
+        return;
+      }
+    }
+  } else if (isShellTool(event)) {
+    const command = extractShellCommand(event);
+    if (command && shellLooksMutating(command)) {
+      const hitsState =
+        shellTouchesProtectedTrail(command, config.auditRoot) &&
+        (/(?:^|[/"'\s])\.goal-task\/\.state(?:\/|$)/u.test(command) ||
+          extractShellMutationTargets(command).some((target) =>
+            isProtectedStatePath(
+              relativeToRoot(resolve(cwd, String(target)), repoRoot, cwd),
+              config.auditRoot,
+            ),
+          ));
+      if (hitsState) {
+        writeJson(
+          preToolDeny(
+            `[goal-task-gate] Session state under \`${config.auditRoot}/.state/\` is plugin-owned.`,
+          ),
+        );
+        return;
+      }
+    }
+  }
+
+  const state = readState(event, config.auditRoot);
+  expireIfNeeded(state, config);
+  if (state.phase !== "armed") return;
 
   if (isFileMutationTool(event)) {
     const targets = extractFileTargets(event);
@@ -328,7 +366,7 @@ function runStop(event, config) {
     }
 
     return { kind: "continue", runId: state.runId, tip };
-  });
+  }, config.auditRoot);
 
   if (!result || result.kind === "idle" || result.kind === "continue") return;
   if (result.kind === "completed") {
@@ -362,7 +400,7 @@ function runStop(event, config) {
     );
     updateState(event, (s) => {
       s.stopAttempts = 0;
-    });
+    }, config.auditRoot);
     return;
   }
 

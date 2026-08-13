@@ -136,8 +136,20 @@ export function isAuditRelativePath(relPath, auditRoot = ".goal-task") {
   return false;
 }
 
+export function stateDirRelative(auditRoot = ".goal-task") {
+  return `${String(auditRoot ?? ".goal-task").replace(/\/+$/u, "")}/.state`;
+}
+
+export function isProtectedStatePath(relPath, auditRoot = ".goal-task") {
+  const rel = String(relPath ?? "").replaceAll("\\", "/").replace(/^\.\//u, "");
+  const dir = stateDirRelative(auditRoot);
+  if (rel === dir || rel.startsWith(`${dir}/`)) return true;
+  return rel.includes(`/${dir}/`) || rel.endsWith(`/${dir}`);
+}
+
 export function isProtectedTrailFile(relPath, auditRoot = ".goal-task") {
   const rel = String(relPath ?? "").replaceAll("\\", "/");
+  if (isProtectedStatePath(rel, auditRoot)) return true;
   if (!isAuditRelativePath(rel, auditRoot)) return false;
   return /(?:^|\/)(?:decisions\.tsv|work\.jsonl|CURRENT)$/u.test(rel);
 }
@@ -348,7 +360,7 @@ export function shellTouchesProtectedTrail(command, auditRoot = ".goal-task") {
     // Mutating command with unresolvable targets: fail closed if trail names appear.
     const root = String(auditRoot).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
     const re = new RegExp(
-      `${root}[^\\s'"]*/(?:decisions\\.tsv|work\\.jsonl)`,
+      `${root}[^\\s'"]*/(?:decisions\\.tsv|work\\.jsonl|\\.state(?:/|$))`,
       "iu",
     );
     return re.test(c);
@@ -356,6 +368,7 @@ export function shellTouchesProtectedTrail(command, auditRoot = ".goal-task") {
 
   for (const target of targets) {
     const rel = String(target).replaceAll("\\", "/").replace(/^\.\//u, "");
+    if (isProtectedStatePath(rel, auditRoot)) return true;
     if (isProtectedTrailFile(rel, auditRoot)) return true;
     // Absolute or nested paths: check suffix under audit root
     if (isAuditRelativePath(rel, auditRoot) && /(?:decisions\.tsv|work\.jsonl)$/u.test(rel)) {

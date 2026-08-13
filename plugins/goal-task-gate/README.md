@@ -65,7 +65,7 @@ GOAL_TASK_DONE run_id=<id> status=completed close_seq=<n> tip_hash=<hash>
 | `PreToolUse` | 拒绝通用 Edit/Write/shell 修改 `decisions.tsv` 或 `work.jsonl` |
 | `Stop` | 校验 trailer 与轨迹，并稀疏软报告 |
 
-状态写在 `PLUGIN_DATA` 或 `CLAUDE_PLUGIN_DATA` 的 `goal-task-gate/` 下，以 `sessionId\0cwd` 的 SHA-256 为键，默认 TTL 为 48 小时，异常时 fail-open。
+会话状态写在当前工作目录的 `.goal-task/.state/`，按 `sessionId` 的 SHA-256 分文件，默认 TTL 为 48 小时。这个目录由插件自己写，并带 `*` 的 `.gitignore`；agent 改这里会被拒绝。没有宿主 `PLUGIN_DATA` 时也会落盘。状态缺失或损坏时回到 `idle` 并 fail-open。决策轨迹仍在 `.goal-task/runs/`。
 
 ## 配置与 Skill
 

@@ -21,4 +21,10 @@ echo "${OUT}" | grep -q 'GOAL_TASK_DONE' || { echo "FAIL trailer template" >&2; 
 test -f "${WS}/.goal-task/CURRENT" || { echo "FAIL CURRENT" >&2; exit 1; }
 RUN="$(cat "${WS}/.goal-task/CURRENT")"
 test -f "${WS}/.goal-task/runs/${RUN}/decisions.tsv" || { echo "FAIL decisions" >&2; exit 1; }
+STATE_COUNT="$(find "${WS}/.goal-task/.state" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')"
+[ "${STATE_COUNT}" -ge 1 ] || { echo "FAIL missing project session state" >&2; exit 1; }
+if [ -d "${DATA}/goal-task-gate" ]; then
+  echo "FAIL state still written to PLUGIN_DATA" >&2
+  exit 1
+fi
 echo "OK"

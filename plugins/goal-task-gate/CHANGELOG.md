@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Store session state under the workspace `.goal-task/.state/` instead of host `PLUGIN_DATA`.
+- Key files by session id in the current working directory, not the parent git root.
+- Deny agent writes to that directory; decision trails remain append-only via the log helpers.
+
 ## [0.1.1] - 2026-08-09
 
 ### Changed

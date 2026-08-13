@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, existsSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -14,6 +14,7 @@ import {
 import { resolveConfig } from "../scripts/lib/config.mjs";
 import {
   classifyGoalPrompt,
+  isProtectedStatePath,
   isProtectedTrailFile,
   isPureLogHelperCommand,
   looksLikeCompletionClaim,
@@ -179,6 +180,8 @@ test("isProtectedTrailFile and shell guard", () => {
   );
   assert.equal(isProtectedTrailFile(".goal-task/runs/x/meta.json"), false);
   assert.equal(isProtectedTrailFile("src/app.js"), false);
+  assert.equal(isProtectedStatePath(".goal-task/.state/abc.json"), true);
+  assert.equal(isProtectedTrailFile(".goal-task/.state/abc.json"), true);
   assert.equal(
     shellTouchesProtectedTrail("sed -i 's/a/b/' .goal-task/runs/x/decisions.tsv"),
     true,
@@ -572,4 +575,113 @@ test("log-decision loads project tipWindow and rejects rewrite past seal", async
   );
   assert.notEqual(bad.status, 0);
   assert.match(bad.stderr, /k must be 1\.\.2|tipWindow|1\.\.2/i);
+});
+
+test("hook: nested cwd keeps state in that workspace, not the parent git root", () => {
+  const parent = workspace();
+  spawnSync("git", ["init", "-q"], { cwd: parent });
+  const nested = join(parent, "pkg");
+  mkdirSync(nested, { recursive: true });
+  const arm = runHook(
+    "prompt",
+    { cwd: nested, session_id: "sess-nested-cwd", prompt: "/goal nest the audit" },
+    { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+  );
+  assert.equal(arm.status, 0, arm.stderr);
+  assert.equal(existsSync(join(nested, ".goal-task", ".state")), true);
+  assert.equal(
+    existsSync(join(parent, ".goal-task", ".state")),
+    false,
+    "must not write session state to the parent git root",
+  );
+});
+
+test("hook: session state lives under the project, not PLUGIN_DATA", () => {
+  const root = workspace();
+  const data = workspace();
+  const session = "sess-project-state";
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  const arm = runHook(
+    "prompt",
+    { cwd: root, session_id: session, prompt: "/goal persist in project" },
+    env,
+  );
+  assert.equal(arm.status, 0, arm.stderr);
+  const stateDir = join(root, ".goal-task", ".state");
+  assert.equal(existsSync(stateDir), true, "expected project .goal-task/.state");
+  const files = readdirSync(stateDir).filter((name) => name.endsWith(".json"));
+  assert.equal(files.length, 1, `expected one state file, got ${files.join(",")}`);
+  const saved = JSON.parse(readFileSync(join(stateDir, files[0]), "utf8"));
+  assert.equal(saved.phase, "armed");
+  assert.equal(
+    existsSync(join(data, "goal-task-gate")),
+    false,
+    "must not write host PLUGIN_DATA/goal-task-gate",
+  );
+
+  const deny = runHook(
+    "pre",
+    {
+      cwd: root,
+      session_id: session,
+      tool_name: "Write",
+      tool_input: {
+        file_path: join(root, ".goal-task", "runs", saved.runId, "decisions.tsv"),
+        content: "hack\n",
+      },
+    },
+    { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+  );
+  assert.match(
+    deny.stdout,
+    /"permissionDecision":"deny"/,
+    "armed phase must persist without PLUGIN_DATA",
+  );
+});
+
+test("hook: idle prompt does not create project state files", () => {
+  const root = workspace();
+  const idle = runHook(
+    "prompt",
+    { cwd: root, session_id: "sess-idle", prompt: "ordinary request" },
+    { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+  );
+  assert.equal(idle.status, 0, idle.stderr);
+  assert.equal(idle.stdout.trim(), "");
+  assert.equal(existsSync(join(root, ".goal-task")), false);
+});
+
+test("hook: agent cannot rewrite project session state", () => {
+  const root = workspace();
+  const session = "sess-protect-state";
+  runHook(
+    "prompt",
+    { cwd: root, session_id: session, prompt: "/goal protect state" },
+    { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+  );
+  const denyWrite = runHook(
+    "pre",
+    {
+      cwd: root,
+      session_id: session,
+      tool_name: "Write",
+      tool_input: {
+        file_path: join(root, ".goal-task", ".state", "forged.json"),
+        content: "{\"phase\":\"idle\"}\n",
+      },
+    },
+    { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+  );
+  assert.match(denyWrite.stdout, /"permissionDecision":"deny"/, denyWrite.stdout || denyWrite.stderr);
+  const denyRm = runHook(
+    "pre",
+    {
+      cwd: root,
+      session_id: session,
+      tool_name: "Bash",
+      tool_input: { command: "rm -rf .goal-task/.state" },
+    },
+    { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" },
+  );
+  assert.match(denyRm.stdout, /"permissionDecision":"deny"/, denyRm.stdout || denyRm.stderr);
 });
