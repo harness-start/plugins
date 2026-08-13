@@ -35,6 +35,12 @@ test("dual-host plugin contracts expose platform-scoped lifecycle hooks", () => 
   assert.match(codexHooks, /AI_EXPERTS_TRIGGER_FROM/u);
   assert.doesNotMatch(codexHooks, /CLAUDE_PLUGIN_ROOT/u);
   assert.doesNotMatch(claudeHooks, /\$\{PLUGIN_ROOT\}/u);
+
+  const stopHooks = json("hooks/codex.json").hooks.Stop.flatMap((entry) => entry.hooks ?? []);
+  assert.equal(stopHooks.length > 0, true);
+  for (const hook of stopHooks) {
+    assert.equal(Object.hasOwn(hook, "additionalContextLimit"), false);
+  }
 });
 
 test("governance skill is explicit-only and lands capabilities in project host directories", () => {
