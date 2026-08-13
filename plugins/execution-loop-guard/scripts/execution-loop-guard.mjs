@@ -111,7 +111,11 @@ function runPre(event, config, repoRoot, cwd) {
       const previous = state.command && now - Number(state.command.lastSeen) <= repeat.windowMinutes * 60_000
         ? state.command
         : null;
-      if (previous?.commandHash === normalizedHash && (previous.inputFingerprint ?? null) === inputFingerprint) {
+      if (
+        previous?.commandHash === normalizedHash
+        && (previous.inputFingerprint ?? null) === inputFingerprint
+        && (previous.lastOutcome === "failure" || previous.lastOutcome === "success")
+      ) {
         const failed = previous.lastOutcome === "failure";
         const streak = (failed ? Number(previous.failStreak) : Number(previous.successStreak)) + 1;
         const mode = failed ? config.checks.failedCommandRetry : config.checks.successfulCommandRepeat;

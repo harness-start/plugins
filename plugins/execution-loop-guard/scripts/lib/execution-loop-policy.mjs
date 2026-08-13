@@ -136,8 +136,9 @@ export function inferCommandOutcome(event, forceFailure = false) {
     const code = response.exit_code ?? response.exitCode ?? response.code ?? response.status;
     if (typeof code === "number") return code === 0 ? "success" : "failure";
     if (response.success === false || response.is_error === true || response.isError === true) return "failure";
+    if (response.success === true) return "success";
   }
-  return "success";
+  return "unknown";
 }
 
 export function isVerificationCommand(command) {

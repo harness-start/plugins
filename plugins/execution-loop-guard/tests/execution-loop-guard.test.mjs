@@ -114,6 +114,8 @@ test("outcome inference supports Codex text, structured responses, and forced Cl
   assert.equal(inferCommandOutcome({ tool_response: { exit_code: 0 } }), "success");
   assert.equal(inferCommandOutcome({ tool_response: { is_error: true } }), "failure");
   assert.equal(inferCommandOutcome({}, true), "failure");
+  assert.equal(inferCommandOutcome({}), "unknown");
+  assert.equal(inferCommandOutcome({ tool_response: "all good with no exit line" }), "unknown");
 });
 
 test("edit loop reports, blocks, then starts a fresh cycle", async (context) => {
