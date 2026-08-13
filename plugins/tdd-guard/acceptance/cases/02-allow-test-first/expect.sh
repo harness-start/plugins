@@ -9,11 +9,13 @@ if [ "${ACCEPT_HOST}" = "codex" ]; then
   state_file="$(find "${ACCEPT_OUT}/codex-home/plugins/data" -path '*/tdd-guard/sessions/*.json' -type f -print -quit)"
   test -n "${state_file}"
   jq -e --arg path "${test_path}" --arg hash "${test_hash}" \
-    '.tests[] | select(.path == $path and .hash == $hash and .evidence.valid == true and (.evidence.testNames | index("test_calculates_total")) and (.evidence.references | index("PriceCalculator")))' \
+    '.version == 2 and (.tests[] | select(.path == $path and .hash == $hash and .evidence.valid == true and (.evidence.testNames | index("test_calculates_total")) and (.evidence.targets | index("php:App\\PriceCalculator"))))' \
     "${state_file}" >/dev/null
 else
   require_guard_hook_signal '\[TDD Guard\] Recorded test-first evidence'
 fi
 grep -Fq 'test_calculates_total' "${ACCEPT_WORKSPACE}/tests/Unit/PriceCalculatorTest.php"
+grep -Fq 'CoversClass(PriceCalculator::class)' "${ACCEPT_WORKSPACE}/tests/Unit/PriceCalculatorTest.php"
+grep -Fq 'namespace App;' "${ACCEPT_WORKSPACE}/src/PriceCalculator.php"
 grep -Fq 'class PriceCalculator' "${ACCEPT_WORKSPACE}/src/PriceCalculator.php"
 echo "OK related implementation was created after test-first evidence"
