@@ -460,6 +460,50 @@ test("auditPaths rejects an unvalidated auditRoot outside the repository", () =>
   );
 });
 
+test("auditPaths and log-decision reject escaped run ids", () => {
+  const root = workspace();
+  spawnSync("git", ["init", "-q"], { cwd: root });
+  const runId = makeRunId();
+  createRun(root, {
+    auditRoot: ".goal-task",
+    runId,
+    objective: "demo",
+    sessionId: "s-escape",
+    host: "test",
+    tipWindow: 3,
+    writeOpenRow: true,
+  });
+  assert.throws(
+    () => auditPaths(root, ".goal-task", "../../src/pwn"),
+    /audit-safe identifier|inside the audit root/u,
+  );
+  writeFileSync(join(root, ".goal-task", "CURRENT"), "../../src/pwn\n");
+  const result = spawnSync(
+    process.execPath,
+    [
+      LOG_DECISION,
+      "--workspace",
+      root,
+      "--phase",
+      "p",
+      "--kind",
+      "implement",
+      "--decision",
+      "d",
+      "--why",
+      "w",
+      "--evidence",
+      "e",
+      "--result",
+      "ok",
+    ],
+    { encoding: "utf8" },
+  );
+  assert.notEqual(result.status, 0);
+  assert.equal(existsSync(join(root, "src", "pwn")), false);
+  assert.equal(existsSync(join(root, "src", "pwn", "decisions.tsv")), false);
+});
+
 test("log-decision loads project tipWindow and rejects rewrite past seal", async () => {
   const root = workspace();
   // minimal git root

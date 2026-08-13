@@ -139,7 +139,7 @@ export function isAuditRelativePath(relPath, auditRoot = ".goal-task") {
 export function isProtectedTrailFile(relPath, auditRoot = ".goal-task") {
   const rel = String(relPath ?? "").replaceAll("\\", "/");
   if (!isAuditRelativePath(rel, auditRoot)) return false;
-  return /(?:^|\/)(?:decisions\.tsv|work\.jsonl)$/u.test(rel);
+  return /(?:^|\/)(?:decisions\.tsv|work\.jsonl|CURRENT)$/u.test(rel);
 }
 
 export function looksLikeCompletionClaim(text) {

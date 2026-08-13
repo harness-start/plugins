@@ -48,13 +48,22 @@ export function sanitizeCell(value) {
     .trim();
 }
 
+export const RUN_ID_PATTERN = /^[0-9A-Za-z.-]{1,96}$/u;
+
 export function makeRunId(now = new Date()) {
   const iso = now.toISOString().replace(/[-:]/gu, "").replace(/\.\d{3}Z$/u, "Z");
   const short = randomBytes(3).toString("hex");
   return `${iso}-${short}`;
 }
 
+export function assertSafeRunId(runId) {
+  if (typeof runId !== "string" || !RUN_ID_PATTERN.test(runId)) {
+    throw new Error("runId must be a bounded audit-safe identifier");
+  }
+}
+
 export function auditPaths(repoRoot, auditRoot, runId) {
+  assertSafeRunId(runId);
   const repoRootAbs = resolve(repoRoot);
   const root = resolve(repoRootAbs, auditRoot);
   const relativeRoot = relative(repoRootAbs, root);
@@ -67,6 +76,15 @@ export function auditPaths(repoRoot, auditRoot, runId) {
     throw new Error("auditRoot must resolve inside the repository root");
   }
   const runDir = join(root, "runs", runId);
+  const relativeRun = relative(root, runDir);
+  if (
+    !relativeRun ||
+    relativeRun === ".." ||
+    relativeRun.startsWith(`..${sep}`) ||
+    isAbsolute(relativeRun)
+  ) {
+    throw new Error("run directory must resolve inside the audit root");
+  }
   return {
     auditRootAbs: root,
     currentPath: join(root, "CURRENT"),
@@ -135,7 +153,8 @@ export function readCurrent(currentPath) {
   if (!existsSync(currentPath)) return null;
   try {
     const text = readFileSync(currentPath, "utf8").trim();
-    return text || null;
+    if (!text || !RUN_ID_PATTERN.test(text)) return null;
+    return text;
   } catch {
     return null;
   }
