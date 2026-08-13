@@ -52,7 +52,6 @@ FALLBACK_PLUGINS=(
   command-exec-audit
   subagent-lifecycle-audit
   debugging-workflow-guard
-  behavioral-regression-guard
   pptx-project-delivery-guard
   poster-project-delivery-guard
   video-project-delivery-guard

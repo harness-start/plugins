@@ -32,7 +32,7 @@ When signals overlap, use that priority: concrete causal diagnosis, then exact c
 4. Wait for each hook-issued receipt. Put it unchanged in the next stage's `previousReceipt`. Never predict or invent a receipt.
 5. After `05-conclusion.md` receives `RD-R5`, update `workflow.md` alone: set `status` to `closed`, `currentStage` to `conclusion`, `completionReceipt` to `RD-R5`, and both `resume` fields to `null`.
 6. State the calibrated conclusion and cite the workflow path when the requested output format permits it. In `05-conclusion.md`, set `outputContract.mode` to `exact-payload` for a strict final format such as one number or JSON, otherwise use `free-form`. A strict format changes only the presentation: keep the evidence in the artifacts, put the complete final payload in `conclusion`, emit exactly that payload, and never prepend or append workflow status, verification wording, citations, or explanation unless the user requested them.
-7. When the conclusion selects a behavior-changing code contract, invoke the available `behavioral-regression` Skill before editing production files. Reasoning selects and challenges the contract; behavioral regression binds the observable RED/AFTER evidence. If the next step is implementation with isolated writers, open `$subagent-plan-execution` instead of editing in the parent session.
+7. If the next step is implementation with isolated writers, open `$subagent-plan-execution` instead of editing in the parent session.
 
 Use the platform's observable file-mutation channel for every reasoning artifact:
 

@@ -112,7 +112,6 @@ codex plugin add <name>@harness-start --json
 | `first-principles-gate` | 第一性原理分析期间门禁业务写入，直到结构化磁盘 ledger 完成并关闭会话 |
 | `reasoning-discipline-guard` | 通过宽泛 Skill 建立五阶段推理工作流，并在输出结论前要求有序 challenge 和 cross-check 回执 |
 | `debugging-workflow-guard` | 通过聚焦 Skill 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
-| `behavioral-regression-guard` | 用语言无关 Skill 设计主用例、对抗用例和兼容性用例，并将 RED/GREEN 回执绑定到不变验证资产与新鲜生产文件字节 |
 | `goal-task-gate` | 响应宿主 `/goal` prompt，强制 `.goal-task/` 下 append-only 决策轨迹，并仅在 `GOAL_TASK_DONE` trailer 与 close 行一致时完成 |
 | `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
@@ -127,12 +126,12 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-32 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+31 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
 | 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`git-state-evidence-guard`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
-| Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`behavioral-regression-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
+| Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
 | 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate`、`goal-task-gate` | 会话阶段锁：意图澄清、第一性原理分析或 `/goal` 轨迹未关闭期间 deny 业务写入，直到显式关闭 |
 | 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`subagent-lifecycle-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
 | 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`tonejs-music-production` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
