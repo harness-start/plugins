@@ -1,7 +1,7 @@
 {
   "name": "tdd-guard",
-  "version": "0.1.0",
-  "description": "Blocks implementation writes until a related test case has been created or changed earlier in the session.",
+  "version": "0.2.0",
+  "description": "Blocks implementation writes until a test binds the exact language entity or mirrored source path earlier in the session.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

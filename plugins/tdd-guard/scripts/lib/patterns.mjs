@@ -1,7 +1,11 @@
-import { basename } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, posix, relative, resolve } from "node:path";
 
 const SKIPPED = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|\.venv|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 const TEST_DIRECTORY = /(?:^|\/)(?:test|tests|spec|specs|__tests__)(?:\/|$)/iu;
+const TEST_ROOTS = new Set(["test", "tests", "spec", "specs"]);
+const SOURCE_ROOTS = new Set(["app", "lib", "src"]);
+const SUITE_DIRECTORIES = new Set(["acceptance", "feature", "functional", "integration", "unit"]);
 
 const EXTENSIONS = [
   ["typescript", /\.(?:cts|mts|ts|tsx)$/iu],
@@ -23,13 +27,64 @@ function normalize(path) {
   return String(path ?? "").replaceAll("\\", "/").replace(/^\.\//u, "");
 }
 
+function insideRoot(root, path) {
+  const value = relative(resolve(root), resolve(path));
+  return value === "" || (!value.startsWith("..") && !value.startsWith("/"));
+}
+
+function nearestManifest(root, path, name) {
+  const workspace = resolve(root);
+  let directory = resolve(workspace, dirname(normalize(path)));
+  while (insideRoot(workspace, directory)) {
+    const candidate = resolve(directory, name);
+    if (existsSync(candidate)) return candidate;
+    if (directory === workspace) break;
+    directory = dirname(directory);
+  }
+  return null;
+}
+
+function relativeDirectory(root, path) {
+  const value = normalize(relative(resolve(root), dirname(resolve(path))));
+  return value === "." ? "" : value;
+}
+
+function tomlSection(text, name) {
+  const header = new RegExp(`^\\[${name}\\]\\s*$`, "mu").exec(text);
+  if (!header) return "";
+  const remainder = text.slice(header.index + header[0].length);
+  const next = /^\s*\[[^\]]+\]\s*$/mu.exec(remainder);
+  return next ? remainder.slice(0, next.index) : remainder;
+}
+
+export function resolveLanguageContext(root, path, language) {
+  if (language === "rust") {
+    const manifest = nearestManifest(root, path, "Cargo.toml");
+    if (!manifest) return {};
+    const text = readFileSync(manifest, "utf8");
+    const libraryName = tomlSection(text, "lib").match(/^\s*name\s*=\s*["']([^"']+)["']/mu)?.[1];
+    const packageName = tomlSection(text, "package").match(/^\s*name\s*=\s*["']([^"']+)["']/mu)?.[1];
+    const name = libraryName ?? packageName;
+    if (!name) return {};
+    return { rustCrateName: name.replaceAll("-", "_"), rustCrateRoot: relativeDirectory(root, manifest) };
+  }
+  if (language === "go") {
+    const manifest = nearestManifest(root, path, "go.mod");
+    if (!manifest) return {};
+    const modulePath = readFileSync(manifest, "utf8").match(/^\s*module\s+(\S+)/mu)?.[1];
+    if (!modulePath) return {};
+    return { goModulePath: modulePath, goModuleRoot: relativeDirectory(root, manifest) };
+  }
+  return {};
+}
+
 function languageFor(path) {
   for (const [language, pattern] of EXTENSIONS) if (pattern.test(path)) return language;
   return null;
 }
 
 function isTestPath(path, language) {
-  const name = basename(path);
+  const name = posix.basename(path);
   if (language === "php") return TEST_DIRECTORY.test(path) || /Test\.php$/u.test(name);
   if (language === "python") return TEST_DIRECTORY.test(path) || /^test_.+\.py$/u.test(name) || /_test\.py$/u.test(name);
   if (["javascript", "typescript"].includes(language)) {
@@ -59,9 +114,13 @@ function matches(text, pattern, group = 1) {
   return found;
 }
 
+function unique(values) {
+  return [...new Set(values.filter(Boolean))];
+}
+
 function identifiers(text) {
-  return matches(text, /\b([A-Za-z_$][A-Za-z0-9_$]{2,})\b/gu)
-    .filter((value) => !RESERVED.has(value.toLowerCase()));
+  return unique(matches(text, /\b([A-Za-z_$][A-Za-z0-9_$]{2,})\b/gu)
+    .filter((value) => !RESERVED.has(value.toLowerCase())));
 }
 
 function withoutComments(language, text) {
@@ -82,9 +141,7 @@ function testNames(language, text) {
       ...matches(text, /\b(?:it|test)\s*\(\s*["']([^"']+)["']/gu),
     ];
   }
-  if (language === "python") {
-    return matches(text, /^\s*def\s+(test_[A-Za-z0-9_]*)\s*\(/gmu);
-  }
+  if (language === "python") return matches(text, /^\s*def\s+(test_[A-Za-z0-9_]*)\s*\(/gmu);
   if (["javascript", "typescript"].includes(language)) {
     return matches(text, /\b(?:it|test)\s*\(\s*["'`]([^"'`]+)["'`]/gu);
   }
@@ -93,23 +150,239 @@ function testNames(language, text) {
   return [];
 }
 
-export function extractTestEvidence(language, text) {
-  const code = withoutComments(language, text);
-  const names = [...new Set(testNames(language, code))];
-  const references = [...new Set(identifiers(code))];
-  return { valid: names.length > 0, testNames: names, references };
+function identifierUsed(text, identifier) {
+  if (!identifier) return false;
+  return new RegExp(`\\b${identifier.replace(/[$]/gu, "\\$")}\\b`, "u").test(text);
 }
 
-function stripExtension(name) {
-  return name.replace(/\.(?:cjs|cts|js|jsx|mjs|mts|php|py|pyi|rs|ts|tsx|go)$/iu, "");
+function phpNamespace(code) {
+  return code.match(/\bnamespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]/u)?.[1]?.replace(/^\\/u, "") ?? "";
 }
 
-function sourceStem(path) {
-  return stripExtension(basename(normalize(path)));
+function phpImports(code) {
+  const imports = new Map();
+  for (const match of code.matchAll(/^\s*use\s+(?!function\b|const\b)([A-Za-z_\\][A-Za-z0-9_\\]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*;/gmu)) {
+    const qualified = match[1].replace(/^\\/u, "");
+    imports.set(match[2] ?? qualified.split("\\").at(-1), qualified);
+  }
+  return imports;
 }
 
-function testStem(path, language) {
-  let value = stripExtension(basename(normalize(path)));
+function resolvePhpName(name, namespace, imports) {
+  const value = String(name ?? "").trim();
+  if (!value) return "";
+  if (value.startsWith("\\")) return value.slice(1);
+  const [head, ...tail] = value.split("\\");
+  if (imports.has(head)) return [imports.get(head), ...tail].join("\\");
+  return namespace ? `${namespace}\\${value}` : value;
+}
+
+function phpCoverageTargets(raw, code) {
+  const namespace = phpNamespace(code);
+  const imports = phpImports(code);
+  const targets = [];
+  for (const reference of matches(code, /\bCoversClass\s*\(\s*([\\A-Za-z_][\\A-Za-z0-9_]*)\s*::class\s*\)/gu)) {
+    targets.push(`php:${resolvePhpName(reference, namespace, imports)}`);
+  }
+  for (const reference of matches(raw, /@covers\s+([\\A-Za-z_][\\A-Za-z0-9_]*)(?:::[A-Za-z_][A-Za-z0-9_]*)?/gu)) {
+    targets.push(`php:${resolvePhpName(reference, namespace, imports)}`);
+  }
+  return unique(targets);
+}
+
+function pythonTargets(code) {
+  const body = code.replace(/^\s*(?:from\s+[^\n]+\s+import\s+[^\n]+|import\s+[^\n]+)$/gmu, "");
+  const targets = [];
+  for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
+    for (const item of match[2].replace(/[()]/gu, "").split(",")) {
+      const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
+      if (binding && identifierUsed(body, binding[2] ?? binding[1])) targets.push(`python:${match[1]}#${binding[1]}`);
+    }
+  }
+  for (const match of code.matchAll(/^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*$/gmu)) {
+    const local = match[2] ?? match[1].split(".")[0];
+    if (identifierUsed(body, local)) targets.push(`python-module:${match[1]}`);
+  }
+  return unique(targets);
+}
+
+function stripExtension(path) {
+  return normalize(path).replace(/\.(?:cjs|cts|js|jsx|mjs|mts|php|py|pyi|rs|ts|tsx|go)$/iu, "");
+}
+
+function javascriptTargets(code, testPath) {
+  const body = code
+    .replace(/\bimport\s+[\s\S]*?\s+from\s+["'][^"']+["']\s*;?/gu, "")
+    .replace(/\b(?:const|let|var)\s+[^=]+?=\s*require\s*\(\s*["'][^"']+["']\s*\)\s*;?/gu, "");
+  const targets = [];
+  const addModule = (specifier, bindings) => {
+    if (!specifier.startsWith(".")) return;
+    if (!bindings.some((binding) => identifierUsed(body, binding))) return;
+    const resolved = stripExtension(posix.normalize(posix.join(posix.dirname(normalize(testPath)), specifier)));
+    targets.push(`javascript-module:${resolved}`);
+  };
+  for (const match of code.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+["']([^"']+)["']/gu)) {
+    const clause = match[1].replace(/^type\s+/u, "").trim();
+    const bindings = [];
+    const namespace = clause.match(/^\*\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)$/u);
+    if (namespace) bindings.push(namespace[1]);
+    const named = clause.match(/\{([\s\S]*?)\}/u)?.[1] ?? "";
+    for (const item of named.split(",")) {
+      const binding = item.trim().replace(/^type\s+/u, "").match(/^([A-Za-z_$][A-Za-z0-9_$]*)(?:\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*))?$/u);
+      if (binding) bindings.push(binding[2] ?? binding[1]);
+    }
+    const defaultBinding = clause.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:,|$)/u)?.[1];
+    if (defaultBinding) bindings.push(defaultBinding);
+    addModule(match[2], bindings);
+  }
+  for (const match of code.matchAll(/\b(?:const|let|var)\s+(.+?)\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\)/gu)) {
+    const bindings = identifiers(match[1]);
+    addModule(match[2], bindings);
+  }
+  return unique(targets);
+}
+
+function rustScope(path, rootName) {
+  const segments = normalize(path).split("/");
+  const index = segments.lastIndexOf(rootName);
+  return index < 0 ? "" : segments.slice(0, index).join("/");
+}
+
+function rustTargets(code, context) {
+  const body = code.replace(/^\s*use\s+[^;]+;\s*$/gmu, "");
+  const crateName = String(context.rustCrateName ?? "");
+  const crateRoot = normalize(context.rustCrateRoot ?? "");
+  if (!crateName) return [];
+  const targets = [];
+  for (const match of code.matchAll(/^\s*use\s+([^;]+)\s*;/gmu)) {
+    const expression = match[1].trim();
+    const grouped = expression.match(/^(.+?)::\{(.+)\}$/u);
+    const paths = grouped
+      ? grouped[2].split(",").map((item) => `${grouped[1]}::${item.trim()}`)
+      : [expression];
+    for (const path of paths) {
+      const alias = path.match(/\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/u)?.[1];
+      const segments = path.replace(/\s+as\s+[A-Za-z_][A-Za-z0-9_]*$/u, "").split("::");
+      const item = segments.pop();
+      if (!identifierUsed(body, alias ?? item)) continue;
+      const importedCrate = segments.shift()?.replaceAll("-", "_");
+      if (importedCrate !== crateName.replaceAll("-", "_")) continue;
+      targets.push(`rust:${crateRoot}:${crateName}#${segments.join("::")}#${item}`);
+    }
+  }
+  return unique(targets);
+}
+
+function goPackage(code) {
+  return code.match(/^\s*package\s+([A-Za-z_][A-Za-z0-9_]*)/mu)?.[1] ?? "";
+}
+
+function goTargets(code) {
+  const body = code.replace(/^\s*import\s+(?:\([^)]*\)|[^\n]+)$/gmu, "");
+  const targets = [];
+  for (const match of code.matchAll(/^\s*(?:import\s+)?(?:([A-Za-z_][A-Za-z0-9_]*)\s+)?"([^"]+)"\s*$/gmu)) {
+    const local = match[1] ?? match[2].split("/").at(-1);
+    for (const used of body.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_][A-Za-z0-9_]*)`, "gu"))) {
+      targets.push(`go-import:${match[2]}#${used[1]}`);
+    }
+  }
+  return unique(targets);
+}
+
+export function extractTestEvidence(language, text, testPath = "", context = {}) {
+  const raw = String(text ?? "");
+  const code = withoutComments(language, raw);
+  const names = unique(testNames(language, code));
+  let targets = [];
+  if (language === "php") targets = phpCoverageTargets(raw, code);
+  else if (language === "python") targets = pythonTargets(code);
+  else if (["javascript", "typescript"].includes(language)) targets = javascriptTargets(code, testPath);
+  else if (language === "rust") targets = rustTargets(code, context);
+  else if (language === "go") targets = goTargets(code);
+  return {
+    valid: names.length > 0,
+    testNames: names,
+    targets,
+    references: identifiers(code),
+    package: language === "go" ? goPackage(code) : "",
+  };
+}
+
+function sourceModule(path) {
+  const segments = stripExtension(path).split("/");
+  const sourceIndex = segments.reduce((found, segment, index) => ["lib", "src"].includes(segment.toLowerCase()) ? index : found, -1);
+  const moduleSegments = sourceIndex >= 0 ? segments.slice(sourceIndex + 1) : segments;
+  if (moduleSegments.at(-1) === "__init__") moduleSegments.pop();
+  return moduleSegments.join(".");
+}
+
+function javascriptModule(path) {
+  return stripExtension(path);
+}
+
+function rustModule(path) {
+  const segments = stripExtension(path).split("/");
+  const index = segments.lastIndexOf("src");
+  if (index < 0) return null;
+  const scope = segments.slice(0, index).join("/");
+  const modules = segments.slice(index + 1);
+  if (["lib", "main", "mod"].includes(modules.at(-1))) modules.pop();
+  return { scope, module: modules.join("::") };
+}
+
+export function extractSourceSymbols(language, text) {
+  const value = withoutComments(language, text);
+  if (language === "php") {
+    const namespace = phpNamespace(value);
+    return unique(matches(value, /\b(?:class|interface|trait|enum|function)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gu)
+      .map((symbol) => namespace ? `${namespace}\\${symbol}` : symbol));
+  }
+  if (language === "python") return unique(matches(value, /^\s*(?:class|def)\s+([A-Za-z_][A-Za-z0-9_]*)/gmu));
+  if (["javascript", "typescript"].includes(language)) {
+    return unique(matches(value, /\b(?:export\s+)?(?:default\s+)?(?:class|function|const|let|var|interface|type|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gu));
+  }
+  if (language === "rust") return unique(matches(value, /\b(?:pub\s+)?(?:fn|struct|enum|trait|type)\s+([A-Za-z_][A-Za-z0-9_]*)/gu));
+  if (language === "go") return unique(matches(value, /\b(?:func|type)\s+(?:\([^)]*\)\s*)?([A-Za-z_][A-Za-z0-9_]*)/gu));
+  return [];
+}
+
+function goImportPath(sourcePath, context) {
+  const modulePath = String(context.goModulePath ?? "").replace(/\/$/u, "");
+  if (!modulePath) return "";
+  const moduleRoot = normalize(context.goModuleRoot ?? "");
+  const directory = posix.dirname(normalize(sourcePath));
+  const relativePackage = moduleRoot ? posix.relative(moduleRoot, directory) : directory;
+  if (relativePackage.startsWith("..")) return "";
+  return relativePackage === "." || relativePackage === "" ? modulePath : `${modulePath}/${relativePackage}`;
+}
+
+function explicitSourceTargets(source, context) {
+  const symbols = extractSourceSymbols(source.language, source.content);
+  if (source.language === "php") return symbols.map((symbol) => `php:${symbol}`);
+  if (source.language === "python") {
+    const module = sourceModule(source.path);
+    return [`python-module:${module}`, ...symbols.map((symbol) => `python:${module}#${symbol}`)];
+  }
+  if (["javascript", "typescript"].includes(source.language)) {
+    const module = javascriptModule(source.path);
+    return [`javascript-module:${module}`, `javascript-module:${module.replace(/\/index$/u, "")}`];
+  }
+  if (source.language === "rust") {
+    const descriptor = rustModule(source.path);
+    const crateName = String(context.rustCrateName ?? "");
+    const crateRoot = normalize(context.rustCrateRoot ?? "");
+    if (!descriptor || !crateName || descriptor.scope !== crateRoot) return [];
+    return symbols.map((symbol) => `rust:${crateRoot}:${crateName}#${descriptor.module}#${symbol}`);
+  }
+  if (source.language === "go") {
+    const importPath = goImportPath(source.path, context);
+    return importPath ? symbols.map((symbol) => `go-import:${importPath}#${symbol}`) : [];
+  }
+  return [];
+}
+
+function removeTestSuffix(name, language) {
+  let value = stripExtension(name);
   if (language === "php") value = value.replace(/Test$/u, "");
   else if (language === "python") value = value.replace(/^test_/u, "").replace(/_test$/u, "");
   else if (["javascript", "typescript"].includes(language)) value = value.replace(/\.(?:test|spec)$/u, "");
@@ -117,30 +390,59 @@ function testStem(path, language) {
   return value;
 }
 
-function comparable(value) {
-  return String(value ?? "").replace(/[^A-Za-z0-9]/gu, "").toLowerCase();
+function rootDescriptor(path, roots) {
+  const segments = normalize(path).split("/");
+  const index = segments.findIndex((segment) => roots.has(segment.toLowerCase()));
+  if (index < 0) return null;
+  return { scope: segments.slice(0, index).join("/"), rest: segments.slice(index + 1) };
 }
 
-export function extractSourceSymbols(language, text) {
-  const value = String(text ?? "");
-  if (language === "php") return [...new Set(matches(value, /\b(?:class|interface|trait|enum|function)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gu))];
-  if (language === "python") return [...new Set(matches(value, /^\s*(?:class|def)\s+([A-Za-z_][A-Za-z0-9_]*)/gmu))];
-  if (["javascript", "typescript"].includes(language)) {
-    return [...new Set(matches(value, /\b(?:export\s+)?(?:default\s+)?(?:class|function|const|let|var|interface|type|enum)\s+([A-Za-z_$][A-Za-z0-9_$]*)/gu))];
+function mirrorIdentity(path, language, kind) {
+  if (["javascript", "typescript"].includes(language) && kind === "test") {
+    const segments = normalize(path).split("/").filter((segment) => segment !== "__tests__");
+    const name = removeTestSuffix(segments.pop(), language);
+    if (/\.(?:test|spec)$/u.test(stripExtension(posix.basename(path)))) {
+      const colocated = rootDescriptor([...segments, name].join("/"), SOURCE_ROOTS);
+      if (colocated) return `${colocated.scope}#${colocated.rest.join("/")}`;
+    }
   }
-  if (language === "rust") return [...new Set(matches(value, /\b(?:pub\s+)?(?:fn|struct|enum|trait|type)\s+([A-Za-z_][A-Za-z0-9_]*)/gu))];
-  if (language === "go") return [...new Set(matches(value, /\b(?:func|type)\s+(?:\([^)]*\)\s*)?([A-Za-z_][A-Za-z0-9_]*)/gu))];
-  return [];
+  if (language === "go") {
+    const directory = posix.dirname(normalize(path));
+    return `${directory}/${kind === "test" ? removeTestSuffix(posix.basename(path), language) : stripExtension(posix.basename(path))}`;
+  }
+  const descriptor = rootDescriptor(path, kind === "test" ? TEST_ROOTS : SOURCE_ROOTS);
+  if (!descriptor) return null;
+  const rest = [...descriptor.rest];
+  if (kind === "test") while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0].toLowerCase())) rest.shift();
+  const name = kind === "test" ? removeTestSuffix(rest.pop(), language) : stripExtension(rest.pop());
+  return `${descriptor.scope}#${[...rest, name].join("/")}`;
 }
 
-export function sourceAuthorizedByTest(source, testRecord) {
+function mirrorMatches(source, testRecord) {
+  const sourceIdentity = mirrorIdentity(source.path, source.language, "source");
+  const testIdentity = mirrorIdentity(testRecord.path, source.language, "test");
+  return Boolean(sourceIdentity && testIdentity && sourceIdentity === testIdentity);
+}
+
+function goPackageMatches(source, testRecord) {
+  if (source.language !== "go") return false;
+  const sourceDirectory = posix.dirname(normalize(source.path));
+  const testDirectory = posix.dirname(normalize(testRecord.path));
+  const sourcePackage = goPackage(withoutComments("go", source.content));
+  const testPackage = String(testRecord.evidence.package ?? "").replace(/_test$/u, "");
+  const symbols = new Set(extractSourceSymbols("go", source.content));
+  const references = testRecord.evidence.references ?? [];
+  if (sourceDirectory === testDirectory && sourcePackage && sourcePackage === testPackage && references.some((value) => symbols.has(value))) return true;
+  return false;
+}
+
+export function sourceAuthorizedByTest(source, testRecord, context = {}) {
   if (!source || !testRecord || source.language !== testRecord.language || !testRecord.evidence?.valid) return false;
-  if (comparable(sourceStem(source.path)) === comparable(testStem(testRecord.path, source.language))) return true;
-  const references = new Set(testRecord.evidence.references ?? []);
-  const symbols = extractSourceSymbols(source.language, source.content);
-  if (symbols.some((symbol) => references.has(symbol))) return true;
-  const stem = sourceStem(source.path);
-  return references.has(stem) || references.has(stem.replace(/[-_](.)/gu, (_, character) => character.toUpperCase()));
+  const testTargets = new Set(testRecord.evidence.targets ?? []);
+  if (explicitSourceTargets(source, context).some((target) => testTargets.has(target))) return true;
+  if (testTargets.size > 0) return false;
+  if (goPackageMatches(source, testRecord)) return true;
+  return mirrorMatches(source, testRecord);
 }
 
 function pascal(value) {
@@ -148,12 +450,12 @@ function pascal(value) {
 }
 
 export function expectedTestExample(sourcePath, language) {
-  const stem = sourceStem(sourcePath);
-  if (language === "php") return `tests/**/${pascal(stem)}Test.php`;
-  if (language === "python") return `tests/test_${stem}.py`;
-  if (language === "javascript") return `tests/${stem}.test.js`;
-  if (language === "typescript") return `tests/${stem}.test.ts`;
-  if (language === "rust") return `tests/${stem}.rs`;
-  if (language === "go") return `${stem}_test.go`;
+  const stem = stripExtension(posix.basename(sourcePath));
+  if (language === "php") return `a mirrored tests/**/${pascal(stem)}Test.php or a test with #[CoversClass(Target::class)]`;
+  if (language === "python") return `a mirrored tests/test_${stem}.py or a test importing the exact module`;
+  if (language === "javascript") return `a mirrored ${stem}.test.js or a test with an exact relative import`;
+  if (language === "typescript") return `a mirrored ${stem}.test.ts or a test with an exact relative import`;
+  if (language === "rust") return `a mirrored tests/${stem}.rs or a test using the exact crate module item`;
+  if (language === "go") return `${stem}_test.go in the same package referencing a declared symbol`;
   return "a matching test file";
 }

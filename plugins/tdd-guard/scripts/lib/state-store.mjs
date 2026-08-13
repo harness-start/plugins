@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-const VERSION = 1;
+const VERSION = 2;
 
 export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
 

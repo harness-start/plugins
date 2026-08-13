@@ -39,7 +39,7 @@
     {
       "name": "tdd-guard",
       "source": "./plugins/tdd-guard",
-      "description": "Blocks implementation writes until a related test case has been created or changed earlier in the session."
+      "description": "Blocks implementation writes until a test binds the exact language entity or mirrored source path earlier in the session."
     },
     {
       "name": "encoding-guard",
