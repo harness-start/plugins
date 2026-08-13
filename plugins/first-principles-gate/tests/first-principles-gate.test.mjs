@@ -217,6 +217,8 @@ test("ledger path allowlist and write-block phase gate", () => {
   assert.equal(isLedgerPath("docs/decisions/x.md", config), true);
   assert.equal(isLedgerPath("spec.md", config), true);
   assert.equal(isLedgerPath("src/app.js", config), false);
+  assert.equal(isLedgerPath("src/.first-principles/x.js", config), false);
+  assert.equal(isLedgerPath("src/.first-principles/ledger.json", config), false);
   assert.equal(
     isLedgerPath(
       "plugins/first-principles-gate/acceptance/x/workspace/.first-principles/ledger.json",
@@ -848,6 +850,41 @@ test("hook: closed completed without valid ledger is blocked on stop", async () 
     const out = parseStdout(stop.stdout);
     assert.equal(out?.decision, "block");
     assert.match(out?.reason ?? "", /ledger/i);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test("hook: nested src/.first-principles write is denied while open", async () => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "fp-data-"));
+  const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
+  const session = "sess-nested-ledger";
+  try {
+    await runEntry(
+      "prompt",
+      { cwd: root, session_id: session, prompt: "/first-principles x" },
+      env,
+    );
+    const deny = await runEntry(
+      "pre",
+      {
+        cwd: root,
+        session_id: session,
+        tool_name: "Write",
+        tool_input: {
+          file_path: join(root, "src", ".first-principles", "x.js"),
+          content: "export const sneak = 1;\n",
+        },
+      },
+      env,
+    );
+    assert.equal(
+      parseStdout(deny.stdout)?.hookSpecificOutput?.permissionDecision,
+      "deny",
+      deny.stdout || deny.stderr,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });

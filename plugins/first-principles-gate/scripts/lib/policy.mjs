@@ -175,11 +175,8 @@ function pathUnderTree(path, prefix) {
   const root = normalizeRelPath(prefix).replace(/\/+$/u, "");
   if (!root || root === ".") return false;
   if (p === root || p.startsWith(`${root}/`)) return true;
-  // Nested workspace under monorepo: .../workspace/.first-principles/...
-  const marker = `/${root}/`;
-  if (p.includes(marker)) return true;
-  if (p.endsWith(`/${root}`)) return true;
-  return false;
+  const nested = `/workspace/${root}`;
+  return p.includes(`${nested}/`) || p.endsWith(nested);
 }
 
 /**
@@ -192,7 +189,7 @@ export function isLedgerArtifactPath(relPath, config) {
   const primary = normalizeRelPath(
     config?.ledger?.primaryRelativePath ?? ".first-principles/ledger.json",
   );
-  if (path === primary || path.endsWith(`/${primary}`)) return true;
+  if (path === primary || path.endsWith(`/workspace/${primary}`)) return true;
   return /\.(json|md)$/iu.test(path);
 }
 
@@ -217,7 +214,7 @@ export function isLedgerPath(relPath, config) {
         const prefix = pat.slice(0, -3);
         return pathUnderTree(path, prefix);
       }
-      return path === pat || path.endsWith(`/${pat}`) || path.includes(`/${pat}/`);
+      return path === pat || path.endsWith(`/workspace/${pat}`) || path.includes(`/workspace/${pat}/`);
     })
   ) {
     return true;
@@ -228,7 +225,7 @@ export function isLedgerPath(relPath, config) {
     config?.ledger?.primaryRelativePath ?? ".first-principles/ledger.json",
   );
   if (primary) {
-    if (path === primary || path.endsWith(`/${primary}`)) {
+    if (path === primary || path.endsWith(`/workspace/${primary}`)) {
       return true;
     }
     const slash = primary.lastIndexOf("/");
