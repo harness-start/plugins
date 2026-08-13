@@ -366,3 +366,91 @@ test("denies direct file writes under the audit root and allows a near miss", as
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("create_file and search_replace deny audit-root writes", async () => {
+  const root = workspace();
+  try {
+    for (const name of ["claude.json", "codex.json"]) {
+      const hooks = JSON.parse(
+        readFileSync(join(PLUGIN_ROOT, "hooks", name), "utf8"),
+      );
+      const matcher = hooks.hooks.PreToolUse[0].matcher;
+      assert.match(matcher, /create_file/u, name);
+      assert.match(matcher, /search_replace/u, name);
+    }
+
+    const created = await runEntry("protect", {
+      cwd: root,
+      tool_name: "create_file",
+      tool_input: {
+        file_path: join(root, ".subagent-lifecycle-audit", "sessions", "s.jsonl"),
+        content: "forged\n",
+      },
+    });
+    assert.equal(
+      JSON.parse(created.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+    const replaced = await runEntry("protect", {
+      cwd: root,
+      tool_name: "search_replace",
+      tool_input: {
+        path: join(root, ".subagent-lifecycle-audit", "README.md"),
+        old_string: "a",
+        new_string: "b",
+      },
+    });
+    assert.equal(
+      JSON.parse(replaced.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("allows interpreter reads of the trail and still denies interpreter writes", async () => {
+  const root = workspace();
+  try {
+    const readAllowed = await runEntry("protect", {
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: {
+        command: "python3 -c \"print(open('.subagent-lifecycle-audit/README.md').read())\"",
+      },
+    });
+    assert.equal(readAllowed.stdout, "", readAllowed.stdout);
+    const nodeRead = await runEntry("protect", {
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: {
+        command: "node -e \"require('fs').readFileSync('.subagent-lifecycle-audit/README.md')\"",
+      },
+    });
+    assert.equal(nodeRead.stdout, "", nodeRead.stdout);
+    const written = await runEntry("protect", {
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: {
+        command: "python3 -c \"open('.subagent-lifecycle-audit/sessions/s.jsonl','w').write('x')\"",
+      },
+    });
+    assert.equal(
+      JSON.parse(written.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+    const nodeWrite = await runEntry("protect", {
+      cwd: root,
+      tool_name: "Bash",
+      tool_input: {
+        command: "node -e \"require('fs').writeFileSync('.subagent-lifecycle-audit/sessions/s.jsonl','x')\"",
+      },
+    });
+    assert.equal(
+      JSON.parse(nodeWrite.stdout).hookSpecificOutput.permissionDecision,
+      "deny",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

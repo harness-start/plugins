@@ -71,7 +71,11 @@ export function isAuditMutationCommand(command) {
   if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  if (/\b(?:writeFile(?:Sync)?|appendFile(?:Sync)?|promises\.writeFile)\s*\(/iu.test(text)) return true;
+  if (/\bopen\s*\([^)\n]*['"](?:w|a|x|r\+|wb|ab|xb)/iu.test(text)) return true;
+  if (/\b(?:Path\([^)\n]*\)\.)?(?:write_text|write_bytes)\s*\(/iu.test(text)) return true;
+  if (/\bFile\.write\s*\(/iu.test(text)) return true;
+  if (/\bunlink(?:Sync)?\s*\(/iu.test(text)) return true;
   return false;
 }
 

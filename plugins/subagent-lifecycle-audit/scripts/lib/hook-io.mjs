@@ -57,7 +57,7 @@ export function extractToolInput(event) {
 }
 
 const SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
-const FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write)$/iu;
+const FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace)$/iu;
 
 export function extractShellCommand(event) {
   if (!SHELL_TOOLS.test(extractToolName(event))) return null;
