@@ -17,16 +17,6 @@ export function extractSessionId(event) {
   return event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? "unknown";
 }
 
-export function extractAgentId(event) {
-  return event?.agent_id ?? event?.agentId ?? event?.context?.agent_id ?? null;
-}
-
-export function extractAgentPrompt(event) {
-  const input = event?.tool_input ?? event?.toolInput ?? event?.input ?? {};
-  const value = event?.agent_prompt ?? event?.agentPrompt ?? input?.prompt ?? input?.message ?? "";
-  return typeof value === "string" ? value : "";
-}
-
 export function extractToolName(event) {
   return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
 }
@@ -89,10 +79,6 @@ export function extractWriteContent(event) {
   return body.map((line) => line.slice(1)).join("\n");
 }
 
-export function isAgentTool(event) {
-  return AGENT_TOOLS.test(String(extractToolName(event)));
-}
-
 export function isFileTool(event) {
   return FILE_TOOLS.test(String(extractToolName(event)));
 }
@@ -129,6 +115,5 @@ export function writeJson(value) {
 }
 import { isAbsolute, resolve } from "node:path";
 
-const AGENT_TOOLS = /^(?:Agent|Task|spawn_agent)$/iu;
 const FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace)$/iu;
 const SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
