@@ -7,7 +7,6 @@ import { fileURLToPath } from "node:url";
 
 import {
   contextOutput,
-  extractAgentId,
   extractAssistantMessage,
   extractCwd,
   extractShellCommand,
@@ -58,9 +57,6 @@ async function prepareState(event, official, env) {
     reportSha256,
     target,
     operation: official.action === "prepare" ? "save" : "append",
-    criticApproval: null,
-    reviewNonce: null,
-    reviewAgent: null,
   }, env);
 }
 
@@ -69,12 +65,6 @@ async function runPre(event, env) {
   const command = isShellTool(event) ? extractShellCommand(event) : null;
   const official = parseOfficialCommand(command);
   const trusted = official && !official.error && await officialScriptTrusted(official, { cwd: extractCwd(event) });
-  if (trusted && new Set(["save", "append"]).has(official.action) && state.phase === "prepared") {
-    if (!state.criticApproval || state.criticApproval !== state.candidateSha256) {
-      writeJson(preToolDeny("[Work Report Insights] Dispatch a read-only critic with WRI_REVIEW_REQUEST critic against the prepared draft before save."));
-      return;
-    }
-  }
   if (trusted && new Set(["prepare", "addition-prepare"]).has(official.action)) {
     try {
       await prepareState(event, official, env);
@@ -135,34 +125,6 @@ async function main() {
     else if (new Set(["pre", "PreToolUse"]).has(mode)) await runPre(event, env);
     else if (new Set(["post", "PostToolUse"]).has(mode)) await runPost(event, env);
     else if (new Set(["stop", "Stop"]).has(mode)) await runStop(event, env);
-    else if (mode === "review-start") {
-      const state = await readState(event, env);
-      if (!state.candidateSha256) {
-        writeJson(contextOutput("SubagentStart", "[Work Report Insights] No prepared draft exists. Return without reviewing."));
-      } else {
-        const nonce = state.candidateSha256.slice(0, 24);
-        await writeState(event, { ...state, reviewNonce: nonce, reviewAgent: extractAgentId(event) }, env);
-        writeJson(contextOutput("SubagentStart", [
-          "[Work Report Critic] Judge methods and gaps from the prepared draft and transcript facts only. Do not rewrite accomplishments.",
-          `reviewNonce=${nonce}`,
-          `WRI_REVIEW_RESULT {"stage":"critic","reviewNonce":"${nonce}","decision":"approve|challenge"}`,
-        ].join("\n")));
-      }
-    } else if (mode === "subagent-stop") {
-      const state = await readState(event, env);
-      const match = /\bWRI_REVIEW_RESULT\s+(\{[\s\S]*\})\s*$/mu.exec(extractAssistantMessage(event).trim());
-      let parsed = null;
-      try { parsed = match ? JSON.parse(match[1]) : null; } catch { parsed = null; }
-      if (!parsed || parsed.reviewNonce !== state.reviewNonce || extractAgentId(event) !== state.reviewAgent) {
-        writeJson(stopDeny("[Work Report Insights] Finish the critic review with WRI_REVIEW_RESULT matching the issued nonce."));
-      } else if (parsed.decision === "approve") {
-        await writeState(event, { ...state, criticApproval: state.candidateSha256, reviewNonce: null, reviewAgent: null }, env);
-        writeJson(contextOutput("SubagentStop", "[Work Report Insights] critic approval recorded."));
-      } else {
-        await writeState(event, { ...state, criticApproval: null, reviewNonce: null, reviewAgent: null }, env);
-        writeJson(contextOutput("SubagentStop", "[Work Report Insights] critic challenge recorded; revise the draft."));
-      }
-    }
   } catch (error) {
     if (new Set(["pre", "PreToolUse"]).has(mode)) {
       writeJson(preToolDeny(`[Work Report Insights] Protection check failed closed: ${error?.message ?? String(error)}`));

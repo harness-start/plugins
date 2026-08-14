@@ -12,6 +12,6 @@ description: 员工要做指定日期范围的工作总结、阶段总结或项�
 3. 实际调用 `$grill-me`，一次问一个问题，最多五个，补齐范围目标、关键结果、非 AI 工作、重要取舍、方法/执行不足及下一阶段调整。允许员工表示无补充或证据不足。
 4. 依赖不可用时使用当前 Skill 的单题回退，不联网安装。
 5. 生成包含范围、成果、证据、阻碍、方法/执行不足和下一阶段行动的完整草稿。运行 `work-summary-report-prepare.mjs --from ... --to ... --input <draft>`，展示全文；变更后重新 prepare。Hook 不会根据用户下一句话确认。
-6. critic 通过后运行 `work-summary-report-save.mjs --from ... --to ... --input <draft>`，不得直接写报告目录。
+6. 确认正文后运行 `work-summary-report-save.mjs --from ... --to ... --input <draft>`，不得直接写报告目录。事实较多时可以用自然语言请普通只读子 agent 检查遗漏，但父 agent 必须核对事实并决定是否修改。
 
 输出为 `~/.ai-experts/work-summary-reports/YYYY-MM-DD_to_YYYY-MM-DD.md`。有效封印与日期无关；封印前正文不可再改，补充只能走确认后的 append-only 流程。

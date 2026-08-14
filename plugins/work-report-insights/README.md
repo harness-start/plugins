@@ -12,7 +12,7 @@
 
 ## Confirm and seal
 
-报告先在受保护目录之外形成草稿。`prepare` 记录候选正文摘要；派只读 critic 通过后，`save` 才能写入最终路径。员工是否口头同意由 skill 约定，hook 不再读取用户下一句话。保存工具在确认正文末尾加入唯一标签：
+报告先在受保护目录之外形成草稿。`prepare` 记录候选正文摘要；确认正文后，`save` 才能写入最终路径。内容复杂时，skill 可以用自然语言请普通只读 subagent 检查遗漏，但父 agent 必须核对事实并决定是否修改；hook 不跟踪该 subagent。员工是否口头同意由 skill 约定，hook 不再读取用户下一句话。保存工具在确认正文末尾加入唯一标签：
 
 ```html
 <!-- work-report-insights:sha256:<64-hex-digest> -->
