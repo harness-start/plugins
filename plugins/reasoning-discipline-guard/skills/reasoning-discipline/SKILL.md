@@ -32,16 +32,15 @@ When signals overlap, use that priority: concrete causal diagnosis, then exact c
 3. After the hook reports `Bound <id>`, create exactly one stage file per file-mutation tool call, in this order:
    - `01-frame.md`
    - `02-analysis.md`
-   - After `RD-R2`, dispatch a read-only subagent whose prompt contains only `RD_REVIEW_REQUEST challenge`. On Codex, use a task name beginning with `rd_challenge_`. Do not write `03-challenge.md` until that reviewer returns an approval bound to the current frame and analysis. Do not give the reviewer your planned attacks or conclusion.
+   - After `RD-R2`, write `03-challenge.md`. When a separate attack would materially improve the analysis, first ask a fresh generic read-only subagent in ordinary language to inspect the frame and analysis without revealing the planned attacks or conclusion. Treat its reply as advice; the parent authors and verifies the artifact.
    - `03-challenge.md`
-   - After `RD-R3`, dispatch a *different* read-only subagent whose prompt contains only `RD_REVIEW_REQUEST cross-check`. On Codex, use a task name beginning with `rd_cross_check_`. Do not write `04-cross-check.md` until that approval is recorded.
+   - After `RD-R3`, write `04-cross-check.md`. A fresh generic read-only subagent may perform an independent derivation when useful, but no particular Agent identity or response format is required.
    - `04-cross-check.md`
    - `05-conclusion.md`
-   On Claude Code, use the plugin agent `reasoning-discipline-guard:independent-reviewer`. On Codex, create both native reviewers with `fork_turns: "none"` so they receive only the explicit review request and hook-provided evidence. After each dispatch, wait once for at most 60 seconds. If a reviewer timeout or failure leaves the approval unavailable, pause the workflow at that review stage and report the already signed partial facts plus the concrete retry action; do not spin on repeated waits. These native reviewer dispatches are not governed implementation handoffs: do not use `subagent-handoff` for a native reviewer.
 4. Wait for each hook-issued receipt. Put it unchanged in the next stage's `previousReceipt`. Never predict or invent a receipt.
 5. After `05-conclusion.md` receives `RD-R5`, update `workflow.md` alone: set `status` to `closed`, `currentStage` to `conclusion`, `completionReceipt` to `RD-R5`, and both `resume` fields to `null`.
 6. State the calibrated conclusion and cite the workflow path when the requested output format permits it. In `05-conclusion.md`, set `outputContract.mode` to `exact-payload` for a strict final format such as one number or JSON, otherwise use `free-form`. A strict format changes only the presentation: keep the evidence in the artifacts, put the complete final payload in `conclusion`, emit exactly that payload, and never prepend or append workflow status, verification wording, citations, or explanation unless the user requested them.
-7. If the next step is implementation with isolated writers, open `$subagent-plan-execution` instead of editing in the parent session.
+7. If implementation follows, return control to the parent Agent and use the repository's normal implementation and verification workflow.
 
 Use the platform's observable file-mutation channel for every reasoning artifact:
 

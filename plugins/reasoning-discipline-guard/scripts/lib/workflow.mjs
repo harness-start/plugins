@@ -15,18 +15,6 @@ import {
   loadStage,
   referencedIds,
 } from "./artifacts.mjs";
-import {
-  REVIEW_STAGES,
-  bindReviewer,
-  clearReviewsFrom,
-  observeReview,
-  reserveReview,
-  reviewEvidenceSnapshot,
-  reviewEvidencePaths,
-  reviewFingerprint,
-  reviewRequirement,
-  reviewerBinding,
-} from "./independent-review.mjs";
 import { emptyState, readState, updateState, writeState } from "./state-store.mjs";
 
 function repoRoot(cwd) {
@@ -258,7 +246,6 @@ function invalidateFrom(state, index) {
   state.status = "open";
   state.invalid = false;
   state.findings = [];
-  clearReviewsFrom(state, STAGES[index]);
 }
 
 function receiptFor(stageIndex, check) {
@@ -408,11 +395,6 @@ function signStage({ path, cwd, sessionId, state }) {
     return { kind: "invalid-stage", findings };
   }
 
-  const reviewFinding = reviewRequirement(state, stageName, state.workflowPath);
-  if (reviewFinding) {
-    return { kind: "review-required", findings: [reviewFinding] };
-  }
-
   const receipt = receiptFor(index, checked);
   state.receipts.push(receipt);
   state.nextStageIndex = index + 1;
@@ -481,10 +463,6 @@ export function completionFindings({ cwd, sessionId, state = null, manifest = nu
     else if (checked.sha256 !== receipt.sha256) findings.push(`${stageName} changed after ${receipt.id}; rewrite it to re-sign downstream stages`);
   }
   if (current.completionReceipt !== "RD-R5") findings.push("closed workflow.completionReceipt must be RD-R5");
-  for (const stage of ["challenge", "cross-check"]) {
-    const reviewFinding = reviewRequirement(live, stage, live.workflowPath);
-    if (reviewFinding) findings.push(reviewFinding);
-  }
   return [...new Set(findings)];
 }
 
@@ -533,60 +511,6 @@ export function stopDecision({ cwd, sessionId, assistantMessage = "" }) {
     }
   }
   return findings.length === 0 ? { kind: "allow" } : { kind: "block", findings };
-}
-
-export function reserveIndependentReview({ cwd, sessionId, stage, toolUseId }) {
-  return updateState(sessionId, cwd, (state) => {
-    if (!state.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
-    return reserveReview(state, { stage, fingerprint: reviewFingerprint(state.workflowPath, stage), toolUseId });
-  }).result;
-}
-
-export function bindIndependentReviewer({ cwd, sessionId, stage, agentId }) {
-  const { state, result } = updateState(sessionId, cwd, (next) => {
-    if (!next.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
-    return bindReviewer(next, { stage, agentId });
-  });
-  return {
-    ...result,
-    evidencePaths: reviewEvidencePaths(state.workflowPath, stage),
-    workflowPath: state.workflowPath,
-  };
-}
-
-export function reserveAndBindIndependentReviewer({ cwd, sessionId, stage, agentId, toolUseId }) {
-  const initial = readState(sessionId, cwd);
-  if (!initial.bound) return { kind: "rejected", reason: "no bound reasoning workflow" };
-  const snapshot = reviewEvidenceSnapshot(initial.workflowPath, stage);
-  if (!snapshot) return { kind: "rejected", reason: "review evidence snapshot is unavailable" };
-  return updateState(sessionId, cwd, (state) => {
-    if (!state.bound || state.workflowPath !== initial.workflowPath) return { kind: "rejected", reason: "reasoning workflow changed before reviewer bind" };
-    if (reviewFingerprint(state.workflowPath, stage) !== snapshot.fingerprint) return { kind: "rejected", reason: "review evidence changed before reviewer bind" };
-    const draft = structuredClone(state);
-    const reserved = reserveReview(draft, { stage, fingerprint: snapshot.fingerprint, toolUseId });
-    if (reserved.kind !== "reserved") return reserved;
-    const bound = bindReviewer(draft, { stage, agentId });
-    if (bound.kind !== "bound-reviewer") return bound;
-    Object.assign(state, draft);
-    return { ...bound, evidencePaths: snapshot.paths, evidenceBundle: snapshot.bundle };
-  }).result;
-}
-
-export function observeIndependentReview({ cwd, sessionId, agentId, result }) {
-  return updateState(sessionId, cwd, (state) => observeReview(state, { agentId, result })).result;
-}
-
-export function independentReviewerBinding({ cwd, sessionId, agentId }) {
-  return reviewerBinding(readState(sessionId, cwd), agentId);
-}
-
-export function pendingReviewReservation({ cwd, sessionId }) {
-  const state = readState(sessionId, cwd);
-  for (const stage of Object.keys(REVIEW_STAGES)) {
-    const reservation = state.reviews?.[stage]?.reservation;
-    if (reservation && ["reserved", "bound"].includes(reservation.state)) return reservation;
-  }
-  return null;
 }
 
 export function discoverWorkflows(cwd) {

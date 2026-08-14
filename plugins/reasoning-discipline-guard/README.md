@@ -18,7 +18,7 @@ SessionStart 路由契约
   -> 单独写入 workflow.md
   -> Hook 绑定 workspace、workflow ID 和 epoch
   -> 五个独立 PostToolUse 事件
-  -> challenge / cross-check 由不同 agent_id 的只读子代理审批后才能签发 RD-R3 / RD-R4；Codex child-session 通过受校验 transcript 自动映射到父会话并接收 nonce/evidence
+  -> Skill 可按需要用普通自然语言请通用只读子 Agent 提供挑战或独立推导；父 Agent 负责写入并验证 artifact
   -> 分支校验和来源关联的可观察性检查
   -> 有限划分分配重放全部联合隐藏响应
   -> receipt 与 SHA-256 链
@@ -34,7 +34,7 @@ SessionStart 路由契约
 4. 用独立方法 cross-check 并独立搜索每个 strategy；有限划分分配由有界机器模型重放，非分配类工具证据只能作为 supporting metric；
 5. 给出结论，并写清还不确定什么。
 
-Hook 校验结构、顺序、引用、每阶段 SHA-256 和会话回执。exact frame 还要求所有声明行动时可观察性的 given 以 `observable: true` 出现在 positive observability audit；只有标为 `user-verbatim` 且明确说明不可选择的 given 才能阻断该信号，模型推断的后果不能替代用户原话。
+Hook 校验结构、顺序、引用、每阶段 SHA-256 和会话回执，但不认证子 Agent 身份或回复。exact frame 还要求所有声明行动时可观察性的 given 以 `observable: true` 出现在 positive observability audit；只有标为 `user-verbatim` 且明确说明不可选择的 given 才能阻断该信号，模型推断的后果不能替代用户原话。
 
 对 `finite-partition-allocation`，守卫枚举联合隐藏响应并验证声明的最优值。每次搜索都要声明数值目标是最终答案还是辅助证据，避免分数覆盖语义算法结论。标为 `exact-payload` 的 conclusion 必须与最终回复完全相同，严格单值格式不能附加状态文字或解释。其他结构有效的 artifact 也不会因此自动成为语义事实。
 

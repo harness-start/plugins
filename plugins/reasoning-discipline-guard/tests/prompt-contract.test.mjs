@@ -42,10 +42,9 @@ test("artifact protocol provides branch-specific frame templates", () => {
   assert.doesNotMatch(nonExactFrame, /controlAssignments|observabilityAudit/u);
 });
 
-test("review dispatch contract isolates context and bounds waiting", () => {
+test("optional independent checks use plain generic delegation", () => {
   const skill = readFileSync(SKILL, "utf8");
-  assert.match(skill, /Codex.*fork_turns.*none/isu);
-  assert.match(skill, /wait once.*(?:60|90) seconds/isu);
-  assert.match(skill, /reviewer.*timeout.*pause.*partial facts/isu);
-  assert.match(skill, /do not use.*subagent-handoff.*native reviewer/isu);
+  assert.match(skill, /fresh generic read-only subagent/iu);
+  assert.match(skill, /reply as advice/iu);
+  assert.doesNotMatch(skill, /RD_REVIEW_REQUEST|reviewNonce|subagent-handoff|subagent-plan-execution/u);
 });
