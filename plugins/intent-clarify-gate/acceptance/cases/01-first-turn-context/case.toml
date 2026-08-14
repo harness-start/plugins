@@ -1,0 +1,4 @@
+id = "01-first-turn-context"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["user-prompt", "intent-discovery", "skill", "write"]
