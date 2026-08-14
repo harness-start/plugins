@@ -117,8 +117,8 @@ Do not patch by intuition. If the original reproduction is unavailable, keep the
 ## Fix and verify
 
 1. Move the active bug to `fixing`; record the supported root cause before the production edit.
-2. Dispatch a read-only subagent whose prompt contains only `DBG_REVIEW_REQUEST diagnosis`. On Codex, use a task name beginning with `dbg_diagnosis_`. Do not give it your chosen root cause as authority. Production edits stay blocked until that reviewer approves.
-3. After three failed post-mutation reproductions, dispatch a *different* read-only subagent with `DBG_REVIEW_REQUEST architecture`; on Codex, use a task name beginning with `dbg_architecture_`. Do not treat `architecture-review` as complete before it returns.
+2. If an independent diagnosis would materially reduce uncertainty, ask a fresh generic read-only subagent to inspect the Work Order and evidence. Describe the question in ordinary language, do not present the chosen root cause as authoritative, and treat the reply as advice that the parent must verify.
+3. After three failed post-mutation reproductions, stop editing and move the bug to `architecture-review`. A fresh generic read-only subagent may challenge the architecture when useful, but the parent remains responsible for the decision and the evidence recorded in the Work Order.
 4. Make the smallest causal change. Set `fix.firstRevision` on the first production mutation and list every bug affected by a shared fix in `fix.affectedBugIds`.
 5. Run the exact original reproduction again after the last production mutation. It must succeed.
 6. Run at least one regression check for each affected bug. Never reuse another bug's receipt.

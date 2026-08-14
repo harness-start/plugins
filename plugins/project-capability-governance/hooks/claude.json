@@ -12,38 +12,14 @@
         ]
       }
     ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/project-capability-governance-hook.mjs\" prompt claude",
-            "statusMessage": "Advancing capability recorder epoch",
-            "timeout": 5000
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
-        "matcher": "Agent|Task|spawn_agent|ApplyPatch|apply_patch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "matcher": "ApplyPatch|apply_patch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
         "hooks": [
           {
             "type": "command",
             "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/project-capability-governance-hook.mjs\" pre claude",
             "statusMessage": "Protecting the project capability inbox",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/project-capability-governance-hook.mjs\" start claude",
-            "statusMessage": "Binding a project capability recorder",
             "timeout": 10000
           }
         ]

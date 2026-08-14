@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "collaboration.spawn_agent|Agent|Task|Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "matcher": "Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
         "hooks": [
           {
             "type": "command",
@@ -45,30 +45,6 @@
             "type": "command",
             "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:stop\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" stop",
             "statusMessage": "Validating Debug Work Order",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:review-start\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" review-start",
-            "statusMessage": "Binding independent debug reviewer",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"debugging-workflow-guard:subagent-stop\" node \"${PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" subagent-stop",
-            "statusMessage": "Recording independent debug review",
             "timeout": 10000
           }
         ]

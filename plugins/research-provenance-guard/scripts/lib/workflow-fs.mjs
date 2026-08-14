@@ -29,7 +29,7 @@ function atomicWriteSync(path, content) {
   renameSync(temporary, path);
 }
 
-export function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEpoch = 0, allowSoloMain = false }) {
+export function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEpoch = 0 }) {
   return {
     schema: WORKFLOW_SCHEMA,
     run_id: runId,
@@ -39,9 +39,7 @@ export function defaultWorkflow({ runId, question = "", scope = "", asOf = "", p
     as_of: asOf,
     prompt_epoch: promptEpoch,
     opened_at: new Date().toISOString(),
-    allow_solo_main: allowSoloMain === true,
     source_plan_path: "source-plan.md",
-    subagents: [],
     mcp: { begun: false, source_count: 0, anchor_count: 0 },
     completeness: {
       brief: false,
@@ -72,7 +70,7 @@ export function writeWorkflow(workspaceRoot, workflow) {
 
 export function ensureRunSkeleton(workspaceRoot, runId) {
   const root = runDir(workspaceRoot, runId);
-  for (const part of ["", "handoffs/inbound", "handoffs/outbound"]) {
+  for (const part of ["", "handoffs/outbound"]) {
     mkdirSync(part ? join(root, part) : root, { recursive: true, mode: 0o755 });
   }
   return root;

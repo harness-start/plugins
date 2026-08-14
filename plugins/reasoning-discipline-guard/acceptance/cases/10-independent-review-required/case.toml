@@ -1,4 +1,0 @@
-id = "10-independent-review-required"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["stop", "reasoning", "subagent", "review"]

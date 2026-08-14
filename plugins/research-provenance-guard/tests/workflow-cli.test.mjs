@@ -80,7 +80,7 @@ test("run-open creates project workflow and blocks outbound until sealed", async
   assert.notEqual(manualComplete.status, 0, "only a successful Stop hook may complete a run");
 });
 
-test("workflow CLI cannot self-authorize abort or escape inbound result paths", async () => {
+test("workflow CLI cannot self-authorize abort or expose removed inbound lifecycle commands", async () => {
   const root = await mkdtemp(join(tmpdir(), "research-cli-guard-"));
   const runId = "r-20260808120000-cli0002";
   assert.equal(runCli(["run-open", "--run-id", runId], root).status, 0);
@@ -89,12 +89,6 @@ test("workflow CLI cannot self-authorize abort or escape inbound result paths", 
   assert.notEqual(manualAbort.status, 0, "only the exact user abort prompt may abort a run");
   assert.equal(findActiveWorkflow(root)?.run_id, runId);
 
-  await writeFile(join(root, "result.md"), "result\n", "utf8");
-  const escapedResult = runCli([
-    "handoff-result",
-    "--run-id", runId,
-    "--id", "../escape",
-    "--file", join(root, "result.md"),
-  ], root);
-  assert.notEqual(escapedResult.status, 0);
+  assert.notEqual(runCli(["handoff-inbound", "--run-id", runId], root).status, 0);
+  assert.notEqual(runCli(["handoff-result", "--run-id", runId], root).status, 0);
 });

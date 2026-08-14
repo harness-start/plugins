@@ -80,25 +80,6 @@ fi
 run_hook post "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg path "${WS}/.first-principles/ledger.json" \
   '{cwd:$cwd,session_id:$s,tool_name:"Write",tool_input:{file_path:$path,content:"{}"}}')" >/dev/null
 
-echo "==> independent challenger must bind before close"
-run_hook pre "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,tool_name:"Agent",tool_input:{prompt:"FP_REVIEW_REQUEST challenger"}}')" >/dev/null
-START_OUT="$(run_hook review-start "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
-  '{cwd:$cwd,session_id:$s,agent_id:"fp-challenger",agent_prompt:"FP_REVIEW_REQUEST challenger"}')")"
-NONCE="$(printf '%s' "${START_OUT}" | sed -n 's/.*reviewNonce=\([a-f0-9][a-f0-9]*\).*/\1/p' | head -1)"
-[ -n "${NONCE}" ] || {
-  echo "FAIL missing challenger nonce" >&2
-  echo "${START_OUT}" >&2
-  exit 1
-}
-REVIEW_OUT="$(run_hook subagent-stop "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" --arg nonce "${NONCE}" \
-  '{cwd:$cwd,session_id:$s,agent_id:"fp-challenger",last_assistant_message:("FP_REVIEW_RESULT {\"stage\":\"challenger\",\"reviewNonce\":\"" + $nonce + "\",\"decision\":\"approve\"}")}')")"
-echo "${REVIEW_OUT}" | grep -q 'approve' || {
-  echo "FAIL challenger approval was not recorded" >&2
-  echo "${REVIEW_OUT}" >&2
-  exit 1
-}
-
 echo "==> close with done"
 DONE_OUT="$(run_hook prompt "$(jq -nc --arg cwd "${WS}" --arg s "${SESSION}" \
   '{cwd:$cwd,session_id:$s,prompt:"done"}')")"

@@ -33,7 +33,7 @@
 1. 有效 Work Order 修改绑定当前会话前，Hook 保持惰性；以暂停状态创建只记录入口，不留下活动守卫。
 2. 同一时间只有一个活动缺陷，所有回执都带该缺陷 ID。
 3. 修改生产文件前，活动缺陷以及共享修复列出的每个缺陷，都要各自有归属明确、精确、发生在修改前的失败复现。活动缺陷还须有当前会话支持的假设和根因，并处于 `fixing` / `in-progress`。
-4. 生产修改前必须有独立 `DBG_REVIEW_REQUEST diagnosis` 审批。缺陷标为 resolved 前，必须有已应用的修复修改、修改前失败、受支持的假设与根因、最后一次相关修改后原复现成功、回归成功以及非失败的清理回执；`Stop` 还会独立扫描 Work Order debug marker。`architecture-review` 需要另一个 agent 的 `DBG_REVIEW_REQUEST architecture` 审批。
+4. Skill 可以在确有价值时用普通自然语言创建通用只读子 Agent，帮助挑战诊断或架构判断；插件不绑定子 Agent 身份，也不把其回复当作审批。缺陷标为 resolved 前，必须有已应用的修复修改、修改前失败、受支持的假设与根因、最后一次相关修改后原复现成功、回归成功以及非失败的清理回执；`Stop` 还会独立扫描 Work Order debug marker。
 5. 回执引用必须存在于已绑定会话，并归属同一缺陷。
 6. 三次修改后复现失败只冻结当前缺陷。
 7. `SessionStart` 发现永不选择或恢复 Work Order。

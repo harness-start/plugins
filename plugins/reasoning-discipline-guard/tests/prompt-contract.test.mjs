@@ -32,3 +32,10 @@ test("reasoning prompts localize natural-language values without translating mac
     );
   }
 });
+
+test("optional independent checks use plain generic delegation", () => {
+  const skill = readFileSync(SKILL, "utf8");
+  assert.match(skill, /fresh generic read-only subagent/iu);
+  assert.match(skill, /reply as advice/iu);
+  assert.doesNotMatch(skill, /RD_REVIEW_REQUEST|reviewNonce|subagent-handoff|subagent-plan-execution/u);
+});

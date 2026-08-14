@@ -12,19 +12,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "collaboration.spawn_agent|Agent|Task|Read|Grep|apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"reasoning-discipline-guard:pre\" node \"${PLUGIN_ROOT}/scripts/reasoning-discipline-guard.mjs\" pre",
-            "statusMessage": "Checking independent reasoning review",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace",
@@ -58,30 +45,6 @@
             "type": "command",
             "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"reasoning-discipline-guard:stop\" node \"${PLUGIN_ROOT}/scripts/reasoning-discipline-guard.mjs\" stop",
             "statusMessage": "Checking reasoning conclusion",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"reasoning-discipline-guard:review-start\" node \"${PLUGIN_ROOT}/scripts/reasoning-discipline-guard.mjs\" review-start",
-            "statusMessage": "Binding independent reasoning reviewer",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"reasoning-discipline-guard:subagent-stop\" node \"${PLUGIN_ROOT}/scripts/reasoning-discipline-guard.mjs\" subagent-stop",
-            "statusMessage": "Recording independent reasoning review",
             "timeout": 10000
           }
         ]

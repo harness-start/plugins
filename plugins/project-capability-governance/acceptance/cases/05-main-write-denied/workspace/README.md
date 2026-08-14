@@ -1,1 +1,0 @@
-# Root write denial fixture

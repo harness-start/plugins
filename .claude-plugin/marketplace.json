@@ -67,11 +67,6 @@
       "description": "Persists admitted requirements in a protected append-only journal and verifies recovery after context compact."
     },
     {
-      "name": "subagent-workflow-guard",
-      "source": "./plugins/subagent-workflow-guard",
-      "description": "Provides application-first handoff, hook-backed gates on capable hosts, and sealed implementation-review closure."
-    },
-    {
       "name": "intent-clarify-gate",
       "source": "./plugins/intent-clarify-gate",
       "description": "Gates business writes during grill-me style intent clarification until \u5b8c\u6210 or complete-option close."
@@ -100,11 +95,6 @@
       "name": "command-exec-audit",
       "source": "./plugins/command-exec-audit",
       "description": "Records agent shell commands with status and duration to a project-local per-session JSONL trail."
-    },
-    {
-      "name": "subagent-lifecycle-audit",
-      "source": "./plugins/subagent-lifecycle-audit",
-      "description": "Records append-only subagent starts and stops without storing prompts, responses, or tool activity."
     },
     {
       "name": "debugging-workflow-guard",
@@ -149,7 +139,7 @@
     {
       "name": "project-capability-governance",
       "source": "./plugins/project-capability-governance",
-      "description": "Captures qualified project capability proposals through a recorder subagent and guides human-confirmed project-local adoption without blocking ordinary work."
+      "description": "Captures schema-validated project capability proposals and guides human-confirmed project-local adoption without blocking ordinary work."
     }
   ]
 }
