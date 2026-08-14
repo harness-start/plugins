@@ -132,83 +132,6 @@ function writeLedger(root, ledger = validLedger()) {
   );
 }
 
-async function approveChallenger(env, { cwd, session }) {
-  const reserved = await runEntry("pre", {
-    cwd,
-    session_id: session,
-    tool_name: "Agent",
-    tool_input: { prompt: "FP_REVIEW_REQUEST challenger" },
-  }, env);
-  assert.doesNotMatch(reserved.stdout, /rejected/u, reserved.stdout || reserved.stderr);
-  const started = await runEntry("review-start", {
-    cwd,
-    session_id: session,
-    agent_id: "fp-challenger",
-    agent_prompt: "FP_REVIEW_REQUEST challenger",
-  }, env);
-  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(parseStdout(started.stdout)?.hookSpecificOutput?.additionalContext ?? "")?.[1];
-  assert.ok(nonce, started.stdout || started.stderr);
-  const stopped = await runEntry("subagent-stop", {
-    cwd,
-    session_id: session,
-    agent_id: "fp-challenger",
-    last_assistant_message: `FP_REVIEW_RESULT ${JSON.stringify({ stage: "challenger", reviewNonce: nonce, decision: "approve" })}`,
-  }, env);
-  assert.match(stopped.stdout, /approve/u, stopped.stdout || stopped.stderr);
-}
-
-test("review-start ignores subagents that do not carry an FP review request", async () => {
-  const root = workspace("fp-unrelated-review-");
-  const data = mkdtempSync(join(tmpdir(), "fp-unrelated-review-data-"));
-  const result = await runEntry("review-start", {
-    cwd: root,
-    session_id: "unrelated-session",
-    agent_id: "unrelated-agent",
-    agent_prompt: "DBG_REVIEW_REQUEST diagnosis",
-  }, { PLUGIN_DATA: data });
-  assert.equal(result.stdout, "", result.stdout || result.stderr);
-});
-
-test("review-start directly reserves an FP request and embeds ledger evidence", async () => {
-  const root = workspace("fp-direct-review-");
-  const data = mkdtempSync(join(tmpdir(), "fp-direct-review-data-"));
-  const codexHome = mkdtempSync(join(tmpdir(), "fp-direct-codex-home-"));
-  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
-  mkdirSync(join(codexHome, "sessions"), { recursive: true });
-  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
-  const session = "fp-direct-review-session";
-  await runEntry("prompt", { cwd: root, session_id: session, prompt: "/first-principles direct review" }, env);
-  writeLedger(root);
-  const ledgerPath = join(root, ".first-principles", "ledger.json");
-  await runEntry("post", {
-    cwd: root,
-    session_id: session,
-    tool_name: "Write",
-    tool_input: { file_path: ledgerPath },
-  }, env);
-
-  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
-    id: "direct-fp-reviewer", parent_thread_id: session, cwd: root,
-    thread_source: "subagent", agent_path: "/root/fp_challenger_case",
-    source: { subagent: { thread_spawn: { parent_thread_id: session, depth: 1, agent_path: "/root/fp_challenger_case" } } },
-  } })}\n`);
-  const started = await runEntry("review-start", {
-    cwd: root,
-    session_id: session,
-    agent_id: "direct-fp-reviewer",
-    transcript_path: transcriptPath,
-  }, env);
-  const context = parseStdout(started.stdout)?.hookSpecificOutput?.additionalContext ?? "";
-  assert.match(context, /reviewNonce=[a-f0-9]+/u);
-  assert.match(context, /ledgerEvidence=/u);
-  assert.match(context, /first-principles\/v1/u);
-  const replay = await runEntry("review-start", {
-    cwd: root, session_id: session, agent_id: "second-fp-reviewer",
-    agent_prompt: "FP_REVIEW_REQUEST challenger",
-  }, env);
-  assert.doesNotMatch(parseStdout(replay.stdout)?.hookSpecificOutput?.additionalContext ?? "", /reviewNonce=/u);
-});
-
 // ---------------------------------------------------------------------------
 // Pure policy: entry surface must stay narrow
 // ---------------------------------------------------------------------------
@@ -470,8 +393,6 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
     );
     assert.equal(parseStdout(allowLedger.stdout), null);
     writeLedger(root);
-    await approveChallenger(env, { cwd: root, session });
-
     const done = await runEntry(
       "prompt",
       { cwd: root, session_id: session, prompt: "done" },
@@ -517,7 +438,7 @@ test("hook: open denies business write, allows ledger, complete unlocks with val
   }
 });
 
-test("hook: valid ledger without challenger review still blocks completion", async () => {
+test("hook: valid session-bound ledger permits completion without reviewer state", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "fp-data-"));
   const env = { PLUGIN_DATA: data, CLAUDE_PLUGIN_DATA: data };
@@ -537,9 +458,7 @@ test("hook: valid ledger without challenger review still blocks completion", asy
       session_id: session,
       last_assistant_message: "First-principles analysis is complete.",
     }, env);
-    const out = parseStdout(stop.stdout);
-    assert.equal(out?.decision, "block");
-    assert.match(out?.reason ?? "", /Independent challenger review is required/u);
+    assert.equal(parseStdout(stop.stdout), null, stop.stdout || stop.stderr);
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(data, { recursive: true, force: true });

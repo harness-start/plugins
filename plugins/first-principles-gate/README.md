@@ -5,7 +5,7 @@
 1. 只有用户 prompt 以 `/first-principles` 或 `$first-principles` 开头时进入；`/fp`、`$fp` 等短别名和句中提及都不会触发。
 2. 会话处于 `open` 时阻断非 ledger 的文件或 shell 修改，默认只允许 `.first-principles/**`、`docs/decisions/**`，以及启用 `allowSpecMd` 后的 `**/spec.md`。
 3. 完成时要求磁盘上存在符合 `first-principles/v1` 的结构化 ledger。
-4. `Stop` 在会话中途只软报告不完整 ledger；assistant 声称完成或用户用 `done` 关闭时，没有有效 ledger 或没有独立 `FP_REVIEW_REQUEST challenger` 审批就会阻断。
+4. `Stop` 在会话中途只软报告不完整 ledger；assistant 声称完成或用户用 `done` 关闭时，没有有效 ledger 就会阻断。Skill 可以在确有价值时用普通自然语言创建通用只读子 Agent 挑战 atoms，但插件不认证子 Agent，也不把其回复当作完成条件。
 5. `# first-principles-abort` 可中止。状态损坏、TTL 到期、已中止或空闲时 fail-open，避免永久写锁。
 
 插件只检查明确入口、流程、写入范围和可机读结构，不判断原子是否真正不可再分、推理质量是否良好或结论是否最优。

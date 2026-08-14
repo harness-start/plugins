@@ -533,7 +533,7 @@ export function protocolInjectText(topic = "") {
     "4. Derive alternatives only from atoms (rebuild.options; every derived_from must reference an atom id).",
     "5. Record uncertainties and next_actions.",
     "6. Write the structured ledger to `.first-principles/ledger.json` (schema: first-principles/v1).",
-    "7. Dispatch a read-only subagent with only `FP_REVIEW_REQUEST challenger` before asking the user for `done`.",
+    "7. When an independent challenge would help, ask a fresh generic read-only subagent to attack the atoms without revealing the rebuild conclusion; verify its advice yourself.",
     "8. Do not modify business code until the user replies `done`; escape hatch: `# first-principles-abort`.",
     "",
     "[user]",
