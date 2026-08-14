@@ -1,80 +1,62 @@
 # intent-clarify-gate
 
-`intent-clarify-gate` 同时支持 Claude Code 和 Codex。业务写入之前，先走一轮 grill-me 风格的意图澄清。
+`intent-clarify-gate` 在 Claude Code 和 Codex 收到会话首个用户 prompt 时，先注入一次短小的发现协议。主 agent 随后加载插件自带的 `intent-discovery` Skill，前置查找项目事实、展开真正会改变行动的解释，并按任务复杂度选择是否并发只读 subagent。
 
-插件实现 [`docs/grill-me-hooks-design.md`](./docs/grill-me-hooks-design.md) v3.1 定义的工作流：
+这个插件不会开启访谈、等待 `done`、阻断业务写入或要求用户批准方案。探索结束后，agent 以有界、可逆的合理假设继续原请求；只有宿主自身的安全、权限或不可逆操作规则仍可能要求确认。
 
-1. 用户 prompt 以 `/grill-me`、`$grill-me`、`/grilling` 或 `$grilling` 开头时进入。
-2. 会话处于 `open` 时阻断非 ledger 的文件或 shell 修改。
-3. 将用户回复机械分类为 `1|2|3`、带说明的 `N`、自由文本约束、`done` 或 `# grill-abort`。
-4. `Stop` 把 `N. Done — …` 解析为完成选项；用户选择该 `N`，或在已记录选项后回复 `done`，才会关闭写屏障。单独一句 `done` 且没有已记录决策制品时，会话保持 `open`。
-5. 状态损坏、TTL 到期、已关闭或空闲时 fail-open，避免永久写锁。
-
-## 安装
-
-可通过 marketplace `harness-start` 或本地插件路径安装，详见仓库根 README。
-
-### 社区 Skill 依赖
-
-插件依赖公开的 `grill-me` Skill，入口 token 为 `/grill-me` 和 `/grilling`，依赖声明位于 [`skill-deps.json`](./skill-deps.json)：
-
-```bash
-# Performed automatically by scripts/install-all.sh (global scope)
-npx --yes skills add https://github.com/mattpocock/skills --skill grill-me --global --yes
-```
-
-## 配置
-
-项目根目录可提供经受信任 `import()` 加载的配置：
-
-- `.intent-clarify-gate.mjs` / `.cjs` / `.js`
-
-配置维护说明见 `skills/intent-clarify-gate-config/`。
-
-运行时 `skillInstall.mode` 默认为 `off`，适合离线和 CI。应优先通过 `install-all.sh` / `skill-deps.json` 一次性安装 `grill-me`，不要让 Hook 在运行时调用 `npx`。
-
-## 设计与状态机
-
-插件只实现会话 phase 的机械约束：入口前缀匹配、用户输入分类、open 期间业务写屏障、`Stop` 解析 Done 选项编号，以及状态损坏或 TTL 到期时 fail-open。它不生成题干、不替用户决策、不猜测是否应该进入 grill，也不默认联网安装 Skill。
+## 行为
 
 ```text
-idle -> 入口前缀 -> open -> 已记录选项后的 done / Done 选项编号 / # grill-abort -> closed
+first UserPromptSubmit
+  -> platform-scoped exclusive session claim
+  -> inject intent-discovery instruction once
+  -> light | standard | intensive discovery
+  -> parent reconciles evidence and continues
+
+later UserPromptSubmit
+  -> silent
 ```
 
-写屏障条件为 `phase === open && writeBlock.mode === "block"`。默认 ledger allowlist 为 `.grill-ledgers/**`、`docs/decisions/**`，以及可选的 `**/spec.md`。
-
-| open 状态输入 | 分类 | 后续 phase |
+| 深度 | 适用 | 并发行为 |
 | --- | --- | --- |
-| `1` / `2` / `3` | `choice` | open |
-| `1 但是…` | `choice_note` | open |
-| 无数字前缀自由文本 | `constraint` | open |
-| `done` 及可选说明 | `done` | closed |
-| 选择 `N. Done — …` 中的 `N` | `done` | closed |
-| `# grill-abort` | `abort` | closed |
+| `light` | 明确查询、转换、小范围任务或已有可靠 oracle | 主 agent 快速核对，不启动 worker |
+| `standard` | 仓库事实或一项关键假设会改变实现 | 最多两个只读 worker：上下文侦察、假设挑战 |
+| `intensive` | 模糊、跨模块、高影响、陌生或外部依赖任务 | 最多三个并发 worker；必要时 fan-in 后增加一次独立复核 |
 
-会话状态写在当前工作目录的 `.grill-ledgers/.state/`，按 `sessionId` 的 SHA-256 分文件，默认 TTL 为 24 小时。这个目录由插件自己写，并带 `*` 的 `.gitignore`；agent 改这里会被拒绝。没有宿主 `PLUGIN_DATA` 时也会落盘。状态缺失或损坏时回到 `idle` 并 fail-open。
+worker 只返回带 `Evidence`、`Assumptions` 和 `Gaps` 的 Result Card。父 agent 重读关键证据、处理分歧并承担最终行动，不输出 worker transcript 或私有逐 token 推理。
 
-阻断文本会包含 `observedFacts`、`harm`、`unblockWhen` 和 `recovery`。用户回复 `done`、选择 Done 选项或发送 `# grill-abort` 后解除写屏障。
+## Hook 与状态
 
-## 模块映射
+插件只注册 `UserPromptSubmit`。Hook 不判断开放式意图，也不生成方案；它只机械保证本会话的首轮协议最多注入一次。
 
-| 模块 | 作用 |
-| --- | --- |
-| `scripts/lib/policy.mjs` | 入口、分类、完成项和路径 allowlist |
-| `scripts/lib/state-store.mjs` | session 状态原子写入与 fail-open |
-| `scripts/intent-clarify-gate.mjs` | `prompt` / `pre` / `stop` 宿主入口 |
-| `hooks/claude.json`、`hooks/codex.json` | 双宿主事件接线 |
+- Claude 状态位于 `CLAUDE_PLUGIN_DATA/intent-clarify-gate/first-prompts/`。
+- Codex 状态位于 `PLUGIN_DATA/intent-clarify-gate/first-prompts/`。
+- 文件名由平台和 session id 的 SHA-256 生成，正文仅含 schema version 与注入时间，不保存用户 prompt。
+- 缺少 session id 或平台数据目录时 fail-open：本轮仍注入，但不建立会阻断后续工作的状态。
 
-## Hook
+双平台使用各自的 Hook 根变量和数据目录；运行时不安装依赖，也不引用插件目录外的文件。
 
-| 事件 | 作用 |
-|-------|------|
-| `UserPromptSubmit` | 进入、分类和注入 |
-| `PreToolUse` | open 时阻断业务写入 |
-| `Stop` | 解析 `completeChoice`，阻断 open 时的实现完成声明 |
+## Skill
+
+`skills/intent-discovery/` 是插件唯一的 Skill。它把三种方法收在一个入口内，避免多个宽泛 Skill 互相抢路由：
+
+- context-first：先读项目指令、入口、测试、配置和必要的当前信源；
+- divergent framing：只展开会产生不同工作结果的候选解释；
+- adversarial review：steelman 最强替代方案，检查承重假设和最便宜证伪路径。
+
+方法经过独立重写，参考了 [mattpocock/skills](https://github.com/mattpocock/skills) 的 design tree、[obra/superpowers](https://github.com/obra/superpowers) 的 context-first brainstorming、[wangruofeng/meta-skill](https://github.com/wangruofeng/meta-skill) 的生成/对抗分离，以及 [oliwoodman/fable-skills](https://github.com/oliwoodman/fable-skills) 的 honest limits。插件不复制或运行这些仓库的 Skill、脚本和 assets。
+
+## 从 0.1.x 迁移
+
+1.0.0 删除了 `/grill-me`、`/grilling`、三选一输入、`done`/abort、业务写屏障、项目配置文件和外部 `skill-deps.json`。已有 `.grill-ledgers/` 与 `.intent-clarify-gate.*` 是用户历史数据，升级不会删除；它们不再被插件读取。
 
 ## 验证
 
 ```bash
-node --test plugins/intent-clarify-gate/tests/intent-clarify-gate.test.mjs
+# cwd: marketplace 仓库根目录
+node --test plugins/intent-clarify-gate/tests/*.test.mjs
+bash scripts/ci/validate-plugins.sh
+./scripts/acceptance/run.sh --plugin intent-clarify-gate
 ```
+
+最后一条命令从宿主构建 `docker/host-acceptance`，在容器内运行 Claude Code 和 Codex live acceptance。

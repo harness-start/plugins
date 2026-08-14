@@ -1,10 +1,11 @@
 {
   "name": "intent-clarify-gate",
-  "version": "0.1.0",
-  "description": "Gates implementation during grill-me style intent clarification: entry prefix, 1/2/3 classify, complete-option close, write-block until done.",
+  "version": "1.0.0",
+  "description": "Front-loads first-turn context discovery and bounded adversarial review without pausing the user or blocking writes.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "skills": "./skills/",
   "hooks": "./hooks/claude.json"
 }
