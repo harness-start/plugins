@@ -52,11 +52,22 @@ test("TDD live cases follow the version 3 RED-GREEN contract", () => {
   assert.match(allowPrompt, /node --test.*fail.*RED.*node --test.*pass.*GREEN/isu);
   assert.match(allowExpect, /ACCEPT_WORKSPACE.*\.tdd-guard\/\.state/su);
   assert.match(allowExpect, /\.version == 3/u);
-  assert.match(allowExpect, /\.needsGreen == null/u);
+  assert.match(allowExpect, /\.lastRed != null/u);
   assert.doesNotMatch(allowPrompt + allowExpect, /do not run tests|codex-home\/plugins\/data|\.version == 2/iu);
   assert.match(identityPrompt, /node --test.*fail.*RED.*wrong.*blocked.*correct.*pass.*GREEN/isu);
   assert.match(identityExpect, /src\/shipping\/order-service\.mjs/u);
   assert.match(identityExpect, /src\/billing\/order-service\.mjs/u);
+  const historicalPrompt = readFileSync(join(CASES, "05-historical-fix-allow", "prompt.md"), "utf8");
+  const deletePrompt = readFileSync(join(CASES, "06-feature-delete", "prompt.md"), "utf8");
+  assert.match(historicalPrompt, /already fail/iu);
+  assert.match(historicalPrompt, /observe the failure \(RED\)/u);
+  assert.match(historicalPrompt, /observe it pass \(GREEN\)/u);
+  assert.doesNotMatch(historicalPrompt, /do not run tests/iu);
+  assert.match(deletePrompt, /Delete the existing test file first/u);
+  assert.doesNotMatch(deletePrompt, /do not run tests/iu);
+  for (const id of ["04-historical-test-first", "05-historical-fix-allow", "06-feature-delete"]) {
+    assert.doesNotMatch(readFileSync(join(CASES, id, "expect.sh"), "utf8"), /\.version == 2|Recorded test-first evidence/u);
+  }
 });
 
 test("host-side acceptance stays compatible with macOS Bash 3.2 and offline honesty", () => {

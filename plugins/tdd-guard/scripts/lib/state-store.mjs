@@ -22,13 +22,13 @@ function statePath(sessionId, root) {
 
 export function readState(sessionId, root) {
   const path = statePath(sessionId, root);
-  if (!path) return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null };
+  if (!path) return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
   try {
     const value = JSON.parse(readFileSync(path, "utf8"));
     if (value?.version !== VERSION) throw new Error("version mismatch");
-    return value;
+    return { observedRed: {}, ...value };
   } catch {
-    return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null };
+    return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
   }
 }
 

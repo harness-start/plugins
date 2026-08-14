@@ -1,7 +1,7 @@
 {
   "name": "tdd-guard",
-  "version": "0.3.1",
-  "description": "Requires an observed RED before implementation and a relevant GREEN before completion.",
+  "version": "0.4.0",
+  "description": "Requires git-visible test change or already-red evidence, then observed RED before implementation and GREEN before completion.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

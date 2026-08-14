@@ -1,4 +1,4 @@
 id = "02-allow-test-first"
 hosts = ["claude", "codex"]
-timeout_sec = 300
+timeout_sec = 420
 tags = ["post-tool", "test-first", "allow"]

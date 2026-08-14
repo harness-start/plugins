@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -13,7 +13,7 @@ import {
   resolveLanguageContext,
   sourceAuthorizedByTest,
 } from "../scripts/lib/patterns.mjs";
-import { proposedContent } from "../scripts/lib/hook-io.mjs";
+import { inferOutcome, proposedContent } from "../scripts/lib/hook-io.mjs";
 
 const ENTRY = fileURLToPath(new URL("../scripts/tdd-guard.mjs", import.meta.url));
 
@@ -101,6 +101,46 @@ function seedPhpOrderService(root) {
   writeFileSync(join(root, pair.testPath), pair.testContent);
   writeFileSync(join(root, pair.sourcePath), pair.sourceContent);
   return pair;
+}
+
+function gitSpawn(root, args) {
+  return spawnSync("git", [
+    "-c", "safe.directory=*",
+    "-c", "user.email=tdd-guard@example.test",
+    "-c", "user.name=TDD Guard",
+    "-c", "commit.gpgsign=false",
+    ...args,
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: "TDD Guard",
+      GIT_AUTHOR_EMAIL: "tdd-guard@example.test",
+      GIT_COMMITTER_NAME: "TDD Guard",
+      GIT_COMMITTER_EMAIL: "tdd-guard@example.test",
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_SYSTEM: "/dev/null",
+    },
+  });
+}
+
+function gitInit(root) {
+  const initialized = gitSpawn(root, ["init"]);
+  assert.equal(initialized.status, 0, initialized.stderr);
+  const email = gitSpawn(root, ["config", "user.email", "tdd-guard@example.test"]);
+  assert.equal(email.status, 0, email.stderr);
+  const name = gitSpawn(root, ["config", "user.name", "TDD Guard"]);
+  assert.equal(name.status, 0, name.stderr);
+  const commit = gitSpawn(root, ["commit", "--allow-empty", "-m", "initial"]);
+  assert.equal(commit.status, 0, commit.stderr);
+}
+
+function gitCommitAll(root, message) {
+  const add = gitSpawn(root, ["add", "-A"]);
+  assert.equal(add.status, 0, add.stderr);
+  const commit = gitSpawn(root, ["commit", "-m", message]);
+  assert.equal(commit.status, 0, commit.stderr);
 }
 
 test("classifies fixed test and implementation patterns for six languages", () => {
@@ -527,6 +567,7 @@ test("public pre hook fails closed when its input is malformed", async () => {
 test("public hook requires an observed RED before implementation and GREEN before stop", async () => {
   const fx = fixture("tdd-guard-allow-");
   try {
+    gitInit(fx.root);
     mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
     mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
     const testContent = [
@@ -697,6 +738,7 @@ test("an unrelated failing test command cannot authorize implementation", async 
 test("public hook resolves Go module identity before authorizing an external-package test", async () => {
   const fx = fixture("tdd-guard-go-context-");
   try {
+    gitInit(fx.root);
     mkdirSync(join(fx.root, "billing"), { recursive: true });
     writeFileSync(join(fx.root, "go.mod"), "module example.com/shop\n");
     const testContent = [
@@ -963,7 +1005,9 @@ test("a new extra test cannot unlock a source that already has corresponding tes
 test("mutating an existing corresponding test unlocks a historical source edit", async () => {
   const fx = fixture("tdd-guard-historical-update-");
   try {
+    gitInit(fx.root);
     const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
     const revisedTest = pair.testContent.replace(
       "$service = new OrderService();",
       "$service = new OrderService();\n        self::assertSame(1, $service->total());",
@@ -1027,6 +1071,362 @@ test("directory-mirror historical tests must be updated before the mirrored sour
     const output = JSON.parse(blocked.stdout);
     assert.equal(output.hookSpecificOutput.permissionDecision, "deny", blocked.stdout);
     assert.match(output.hookSpecificOutput.permissionDecisionReason, /tests\/Service\/PriceCalculatorTest\.php/u);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("git-dirty corresponding test with observed RED allows source when session has no test write records", async () => {
+  const fx = fixture("tdd-guard-git-dirty-red-");
+  try {
+    gitInit(fx.root);
+    const pair = phpOrderServicePair();
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+    await observeRed(fx.root, fx.data, pair.testPath, "git-dirty-red");
+    const allowed = await runHook(
+      "pre",
+      writeEvent(fx.root, pair.sourcePath, pair.sourceContent, "git-dirty-source"),
+      hookEnv(fx.data),
+    );
+    assert.equal(allowed.code, 0, allowed.stderr);
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("clean committed corresponding tests without RED deny source when session has no test write records", async () => {
+  const fx = fixture("tdd-guard-git-clean-deny-");
+  try {
+    gitInit(fx.root);
+    const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
+    const revised = pair.sourceContent.replace(
+      "final class OrderService {}",
+      "final class OrderService {\n    public function total(): int { return 1; }\n}",
+    );
+    const blocked = await runHook("pre", writeEvent(fx.root, pair.sourcePath, revised, "git-clean-source"), hookEnv(fx.data));
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("already-failing corresponding tests authorize a source fix without a dummy test edit", async () => {
+  const fx = fixture("tdd-guard-already-failing-");
+  try {
+    gitInit(fx.root);
+    const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
+    await observeRed(fx.root, fx.data, pair.testPath, "already-failing-red");
+    const revised = pair.sourceContent.replace(
+      "final class OrderService {}",
+      "final class OrderService {\n    public function total(): int { return 1; }\n}",
+    );
+    const allowed = await runHook("pre", writeEvent(fx.root, pair.sourcePath, revised, "already-failing-source"), hookEnv(fx.data));
+    assert.equal(allowed.code, 0, allowed.stderr);
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("after corresponding tests are deleted, deleting that implementation is allowed without manufacturing RED", async () => {
+  async function assertSourceDeleteAllowed(kind, makeEvent) {
+    const fx = fixture(`tdd-guard-delete-${kind}-`);
+    try {
+      gitInit(fx.root);
+      const pair = seedPhpOrderService(fx.root);
+      gitCommitAll(fx.root, "seed pair");
+      rmSync(join(fx.root, pair.testPath));
+      const result = await runHook("pre", makeEvent(fx.root, pair), hookEnv(fx.data));
+      assert.equal(result.code, 0, result.stderr);
+      assert.equal(result.stdout, "", result.stdout);
+    } finally {
+      rmSync(fx.root, { recursive: true, force: true });
+      rmSync(fx.data, { recursive: true, force: true });
+    }
+  }
+
+  await assertSourceDeleteAllowed("patch", (root, pair) => ({
+    cwd: root,
+    session_id: "session-1",
+    tool_name: "apply_patch",
+    tool_use_id: "delete-source-patch",
+    tool_input: { patch: `*** Delete File: ${pair.sourcePath}` },
+  }));
+  await assertSourceDeleteAllowed("rm", (root, pair) => ({
+    cwd: root,
+    session_id: "session-1",
+    tool_name: "exec_command",
+    tool_use_id: "delete-source-rm",
+    tool_input: { cmd: `rm ${pair.sourcePath}` },
+  }));
+});
+
+test("shrinking corresponding tests allows deleting that implementation without manufacturing RED", async () => {
+  const fx = fixture("tdd-guard-shrink-delete-");
+  try {
+    gitInit(fx.root);
+    const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
+    writeFileSync(join(fx.root, pair.testPath), "<?php\nfunction test_placeholder(): void {}\n");
+    const result = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "apply_patch",
+      tool_use_id: "shrink-delete-source",
+      tool_input: { patch: `*** Delete File: ${pair.sourcePath}` },
+    }, hookEnv(fx.data));
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "", result.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("rm and mv of a classified source file are denied without authorization", async () => {
+  const fx = fixture("tdd-guard-rm-mv-");
+  try {
+    gitInit(fx.root);
+    const removed = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "rm-source",
+      tool_input: { cmd: "rm src/Service/OrderService.php" },
+    }, hookEnv(fx.data));
+    assert.notEqual(removed.stdout, "", removed.stderr);
+    assert.equal(JSON.parse(removed.stdout).hookSpecificOutput.permissionDecision, "deny");
+
+    const moved = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "mv-source",
+      tool_input: { cmd: "mv src/Service/OrderService.php src/Service/OrderService.bak.php" },
+    }, hookEnv(fx.data));
+    assert.notEqual(moved.stdout, "", moved.stderr);
+    assert.equal(JSON.parse(moved.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("source edit then needsGreen denies another source edit, but a git revert of that source clears the barrier", async () => {
+  const fx = fixture("tdd-guard-revert-clears-");
+  try {
+    gitInit(fx.root);
+    const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
+    const revisedTest = pair.testContent.replace(
+      "$service = new OrderService();",
+      "$service = new OrderService();\n        self::assertSame(1, $service->total());",
+    );
+    const testWrite = writeEvent(fx.root, pair.testPath, revisedTest, "revert-test-1");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), revisedTest);
+    await runHook("post", testWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "revert-red-1");
+
+    const revisedSource = pair.sourceContent.replace(
+      "final class OrderService {}",
+      "final class OrderService {\n    public function total(): int { return 1; }\n}",
+    );
+    const sourceWrite = writeEvent(fx.root, pair.sourcePath, revisedSource, "revert-source-1");
+    const allowed = await runHook("pre", sourceWrite, hookEnv(fx.data));
+    assert.equal(allowed.stdout, "", allowed.stdout);
+    writeFileSync(join(fx.root, pair.sourcePath), revisedSource);
+    await runHook("post", sourceWrite, hookEnv(fx.data));
+
+    const otherSource = pair.sourceContent.replace(
+      "final class OrderService {}",
+      "final class OrderService {\n    public function total(): int { return 1; }\n    public function count(): int { return 0; }\n}",
+    );
+    const blocked = await runHook("pre", writeEvent(fx.root, pair.sourcePath, otherSource, "revert-source-2"), hookEnv(fx.data));
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(blocked.stdout, /GREEN/u);
+
+    const revertWrite = writeEvent(fx.root, pair.sourcePath, pair.sourceContent, "revert-source-3");
+    const revertAllowed = await runHook("pre", revertWrite, hookEnv(fx.data));
+    assert.equal(revertAllowed.stdout, "", revertAllowed.stdout);
+    writeFileSync(join(fx.root, pair.sourcePath), pair.sourceContent);
+    await runHook("post", revertWrite, hookEnv(fx.data));
+
+    const completed = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, hookEnv(fx.data));
+    assert.equal(completed.stdout, "", completed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("needsGreen after a new untracked implementation is cleared by deleting that file", async () => {
+  async function writeNewSourceThenRestore(kind, restoreEvent) {
+    const fx = fixture(`tdd-guard-newimpl-revert-${kind}-`);
+    try {
+      gitInit(fx.root);
+      const pair = phpOrderServicePair();
+      mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+      mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+      writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+      await observeRed(fx.root, fx.data, pair.testPath, `${kind}-red`);
+      const sourceWrite = writeEvent(fx.root, pair.sourcePath, pair.sourceContent, `${kind}-source`);
+      assert.equal((await runHook("pre", sourceWrite, hookEnv(fx.data))).stdout, "", `${kind} first source`);
+      writeFileSync(join(fx.root, pair.sourcePath), pair.sourceContent);
+      await runHook("post", sourceWrite, hookEnv(fx.data));
+
+      const second = pair.sourceContent.replace("final class OrderService {}", "final class OrderService { public function extra(): int { return 0; } }");
+      const blocked = await runHook("pre", writeEvent(fx.root, pair.sourcePath, second, `${kind}-second`), hookEnv(fx.data));
+      assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+      assert.match(blocked.stdout, /GREEN/u);
+
+      const revertPre = await runHook("pre", restoreEvent(fx.root, pair), hookEnv(fx.data));
+      assert.equal(revertPre.stdout, "", `${kind} restore pre ${revertPre.stdout}`);
+      rmSync(join(fx.root, pair.sourcePath), { force: true });
+      await runHook("post", restoreEvent(fx.root, pair), hookEnv(fx.data));
+
+      const completed = await runHook("stop", {
+        cwd: fx.root,
+        session_id: "session-1",
+        last_assistant_message: "Done",
+      }, hookEnv(fx.data));
+      assert.equal(completed.stdout, "", `${kind} stop ${completed.stdout}`);
+    } finally {
+      rmSync(fx.root, { recursive: true, force: true });
+      rmSync(fx.data, { recursive: true, force: true });
+    }
+  }
+
+  await writeNewSourceThenRestore("patch", (root, pair) => ({
+    cwd: root,
+    session_id: "session-1",
+    tool_name: "apply_patch",
+    tool_use_id: "newimpl-delete-patch",
+    tool_input: { patch: `*** Delete File: ${pair.sourcePath}` },
+  }));
+  await writeNewSourceThenRestore("rm", (root, pair) => ({
+    cwd: root,
+    session_id: "session-1",
+    tool_name: "exec_command",
+    tool_use_id: "newimpl-delete-rm",
+    tool_input: { cmd: `rm ${pair.sourcePath}` },
+  }));
+});
+
+test("git-dirty Node test plus named node --test RED allows the matching module", async () => {
+  const fx = fixture("tdd-guard-node-test-red-");
+  try {
+    gitInit(fx.root);
+    mkdirSync(join(fx.root, "test"), { recursive: true });
+    const testPath = "test/price-calculator.test.mjs";
+    writeFileSync(join(fx.root, testPath), [
+      "import test from 'node:test';",
+      "import { calculateTotal } from '../src/price-calculator.mjs';",
+      "test('adds prices', () => { calculateTotal([2, 3]); });",
+      "",
+    ].join("\n"));
+    await runHook("failure", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "node-red",
+      tool_input: { cmd: `node --test ${testPath}` },
+      tool_response: { exit_code: 1, stdout: "not ok 1 - adds prices" },
+    }, hookEnv(fx.data));
+    const allowed = await runHook(
+      "pre",
+      writeEvent(fx.root, "src/price-calculator.mjs", "export function calculateTotal(items) { return items.reduce((a, b) => a + b, 0); }\n", "node-source"),
+      hookEnv(fx.data),
+    );
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("inferOutcome classifies Claude, Codex, and string test payloads", () => {
+  const rows = [
+    ["claude tap pass object", { tool_response: { stdout: "ok 1\n# pass 1\n# fail 0\n", stderr: "", interrupted: false } }, "success"],
+    ["claude tap fail object", { tool_response: { stdout: "not ok 1\n# pass 0\n# fail 1\n", stderr: "", interrupted: false } }, "failure"],
+    ["claude interrupted", { tool_response: { stdout: "ok 1\n# pass 1\n", stderr: "", interrupted: true } }, "failure"],
+    ["codex exit 0", { tool_response: { exit_code: 0, stdout: "1 test, 0 failures" } }, "success"],
+    ["codex exit 1", { tool_response: { exit_code: 1, stdout: "1 test, 1 failure" } }, "failure"],
+    ["string exit 0", { tool_response: "ok 1\n# pass 1\nExit code: 0\n" }, "success"],
+    ["empty string", { tool_response: "" }, "unknown"],
+    ["empty object", { tool_response: {} }, "unknown"],
+  ];
+  for (const [name, event, expected] of rows) {
+    assert.equal(inferOutcome(event), expected, name);
+  }
+});
+
+test("Claude object Bash stdout without exit_code clears needsGreen", async () => {
+  const fx = fixture("tdd-guard-claude-object-green-");
+  try {
+    gitInit(fx.root);
+    const pair = phpOrderServicePair();
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+    const testWrite = writeEvent(fx.root, pair.testPath, pair.testContent, "claude-obj-test");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+    await runHook("post", testWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "claude-obj-red");
+    const sourceWrite = writeEvent(fx.root, pair.sourcePath, pair.sourceContent, "claude-obj-source");
+    assert.equal((await runHook("pre", sourceWrite, hookEnv(fx.data))).stdout, "");
+    writeFileSync(join(fx.root, pair.sourcePath), pair.sourceContent);
+    await runHook("post", sourceWrite, hookEnv(fx.data));
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "Bash",
+      tool_use_id: "claude-obj-green",
+      tool_input: { command: `node --test ${pair.testPath}` },
+      tool_response: { stdout: "ok 1\n# pass 1\n# fail 0\n", stderr: "", interrupted: false },
+    }, hookEnv(fx.data), "claude");
+    const completed = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, hookEnv(fx.data));
+    assert.equal(completed.stdout, "", completed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("source write fails closed when workspace has no git HEAD", async () => {
+  const fx = fixture("tdd-guard-no-git-");
+  try {
+    const pair = phpOrderServicePair();
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    const testWrite = writeEvent(fx.root, pair.testPath, pair.testContent, "no-git-test");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+    await runHook("post", testWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "no-git-red");
+    const blocked = await runHook(
+      "pre",
+      writeEvent(fx.root, pair.sourcePath, pair.sourceContent, "no-git-source"),
+      hookEnv(fx.data),
+    );
+    assert.notEqual(blocked.stdout, "", blocked.stderr);
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(blocked.stdout, /git|HEAD/iu);
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });

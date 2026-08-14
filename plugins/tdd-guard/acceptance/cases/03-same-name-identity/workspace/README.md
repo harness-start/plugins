@@ -1,3 +1,3 @@
 # Same-name identity fixture
 
-The live agent must bind a PHP test to one FQCN, reject an unrelated same-named class, and then create the covered class.
+The live agent must bind a Node test to one module, observe RED, reject an unrelated same-named module, then create the imported module and observe GREEN.
