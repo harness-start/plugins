@@ -1,9 +1,0 @@
-{
-  "skills": [
-    {
-      "name": "handoff",
-      "source": "https://github.com/mattpocock/skills",
-      "description": "Manual cross-session handoff workflow. Automatic subagent applications use a durable local adapter with the same reference-first and secret-redaction principles."
-    }
-  ]
-}
