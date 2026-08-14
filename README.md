@@ -116,7 +116,6 @@ codex plugin add <name>@harness-start --json
 | `debugging-workflow-guard` | 通过聚焦 Skill 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
 | `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
-| `compact-context-journal` | 在上下文压缩前后持久记录已确认需求，强制先读 Recovery Card 再恢复修改 |
 | `logo-project-delivery-guard` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
 | `poster-project-delivery-guard` | 校验 React/Satori 海报工程的 layer 顺序、role、成对 SVG/PNG proof 和 release freshness |
 | `pptx-project-delivery-guard` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
@@ -127,14 +126,14 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-27 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+26 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
 | 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
 | Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
 | 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate` | 会话阶段锁：意图澄清或第一性原理分析未关闭期间 deny 业务写入，直到显式关闭 |
-| 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
+| 审计 / 日志 | `file-access-audit`、`command-exec-audit` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
 | 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`tonejs-music-production` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
 | 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 提案格式与采用流程、会话语言、报告封印与追加 |
 
