@@ -22,7 +22,6 @@ export function emptyState() {
     reportSha256: null,
     target: null,
     operation: null,
-    criticApproval: null,
     updatedAt: 0,
   };
 }

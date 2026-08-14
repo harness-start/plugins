@@ -33,18 +33,6 @@ function output(result) {
   return line ? JSON.parse(line.split("\n").at(-1)) : null;
 }
 
-async function approveCritic(env, base) {
-  const started = await runHook("review-start", { ...base, agent_id: "work-report-critic", agent_prompt: "WRI_REVIEW_REQUEST critic" }, env);
-  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(output(started)?.hookSpecificOutput?.additionalContext ?? "")?.[1];
-  assert.ok(nonce, started.stdout || started.stderr);
-  const stopped = await runHook("subagent-stop", {
-    ...base,
-    agent_id: "work-report-critic",
-    last_assistant_message: `WRI_REVIEW_RESULT ${JSON.stringify({ stage: "critic", reviewNonce: nonce, decision: "approve" })}`,
-  }, env);
-  assert.match(stopped.stdout, /critic approval recorded/u, stopped.stdout || stopped.stderr);
-}
-
 test("prompt mode is a no-op and does not route report language", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-public-"));
   const env = { HOME: home };
@@ -61,7 +49,7 @@ test("prompt mode is a no-op and does not route report language", async () => {
   }
 });
 
-test("save is denied until prepare and critic approval bind the same bytes", async () => {
+test("save is allowed after prepare binds the same bytes", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-public-"));
   const env = { HOME: home };
   const input = join(home, "draft.md");
@@ -78,11 +66,6 @@ test("save is denied until prepare and critic approval bind the same bytes", asy
     assert.equal(output(prepared)?.hookSpecificOutput?.permissionDecision ?? null, null);
     assert.equal((await readState(base, env)).phase, "prepared");
 
-    const denied = await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: saveCommand } }, env);
-    assert.equal(output(denied)?.hookSpecificOutput?.permissionDecision, "deny");
-    assert.match(output(denied)?.hookSpecificOutput?.permissionDecisionReason ?? "", /WRI_REVIEW_REQUEST critic/u);
-
-    await approveCritic(env, base);
     const allowed = await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: saveCommand } }, env);
     assert.equal(output(allowed), null);
 
@@ -127,7 +110,6 @@ test("addition prepare binds both the new content and every existing report byte
     const prepare = `node ${ADDITION_PREPARE} --report ${saved.path} --input ${addition}`;
     const append = `node ${APPEND} --report ${saved.path} --input ${addition}`;
     await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: prepare } }, env);
-    await approveCritic(env, base);
     assert.equal(output(await runHook("pre", { ...base, tool_name: "exec_command", tool_input: { cmd: append } }, env)), null);
 
     writeFileSync(saved.path, `${readFileSync(saved.path, "utf8")}外部变化\n`);
