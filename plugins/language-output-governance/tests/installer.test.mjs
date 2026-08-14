@@ -28,7 +28,7 @@ test("installer rejects unsupported language profiles", () => {
   assert.match(result.stderr, /--language must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH/u);
 });
 
-test("installer fallback exposes every marketplace plugin", () => {
+test("installer fails closed when no marketplace catalog can be resolved", () => {
   const fixture = mkdtempSync(join(tmpdir(), "installer-fallback-"));
   const bin = join(fixture, "bin");
   const scripts = join(fixture, "scripts");
@@ -46,13 +46,9 @@ test("installer fallback exposes every marketplace plugin", () => {
       encoding: "utf8",
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
     });
-    assert.equal(result.status, 0, result.stderr);
-    const actual = result.stdout.trim().split("\n").filter(Boolean).sort();
-    const marketplace = JSON.parse(
-      readFileSync(join(ROOT, ".claude-plugin", "marketplace.json"), "utf8"),
-    );
-    const expected = marketplace.plugins.map((plugin) => plugin.name).sort();
-    assert.deepEqual(actual, expected);
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Unable to resolve plugin catalog/u);
+    assert.doesNotMatch(result.stderr, /embedded fallback/u);
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }

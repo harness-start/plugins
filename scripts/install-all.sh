@@ -26,38 +26,6 @@ GITHUB_HTTPS_URL="https://github.com/harness-start/plugins.git"
 MARKETPLACE_JSON_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/.claude-plugin/marketplace.json"
 SKILL_DEPS_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/plugins/%s/skill-deps.json"
 
-# Fallback when network/host list unavailable.
-# KEEP IN SYNC with .claude-plugin/marketplace.json plugins[].name
-FALLBACK_PLUGINS=(
-  research-provenance-guard
-  execution-loop-guard
-  source-sanity-guard
-  git-delivery-guards
-  code-quality-guard
-  tdd-guard
-  encoding-guard
-  file-line-budget-guard
-  protected-file-guard
-  command-safety-guards
-  compact-context-journal
-  language-output-governance
-  intent-clarify-gate
-  first-principles-gate
-  reasoning-discipline-guard
-  markdown-format-guard
-  file-access-audit
-  command-exec-audit
-  debugging-workflow-guard
-  pptx-project-delivery-guard
-  poster-project-delivery-guard
-  video-project-delivery-guard
-  logo-project-delivery-guard
-  print-publication-delivery-guard
-  tonejs-music-production
-  work-report-insights
-  project-capability-governance
-)
-
 DO_CLAUDE=1
 DO_CODEX=1
 DRY_RUN=0
@@ -430,8 +398,8 @@ resolve_plugin_names() {
   elif names="$(resolve_plugins_from_codex_available 2>/dev/null)" && [ -n "${names}" ]; then
     log "Plugin list from Codex available plugins"
   else
-    warn "Using embedded fallback plugin list (KEEP IN SYNC with marketplace.json)"
-    names="$(printf '%s\n' "${FALLBACK_PLUGINS[@]}")"
+    err "Unable to resolve plugin catalog from GitHub, a local checkout, or configured host marketplaces"
+    return 1
   fi
 
   # Unique, non-empty
@@ -440,17 +408,109 @@ resolve_plugin_names() {
 
 # --- installed plugin discovery ---------------------------------------------
 
-# Print plugin names currently installed from MARKETPLACE_NAME (Claude).
-list_claude_installed_marketplace_plugins() {
-  if ! have_cmd claude; then
-    return 0
-  fi
-  local raw
-  raw="$(claude plugin list --json 2>/dev/null || true)"
-  [ -n "${raw}" ] || return 0
+plugin_name_is_safe() {
+  local name="$1"
+  [ -n "${name}" ] || return 1
+  [ "${name}" != "." ] && [ "${name}" != ".." ] || return 1
+  [[ "${name}" =~ ^[A-Za-z0-9._-]+$ ]]
+}
+
+merge_plugin_name_lists() {
+  local list name
+  for list in "$@"; do
+    while IFS= read -r name || [ -n "${name}" ]; do
+      plugin_name_is_safe "${name}" || continue
+      printf '%s\n' "${name}"
+    done <<<"${list}"
+  done | sort -u
+}
+
+list_claude_registry_marketplace_plugins() {
+  local registry="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
+  [ -f "${registry}" ] || return 0
 
   if have_cmd jq; then
-    printf '%s' "${raw}" | jq -r --arg m "${MARKETPLACE_NAME}" '
+    jq -r --arg m "${MARKETPLACE_NAME}" --arg scope "${CLAUDE_SCOPE}" '
+      (.plugins // {})
+      | to_entries[]?
+      | select(.key | endswith("@" + $m))
+      | select(
+          if (.value | type) == "array" then
+            any(.value[]?; (.scope // "user") == $scope)
+          elif (.value | type) == "object" then
+            (.value.scope // "user") == $scope
+          else
+            true
+          end
+        )
+      | (.key | split("@")[0])
+    ' "${registry}" 2>/dev/null || true
+    return 0
+  fi
+
+  if have_cmd python3; then
+    python3 - "${registry}" "${MARKETPLACE_NAME}" "${CLAUDE_SCOPE}" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+path, marketplace, wanted_scope = sys.argv[1:]
+with open(path, encoding="utf-8") as handle:
+    plugins = json.load(handle).get("plugins") or {}
+for plugin_id, installs in plugins.items():
+    if not plugin_id.endswith("@" + marketplace):
+        continue
+    if isinstance(installs, list):
+        matches_scope = any((item.get("scope") or "user") == wanted_scope
+                            for item in installs if isinstance(item, dict))
+    elif isinstance(installs, dict):
+        matches_scope = (installs.get("scope") or "user") == wanted_scope
+    else:
+        matches_scope = True
+    if matches_scope:
+        print(plugin_id.rsplit("@", 1)[0])
+PY
+    return 0
+  fi
+
+  grep -oE '"[A-Za-z0-9._-]+@'"${MARKETPLACE_NAME}"'"' "${registry}" \
+    | sed -e 's/^"//' -e "s/@${MARKETPLACE_NAME}\"$//" \
+    | sort -u
+}
+
+list_codex_config_marketplace_plugins() {
+  local config="${CODEX_HOME:-$HOME/.codex}/config.toml"
+  local line plugin_id name
+  [ -f "${config}" ] || return 0
+
+  while IFS= read -r line || [ -n "${line}" ]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    case "${line}" in
+      '[plugins."'*)
+        plugin_id="${line#'[plugins."'}"
+        plugin_id="${plugin_id%%'"]'*}"
+        ;;
+      *)
+        continue
+        ;;
+    esac
+    case "${plugin_id}" in
+      *"@${MARKETPLACE_NAME}")
+        name="${plugin_id%@*}"
+        plugin_name_is_safe "${name}" && printf '%s\n' "${name}"
+        ;;
+    esac
+  done <"${config}"
+}
+
+# Print plugin names currently installed from MARKETPLACE_NAME (Claude).
+list_claude_installed_marketplace_plugins() {
+  local raw="" cli_plugins="" registry_plugins
+  if have_cmd claude; then
+    raw="$(claude plugin list --json 2>/dev/null || true)"
+  fi
+
+  if [ -n "${raw}" ] && have_cmd jq; then
+    cli_plugins="$(printf '%s' "${raw}" | jq -r --arg m "${MARKETPLACE_NAME}" '
       if type == "array" then .[]
       elif .plugins then .plugins[]
       elif .installed then .installed[]
@@ -460,33 +520,32 @@ list_claude_installed_marketplace_plugins() {
           or (.id // .pluginId // "" | endswith("@" + $m))
         )
       | (.name // ((.id // .pluginId // "") | split("@")[0]) // empty)
-    ' | sed '/^$/d' | sort -u
-    return 0
+    ' | sed '/^$/d' | sort -u)"
+  elif [ -n "${raw}" ]; then
+    cli_plugins="$(printf '%s' "${raw}" \
+      | grep -oE "[A-Za-z0-9._-]+@${MARKETPLACE_NAME}" \
+      | sed "s/@${MARKETPLACE_NAME}\$//" \
+      | sort -u)"
   fi
 
-  # Best-effort without jq: selector strings like name@marketplace
-  printf '%s' "${raw}" \
-    | grep -oE "[A-Za-z0-9._-]+@${MARKETPLACE_NAME}" \
-    | sed "s/@${MARKETPLACE_NAME}\$//" \
-    | sort -u
+  registry_plugins="$(list_claude_registry_marketplace_plugins || true)"
+  merge_plugin_name_lists "${cli_plugins}" "${registry_plugins}"
 }
 
 # Print plugin names currently installed from MARKETPLACE_NAME (Codex).
 list_codex_installed_marketplace_plugins() {
-  if ! have_cmd codex; then
-    return 0
+  local raw="" cli_plugins="" config_plugins
+  if have_cmd codex; then
+    raw="$(codex plugin list --marketplace "${MARKETPLACE_NAME}" --json 2>/dev/null || true)"
+    if [ -z "${raw}" ]; then
+      raw="$(codex plugin list --json 2>/dev/null || true)"
+    fi
   fi
-  local raw
-  raw="$(codex plugin list --marketplace "${MARKETPLACE_NAME}" --json 2>/dev/null || true)"
-  if [ -z "${raw}" ]; then
-    raw="$(codex plugin list --json 2>/dev/null || true)"
-  fi
-  [ -n "${raw}" ] || return 0
 
-  if have_cmd jq; then
+  if [ -n "${raw}" ] && have_cmd jq; then
     # Prefer .installed when present. Marketplace-scoped lists may omit
     # marketplace fields; default missing marketplace to $m so scoped rows match.
-    printf '%s' "${raw}" | jq -r --arg m "${MARKETPLACE_NAME}" '
+    cli_plugins="$(printf '%s' "${raw}" | jq -r --arg m "${MARKETPLACE_NAME}" '
       if type == "object" and (.installed | type == "array") then .installed[]
       elif type == "array" then .[]
       elif .plugins then .plugins[]
@@ -497,14 +556,16 @@ list_codex_installed_marketplace_plugins() {
           or (.pluginId // .id // "" | endswith("@" + $m))
         )
       | (.name // ((.pluginId // .id // "") | split("@")[0]) // empty)
-    ' | sed '/^$/d' | sort -u
-    return 0
+    ' | sed '/^$/d' | sort -u)"
+  elif [ -n "${raw}" ]; then
+    cli_plugins="$(printf '%s' "${raw}" \
+      | grep -oE "[A-Za-z0-9._-]+@${MARKETPLACE_NAME}" \
+      | sed "s/@${MARKETPLACE_NAME}\$//" \
+      | sort -u)"
   fi
 
-  printf '%s' "${raw}" \
-    | grep -oE "[A-Za-z0-9._-]+@${MARKETPLACE_NAME}" \
-    | sed "s/@${MARKETPLACE_NAME}\$//" \
-    | sort -u
+  config_plugins="$(list_codex_config_marketplace_plugins || true)"
+  merge_plugin_name_lists "${cli_plugins}" "${config_plugins}"
 }
 
 # Log installed vs desired and populate remove/keep/add newline lists via namerefs.
