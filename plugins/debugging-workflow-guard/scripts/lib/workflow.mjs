@@ -3,17 +3,7 @@ import { execFileSync } from "node:child_process";
 import { relative, resolve } from "node:path";
 
 import { DEFAULT_CONFIG } from "./config.mjs";
-import {
-  bindReviewer,
-  currentApproval,
-  diagnosisEvidence,
-  diagnosisFingerprint,
-  observeReview,
-  parseReviewRequest,
-  parseReviewResult,
-  reserveReview,
-} from "./independent-review.mjs";
-import { acquireLease, emptyState, readState, releaseLease, updateState, writeState } from "./state-store.mjs";
+import { acquireLease, emptyState, readState, releaseLease, writeState } from "./state-store.mjs";
 import { isWorkOrderPath, loadWorkOrder } from "./work-order.mjs";
 
 function gitRoot(cwd) {
@@ -169,74 +159,11 @@ export function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CO
   if (!supported || !rooted) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} needs a supported hypothesis and root cause backed by current-session receipts for this bug before production-code writes` };
   if (bug.status !== "fixing" || bug.fix.status !== "in-progress") return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} must be bug status fixing with fix.status in-progress before production-code writes` };
   if (!bug.fix.affectedBugIds.includes(bug.id)) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} must include itself in fix.affectedBugIds before production-code writes` };
-  const fingerprint = diagnosisFingerprint(live.workOrder, live.state);
-  if (!currentApproval(live.state, "diagnosis", fingerprint)) {
-    return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} needs an independent diagnosis review; dispatch a read-only subagent with DBG_REVIEW_REQUEST diagnosis` };
-  }
   for (const affectedId of bug.fix.affectedBugIds) {
     const affectedBaseline = live.state.receipts.find((receipt) => receipt.bugId === affectedId && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
     if (!affectedBaseline) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} shared fix affected bug ${affectedId} has no attributed failing baseline before the production mutation; switch activeBugId to ${affectedId}, run its exact reproduction verbatim, then switch back` };
   }
   return { action: "allow" };
-}
-
-export function recordDebugReview({ cwd, sessionId, stage, agentId, config = DEFAULT_CONFIG }) {
-  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
-  if (!["active", "inactive"].includes(live.kind)) return live;
-  live.state.reviews = live.state.reviews ?? { reservation: null, diagnosis: null, architecture: null };
-  live.state.reviews[stage] = {
-    decision: "approve",
-    agentId,
-    fingerprint: diagnosisFingerprint(live.workOrder, live.state),
-    nonce: "recorded",
-  };
-  writeState(sessionId, live.repoRoot, live.state);
-  return { kind: "recorded", approval: live.state.reviews[stage] };
-}
-
-export function reserveDebugReview({ cwd, sessionId, stage, config = DEFAULT_CONFIG }) {
-  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
-  if (live.kind !== "active") return { kind: "rejected", reason: "no active bound work order" };
-  const result = reserveReview(live.state, { stage, fingerprint: diagnosisFingerprint(live.workOrder, live.state) });
-  if (result.kind === "reserved") writeState(sessionId, live.repoRoot, live.state);
-  return result;
-}
-
-export function bindDebugReviewer({ cwd, sessionId, stage, agentId, config = DEFAULT_CONFIG }) {
-  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
-  if (live.kind !== "active") return { kind: "rejected", reason: "no active bound work order" };
-  const result = bindReviewer(live.state, { stage, agentId });
-  if (result.kind === "bound-reviewer") writeState(sessionId, live.repoRoot, live.state);
-  return result;
-}
-
-export function reserveAndBindDebugReviewer({ cwd, sessionId, stage, agentId, config = DEFAULT_CONFIG }) {
-  const repoRoot = gitRoot(cwd);
-  return updateState(sessionId, repoRoot, (state) => {
-    if (!state.bound || !state.workOrderPath) return { kind: "rejected", reason: "no active bound work order" };
-    const checked = loadWorkOrder(state.workOrderPath, config);
-    if (!checked.valid || checked.workOrder.id !== state.workOrderId || checked.workOrder.run.epoch !== state.epoch || checked.workOrder.status !== "open" || checked.workOrder.run.state !== "active") {
-      return { kind: "rejected", reason: "bound work order is invalid or inactive" };
-    }
-    const evidence = diagnosisEvidence(checked.workOrder, state);
-    const evidenceBytes = JSON.stringify(evidence);
-    if (Buffer.byteLength(evidenceBytes) > 48 * 1024) return { kind: "rejected", reason: "review evidence exceeds 48 KiB" };
-    const draft = structuredClone(state);
-    const reserved = reserveReview(draft, { stage, fingerprint: hash(evidenceBytes) });
-    if (reserved.kind !== "reserved") return reserved;
-    const bound = bindReviewer(draft, { stage, agentId });
-    if (bound.kind !== "bound-reviewer") return bound;
-    Object.assign(state, draft);
-    return { ...bound, evidenceBundle: JSON.stringify({ schema: "debug-review-evidence/v1", sha256: hash(evidenceBytes), evidence }) };
-  }).result;
-}
-
-export function observeDebugReview({ cwd, sessionId, agentId, result, config = DEFAULT_CONFIG }) {
-  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
-  if (live.kind !== "active") return { kind: "rejected", reason: "no active bound work order" };
-  const observed = observeReview(live.state, { agentId, result });
-  if (observed.kind !== "rejected") writeState(sessionId, live.repoRoot, live.state);
-  return observed;
 }
 
 function receiptById(state, reference) {
@@ -260,13 +187,6 @@ export function completionFindings(live) {
     }
   }
   for (const bug of workOrder.bugs) {
-    if (bug.status === "architecture-review") {
-      const approval = currentApproval(state, "architecture", diagnosisFingerprint(workOrder, state));
-      if (!approval) findings.push(`${bug.id}: architecture-review requires an independent DBG_REVIEW_REQUEST architecture approval`);
-      else if (approval.agentId && approval.agentId === state.reviews?.diagnosis?.agentId) {
-        findings.push(`${bug.id}: architecture reviewer must differ from the diagnosis reviewer`);
-      }
-    }
     if (bug.status !== "resolved") continue;
     const repro = receiptById(state, bug.verification.originalReproduction);
     const owners = workOrder.bugs.filter((owner) => owner.fix.affectedBugIds.includes(bug.id));
