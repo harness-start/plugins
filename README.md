@@ -69,6 +69,10 @@ codex plugin marketplace upgrade harness-start
 codex plugin add <name>@harness-start --json
 ```
 
+## 架构
+
+本仓库由可独立安装的插件组成。Hook 只负责生命周期中可机械验证的触发、门禁、反馈和状态推进；开放式推理、配置、诊断与恢复由 Skill 或普通 agent 工作流承接。插件内脚本保持确定、可测试和自包含。具体边界、取舍与开放问题见[工作架构](docs/architecture.md)。
+
 ## 仓库结构
 
 ```text
@@ -78,6 +82,7 @@ codex plugin add <name>@harness-start --json
 ├── plugins/                           # 自包含插件目录
 ├── scripts/install-all.sh             # marketplace 与全部插件的一键安装脚本
 ├── scripts/ci/validate-plugins.sh     # GitHub/GitLab 共用 CI 检查
+├── docs/architecture.md               # Working harness architecture
 ├── .github/workflows/validate-plugins.yml
 ├── .gitlab-ci.yml
 └── GUIDE.md                           # 完整初始化与发布指南
@@ -255,6 +260,10 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 
 ## 相关文档
 
+- [工作架构](docs/architecture.md)
+- [仓库初始化与插件开发指南](GUIDE.md)
+- [双宿主验收](docs/host-acceptance.md)
+- [验收矩阵](docs/acceptance-matrix.md)
 - [Artifact 交付守卫](docs/artifact-delivery-guards.md)
 - [Claude Code 插件 Marketplace](https://code.claude.com/docs/en/plugin-marketplaces)
 - [Codex 插件打包](https://developers.openai.com/plugins/build/plugins#build-your-own-curated-plugin-list)
