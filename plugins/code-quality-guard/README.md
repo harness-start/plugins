@@ -15,7 +15,7 @@
 
 检查器优先从项目依赖、虚拟环境或 `vendor/bin` 发现，再查找 PATH。插件不会安装依赖、访问网络或执行配置提供的命令。工具、配置或运行环境不可用时，每个会话和工作区只报告一次。
 
-PHPStan 使用当前工作目录的 `.code-quality-guard/.state/` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。该目录带 `*` 的 `.gitignore`，不写入插件安装目录。
+PHPStan 使用 Git 根目录的 `.code-quality-guard/state/` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。`.code-quality-guard/.gitignore` 会忽略 `state/`，状态文件不会进入版本控制。
 
 ## 项目配置
 
@@ -48,7 +48,7 @@ export default {
 
 `PostToolUse` 从文件工具事件提取最终存在的目标文件，跳过第三方、生成、构建、缓存目录以及超过 2 MiB 的文件。单次最多即时检查 12 个文件，单项默认超时 10 秒，整体软截止时间不超过 50 秒。
 
-PHP 文件路径会写入宿主提供的插件数据目录。`Stop` 按模式分组运行 PHPStan，每批最多 24 个文件，默认超时 55 秒。普通报告使用成功退出状态；只有 `block` 结果才使用宿主的阻断契约。
+PHP 文件路径会写入 Git 根目录的 `.code-quality-guard/state/`。`Stop` 按模式分组运行 PHPStan，每批最多 24 个文件，默认超时 55 秒。普通报告使用成功退出状态；只有 `block` 结果才使用宿主的阻断契约。
 
 - JavaScript 使用当前 Node.js 运行时；TypeScript 先找 `node_modules/.bin/esbuild`，再回退到 PATH。
 - ESLint 优先使用 `node_modules/.bin/eslint`，且项目必须有 flat config、eslintrc 或 `package.json#eslintConfig`。
@@ -90,4 +90,4 @@ node --test plugins/code-quality-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin code-quality-guard
 ```
 
-版本：`0.1.0`
+版本：`0.1.1`

@@ -9,7 +9,7 @@
 | `research-provenance-guard` | Claude + Codex | 0.2.0 | `01-workspace-anchor-seal`、`02-unverified-limitation`、`03-ordinary-bypass`、`04-direct-firecrawl-denied` | ⚠️ 0.2.0 改为编排 skill + 项目内 workflow 激活（去掉 `$research`/skill 名触发）；Claude 旧 0.1.0 四场景曾通过，需按新入口回归；Codex MCP tools 暴露问题仍在 | 2026-08-08 合同改写后待 Docker 重跑 | 项目 `.research/runs/*/workflow.json` + 平台插件数据 0600 捕获/收据；seal 后才有 report/manifest；outbound handoff 需 seal | — |
 | `execution-loop-guard` | Claude + Codex | 0.1.0 | `01-block-edit-loop` | ✅ 通过：同一源码文件在测试阈值内重复编辑后，真实 PostToolUse 阻断并清空该文件计数周期 | 2026-08-07 Docker 定向汇总 `2/0/0` | 插件数据目录中的 session/workspace 哈希计数；不保存原始路径、命令或输出 | — |
 | `source-sanity-guard` | Claude + Codex | 0.1.0 | `01-deny-backup-artifact` | ✅ 通过：真实 PreToolUse 拒绝源码备份文件，目标始终不存在 | 2026-08-07 Docker 定向汇总 `2/0/0` | 无持久化 | — |
-| `code-quality-guard` | Claude + Codex | 0.1.0 | `01-repair-javascript-syntax` | ✅ 通过：真实 PostToolUse 捕获 JavaScript 语法错误，最终文件修复并通过 `node --check` | 2026-08-07 Docker 定向汇总 `2/0/0` | 插件数据目录中的会话去重与 PHP 文件列表 | — |
+| `code-quality-guard` | Claude + Codex | 0.1.1 | `01-repair-javascript-syntax` | ✅ 通过：真实 PostToolUse 捕获 JavaScript 语法错误，最终文件修复并通过 `node --check` | 2026-08-07 Docker 定向汇总 `2/0/0`；2026-08-15 状态布局单测 | `.code-quality-guard/state/` 中的会话去重与 PHP 文件列表；根级 `.gitignore` 忽略该目录 | — |
 | `encoding-guard` | Claude + Codex | 0.1.0 | `01-repair-utf8-bom` | ✅ 通过：真实 BOM 写入触发守卫，最终文件修复为无 BOM UTF-8 | Docker 定向汇总 `2/0/0` | 无持久化 | — |
 | `command-safety-guards` | Claude + Codex | 0.1.0 | `01-deny-cat-heredoc` | ✅ 通过：目标文件不存在，日志有真实 Cat Write Guard deny | Docker 全量汇总 `26/0/0` | 无持久化 | — |
 | `file-line-budget-guard` | Claude + Codex | 0.2.0 | `01-block-oversized-php` | ✅ 通过：真实文件工具触发 File Budget 信号 | Docker 全量汇总 `26/0/0` | 临时 warning marker | — |

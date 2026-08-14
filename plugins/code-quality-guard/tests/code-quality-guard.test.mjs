@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -11,7 +20,9 @@ import {
   capOutput,
   findExecutable,
   modeFor,
+  readState,
   resolveConfig,
+  writeState,
 } from "../scripts/lib/code-quality-core.mjs";
 import { extractFileTargets } from "../scripts/code-quality-post.mjs";
 
@@ -98,6 +109,22 @@ test("file extraction covers direct, nested, patch, move, and shell writers", ()
 test("output capping preserves the limit and reports omitted lines", () => {
   const output = capOutput("one\ntwo\nthree\nfour", 2);
   assert.equal(output, "one\ntwo\n… 2 additional line(s) omitted");
+});
+
+test("state writes a root gitignore and uses the visible state directory", () => {
+  const root = gitRoot("quality-state-layout-");
+  try {
+    const state = readState({ session_id: "layout" }, root);
+    state.missing.push("eslint");
+
+    assert.equal(writeState(state), true);
+    assert.equal(readFileSync(join(root, ".code-quality-guard", ".gitignore"), "utf8"), "state/\n");
+    assert.equal(existsSync(join(root, ".code-quality-guard", "state")), true);
+    assert.equal(readdirSync(join(root, ".code-quality-guard", "state")).length, 1);
+    assert.equal(existsSync(join(root, ".code-quality-guard", ".state")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("local executable discovery precedes PATH", () => {

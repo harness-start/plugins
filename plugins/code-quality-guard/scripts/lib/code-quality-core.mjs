@@ -349,7 +349,7 @@ export function extractSessionId(event) {
   return event?.session_id ?? event?.sessionId ?? event?.sessionID ?? event?.context?.session_id ?? "session";
 }
 
-export const STATE_DIR_RELATIVE = ".code-quality-guard/.state";
+export const STATE_DIR_RELATIVE = ".code-quality-guard/state";
 
 function stateFile(event, repoRoot) {
   const root = resolve(repoRoot ?? process.cwd());
@@ -378,10 +378,11 @@ export function readState(event, repoRoot) {
 export function writeState(state) {
   if (!state.path) return false;
   try {
-    mkdirSync(dirname(state.path), { recursive: true, mode: 0o700 });
-    const ignore = join(dirname(state.path), ".gitignore");
+    const stateDir = dirname(state.path);
+    mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+    const ignore = join(dirname(stateDir), ".gitignore");
     if (!existsSync(ignore)) {
-      writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+      writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
     }
     const temporary = `${state.path}.${process.pid}.tmp`;
     writeFileSync(temporary, `${JSON.stringify({
