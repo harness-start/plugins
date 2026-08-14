@@ -6,32 +6,7 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/intent-clarify-gate.mjs\" prompt",
-            "statusMessage": "Intent clarify entry/classify",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/intent-clarify-gate.mjs\" pre",
-            "statusMessage": "Intent clarify write-block",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/intent-clarify-gate.mjs\" stop",
-            "statusMessage": "Intent clarify complete-option parse",
+            "statusMessage": "Preparing first-turn intent discovery",
             "timeout": 10000
           }
         ]

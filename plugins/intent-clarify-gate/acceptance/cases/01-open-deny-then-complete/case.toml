@@ -1,5 +1,0 @@
-id = "01-open-deny-then-complete"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["pre-tool", "user-prompt", "intent-clarify", "deny"]
-# Fixture-driven offline path: set INTENT_CLARIFY_FIXTURE=1 for expect.sh without host session.

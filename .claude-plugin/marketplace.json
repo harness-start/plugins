@@ -64,7 +64,7 @@
     {
       "name": "intent-clarify-gate",
       "source": "./plugins/intent-clarify-gate",
-      "description": "Gates business writes during grill-me style intent clarification until \u5b8c\u6210 or complete-option close."
+      "description": "Front-loads first-turn repository context and bounded adversarial review, then continues without an interview gate."
     },
     {
       "name": "reasoning-discipline",

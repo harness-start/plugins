@@ -80,6 +80,73 @@ require_hook_prompt_signal() {
   return 1
 }
 
+# Codex 0.147 no longer persists rollout JSONL under CODEX_HOME/sessions. For
+# this non-blocking prompt hook, pair the host completion marker with the
+# plugin-owned first-prompt receipt instead of treating model prose as proof.
+require_intent_first_turn_signal() {
+  if [ "${ACCEPT_HOST:-}" = "claude" ]; then
+    require_hook_prompt_signal '\[intent-clarify-gate:first-turn\]'
+    return
+  fi
+
+  if [ "${ACCEPT_HOST:-}" != "codex" ]; then
+    echo "expect fail: unsupported host for intent first-turn signal" >&2
+    return 1
+  fi
+  if ! grep -Eq '^hook: UserPromptSubmit$' "${ACCEPT_LOG}" \
+    || ! grep -Eq '^hook: UserPromptSubmit Completed$' "${ACCEPT_LOG}"; then
+    echo "expect fail: Codex did not complete UserPromptSubmit" >&2
+    return 1
+  fi
+
+  local receipt_count=0 receipt
+  while IFS= read -r -d '' receipt; do
+    if jq -e '
+      type == "object"
+      and .version == 1
+      and (.injectedAt | type == "string" and length > 0)
+      and (keys | sort == ["injectedAt", "version"])
+    ' "${receipt}" >/dev/null 2>&1; then
+      receipt_count=$((receipt_count + 1))
+    fi
+  done < <(find "${ACCEPT_OUT:?}/codex-home/plugins/data" \
+    -path '*/intent-clarify-gate/first-prompts/*.json' -type f -print0 2>/dev/null)
+
+  if [ "${receipt_count}" -ne 1 ]; then
+    echo "expect fail: expected one valid intent first-turn receipt, got ${receipt_count}" >&2
+    return 1
+  fi
+}
+
+require_intent_discovery_skill_loaded() {
+  if [ "${ACCEPT_HOST:-}" != "codex" ]; then
+    return 0
+  fi
+  if ! grep -Eq '/skills/intent-discovery/SKILL\.md' "${ACCEPT_LOG}"; then
+    echo "expect fail: Codex did not load the bundled intent-discovery Skill" >&2
+    return 1
+  fi
+}
+
+require_exact_model_reply() {
+  local expected="${1:?expected reply required}"
+  if [ "${ACCEPT_HOST:-}" = "claude" ]; then
+    if [ "$(sed -n '1p' "${ACCEPT_LOG}")" = "${expected}" ]; then
+      return 0
+    fi
+  elif [ "${ACCEPT_HOST:-}" = "codex" ]; then
+    if awk -v expected="${expected}" '
+      previous == "codex" && $0 == expected { found = 1 }
+      { previous = $0 }
+      END { exit found ? 0 : 1 }
+    ' "${ACCEPT_LOG}"; then
+      return 0
+    fi
+  fi
+  echo "expect fail: model reply was not exactly: ${expected}" >&2
+  return 1
+}
+
 # require_session_context_signal <regex>
 # SessionStart context is surfaced differently by each host. Claude logs the
 # hook response; Codex records the injected developer message in its rollout.
@@ -161,7 +228,7 @@ require_composer_json_without_repositories() {
 }
 
 # Plugin-specific real marker sets (never path fragments).
-MARKERS_INTENT_CLARIFY='\[intent-clarify-gate\]|business writes are blocked|write barrier is released|interview is still open|interview is closed'
+MARKERS_INTENT_CLARIFY='\[intent-clarify-gate:first-turn\]|Load and follow the bundled `intent-discovery` Skill'
 MARKERS_FILE_BUDGET='\[File Budget\]|exceeds its file line budget|exceeds the build-recipe reference budget'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|Protected file modification blocked'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|Prohibited file encoding detected'
