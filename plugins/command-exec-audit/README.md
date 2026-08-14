@@ -6,11 +6,12 @@
 
 ```text
 .command-exec-audit/
+  .gitignore
   README.md
   sessions/<session_id>.jsonl
 ```
 
-一个宿主会话对应一个 JSONL 文件。插件不会创建或修改 `.gitignore`，是否忽略审计目录由仓库维护者决定。
+一个宿主会话对应一个 JSONL 文件。插件会在审计目录内创建 `.gitignore`，只忽略 `sessions/`；不会创建或修改项目根目录的 `.gitignore`。如果审计目录内已经有 `.gitignore`，插件也不会覆盖。
 
 ## 生命周期
 
@@ -71,11 +72,11 @@ export default {
 node --test plugins/command-exec-audit/tests/*.test.mjs
 ```
 
-版本：`0.1.1`
+版本：`0.1.2`
 
 ## 非目标
 
 - 捕获完整命令输出。
 - 记录 agent 工具以外的人类终端会话。
-- 自动修改 `.gitignore`。
+- 自动修改项目根目录的 `.gitignore`。
 - 提供真正的 WORM 存储。

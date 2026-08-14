@@ -24,6 +24,8 @@ Write policy:
 - Earlier lines must not be modified by agents or automation tools.
 `;
 
+const GITIGNORE_TEXT = "sessions/\n";
+
 const LOCK_STALE_MS = 10_000;
 const LOCK_RETRIES = 40;
 const LOCK_WAIT_MS = 25;
@@ -45,6 +47,7 @@ export function trailPaths(repoRoot, auditRoot, sessionKey) {
   return {
     root,
     sessionsDir: join(root, "sessions"),
+    gitignorePath: join(root, ".gitignore"),
     readmePath: join(root, "README.md"),
     sessionPath: join(root, "sessions", `${sessionKey}.jsonl`),
   };
@@ -52,6 +55,9 @@ export function trailPaths(repoRoot, auditRoot, sessionKey) {
 
 function ensureLayout(paths) {
   mkdirSync(paths.sessionsDir, { recursive: true, mode: 0o700 });
+  if (!existsSync(paths.gitignorePath)) {
+    writeFileSync(paths.gitignorePath, GITIGNORE_TEXT, { encoding: "utf8", mode: 0o600 });
+  }
   if (!existsSync(paths.readmePath)) {
     writeFileSync(paths.readmePath, README_TEXT, { encoding: "utf8", mode: 0o600 });
   }

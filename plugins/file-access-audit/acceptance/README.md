@@ -4,7 +4,7 @@ Cases under `cases/` run real Claude Code and Codex sessions through `scripts/ac
 
 | Case | Behavior |
 | --- | --- |
-| `01-record-file-write` | Edits a source file; expects a project-local `.file-access-audit/sessions/*.jsonl` row with structured write/update |
+| `01-record-file-write` | Edits a source file; expects a project-local JSONL row and audit-local `.gitignore` without changing the project `.gitignore` |
 
 Run from the repository root:
 

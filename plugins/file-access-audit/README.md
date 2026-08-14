@@ -17,11 +17,12 @@
 
 ```text
 .file-access-audit/
+  .gitignore
   README.md
   sessions/<session_id>.jsonl
 ```
 
-一个宿主会话对应一个 JSONL 文件。Git 根目录内的路径会记录为仓库相对路径。插件不会创建或修改 `.gitignore`，是否忽略审计目录由仓库维护者决定。
+一个宿主会话对应一个 JSONL 文件。Git 根目录内的路径会记录为仓库相对路径。插件会在审计目录内创建 `.gitignore`，只忽略 `sessions/`；不会创建或修改项目根目录的 `.gitignore`。如果审计目录内已经有 `.gitignore`，插件也不会覆盖。
 
 ## 写入策略
 
@@ -76,4 +77,4 @@ export default {
 node --test plugins/file-access-audit/tests/*.test.mjs
 ```
 
-版本：`0.1.1`
+版本：`0.1.2`

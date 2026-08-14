@@ -1,6 +1,6 @@
 {
   "name": "execution-loop-guard",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session.",
   "author": {
     "name": "Harness Start",

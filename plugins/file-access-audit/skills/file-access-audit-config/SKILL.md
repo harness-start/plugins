@@ -1,7 +1,7 @@
 ---
 name: file-access-audit-config
 description: Initialize or diagnose .file-access-audit.mjs for the file-access-audit trail plugin.
-version: 0.1.1
+version: 0.1.2
 ---
 
 # file-access-audit-config

@@ -1,7 +1,7 @@
 ---
 name: execution-loop-guard-config
 description: Change execution-loop-guard thresholds for edit loops, command retries, polling budgets, exemptions, or bypass markers in .execution-loop-guard.mjs.
-version: 0.1.1
+version: 0.1.3
 ---
 
 # execution-loop-guard-config

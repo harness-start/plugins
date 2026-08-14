@@ -12,8 +12,18 @@ if ! grep -Eq 'value\s*=\s*1' "${target}"; then
 fi
 
 sessions_dir="${ACCEPT_WORKSPACE}/.file-access-audit/sessions"
+local_gitignore="${ACCEPT_WORKSPACE}/.file-access-audit/.gitignore"
 if [ ! -d "${sessions_dir}" ]; then
   echo "expect fail: missing .file-access-audit/sessions" >&2
+  exit 1
+fi
+
+if [ ! -f "${local_gitignore}" ] || [ "$(cat "${local_gitignore}")" != "sessions/" ]; then
+  echo "expect fail: .file-access-audit/.gitignore must contain sessions/" >&2
+  exit 1
+fi
+if [ "$(cat "${ACCEPT_WORKSPACE}/.gitignore")" != "vendor/" ]; then
+  echo "expect fail: project .gitignore was modified" >&2
   exit 1
 fi
 

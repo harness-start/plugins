@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2026-08-15
+
+### Fixed
+
+- Create `.command-exec-audit/.gitignore` for `sessions/` without creating or changing the project's root `.gitignore`.
+
 ## [0.1.1] - 2026-08-09
 
 ### Changed

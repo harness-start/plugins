@@ -297,6 +297,20 @@ test("only the Codex hook advertises Codex function-level wait observation", () 
   assert.doesNotMatch(claude, /wait_agent|list_agents|write_stdin/u);
 });
 
+test("state persistence uses state and creates only the guard-local gitignore", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "execution-loop-state-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
+
+  await runEntry("post", fileEvent(root), { PLUGIN_DATA: data });
+
+  assert.equal(existsSync(join(root, ".execution-loop-guard", "state")), true);
+  assert.equal(existsSync(join(root, ".execution-loop-guard", ".state")), false);
+  assert.equal(readFileSync(join(root, ".execution-loop-guard", ".gitignore"), "utf8"), "state/\n");
+  assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
+});
+
 test("state does not persist raw paths, commands, or command output", async (context) => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "execution-loop-state-"));
@@ -305,7 +319,7 @@ test("state does not persist raw paths, commands, or command output", async (con
   await runEntry("post", fileEvent(root), env);
   await runEntry("failure", shellEvent(root, "node secret-command.mjs", { exit_code: 1, stderr: "private-output" }), env);
 
-  const directory = join(root, ".execution-loop-guard", ".state");
+  const directory = join(root, ".execution-loop-guard", "state");
   const state = readFileSync(join(directory, readdirSync(directory).find((name) => name.endsWith(".json"))), "utf8");
   assert.doesNotMatch(state, /src\/app\.js|secret-command|private-output/u);
   assert.equal(existsSync(join(data, "execution-loop-guard")), false);
@@ -317,5 +331,5 @@ test("malformed input fails open and missing PLUGIN_DATA still persists", async 
   const noData = await runEntry("post", fileEvent(root), { PLUGIN_DATA: "", CLAUDE_PLUGIN_DATA: "" });
   assert.deepEqual({ code: malformed.code, stdout: malformed.stdout, stderr: malformed.stderr }, { code: 0, stdout: "", stderr: "" });
   assert.equal(noData.code, 0);
-  assert.equal(existsSync(join(root, ".execution-loop-guard", ".state")), true);
+  assert.equal(existsSync(join(root, ".execution-loop-guard", "state")), true);
 });

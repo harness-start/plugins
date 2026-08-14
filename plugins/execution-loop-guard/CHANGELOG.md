@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-08-15
+
+### Fixed
+
+- Store runtime data under `.execution-loop-guard/state/` and create `.execution-loop-guard/.gitignore` for that directory without changing the project's root `.gitignore`.
+
 ## 0.1.2
 
 - Observe Codex wait, agent-status, and stdin-yield tool events when the host emits them, counting requested wait limits and query calls in the report-only polling budget.

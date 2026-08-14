@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { extractCwd, extractSessionId } from "./hook-io.mjs";
 
 const VERSION = 1;
-export const STATE_DIR_RELATIVE = ".execution-loop-guard/.state";
+export const STATE_DIR_RELATIVE = ".execution-loop-guard/state";
 
 export function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
@@ -13,9 +13,9 @@ export function digest(value) {
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(directory, ".gitignore");
+  const ignore = join(dirname(directory), ".gitignore");
   if (!existsSync(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
   }
 }
 

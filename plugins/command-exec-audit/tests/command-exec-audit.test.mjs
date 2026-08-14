@@ -152,7 +152,7 @@ test("pre denies interpreter rewrite of the audit trail", async () => {
   }
 });
 
-test("pre and post record commands without modifying the project gitignore", async () => {
+test("pre and post create a local gitignore without modifying the project gitignore", async () => {
   const root = workspace();
   try {
     writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
@@ -184,6 +184,7 @@ test("pre and post record commands without modifying the project gitignore", asy
     assert.equal("stdout" in lines[0], false);
     assert.equal("stderr" in lines[0], false);
 
+    assert.equal(readFileSync(join(root, ".command-exec-audit", ".gitignore"), "utf8"), "sessions/\n");
     assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });

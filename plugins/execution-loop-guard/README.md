@@ -13,7 +13,7 @@
 
 Markdown 文件默认不计入编辑循环。只读命令不计入命令重复；`# poll-ok` 可让有意等待不进入轮询预算。
 
-成功的测试、lint、typecheck、build 或其他明确验证命令会清空当前 session/workspace 的全部编辑计数，代表本轮修改已经产生可验证进展。插件状态写在当前工作目录的 `.execution-loop-guard/.state/`，带 `*` 的 `.gitignore`，不保存命令输出或文件内容。
+成功的测试、lint、typecheck、build 或其他明确验证命令会清空当前 session/workspace 的全部编辑计数，代表本轮修改已经产生可验证进展。插件状态写在当前工作目录的 `.execution-loop-guard/state/`；`.execution-loop-guard/.gitignore` 只忽略 `state/`，插件不会修改项目根目录的 `.gitignore`。状态不保存命令输出或文件内容。
 
 ## 项目配置
 
@@ -85,4 +85,4 @@ node --test plugins/execution-loop-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin execution-loop-guard
 ```
 
-版本：`0.1.2`
+版本：`0.1.3`

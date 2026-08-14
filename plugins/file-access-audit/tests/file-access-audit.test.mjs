@@ -146,7 +146,7 @@ test("pre denies interpreter rewrite of the file-access trail", async () => {
   }
 });
 
-test("post records edit without modifying the project gitignore", async () => {
+test("post records edit with a local gitignore without modifying the project gitignore", async () => {
   const root = workspace();
   try {
     writeFileSync(join(root, ".gitignore"), "vendor/\n", "utf8");
@@ -173,6 +173,7 @@ test("post records edit without modifying the project gitignore", async () => {
     assert.equal(readSessionLines(root, "sess-beta").length, 1);
     assert.equal(readSessionLines(root, "sess-alpha").length, 1);
 
+    assert.equal(readFileSync(join(root, ".file-access-audit", ".gitignore"), "utf8"), "sessions/\n");
     assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });

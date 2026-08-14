@@ -1,7 +1,7 @@
 ---
 name: command-exec-audit-config
 description: Initialize or diagnose .command-exec-audit.mjs for the command-exec-audit trail plugin.
-version: 0.1.1
+version: 0.1.2
 ---
 
 # command-exec-audit-config
