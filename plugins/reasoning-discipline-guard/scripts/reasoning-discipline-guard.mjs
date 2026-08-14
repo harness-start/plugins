@@ -19,7 +19,7 @@ import {
   stopDecision,
 } from "./lib/workflow.mjs";
 
-const SESSION_CONTEXT = "Use `$reasoning-discipline` only for proof, worst-case, causal inference, or high-impact decision tasks that lack a direct executable oracle. For ordinary code or plugin review with a direct executable oracle, do not activate. Writing workflow.md is deliberate activation; without it hooks remain idle.";
+const SESSION_CONTEXT = "Standing rule: proof, exact, worst-case, algorithmic, causal, and constrained-decision answers must invoke `$reasoning-discipline`; finish five stages before replying, even for final-only formats.";
 
 function feedback(result) {
   if (!result || result.kind === "idle") return null;

@@ -648,7 +648,7 @@ test("supporting numeric evidence does not replace a semantic algorithm conclusi
   }
 });
 
-test("SessionStart publishes a narrow opt-in reasoning route", async () => {
+test("SessionStart publishes a compact five-stage reasoning route", async () => {
   const root = workspace();
   const result = await runHook("session", {
     cwd: root,
@@ -660,11 +660,9 @@ test("SessionStart publishes a narrow opt-in reasoning route", async () => {
   const context = output?.hookSpecificOutput?.additionalContext ?? "";
   assert.equal(output?.hookSpecificOutput?.hookEventName, "SessionStart");
   assert.match(context, /`\$reasoning-discipline`/u);
-  assert.match(context, /only for.*proof.*worst-case.*causal.*high-impact decision/iu);
-  assert.match(context, /ordinary code or plugin review.*direct executable oracle.*do not activate/iu);
-  assert.match(context, /workflow\.md.*deliberate activation/iu);
-  assert.doesNotMatch(context, /must invoke|standing rule/iu);
-  assert.ok(context.length <= 360, `SessionStart context is ${context.length} characters`);
+  assert.match(context, /standing rule.*proof.*exact.*worst-case.*algorithmic.*causal.*constrained-decision.*must invoke.*reasoning-discipline.*finish five stages.*before replying.*final-only/iu);
+  assert.ok(context.length <= 200, `SessionStart context is ${context.length} characters`);
+  assert.doesNotMatch(context, /ordering|boundary|representation|observability|quantifier|strategy|workflow\.md/iu);
 });
 
 test("hook remains idle until workflow.md is written", async () => {
@@ -895,7 +893,7 @@ test("hook blocks a skipped stage and invalidates downstream receipts after rewr
   assert.equal(existsSync(join(data, "reasoning-discipline-guard")), false);
 });
 
-test("paused workflow delivers partial facts but still rejects an asserted conclusion", async () => {
+test("paused workflow passes Stop without conclusion receipts", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "reasoning-paused-data-"));
   const dir = workflowDir(root);
@@ -912,6 +910,7 @@ test("paused workflow delivers partial facts but still rejects an asserted concl
 
   const falseConclusion = await runHook("stop", { cwd: root, session_id: "paused", last_assistant_message: "The verified answer is 21." }, env);
   assert.equal(parseOutput(falseConclusion.stdout)?.decision, "block");
+  assert.match(parseOutput(falseConclusion.stdout)?.reason ?? "", /cannot accompany a conclusion claim/u);
 
   const unknownCause = await runHook("stop", {
     cwd: root,
@@ -954,20 +953,6 @@ test("paused workflow delivers partial facts but still rejects an asserted concl
     last_assistant_message: "根因是提供方超时。",
   }, env);
   assert.equal(parseOutput(assertedCauseZh.stdout)?.decision, "block");
-
-  const partialFactsZh = await runHook("stop", {
-    cwd: root,
-    session_id: "paused",
-    last_assistant_message: "01-frame 和 02-analysis 已签章；03-challenge 因 reviewer 失败尚未签章；正式结论仍未形成。",
-  }, env);
-  assert.equal(partialFactsZh.stdout, "", partialFactsZh.stdout);
-
-  const mixedZh = await runHook("stop", {
-    cwd: root,
-    session_id: "paused",
-    last_assistant_message: "正式结论仍未形成，但已验证结论：21。",
-  }, env);
-  assert.equal(parseOutput(mixedZh.stdout)?.decision, "block");
 
   const rejectedConclusionReport = await runHook("stop", {
     cwd: root,

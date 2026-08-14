@@ -1,8 +1,8 @@
 # reasoning-discipline-guard
 
-`reasoning-discipline-guard` 在 `SessionStart` 发一句窄路由说明，并带一份 `reasoning-discipline` Skill。只有这份 Skill 真正写出工作流文件后，Hook 才会按文件顺序检查分析过程。
+`reasoning-discipline-guard` 在 `SessionStart` 发一句路由说明，并带一份宽泛的 `reasoning-discipline` Skill。只有这份 Skill 真正写出工作流文件后，Hook 才会按文件顺序检查分析过程。
 
-路由只建议 proof、worst-case、需要区分假设的 causal inference，以及没有直接可执行 oracle 的 high-impact decision 使用 Skill。普通代码或插件审查已有直接测试、静态检查或可复现 oracle 时不自动激活，避免把常规实现工作拖进五阶段流程。
+那句 standing rule 只点名六类工作（proof、exact、worst-case、algorithmic、causal、constrained-decision）、Skill 名、五阶段要求，以及 final-only 只约束回复格式。它不塞题型公式、领域提示或答案线索。精确推理、因果分析或后果比较大的决策，模型应走 Skill；普通请求不受影响。
 
 路由只是提醒。没有 `.reasoning-discipline/*/workflow.md` 时，`Stop` 什么也不做。真正开门的是写出这个文件，不是加载 Skill，也不是 prompt 正则。
 
@@ -62,7 +62,7 @@ branch registry 是唯一预期扩展入口。新增分支前必须定义 analys
 首次激活时，插件把 `/.reasoning-discipline/` 写入仓库本地 `.git/info/exclude`，不修改项目 `.gitignore`。
 
 - `open`：本轮结束前必须写入下一阶段。
-- `paused`：提供 `resume.nextStage` 和具体 `resume.nextAction` 后可以交付已签章的阶段事实；明确声称 verified answer/conclusion/root cause 仍会被阻断。
+- `paused`：只有提供 `resume.nextStage` 和具体 `resume.nextAction` 时才允许 `Stop`。
 - `closed`：要求当前、有序的 `RD-R1` 到 `RD-R5` 回执，并设置 `completionReceipt: "RD-R5"`。
 - `aborted`：释放工作流，但不能声称已有 verified conclusion。
 
