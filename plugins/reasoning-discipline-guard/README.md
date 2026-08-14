@@ -1,8 +1,8 @@
 # reasoning-discipline-guard
 
-`reasoning-discipline-guard` 在 `SessionStart` 发一句路由说明，并带一份宽泛的 `reasoning-discipline` Skill。只有这份 Skill 真正写出工作流文件后，Hook 才会按文件顺序检查分析过程。
+`reasoning-discipline-guard` 在 `SessionStart` 发一句窄路由说明，并带一份 `reasoning-discipline` Skill。只有这份 Skill 真正写出工作流文件后，Hook 才会按文件顺序检查分析过程。
 
-那句 standing rule 只点名六类工作（proof、exact、worst-case、algorithmic、causal、constrained-decision）、Skill 名、五阶段要求，以及 final-only 只约束回复格式。它不塞题型公式、领域提示或答案线索。精确推理、因果分析或后果比较大的决策，模型应走 Skill；普通请求不受影响。
+路由只建议 proof、worst-case、需要区分假设的 causal inference，以及没有直接可执行 oracle 的 high-impact decision 使用 Skill。普通代码或插件审查已有直接测试、静态检查或可复现 oracle 时不自动激活，避免把常规实现工作拖进五阶段流程。
 
 路由只是提醒。没有 `.reasoning-discipline/*/workflow.md` 时，`Stop` 什么也不做。真正开门的是写出这个文件，不是加载 Skill，也不是 prompt 正则。
 
@@ -18,7 +18,7 @@ SessionStart 路由契约
   -> 单独写入 workflow.md
   -> Hook 绑定 workspace、workflow ID 和 epoch
   -> 五个独立 PostToolUse 事件
-  -> challenge / cross-check 由不同 agent_id 的只读子代理审批后才能签发 RD-R3 / RD-R4
+  -> Skill 可按需要用普通自然语言请通用只读子 Agent 提供挑战或独立推导；父 Agent 负责写入并验证 artifact
   -> 分支校验和来源关联的可观察性检查
   -> 有限划分分配重放全部联合隐藏响应
   -> receipt 与 SHA-256 链
@@ -34,7 +34,7 @@ SessionStart 路由契约
 4. 用独立方法 cross-check 并独立搜索每个 strategy；有限划分分配由有界机器模型重放，非分配类工具证据只能作为 supporting metric；
 5. 给出结论，并写清还不确定什么。
 
-Hook 校验结构、顺序、引用、每阶段 SHA-256 和会话回执。exact frame 还要求所有声明行动时可观察性的 given 以 `observable: true` 出现在 positive observability audit；只有标为 `user-verbatim` 且明确说明不可选择的 given 才能阻断该信号，模型推断的后果不能替代用户原话。
+Hook 校验结构、顺序、引用、每阶段 SHA-256 和会话回执，但不认证子 Agent 身份或回复。exact frame 还要求所有声明行动时可观察性的 given 以 `observable: true` 出现在 positive observability audit；只有标为 `user-verbatim` 且明确说明不可选择的 given 才能阻断该信号，模型推断的后果不能替代用户原话。
 
 对 `finite-partition-allocation`，守卫枚举联合隐藏响应并验证声明的最优值。每次搜索都要声明数值目标是最终答案还是辅助证据，避免分数覆盖语义算法结论。标为 `exact-payload` 的 conclusion 必须与最终回复完全相同，严格单值格式不能附加状态文字或解释。其他结构有效的 artifact 也不会因此自动成为语义事实。
 
@@ -62,7 +62,7 @@ branch registry 是唯一预期扩展入口。新增分支前必须定义 analys
 首次激活时，插件把 `/.reasoning-discipline/` 写入仓库本地 `.git/info/exclude`，不修改项目 `.gitignore`。
 
 - `open`：本轮结束前必须写入下一阶段。
-- `paused`：只有提供 `resume.nextStage` 和具体 `resume.nextAction` 时才允许 `Stop`。
+- `paused`：提供 `resume.nextStage` 和具体 `resume.nextAction` 后可以交付已签章的阶段事实；明确声称 verified answer/conclusion/root cause 仍会被阻断。
 - `closed`：要求当前、有序的 `RD-R1` 到 `RD-R5` 回执，并设置 `completionReceipt: "RD-R5"`。
 - `aborted`：释放工作流，但不能声称已有 verified conclusion。
 

@@ -264,52 +264,7 @@ function parseOutput(stdout) {
 }
 
 async function postStage(env, { cwd, session, path }) {
-  const name = String(path).split(/[/\\]/u).pop();
-  if (name === "03-challenge.md") {
-    await approveIndependentReview(env, { cwd, session, stage: "challenge", agentId: `${session}-challenge-reviewer` });
-  } else if (name === "04-cross-check.md") {
-    await approveIndependentReview(env, { cwd, session, stage: "cross-check", agentId: `${session}-cross-reviewer` });
-  }
   return runHook("post", { cwd, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
-}
-
-async function approveIndependentReview(env, { cwd, session, stage, agentId }) {
-  const reserved = await runHook("pre", {
-    cwd,
-    session_id: session,
-    tool_name: "Agent",
-    tool_input: { prompt: `RD_REVIEW_REQUEST ${stage}` },
-  }, env);
-  assert.equal(reserved.code, 0, reserved.stderr);
-  assert.doesNotMatch(reserved.stdout, /rejected/u);
-
-  const started = await runHook("review-start", {
-    cwd,
-    session_id: session,
-    agent_id: agentId,
-    hook_event_name: "SubagentStart",
-    agent_prompt: `RD_REVIEW_REQUEST ${stage}`,
-  }, env);
-  const context = parseOutput(started.stdout)?.hookSpecificOutput?.additionalContext ?? "";
-  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(context)?.[1];
-  const anchorsMatch = /evidencePaths=(\[[^\]]*\])/u.exec(context);
-  assert.ok(nonce, `missing review nonce in ${started.stdout || started.stderr}`);
-  const anchors = anchorsMatch ? JSON.parse(anchorsMatch[1]) : [];
-
-  const stopped = await runHook("subagent-stop", {
-    cwd,
-    session_id: session,
-    agent_id: agentId,
-    hook_event_name: "SubagentStop",
-    last_assistant_message: `RD_REVIEW_RESULT ${JSON.stringify({
-      stage,
-      reviewNonce: nonce,
-      decision: "approve",
-      evidenceAnchors: anchors,
-    })}`,
-  }, env);
-  assert.match(stopped.stdout, /approval recorded/u, stopped.stdout || stopped.stderr);
-  return { nonce, agentId };
 }
 
 test("extractMachineBlock requires exactly one canonical fenced JSON block", () => {
@@ -693,170 +648,7 @@ test("supporting numeric evidence does not replace a semantic algorithm conclusi
   }
 });
 
-test("challenge stage is unsigned until an independent reviewer approval is bound", async () => {
-  const root = workspace();
-  const data = mkdtempSync(join(tmpdir(), "reasoning-review-required-data-"));
-  const dir = workflowDir(root);
-  const session = "review-required-session";
-  const env = { PLUGIN_DATA: data };
-  writeArtifact(join(dir, "workflow.md"), manifest());
-  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "workflow.md") } }, env);
-  for (const [name, value] of [["01-frame.md", stages().frame], ["02-analysis.md", stages().analysis]]) {
-    const path = join(dir, name);
-    writeArtifact(path, value);
-    const signed = await postStage(env, { cwd: root, session, path });
-    assert.match(signed.stdout, /RD-R[12]/u, signed.stdout || signed.stderr);
-  }
-
-  const challengePath = join(dir, "03-challenge.md");
-  writeArtifact(challengePath, stages().challenge);
-  const unsigned = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: challengePath } }, env);
-  assert.match(unsigned.stdout, /RD_REVIEW_REQUEST challenge/u, unsigned.stdout || unsigned.stderr);
-  assert.doesNotMatch(unsigned.stdout, /RD-R3/u);
-
-  await approveIndependentReview(env, { cwd: root, session, stage: "challenge", agentId: "challenge-reviewer" });
-  const signed = await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: challengePath } }, env);
-  assert.match(signed.stdout, /RD-R3/u, signed.stdout || signed.stderr);
-
-  const reused = await runHook("review-start", {
-    cwd: root,
-    session_id: session,
-    agent_id: "challenge-reviewer",
-    hook_event_name: "SubagentStart",
-    agent_prompt: "RD_REVIEW_REQUEST cross-check",
-  }, env);
-  await runHook("pre", {
-    cwd: root,
-    session_id: session,
-    tool_name: "Agent",
-    tool_input: { prompt: "RD_REVIEW_REQUEST cross-check" },
-  }, env);
-  const rebound = await runHook("review-start", {
-    cwd: root,
-    session_id: session,
-    agent_id: "challenge-reviewer",
-    hook_event_name: "SubagentStart",
-    agent_prompt: "RD_REVIEW_REQUEST cross-check",
-  }, env);
-  assert.match(rebound.stdout, /different agent/u, `${reused.stdout}\n${rebound.stdout}`);
-});
-
-test("review-start directly reserves a request and embeds prior stages when dispatch PreToolUse is unavailable", async () => {
-  const root = workspace();
-  const data = mkdtempSync(join(tmpdir(), "reasoning-direct-review-data-"));
-  const dir = workflowDir(root);
-  const session = "direct-review-session";
-  const codexHome = mkdtempSync(join(tmpdir(), "reasoning-direct-codex-home-"));
-  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
-  mkdirSync(join(codexHome, "sessions"), { recursive: true });
-  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
-  writeArtifact(join(dir, "workflow.md"), manifest());
-  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "workflow.md") } }, env);
-  for (const [name, value] of [["01-frame.md", stages().frame], ["02-analysis.md", stages().analysis]]) {
-    const path = join(dir, name);
-    writeArtifact(path, value);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
-  }
-
-  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
-    id: "direct-challenge-reviewer", parent_thread_id: session, cwd: root,
-    thread_source: "subagent", agent_path: "/root/rd_challenge_case",
-    source: { subagent: { thread_spawn: { parent_thread_id: session, depth: 1, agent_path: "/root/rd_challenge_case" } } },
-  } })}\n`);
-  const started = await runHook("review-start", {
-    cwd: root,
-    session_id: session,
-    agent_id: "direct-challenge-reviewer",
-    hook_event_name: "SubagentStart",
-    transcript_path: transcriptPath,
-  }, env);
-  const context = parseOutput(started.stdout)?.hookSpecificOutput?.additionalContext ?? "";
-  assert.match(context, /reviewNonce=[a-f0-9]+/u);
-  assert.match(context, /evidenceBundle=/u);
-  assert.match(context, /reasoning-stage\/v1/u);
-  const replay = await runHook("review-start", {
-    cwd: root, session_id: session, agent_id: "second-reviewer", hook_event_name: "SubagentStart",
-    agent_prompt: "RD_REVIEW_REQUEST challenge",
-  }, env);
-  assert.doesNotMatch(parseOutput(replay.stdout)?.hookSpecificOutput?.additionalContext ?? "", /reviewNonce=/u);
-});
-
-test("independent review rejects a forged nonce, a write from the reviewer, and a stale approval", async () => {
-  const root = workspace();
-  const data = mkdtempSync(join(tmpdir(), "reasoning-review-adversarial-data-"));
-  const dir = workflowDir(root);
-  const session = "review-adversarial-session";
-  const env = { PLUGIN_DATA: data };
-  writeArtifact(join(dir, "workflow.md"), manifest());
-  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "workflow.md") } }, env);
-  for (const [name, value] of [["01-frame.md", stages().frame], ["02-analysis.md", stages().analysis]]) {
-    const path = join(dir, name);
-    writeArtifact(path, value);
-    await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: path } }, env);
-  }
-
-  await runHook("pre", { cwd: root, session_id: session, tool_name: "Agent", tool_input: { prompt: "RD_REVIEW_REQUEST challenge" } }, env);
-  const started = await runHook("review-start", {
-    cwd: root, session_id: session, agent_id: "challenge-reviewer",
-    hook_event_name: "SubagentStart", agent_prompt: "RD_REVIEW_REQUEST challenge",
-  }, env);
-  const nonce = /reviewNonce=([a-f0-9]+)/u.exec(parseOutput(started.stdout)?.hookSpecificOutput?.additionalContext ?? "")?.[1];
-  assert.ok(nonce);
-
-  const forged = await runHook("subagent-stop", {
-    cwd: root, session_id: session, agent_id: "challenge-reviewer", hook_event_name: "SubagentStop",
-    last_assistant_message: `RD_REVIEW_RESULT ${JSON.stringify({
-      stage: "challenge", reviewNonce: "ffffffffffffffff", decision: "approve", evidenceAnchors: ["01-frame.md"],
-    })}`,
-  }, env);
-  assert.match(forged.stdout, /reviewNonce does not match|independent review result rejected/u, forged.stdout);
-
-  const writeDenied = await runHook("pre", {
-    cwd: root, session_id: session, agent_id: "challenge-reviewer",
-    tool_name: "Write", tool_input: { file_path: join(dir, "03-challenge.md"), content: "nope\n" },
-  }, env);
-  assert.equal(parseOutput(writeDenied.stdout)?.hookSpecificOutput?.permissionDecision, "deny");
-
-  const challenged = await runHook("subagent-stop", {
-    cwd: root, session_id: session, agent_id: "challenge-reviewer", hook_event_name: "SubagentStop",
-    last_assistant_message: `RD_REVIEW_RESULT ${JSON.stringify({
-      stage: "challenge", reviewNonce: nonce, decision: "challenge", evidenceAnchors: ["01-frame.md"],
-    })}`,
-  }, env);
-  assert.match(challenged.stdout, /challenge recorded/u, challenged.stdout);
-
-  const unsigned = await runHook("post", {
-    cwd: root, session_id: session, tool_name: "Write",
-    tool_input: { file_path: join(dir, "03-challenge.md") },
-  }, env);
-  writeArtifact(join(dir, "03-challenge.md"), stages().challenge);
-  const stillUnsigned = await runHook("post", {
-    cwd: root, session_id: session, tool_name: "Write",
-    tool_input: { file_path: join(dir, "03-challenge.md") },
-  }, env);
-  assert.match(`${unsigned.stdout}\n${stillUnsigned.stdout}`, /RD_REVIEW_REQUEST challenge/u);
-  assert.doesNotMatch(stillUnsigned.stdout, /RD-R3/u);
-
-  await approveIndependentReview(env, { cwd: root, session, stage: "challenge", agentId: "challenge-reviewer-2" });
-  writeArtifact(join(dir, "03-challenge.md"), stages().challenge);
-  const signed = await runHook("post", {
-    cwd: root, session_id: session, tool_name: "Write",
-    tool_input: { file_path: join(dir, "03-challenge.md") },
-  }, env);
-  assert.match(signed.stdout, /RD-R3/u, signed.stdout);
-
-  writeArtifact(join(dir, "02-analysis.md"), stages().analysis);
-  await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "02-analysis.md") } }, env);
-  writeArtifact(join(dir, "03-challenge.md"), stages().challenge);
-  const stale = await runHook("post", {
-    cwd: root, session_id: session, tool_name: "Write",
-    tool_input: { file_path: join(dir, "03-challenge.md") },
-  }, env);
-  assert.match(stale.stdout, /missing or stale/u, stale.stdout);
-  assert.doesNotMatch(stale.stdout, /RD-R3/u);
-});
-
-test("SessionStart publishes a compact five-stage reasoning route", async () => {
+test("SessionStart publishes a narrow opt-in reasoning route", async () => {
   const root = workspace();
   const result = await runHook("session", {
     cwd: root,
@@ -868,9 +660,11 @@ test("SessionStart publishes a compact five-stage reasoning route", async () => 
   const context = output?.hookSpecificOutput?.additionalContext ?? "";
   assert.equal(output?.hookSpecificOutput?.hookEventName, "SessionStart");
   assert.match(context, /`\$reasoning-discipline`/u);
-  assert.match(context, /standing rule.*proof.*exact.*worst-case.*algorithmic.*causal.*constrained-decision.*must invoke.*reasoning-discipline.*finish five stages.*before replying.*final-only/iu);
-  assert.ok(context.length <= 200, `SessionStart context is ${context.length} characters`);
-  assert.doesNotMatch(context, /ordering|boundary|representation|observability|quantifier|strategy|workflow\.md/iu);
+  assert.match(context, /only for.*proof.*worst-case.*causal.*high-impact decision/iu);
+  assert.match(context, /ordinary code or plugin review.*direct executable oracle.*do not activate/iu);
+  assert.match(context, /workflow\.md.*deliberate activation/iu);
+  assert.doesNotMatch(context, /must invoke|standing rule/iu);
+  assert.ok(context.length <= 360, `SessionStart context is ${context.length} characters`);
 });
 
 test("hook remains idle until workflow.md is written", async () => {
@@ -1101,7 +895,7 @@ test("hook blocks a skipped stage and invalidates downstream receipts after rewr
   assert.equal(existsSync(join(data, "reasoning-discipline-guard")), false);
 });
 
-test("paused workflow passes Stop without conclusion receipts", async () => {
+test("paused workflow delivers partial facts but still rejects an asserted conclusion", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "reasoning-paused-data-"));
   const dir = workflowDir(root);
@@ -1118,7 +912,6 @@ test("paused workflow passes Stop without conclusion receipts", async () => {
 
   const falseConclusion = await runHook("stop", { cwd: root, session_id: "paused", last_assistant_message: "The verified answer is 21." }, env);
   assert.equal(parseOutput(falseConclusion.stdout)?.decision, "block");
-  assert.match(parseOutput(falseConclusion.stdout)?.reason ?? "", /cannot accompany a conclusion claim/u);
 
   const unknownCause = await runHook("stop", {
     cwd: root,
@@ -1161,6 +954,20 @@ test("paused workflow passes Stop without conclusion receipts", async () => {
     last_assistant_message: "根因是提供方超时。",
   }, env);
   assert.equal(parseOutput(assertedCauseZh.stdout)?.decision, "block");
+
+  const partialFactsZh = await runHook("stop", {
+    cwd: root,
+    session_id: "paused",
+    last_assistant_message: "01-frame 和 02-analysis 已签章；03-challenge 因 reviewer 失败尚未签章；正式结论仍未形成。",
+  }, env);
+  assert.equal(partialFactsZh.stdout, "", partialFactsZh.stdout);
+
+  const mixedZh = await runHook("stop", {
+    cwd: root,
+    session_id: "paused",
+    last_assistant_message: "正式结论仍未形成，但已验证结论：21。",
+  }, env);
+  assert.equal(parseOutput(mixedZh.stdout)?.decision, "block");
 
   const rejectedConclusionReport = await runHook("stop", {
     cwd: root,
