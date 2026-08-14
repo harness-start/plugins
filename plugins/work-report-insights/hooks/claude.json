@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Agent|Task|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
         "hooks": [
           {
             "type": "command",
@@ -21,30 +21,6 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" post",
             "statusMessage": "Verifying work report receipt",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" review-start",
-            "statusMessage": "Binding work-report critic",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" subagent-stop",
-            "statusMessage": "Recording work-report critic",
             "timeout": 10000
           }
         ]

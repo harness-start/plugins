@@ -3,7 +3,7 @@
     {
       "name": "research",
       "source": "https://github.com/mattpocock/skills/tree/v1.2.3/skills/engineering/research",
-      "description": "Discover-phase subagent technique: primary sources and findings Markdown. Orchestrator rewrites output paths under .research/runs/<id>/; never final evidence."
+      "description": "Discover-phase primary-source technique for the parent or an optional ordinary helper; returned leads are never final evidence."
     },
     {
       "name": "firecrawl",
