@@ -9,6 +9,14 @@ Produce compact, inspectable reasoning evidence before giving the conclusion. Do
 
 Creating `workflow.md` is the deliberate activation signal for `reasoning-discipline-guard`. Merely loading this Skill does not activate hooks.
 
+## Artifact language
+
+Use this precedence for the active conversation language: an explicit language for the requested output, then an active session language profile, then the predominant natural language of the current user request.
+
+Write every agent-authored natural-language value in the active conversation language, including values inside JSON, YAML, TOML, XML, Markdown machine blocks, tables, and generated files. This applies to questions, success criteria, assumptions, evidence, analysis, challenges, conclusions, uncertainty, and recovery actions.
+
+Keep schema names, keys, enum literals, IDs, identifiers, variables, code, commands, paths, flags, APIs, types, and verbatim quotations unchanged. Professional terms may remain in their conventional language, and explicitly requested translation content follows its requested target language. English placeholder text in a template describes field meaning; it is not the default output language.
+
 ## Choose one branch
 
 - `causal`: a concrete observed failure or effect must be explained by discriminating between competing causes.

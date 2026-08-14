@@ -1,13 +1,15 @@
 import { SCRIPT_LABELS } from "./language-drift.mjs";
 import { profileFor } from "./profiles.mjs";
 
-const TECHNICAL_EXCEPTION = "Code, commands, paths, flags, APIs, types, identifiers, short quotations, and explicitly requested translation content may remain unchanged.";
+const STRUCTURED_CONTENT = "All agent-authored natural-language values, including values inside JSON, YAML, TOML, XML, Markdown machine blocks, tables, and generated files, must use the session language profile.";
+const TECHNICAL_EXCEPTION = "Schema names, keys, enum literals, IDs, identifiers, variables, code, commands, paths, flags, APIs, and types remain unchanged. Verbatim quotations and explicitly requested translation content may retain their source or target language. A natural-language value is not exempt merely because it appears inside structured data or a code fence.";
 
 export function sessionContext(profileId) {
   const profile = profileFor(profileId);
   return [
     `[language-output-governance] profile=${profile.id}`,
     profile.sessionInstruction,
+    STRUCTURED_CONTENT,
     TECHNICAL_EXCEPTION,
     "An explicit user request for another response language updates the session profile; a translation request authorizes only its target language.",
   ].join("\n");
@@ -23,6 +25,8 @@ export function toolFeedback(profileId, finding, targets = []) {
     `Detected ${SCRIPT_LABELS[finding.script] ?? finding.script} text outside the session language profile ${profile.id}.`,
     repair,
     profile.rewriteInstruction,
+    STRUCTURED_CONTENT,
+    TECHNICAL_EXCEPTION,
   ].join("\n");
 }
 
@@ -33,6 +37,7 @@ export function driftBlockReason(profileId, finding) {
     `Detected ${SCRIPT_LABELS[finding.script] ?? finding.script} prose outside the session language profile ${profile.id}.`,
     profile.rewriteInstruction,
     "Preserve every fact, verification receipt, conclusion, and recovery instruction from the previous response.",
+    STRUCTURED_CONTENT,
     TECHNICAL_EXCEPTION,
   ].join("\n");
 }

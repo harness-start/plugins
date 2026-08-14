@@ -52,7 +52,17 @@ test("SessionStart initializes and resumes the configured profile", async () => 
   const started = await runEntry("session-start", event(cwd, "profile"), env);
   const output = JSON.parse(started.stdout);
   assert.equal(started.code, 0);
-  assert.match(output.hookSpecificOutput.additionalContext, /profile=ja-JP/u);
+  const context = output.hookSpecificOutput.additionalContext;
+  assert.match(context, /profile=ja-JP/u);
+  assert.match(
+    context,
+    /agent-authored natural-language values.*session language profile/isu,
+  );
+  assert.match(context, /JSON.*YAML.*Markdown machine blocks/isu);
+  assert.match(
+    context,
+    /schema names.*keys.*enum literals.*identifiers.*remain unchanged/isu,
+  );
 
   await runEntry("user-prompt", event(cwd, "profile", { prompt: "Please continue to answer in Korean." }), env);
   const resumed = await runEntry("session-start", event(cwd, "profile", { source: "resume" }), env);
@@ -110,6 +120,10 @@ test("PostToolUse reports generated input once and never scans tool output", asy
   const output = JSON.parse(first.stdout);
   assert.equal(output.hookSpecificOutput.hookEventName, "PostToolUse");
   assert.match(output.hookSpecificOutput.additionalContext, /answer\.txt/u);
+  assert.match(
+    output.hookSpecificOutput.additionalContext,
+    /agent-authored natural-language values.*session language profile/isu,
+  );
 
   const second = await runEntry("post-tool", event(cwd, "tool", {
     tool_name: "Write",
@@ -171,8 +185,13 @@ test("Stop blocks drift including host retries with stop_hook_active", async () 
   const blocked = await runEntry("stop", event(cwd, "stop", {
     last_assistant_message: "あいうえおかきくけこさし",
   }), env);
-  assert.equal(JSON.parse(blocked.stdout).decision, "block");
-  assert.match(JSON.parse(blocked.stdout).reason, /profile zh-CN/u);
+  const blockedOutput = JSON.parse(blocked.stdout);
+  assert.equal(blockedOutput.decision, "block");
+  assert.match(blockedOutput.reason, /profile zh-CN/u);
+  assert.match(
+    blockedOutput.reason,
+    /agent-authored natural-language values.*session language profile/isu,
+  );
 
   const retry = await runEntry("stop", event(cwd, "stop", {
     stop_hook_active: true,

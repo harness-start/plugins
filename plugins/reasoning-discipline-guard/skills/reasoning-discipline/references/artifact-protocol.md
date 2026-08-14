@@ -4,6 +4,10 @@ Each Markdown file contains exactly one machine block. Narrative outside the blo
 
 Write each artifact in its own observable file-tool call (Codex: `apply_patch`; Claude Code: Write/Edit). Shell-based file writes cannot receive a guard receipt and are invalid for this protocol.
 
+Write every agent-authored natural-language value in the active session language, including values inside JSON, YAML, TOML, XML, Markdown machine blocks, tables, and generated files. Use an explicit output language first, then the active session profile, then the predominant natural language of the current user request.
+
+Keep schema names, keys, enum literals, IDs, identifiers, variables, code, commands, paths, flags, APIs, types, and verbatim quotations unchanged. Professional terms may remain in their conventional language, and explicitly requested translation content follows its requested target language. English placeholder text in a template describes field meaning; it is not the default output language.
+
 ## Workflow manifest
 
 ```json reasoning-workflow/v1

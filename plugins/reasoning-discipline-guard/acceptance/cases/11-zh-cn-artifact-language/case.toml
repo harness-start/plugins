@@ -1,0 +1,4 @@
+id = "11-zh-cn-artifact-language"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["skill", "causal", "paused", "zh-cn", "artifact-language"]

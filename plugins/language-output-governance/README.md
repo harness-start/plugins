@@ -4,6 +4,8 @@
 
 插件只治理会话的自然语言输出语言，不控制语气、人格、详略、格式、翻译质量或工具输出。
 
+`SessionStart` 的 profile 提示覆盖 agent 编写的所有自然语言值，包括 JSON、YAML、TOML、XML、Markdown machine block、表格和生成文件里的说明性字段。schema、key、枚举、ID、标识符、代码、命令、路径、原文引用和明确要求的翻译内容不随之改写；把自然语言放进结构化数据或 code fence 不会自动获得豁免。
+
 ## 语言 Profile
 
 | Profile | 允许的自然语言文字系统 |
@@ -67,6 +69,8 @@ export default {
 Han 还会再做一层字形判断：`zh-CN` 会拦成段繁体专用字，`zh-TW` 会拦成段简体专用字，`ja-JP` 会拦没有假名的成段汉字（当作中文）。两边都授权时不报。一对多异体（后/发/里/台 等）不参与计分，避免误报。
 
 计数前会排除 fenced code、inline code、Markdown 引用行、URL 和链接目标。`PostToolUse` 只提取生成输入，包括命令文本及其带引号 payload、文件内容、替换字符串或 patch 新增行；`Stop` 只检查宿主提供的最终 assistant message。这是确定性的 Unicode Script 守卫，不是通用自然语言分类器。
+
+结构化字段值的语言一致性属于预防性提示契约。Latin 仍始终允许，插件不会把中文 profile 中的英文散文升级为硬阻断；这样可以避免误伤技术术语、API、类型和标识符。
 
 ## 从 `in-chinese` 迁移
 
