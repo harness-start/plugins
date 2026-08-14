@@ -344,13 +344,6 @@ export class ResearchService {
     const revision = Number(args.mutation_revision);
     if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("mutation_revision must be a non-negative integer");
     validateClaims(args.claims, this.anchors);
-    const workflow = readWorkflowFile(workflowPath(this.workspaceRoot, this.run.run_id));
-    if (this.sources.size > 1 && !workflow?.allow_solo_main) {
-      const delivered = (workflow?.subagents ?? []).some((item) => item.status === "delivered");
-      if (!delivered) {
-        throw new Error("multi-source research requires a delivered inbound researcher handoff unless allow_solo_main is true");
-      }
-    }
     const sources = [...this.sources.values()].map(({ content_path: _contentPath, ...source }) => source);
     const anchors = [...this.anchors.values()];
     const base = { schema: "research-manifest/v1", run_id: this.run.run_id, question: this.run.question, scope: this.run.scope, as_of: this.run.as_of, prompt_epoch: this.run.prompt_epoch, mutation_revision: revision, sources, anchors, claims: args.claims };

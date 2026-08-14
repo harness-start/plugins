@@ -5,7 +5,6 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { ResearchService } from "../server/lib/research-service.mjs";
-import { readWorkflowFile, workflowPath, writeWorkflow } from "../scripts/lib/workflow-fs.mjs";
 import { validateSealedArtifacts } from "../scripts/lib/seal-validator.mjs";
 
 async function fixture() {
@@ -47,7 +46,7 @@ test("public MCP service creates anchored evidence and a verifiable seal", async
   assert.deepEqual(await validateSealedArtifacts({ workspaceRoot: workspace, runId: begun.run_id, seal: sealed.seal }), []);
 });
 
-test("multi-source seal requires a delivered inbound researcher unless solo main", async () => {
+test("multi-source seal depends on captured evidence, not subagent lifecycle state", async () => {
   const { workspace, dataRoot } = await fixture();
   await writeFile(join(workspace, "other.md"), "Gamma is extra.\n", "utf8");
   const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "session-multi" });
@@ -64,19 +63,6 @@ test("multi-source seal requires a delivered inbound researcher unless solo main
     kind: "exact_quote",
     value: "Alpha is documented.",
   });
-  await assert.rejects(
-    service.call("research_seal", {
-      run_id: begun.run_id,
-      prompt_epoch: 1,
-      mutation_revision: 0,
-      claims: [{ id: "C1", status: "anchored", text: "Alpha is documented.", anchor_ids: [anchor.anchor_id] }],
-    }),
-    /inbound researcher handoff/u,
-  );
-
-  const workflow = readWorkflowFile(workflowPath(workspace, begun.run_id));
-  workflow.subagents = [{ id: "researcher-1", role: "researcher", status: "delivered", handoff_path: "handoffs/inbound/researcher-1.json", result_path: "handoffs/inbound/researcher-1.result.md" }];
-  writeWorkflow(workspace, workflow);
   const sealed = await service.call("research_seal", {
     run_id: begun.run_id,
     prompt_epoch: 1,
