@@ -13,7 +13,6 @@
 | `07-explicit-shape-choice` | Explicit selectable-category reading | Allocation model closes with the selectable-shape result |
 | `08-explicit-blind-draw` | Explicitly prohibited category selection | Blocked-observability model closes with the blind-draw result |
 | `09-semantic-policy-support` | Semantic policy choice with a numeric supporting metric | Supporting score remains evidence and does not replace the policy identifier |
-| `10-independent-review-required` | Parent writes the challenge stage without a child reviewer | Hook refuses `RD-R3` until an independent challenge review exists |
 | `11-zh-cn-artifact-language` | Chinese evidence-starved causal workflow | Manifest and frame prose follow Chinese, then pause honestly before unsupported analysis |
 
 All cases run on Claude and Codex. `expect.sh` requires real hook markers and checks workspace artifacts, not prompt echoes alone.
