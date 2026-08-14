@@ -4,8 +4,8 @@
 
 ## 入口和工作顺序
 
-1. 安装插件，以及可选的 `research`、`firecrawl`、`handoff` Skill 依赖。
-2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，不能直接从裸 `firecrawl` / `research` 开始。
+1. 安装插件，以及可选的 `research`、`firecrawl`、`arxiv-search`、`handoff` Skill 依赖。
+2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，不能直接从裸 `firecrawl`、`research` 或 `arxiv-search` 开始。
 3. orchestrator 在 `.research/runs/<run-id>/workflow.json` 下创建持久运行。
 4. 只有该运行处于 open 时，Firecrawl CLI 阻断、`Stop` seal 校验和 outbound 门禁等硬行为才生效。
 
@@ -91,6 +91,7 @@ node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/re
 
 - `research`：供父 agent 或可选普通 helper 使用的发现/阅读方法；返回内容只是待核实线索；
 - `firecrawl`：只提供发现策略，硬运行仍使用 MCP `source_discover` / `source_capture`；
+- `arxiv-search`：固定到已审计的 `deepagents==0.7.5` 版本，只用于学术候选发现；标题和摘要是不可信线索，必须解析到权威论文页面并经 MCP 捕获、锚定；
 - `handoff`：seal 后跨会话交接，精确 prompt 必须写入项目 `outbound/prompt.md`。
 
 ## 状态、并发与信任边界

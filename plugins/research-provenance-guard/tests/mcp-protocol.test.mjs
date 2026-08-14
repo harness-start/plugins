@@ -54,6 +54,7 @@ test("stdio MCP exposes seven tools and binds research_begin through roots/list"
   send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1" } } });
   const initialized = await take((message) => message.id === 1);
   assert.equal(initialized.result.serverInfo.name, "research_provenance");
+  assert.equal(initialized.result.serverInfo.version, "0.3.0");
   assert.match(initialized.result.instructions, /registered namespaced research_provenance tools/u);
   send({ jsonrpc: "2.0", method: "notifications/initialized" });
   send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });

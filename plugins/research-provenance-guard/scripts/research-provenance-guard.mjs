@@ -19,7 +19,7 @@ const MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_discover|so
 const SESSION_CONTEXT = [
   "[Research Provenance Guard] Research entry routing",
   "For research, investigation of APIs/docs/specs/facts, source-backed findings, or multi-source evidence work, invoke research-evidence-workflow first and open a project run under .research/runs/.",
-  "Do not start such tasks by invoking standalone firecrawl or research skills. Use them only as phase techniques under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
+  "Do not start such tasks by invoking standalone firecrawl, research, or arxiv-search skills. Use them only as phase techniques under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
   "Invoke handoff only after the run is sealed and handoffs/outbound files exist.",
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open—not because this SessionStart text appeared.",
   "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence.",
