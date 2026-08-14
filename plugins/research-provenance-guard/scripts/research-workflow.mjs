@@ -88,7 +88,6 @@ function cmdRunOpen(cwd, options) {
     scope: String(options.scope ?? "").trim(),
     asOf: String(options["as-of"] ?? options.as_of ?? "").trim(),
     promptEpoch: Number(options["prompt-epoch"] ?? 0),
-    allowSoloMain: options["allow-solo-main"] === true || options["allow-solo-main"] === "true",
   });
   writeWorkflow(cwd, workflow);
   appendSkillTrace(cwd, runId, { phase: "open", skill: "research-evidence-workflow", mode: "invoke", notes: "run-open" });
@@ -112,62 +111,6 @@ function cmdBriefWrite(cwd, options) {
   saveBrief(cwd, runId, workflow);
   appendSkillTrace(cwd, runId, { phase: "briefed", skill: "research-evidence-workflow", mode: "invoke", artifact_paths: [`brief.md`] });
   output({ ok: true, run_id: runId, phase: workflow.phase });
-}
-
-function cmdHandoffInbound(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
-  if (!runId) throw new Error("--run-id or an active run is required");
-  if (!options.file) throw new Error("--file is required");
-  const workflow = loadWorkflow(cwd, runId);
-  requirePreSeal(workflow, "handoff-inbound");
-  const source = resolve(cwd, String(options.file));
-  const raw = JSON.parse(readFileSync(source, "utf8"));
-  const id = String(raw.id ?? "").trim();
-  if (!/^[a-zA-Z0-9._-]{1,96}$/u.test(id)) throw new Error("inbound handoff id is required");
-  if (typeof raw.dispatch_prompt !== "string" || !raw.dispatch_prompt.trim()) throw new Error("dispatch_prompt is required");
-  ensureRunSkeleton(cwd, runId);
-  const rel = `handoffs/inbound/${id}.json`;
-  const dest = join(cwd, ".research", "runs", runId, rel);
-  writeFileSync(dest, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
-  const entry = {
-    id,
-    role: raw.role ?? "researcher",
-    handoff_path: rel,
-    result_path: `handoffs/inbound/${id}.result.md`,
-    status: "open",
-    suggested_skills: Array.isArray(raw.suggested_skills) ? raw.suggested_skills : [],
-  };
-  workflow.subagents = [...(workflow.subagents ?? []).filter((item) => item.id !== id), entry];
-  if (!["sealed", "handed_off", "complete", "aborted"].includes(workflow.phase)) workflow.phase = "discovering";
-  writeWorkflow(cwd, workflow);
-  appendSkillTrace(cwd, runId, {
-    phase: workflow.phase,
-    skill: "research",
-    mode: "adapt",
-    artifact_paths: [rel],
-    notes: "inbound handoff registered",
-  });
-  output({ ok: true, run_id: runId, handoff_path: rel, dispatch_prompt_bytes: Buffer.byteLength(raw.dispatch_prompt, "utf8") });
-}
-
-function cmdHandoffResult(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
-  const id = String(options.id ?? "").trim();
-  if (!runId || !id) throw new Error("--run-id and --id are required");
-  if (!/^[a-zA-Z0-9._-]{1,96}$/u.test(id)) throw new Error("--id must be a safe inbound handoff identifier");
-  if (!options.file) throw new Error("--file is required");
-  const workflow = loadWorkflow(cwd, runId);
-  requirePreSeal(workflow, "handoff-result");
-  if (!(workflow.subagents ?? []).some((item) => item.id === id)) throw new Error(`unknown inbound handoff id: ${id}`);
-  const source = resolve(cwd, String(options.file));
-  const text = readFileSync(source, "utf8");
-  const rel = `handoffs/inbound/${id}.result.md`;
-  const dest = join(cwd, ".research", "runs", runId, rel);
-  mkdirSync(dirname(dest), { recursive: true });
-  writeFileSync(dest, text, "utf8");
-  workflow.subagents = (workflow.subagents ?? []).map((item) => (item.id === id ? { ...item, status: "delivered", result_path: rel } : item));
-  writeWorkflow(cwd, workflow);
-  output({ ok: true, run_id: runId, result_path: rel });
 }
 
 function cmdClaimsDraft(cwd, options) {
@@ -257,8 +200,6 @@ async function main() {
   if (!command) throw new Error("usage: research-workflow.mjs <command> [--cwd DIR]");
   if (command === "run-open") return cmdRunOpen(cwd, options);
   if (command === "brief-write") return cmdBriefWrite(cwd, options);
-  if (command === "handoff-inbound") return cmdHandoffInbound(cwd, options);
-  if (command === "handoff-result") return cmdHandoffResult(cwd, options);
   if (command === "claims-draft") return cmdClaimsDraft(cwd, options);
   if (command === "completeness-check") return cmdCompleteness(cwd, options);
   if (command === "handoff-outbound") return cmdHandoffOutbound(cwd, options);

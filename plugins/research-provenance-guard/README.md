@@ -14,7 +14,7 @@
 ```text
 进入 orchestrator Skill
   -> project workflow.json（open）
-  -> brief、source plan 与 inbound subagent handoff
+  -> brief 与 source plan；必要时用自然语言请求普通 research helper
   -> MCP roots/list 绑定 workspace
   -> 候选发现（不是证据）
   -> 私有 plugin data 中有限 source capture
@@ -39,7 +39,6 @@ Hook 被调用、`SessionStart` 打了字、装了 skill-deps，或多走几轮�
   brief.md
   source-plan.md
   skill-trace.jsonl
-  handoffs/inbound/*
   handoffs/outbound/*    # 仅 sealed 后
   claims.draft.json
   research.json          # 仅 seal 写入
@@ -51,7 +50,7 @@ Hook 被调用、`SessionStart` 打了字、装了 skill-deps，或多走几轮�
 | 路径 | 允许 writer |
 | --- | --- |
 | `workflow.json` 的 phase 与 completeness | workflow CLI、MCP 或已校验 lifecycle Hook |
-| brief、source plan、skill trace、inbound handoff、claims draft | open 运行中的 orchestrator、workflow CLI 或 agent |
+| brief、source plan、skill trace、claims draft | open 运行中的 orchestrator、workflow CLI 或 agent |
 | `research.json`、`report.md` | 仅 `research_seal` |
 | `handoffs/outbound/**` | phase 为 `sealed` 后的 `handoff-outbound` CLI |
 
@@ -71,7 +70,7 @@ Research-Seal: sha256:<digest>
 
 seal 后使用 workflow CLI 的 `handoff-outbound`，记录 `handoffs/outbound/handoff.md` 和保存完整 prompt 的 `prompt.md`，之后可选调用社区 `handoff` Skill。直接写 outbound 路径会被阻断。这项 CLI 转换只记录 lifecycle metadata，不会使已经不可变的 evidence seal 过期。
 
-父会话拥有 seal 和 outbound handoff。subagent 可 capture/read 或通过 inbound handoff 起草 notes，但其 prose 不能创建 seal receipt。
+父会话拥有 MCP capture/anchor、claim 判定、seal 和 outbound handoff。它可以用自然语言把候选发现或长文阅读交给普通只读 subagent，但必须亲自打开其引用来源并通过 MCP 捕获、锚定；subagent prose 不是证据，也不能创建 seal receipt。
 
 ## 工作流 CLI
 
@@ -82,7 +81,6 @@ RESEARCH_WORKFLOW="${RESEARCH_PLUGIN_ROOT}/scripts/research-workflow.mjs"
 
 node "${RESEARCH_WORKFLOW}" run-open --cwd "$PWD"
 node "${RESEARCH_WORKFLOW}" brief-write --cwd "$PWD" --question "研究问题" --scope "研究范围" --as-of "2026-08-13"
-node "${RESEARCH_WORKFLOW}" handoff-inbound --cwd "$PWD" --file /tmp/research-inbound.json
 node "${RESEARCH_WORKFLOW}" completeness-check --cwd "$PWD"
 node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/research-handoff.md --prompt-file /tmp/research-prompt.md
 ```
@@ -91,7 +89,7 @@ node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/re
 
 `skill-deps.json` 安装的是阶段 worker，不是替代入口：
 
-- `research`：供 subagent 使用的发现/阅读方法，finding 写入 inbound 路径；
+- `research`：供父 agent 或可选普通 helper 使用的发现/阅读方法；返回内容只是待核实线索；
 - `firecrawl`：只提供发现策略，硬运行仍使用 MCP `source_discover` / `source_capture`；
 - `handoff`：seal 后跨会话交接，精确 prompt 必须写入项目 `outbound/prompt.md`。
 
