@@ -9,7 +9,7 @@
 
 ## 为什么保留
 
-`harness-starter` 的 `spec-workflow-artifact-gate` 与 `ai-experts` 的 `spec-plan-artifact-gate` 都会在写下游产物前检查 sibling `spec.md`。本仓的 `intent-clarify-gate` 只保护正在澄清的会话，`first-principles-gate` 只保护其 ledger；它们不验证磁盘上的规格产物依赖。
+`harness-starter` 的 `spec-workflow-artifact-gate` 与 `ai-experts` 的 `spec-plan-artifact-gate` 都会在写下游产物前检查 sibling `spec.md`。本仓的 `intent-clarify-gate` 只保护正在澄清的会话，`reasoning-discipline` 只提供思考方法；它们都不验证磁盘上的规格产物依赖。
 
 候选不采用“任意正则 + 只检查文件存在”的原草案。那条链路既容易误配，也不能阻止空 spec。最小版本使用固定、可解析的 `.specs/<NNN>-<slug>/` 合同。
 

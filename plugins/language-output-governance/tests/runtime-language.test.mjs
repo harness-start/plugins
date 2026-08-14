@@ -10,7 +10,6 @@ const GUARDED_SCRIPTS = /\p{Script=Han}|\p{Script=Hangul}|\p{Script=Hiragana}|\p
 
 const DETECTOR_ONLY_LINES = new Map([
   ["plugins/command-safety-guards/scripts/engines/file-safety.mjs", ["const PII =", "const tlsLine ="]],
-  ["plugins/first-principles-gate/scripts/lib/policy.mjs", ["const IMPLEMENT_CLAIM", "const COMPLETION_CLAIM", "/(?:开始实现", "/(?:第一性原理"]],
   ["plugins/git-delivery-guards/scripts/checks/command-rules.mjs", ["const GENERIC ="]],
   ["plugins/intent-clarify-gate/scripts/lib/policy.mjs", ["const IMPLEMENT_CLAIM", "/(?:开始实现"]],
   ["plugins/language-output-governance/scripts/lib/intent.mjs", ["const TRANSLATION_CUE", "const RESPONSE_CUE", "const GENERIC_CHINESE"]],

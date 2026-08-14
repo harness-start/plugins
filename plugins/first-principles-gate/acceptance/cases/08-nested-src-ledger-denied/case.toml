@@ -1,4 +1,0 @@
-id = "08-nested-src-ledger-denied"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["pre-tool", "deny", "ledger"]

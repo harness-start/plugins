@@ -1,4 +1,0 @@
-id = "01-no-file-no-activation"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["negative", "activation"]

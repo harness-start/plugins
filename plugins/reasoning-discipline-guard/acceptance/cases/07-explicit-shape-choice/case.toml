@@ -1,4 +1,0 @@
-id = "07-explicit-shape-choice"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["routing", "exact", "control", "outcome"]

@@ -1,4 +1,0 @@
-id = "04-decision-sensitivity"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["skill", "decision", "sensitivity"]

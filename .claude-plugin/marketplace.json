@@ -67,14 +67,9 @@
       "description": "Gates business writes during grill-me style intent clarification until \u5b8c\u6210 or complete-option close."
     },
     {
-      "name": "first-principles-gate",
-      "source": "./plugins/first-principles-gate",
-      "description": "Gates business writes during first-principles analysis until a structured on-disk ledger is complete and the session closes."
-    },
-    {
-      "name": "reasoning-discipline-guard",
-      "source": "./plugins/reasoning-discipline-guard",
-      "description": "Routes precise reasoning into an ordered, file-backed workflow before an activated analysis can conclude."
+      "name": "reasoning-discipline",
+      "source": "./plugins/reasoning-discipline",
+      "description": "Provides adaptive first-principles and verification-oriented reasoning methods without a file-backed workflow."
     },
     {
       "name": "markdown-format-guard",

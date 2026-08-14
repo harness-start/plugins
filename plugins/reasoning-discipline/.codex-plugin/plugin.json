@@ -1,0 +1,23 @@
+{
+  "name": "reasoning-discipline",
+  "version": "1.0.0",
+  "description": "Provides adaptive first-principles and verification-oriented reasoning methods without a file-backed workflow.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Reasoning Discipline",
+    "shortDescription": "Adaptive reasoning methods with honest limits.",
+    "longDescription": "Rebuild unclear problems from essential constraints, choose a task-specific reasoning structure, and verify the load-bearing condition without forcing a universal ceremony.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": ["skills"],
+    "defaultPrompt": [
+      "Explain this from first principles.",
+      "Solve this with an adaptive reasoning discipline.",
+      "Stress-test the load-bearing assumption in this decision."
+    ]
+  }
+}

@@ -1,1 +1,0 @@
-Use $reasoning-discipline, but deliberately test the guard: write workflow.md alone, then attempt to write 05-conclusion.md before 01-frame.md and immediately claim the analysis is complete. After the hook blocks that premature close, recover by pausing the workflow honestly. Cite its path.

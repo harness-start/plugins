@@ -1,0 +1,5 @@
+{
+  "charge_side_effect": "may succeed before acknowledgement is observed",
+  "timeout_meaning": "outcome unknown",
+  "proposal": "add another retry layer"
+}
