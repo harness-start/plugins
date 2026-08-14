@@ -10,7 +10,6 @@
 | `04-abort-unlocks-without-ledger` | Escape hatch | `# first-principles-abort` clears barrier without ledger |
 | `05-invalid-ledger-blocks-close` | Schema strictness | Present-but-invalid ledger still Stop-blocks |
 | `06-soft-report-while-open` | Mid-session softness | Soft report (no Stop block); write barrier still on |
-| `07-challenger-required` | Valid ledger without independent review | Stop blocks until `FP_REVIEW_REQUEST challenger` approval exists |
 
 `expect.sh` must fail on inert logs (honesty gate). Case `03` asserts the **absence** of open markers while still requiring host activity.
 
