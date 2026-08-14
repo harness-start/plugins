@@ -1,4 +1,0 @@
-id = "04-recorder-singleton"
-hosts = ["claude", "codex"]
-timeout_sec = 360
-tags = ["recorder", "singleton", "nested-deny"]
