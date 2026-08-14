@@ -14,7 +14,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Agent|Task|Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "matcher": "Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
         "hooks": [
           {
             "type": "command",
@@ -58,30 +58,6 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" stop",
             "statusMessage": "Validating Debug Work Order",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" review-start",
-            "statusMessage": "Binding independent debug reviewer",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" subagent-stop",
-            "statusMessage": "Recording independent debug review",
             "timeout": 10000
           }
         ]
