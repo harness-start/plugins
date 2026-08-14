@@ -205,7 +205,7 @@ assert_project_install_ready() {
     return 1
   fi
   # Community skills from catalog skill-deps must land under isolated HOME.
-  # grill-me is declared by intent-clarify-gate and is a stable canary.
+  # grill-me is declared by work-report-insights and is a stable canary.
   # skills CLI may install to ~/.agents/skills (universal) and/or ~/.claude/skills
   # depending on -a agents (claude-only often copies into ~/.claude/skills only).
   if [ ! -f "${dest_home}/.agents/skills/grill-me/SKILL.md" ] \

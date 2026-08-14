@@ -80,15 +80,15 @@ got="$(list_plugin_skill_deps "${plugin_none}")"
 assert_eq "missing skill-deps is empty" "${got}" ""
 
 # --- list: real marketplace plugin with deps ---------------------------------
-if [ -f "${REPO_ROOT}/plugins/intent-clarify-gate/skill-deps.json" ]; then
-  got="$(list_plugin_skill_deps "${REPO_ROOT}/plugins/intent-clarify-gate")"
+if [ -f "${REPO_ROOT}/plugins/work-report-insights/skill-deps.json" ]; then
+  got="$(list_plugin_skill_deps "${REPO_ROOT}/plugins/work-report-insights")"
   if printf '%s\n' "${got}" | grep -q $'^grill-me\t'; then
-    pass "list intent-clarify-gate includes grill-me"
+    pass "list work-report-insights includes grill-me"
   else
-    fail "list intent-clarify-gate missing grill-me (got=${got})"
+    fail "list work-report-insights missing grill-me (got=${got})"
   fi
 else
-  fail "intent-clarify-gate skill-deps.json missing from repo"
+  fail "work-report-insights skill-deps.json missing from repo"
 fi
 
 # --- seed without install (synthetic cache) ----------------------------------
@@ -123,7 +123,7 @@ assert_fail "install fails closed on invalid skill-deps" \
   install_plugin_skill_deps "${plugin_bad}" "${dest_home}" "${tmp}/cache-bad" "claude"
 
 ACCEPT_SKIP_SKILL_DEPS=1 assert_ok "ACCEPT_SKIP_SKILL_DEPS skips valid deps" \
-  install_plugin_skill_deps "${REPO_ROOT}/plugins/intent-clarify-gate" \
+  install_plugin_skill_deps "${REPO_ROOT}/plugins/work-report-insights" \
   "${tmp}/skip-home" "${tmp}/skip-cache" "claude"
 unset ACCEPT_SKIP_SKILL_DEPS
 
