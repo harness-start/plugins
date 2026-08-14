@@ -30,7 +30,7 @@ Keep schema names, keys, enum literals, IDs, identifiers, variables, code, comma
 
 `branch` is `exact`, `causal`, or `decision`. `status` is `open`, `paused`, `closed`, or `aborted`.
 
-## 01-frame.md
+## 01-frame.md: exact
 
 ```json reasoning-stage/v1
 {
@@ -103,6 +103,34 @@ Keep schema names, keys, enum literals, IDs, identifiers, variables, code, comma
 ```
 
 Use empty arrays only when there truly are no ambiguities or strategy variables. Givens and assumptions are required. Exact strategy `kind` is `scalar`, `allocation`, `selection`, or `policy`; every exact strategy names its independently fixed `components`, and an allocation has at least two. Exact workflows require non-empty `controlAssignments` and `observabilityAudit` arrays. A given that says a dimension can be distinguished, sensed, observed, or selected must be referenced by an audit with `observable: true`; auditing only a combined hidden response does not cover that given. A user-stated action-time observable defaults to `controlEffect: "allocation"` and must link to an allocation strategy. `controlEffect: "blocked"` is valid only with a null strategy and `overrideSourceRef` pointing to a verbatim user constraint that explicitly prohibits using the signal for selection. Copy that constraint without adding inferred consequences and set its given `source` to `user-verbatim`; deciding a total in advance is not such a prohibition. Hidden entries use `observable: false`, `controlEffect: "none"`, and null strategy/override refs. Every strategy variable must be referenced by a separate assignment whose `controller` is `solver` or `participant`; use `strategyRef: null` for fixed or hidden dimensions. Never merge a controlled strategy and a hidden response into one assignment. `controller` is `solver`, `participant`, `environment`, `adversary`, or `fixed`.
+
+## 01-frame.md: causal and decision
+
+```json reasoning-stage/v1
+{
+  "schema": "reasoning-stage/v1",
+  "workflowId": "RW-20260809-short-slug",
+  "branch": "causal",
+  "stage": "frame",
+  "previousReceipt": null,
+  "payload": {
+    "givens": [
+      { "id": "G1", "statement": "explicit observation or constraint", "source": "user prompt" }
+    ],
+    "assumptions": [
+      { "id": "A1", "statement": "falsifiable assumption", "source": "inference", "falsifier": "observation that rejects it" }
+    ],
+    "ambiguities": [
+      { "id": "U1", "statement": "material ambiguity", "impact": "how outcomes differ", "resolution": "chosen reading or user answer" }
+    ],
+    "strategyVariables": [
+      { "id": "S1", "statement": "probe or decision variable", "alternatives": ["alternative one", "alternative two"] }
+    ]
+  }
+}
+```
+
+Set `branch` to `causal` or `decision`. Givens and assumptions are required. Use empty arrays only when there truly are no ambiguities or strategy variables. Do not add fields from the exact branch template.
 
 ## 02-analysis.md: exact
 

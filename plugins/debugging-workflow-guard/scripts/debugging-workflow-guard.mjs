@@ -198,17 +198,24 @@ async function runStop(event) {
   if (config.mode === "block") writeJson(stopDeny(reason)); else writeJson(contextOutput("Stop", reason));
 }
 
-function codexReviewRequest(event) {
-  const identity = codexReviewIdentity(event);
+function codexReviewRequest(identity) {
   if (!identity.valid) return null;
   const match = /^dbg_(diagnosis|architecture)(?:_[a-z0-9_]+)?$/u.exec(identity.taskName);
   return match ? { stage: match[1], direct: true } : null;
 }
 
-async function runReviewStart(event) {
+function rejectedCodexReviewer(identity) {
+  return !identity.valid && /^dbg_(?:diagnosis|architecture)(?:_[a-z0-9_]+)?$/u.test(identity.candidateTaskName ?? "");
+}
+
+async function runReviewStart(event, identity) {
   const { cwd, config, sessionId } = await context(event);
   if (config.mode === "off") return;
-  const request = parseReviewRequest(extractAgentPrompt(event)) ?? codexReviewRequest(event);
+  if (rejectedCodexReviewer(identity)) {
+    writeJson(contextOutput("SubagentStart", `[Debugging Workflow Guard] Codex reviewer identity rejected: ${identity.reason}; no review nonce was issued. Return immediately without reviewing.`));
+    return;
+  }
+  const request = parseReviewRequest(extractAgentPrompt(event)) ?? codexReviewRequest(identity);
   if (!request) return;
   const bound = request.direct
     ? reserveAndBindDebugReviewer({ cwd, sessionId, stage: request.stage, agentId: extractAgentId(event), config })
@@ -227,9 +234,13 @@ async function runReviewStart(event) {
   ].join("\n")));
 }
 
-async function runSubagentStop(event) {
+async function runSubagentStop(event, identity) {
   const { cwd, config, sessionId } = await context(event);
   if (config.mode === "off") return;
+  if (rejectedCodexReviewer(identity)) {
+    writeJson(stopDeny(`[Debugging Workflow Guard] Codex reviewer identity rejected: ${identity.reason}; the review result was not recorded. Retry with the original reviewer session identity.`));
+    return;
+  }
   const parsed = parseReviewResult(extractAssistantMessage(event));
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
   const reservation = live.state?.reviews?.reservation;
@@ -256,8 +267,8 @@ export async function main(mode = process.argv[2]) {
     else if (mode === "post") await runPost(event, false);
     else if (mode === "failure") await runPost(event, true);
     else if (mode === "stop") await runStop(event);
-    else if (mode === "review-start") await runReviewStart(event);
-    else if (mode === "subagent-stop") await runSubagentStop(event);
+    else if (mode === "review-start") await runReviewStart(event, identity);
+    else if (mode === "subagent-stop") await runSubagentStop(event, identity);
     else { warn(`unknown mode: ${mode}`); process.exitCode = 2; }
   } catch (error) {
     warn(error?.stack ?? error);

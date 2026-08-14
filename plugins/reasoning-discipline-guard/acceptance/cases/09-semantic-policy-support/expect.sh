@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'Standing rule: proof, exact, worst-case'
+require_session_context_signal 'Use `\$reasoning-discipline` only for proof, worst-case, causal inference, or high-impact decision'
 require_guard_hook_signal "${MARKERS_REASONING_DISCIPLINE}"
 workflow="$(find "${ACCEPT_WORKSPACE}/.reasoning-discipline" -mindepth 2 -maxdepth 2 -name workflow.md -type f | head -1)"
 [ -n "${workflow}" ] || { echo "expect fail: auto-route did not create a reasoning workflow" >&2; exit 1; }

@@ -1,6 +1,6 @@
 {
   "name": "reasoning-discipline-guard",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Routes exact, causal, and decision work into an ordered file-backed workflow before an activated analysis can conclude.",
   "author": {
     "name": "Harness Start",

@@ -13,5 +13,10 @@ test("Codex review identity derives the exact canonical task name from child ses
   const event = { session_id: "parent", agent_id: "child", cwd: "/workspace", transcript_path: transcriptPath };
   const payload = { id: "child", parent_thread_id: "parent", cwd: "/workspace", thread_source: "subagent", agent_path: "/root/rd_challenge_case", source: { subagent: { thread_spawn: { parent_thread_id: "parent", depth: 1, agent_path: "/root/rd_challenge_case" } } } };
   writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload })}\n`);
-  assert.equal(codexReviewIdentity(event, { codexHome }).taskName, "rd_challenge_case");
+  const parentEvent = codexReviewIdentity(event, { codexHome });
+  const childEvent = codexReviewIdentity({ ...event, session_id: "child" }, { codexHome });
+  assert.equal(parentEvent.taskName, "rd_challenge_case");
+  assert.equal(parentEvent.parentSessionId, "parent");
+  assert.equal(parentEvent.childSessionId, "child");
+  assert.deepEqual(childEvent, parentEvent);
 });

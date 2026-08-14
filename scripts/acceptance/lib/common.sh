@@ -71,7 +71,7 @@ list_cases() {
   if [ ! -d "${cases_dir}" ]; then
     return 0
   fi
-  find "${cases_dir}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+  find "${cases_dir}" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; | sort
 }
 
 read_case_hosts() {
@@ -82,7 +82,7 @@ read_case_hosts() {
     echo "claude codex"
     return 0
   fi
-  if grep -qE 'hosts\s*=' "${toml}"; then
+  if grep -qE 'hosts[[:space:]]*=' "${toml}"; then
     # shellcheck disable=SC2002
     cat "${toml}" | tr -d '[]"' | sed -n 's/.*hosts[[:space:]]*=[[:space:]]*//p' | tr ',' ' '
   else
@@ -94,7 +94,7 @@ read_case_timeout() {
   local case_dir="$1"
   local toml="${case_dir}/case.toml"
   local default="${ACCEPT_DEFAULT_TIMEOUT:-300}"
-  if [ -f "${toml}" ] && grep -qE 'timeout_sec\s*=' "${toml}"; then
+  if [ -f "${toml}" ] && grep -qE 'timeout_sec[[:space:]]*=' "${toml}"; then
     sed -n 's/.*timeout_sec[[:space:]]*=[[:space:]]*\([0-9][0-9]*\).*/\1/p' "${toml}" | head -1
   else
     echo "${default}"
@@ -368,7 +368,7 @@ populate_skill_deps_cache_home() {
   fi
   deps=()
   if [ -n "${deps_lines}" ]; then
-    mapfile -t deps <<<"${deps_lines}"
+    while IFS= read -r line; do deps+=("${line}"); done <<<"${deps_lines}"
   fi
   if [ "${#deps[@]}" -eq 0 ]; then
     # Valid empty skills[] — treat as no-op, but keep fingerprint stamp caller-side.
@@ -429,7 +429,7 @@ ensure_plugin_skill_deps_cache() {
   fi
   deps=()
   if [ -n "${deps_lines}" ]; then
-    mapfile -t deps <<<"${deps_lines}"
+    while IFS= read -r line; do deps+=("${line}"); done <<<"${deps_lines}"
   fi
   # Empty skills[] is valid; still create a stamp so we do not re-parse forever.
   fp="$(skill_deps_fingerprint "${deps_file}")"
@@ -545,7 +545,7 @@ install_plugin_skill_deps() {
   fi
   deps=()
   if [ -n "${deps_lines}" ]; then
-    mapfile -t deps <<<"${deps_lines}"
+    while IFS= read -r line; do deps+=("${line}"); done <<<"${deps_lines}"
   fi
 
   cache_home="$(ensure_plugin_skill_deps_cache "${plugin_dir}" "${cache_root}" "${host}")" || return 1

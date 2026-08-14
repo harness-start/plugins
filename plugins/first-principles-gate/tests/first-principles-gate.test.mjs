@@ -172,10 +172,11 @@ test("review-start ignores subagents that do not carry an FP review request", as
 test("review-start directly reserves an FP request and embeds ledger evidence", async () => {
   const root = workspace("fp-direct-review-");
   const data = mkdtempSync(join(tmpdir(), "fp-direct-review-data-"));
-  const codexHome = mkdtempSync(join(tmpdir(), "fp-direct-codex-home-"));
+  const home = mkdtempSync(join(tmpdir(), "fp-direct-home-"));
+  const codexHome = join(home, ".codex");
   const transcriptPath = join(codexHome, "sessions", "child.jsonl");
   mkdirSync(join(codexHome, "sessions"), { recursive: true });
-  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
+  const env = { PLUGIN_DATA: data, HOME: home, CODEX_HOME: "" };
   const session = "fp-direct-review-session";
   await runEntry("prompt", { cwd: root, session_id: session, prompt: "/first-principles direct review" }, env);
   writeLedger(root);
@@ -202,9 +203,17 @@ test("review-start directly reserves an FP request and embeds ledger evidence", 
   assert.match(context, /reviewNonce=[a-f0-9]+/u);
   assert.match(context, /ledgerEvidence=/u);
   assert.match(context, /first-principles\/v1/u);
+  const rejectedStop = await runEntry("subagent-stop", {
+    cwd: root,
+    session_id: "mismatched-session",
+    agent_id: "direct-fp-reviewer",
+    transcript_path: transcriptPath,
+    last_assistant_message: `FP_REVIEW_RESULT ${JSON.stringify({ stage: "challenger", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve" })}`,
+  }, env);
+  assert.match(rejectedStop.stdout, /Codex reviewer identity rejected/u);
   const recorded = await runEntry("subagent-stop", {
     cwd: root,
-    session_id: "direct-fp-reviewer",
+    session_id: session,
     agent_id: "direct-fp-reviewer",
     transcript_path: transcriptPath,
     last_assistant_message: `FP_REVIEW_RESULT ${JSON.stringify({ stage: "challenger", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve" })}`,
@@ -215,6 +224,39 @@ test("review-start directly reserves an FP request and embeds ledger evidence", 
     agent_prompt: "FP_REVIEW_REQUEST challenger",
   }, env);
   assert.doesNotMatch(parseStdout(replay.stdout)?.hookSpecificOutput?.additionalContext ?? "", /reviewNonce=/u);
+});
+
+test("review-start reports a rejected Codex identity instead of running an unsigned challenger", async () => {
+  const root = workspace("fp-rejected-review-");
+  const home = mkdtempSync(join(tmpdir(), "fp-rejected-home-"));
+  const codexHome = join(home, ".codex");
+  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
+  mkdirSync(join(codexHome, "sessions"), { recursive: true });
+  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "candidate-fp-reviewer", parent_thread_id: "candidate-parent", cwd: root,
+    thread_source: "subagent", agent_path: "/root/fp_challenger_case",
+    source: { subagent: { thread_spawn: { parent_thread_id: "candidate-parent", depth: 1, agent_path: "/root/fp_challenger_case" } } },
+  } })}\n`);
+  const result = await runEntry("review-start", {
+    cwd: root,
+    session_id: "mismatched-session",
+    agent_id: "candidate-fp-reviewer",
+    transcript_path: transcriptPath,
+  }, { CODEX_HOME: codexHome });
+  const context = parseStdout(result.stdout)?.hookSpecificOutput?.additionalContext ?? "";
+  assert.match(context, /Codex reviewer identity rejected/u);
+  assert.match(context, /no review nonce was issued.*return immediately/iu);
+
+  const unrelatedPath = join(codexHome, "sessions", "unrelated.jsonl");
+  writeFileSync(unrelatedPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "unrelated-child", parent_thread_id: "candidate-parent", cwd: root,
+    thread_source: "subagent", agent_path: "/root/ordinary_task",
+    source: { subagent: { thread_spawn: { parent_thread_id: "candidate-parent", depth: 1, agent_path: "/root/ordinary_task" } } },
+  } })}\n`);
+  const unrelated = await runEntry("review-start", {
+    cwd: root, session_id: "mismatched-session", agent_id: "unrelated-child", transcript_path: unrelatedPath,
+  }, { CODEX_HOME: codexHome });
+  assert.equal(unrelated.stdout, "");
 });
 
 // ---------------------------------------------------------------------------

@@ -256,9 +256,12 @@ function runPre(event, config) {
   }
 }
 
-function codexReviewRequest(event) {
-  const identity = codexReviewIdentity(event);
+function codexReviewRequest(identity) {
   return identity.valid && /^fp_challenger(?:_[a-z0-9_]+)?$/u.test(identity.taskName) ? { stage: "challenger", direct: true } : null;
+}
+
+function rejectedCodexReviewer(identity) {
+  return !identity.valid && /^fp_challenger(?:_[a-z0-9_]+)?$/u.test(identity.candidateTaskName ?? "");
 }
 
 function runPost(event, config) {
@@ -440,7 +443,11 @@ async function main() {
     } else if (mode === "stop" || mode === "Stop") {
       runStop(event, config);
     } else if (mode === "review-start") {
-      const request = parseReviewRequest(extractAgentPrompt(event)) ?? codexReviewRequest(event);
+      if (rejectedCodexReviewer(identity)) {
+        writeJson(contextOutput("SubagentStart", `[first-principles-gate] Codex reviewer identity rejected: ${identity.reason}; no review nonce was issued. Return immediately without reviewing.`));
+        return;
+      }
+      const request = parseReviewRequest(extractAgentPrompt(event)) ?? codexReviewRequest(identity);
       if (!request) return;
       const check = loadLedger(cwd, repoRoot, config);
       const raw = check.path ? readFileSync(check.path, "utf8") : "";
@@ -467,6 +474,10 @@ async function main() {
         ].join("\n")));
       }
     } else if (mode === "subagent-stop") {
+      if (rejectedCodexReviewer(identity)) {
+        writeJson(stopDeny(`[first-principles-gate] Codex reviewer identity rejected: ${identity.reason}; the review result was not recorded. Retry with the original reviewer session identity.`));
+        return;
+      }
       const parsed = parseReviewResult(extractAssistantMessage(event));
       const live = readState(event);
       if (!parsed) {

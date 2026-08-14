@@ -746,10 +746,11 @@ test("review-start directly reserves a request and embeds prior stages when disp
   const data = mkdtempSync(join(tmpdir(), "reasoning-direct-review-data-"));
   const dir = workflowDir(root);
   const session = "direct-review-session";
-  const codexHome = mkdtempSync(join(tmpdir(), "reasoning-direct-codex-home-"));
+  const home = mkdtempSync(join(tmpdir(), "reasoning-direct-home-"));
+  const codexHome = join(home, ".codex");
   const transcriptPath = join(codexHome, "sessions", "child.jsonl");
   mkdirSync(join(codexHome, "sessions"), { recursive: true });
-  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
+  const env = { PLUGIN_DATA: data, HOME: home, CODEX_HOME: "" };
   writeArtifact(join(dir, "workflow.md"), manifest());
   await runHook("post", { cwd: root, session_id: session, tool_name: "Write", tool_input: { file_path: join(dir, "workflow.md") } }, env);
   for (const [name, value] of [["01-frame.md", stages().frame], ["02-analysis.md", stages().analysis]]) {
@@ -774,9 +775,19 @@ test("review-start directly reserves a request and embeds prior stages when disp
   assert.match(context, /reviewNonce=[a-f0-9]+/u);
   assert.match(context, /evidenceBundle=/u);
   assert.match(context, /reasoning-stage\/v1/u);
+  const rejectedStop = await runHook("subagent-stop", {
+    cwd: root,
+    session_id: "mismatched-session",
+    agent_id: "direct-challenge-reviewer",
+    hook_event_name: "SubagentStop",
+    transcript_path: transcriptPath,
+    last_assistant_message: `RD_REVIEW_RESULT ${JSON.stringify({ stage: "challenge", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve", evidenceAnchors: ["01-frame.md"] })}`,
+  }, env);
+  assert.equal(parseOutput(rejectedStop.stdout)?.decision, "block");
+  assert.match(rejectedStop.stdout, /Codex reviewer identity rejected/u);
   const recorded = await runHook("subagent-stop", {
     cwd: root,
-    session_id: "direct-challenge-reviewer",
+    session_id: session,
     agent_id: "direct-challenge-reviewer",
     hook_event_name: "SubagentStop",
     transcript_path: transcriptPath,
@@ -788,6 +799,40 @@ test("review-start directly reserves a request and embeds prior stages when disp
     agent_prompt: "RD_REVIEW_REQUEST challenge",
   }, env);
   assert.doesNotMatch(parseOutput(replay.stdout)?.hookSpecificOutput?.additionalContext ?? "", /reviewNonce=/u);
+});
+
+test("review-start reports a rejected Codex identity instead of running an unsigned reviewer", async () => {
+  const root = workspace();
+  const home = mkdtempSync(join(tmpdir(), "reasoning-rejected-home-"));
+  const codexHome = join(home, ".codex");
+  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
+  mkdirSync(join(codexHome, "sessions"), { recursive: true });
+  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "candidate-reviewer", parent_thread_id: "candidate-parent", cwd: root,
+    thread_source: "subagent", agent_path: "/root/rd_challenge_case",
+    source: { subagent: { thread_spawn: { parent_thread_id: "candidate-parent", depth: 1, agent_path: "/root/rd_challenge_case" } } },
+  } })}\n`);
+  const result = await runHook("review-start", {
+    cwd: root,
+    session_id: "mismatched-session",
+    agent_id: "candidate-reviewer",
+    hook_event_name: "SubagentStart",
+    transcript_path: transcriptPath,
+  }, { CODEX_HOME: codexHome });
+  const context = parseOutput(result.stdout)?.hookSpecificOutput?.additionalContext ?? "";
+  assert.match(context, /Codex reviewer identity rejected/u);
+  assert.match(context, /no review nonce was issued.*return immediately/iu);
+
+  const unrelatedPath = join(codexHome, "sessions", "unrelated.jsonl");
+  writeFileSync(unrelatedPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "unrelated-child", parent_thread_id: "candidate-parent", cwd: root,
+    thread_source: "subagent", agent_path: "/root/ordinary_task",
+    source: { subagent: { thread_spawn: { parent_thread_id: "candidate-parent", depth: 1, agent_path: "/root/ordinary_task" } } },
+  } })}\n`);
+  const unrelated = await runHook("review-start", {
+    cwd: root, session_id: "mismatched-session", agent_id: "unrelated-child", transcript_path: unrelatedPath,
+  }, { CODEX_HOME: codexHome });
+  assert.equal(unrelated.stdout, "");
 });
 
 test("independent review rejects a forged nonce, a write from the reviewer, and a stale approval", async () => {
@@ -865,7 +910,7 @@ test("independent review rejects a forged nonce, a write from the reviewer, and 
   assert.doesNotMatch(stale.stdout, /RD-R3/u);
 });
 
-test("SessionStart publishes a compact five-stage reasoning route", async () => {
+test("SessionStart publishes a narrow opt-in reasoning route", async () => {
   const root = workspace();
   const result = await runHook("session", {
     cwd: root,
@@ -877,9 +922,11 @@ test("SessionStart publishes a compact five-stage reasoning route", async () => 
   const context = output?.hookSpecificOutput?.additionalContext ?? "";
   assert.equal(output?.hookSpecificOutput?.hookEventName, "SessionStart");
   assert.match(context, /`\$reasoning-discipline`/u);
-  assert.match(context, /standing rule.*proof.*exact.*worst-case.*algorithmic.*causal.*constrained-decision.*must invoke.*reasoning-discipline.*finish five stages.*before replying.*final-only/iu);
-  assert.ok(context.length <= 200, `SessionStart context is ${context.length} characters`);
-  assert.doesNotMatch(context, /ordering|boundary|representation|observability|quantifier|strategy|workflow\.md/iu);
+  assert.match(context, /only for.*proof.*worst-case.*causal.*high-impact decision/iu);
+  assert.match(context, /ordinary code or plugin review.*direct executable oracle.*do not activate/iu);
+  assert.match(context, /workflow\.md.*deliberate activation/iu);
+  assert.doesNotMatch(context, /must invoke|standing rule/iu);
+  assert.ok(context.length <= 360, `SessionStart context is ${context.length} characters`);
 });
 
 test("hook remains idle until workflow.md is written", async () => {
@@ -1110,7 +1157,7 @@ test("hook blocks a skipped stage and invalidates downstream receipts after rewr
   assert.equal(existsSync(join(data, "reasoning-discipline-guard")), false);
 });
 
-test("paused workflow passes Stop without conclusion receipts", async () => {
+test("paused workflow delivers partial facts but still rejects an asserted conclusion", async () => {
   const root = workspace();
   const data = mkdtempSync(join(tmpdir(), "reasoning-paused-data-"));
   const dir = workflowDir(root);
@@ -1127,7 +1174,6 @@ test("paused workflow passes Stop without conclusion receipts", async () => {
 
   const falseConclusion = await runHook("stop", { cwd: root, session_id: "paused", last_assistant_message: "The verified answer is 21." }, env);
   assert.equal(parseOutput(falseConclusion.stdout)?.decision, "block");
-  assert.match(parseOutput(falseConclusion.stdout)?.reason ?? "", /cannot accompany a conclusion claim/u);
 
   const unknownCause = await runHook("stop", {
     cwd: root,
@@ -1170,6 +1216,20 @@ test("paused workflow passes Stop without conclusion receipts", async () => {
     last_assistant_message: "根因是提供方超时。",
   }, env);
   assert.equal(parseOutput(assertedCauseZh.stdout)?.decision, "block");
+
+  const partialFactsZh = await runHook("stop", {
+    cwd: root,
+    session_id: "paused",
+    last_assistant_message: "01-frame 和 02-analysis 已签章；03-challenge 因 reviewer 失败尚未签章；正式结论仍未形成。",
+  }, env);
+  assert.equal(partialFactsZh.stdout, "", partialFactsZh.stdout);
+
+  const mixedZh = await runHook("stop", {
+    cwd: root,
+    session_id: "paused",
+    last_assistant_message: "正式结论仍未形成，但已验证结论：21。",
+  }, env);
+  assert.equal(parseOutput(mixedZh.stdout)?.decision, "block");
 
   const rejectedConclusionReport = await runHook("stop", {
     cwd: root,

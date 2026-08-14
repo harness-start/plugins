@@ -32,13 +32,16 @@ import {
   stopDecision,
 } from "./lib/workflow.mjs";
 
-const SESSION_CONTEXT = "Standing rule: proof, exact, worst-case, algorithmic, causal, and constrained-decision answers must invoke `$reasoning-discipline`; finish five stages before replying, even for final-only formats.";
+const SESSION_CONTEXT = "Use `$reasoning-discipline` only for proof, worst-case, causal inference, or high-impact decision tasks that lack a direct executable oracle. For ordinary code or plugin review with a direct executable oracle, do not activate. Writing workflow.md is deliberate activation; without it hooks remain idle.";
 
-function codexReviewRequest(event) {
-  const identity = codexReviewIdentity(event);
+function codexReviewRequest(identity) {
   if (!identity.valid) return null;
   const match = /^rd_(challenge|cross_check)(?:_[a-z0-9_]+)?$/u.exec(identity.taskName);
   return match ? { stage: match[1] === "cross_check" ? "cross-check" : match[1], direct: true } : null;
+}
+
+function rejectedCodexReviewer(identity) {
+  return !identity.valid && /^rd_(?:challenge|cross_check)(?:_[a-z0-9_]+)?$/u.test(identity.candidateTaskName ?? "");
 }
 
 function feedback(result) {
@@ -107,7 +110,11 @@ export async function main() {
   }
 
   if (mode === "review-start") {
-    const request = parseReviewRequest(extractAgentPrompt(event)) ?? codexReviewRequest(event);
+    if (rejectedCodexReviewer(identity)) {
+      writeJson(contextOutput("SubagentStart", `[Reasoning Discipline Guard] Codex reviewer identity rejected: ${identity.reason}; no review nonce was issued. Return immediately without reviewing.`));
+      return;
+    }
+    const request = parseReviewRequest(extractAgentPrompt(event)) ?? codexReviewRequest(identity);
     if (!request) return;
     const bound = request.direct
       ? reserveAndBindIndependentReviewer({ cwd, sessionId, stage: request.stage, agentId: extractAgentId(event), toolUseId: `codex:${extractAgentId(event)}` })
@@ -131,6 +138,10 @@ export async function main() {
   }
 
   if (mode === "subagent-stop") {
+    if (rejectedCodexReviewer(identity)) {
+      writeJson(stopDeny(`[Reasoning Discipline Guard] Codex reviewer identity rejected: ${identity.reason}; the review result was not recorded. Retry with the original reviewer session identity.`));
+      return;
+    }
     const parsed = parseReviewResult(extractAssistantMessage(event));
     const reservation = pendingReviewReservation({ cwd, sessionId });
     if (!parsed) {

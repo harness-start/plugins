@@ -18,8 +18,11 @@ list_project_cases() {
   if [ ! -d "${scenarios_root}" ]; then
     return 0
   fi
-  find "${scenarios_root}" -mindepth 3 -maxdepth 3 -type d -path '*/cases/*' -printf '%P\n' \
-    | sed -E 's#^([^/]+)/cases/(.+)$#\1/\2#' \
+  find "${scenarios_root}" -mindepth 3 -maxdepth 3 -type d -path '*/cases/*' \
+    | while IFS= read -r path; do
+        relative_path="${path#"${scenarios_root}/"}"
+        printf '%s\n' "${relative_path}" | sed -E 's#^([^/]+)/cases/(.+)$#\1/\2#'
+      done \
     | sort
 }
 

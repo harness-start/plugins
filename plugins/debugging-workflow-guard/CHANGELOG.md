@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Fall back to `HOME/.codex` when `CODEX_HOME` is unset, accept verified parent or child session events, and surface identity rejection only to canonical debug reviewers.
+- Ship a read-only Claude plugin reviewer and bound Codex reviewer context/wait guidance.
+
 ## 0.1.1
 
 - Map verified Codex child-session review events back to their parent workflow so nonce injection, read-only enforcement, and review receipts work without manual hook calls.

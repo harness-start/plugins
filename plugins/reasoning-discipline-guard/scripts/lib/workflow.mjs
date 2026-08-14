@@ -488,33 +488,22 @@ export function completionFindings({ cwd, sessionId, state = null, manifest = nu
   return [...new Set(findings)];
 }
 
-function looksLikeConclusionClaim(message) {
-  const text = String(message ?? "")
+function looksLikeExplicitConclusionClaim(message) {
+  const assertions = [
+    /\b(?:verified|proven|final)\s+(?:answer|conclusion|result|value|root cause|recommendation)\s*(?:is|[:\uff1a])\s*\S/iu,
+    /\bverified\s*[:\uff1a]\s*(?!none\b|null\b|unknown\b)\S/iu,
+    /\b(?:answer|conclusion|root cause)\s+is\s+(?!(?:valid|invalid|unknown|unsupported|unverified)\b)\S/iu,
+    /(?:\u5df2\u9a8c\u8bc1|\u5df2\u8bc1\u660e)(?:\u7684)?(?:\u7b54\u6848|\u7ed3\u8bba|\u7ed3\u679c|\u6570\u503c|\u6839\u56e0)\s*(?:\u662f|\u4e3a|[:\uff1a])\s*\S/u,
+    /(?:\u7b54\u6848|\u7ed3\u8bba|\u6839\u56e0)\s*(?:\u662f|\u4e3a|[:\uff1a])\s*\S/u,
+  ];
+  const uncertainty = [
+    /\b(?:no|not|cannot|can't|could not|couldn't|unknown|unverified|unproven|unsupported)\b/iu,
+    /(?:\u5c1a\u672a|\u4ecd\u672a|\u672a\u80fd|\u65e0\u6cd5|\u4e0d\u80fd|\u4e0d\u786e\u5b9a|\u4e0d\u5b58\u5728|\u4e0d\u662f|\u672a\u5f62\u6210|\u6ca1\u6709\u8bc1\u636e)/u,
+  ];
+  return String(message ?? "")
     .replace(/`[^`\r\n]+`/gu, " ")
-    .replace(/(?:^|\s)[\w./\\-]*(?:answer|conclusion|recommendation|root-cause)[\w./\\-]*\.(?:md|json|ya?ml|txt)(?=$|\s|[.,;:!?])/giu, " ")
-    .replace(/\bclaimed\s+(?:answer|conclusion|recommendation|root cause)\s*:\s*(?:none|null|not claimed|not presented)\b/giu, " ");
-  const claim = /\b(?:answer|conclusion|therefore|root cause|recommend(?:ation|ed)?)\b|\b(?:verified|proven)(?:\s+(?:answer|conclusion|result|value|root cause|recommendation)|\s*[:\uff1a])|\u7b54\u6848|\u7ed3\u8bba|\u56e0\u6b64|\u6839\u56e0|\u5efa\u8bae/iu;
-  const explicitUncertainty = [
-    /\b(?:no|cannot|can't|could not|couldn't|unable to|do not|don't|insufficient evidence to|not enough evidence to)\b.{0,100}\b(?:answer|conclu(?:de|sion)|verify|prove|identify|determine|recommend|root cause)\b/iu,
-    /\b(?:answer|conclusion|root cause|recommendation)\b.{0,80}\b(?:unknown|undetermined|unverified|unproven|unsupported|cannot be (?:determined|concluded|verified|proven|recommended))\b/iu,
-    /(?:\u65e0\u6cd5|\u4e0d\u80fd|\u4e0d\u8db3\u4ee5|\u8bc1\u636e\u4e0d\u8db3|\u672a\u80fd|\u4e0d\u5e94)[^\u3002\uff01\uff1f\n]{0,60}(?:\u786e\u5b9a|\u5f97\u51fa|\u9a8c\u8bc1|\u8bc1\u660e|\u7ed9\u51fa|\u65ad\u5b9a)?[^\u3002\uff01\uff1f\n]{0,30}(?:\u7b54\u6848|\u7ed3\u8bba|\u6839\u56e0|\u5efa\u8bae)/u,
-    /(?:\u7b54\u6848|\u7ed3\u8bba|\u6839\u56e0|\u5efa\u8bae)[^\u3002\uff01\uff1f\n]{0,40}(?:\u672a\u77e5|\u4e0d\u786e\u5b9a|\u65e0\u6cd5\u786e\u5b9a|\u5c1a\u672a\u9a8c\u8bc1|\u6ca1\u6709\u8bc1\u636e)/u,
-  ];
-  const rejectedClaimReport = [
-    /\bnot\s+(?:an?\s+|the\s+)?(?:answer|conclusion|recommendation|root cause)\b/iu,
-    /\bbefore\s+(?:any\s+|an?\s+|the\s+)?(?:answer|conclusion|recommendation|root cause)\b.{0,60}\b(?:valid|established|supported|verified|proven)\b/iu,
-    /\b(?:guard|hook)\b.{0,100}\b(?:blocked|rejected|denied)\b.{0,120}\b(?:answer|conclusion|recommendation|root cause)\b/iu,
-    /\b(?:premature|out-of-order|rejected|blocked|denied|invalid|unsupported|ungrounded)\b.{0,100}\b(?:answer|conclusion|recommendation|root cause)\b/iu,
-    /\breceived\s+(?:answer|conclusion|recommendation|root cause)\b/iu,
-    /\b(?:answer|conclusion|recommendation|root cause)\b.{0,100}\b(?:premature|out-of-order|rejected|blocked|denied|invalid|unsupported|ungrounded|was not presented|is not claimed)\b/iu,
-  ];
-  return text
-    .split(/(?<=[.!?;:\u3002\uff01\uff1f\uff1b\uff1a])|\r?\n|\b(?:but|however|yet)\b|(?:\u4f46\u662f|\u4e0d\u8fc7|\u7136\u800c|\u4f46)/giu)
-    .some((sentence) => (
-      claim.test(sentence)
-      && !explicitUncertainty.some((pattern) => pattern.test(sentence))
-      && !rejectedClaimReport.some((pattern) => pattern.test(sentence))
-    ));
+    .split(/(?<=[.!?;\u3002\uff01\uff1f\uff1b])|\r?\n|\b(?:but|however|yet)\b|(?:\u4f46\u662f|\u4e0d\u8fc7|\u7136\u800c|\u4f46)/giu)
+    .some((sentence) => assertions.some((pattern) => pattern.test(sentence)) && !uncertainty.some((pattern) => pattern.test(sentence)));
 }
 
 export function stopDecision({ cwd, sessionId, assistantMessage = "" }) {
@@ -523,10 +512,10 @@ export function stopDecision({ cwd, sessionId, assistantMessage = "" }) {
   const checked = loadManifest(state.workflowPath);
   if (!checked.valid) return { kind: "block", findings: checked.findings };
   if (["paused", "aborted"].includes(checked.value.status)) {
-    if (looksLikeConclusionClaim(assistantMessage)) {
+    if (looksLikeExplicitConclusionClaim(assistantMessage)) {
       return {
         kind: "block",
-        findings: [`${checked.value.status} workflow cannot accompany a conclusion claim`],
+        findings: [`${checked.value.status} workflow cannot claim an explicit verified conclusion`],
       };
     }
     return { kind: "allow" };

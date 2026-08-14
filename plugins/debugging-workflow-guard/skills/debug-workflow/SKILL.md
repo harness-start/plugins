@@ -117,8 +117,8 @@ Do not patch by intuition. If the original reproduction is unavailable, keep the
 ## Fix and verify
 
 1. Move the active bug to `fixing`; record the supported root cause before the production edit.
-2. Dispatch a read-only subagent whose prompt contains only `DBG_REVIEW_REQUEST diagnosis`. On Codex, use a task name beginning with `dbg_diagnosis_`. Do not give it your chosen root cause as authority. Production edits stay blocked until that reviewer approves.
-3. After three failed post-mutation reproductions, dispatch a *different* read-only subagent with `DBG_REVIEW_REQUEST architecture`; on Codex, use a task name beginning with `dbg_architecture_`. Do not treat `architecture-review` as complete before it returns.
+2. Dispatch a read-only subagent whose prompt contains only `DBG_REVIEW_REQUEST diagnosis`. On Claude Code, use `debugging-workflow-guard:independent-debug-reviewer`; on Codex, use `fork_turns: "none"` and a task name beginning with `dbg_diagnosis_`. Do not give it your chosen root cause as authority. Production edits stay blocked until that reviewer approves.
+3. After three failed post-mutation reproductions, dispatch a *different* read-only subagent with `DBG_REVIEW_REQUEST architecture`; on Claude Code, use the same named reviewer in a fresh agent session; on Codex, use `fork_turns: "none"` and a task name beginning with `dbg_architecture_`. Wait once for at most 60 seconds; on timeout, pause with the available facts and retry action. Do not treat `architecture-review` as complete before it returns.
 4. Make the smallest causal change. Set `fix.firstRevision` on the first production mutation and list every bug affected by a shared fix in `fix.affectedBugIds`.
 5. Run the exact original reproduction again after the last production mutation. It must succeed.
 6. Run at least one regression check for each affected bug. Never reuse another bug's receipt.

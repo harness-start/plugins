@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Fall back to `HOME/.codex` when `CODEX_HOME` is unset, preserve parent/child review mapping, and make canonical challenger identity failures observable without affecting unrelated agents.
+- Ship a read-only Claude plugin challenger and bounded Codex reviewer guidance.
+
 ## 0.1.2
 
 - Map verified Codex challenger child-session events to the parent ledger session, restoring automatic nonce/evidence injection and review recording.

@@ -183,10 +183,11 @@ test("public hook denies reviewer writes and records a diagnosis approval", asyn
 test("review-start directly reserves a request and embeds the bound work order when dispatch PreToolUse is unavailable", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-direct-review-data-"));
-  const codexHome = mkdtempSync(join(tmpdir(), "debug-direct-codex-home-"));
+  const home = mkdtempSync(join(tmpdir(), "debug-direct-home-"));
+  const codexHome = join(home, ".codex");
   const transcriptPath = join(codexHome, "sessions", "child.jsonl");
   mkdirSync(join(codexHome, "sessions"), { recursive: true });
-  const env = { PLUGIN_DATA: data, CODEX_HOME: codexHome };
+  const env = { PLUGIN_DATA: data, HOME: home, CODEX_HOME: "" };
   const path = join(root, ".debug-workflow", "20260808-login.md");
   const ready = workOrder();
   ready.bugs[0].status = "fixing";
@@ -210,9 +211,17 @@ test("review-start directly reserves a request and embeds the bound work order w
   assert.match(context, /reviewNonce=[a-f0-9]+/u);
   assert.match(context, /workOrderEvidence=/u);
   assert.match(context, /DWO-20260808-login/u);
+  const rejectedStop = await runHook("subagent-stop", {
+    cwd: root,
+    session_id: "mismatched-session",
+    agent_id: "direct-diagnosis-reviewer",
+    transcript_path: transcriptPath,
+    last_assistant_message: `DBG_REVIEW_RESULT ${JSON.stringify({ stage: "diagnosis", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve" })}`,
+  }, env);
+  assert.match(rejectedStop.stdout, /Codex reviewer identity rejected/u);
   const recorded = await runHook("subagent-stop", {
     cwd: root,
-    session_id: "direct-diagnosis-reviewer",
+    session_id: "debug-direct-review",
     agent_id: "direct-diagnosis-reviewer",
     transcript_path: transcriptPath,
     last_assistant_message: `DBG_REVIEW_RESULT ${JSON.stringify({ stage: "diagnosis", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve" })}`,
@@ -223,6 +232,38 @@ test("review-start directly reserves a request and embeds the bound work order w
     agent_prompt: "DBG_REVIEW_REQUEST diagnosis",
   }, env);
   assert.doesNotMatch(replay.stdout, /reviewNonce=/u);
+});
+
+test("review-start reports a rejected Codex identity instead of running an unsigned debug reviewer", async () => {
+  const root = fixture();
+  const home = mkdtempSync(join(tmpdir(), "debug-rejected-home-"));
+  const codexHome = join(home, ".codex");
+  const transcriptPath = join(codexHome, "sessions", "child.jsonl");
+  mkdirSync(join(codexHome, "sessions"), { recursive: true });
+  writeFileSync(transcriptPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "candidate-debug-reviewer", parent_thread_id: "candidate-parent", cwd: root,
+    thread_source: "subagent", agent_path: "/root/dbg_diagnosis_case",
+    source: { subagent: { thread_spawn: { parent_thread_id: "candidate-parent", depth: 1, agent_path: "/root/dbg_diagnosis_case" } } },
+  } })}\n`);
+  const result = await runHook("review-start", {
+    cwd: root,
+    session_id: "mismatched-session",
+    agent_id: "candidate-debug-reviewer",
+    transcript_path: transcriptPath,
+  }, { CODEX_HOME: codexHome });
+  assert.match(result.stdout, /Codex reviewer identity rejected/u);
+  assert.match(result.stdout, /no review nonce was issued.*return immediately/iu);
+
+  const unrelatedPath = join(codexHome, "sessions", "unrelated.jsonl");
+  writeFileSync(unrelatedPath, `${JSON.stringify({ type: "session_meta", payload: {
+    id: "unrelated-child", parent_thread_id: "candidate-parent", cwd: root,
+    thread_source: "subagent", agent_path: "/root/ordinary_task",
+    source: { subagent: { thread_spawn: { parent_thread_id: "candidate-parent", depth: 1, agent_path: "/root/ordinary_task" } } },
+  } })}\n`);
+  const unrelated = await runHook("review-start", {
+    cwd: root, session_id: "mismatched-session", agent_id: "unrelated-child", transcript_path: unrelatedPath,
+  }, { CODEX_HOME: codexHome });
+  assert.equal(unrelated.stdout, "");
 });
 
 test("public hook permits a paused architecture-review handoff without completion evidence", async () => {
