@@ -62,11 +62,6 @@
       "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
     },
     {
-      "name": "compact-context-journal",
-      "source": "./plugins/compact-context-journal",
-      "description": "Persists admitted requirements in a protected append-only journal and verifies recovery after context compact."
-    },
-    {
       "name": "intent-clarify-gate",
       "source": "./plugins/intent-clarify-gate",
       "description": "Gates business writes during grill-me style intent clarification until \u5b8c\u6210 or complete-option close."

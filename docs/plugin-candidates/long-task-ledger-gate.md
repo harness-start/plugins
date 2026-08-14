@@ -9,7 +9,7 @@
 
 ## 为什么保留
 
-`harness-starter` 的 `skills/long-task-context-governance/src/hooks/task-ledger-*` 与 `ai-experts` 的 `src/experts/planning/hooks/task-ledger-*` 都有三条机械链路：受控写入、完成门禁、会话恢复。本仓的 `compact-context-journal` 只恢复压缩后的需求，也不维护跨会话分片状态。
+`harness-starter` 的 `skills/long-task-context-governance/src/hooks/task-ledger-*` 与 `ai-experts` 的 `src/experts/planning/hooks/task-ledger-*` 都有三条机械链路：受控写入、完成门禁、会话恢复。仅保存压缩前用户需求的会话日志既不能维护任务状态机，也不能恢复跨会话分片状态。
 
 这项能力不能靠一份普通 Markdown 代替。普通文件既可被任意重写，也没有并发更新和 evidence freshness 约束。
 
@@ -38,7 +38,7 @@ Skill 编排 CLI 创建或激活账本
 
 | 插件 | 边界 |
 | --- | --- |
-| `compact-context-journal` | 上下文压缩后的需求恢复，不维护任务状态机 |
+| 会话级 Prompt 日志 | 只保存用户输入，不维护任务状态机 |
 | 各领域 Skill 的自然语言 delegation | 可选的局部并行工作，不拥有全局任务进度；父 agent 仍以 ledger 和业务证据判断完成 |
 
 不做 Issue 同步、排期、人天估算，也不自动判断任务是否足够大。单会话任务不应创建账本。
