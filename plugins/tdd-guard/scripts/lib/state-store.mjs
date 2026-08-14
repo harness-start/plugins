@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-const VERSION = 2;
+const VERSION = 3;
 export const STATE_DIR_RELATIVE = ".tdd-guard/.state";
 
 export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
@@ -22,13 +22,13 @@ function statePath(sessionId, root) {
 
 export function readState(sessionId, root) {
   const path = statePath(sessionId, root);
-  if (!path) return { version: VERSION, sequence: 0, pending: null, tests: [] };
+  if (!path) return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
   try {
     const value = JSON.parse(readFileSync(path, "utf8"));
     if (value?.version !== VERSION) throw new Error("version mismatch");
-    return value;
+    return { observedRed: {}, ...value };
   } catch {
-    return { version: VERSION, sequence: 0, pending: null, tests: [] };
+    return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
   }
 }
 

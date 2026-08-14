@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command|wait|wait_agent|list_agents|write_stdin|functions.wait|functions.write_stdin|collaboration.wait_agent|collaboration.list_agents",
         "hooks": [
           {
             "type": "command",

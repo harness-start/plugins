@@ -48,8 +48,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-load_env_file "${REPO_ROOT}"
-
 mkdir -p "${OUT_DIR}"
 OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 SUMMARY="${OUT_DIR}/summary.txt"
@@ -74,6 +72,8 @@ if [ "${HONESTY_ONLY}" -eq 1 ]; then
   bash "${SCRIPT_DIR}/check-expect-honesty.sh" "${OUT_DIR}/honesty" | tee "${OUT_DIR}/honesty-gate.log"
   exit $?
 fi
+
+load_env_file "${REPO_ROOT}"
 
 if [ "${SKIP_HONESTY}" -ne 1 ] && [ "${SMOKE_ONLY}" -ne 1 ]; then
   : >"${REPORT}"
@@ -200,7 +200,7 @@ plugins=()
 if [ -n "${PLUGIN_FILTER}" ]; then
   plugins=("${PLUGIN_FILTER}")
 else
-  mapfile -t plugins < <(list_plugins "${REPO_ROOT}")
+  while IFS= read -r plugin; do plugins+=("${plugin}"); done < <(list_plugins "${REPO_ROOT}")
 fi
 
 failed=0
@@ -214,7 +214,8 @@ for plugin in "${plugins[@]}"; do
     failed=$((failed + 1))
     continue
   fi
-  mapfile -t cases < <(list_cases "${plugin_dir}")
+  cases=()
+  while IFS= read -r case_id; do cases+=("${case_id}"); done < <(list_cases "${plugin_dir}")
   if [ "${#cases[@]}" -eq 0 ]; then
     log "FAIL marketplace plugin has no acceptance/cases suite: ${plugin}"
     failed=$((failed + 1))
@@ -225,7 +226,8 @@ for plugin in "${plugins[@]}"; do
       continue
     fi
     case_dir="${plugin_dir}/acceptance/cases/${case_id}"
-    mapfile -t hosts < <(read_case_hosts "${case_dir}" | tr ' ' '\n' | sed '/^$/d')
+    hosts=()
+    while IFS= read -r host; do hosts+=("${host}"); done < <(read_case_hosts "${case_dir}" | tr ' ' '\n' | sed '/^$/d')
     for host in "${hosts[@]}"; do
       host="$(echo "${host}" | tr -d '[:space:]')"
       [ -n "${host}" ] || continue

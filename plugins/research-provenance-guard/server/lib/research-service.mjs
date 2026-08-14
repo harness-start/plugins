@@ -116,11 +116,12 @@ function validateClaims(claims, anchorsById) {
 }
 
 export class ResearchService {
-  constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, now = () => new Date() }) {
+  constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, discoveryExecutable = process.env.FIRECRAWL_BIN || "firecrawl", now = () => new Date() }) {
     this.workspaceRoot = resolve(requiredString(workspaceRoot, "workspaceRoot"));
     this.dataRoot = resolve(requiredString(dataRoot, "dataRoot"));
     this.sessionId = requiredString(sessionId, "sessionId", 512);
     this.fetchText = fetchText;
+    this.discoveryExecutable = discoveryExecutable;
     this.now = now;
     this.run = null;
     this.sources = new Map();
@@ -223,8 +224,8 @@ export class ResearchService {
     if (!SOURCE_KINDS.has(category) || category === "workspace") throw new Error("invalid discovery category");
     const limit = Number(args.limit ?? 5);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) throw new Error("discovery limit must be an integer from 1 to 20");
-    const output = await new Promise((resolvePromise, reject) => {
-      const child = spawn("firecrawl", ["search", query, "--limit", String(limit), "--json"], {
+    const discovery = await new Promise((resolvePromise, reject) => {
+      const child = spawn(this.discoveryExecutable, ["search", query, "--limit", String(limit), "--json"], {
         shell: false,
         env: { ...process.env, FIRECRAWL_NO_SEARCH_FEEDBACK: "1", FIRECRAWL_DISABLE_SEARCH_FEEDBACK: "1", FIRECRAWL_NO_ENDPOINT_FEEDBACK: "1" },
         stdio: ["ignore", "pipe", "pipe"],
@@ -234,13 +235,26 @@ export class ResearchService {
       const timer = setTimeout(() => child.kill("SIGKILL"), 20_000);
       child.stdout.on("data", (chunk) => { bytes += chunk.length; if (bytes > 2 * 1024 * 1024) child.kill("SIGKILL"); else chunks.push(chunk); });
       child.stderr.resume();
-      child.on("error", reject);
-      child.on("close", (code) => { clearTimeout(timer); code === 0 ? resolvePromise(Buffer.concat(chunks).toString("utf8")) : reject(new Error("Firecrawl discovery is unavailable; capture a known URL or workspace source instead")); });
+      child.on("error", (error) => {
+        clearTimeout(timer);
+        if (error?.code === "ENOENT") {
+          resolvePromise({ available: false, output: "", limitation: "Discovery executable is not installed; discover with the host search tool, then capture a known URL or workspace source." });
+        } else reject(error);
+      });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        if (code === 0) resolvePromise({ available: true, output: Buffer.concat(chunks).toString("utf8"), limitation: null });
+        else reject(new Error("Firecrawl discovery is unavailable; capture a known URL or workspace source instead"));
+      });
     });
+    if (!discovery.available) {
+      const eventId = await this.event("source_discover", { query_sha256: sha256(query), category, count: 0, available: false });
+      return { event_id: eventId, discovery_only: true, available: false, results: [], limitation: discovery.limitation };
+    }
     let results;
-    try { results = JSON.parse(output); } catch { throw new Error("Firecrawl returned invalid JSON"); }
+    try { results = JSON.parse(discovery.output); } catch { throw new Error("Firecrawl returned invalid JSON"); }
     const eventId = await this.event("source_discover", { query_sha256: sha256(query), category, count: Array.isArray(results) ? results.length : null });
-    return { event_id: eventId, discovery_only: true, results };
+    return { event_id: eventId, discovery_only: true, available: true, results };
   }
 
   async capture(args) {

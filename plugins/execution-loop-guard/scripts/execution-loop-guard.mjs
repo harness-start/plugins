@@ -9,6 +9,7 @@ import {
   extractCwd,
   extractFileTargets,
   extractShellCommand,
+  extractToolWait,
   extractToolResponse,
   preToolDeny,
   readStdinJson,
@@ -70,9 +71,9 @@ function retryMessage({ action, command, outcome, streak, blockAt, windowMinutes
   return lines.join("\n");
 }
 
-function pollingMessage(action, command, sleepSum, querySum, settings) {
+function pollingMessage(action, command, sleepSum, querySum, settings, requested = false) {
   const lines = [
-    `[Execution Loop Guard] Remote polling budget exceeded: approximately ${Math.round(sleepSum)}s of sleep and ${querySum} status queries in the last ${settings.windowMinutes} minutes`,
+    `[Execution Loop Guard] ${requested ? "Requested wait budget exceeded: requested approximately" : "Remote polling budget exceeded: approximately"} ${Math.round(sleepSum)}s of wait and ${querySum} status queries in the last ${settings.windowMinutes} minutes`,
     `Current command: ${String(command).trim().slice(0, 160)}`,
     "",
   ];
@@ -95,17 +96,18 @@ function pollingMessage(action, command, sleepSum, querySum, settings) {
 
 function runPre(event, config, repoRoot, cwd) {
   const command = extractShellCommand(event);
-  if (!command?.trim()) return;
+  const toolWait = extractToolWait(event);
+  if (!command?.trim() && !toolWait) return;
   const now = Date.now();
   const decision = updateState(event, (state) => {
     const reports = [];
     let block = null;
     const repeat = config.commandRepeat;
-    const retryBypass = regexMatches(repeat.retryBypass, command);
+    const retryBypass = command?.trim() ? regexMatches(repeat.retryBypass, command) : false;
 
-    if (retryBypass) {
+    if (command?.trim() && retryBypass) {
       state.command = null;
-    } else if (!isReadOnlyCommand(command)) {
+    } else if (command?.trim() && !isReadOnlyCommand(command)) {
       const normalizedHash = commandHash(command);
       const inputFingerprint = commandInputFingerprint(command, cwd, repoRoot);
       const previous = state.command && now - Number(state.command.lastSeen) <= repeat.windowMinutes * 60_000
@@ -139,9 +141,12 @@ function runPre(event, config, repoRoot, cwd) {
       }
     }
 
-    if (!block && config.checks.remotePolling !== "off" && !regexMatches(config.polling.pollBypass, command)) {
-      const sleepSeconds = estimateSleepSeconds(command, config.polling);
-      const queryCount = countRemotePolls(command);
+    const bypassPolling = command?.trim() && regexMatches(config.polling.pollBypass, command);
+    if (!block && config.checks.remotePolling !== "off" && !bypassPolling) {
+      const sleepSeconds = toolWait
+        ? Math.min(toolWait.sleepSeconds, config.polling.maxSleepPerCommandSeconds)
+        : estimateSleepSeconds(command, config.polling);
+      const queryCount = toolWait?.queryCount ?? countRemotePolls(command);
       if (sleepSeconds > 0 || queryCount > 0) {
         const windowMs = config.polling.windowMinutes * 60_000;
         const previous = state.polling && now - Number(state.polling.lastSeen) <= windowMs
@@ -158,7 +163,7 @@ function runPre(event, config, repoRoot, cwd) {
         const cooledDown = now - lastReportAt >= config.polling.cooldownMinutes * 60_000;
         if (overBudget && cooledDown) {
           const action = config.checks.remotePolling === "block" ? "block" : "report";
-          const message = pollingMessage(action, command, sleepSum, querySum, config.polling);
+          const message = pollingMessage(action, toolWait?.label ?? command, sleepSum, querySum, config.polling, Boolean(toolWait));
           if (config.checks.remotePolling === "block") block = message;
           else reports.push(message);
         }

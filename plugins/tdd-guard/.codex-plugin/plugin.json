@@ -1,7 +1,7 @@
 {
   "name": "tdd-guard",
-  "version": "0.2.0",
-  "description": "Blocks implementation writes until a test binds the exact language entity or mirrored source path earlier in the session.",
+  "version": "0.4.0",
+  "description": "Requires git-visible test change or already-red evidence, then observed RED before implementation and GREEN before completion.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -9,7 +9,7 @@
   "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "TDD Guard",
-    "shortDescription": "Require test files before implementation files.",
+    "shortDescription": "Require git-visible tests plus observed RED/GREEN around implementation changes.",
     "developerName": "Harness Start",
     "category": "Productivity"
   }

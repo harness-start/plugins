@@ -1,6 +1,6 @@
 # execution-loop-guard
 
-`execution-loop-guard` 在 Claude Code 和 Codex 中识别三类无进展循环：反复编辑同一文件、重复执行相同命令，以及用大量 `sleep` 和状态查询轮询远端 CI。
+`execution-loop-guard` 在 Claude Code 和 Codex 中识别三类无进展循环：反复编辑同一文件、重复执行相同命令，以及用大量 `sleep`、Codex wait 工具和状态查询轮询远端任务。
 
 ## 默认行为
 
@@ -68,7 +68,9 @@ export default {
 
 插件只识别有连续事件证据的执行空转，不会根据单次失败、单次编辑或任务耗时猜测 agent 表现，也不替代调试方法、任务账本、CI 监督器或交付完成门禁。
 
-`PreToolUse` 在命令执行前判断重复和轮询预算；`PostToolUse` 记录命令结果和文件编辑。Claude 的 `PostToolUseFailure` 补充失败结果，Codex 从 `PostToolUse` 响应退出码推断成败。
+`PreToolUse` 在命令执行前判断重复和轮询预算；Codex 若为 `wait`、`wait_agent`、`write_stdin`、`list_agents` 发出工具事件，也按请求的等待上限和查询次数计入同一预算。`PostToolUse` 记录命令结果和文件编辑。Claude 的 `PostToolUseFailure` 补充失败结果，Codex 从 `PostToolUse` 响应退出码推断成败。
+
+工具级统计只在宿主实际发出对应 Hook 事件时生效；请求的 timeout/yield 是上限，不是实际耗时，所以默认只报告。持续中的统一命令 session 不会因后续 `write_stdin` 必然再次触发 `PreToolUse`，插件不声称能观察宿主未暴露的轮询事件。reviewer Skill 的单次等待上限是这类不可见边界的第一道约束。
 
 状态按 session 和 cwd 摘要隔离，原子写入宿主插件数据目录，权限为 `0600`。磁盘只保存摘要、时间戳、计数和失败签名，不保存命令输出、文件内容、路径或规范化命令。状态目录不可用、状态损坏或 Hook 异常时 fail-open。
 
@@ -83,4 +85,4 @@ node --test plugins/execution-loop-guard/tests/*.test.mjs
 ./scripts/acceptance/run.sh --plugin execution-loop-guard
 ```
 
-版本：`0.1.1`
+版本：`0.1.2`

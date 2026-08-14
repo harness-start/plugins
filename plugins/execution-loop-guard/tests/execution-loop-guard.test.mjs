@@ -18,6 +18,8 @@ import {
 } from "../scripts/lib/execution-loop-policy.mjs";
 
 const ENTRY = fileURLToPath(new URL("../scripts/execution-loop-guard.mjs", import.meta.url));
+const CODEX_HOOKS = fileURLToPath(new URL("../hooks/codex.json", import.meta.url));
+const CLAUDE_HOOKS = fileURLToPath(new URL("../hooks/claude.json", import.meta.url));
 
 function workspace(prefix = "execution-loop-guard-") {
   const root = mkdtempSync(join(tmpdir(), prefix));
@@ -60,6 +62,10 @@ function shellEvent(root, command, response, session = "session-1") {
     tool_input: { command },
     tool_response: response,
   };
+}
+
+function toolEvent(root, toolName, toolInput, session = "session-1") {
+  return { cwd: root, session_id: session, tool_name: toolName, tool_input: toolInput };
 }
 
 test("default edit window reports at 5 and blocks at 20", () => {
@@ -257,6 +263,38 @@ test("remote polling block mode returns a recovery contract", async (context) =>
   assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /blockingContract:/u);
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /# poll-ok/u);
+});
+
+test("Codex tool waits and agent status queries enter the requested polling budget", async (context) => {
+  const root = workspace();
+  const data = mkdtempSync(join(tmpdir(), "execution-loop-state-"));
+  context.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  writeFileSync(join(root, ".execution-loop-guard.mjs"), [
+    "export default { polling: { sleepBudgetSeconds: 60, queryBudgetCount: 2, cooldownMinutes: 0 } };",
+    "",
+  ].join("\n"));
+  const env = { PLUGIN_DATA: data };
+
+  const wait = await runEntry("pre", toolEvent(root, "collaboration.wait_agent", { timeout_ms: 120_000 }, "wait-session"), env);
+  assert.match(wait.stdout, /requested.*120s/iu);
+
+  const firstQuery = await runEntry("pre", toolEvent(root, "collaboration.list_agents", {}, "query-session"), env);
+  const secondQuery = await runEntry("pre", toolEvent(root, "list_agents", {}, "query-session"), env);
+  assert.equal(firstQuery.stdout, "");
+  assert.match(secondQuery.stdout, /2 status queries/u);
+
+  await runEntry("pre", toolEvent(root, "functions.write_stdin", { yield_time_ms: 30_000 }, "stdin-session"), env);
+  const stdinWait = await runEntry("pre", toolEvent(root, "write_stdin", { yield_time_ms: 30_000 }, "stdin-session"), env);
+  assert.match(stdinWait.stdout, /requested.*60s/iu);
+});
+
+test("only the Codex hook advertises Codex function-level wait observation", () => {
+  const codex = readFileSync(CODEX_HOOKS, "utf8");
+  const claude = readFileSync(CLAUDE_HOOKS, "utf8");
+  assert.match(codex, /wait_agent/u);
+  assert.match(codex, /list_agents/u);
+  assert.match(codex, /write_stdin/u);
+  assert.doesNotMatch(claude, /wait_agent|list_agents|write_stdin/u);
 });
 
 test("state does not persist raw paths, commands, or command output", async (context) => {

@@ -15,6 +15,49 @@ export function sessionIdOf(event) { return String(event?.session_id ?? event?.s
 export function toolUseIdOf(event) { return String(event?.tool_use_id ?? event?.toolUseId ?? event?.id ?? "pending"); }
 export function toolNameOf(event) { return String(event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "").replaceAll("_", "").toLowerCase(); }
 export function toolInputOf(event) { return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {}; }
+export function shellCommandOf(event) {
+  if (!SHELL_TOOLS.has(toolNameOf(event))) return null;
+  const input = toolInputOf(event);
+  const command = input?.command ?? input?.cmd ?? input?.script;
+  return typeof command === "string" ? command : null;
+}
+
+function responseOf(event) {
+  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? null;
+}
+
+function responseText(response) {
+  if (typeof response === "string") return response;
+  if (response && typeof response === "object" && !Array.isArray(response)) {
+    const fields = ["stdout", "stderr", "output", "content", "message"]
+      .map((key) => response[key])
+      .filter((value) => typeof value === "string");
+    if (fields.length > 0) return fields.join("\n");
+  }
+  return "";
+}
+
+export function inferOutcome(event, forceFailure = false) {
+  if (forceFailure) return "failure";
+  const response = responseOf(event);
+  if (response && typeof response === "object") {
+    if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
+    const code = response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code;
+    if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
+    if (response.success === false) return "failure";
+    if (response.success === true) return "success";
+  }
+  const text = responseText(response);
+  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
+  if (exitLine) return Number(exitLine[1]) === 0 ? "success" : "failure";
+  const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
+  if (failed && Number(failed[1]) > 0) return "failure";
+  const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
+  if (passed && Number(passed[1]) > 0 && (!failed || Number(failed[1]) === 0)) return "success";
+  if (/(?:^|\n)not ok\s+[0-9]+\b|\b[1-9][0-9]*\s+failures?\b/iu.test(text)) return "failure";
+  if (/\b0\s+failures?\b/iu.test(text)) return "success";
+  return "unknown";
+}
 
 function stripQuotes(value) {
   const text = String(value ?? "").trim();
@@ -71,6 +114,41 @@ function contentFromPatch(input, target, cwd, currentText) {
   return currentText;
 }
 
+function tokenize(command) {
+  const tokens = [];
+  for (const match of String(command ?? "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)) {
+    tokens.push(match[1] ?? match[2] ?? match[3]);
+  }
+  return tokens;
+}
+
+function invocations(command, names) {
+  const found = [];
+  for (const segment of String(command ?? "").split(/\s*(?:&&|\|\||;|\n)\s*/u)) {
+    const tokens = tokenize(segment);
+    let index = 0;
+    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index])) index += 1;
+    if (index >= tokens.length) continue;
+    const base = String(tokens[index]).replace(/^.*\//u, "");
+    if (!names.has(base)) continue;
+    index += 1;
+    const operands = [];
+    while (index < tokens.length && tokens[index].startsWith("-")) {
+      if (tokens[index] === "--") {
+        index += 1;
+        break;
+      }
+      index += 1;
+    }
+    while (index < tokens.length) {
+      if (!tokens[index].startsWith("-")) operands.push(tokens[index]);
+      index += 1;
+    }
+    found.push(operands);
+  }
+  return found;
+}
+
 function shellPaths(input) {
   const command = String(input?.command ?? input?.cmd ?? "");
   const paths = [];
@@ -82,7 +160,17 @@ function shellPaths(input) {
   for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
   for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
   for (const match of command.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
+  for (const operands of invocations(command, new Set(["rm", "unlink"]))) {
+    for (const path of operands) push(path);
+  }
+  for (const operands of invocations(command, new Set(["mv"]))) {
+    for (const path of operands) push(path);
+  }
   return paths;
+}
+
+function resolvedEquals(cwd, rawPath, absolutePath) {
+  return resolve(cwd, stripQuotes(rawPath)) === resolve(absolutePath);
 }
 
 export function extractTargets(event) {
@@ -91,6 +179,26 @@ export function extractTargets(event) {
   const raw = FILE_TOOLS.has(name) ? [...nestedPaths(input), ...patchPaths(input)] : SHELL_TOOLS.has(name) ? shellPaths(input) : [];
   const cwd = cwdOf(event);
   return [...new Set(raw.map(stripQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
+}
+
+export function targetOperation(event, absolutePath) {
+  const cwd = cwdOf(event);
+  const input = toolInputOf(event);
+  for (const line of patchText(input).split("\n")) {
+    const file = line.match(/^\*\*\*\s+Delete File:\s+(.+)$/u);
+    if (file && resolvedEquals(cwd, file[1], absolutePath)) return "delete";
+  }
+  const command = shellCommandOf(event);
+  if (command) {
+    for (const operands of invocations(command, new Set(["rm", "unlink"]))) {
+      if (operands.some((path) => resolvedEquals(cwd, path, absolutePath))) return "delete";
+    }
+    for (const operands of invocations(command, new Set(["mv"]))) {
+      const sources = operands.length > 1 ? operands.slice(0, -1) : operands;
+      if (sources.some((path) => resolvedEquals(cwd, path, absolutePath))) return "delete";
+    }
+  }
+  return "write";
 }
 
 export function proposedContent(event, target, currentText = "") {
@@ -106,4 +214,5 @@ export function proposedContent(event, target, currentText = "") {
 export function relativePath(root, path) { return relative(root, resolve(path)).replaceAll("\\", "/") || "."; }
 export function preToolDeny(reason) { return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } }; }
 export function contextOutput(eventName, text) { return { hookSpecificOutput: { hookEventName: eventName, additionalContext: text } }; }
+export function stopDeny(reason) { return { decision: "block", reason }; }
 export function writeJson(value) { if (value) process.stdout.write(`${JSON.stringify(value)}\n`); }

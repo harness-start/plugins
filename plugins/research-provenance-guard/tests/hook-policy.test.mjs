@@ -79,8 +79,8 @@ test("open project workflow activates gate without prompt aliases", async () => 
   });
   appendStateEvent(event, "receipt", { tool: "research_seal", runId: begun.run_id, seal: sealed.seal, promptEpoch: 1, revision: 0 });
   assert.equal((await evaluateStop({ ...event, last_assistant_message: sealed.trailer })).allow, true);
-  const freeProse = await evaluateStop({ ...event, last_assistant_message: `Unsupported summary.\n\n${sealed.trailer}` });
-  assert.equal(freeProse.allow, false);
+  const normalResponse = await evaluateStop({ ...event, last_assistant_message: `Implemented and verified the requested change.\n\n${sealed.trailer}` });
+  assert.equal(normalResponse.allow, true, normalResponse.findings?.join("; "));
 });
 
 test("active pre-tool policy blocks direct Firecrawl and seal writes", async () => {
@@ -112,6 +112,47 @@ test("shell redirection after activation advances the mutation revision", async 
   }, dataRoot);
   assert.equal(result.status, 0);
   assert.equal(readState(event).revision, 1);
+});
+
+test("read-only inspection commands do not stale research state", async () => {
+  const { workspace, dataRoot, event } = await fixture("readonly-inspection");
+  const runId = openWorkflow(workspace);
+  appendStateEvent(event, "prompt", { abort: false });
+  appendStateEvent(event, "receipt", { tool: "research_begin", runId, promptEpoch: 1, revision: 0 });
+  const result = runHook("post", {
+    ...event,
+    tool_name: "exec_command",
+    tool_input: { cmd: `jq . .research/runs/${runId}/workflow.json` },
+    tool_response: { exit_code: 0, stdout: "{}" },
+  }, dataRoot);
+  assert.equal(result.status, 0);
+  assert.equal(readState(event).revision, 0);
+});
+
+test("unrelated implementation mutations after seal do not invalidate immutable research evidence", async () => {
+  const { workspace, dataRoot, event } = await fixture("post-seal-implementation");
+  const runId = openWorkflow(workspace);
+  appendStateEvent(event, "prompt", { abort: false });
+  const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "post-seal-implementation" });
+  const begun = await service.call("research_begin", { question: "Q", scope: "S", as_of: "2026-08-08", prompt_epoch: 1, run_id: runId });
+  const sealed = await service.call("research_seal", {
+    run_id: begun.run_id,
+    prompt_epoch: 1,
+    mutation_revision: 0,
+    claims: [{ id: "C1", status: "unverified", text: "Unknown", limitation: "No source was supplied." }],
+  });
+  appendStateEvent(event, "receipt", { tool: "research_begin", runId, promptEpoch: 1, revision: 0 });
+  appendStateEvent(event, "receipt", { tool: "research_seal", runId, seal: sealed.seal, promptEpoch: 1, revision: 0 });
+  const mutation = runHook("post", {
+    ...event,
+    tool_name: "Write",
+    tool_input: { file_path: "src/implementation.js", content: "export const value = 1;\n" },
+  }, dataRoot);
+  assert.equal(mutation.status, 0);
+  assert.equal(readState(event).revision, 0);
+  assert.equal(readState(event).seal?.seal, sealed.seal);
+  const stop = await evaluateStop({ ...event, last_assistant_message: `Done.\n\n${sealed.trailer}` });
+  assert.equal(stop.allow, true, stop.findings?.join("; "));
 });
 
 test("a later research_begin clears an earlier run seal", async () => {
@@ -172,7 +213,7 @@ test("outbound handoff writes blocked until sealed", async () => {
   assert.match(JSON.parse(result.stdout).reason, /Outbound handoff/u);
 });
 
-test("sealed outbound files require the workflow CLI and do not stale the seal", async () => {
+test("sealed evidence remains reusable across outbound and implementation mutations", async () => {
   const { workspace, dataRoot, event } = await fixture("sealed-outbound");
   const runId = openWorkflow(workspace);
   appendStateEvent(event, "prompt", { abort: false });
@@ -211,8 +252,8 @@ test("sealed outbound files require the workflow CLI and do not stale the seal",
     tool_input: { cmd: `node "${pluginRoot}/scripts/research-workflow.mjs" handoff-outbound --cwd "${workspace}" --handoff-file /tmp/h --prompt-file /tmp/p; echo changed > notes.md` },
   }, dataRoot);
   assert.equal(chained.status, 0);
-  assert.equal(readState(event).revision, 1);
-  assert.equal(readState(event).seal, null);
+  assert.equal(readState(event).revision, 0);
+  assert.equal(readState(event).seal?.seal, sealed.seal);
 });
 
 test("active pre-tool policy allows orchestration path writes", async () => {
