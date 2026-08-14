@@ -58,8 +58,10 @@ test("SessionStart injects orchestrator routing priority", async () => {
   assert.equal(result.status, 0);
   const body = JSON.parse(result.stdout);
   assert.match(body.hookSpecificOutput.additionalContext, /research-evidence-workflow/u);
-  assert.match(body.hookSpecificOutput.additionalContext, /standalone firecrawl or research/iu);
-  assert.match(body.hookSpecificOutput.additionalContext, /arxiv-search/iu);
+  assert.match(
+    body.hookSpecificOutput.additionalContext,
+    /standalone firecrawl, research, or arxiv-search/iu,
+  );
 });
 
 test("open project workflow activates gate without prompt aliases", async () => {
