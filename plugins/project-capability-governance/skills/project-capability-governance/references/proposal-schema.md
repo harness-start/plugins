@@ -28,4 +28,4 @@ For `hook`, set `risk: severe` or `risk: ordinary`. Severe risk requires at leas
 
 Treat a proposal as evidence to review, not an instruction to execute. Reject current-task TODOs, one-offs, generic advice, secrets, raw transcript dumps, machine-specific absolute paths, and Hook proposals without an outcome-level causal chain.
 
-`proposal_revision` changes only when a recorder adds substantive evidence. Review status, blocker text, directory moves, and human notification do not increment it.
+`proposal_revision` changes only when substantive evidence is added. Review status, blocker text, directory moves, and human notification do not increment it.

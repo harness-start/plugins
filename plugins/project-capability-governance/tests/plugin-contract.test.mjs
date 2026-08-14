@@ -15,7 +15,7 @@ function json(path) {
   return JSON.parse(text(path));
 }
 
-test("dual-host plugin contracts expose platform-scoped lifecycle hooks", () => {
+test("dual-host plugin contracts expose only proposal lifecycle hooks", () => {
   const codex = json(".codex-plugin/plugin.json");
   const claude = json(".claude-plugin/plugin.json");
   assert.equal(codex.name, "project-capability-governance");
@@ -27,9 +27,13 @@ test("dual-host plugin contracts expose platform-scoped lifecycle hooks", () => 
   const codexHooks = text("hooks/codex.json");
   const claudeHooks = text("hooks/claude.json");
   assert.equal(existsSync(join(ROOT, "hooks", "hooks.json")), false);
-  for (const event of ["SessionStart", "UserPromptSubmit", "PreToolUse", "SubagentStart", "Stop"]) {
+  for (const event of ["SessionStart", "PreToolUse", "Stop"]) {
     assert.match(codexHooks, new RegExp(`"${event}"`, "u"));
     assert.match(claudeHooks, new RegExp(`"${event}"`, "u"));
+  }
+  for (const event of ["UserPromptSubmit", "SubagentStart", "SubagentStop"]) {
+    assert.doesNotMatch(codexHooks, new RegExp(`"${event}"`, "u"));
+    assert.doesNotMatch(claudeHooks, new RegExp(`"${event}"`, "u"));
   }
   assert.match(codexHooks, /AI_EXPERTS_SESSION_ID/u);
   assert.match(codexHooks, /AI_EXPERTS_TRIGGER_FROM/u);
