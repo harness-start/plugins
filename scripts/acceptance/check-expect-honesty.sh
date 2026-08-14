@@ -21,7 +21,8 @@ log() { printf '%s\n' "$*" | tee -a "${REPORT}"; }
 failed=0
 checked=0
 
-mapfile -t plugins < <(list_plugins "${REPO_ROOT}")
+plugins=()
+while IFS= read -r plugin; do plugins+=("${plugin}"); done < <(list_plugins "${REPO_ROOT}")
 if [ "${#plugins[@]}" -eq 0 ]; then
   log "FAIL: marketplace has no plugins"
   exit 1
@@ -34,7 +35,8 @@ for plugin in "${plugins[@]}"; do
     failed=$((failed + 1))
     continue
   fi
-  mapfile -t cases < <(list_cases "${plugin_dir}")
+  cases=()
+  while IFS= read -r case_id; do cases+=("${case_id}"); done < <(list_cases "${plugin_dir}")
   if [ "${#cases[@]}" -eq 0 ]; then
     log "FAIL ${plugin}: empty acceptance/cases"
     failed=$((failed + 1))

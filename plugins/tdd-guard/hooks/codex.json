@@ -25,6 +25,31 @@
           }
         ]
       }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"tdd-guard:failure\" node \"${PLUGIN_ROOT}/scripts/tdd-guard.mjs\" failure codex",
+            "statusMessage": "Recording failing test evidence",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"tdd-guard:stop\" node \"${PLUGIN_ROOT}/scripts/tdd-guard.mjs\" stop codex",
+            "statusMessage": "Checking GREEN test evidence",
+            "timeout": 10000
+          }
+        ]
+      }
     ]
   }
 }

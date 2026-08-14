@@ -8,5 +8,6 @@ The Docker DeepSeek catalog declares `supports_search_tool: false`: this compati
 - `02-unverified-limitation`: honest no-source result with a visible limitation and completed lifecycle.
 - `03-ordinary-bypass`: ordinary answers are not forced into research mode (no project workflow run).
 - `04-direct-firecrawl-denied`: open run + PreToolUse rejects direct Firecrawl CLI discovery, then the run seals and completes.
+- `05-arxiv-candidate-recapture`: simulates untrusted `arxiv-search` candidate output and proves it becomes claim evidence only after MCP capture and anchoring.
 
 Offline unit tests cover Codex MCP packaging and empty-roots fallback, stale epochs, seal/run binding, post-seal immutability, terminal lifecycle ownership, outbound handoff freshness, artifact tampering, symbolic-link escape, fabricated/unknown anchors, status cardinality, URL safety, direct `.research/` writes, and MCP `roots/list` binding.

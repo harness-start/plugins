@@ -8,18 +8,30 @@ import {
   contextOutput,
   cwdOf,
   extractTargets,
+  inferOutcome,
   preToolDeny,
   proposedContent,
   readStdinJson,
   relativePath,
   sessionIdOf,
+  shellCommandOf,
+  stopDeny,
+  targetOperation,
   toolUseIdOf,
   writeJson,
 } from "./lib/hook-io.mjs";
 import {
+  findCorrespondingTests,
   formatTestPathList,
   historicalCorrespondingTests,
 } from "./lib/existing-tests.mjs";
+import {
+  gitPathState,
+  gitShowHead,
+  hasGitHead,
+  listHeadPaths,
+  restoresHeadState,
+} from "./lib/git-workspace.mjs";
 import {
   classifyPath,
   expectedTestExample,
@@ -40,12 +52,83 @@ function targetsFor(event, root) {
   }).filter((target) => target.kind !== "ignored");
 }
 
-function liveTestRecords(state, root) {
-  return (state.tests ?? []).filter((record) => hashPath(resolve(root, record.path)) === record.hash);
-}
-
 function mixedWriteFinding() {
   return "[TDD Guard] A single tool call cannot mix test and implementation files. Use separate tool calls: write the test first, let the hook record it, then write implementation files.";
+}
+
+function testCommand(command) {
+  return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(String(command ?? ""));
+}
+
+const TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|test_[^/\s"']+\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
+
+function namedTestPaths(command, root) {
+  const normalized = String(command ?? "").replaceAll("\\", "/");
+  const found = [];
+  for (const match of normalized.matchAll(TEST_FILE_IN_COMMAND)) {
+    const relative = relativePath(root, resolve(root, match[1].replace(/^\.\//u, "")));
+    if (classifyPath(relative).kind === "test") found.push(relative);
+  }
+  return [...new Set(found)];
+}
+
+function coveredOutcomePaths(command, root, state, outcome) {
+  const named = namedTestPaths(command, root);
+  if (named.length > 0) {
+    if (outcome === "success" && state.needsGreen?.testPaths?.length) {
+      return named.filter((path) => state.needsGreen.testPaths.includes(path));
+    }
+    return named;
+  }
+  if (/\b(?:--list-tests|--collect-only|--listTests)\b/u.test(String(command ?? ""))) return [];
+  if (testCommand(command) && state.needsGreen?.testPaths?.length) return state.needsGreen.testPaths;
+  return [];
+}
+
+function correspondingTests(root, source, context) {
+  const found = new Set(findCorrespondingTests(root, source, context));
+  if (!hasGitHead(root)) return [...found];
+  for (const path of listHeadPaths(root)) {
+    const classified = classifyPath(path);
+    if (classified.kind !== "test" || classified.language !== source.language) continue;
+    const content = gitShowHead(root, path);
+    if (content == null) continue;
+    const testContext = resolveLanguageContext(root, path, source.language);
+    const evidence = extractTestEvidence(source.language, content, path, testContext);
+    if (sourceAuthorizedByTest(source, { path, language: source.language, evidence }, context)) {
+      found.add(path);
+    }
+  }
+  return [...found];
+}
+
+function headCorrespondingTests(root, source, state, context, corresponding) {
+  if (hasGitHead(root)) return corresponding.filter((path) => gitPathState(root, path).tracked);
+  // No HEAD: keep pre-session disk tests as historical so extra new tests cannot rename the deny.
+  return historicalCorrespondingTests(root, source, state, context);
+}
+
+function liveObservedRed(state, root, path) {
+  const absolutePath = resolve(root, path);
+  if (!existsSync(absolutePath)) return false;
+  return (state.observedRed ?? {})[path] === hashPath(absolutePath);
+}
+
+function remainingCorrespondingTests(root, changed, testPaths) {
+  const existing = (testPaths ?? []).filter((path) => existsSync(resolve(root, path)));
+  if (existing.length > 0) return existing;
+  const found = new Set();
+  for (const path of changed) {
+    const classified = classifyPath(path);
+    if (classified.kind !== "source" || !classified.language) continue;
+    const absolutePath = resolve(root, path);
+    const content = existsSync(absolutePath) ? readText(absolutePath) : (gitShowHead(root, path) ?? "");
+    const context = resolveLanguageContext(root, path, classified.language);
+    for (const testPath of findCorrespondingTests(root, { path, language: classified.language, content }, context)) {
+      found.add(testPath);
+    }
+  }
+  return [...found];
 }
 
 async function runPre(event) {
@@ -61,37 +144,139 @@ async function runPre(event) {
 
   const state = readState(sessionId, root);
   if (kinds.has("source")) {
-    const tests = liveTestRecords(state, root);
+    if (state.needsGreen) {
+      const pendingPaths = new Set(state.needsGreen.paths ?? []);
+      const allRevert = targets.length > 0 && targets.every((target) => {
+        if (pendingPaths.size > 0 && !pendingPaths.has(target.path)) return false;
+        const deleting = targetOperation(event, target.absolutePath) === "delete";
+        const current = readText(target.absolutePath);
+        return restoresHeadState(root, target.path, {
+          missing: deleting,
+          content: proposedContent(event, target.absolutePath, current),
+        });
+      });
+      if (allRevert) {
+        state.pending = {
+          kind: "revert",
+          toolUseId: toolUseIdOf(event),
+          targets: targets.map((target) => ({ path: target.path, beforeHash: hashPath(target.absolutePath) })),
+          testPaths: state.needsGreen.testPaths ?? [],
+        };
+        if (!writeState(sessionId, root, state)) warn("implementation snapshot could not be persisted; GREEN completion will fail closed");
+        return;
+      }
+      writeJson(preToolDeny(`[TDD Guard] Blocked implementation edit: the previous implementation mutation still needs an observed passing test run (GREEN). Run the relevant tests successfully before another implementation change.`));
+      return;
+    }
+
+    const authorizingTests = new Set();
     for (const target of targets) {
       const current = readText(target.absolutePath);
       const source = { ...target, content: proposedContent(event, target.absolutePath, current) };
       const context = resolveLanguageContext(root, target.path, target.language);
-      const historical = historicalCorrespondingTests(root, source, state, context);
-      if (historical.length > 0) {
-        if (tests.some((record) => historical.includes(record.path) && sourceAuthorizedByTest(source, record, context))) continue;
-        writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: matching tests already exist (${formatTestPathList(historical)}). Update one of those existing test files first in this session so the change goes through a red-green cycle, then retry the implementation edit in a separate tool call.`));
+      const corresponding = correspondingTests(root, source, context);
+      const headCorresponding = headCorrespondingTests(root, source, state, context, corresponding);
+      const redPool = headCorresponding.length > 0 ? headCorresponding : corresponding;
+      const redOk = redPool.some((path) => liveObservedRed(state, root, path));
+      const headGone = headCorresponding.length > 0 && headCorresponding.every((path) => !existsSync(resolve(root, path)));
+      const headDirty = headCorresponding.some((path) => gitPathState(root, path).dirty);
+      const isDelete = targetOperation(event, target.absolutePath) === "delete";
+      if (redOk) {
+        for (const path of redPool) if (liveObservedRed(state, root, path)) authorizingTests.add(path);
+        continue;
+      }
+      if (isDelete && headCorresponding.length > 0 && (headGone || headDirty)) {
+        for (const path of headCorresponding) authorizingTests.add(path);
+        continue;
+      }
+      if (headCorresponding.length > 0) {
+        writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: matching tests already exist (${formatTestPathList(headCorresponding)}), but no current failing test run (RED) was observed after their latest edit. Run the relevant tests, confirm they fail for the intended behavior, then retry the implementation edit.`));
         return;
       }
-      if (tests.some((record) => sourceAuthorizedByTest(source, record, context))) continue;
       const expected = expectedTestExample(target.path, target.language);
-      writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: no matching test file was created or changed earlier in this session. Create or update ${expected} with a real test case that references the implementation, then retry in a separate tool call.`));
+      writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: no matching edited test with an observed failing run (RED) is available. Create or update ${expected} with a real test case, run it and observe the intended failure, then retry.`));
       return;
     }
+
+    if (!hasGitHead(root)) {
+      writeJson(preToolDeny("[TDD Guard] Blocked implementation edit: this workspace has no git HEAD, so implementation writes are denied. Initialize a git repository with a commit, then retry."));
+      return;
+    }
+
+    state.pending = {
+      kind: "source",
+      toolUseId: toolUseIdOf(event),
+      targets: targets.map((target) => ({ path: target.path, beforeHash: hashPath(target.absolutePath) })),
+      testPaths: [...authorizingTests],
+    };
+    if (!writeState(sessionId, root, state)) warn("implementation snapshot could not be persisted; GREEN completion will fail closed");
     return;
   }
 
   state.pending = {
+    kind: "test",
     toolUseId: toolUseIdOf(event),
     targets: targets.map((target) => ({ path: target.path, language: target.language, beforeHash: hashPath(target.absolutePath) })),
   };
   if (!writeState(sessionId, root, state)) warn("test write snapshot could not be persisted; later implementation writes will remain blocked");
 }
 
-async function runPost(event, platform) {
+async function runPost(event, platform, forceFailure = false) {
   const root = cwdOf(event);
   const sessionId = sessionIdOf(event);
   const state = readState(sessionId, root);
+  const command = shellCommandOf(event);
+  if (command && testCommand(command)) {
+    const outcome = inferOutcome(event, forceFailure);
+    if (outcome === "failure" && !state.needsGreen) {
+      const covered = coveredOutcomePaths(command, root, state, outcome);
+      if (covered.length === 0) return;
+      state.observedRed = { ...(state.observedRed ?? {}) };
+      for (const path of covered) {
+        const absolutePath = resolve(root, path);
+        if (!existsSync(absolutePath)) continue;
+        const hash = hashPath(absolutePath);
+        state.observedRed[path] = hash;
+        const record = (state.tests ?? []).find((item) => item.path === path);
+        if (record) record.redHash = hash;
+      }
+      state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter(Boolean) };
+    } else if (outcome === "success" && state.needsGreen) {
+      const covered = coveredOutcomePaths(command, root, state, outcome);
+      if (covered.length === 0) return;
+      state.needsGreen = null;
+    } else return;
+    if (!writeState(sessionId, root, state)) warn("test outcome could not be persisted");
+    return;
+  }
   if (!state.pending || state.pending.toolUseId !== toolUseIdOf(event)) return;
+  if (state.pending.kind === "source" || state.pending.kind === "revert") {
+    const testPaths = state.pending.testPaths ?? [];
+    const kind = state.pending.kind;
+    const pendingTargets = state.pending.targets ?? [];
+    const changed = pendingTargets.filter((target) => hashPath(resolve(root, target.path)) !== target.beforeHash).map((target) => target.path);
+    state.pending = null;
+    if (kind === "revert") {
+      const restored = pendingTargets.every((target) => {
+        const missing = !existsSync(resolve(root, target.path));
+        return restoresHeadState(root, target.path, {
+          missing,
+          content: missing ? "" : readText(resolve(root, target.path)),
+        });
+      });
+      if (restored) state.needsGreen = null;
+    } else if (changed.length > 0) {
+      const remaining = remainingCorrespondingTests(root, changed, testPaths);
+      const allDeleted = changed.every((path) => !existsSync(resolve(root, path)));
+      if (!(allDeleted && remaining.length === 0)) {
+        state.needsGreen = { paths: changed, testPaths };
+        state.observedRed = {};
+        for (const record of state.tests ?? []) delete record.redHash;
+      }
+    }
+    if (!writeState(sessionId, root, state)) warn("implementation outcome could not be persisted; GREEN completion will fail closed");
+    return;
+  }
   const recorded = [];
   for (const target of state.pending.targets ?? []) {
     const absolutePath = resolve(root, target.path);
@@ -118,8 +303,15 @@ async function runPost(event, platform) {
     return;
   }
   if (recorded.length > 0 && platform !== "codex") {
-    writeJson(contextOutput("PostToolUse", `[TDD Guard] Recorded test-first evidence for ${recorded.join(", ")}. Related implementation files may now be written in a separate tool call.`));
+    writeJson(contextOutput("PostToolUse", `[TDD Guard] Recorded test structure for ${recorded.join(", ")}. Run the relevant test command and observe the intended failure (RED) before editing implementation.`));
   }
+}
+
+async function runStop(event) {
+  const root = cwdOf(event);
+  const state = readState(sessionIdOf(event), root);
+  if (!state.needsGreen) return;
+  writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
 }
 
 async function main() {
@@ -134,7 +326,8 @@ async function main() {
     return;
   }
   if (mode === "pre") await runPre(event);
-  else if (mode === "post") await runPost(event, platform);
+  else if (mode === "post" || mode === "failure") await runPost(event, platform, mode === "failure");
+  else if (mode === "stop") await runStop(event);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

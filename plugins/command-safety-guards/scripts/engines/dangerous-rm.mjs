@@ -38,7 +38,7 @@ function recursiveRmTarget(args, cwd, stdinDriven) {
       .replace(/^\$\(pwd\)(?=\/|$)/u, cwd);
     const absolute = resolve(cwd, expanded);
     if (/^\/+$/u.test(expanded)) return "rm -r / would delete the entire filesystem";
-    if (absolute === resolve(cwd) || expanded.startsWith("./*")) {
+    if (absolute === resolve(cwd) || /^(?:\.\/)?\*+(?:\/\*+)*$/u.test(expanded)) {
       return "rm -r . would delete everything in the current directory";
     }
     if (homeReference || absolute === homedir()) {
@@ -101,6 +101,14 @@ function findDeleteReason(args, cwd) {
 }
 
 function dangerousCommandReason(command, cwd, depth = 0) {
+  if (depth < 4) {
+    for (const nestedCommand of nestedCommandSubstitutions(command)) {
+      const reason = dangerousCommandReason(nestedCommand, cwd, depth + 1);
+      if (reason) return reason;
+    }
+  } else if (hasCommandSubstitution(command)) {
+    return "nested command substitutions are too deep to prove the deletion scope safe";
+  }
   for (const logicalLine of splitShellLogicalLines(command)) {
     const tokens = tokenizeShell(logicalLine);
     let segment = [];
@@ -150,6 +158,81 @@ function dangerousCommandReason(command, cwd, depth = 0) {
     }
   }
   return null;
+}
+
+function hasCommandSubstitution(command) {
+  return /\$\(|`/u.test(command);
+}
+
+function nestedCommandSubstitutions(command) {
+  const nested = [];
+  let quote = null;
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index];
+    if (char === "\\") {
+      index += 1;
+      continue;
+    }
+    if (quote === "'") {
+      if (char === "'") quote = null;
+      continue;
+    }
+    if (char === "'") {
+      quote = char;
+      continue;
+    }
+    if (char === '"') {
+      quote = quote === '"' ? null : '"';
+      continue;
+    }
+    if (char === "`") {
+      let end = index + 1;
+      let body = "";
+      for (; end < command.length; end += 1) {
+        if (command[end] === "\\" && end + 1 < command.length) {
+          body += command[end + 1];
+          end += 1;
+        } else if (command[end] === "`") break;
+        else body += command[end];
+      }
+      if (end < command.length) {
+        nested.push(body);
+        index = end;
+      }
+      continue;
+    }
+    if (char !== "$" || command[index + 1] !== "(") continue;
+    let depth = 1;
+    let body = "";
+    let nestedQuote = null;
+    let end = index + 2;
+    for (; end < command.length && depth > 0; end += 1) {
+      const current = command[end];
+      if (current === "\\") {
+        if (end + 1 < command.length) body += `${current}${command[end + 1]}`;
+        end += 1;
+        continue;
+      }
+      if (nestedQuote) {
+        if (current === nestedQuote) nestedQuote = null;
+        body += current;
+        continue;
+      }
+      if (current === "'" || current === '"') {
+        nestedQuote = current;
+        body += current;
+        continue;
+      }
+      if (current === "(") depth += 1;
+      if (current === ")") depth -= 1;
+      if (depth > 0) body += current;
+    }
+    if (depth === 0) {
+      nested.push(body);
+      index = end - 1;
+    }
+  }
+  return nested;
 }
 
 export function dangerousCommandHits(command, cwd = process.cwd()) {

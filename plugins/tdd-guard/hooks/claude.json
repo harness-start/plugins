@@ -25,6 +25,31 @@
           }
         ]
       }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/tdd-guard.mjs\" failure claude",
+            "statusMessage": "Recording failing test evidence",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/tdd-guard.mjs\" stop claude",
+            "statusMessage": "Checking GREEN test evidence",
+            "timeout": 10000
+          }
+        ]
+      }
     ]
   }
 }

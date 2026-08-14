@@ -132,3 +132,18 @@ test("Firecrawl discovery drains noisy stderr without deadlocking", async () => 
     process.env.PATH = originalPath;
   }
 });
+
+test("missing optional discovery executable degrades without an ENOENT failure", async () => {
+  const { workspace, dataRoot } = await fixture();
+  const service = new ResearchService({
+    workspaceRoot: workspace,
+    dataRoot,
+    sessionId: "missing-discovery",
+    discoveryExecutable: "/definitely/missing/firecrawl",
+  });
+  await service.call("research_begin", { question: "Q", scope: "S", as_of: "2026-08-08", prompt_epoch: 1 });
+  const discovered = await service.call("source_discover", { query: "fixture", limit: 1 });
+  assert.equal(discovered.available, false);
+  assert.deepEqual(discovered.results, []);
+  assert.match(discovered.limitation, /known URL|workspace source/u);
+});

@@ -19,7 +19,7 @@ const MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_discover|so
 const SESSION_CONTEXT = [
   "[Research Provenance Guard] Research entry routing",
   "For research, investigation of APIs/docs/specs/facts, source-backed findings, or multi-source evidence work, invoke research-evidence-workflow first and open a project run under .research/runs/.",
-  "Do not start such tasks by invoking standalone firecrawl or research skills. Use them only as phase techniques under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
+  "Do not start such tasks by invoking standalone firecrawl, research, or arxiv-search skills. Use them only as phase techniques under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
   "Invoke handoff only after the run is sealed and handoffs/outbound files exist.",
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open—not because this SessionStart text appeared.",
   "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence.",
@@ -64,8 +64,10 @@ function callsFirecrawlCli(command) {
 function shellCommandIsReadOnly(command) {
   const value = String(command ?? "").trim();
   if (!value || /[\n;&|><`]|\$\(/u.test(value)) return false;
-  return /^(?:cat|pwd|ls|rg|grep|head|tail)\b/iu.test(value)
-    || (/^git\s+(?:status|diff|log|show)\b/iu.test(value) && !/--output(?:=|\s)/iu.test(value))
+  return /^(?:cat|pwd|ls|rg|grep|head|tail|jq|wc|stat|file)\b/iu.test(value)
+    || (/^sed\b/iu.test(value) && !/(?:^|\s)-(?:[^\s]*i|--in-place)(?:\s|=|$)/iu.test(value))
+    || (/^find\b/iu.test(value) && !/(?:-delete|-exec|-execdir|>)/iu.test(value))
+    || (/^git\s+(?:status|diff|log|show|rev-parse)\b/iu.test(value) && !/--output(?:=|\s)/iu.test(value))
     || /^node\s+--check\b/iu.test(value);
 }
 
@@ -156,6 +158,7 @@ function post(event) {
     return null;
   }
   if (!state.active) return null;
+  if (state.seal?.seal) return null;
   if (trustedWorkflowCommand(shellCommand(event), "handoff-outbound")) return null;
   let mutated = false;
   if (fileMutation(event)) mutated = appendStateEvent(event, "mutation", { tool: toolName(event) });
@@ -172,15 +175,6 @@ export async function evaluateStop(event) {
   const trailer = parseTrailer(assistantMessage(event));
   const findings = [];
   if (!trailer) findings.push("final response is missing the exact research-evidence/v1 trailer");
-  if (trailer) {
-    const outside = assistantMessage(event)
-      .replace(/(?:^|\n)Research-Evidence: research-evidence\/v1\nResearch-Run: [a-z0-9-]+\nResearch-Seal: sha256:[a-f0-9]{64}(?:\n|$)/u, "\n")
-      .trim();
-    const pointerMatch = outside.match(/^(?:Research report:\s*)?(?:\[Research report\]\()?\.research\/runs\/([a-z0-9-]+)\/report\.md\)?$/u);
-    if (outside && (!pointerMatch || pointerMatch[1] !== trailer.runId)) {
-      findings.push("hard-mode final response contains free-form prose outside the canonical report; return only its matching report pointer and the exact trailer");
-    }
-  }
   if (!state.seal?.seal) findings.push("no successful research_seal MCP receipt was observed in this session");
   if (state.seal?.runId && state.runId && state.seal.runId !== state.runId) findings.push("research seal belongs to a different research run");
   if (trailer && state.seal?.seal && (trailer.seal !== state.seal.seal || trailer.runId !== state.seal.runId)) {

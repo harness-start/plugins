@@ -42,6 +42,22 @@ export function extractShellCommand(event) {
   return typeof command === "string" ? command : null;
 }
 
+export function extractToolWait(event) {
+  const fullName = String(extractToolName(event));
+  const name = fullName.split(".").at(-1)?.toLowerCase();
+  const input = extractToolInput(event);
+  if (name === "list_agents") return { label: fullName, sleepSeconds: 0, queryCount: 1 };
+  if (name === "wait_agent") {
+    const milliseconds = Number(input?.timeout_ms ?? input?.timeoutMs ?? 0);
+    return milliseconds > 0 ? { label: fullName, sleepSeconds: milliseconds / 1000, queryCount: 0 } : null;
+  }
+  if (name === "wait" || name === "write_stdin") {
+    const milliseconds = Number(input?.yield_time_ms ?? input?.yieldTimeMs ?? 0);
+    return milliseconds > 0 ? { label: fullName, sleepSeconds: milliseconds / 1000, queryCount: 0 } : null;
+  }
+  return null;
+}
+
 function stripMatchingQuotes(value) {
   const text = String(value ?? "").trim();
   if (

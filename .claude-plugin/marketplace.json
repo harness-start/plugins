@@ -34,7 +34,7 @@
     {
       "name": "tdd-guard",
       "source": "./plugins/tdd-guard",
-      "description": "Blocks implementation writes until a test binds the exact language entity or mirrored source path earlier in the session."
+      "description": "Requires an observed failing test before implementation and a relevant passing test before completion."
     },
     {
       "name": "encoding-guard",
