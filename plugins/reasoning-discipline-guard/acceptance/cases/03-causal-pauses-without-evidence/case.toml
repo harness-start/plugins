@@ -1,4 +1,0 @@
-id = "03-causal-pauses-without-evidence"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["skill", "causal", "paused"]

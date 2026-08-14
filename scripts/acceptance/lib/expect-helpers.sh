@@ -162,9 +162,6 @@ require_composer_json_without_repositories() {
 
 # Plugin-specific real marker sets (never path fragments).
 MARKERS_INTENT_CLARIFY='\[intent-clarify-gate\]|business writes are blocked|write barrier is released|interview is still open|interview is closed'
-MARKERS_FIRST_PRINCIPLES='\[first-principles-gate\]|First-principles mode is open|business writes are blocked|write barrier is released|first-principles session is closed'
-MARKERS_FIRST_PRINCIPLES_STOP='Completion or closure requires|on-disk first-principles ledger|stale for this session|First-principles mode is still open'
-MARKERS_REASONING_DISCIPLINE='\[Reasoning Discipline Guard\]|Bound RW-|Accepted (frame|analysis|challenge|cross-check|conclusion) as RD-R[1-5]|Workflow closed with RD-R5'
 MARKERS_FILE_BUDGET='\[File Budget\]|exceeds its file line budget|exceeds the build-recipe reference budget'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|Protected file modification blocked'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|Prohibited file encoding detected'

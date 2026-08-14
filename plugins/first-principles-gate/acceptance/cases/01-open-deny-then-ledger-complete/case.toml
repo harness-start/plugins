@@ -1,4 +1,0 @@
-id = "01-open-deny-then-ledger-complete"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["pre-tool", "user-prompt", "stop", "first-principles", "deny", "ledger"]

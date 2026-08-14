@@ -1,1 +1,0 @@
-使用 $reasoning-discipline。某个私人支付沙箱偶尔拒绝付款，但当前没有凭据、请求、响应、日志、端点或复现步骤。创建 causal 工作流并完成 frame，在 givens、assumptions 和 ambiguities 中诚实记录现有事实与缺失证据；不要虚构根因。随后因为分析所需证据缺失，将 manifest 合法暂停，并把具体恢复动作与必要材料写入 resume.nextAction。最终回复只写：`证据不足，无法确定原因。`

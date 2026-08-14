@@ -13,9 +13,7 @@ const dedicatedPlugins = [
 
 const naturalLanguageOwners = [
   "debugging-workflow-guard",
-  "first-principles-gate",
   "project-capability-governance",
-  "reasoning-discipline-guard",
   "work-report-insights",
 ];
 
@@ -54,9 +52,9 @@ test("domain plugins do not authenticate or schedule native subagents", () => {
 test("domain skill prompts use plain delegation without shared handoff protocols", () => {
   const skillPaths = [
     "plugins/debugging-workflow-guard/skills/debug-workflow/SKILL.md",
-    "plugins/first-principles-gate/skills/first-principles-ledger/SKILL.md",
     "plugins/project-capability-governance/skills/project-capability-governance/SKILL.md",
-    "plugins/reasoning-discipline-guard/skills/reasoning-discipline/SKILL.md",
+    "plugins/reasoning-discipline/skills/first-principles/SKILL.md",
+    "plugins/reasoning-discipline/skills/reasoning-discipline/SKILL.md",
     "plugins/research-provenance-guard/skills/research-evidence-workflow/SKILL.md",
   ];
   const forbidden = /subagent-(?:handoff|plan-execution)|SUBAGENT_APPLICATION|(?:DBG|FP|RD)_REVIEW_(?:REQUEST|RESULT)|reviewNonce/iu;

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Reasoning Discipline"
-  short_description: "Build a staged challenge-and-cross-check evidence trail"
-  default_prompt: "Route exact, causal, or consequential decision work through the file-backed reasoning workflow, then obey the user's final-output format."
