@@ -234,14 +234,14 @@ agent TOML 中显式固定的值
 
 最后一个仓库也提供了“不能只看 README”的反例：同一提交的 README 把 `developer_instructions` 写成带 `content` 的 TOML table，而实际 agent 文件和当前官方 schema 使用字符串。[README 示例](https://github.com/sehoon787/my-codex/blob/ff51e4e1ad60546ce937b725ed4cfea45bea532f/README.md#L471-L489) 不能替代对已安装文件和宿主解析器的验证。
 
-本仓库本身也符合这条边界：Codex marketplace 和插件 manifest 独立存在，[`subagent-workflow-guard` 的 Codex manifest](../plugins/subagent-workflow-guard/.codex-plugin/plugin.json) 与 [Codex hooks](../plugins/subagent-workflow-guard/hooks/codex.json) 都不声明 agent 资源。调研时在仓库根执行下面的检查没有输出：
+本仓库采用了更小的边界：不再发布中央 subagent 工作流或生命周期审计插件，也不在 debugging、first-principles、reasoning、project-capability 和 work-report 这些领域插件的根目录投放自定义 agent。对应 Skill 只在任务确实适合拆分时，用普通自然语言请求宿主创建通用子 agent；父 agent 验证结果并承担交付责任。仓库用下面的合同测试固定这条边界：
 
 ```bash
 # cwd: 本仓库根目录
-find plugins -mindepth 3 -maxdepth 3 -type d -name agents -print
+node --test plugins/project-capability-governance/tests/subagent-architecture.test.mjs
 ```
 
-这只能证明本仓库当前没有使用“插件根 `agents/`”布局；结合上面的官方 manifest 源码，才足以判断它不是 Codex agent 的自动发现入口。
+这项测试证明仓库没有重新引入专用 agent 文件、`SubagentStart` / `SubagentStop` hook 或旧 marker/nonce 协议。它不证明宿主的通用 subagent 一定正确；正确性仍由领域产物、测试和父 agent 的复核建立。
 
 ## 推荐的跨平台设计
 
@@ -299,4 +299,4 @@ reviewer contract
 
 ## 实施建议
 
-如果目标是给本仓库补一对跨平台 reviewer agent，建议先落两个最小投影：Claude Code 插件根目录的 `agents/evidence-reviewer.md`，以及由项目或显式安装器管理的 `.codex/agents/evidence-reviewer.toml`。先用只读工具面和固定输出合同验收，再决定是否增加 MCP、skills、memory、后台执行或嵌套委派。这样每增加一个能力，都能单独说明它如何影响目标结果，也能单独回滚。
+本仓库当前不建议预先补一对跨平台 reviewer agent。默认方案是：领域 Skill 判断某个搜索、阅读或反例检查是否值得并行；若值得，就向宿主的通用 subagent 发送完整自然语言任务；子 agent 返回建议；父 agent 打开证据、运行验证并作最终决定。只有当真实任务反复证明某个稳定角色需要固定模型、effort、工具权限或路由时，才按前文的双投影方式新增自定义 agent，并单独验收加载、权限、成本和结果质量。

@@ -41,14 +41,12 @@ FALLBACK_PLUGINS=(
   command-safety-guards
   compact-context-journal
   language-output-governance
-  subagent-workflow-guard
   intent-clarify-gate
   first-principles-gate
   reasoning-discipline-guard
   markdown-format-guard
   file-access-audit
   command-exec-audit
-  subagent-lifecycle-audit
   debugging-workflow-guard
   pptx-project-delivery-guard
   poster-project-delivery-guard

@@ -39,7 +39,7 @@ Skill 编排 CLI 创建或激活账本
 | 插件 | 边界 |
 | --- | --- |
 | `compact-context-journal` | 上下文压缩后的需求恢复，不维护任务状态机 |
-| `subagent-workflow-guard` | agent handoff 与 review closure，不拥有全局任务进度 |
+| 各领域 Skill 的自然语言 delegation | 可选的局部并行工作，不拥有全局任务进度；父 agent 仍以 ledger 和业务证据判断完成 |
 
 不做 Issue 同步、排期、人天估算，也不自动判断任务是否足够大。单会话任务不应创建账本。
 

@@ -105,8 +105,6 @@ codex plugin add <name>@harness-start --json
 | `protected-file-guard` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
 | `command-safety-guards` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
 | `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
-| `subagent-workflow-guard` | 先登记子任务范围再派发；交付前要求实现、规格复核、质量复核和最终复核全部完成 |
-| `subagent-lifecycle-audit` | 以 append-only 形式记录 subagent 启停和生命周期缺口，不保存工作内容 |
 | `intent-clarify-gate` | grill-me 式意图澄清期间门禁业务写入，直到 `done` 或选择完成项 |
 | `first-principles-gate` | 第一性原理分析期间门禁业务写入，直到结构化磁盘 ledger 完成并关闭会话 |
 | `reasoning-discipline-guard` | 通过宽泛 Skill 建立五阶段推理工作流，并在输出结论前要求有序 challenge 和 cross-check 回执 |
@@ -124,16 +122,22 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-29 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+27 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
 | 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
-| Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`subagent-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
+| Hook + Skill 工作流 | `reasoning-discipline-guard`、`debugging-workflow-guard`、`research-provenance-guard` | 磁盘状态机 + 证据链；`Stop` 前要求阶段回执与磁盘 trail 一致才放行 |
 | 门禁型 Gate | `intent-clarify-gate`、`first-principles-gate` | 会话阶段锁：意图澄清或第一性原理分析未关闭期间 deny 业务写入，直到显式关闭 |
-| 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`subagent-lifecycle-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
+| 审计 / 日志 | `file-access-audit`、`command-exec-audit`、`compact-context-journal` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
 | 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`tonejs-music-production` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
-| 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 跨会话 / 跨子代理治理：提案写入权限、会话语言、报告封印与追加 |
+| 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 提案格式与采用流程、会话语言、报告封印与追加 |
+
+### Subagent 原则
+
+本仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可以在任务适合拆分时，用完整自然语言请求宿主创建普通子 agent；子 agent 的输出只是建议或候选材料，父 agent 必须核对证据、运行验证并承担最终交付责任。模型、思考深度、权限、并发和启停由 Claude Code / Codex 宿主管理，不在跨平台 Hook 中模拟身份、reservation、nonce、mailbox 或审批权。
+
+某些领域 Hook 仍会在 `SubagentStop` 上执行与主 agent 相同的语言或交付物检查。这表示“同一领域规则覆盖子会话”，不表示仓库接管子 agent 的调度或生命周期。
 
 ### 通用结构
 
