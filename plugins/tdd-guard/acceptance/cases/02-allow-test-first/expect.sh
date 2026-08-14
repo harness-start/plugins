@@ -6,8 +6,11 @@ require_host_session_started
 if [ "${ACCEPT_HOST}" != "codex" ]; then
   require_guard_hook_signal '\[TDD Guard\] Recorded test structure.*RED'
 fi
-state_file="$(find "${ACCEPT_WORKSPACE}/.tdd-guard/.state" -name '*.json' -type f -print -quit)"
+state_file="$(find "${ACCEPT_WORKSPACE}/.tdd-guard/state" -name '*.json' -type f -print -quit)"
 test -n "${state_file}"
+test ! -d "${ACCEPT_WORKSPACE}/.tdd-guard/.state"
+test "$(cat "${ACCEPT_WORKSPACE}/.tdd-guard/.gitignore")" = "state/"
+test "$(cat "${ACCEPT_WORKSPACE}/.gitignore")" = "vendor/"
 jq -e '.version == 3 and .lastRed != null and (.tests[] | select(.path == "test/price-calculator.test.mjs" and .evidence.valid == true and (.evidence.targets | index("javascript-module:src/price-calculator"))))' "${state_file}" >/dev/null
 node --test "${ACCEPT_WORKSPACE}/test/price-calculator.test.mjs"
 grep -Fq 'calculateTotal([2, 3])' "${ACCEPT_WORKSPACE}/test/price-calculator.test.mjs"

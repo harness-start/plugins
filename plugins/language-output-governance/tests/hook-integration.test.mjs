@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
@@ -67,6 +67,19 @@ test("SessionStart initializes and resumes the configured profile", async () => 
   await runEntry("user-prompt", event(cwd, "profile", { prompt: "Please continue to answer in Korean." }), env);
   const resumed = await runEntry("session-start", event(cwd, "profile", { source: "resume" }), env);
   assert.match(JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext, /profile=ko-KR/u);
+});
+
+test("SessionStart uses state and creates only the governance-local gitignore", async () => {
+  const cwd = root();
+  const data = root();
+  writeFileSync(join(cwd, ".gitignore"), "vendor/\n", "utf8");
+
+  await runEntry("session-start", event(cwd, "layout"), { PLUGIN_DATA: data });
+
+  assert.equal(existsSync(join(cwd, ".language-output-governance", "state")), true);
+  assert.equal(existsSync(join(cwd, ".language-output-governance", ".state")), false);
+  assert.equal(readFileSync(join(cwd, ".language-output-governance", ".gitignore"), "utf8"), "state/\n");
+  assert.equal(readFileSync(join(cwd, ".gitignore"), "utf8"), "vendor/\n");
 });
 
 test("UserPromptSubmit records a stable preferred profile shared with Stop", async () => {

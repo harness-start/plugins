@@ -19,7 +19,7 @@ const LOCK_STALE_MS = 30_000;
 const LOCK_ATTEMPTS = 100;
 const LOCK_WAIT_MS = 10;
 const WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
-export const STATE_DIR_RELATIVE = ".language-output-governance/.state";
+export const STATE_DIR_RELATIVE = ".language-output-governance/state";
 
 function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
@@ -27,9 +27,9 @@ function digest(value) {
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(directory, ".gitignore");
+  const ignore = join(dirname(directory), ".gitignore");
   if (!existsSync(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
   }
 }
 

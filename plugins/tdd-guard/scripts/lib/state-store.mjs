@@ -3,15 +3,15 @@ import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync 
 import { dirname, join, resolve } from "node:path";
 
 const VERSION = 3;
-export const STATE_DIR_RELATIVE = ".tdd-guard/.state";
+export const STATE_DIR_RELATIVE = ".tdd-guard/state";
 
 export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(directory, ".gitignore");
+  const ignore = join(dirname(directory), ".gitignore");
   if (!existsSync(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
   }
 }
 

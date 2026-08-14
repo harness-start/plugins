@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -916,9 +916,10 @@ test("interpreter write cannot create implementation before a test", async () =>
   }
 });
 
-test("state stores hashes instead of raw test source", async () => {
+test("state uses the visible directory and stores hashes instead of raw test source", async () => {
   const fx = fixture("tdd-guard-state-");
   try {
+    writeFileSync(join(fx.root, ".gitignore"), "vendor/\n", "utf8");
     mkdirSync(join(fx.root, "tests"), { recursive: true });
     const content = "def test_total():\n    return OrderService()\n";
     const event = writeEvent(fx.root, "tests/test_order_service.py", content, "test-1");
@@ -931,7 +932,7 @@ test("state stores hashes instead of raw test source", async () => {
     writeFileSync(join(fx.root, "tests", "test_order_service.py"), content);
     await runHook("post", event, env);
     const stateFiles = [];
-    const queue = [join(fx.root, ".tdd-guard", ".state")];
+    const queue = [join(fx.root, ".tdd-guard", "state")];
     while (queue.length > 0) {
       const directory = queue.pop();
       for (const name of (await import("node:fs")).readdirSync(directory)) {
@@ -941,6 +942,9 @@ test("state stores hashes instead of raw test source", async () => {
       }
     }
     assert.equal(stateFiles.length, 1);
+    assert.equal(existsSync(join(fx.root, ".tdd-guard", ".state")), false);
+    assert.equal(readFileSync(join(fx.root, ".tdd-guard", ".gitignore"), "utf8"), "state/\n");
+    assert.equal(readFileSync(join(fx.root, ".gitignore"), "utf8"), "vendor/\n");
     assert.equal((await import("node:fs")).existsSync(join(fx.data, "tdd-guard")), false);
     const stored = readFileSync(stateFiles[0], "utf8");
     assert.equal(JSON.parse(stored).version, 3);

@@ -14,4 +14,11 @@ target="${ACCEPT_WORKSPACE}/answer.txt"
 require_file_exists "${target}"
 grep -Fxq '这是使用简体中文编写的最终回答。' "${target}"
 
+state_dir="${ACCEPT_WORKSPACE}/.language-output-governance/state"
+local_gitignore="${ACCEPT_WORKSPACE}/.language-output-governance/.gitignore"
+test -d "${state_dir}"
+test ! -d "${ACCEPT_WORKSPACE}/.language-output-governance/.state"
+test "$(cat "${local_gitignore}")" = "state/"
+test "$(cat "${ACCEPT_WORKSPACE}/.gitignore")" = "vendor/"
+
 echo "OK zh-CN profile repaired tool text and final response"

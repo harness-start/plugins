@@ -106,7 +106,7 @@ class StdioPeer {
     }
     this.service = new ResearchService({
       workspaceRoot,
-      dataRoot: join(workspaceRoot, ".research", ".state"),
+      dataRoot: join(workspaceRoot, ".research", "state"),
       sessionId,
     });
     return this.service;

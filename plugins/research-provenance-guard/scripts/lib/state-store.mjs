@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { cwd, sessionId } from "./hook-io.mjs";
 import { findActiveWorkflow, isActivePhase, readWorkflowFile, workflowPath } from "./workflow-fs.mjs";
@@ -11,15 +11,15 @@ function hash(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-export const STATE_DIR_RELATIVE = ".research/.state";
+export const STATE_DIR_RELATIVE = ".research/state";
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(directory, ".gitignore");
+  const ignore = join(dirname(directory), ".gitignore");
   try {
     readFileSync(ignore, "utf8");
   } catch {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
+    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
   }
 }
 

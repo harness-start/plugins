@@ -1,6 +1,6 @@
 {
   "name": "language-output-governance",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Keeps agent prose aligned with a configurable session language profile and corrects unauthorized language drift.",
   "author": {
     "name": "Harness Start",

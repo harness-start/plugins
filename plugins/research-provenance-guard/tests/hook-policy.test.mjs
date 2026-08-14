@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -284,8 +285,9 @@ test("research_begin enforces the exact epoch", async () => {
   assert.match(JSON.parse(result.stdout).reason, /prompt_epoch=1/u);
 });
 
-test("research_begin preflight persists without PLUGIN_DATA", async () => {
+test("research_begin preflight uses state and creates only the research-local gitignore", async () => {
   const root = await mkdtemp(join(tmpdir(), "research-no-data-"));
+  await writeFile(join(root, ".gitignore"), "vendor/\n", "utf8");
   const script = fileURLToPath(new URL("../scripts/research-provenance-guard.mjs", import.meta.url));
   const env = { ...process.env, AI_EXPERTS_SESSION_ID: "missing-data" };
   delete env.PLUGIN_DATA;
@@ -303,7 +305,10 @@ test("research_begin preflight persists without PLUGIN_DATA", async () => {
   });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), "");
-  assert.equal((await import("node:fs")).existsSync(join(root, ".research", ".state")), true);
+  assert.equal(existsSync(join(root, ".research", "state")), true);
+  assert.equal(existsSync(join(root, ".research", ".state")), false);
+  assert.equal(await readFile(join(root, ".research", ".gitignore"), "utf8"), "state/\n");
+  assert.equal(await readFile(join(root, ".gitignore"), "utf8"), "vendor/\n");
 });
 
 test("research_seal preflight rejects a stale mutation revision", async () => {

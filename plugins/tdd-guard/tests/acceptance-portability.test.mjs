@@ -50,7 +50,7 @@ test("TDD live cases follow the version 3 RED-GREEN contract", () => {
   const identityPrompt = readFileSync(join(CASES, "03-same-name-identity", "prompt.md"), "utf8");
   const identityExpect = readFileSync(join(CASES, "03-same-name-identity", "expect.sh"), "utf8");
   assert.match(allowPrompt, /node --test.*fail.*RED.*node --test.*pass.*GREEN/isu);
-  assert.match(allowExpect, /ACCEPT_WORKSPACE.*\.tdd-guard\/\.state/su);
+  assert.match(allowExpect, /ACCEPT_WORKSPACE.*\.tdd-guard\/state/su);
   assert.match(allowExpect, /\.version == 3/u);
   assert.match(allowExpect, /\.lastRed != null/u);
   assert.doesNotMatch(allowPrompt + allowExpect, /do not run tests|codex-home\/plugins\/data|\.version == 2/iu);
