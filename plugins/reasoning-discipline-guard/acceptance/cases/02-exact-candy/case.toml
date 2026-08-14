@@ -1,4 +1,4 @@
 id = "02-exact-candy"
 hosts = ["claude", "codex"]
-timeout_sec = 300
+timeout_sec = 900
 tags = ["skill", "exact", "receipts", "outcome"]

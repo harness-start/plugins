@@ -2,6 +2,12 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [0.5.2] - 2026-08-14
+
+### Fixed
+
+- Block recursive deletion of current-directory wildcard targets and recursively inspect `$()` / backtick command substitutions, including assignment contexts.
+
 ## [0.5.1] - 2026-08-08
 
 ### Changed

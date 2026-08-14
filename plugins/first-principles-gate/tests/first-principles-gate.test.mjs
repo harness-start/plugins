@@ -194,7 +194,7 @@ test("review-start directly reserves an FP request and embeds ledger evidence", 
   } })}\n`);
   const started = await runEntry("review-start", {
     cwd: root,
-    session_id: session,
+    session_id: "direct-fp-reviewer",
     agent_id: "direct-fp-reviewer",
     transcript_path: transcriptPath,
   }, env);
@@ -202,6 +202,14 @@ test("review-start directly reserves an FP request and embeds ledger evidence", 
   assert.match(context, /reviewNonce=[a-f0-9]+/u);
   assert.match(context, /ledgerEvidence=/u);
   assert.match(context, /first-principles\/v1/u);
+  const recorded = await runEntry("subagent-stop", {
+    cwd: root,
+    session_id: "direct-fp-reviewer",
+    agent_id: "direct-fp-reviewer",
+    transcript_path: transcriptPath,
+    last_assistant_message: `FP_REVIEW_RESULT ${JSON.stringify({ stage: "challenger", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve" })}`,
+  }, env);
+  assert.match(recorded.stdout, /challenger review approve/u, recorded.stdout || recorded.stderr);
   const replay = await runEntry("review-start", {
     cwd: root, session_id: session, agent_id: "second-fp-reviewer",
     agent_prompt: "FP_REVIEW_REQUEST challenger",

@@ -48,10 +48,7 @@ async function requestOnce(url, timeoutMs, maxBytes) {
     const request = transport.request(url, {
       method: "GET",
       headers: { Accept: "text/html,text/plain,application/json,application/xml;q=0.9,*/*;q=0.1", "User-Agent": "research-provenance-guard/0.1" },
-      lookup(_hostname, _options, callback) {
-        const selected = addresses[0];
-        callback(null, selected.address, selected.family);
-      },
+      lookup: pinnedLookup(addresses),
     }, (response) => {
       const chunks = [];
       let size = 0;
@@ -67,6 +64,20 @@ async function requestOnce(url, timeoutMs, maxBytes) {
     request.on("error", reject);
     request.end();
   });
+}
+
+export function pinnedLookup(addresses) {
+  const pinned = addresses.map(({ address, family }) => ({ address, family }));
+  return function lookupPinned(_hostname, options, callback) {
+    const done = typeof options === "function" ? options : callback;
+    const lookupOptions = typeof options === "object" && options !== null ? options : {};
+    if (lookupOptions.all === true) {
+      done(null, pinned.map((entry) => ({ ...entry })));
+      return;
+    }
+    const selected = pinned[0];
+    done(null, selected.address, selected.family);
+  };
 }
 
 export async function safeFetchText(value, { timeoutMs = 15_000, maxBytes = MAX_BYTES, maxRedirects = 5 } = {}) {

@@ -202,7 +202,7 @@ test("review-start directly reserves a request and embeds the bound work order w
   } })}\n`);
   const started = await runHook("review-start", {
     cwd: root,
-    session_id: "debug-direct-review",
+    session_id: "direct-diagnosis-reviewer",
     agent_id: "direct-diagnosis-reviewer",
     transcript_path: transcriptPath,
   }, env);
@@ -210,6 +210,14 @@ test("review-start directly reserves a request and embeds the bound work order w
   assert.match(context, /reviewNonce=[a-f0-9]+/u);
   assert.match(context, /workOrderEvidence=/u);
   assert.match(context, /DWO-20260808-login/u);
+  const recorded = await runHook("subagent-stop", {
+    cwd: root,
+    session_id: "direct-diagnosis-reviewer",
+    agent_id: "direct-diagnosis-reviewer",
+    transcript_path: transcriptPath,
+    last_assistant_message: `DBG_REVIEW_RESULT ${JSON.stringify({ stage: "diagnosis", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve" })}`,
+  }, env);
+  assert.match(recorded.stdout, /diagnosis review approve/u, recorded.stdout || recorded.stderr);
   const replay = await runHook("review-start", {
     cwd: root, session_id: "debug-direct-review", agent_id: "second-debug-reviewer",
     agent_prompt: "DBG_REVIEW_REQUEST diagnosis",

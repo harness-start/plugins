@@ -247,7 +247,9 @@ async function runSubagentStop(event) {
 }
 
 export async function main(mode = process.argv[2]) {
-  const event = await readStdinJson();
+  let event = await readStdinJson();
+  const identity = codexReviewIdentity(event);
+  if (identity.valid) event = { ...event, session_id: identity.parentSessionId };
   try {
     if (mode === "session") await runSession(event);
     else if (mode === "pre") await runPre(event);

@@ -212,6 +212,21 @@ test("dangerous-rm detects timing wrappers, busybox, eval, and find -delete", ()
   }
 });
 
+test("dangerous-rm inspects broad globs and nested command substitutions", () => {
+  const recursiveDelete = "rm " + "-rf ";
+  for (const command of [
+    `${recursiveDelete}*`,
+    `${recursiveDelete}**`,
+    `${recursiveDelete}** /`,
+    `${recursiveDelete}./**/*`,
+    `echo $(${recursiveDelete}/)`,
+    `x=$(${recursiveDelete}/)`,
+    `echo \`${recursiveDelete}/\``,
+  ]) {
+    assert.equal(dangerousCommandHits(command, CWD).length, 1, command);
+  }
+});
+
 test("dangerous-rm classifies wrappers by basename, including absolute paths", () => {
   for (const command of [
     "/usr/bin/timeout 5 rm -rf /",

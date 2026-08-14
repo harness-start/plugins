@@ -62,6 +62,17 @@ function hookEnv(data) {
   return { ...HOOK_ENV, PLUGIN_DATA: data };
 }
 
+async function observeRed(root, data, testPath, toolUseId = "red") {
+  return runHook("failure", {
+    cwd: root,
+    session_id: "session-1",
+    tool_name: "exec_command",
+    tool_use_id: toolUseId,
+    tool_input: { cmd: `phpunit ${testPath}` },
+    tool_response: { exit_code: 1, stdout: "1 test, 1 failure" },
+  }, hookEnv(data));
+}
+
 function phpOrderServicePair() {
   return {
     testPath: "tests/Unit/Service/OrderServiceTest.php",
@@ -513,7 +524,7 @@ test("public pre hook fails closed when its input is malformed", async () => {
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /could not parse/u);
 });
 
-test("public hook records a test-first write and then allows related implementation", async () => {
+test("public hook requires an observed RED before implementation and GREEN before stop", async () => {
   const fx = fixture("tdd-guard-allow-");
   try {
     mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
@@ -559,7 +570,8 @@ test("public hook records a test-first write and then allows related implementat
       AI_EXPERTS_SESSION_ID: "session-1",
       AI_EXPERTS_TRIGGER_FROM: "test",
     }, "claude");
-    assert.match(claudeAfter.stdout, /Recorded test-first evidence/u);
+    assert.match(claudeAfter.stdout, /Recorded test structure/u);
+    assert.match(claudeAfter.stdout, /RED/u);
 
     const sourceWrite = writeEvent(
       fx.root,
@@ -567,6 +579,27 @@ test("public hook records a test-first write and then allows related implementat
       "<?php\nnamespace App\\Service;\nfinal class OrderService {}\n",
       "source-1",
     );
+    const blockedWithoutRed = await runHook("pre", sourceWrite, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    assert.equal(JSON.parse(blockedWithoutRed.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(blockedWithoutRed.stdout, /failing test run|RED/u);
+
+    const redEvent = {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "red-1",
+      tool_input: { cmd: "phpunit tests/Unit/Service/OrderServiceTest.php" },
+      tool_response: { exit_code: 1, stdout: "1 test, 1 failure" },
+    };
+    await runHook("failure", redEvent, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
     const allowed = await runHook("pre", sourceWrite, {
       PLUGIN_DATA: fx.data,
       AI_EXPERTS_SESSION_ID: "session-1",
@@ -574,6 +607,87 @@ test("public hook records a test-first write and then allows related implementat
     });
     assert.equal(allowed.code, 0, allowed.stderr);
     assert.equal(allowed.stdout, "");
+    writeFileSync(join(fx.root, "src", "Service", "OrderService.php"), sourceWrite.tool_input.content);
+    await runHook("post", sourceWrite, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+
+    const prematureStop = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    assert.match(prematureStop.stdout, /"decision":"block"/u);
+    assert.match(prematureStop.stdout, /GREEN/u);
+
+    await runHook("post", {
+      ...redEvent,
+      tool_use_id: "unrelated-green-1",
+      tool_input: { cmd: "phpunit tests/UnrelatedTest.php" },
+      tool_response: { exit_code: 0, stdout: "1 test, 0 failures" },
+    }, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    const stillPremature = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    assert.match(stillPremature.stdout, /GREEN/u);
+
+    const greenEvent = {
+      ...redEvent,
+      tool_use_id: "green-1",
+      tool_response: { exit_code: 0, stdout: "1 test, 0 failures" },
+    };
+    await runHook("post", greenEvent, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    const completed = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, {
+      PLUGIN_DATA: fx.data,
+      AI_EXPERTS_SESSION_ID: "session-1",
+      AI_EXPERTS_TRIGGER_FROM: "test",
+    });
+    assert.equal(completed.stdout, "", completed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("an unrelated failing test command cannot authorize implementation", async () => {
+  const fx = fixture("tdd-guard-unrelated-red-");
+  try {
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+    const content = phpOrderServicePair().testContent;
+    const testWrite = writeEvent(fx.root, "tests/Unit/Service/OrderServiceTest.php", content, "test-unrelated-red");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, "tests", "Unit", "Service", "OrderServiceTest.php"), content);
+    await runHook("post", testWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, "tests/UnrelatedTest.php", "unrelated-red");
+    const sourceWrite = writeEvent(fx.root, "src/Service/OrderService.php", phpOrderServicePair().sourceContent, "source-unrelated-red");
+    const blocked = await runHook("pre", sourceWrite, hookEnv(fx.data));
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(blocked.stdout, /RED/u);
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });
@@ -603,6 +717,7 @@ test("public hook resolves Go module identity before authorizing an external-pac
       AI_EXPERTS_SESSION_ID: "session-1",
       AI_EXPERTS_TRIGGER_FROM: "test",
     });
+    await observeRed(fx.root, fx.data, "billing/order_service_test.go", "go-red-1");
 
     const sourceWrite = writeEvent(
       fx.root,
@@ -786,7 +901,7 @@ test("state stores hashes instead of raw test source", async () => {
     assert.equal(stateFiles.length, 1);
     assert.equal((await import("node:fs")).existsSync(join(fx.data, "tdd-guard")), false);
     const stored = readFileSync(stateFiles[0], "utf8");
-    assert.equal(JSON.parse(stored).version, 2);
+    assert.equal(JSON.parse(stored).version, 3);
     assert.doesNotMatch(stored, /def test_total/u);
     assert.match(stored, /[a-f0-9]{64}/u);
   } finally {
@@ -857,6 +972,7 @@ test("mutating an existing corresponding test unlocks a historical source edit",
     await runHook("pre", testWrite, hookEnv(fx.data));
     writeFileSync(join(fx.root, pair.testPath), revisedTest);
     await runHook("post", testWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "hist-red-1");
 
     const revisedSource = pair.sourceContent.replace("final class OrderService {}", "final class OrderService {\n    public function total(): int { return 1; }\n}");
     const allowed = await runHook("pre", writeEvent(fx.root, pair.sourcePath, revisedSource, "hist-source-3"), hookEnv(fx.data));

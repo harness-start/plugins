@@ -1,8 +1,8 @@
 # TDD Guard
 
-`tdd-guard` 是一个纯 Hook 文件顺序守卫。它要求 agent 在当前 workspace 和 session 中先创建或修改关联测试，再写实现文件。已有实现和测试的历史代码同样走这条顺序：如果磁盘上已经找得到对应测试，必须先改那些现有测试，再改源码。另写一份新测试不能用来绕过。
+`tdd-guard` 是一个 Hook 驱动的 RED/GREEN 顺序守卫。它要求 agent 在当前 workspace 和 session 中先创建或修改关联测试，实际运行相关测试并观察失败（RED），才允许写实现文件；实现发生变化后，Stop 会持续阻止完成，直到相关测试命令成功（GREEN）。已有实现和测试的历史代码同样走这条顺序：如果磁盘上已经找得到对应测试，必须先改那些现有测试，再观察 RED、改源码并观察 GREEN。另写一份新测试不能用来绕过。
 
-插件暂不运行测试，也不判断命令是否经历 RED 或 GREEN。它检查的是文件状态和关联关系：测试文件字节先变化，文件中有可识别的测试声明，然后测试必须通过语言实体绑定或完整目录镜像指向实现文件。会话队列写在当前工作目录的 `.tdd-guard/.state/`，带 `*` 的 `.gitignore`。
+插件不会自行启动测试进程，而是验证 shell 工具的真实结果回执；缺少明确退出状态或可识别测试结果时不会记作 RED/GREEN。测试文件仍须通过语言实体绑定或完整目录镜像指向实现文件。会话队列写在当前工作目录的 `.tdd-guard/.state/`，带 `*` 的 `.gitignore`。
 
 ## 工作流程
 
@@ -34,9 +34,15 @@ Write tests/Exception/InvalidArgumentExceptionTest.php
   -> PostToolUse 确认字节变化和 testKeepsMessage
   -> 解析 CoversClass + use，记录 php:Acme\Exception\InvalidArgumentException
 
+Run PHPUnit and observe the new test fail
+  -> PostToolUseFailure 记录当前测试文件哈希对应的 RED
+
 Write src/Exception/InvalidArgumentException.php
   -> PreToolUse 从 namespace + class 得到同一个 FQCN
   -> 实体键精确相等，允许写入
+
+Run PHPUnit successfully
+  -> PostToolUse 记录 GREEN，Stop 才允许完成
 ```
 
 如果第二次写入的是 `Acme\Transport\InvalidArgumentException`，即使类名仍是 `InvalidArgumentException`，也会被拒绝。插件不再使用 basename 或全局 simple name 解锁实现。

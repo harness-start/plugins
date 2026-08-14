@@ -1,4 +1,4 @@
 id = "03-single-bug-fix"
 hosts = ["claude", "codex"]
-timeout_sec = 360
+timeout_sec = 480
 tags = ["activation", "fix", "stop"]

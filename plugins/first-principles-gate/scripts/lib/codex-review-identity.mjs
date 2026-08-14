@@ -55,11 +55,13 @@ export function codexReviewIdentity(event, { codexHome = process.env.CODEX_HOME 
     const payload = record?.payload;
     const spawn = payload?.source?.subagent?.thread_spawn;
     if (record?.type !== "session_meta" || payload?.thread_source !== "subagent") return reject("first record is not subagent session_meta");
-    if (payload.id !== agentId || payload.parent_thread_id !== sessionId || spawn?.parent_thread_id !== sessionId || spawn?.depth !== 1 || resolve(payload.cwd ?? "") !== resolve(cwd)) return reject("session identity mismatch");
+    const parentSessionId = payload?.parent_thread_id;
+    if (typeof parentSessionId !== "string" || !parentSessionId) return reject("parent session identity is missing");
+    if (payload.id !== agentId || ![payload.id, parentSessionId].includes(sessionId) || spawn?.parent_thread_id !== parentSessionId || spawn?.depth !== 1 || resolve(payload.cwd ?? "") !== resolve(cwd)) return reject("session identity mismatch");
     if (typeof payload.agent_path !== "string" || payload.agent_path !== spawn.agent_path) return reject("agent_path mismatch");
     const matched = /^\/root\/([a-z][a-z0-9_]{0,63})$/u.exec(payload.agent_path);
     if (!matched) return reject("agent_path is not canonical");
-    return { valid: true, taskName: matched[1], agentPath: payload.agent_path };
+    return { valid: true, taskName: matched[1], agentPath: payload.agent_path, parentSessionId, childSessionId: payload.id };
   } catch (error) {
     return reject(error?.message ?? String(error));
   }

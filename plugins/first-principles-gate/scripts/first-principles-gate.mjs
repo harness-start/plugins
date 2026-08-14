@@ -421,7 +421,9 @@ function runStop(event, config) {
 
 async function main() {
   const mode = process.argv[2] ?? "prompt";
-  const event = await readStdinJson();
+  let event = await readStdinJson();
+  const identity = codexReviewIdentity(event);
+  if (identity.valid) event = { ...event, session_id: identity.parentSessionId };
   if (event.__parseError) process.exit(0);
 
   const cwd = extractCwd(event);

@@ -1,6 +1,6 @@
 {
   "name": "command-safety-guards",
-  "version": "0.5.0",
+  "version": "0.5.2",
   "description": "Command, database, secret, active-test, TLS, PII, and escalation safety guards",
   "author": {
     "name": "Harness Start",

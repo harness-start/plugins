@@ -68,7 +68,9 @@ function feedback(result) {
 
 export async function main() {
   const mode = process.argv[2] ?? "";
-  const event = await readStdinJson();
+  let event = await readStdinJson();
+  const identity = codexReviewIdentity(event);
+  if (identity.valid) event = { ...event, session_id: identity.parentSessionId };
   const cwd = extractCwd(event);
   const sessionId = extractSessionId(event);
 

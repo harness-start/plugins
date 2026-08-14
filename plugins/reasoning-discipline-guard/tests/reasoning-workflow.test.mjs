@@ -765,7 +765,7 @@ test("review-start directly reserves a request and embeds prior stages when disp
   } })}\n`);
   const started = await runHook("review-start", {
     cwd: root,
-    session_id: session,
+    session_id: "direct-challenge-reviewer",
     agent_id: "direct-challenge-reviewer",
     hook_event_name: "SubagentStart",
     transcript_path: transcriptPath,
@@ -774,6 +774,15 @@ test("review-start directly reserves a request and embeds prior stages when disp
   assert.match(context, /reviewNonce=[a-f0-9]+/u);
   assert.match(context, /evidenceBundle=/u);
   assert.match(context, /reasoning-stage\/v1/u);
+  const recorded = await runHook("subagent-stop", {
+    cwd: root,
+    session_id: "direct-challenge-reviewer",
+    agent_id: "direct-challenge-reviewer",
+    hook_event_name: "SubagentStop",
+    transcript_path: transcriptPath,
+    last_assistant_message: `RD_REVIEW_RESULT ${JSON.stringify({ stage: "challenge", reviewNonce: /reviewNonce=([a-f0-9]+)/u.exec(context)[1], decision: "approve", evidenceAnchors: ["01-frame.md"] })}`,
+  }, env);
+  assert.match(recorded.stdout, /approval recorded/u, recorded.stdout || recorded.stderr);
   const replay = await runHook("review-start", {
     cwd: root, session_id: session, agent_id: "second-reviewer", hook_event_name: "SubagentStart",
     agent_prompt: "RD_REVIEW_REQUEST challenge",

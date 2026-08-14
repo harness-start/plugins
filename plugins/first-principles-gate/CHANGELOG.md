@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Map verified Codex challenger child-session events to the parent ledger session, restoring automatic nonce/evidence injection and review recording.
+
 ## 0.1.1
 
 - Store session state under the workspace `.first-principles/.state/` instead of host `PLUGIN_DATA`.

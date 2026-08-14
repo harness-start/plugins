@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Map verified Codex child-session review events back to their parent workflow so nonce injection, read-only enforcement, and review receipts work without manual hook calls.
+
 ## 0.1.0
 
 - Add the focused `debug-workflow` Skill.

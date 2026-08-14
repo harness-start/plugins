@@ -15,6 +15,32 @@ export function sessionIdOf(event) { return String(event?.session_id ?? event?.s
 export function toolUseIdOf(event) { return String(event?.tool_use_id ?? event?.toolUseId ?? event?.id ?? "pending"); }
 export function toolNameOf(event) { return String(event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "").replaceAll("_", "").toLowerCase(); }
 export function toolInputOf(event) { return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {}; }
+export function shellCommandOf(event) {
+  if (!SHELL_TOOLS.has(toolNameOf(event))) return null;
+  const input = toolInputOf(event);
+  const command = input?.command ?? input?.cmd ?? input?.script;
+  return typeof command === "string" ? command : null;
+}
+
+function responseOf(event) {
+  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? null;
+}
+
+export function inferOutcome(event, forceFailure = false) {
+  if (forceFailure) return "failure";
+  const response = responseOf(event);
+  if (response && typeof response === "object") {
+    if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
+    const code = response.exit_code ?? response.exitCode ?? response.code;
+    if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
+    if (response.success === false) return "failure";
+    if (response.success === true) return "success";
+  }
+  const text = typeof response === "string" ? response : JSON.stringify(response ?? "");
+  if (/(?:^|\n)not ok\s+[0-9]+\b|(?:^|\n)#\s*fail\s+[1-9][0-9]*\b|\b[1-9][0-9]*\s+failures?\b/iu.test(text)) return "failure";
+  if (/(?:^|\n)#\s*pass\s+[1-9][0-9]*\b|\b0\s+failures?\b/iu.test(text)) return "success";
+  return "unknown";
+}
 
 function stripQuotes(value) {
   const text = String(value ?? "").trim();
@@ -106,4 +132,5 @@ export function proposedContent(event, target, currentText = "") {
 export function relativePath(root, path) { return relative(root, resolve(path)).replaceAll("\\", "/") || "."; }
 export function preToolDeny(reason) { return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } }; }
 export function contextOutput(eventName, text) { return { hookSpecificOutput: { hookEventName: eventName, additionalContext: text } }; }
+export function stopDeny(reason) { return { decision: "block", reason }; }
 export function writeJson(value) { if (value) process.stdout.write(`${JSON.stringify(value)}\n`); }
