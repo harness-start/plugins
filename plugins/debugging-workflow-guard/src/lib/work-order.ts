@@ -179,7 +179,18 @@ export function loadWorkOrder(path, config) {
 
 export function isWorkOrderPath(path, repoRoot, config) {
   const rel = relative(resolve(repoRoot), resolve(path)).replaceAll("\\", "/");
-  return !rel.startsWith("../") && rel.startsWith(`${config.ledger.root}/`) && rel.endsWith(".md");
+  if (rel.startsWith("../") || rel === "" || !rel.startsWith(`${config.ledger.root}/`)) return false;
+  const rest = rel.slice(config.ledger.root.length + 1);
+  if (!rest || rest.startsWith(".state/") || rest === ".state" || rest === ".gitignore") return false;
+  const parts = rest.split("/");
+  if (parts.length === 1 && rest.endsWith(".md")) return true;
+  if (parts.length === 1) {
+    try {
+      const abs = resolve(path);
+      return existsSync(join(abs, "intent.json"));
+    } catch { return false; }
+  }
+  return parts.length === 2 && ["intent.json", "events.jsonl"].includes(parts[1]);
 }
 
 export function scanWorkOrders(repoRoot, config) {

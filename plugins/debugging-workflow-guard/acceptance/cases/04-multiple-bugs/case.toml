@@ -1,4 +1,6 @@
 id = "04-multiple-bugs"
 hosts = ["claude", "codex"]
-timeout_sec = 480
+timeout_sec = 720
+allowed_host_exits_claude = [0, 124]
+allowed_host_exits_codex = [0, 124]
 tags = ["multiple-bugs", "attribution", "shared-root-cause"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f7903b9f6d421b63b8217636c3dcfe0e35779be983621c0564af578aef97e6fa
+// harness-source-hash: sha256:789d57a691fbcdc864af1c8bcb7d4bf983d6db52cd8c60f872a2bbf58e0d491b
 
 // plugins/command-exec-audit/src/entries/hooks/command-exec-audit.ts
 import { resolve as resolve4 } from "node:path";

@@ -3,8 +3,9 @@ import { execFileSync } from "node:child_process";
 import { relative, resolve } from "node:path";
 
 import { DEFAULT_CONFIG } from "./config.js";
+import { canonicalizeLedgerPath, commandFlag, findLedgerDir, isOfficialWriterCommand, loadLedger, parseWriterStdout, scanLedgers, writerActionFromCommand } from "./ledger.js";
 import { acquireLease, emptyState, readState, releaseLease, writeState } from "./state-store.js";
-import { isWorkOrderPath, loadWorkOrder } from "./work-order.js";
+import { isWorkOrderPath } from "./work-order.js";
 
 function gitRoot(cwd) {
   try { return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim(); }
@@ -45,14 +46,21 @@ export function classifyPath(path, repoRoot, config) {
   return "code";
 }
 
+function sameLedgerPath(left, right) {
+  if (!left || !right) return false;
+  return canonicalizeLedgerPath(left) === canonicalizeLedgerPath(right);
+}
+
 export function bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths, config = DEFAULT_CONFIG, now = Date.now() }) {
   const repoRoot = gitRoot(cwd);
-  const candidates = [...new Set(touchedPaths)].filter((path) => isWorkOrderPath(path, repoRoot, config));
+  const candidates = [...new Set((touchedPaths ?? []).map((path) => canonicalizeLedgerPath(path)))].filter((path) => isWorkOrderPath(path, repoRoot, config));
   if (candidates.length === 0) return { kind: "idle" };
   if (candidates.length > 1) return { kind: "invalid", findings: ["one hook event cannot bind multiple work orders"] };
   const existing = readState(sessionId, repoRoot);
-  if (existing.bound && existing.workOrderPath !== candidates[0]) return { kind: "conflict", path: candidates[0], findings: [`this session is already bound to ${relative(repoRoot, existing.workOrderPath)}`] };
-  const checked = loadWorkOrder(candidates[0], config);
+  if (existing.bound && existing.workOrderPath && !sameLedgerPath(existing.workOrderPath, candidates[0])) {
+    return { kind: "conflict", path: candidates[0], findings: [`this session is already bound to ${relative(repoRoot, existing.workOrderPath)}`] };
+  }
+  const checked = loadLedger(candidates[0], config);
   if (!checked.valid) {
     const state = {
       ...(existing.bound ? existing : emptyState()),
@@ -66,7 +74,13 @@ export function bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths, confi
     return { kind: "invalid", repoRoot, state, path: candidates[0], findings: checked.findings };
   }
   const workOrder = checked.workOrder;
-  if (existing.bound && existing.workOrderId && (existing.workOrderId !== workOrder.id || existing.epoch !== workOrder.run.epoch)) {
+  if (existing.bound && existing.workOrderId && existing.workOrderId !== workOrder.id) {
+    existing.invalid = true;
+    existing.eventSeq += 1;
+    writeState(sessionId, repoRoot, existing);
+    return { kind: "invalid", repoRoot, state: existing, path: candidates[0], findings: ["a corrected bound work order must preserve its id and run.epoch"] };
+  }
+  if (existing.bound && existing.workOrderId && Number(workOrder.run.epoch) < Number(existing.epoch)) {
     existing.invalid = true;
     existing.eventSeq += 1;
     writeState(sessionId, repoRoot, existing);
@@ -80,7 +94,7 @@ export function bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths, confi
   const state = {
     ...(existing.bound ? existing : emptyState()),
     bound: true,
-    workOrderPath: candidates[0],
+    workOrderPath: checked.path ?? candidates[0],
     workOrderId: workOrder.id,
     epoch: workOrder.run.epoch,
     activeBugId: workOrder.activeBugId,
@@ -97,13 +111,18 @@ export function refreshBoundWorkOrder({ cwd, sessionId, config = DEFAULT_CONFIG 
   const repoRoot = gitRoot(cwd);
   const state = readState(sessionId, repoRoot);
   if (!state.bound || !state.workOrderPath) return { kind: "idle", repoRoot, state };
-  const checked = loadWorkOrder(state.workOrderPath, config);
+  const checked = loadLedger(state.workOrderPath, config);
   if (!checked.valid) {
     state.invalid = true;
     writeState(sessionId, repoRoot, state);
     return { kind: "invalid", repoRoot, state, findings: checked.findings };
   }
-  if (checked.workOrder.id !== state.workOrderId || checked.workOrder.run.epoch !== state.epoch) return { kind: "invalid", repoRoot, state, findings: ["bound work-order id or run.epoch changed unexpectedly"] };
+  if (checked.workOrder.id !== state.workOrderId) return { kind: "invalid", repoRoot, state, findings: ["bound work-order id or run.epoch changed unexpectedly"] };
+  if (Number(checked.workOrder.run.epoch) < Number(state.epoch)) return { kind: "invalid", repoRoot, state, findings: ["bound work-order id or run.epoch changed unexpectedly"] };
+  if (Number(checked.workOrder.run.epoch) > Number(state.epoch)) {
+    state.epoch = checked.workOrder.run.epoch;
+    writeState(sessionId, repoRoot, state);
+  }
   state.invalid = false;
   state.activeBugId = checked.workOrder.activeBugId;
   if (checked.workOrder.status !== "open" || checked.workOrder.run.state !== "active") {
@@ -154,21 +173,13 @@ export function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CO
   const firstMutation = Math.min(...live.state.receipts.filter((receipt) => receipt.bugId === bug.id && receipt.kind === "mutation").map(receiptSequence));
   const baseline = live.state.receipts.find((receipt) => receipt.bugId === bug.id && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
   if (!baseline) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} has no pre-mutation failing baseline; run the exact reproduction command verbatim, without pipes, redirections, or an echo suffix, and observe its failure` };
-  const supported = bug.hypotheses.find((hypothesis) => hypothesis.status === "supported" && hypothesis.evidenceRefs.length > 0 && hypothesis.evidenceRefs.every((reference) => receiptById(live.state, reference)?.bugId === bug.id));
-  const rooted = bug.rootCause.status === "supported" && bug.rootCause.evidenceRefs.length > 0 && bug.rootCause.evidenceRefs.every((reference) => receiptById(live.state, reference)?.bugId === bug.id);
-  if (!supported || !rooted) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} needs a supported hypothesis and root cause backed by current-session receipts for this bug before production-code writes` };
-  if (bug.status !== "fixing" || bug.fix.status !== "in-progress") return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} must be bug status fixing with fix.status in-progress before production-code writes` };
-  if (!bug.fix.affectedBugIds.includes(bug.id)) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} must include itself in fix.affectedBugIds before production-code writes` };
-  for (const affectedId of bug.fix.affectedBugIds) {
+  const affectedIds = Array.isArray(bug.fix?.affectedBugIds) && bug.fix.affectedBugIds.length > 0 ? bug.fix.affectedBugIds : [bug.id];
+  for (const affectedId of affectedIds) {
+    if (affectedId === bug.id) continue;
     const affectedBaseline = live.state.receipts.find((receipt) => receipt.bugId === affectedId && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
     if (!affectedBaseline) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} shared fix affected bug ${affectedId} has no attributed failing baseline before the production mutation; switch activeBugId to ${affectedId}, run its exact reproduction verbatim, then switch back` };
   }
   return { action: "allow" };
-}
-
-function receiptById(state, reference) {
-  const id = typeof reference === "string" ? reference : reference?.receiptId;
-  return state.receipts.find((receipt) => receipt.id === id);
 }
 
 function receiptSequence(receipt) {
@@ -177,47 +188,63 @@ function receiptSequence(receipt) {
 }
 
 export function completionFindings(live) {
-  const findings = [];
   if (!["active", "inactive"].includes(live.kind)) return live.kind === "idle" ? [] : (live.findings ?? ["work order is unavailable"]);
   const { workOrder, state } = live;
-  const byId = new Map(workOrder.bugs.map((bug) => [bug.id, bug]));
-  for (const owner of workOrder.bugs) {
-    for (const affectedId of owner.fix.affectedBugIds) {
-      if (byId.get(affectedId)?.status !== "resolved") findings.push(`${owner.id}: affected bug ${affectedId} is not resolved with its own verification`);
+  if (workOrder.status !== "closed") return [];
+  const findings = [];
+  const mutations = (state.receipts ?? []).filter((receipt) => receipt.kind === "mutation" && receipt.outcome === "success");
+  if (mutations.length === 0) return findings;
+  const ownersByBug = new Map();
+  for (const bug of workOrder.bugs) {
+    const affected = Array.isArray(bug.fix?.affectedBugIds) && bug.fix.affectedBugIds.length > 0 ? bug.fix.affectedBugIds : [bug.id];
+    if (!mutations.some((receipt) => receipt.bugId === bug.id)) continue;
+    for (const affectedId of affected) {
+      const owners = ownersByBug.get(affectedId) ?? [];
+      owners.push(bug.id);
+      ownersByBug.set(affectedId, owners);
     }
   }
-  for (const bug of workOrder.bugs) {
-    if (bug.status !== "resolved") continue;
-    const repro = receiptById(state, bug.verification.originalReproduction);
-    const owners = workOrder.bugs.filter((owner) => owner.fix.affectedBugIds.includes(bug.id));
-    const validOwners = owners.filter((owner) => {
-      const mutation = receiptById(state, owner.fix.firstRevision);
-      return owner.fix.status === "applied" && mutation?.kind === "mutation" && mutation.outcome === "success" && mutation.bugId === owner.id;
-    });
-    if (validOwners.length === 0) findings.push(`${bug.id}: no applied fix mutation receipt affects this bug`);
-    const ownerIds = new Set(validOwners.map((owner) => owner.id));
-    const relevantMutations = state.receipts.filter((receipt) => receipt.kind === "mutation" && receipt.outcome === "success" && ownerIds.has(receipt.bugId));
+  const bugIds = new Set([...ownersByBug.keys(), ...mutations.map((receipt) => receipt.bugId)]);
+  for (const bugId of bugIds) {
+    const owners = new Set(ownersByBug.get(bugId) ?? [bugId]);
+    const relevantMutations = mutations.filter((receipt) => owners.has(receipt.bugId) || receipt.bugId === bugId);
+    if (relevantMutations.length === 0) continue;
     const firstMutation = Math.min(...relevantMutations.map(receiptSequence));
     const lastMutation = Math.max(...relevantMutations.map(receiptSequence));
-    const baseline = state.receipts.find((receipt) => receipt.bugId === bug.id && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
-    if (!baseline) findings.push(`${bug.id}: no failing original reproduction was observed before production mutation`);
-    if (!repro || repro.bugId !== bug.id || repro.kind !== "reproduction" || repro.outcome !== "success") findings.push(`${bug.id}: original reproduction lacks a successful current-session receipt`);
-    const supported = bug.hypotheses.find((item) => item.status === "supported" && item.evidenceRefs.length > 0);
-    if (!supported) findings.push(`${bug.id}: no supported hypothesis with evidence`);
-    else if (supported.evidenceRefs.some((reference) => !receiptById(state, reference) || receiptById(state, reference).bugId !== bug.id)) findings.push(`${bug.id}: supported hypothesis cites stale, forged, or cross-bug evidence`);
-    if (bug.rootCause.status !== "supported") findings.push(`${bug.id}: root cause is not supported`);
-    else if (bug.rootCause.evidenceRefs.some((reference) => !receiptById(state, reference) || receiptById(state, reference).bugId !== bug.id)) findings.push(`${bug.id}: root cause cites stale, forged, or cross-bug evidence`);
-    if (!Array.isArray(bug.verification.regression) || bug.verification.regression.length < 1) findings.push(`${bug.id}: regression verification is missing`);
-    else for (const reference of bug.verification.regression) {
-      const receipt = receiptById(state, reference);
-      if (!receipt || receipt.bugId !== bug.id || receipt.outcome !== "success") findings.push(`${bug.id}: regression receipt is missing, stale, or belongs to another bug`);
-    }
-    const cleanup = receiptById(state, bug.verification.debugCleanup);
-    if (!cleanup || cleanup.bugId !== bug.id || cleanup.outcome === "failure") findings.push(`${bug.id}: debug-marker cleanup receipt is missing, cross-bug, or failed`);
-    if (repro && relevantMutations.length > 0 && receiptSequence(repro) < lastMutation) findings.push(`${bug.id}: original reproduction predates the last relevant mutation`);
+    const baseline = state.receipts.find((receipt) => receipt.bugId === bugId && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
+    if (!baseline) findings.push(`${bugId}: no failing original reproduction was observed before production mutation`);
+    const after = state.receipts.filter((receipt) => receipt.bugId === bugId && receiptSequence(receipt) > lastMutation);
+    const repro = after.find((receipt) => receipt.kind === "reproduction" && receipt.outcome === "success");
+    if (!repro) findings.push(`${bugId}: original reproduction lacks a successful current-session receipt`);
+    const regression = after.find((receipt) => receipt.id !== repro?.id && receipt.outcome === "success");
+    if (!regression) findings.push(`${bugId}: regression verification is missing`);
+    const cleanup = after.find((receipt) => receipt.id !== repro?.id && receipt.id !== regression?.id && receipt.outcome !== "failure");
+    if (!cleanup) findings.push(`${bugId}: debug-marker cleanup receipt is missing, cross-bug, or failed`);
+    if (repro && receiptSequence(repro) <= lastMutation) findings.push(`${bugId}: original reproduction predates the last relevant mutation`);
   }
-  if (workOrder.status === "closed" && workOrder.bugs.some((bug) => !["resolved", "blocked", "deferred", "duplicate", "architecture-review"].includes(bug.status))) findings.push("closed work order still has non-terminal bugs");
   return [...new Set(findings)];
+}
+
+export function bindAfterWriter({ cwd, sessionId, command = "", stdout = "", config = DEFAULT_CONFIG, now = Date.now() }) {
+  const printed = parseWriterStdout(stdout);
+  const looksLikeWriter = isOfficialWriterCommand(command) || Boolean(printed?.ok && (printed.id || printed.path));
+  if (!looksLikeWriter) return { kind: "idle" };
+  const action = writerActionFromCommand(command);
+  if (action === "status") return refreshBoundWorkOrder({ cwd, sessionId, config });
+  const repoRoot = gitRoot(cwd);
+  const touched = [];
+  if (printed?.path) touched.push(printed.path);
+  if (commandFlag(command, "slug")) touched.push(resolve(repoRoot, config.ledger.root, commandFlag(command, "slug")));
+  if (printed?.id) {
+    const dir = findLedgerDir(repoRoot, config, printed.id);
+    if (dir) touched.push(dir);
+  }
+  if (touched.length === 0) {
+    const open = scanLedgers(repoRoot, config).filter((item) => item.store === "events");
+    if (open.length === 1) touched.push(open[0].path);
+  }
+  if (touched.length === 0) return { kind: "idle" };
+  return bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths: touched, config, now });
 }
 
 export function closeBinding({ cwd, sessionId, config = DEFAULT_CONFIG }) {

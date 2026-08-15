@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:1878222af03888ea87debc6809009ac6a59db1fa4ab9c74b751221fe3f44b42c
+// harness-source-hash: sha256:38df41e006450d986c5a8ab1e55c4d2dc2519be818dedc83f29ac6eb8554ee3b
 
 // plugins/cross-repo-history-migration/src/lib/history-migration.ts
 import { createHash } from "node:crypto";

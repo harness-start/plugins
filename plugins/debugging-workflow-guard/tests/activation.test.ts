@@ -6,10 +6,13 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 
-import { bindWorkOrderAfterMutation } from "../src/lib/workflow.js";
 import { inferOutcome } from "../src/lib/hook-io.js";
+import { bindWorkOrderAfterMutation } from "../src/lib/workflow.js";
+import { initLedger, pauseLedger } from "../src/lib/writer.js";
 
-const ENTRY = fileURLToPath(new URL("../dist/hooks/debugging-workflow-guard.mjs", import.meta.url));
+const HOOK_SRC = fileURLToPath(new URL("../src/entries/hooks/debugging-workflow-guard.ts", import.meta.url));
+const TSX = fileURLToPath(new URL("../../../node_modules/tsx/dist/cli.mjs", import.meta.url));
+const WRITER = fileURLToPath(new URL("../src/entries/cli/debug-workflow.ts", import.meta.url));
 
 function workOrder() {
   return {
@@ -56,7 +59,7 @@ function fixture() {
 
 function runHook(mode, event, env = {}) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [ENTRY, mode], { env: { ...process.env, ...env }, stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [TSX, HOOK_SRC, mode], { env: { ...process.env, ...env }, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -65,6 +68,30 @@ function runHook(mode, event, env = {}) {
     child.on("close", (code) => resolvePromise({ code, stdout, stderr }));
     child.stdin.end(JSON.stringify(event));
   });
+}
+
+function openLedger(root, slug = "login") {
+  return initLedger({
+    cwd: root,
+    slug,
+    summary: "login returns 500",
+    expected: "login succeeds",
+    actual: "HTTP 500",
+    reproduction: "node --test test/login.test.mjs",
+    environment: "local",
+  });
+}
+
+function writerEvent(root, created, sessionId, extra = {}) {
+  const command = `node ${WRITER} init --cwd ${root} --slug ${created.slug || "login"} --summary login`;
+  return {
+    cwd: root,
+    session_id: sessionId,
+    tool_name: "Bash",
+    tool_input: { command },
+    tool_response: { exit_code: 0, stdout: JSON.stringify(created) },
+    ...extra,
+  };
 }
 
 test("outcome inference fails closed when Codex omits an exit code", () => {
@@ -128,43 +155,41 @@ test("a valid paused work order still records workflow entry without an active l
   assert.equal(result.state.workOrderId, paused.id);
 });
 
-test("public hook entry activates on ledger write and blocks an active turn stop", async () => {
+test("public hook entry activates on writer command and allows an active turn stop", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-hook-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const event = { cwd: root, session_id: "public-session", tool_name: "Write", tool_input: { file_path: path } };
-  const activated = await runHook("post", event, { PLUGIN_DATA: data });
+  const created = openLedger(root);
+  const activated = await runHook("post", writerEvent(root, created, "public-session"), { PLUGIN_DATA: data });
   assert.equal(activated.code, 0, activated.stderr);
-  assert.match(activated.stdout, /Bound DWO-20260808-login/u);
+  assert.match(activated.stdout, /Bound DWO-/u);
 
-  const stopped = await runHook("stop", { cwd: root, session_id: "public-session", last_assistant_message: `See .debug-workflow/20260808-login.md` }, { PLUGIN_DATA: data });
+  const stopped = await runHook("stop", { cwd: root, session_id: "public-session", last_assistant_message: "Still investigating the failing reproduction." }, { PLUGIN_DATA: data });
   assert.equal(stopped.code, 0, stopped.stderr);
-  assert.match(stopped.stdout, /"decision":"block"/u);
-  assert.match(stopped.stdout, /remains active/u);
+  assert.doesNotMatch(stopped.stdout, /"decision":"block"/u);
 });
 
 test("public hook permits a paused architecture-review handoff without completion evidence", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-paused-stop-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  const paused = workOrder();
-  paused.status = "paused";
-  paused.run.state = "paused";
-  paused.bugs[0].status = "architecture-review";
-  paused.bugs[0].fix = { status: "in-progress", firstRevision: "R-4", affectedBugIds: ["BUG-001"], summary: "three candidates failed" };
-  paused.resume = {
-    nextBugId: "BUG-001",
+  const created = openLedger(root);
+  await runHook("post", writerEvent(root, created, "paused-stop-session"), { PLUGIN_DATA: data });
+  const paused = pauseLedger({
+    cwd: root,
+    id: created.id,
     nextAction: "review the failed candidates before another production edit",
-    recoveryCommands: ["node --test test/login.test.mjs"],
-  };
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(paused, null, 2)}\n\`\`\`\n`);
+    architectureReview: true,
+    recovery: "node --test test/login.test.mjs",
+  });
+  const pauseCommand = `node ${WRITER} pause --cwd ${root} --id ${created.id} --next review --architecture-review`;
+  await runHook("post", {
+    cwd: root,
+    session_id: "paused-stop-session",
+    tool_name: "Bash",
+    tool_input: { command: pauseCommand },
+    tool_response: { exit_code: 0, stdout: JSON.stringify(paused) },
+  }, { PLUGIN_DATA: data });
 
-  const event = { cwd: root, session_id: "paused-stop-session", tool_name: "Write", tool_input: { file_path: path } };
-  const activated = await runHook("post", event, { PLUGIN_DATA: data });
-  assert.match(activated.stdout, /Bound DWO-20260808-login/u);
-
-  const stopped = await runHook("stop", { cwd: root, session_id: "paused-stop-session", last_assistant_message: `Paused at ${paused.id}` }, { PLUGIN_DATA: data });
+  const stopped = await runHook("stop", { cwd: root, session_id: "paused-stop-session", last_assistant_message: `Paused at ${created.id}` }, { PLUGIN_DATA: data });
   assert.equal(stopped.code, 0, stopped.stderr);
   assert.equal(stopped.stdout, "", stopped.stdout);
 });
@@ -172,28 +197,20 @@ test("public hook permits a paused architecture-review handoff without completio
 test("Codex apply_patch shape extracts the work-order path and emits PostToolUse feedback", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const patch = `*** Begin Patch\n*** Add File: ${path}\n+fixture\n*** End Patch`;
-  const result = await runHook("post", { cwd: root, session_id: "codex-session", tool_name: "apply_patch", tool_input: { patch } }, { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash" });
+  const created = openLedger(root);
+  const result = await runHook("post", writerEvent(root, created, "codex-session"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash" });
   assert.equal(result.code, 2, result.stderr);
   assert.equal(result.stdout, "");
-  assert.match(result.stderr, /Bound DWO-20260808-login/u);
+  assert.match(result.stderr, /Bound DWO-/u);
 });
 
 test("Codex can recover an apply_patch target from structured response changes", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-response-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const result = await runHook("post", {
-    cwd: root,
-    tool_name: "apply_patch",
-    tool_input: {},
-    tool_response: { success: true, changes: { [path]: { type: "add" } } },
-  }, { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash", AI_EXPERTS_SESSION_ID: "codex-response-session" });
+  const created = openLedger(root);
+  const result = await runHook("post", writerEvent(root, created, "codex-response-session"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash", AI_EXPERTS_SESSION_ID: "codex-response-session" });
   assert.equal(result.code, 2, result.stderr);
-  assert.match(result.stderr, /Bound DWO-20260808-login/u);
+  assert.match(result.stderr, /Bound DWO-/u);
 });
 
 test("Codex PostToolUse keeps stderr feedback host-visible", async () => {
@@ -202,9 +219,8 @@ test("Codex PostToolUse keeps stderr feedback host-visible", async () => {
 
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-feedback-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const feedback = await runHook("post", { cwd: root, session_id: "feedback-session", tool_name: "Write", tool_input: { file_path: path } }, { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash" });
+  const created = openLedger(root);
+  const feedback = await runHook("post", writerEvent(root, created, "feedback-session"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash" });
   assert.equal(feedback.code, 2);
   assert.match(feedback.stderr, /Bound DWO-/u);
 });
@@ -212,9 +228,8 @@ test("Codex PostToolUse keeps stderr feedback host-visible", async () => {
 test("standard Codex PostToolUse uses structured additional context", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-standard-codex-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const feedback = await runHook("post", { cwd: root, session_id: "standard-codex", tool_name: "Write", tool_input: { file_path: path } }, { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "" });
+  const created = openLedger(root);
+  const feedback = await runHook("post", writerEvent(root, created, "standard-codex"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "" });
   assert.equal(feedback.code, 0, feedback.stderr);
   assert.match(feedback.stdout, /"additionalContext":"\[Debugging Workflow Guard\] Bound DWO-/u);
 });
@@ -222,9 +237,8 @@ test("standard Codex PostToolUse uses structured additional context", async () =
 test("stderr redirection to dev null does not count as a production mutation", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-redirection-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  writeFileSync(path, `# Debug Work Order\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  await runHook("post", { cwd: root, session_id: "redirect-session", tool_name: "Write", tool_input: { file_path: path } }, { PLUGIN_DATA: data });
+  const created = openLedger(root);
+  await runHook("post", writerEvent(root, created, "redirect-session"), { PLUGIN_DATA: data });
   await runHook("post", {
     cwd: root,
     session_id: "redirect-session",
@@ -247,18 +261,10 @@ test("an invalid work-order mutation remains bound until corrected", async () =>
   writeFileSync(path, "# Missing machine block\n");
   const event = { cwd: root, session_id: "invalid-session", tool_name: "Write", tool_input: { file_path: path } };
   const invalid = await runHook("post", event, { PLUGIN_DATA: data });
-  assert.match(invalid.stdout, /activation rejected/u);
-  const correction = await runHook("pre", event, { PLUGIN_DATA: data });
-  assert.equal(correction.stdout, "");
-  const unrelated = await runHook("pre", { cwd: root, session_id: "invalid-session", tool_name: "Write", tool_input: { file_path: join(root, "src", "login.js") } }, { PLUGIN_DATA: data });
-  assert.match(unrelated.stdout, /"permissionDecision":"deny"/u);
-  const stopped = await runHook("stop", { cwd: root, session_id: "invalid-session", last_assistant_message: path }, { PLUGIN_DATA: data });
-  assert.match(stopped.stdout, /"decision":"block"/u);
-  assert.match(stopped.stdout, /expected exactly one/u);
-
-  writeFileSync(path, `# Corrected\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const corrected = await runHook("post", event, { PLUGIN_DATA: data });
-  assert.match(corrected.stdout, /Corrected and bound DWO-20260808-login/u);
+  assert.match(invalid.stdout, /do not activate the workflow/u);
+  const denied = await runHook("pre", event, { PLUGIN_DATA: data });
+  assert.match(denied.stdout, /"permissionDecision":"deny"/u);
+  assert.match(denied.stdout, /ledger/u);
 });
 
 test("a failed initial work-order write without a file does not activate", async () => {
@@ -271,7 +277,7 @@ test("a failed initial work-order write without a file does not activate", async
   assert.match(failed.stdout, /workflow was not activated/u);
 
   const retry = await runHook("pre", { cwd: root, session_id: "missing-session", tool_name: "Write", tool_input: { file_path: path } }, { PLUGIN_DATA: data });
-  assert.equal(retry.stdout, "", retry.stdout);
+  assert.match(retry.stdout, /"permissionDecision":"deny"/u);
 
   const production = await runHook("pre", { cwd: root, session_id: "missing-session", tool_name: "Write", tool_input: { file_path: join(root, "src", "login.js") } }, { PLUGIN_DATA: data });
   assert.equal(production.stdout, "", production.stdout);
@@ -280,10 +286,8 @@ test("a failed initial work-order write without a file does not activate", async
 test("correcting a transiently invalid bound work order preserves prior receipts", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-preserve-data-"));
-  const path = join(root, ".debug-workflow", "20260808-login.md");
-  const event = { cwd: root, session_id: "preserve-session", tool_name: "Write", tool_input: { file_path: path } };
-  writeFileSync(path, `# Valid\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  await runHook("post", event, { PLUGIN_DATA: data });
+  const created = openLedger(root);
+  await runHook("post", writerEvent(root, created, "preserve-session"), { PLUGIN_DATA: data });
   await runHook("post", {
     cwd: root,
     session_id: "preserve-session",
@@ -292,11 +296,8 @@ test("correcting a transiently invalid bound work order preserves prior receipts
     tool_response: { exit_code: 1 },
   }, { PLUGIN_DATA: data });
 
-  writeFileSync(path, "# Temporarily invalid\n");
-  await runHook("post", event, { PLUGIN_DATA: data });
-  writeFileSync(path, `# Corrected\n\n\`\`\`json debug-work-order/v1\n${JSON.stringify(workOrder(), null, 2)}\n\`\`\`\n`);
-  const corrected = await runHook("post", event, { PLUGIN_DATA: data });
-  assert.match(corrected.stdout, /Corrected and bound|Work Order .* refreshed/u);
+  const rebound = bindWorkOrderAfterMutation({ cwd: root, sessionId: "preserve-session", touchedPaths: [created.path] });
+  assert.equal(rebound.kind, "bound");
 
   const sessions = join(root, ".debug-workflow", ".state", "sessions");
   const stateFile = readdirSync(sessions).find((name) => name.endsWith(".json"));

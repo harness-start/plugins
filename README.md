@@ -116,7 +116,7 @@ codex plugin add <name>@harness-start --json
 | `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
 | `intent-clarify-gate` | 首个 prompt 自动前置探索项目事实、候选解释和反例；按复杂度并发只读 subagent，汇总后直接继续 |
 | `reasoning-discipline` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
-| `debugging-workflow-guard` | 通过聚焦 Skill 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
+| `debugging-workflow-guard` | 通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
 | `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
 | `logo-project-delivery-guard` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |

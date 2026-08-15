@@ -13,6 +13,7 @@ import {
   extractFileTargets,
   extractSessionId,
   extractShellCommand,
+  extractToolResponse,
   inferOutcome,
   isMutationTool,
   preToolDeny,
@@ -20,9 +21,17 @@ import {
   stopDeny,
   writeJson,
 } from "../../lib/hook-io.js";
-import { readState, writeState } from "../../lib/state-store.js";
+import { readState } from "../../lib/state-store.js";
+import { commandMentionsRoot, isGenericMutationCommand } from "@harness/core/path-protect";
+
 import {
-  bindWorkOrderAfterMutation,
+  describeLedger,
+  isLedgerManagedPath,
+  isOfficialWriterCommand,
+  scanLedgers,
+} from "../../lib/ledger.js";
+import {
+  bindAfterWriter,
   classifyPath,
   closeBinding,
   completionFindings,
@@ -31,7 +40,6 @@ import {
   recordReceipt,
   refreshBoundWorkOrder,
 } from "../../lib/workflow.js";
-import { isWorkOrderPath, scanWorkOrders } from "../../lib/work-order.js";
 
 function warn(message) { process.stderr.write(`[debugging-workflow-guard] ${message}\n`); }
 function repoRoot(cwd) {
@@ -67,11 +75,11 @@ async function context(event) {
 async function runSession(event) {
   const { root, config } = await context(event);
   if (config.mode === "off") return;
-  const orders = scanWorkOrders(root, config);
+  const orders = scanLedgers(root, config);
   if (orders.length === 0) return;
   const lines = ["[Debugging Workflow Guard] Found resumable Debug Work Orders; none was activated."];
-  for (const order of orders) lines.push(`- ${relative(root, order.path)} — ${order.workOrder.id} (${order.workOrder.status}, epoch ${order.workOrder.run.epoch})`);
-  lines.push("Use the debug-workflow Skill to choose one, increment run.epoch when resuming, and edit that work-order file. Hooks activate only after that valid mutation.");
+  for (const order of orders) lines.push(describeLedger(order, root));
+  lines.push("Use the debug-workflow CLI to resume (`resume --id ...`). Hooks activate only after a writer command; do not Edit or Write the ledger.");
   writeJson(contextOutput("SessionStart", lines.join("\n")));
 }
 
@@ -80,6 +88,18 @@ async function runPre(event) {
   if (config.mode === "off") return;
   const command = extractShellCommand(event);
   let paths = extractFileTargets(event);
+  if (command && isOfficialWriterCommand(command)) {
+    return;
+  }
+  if (command && (shellMutates(command) || isGenericMutationCommand(command)) && commandMentionsRoot(command, config.ledger.root, resolve(root, config.ledger.root))) {
+    writeJson(preToolDeny("[Debugging Workflow Guard] Direct ledger mutation is denied; use the debug-workflow CLI writer."));
+    return;
+  }
+  const ledgerWrites = paths.filter((path) => isLedgerManagedPath(path, root, config));
+  if (ledgerWrites.length > 0 && isMutationTool(event)) {
+    writeJson(preToolDeny("[Debugging Workflow Guard] Direct file-tool writes to a live ledger are denied; use the debug-workflow CLI writer."));
+    return;
+  }
   if (command && shellMutates(command)) paths = [resolve(root, "__unknown_shell_mutation__")];
   if (paths.length === 0) return;
   const decision = preMutationDecision({ cwd, sessionId, paths, config });
@@ -87,49 +107,50 @@ async function runPre(event) {
   else if (decision.action === "report") writeJson(contextOutput("PreToolUse", `[Debugging Workflow Guard] ${decision.reason}`));
 }
 
+function responseStdout(event) {
+  const response = extractToolResponse(event);
+  if (typeof response === "string") return response;
+  if (response && typeof response === "object" && typeof response.stdout === "string") return response.stdout;
+  return conciseResponse(event);
+}
+
 async function runPost(event, forceFailure = false) {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
   const postEvent = forceFailure ? "PostToolUseFailure" : "PostToolUse";
   const paths = extractFileTargets(event);
-  const workOrderTouches = paths.filter((path) => isWorkOrderPath(path, root, config));
-  if (workOrderTouches.length > 0) {
-    const before = readState(sessionId, root);
-    if (forceFailure && !before.bound && workOrderTouches.every((path) => !existsSync(path))) {
-      writeJson(contextOutput(postEvent, "[Debugging Workflow Guard] Work Order write failed before a file existed; workflow was not activated. Create the ledger directory if needed and retry the same file write."));
-      return;
-    }
-    if (before.bound && workOrderTouches.includes(before.workOrderPath)) {
-      const live = refreshBoundWorkOrder({ cwd, sessionId, config });
-      if (["active", "inactive"].includes(live.kind)) {
-        live.state.revision += 1;
-        live.state.activeBugId = live.workOrder.activeBugId;
-        writeState(sessionId, root, live.state);
-        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order ${live.workOrder.id} refreshed; state ${live.workOrder.status}/${live.workOrder.run.state}; active bug ${live.workOrder.activeBugId ?? "none"}.`));
-      } else if (live.kind === "invalid") {
-        const rebound = bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths: workOrderTouches, config });
-        if (rebound.kind === "bound") {
-          ensureLocalExclude(root, config);
-          writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Corrected and bound ${rebound.workOrder.id}; state ${rebound.workOrder.status}/${rebound.workOrder.run.state}.`));
-        } else writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Invalid bound Work Order: ${(rebound.findings ?? live.findings).join("; ")}`));
+  const command = extractShellCommand(event);
+  if (command) {
+    const bound = bindAfterWriter({ cwd, sessionId, command, stdout: responseStdout(event), config });
+    if (bound.kind !== "idle") {
+      if (bound.kind === "bound") {
+        ensureLocalExclude(root, config);
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Bound ${bound.workOrder.id} at ${relative(root, bound.state.workOrderPath)}; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.${bound.active ? " Evidence and mutations are now attributed to that bug." : " No active mutation guard remains."}`));
+        closeBinding({ cwd, sessionId, config });
+      } else if (["invalid", "conflict"].includes(bound.kind)) {
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order activation rejected: ${(bound.findings ?? []).join("; ")}`));
+      } else if (["active", "inactive"].includes(bound.kind)) {
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order ${bound.workOrder.id} refreshed; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.`));
+        closeBinding({ cwd, sessionId, config });
       }
-      closeBinding({ cwd, sessionId, config });
       return;
     }
-    const bound = bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths: workOrderTouches, config });
-    if (bound.kind === "bound") {
-      ensureLocalExclude(root, config);
-      writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Bound ${bound.workOrder.id} at ${relative(root, bound.path ?? workOrderTouches[0])}; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.${bound.active ? " Evidence and mutations are now attributed to that bug." : " No active mutation guard remains."}`));
-      closeBinding({ cwd, sessionId, config });
-    } else if (["invalid", "conflict"].includes(bound.kind)) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order activation rejected: ${(bound.findings ?? []).join("; ")}`));
+  }
+  const ledgerTouches = paths.filter((path) => isLedgerManagedPath(path, root, config));
+  if (ledgerTouches.length > 0) {
+    const before = readState(sessionId, root);
+    if (forceFailure && !before.bound && ledgerTouches.every((path) => !existsSync(path))) {
+      writeJson(contextOutput(postEvent, "[Debugging Workflow Guard] Work Order write failed before a file existed; workflow was not activated. Use the debug-workflow CLI writer."));
+      return;
+    }
+    writeJson(contextOutput(postEvent, "[Debugging Workflow Guard] Direct ledger writes do not activate the workflow; use the debug-workflow CLI writer."));
     return;
   }
 
-  const command = extractShellCommand(event);
   if (command) {
     const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
     const recorded = recordReceipt({ cwd, sessionId, config, kind: shellMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
-    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${recorded.receipt.kind} ${recorded.receipt.outcome} for ${recorded.receipt.bugId}. Cite this id in the Work Order only when it supports the stated claim.`));
+    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${recorded.receipt.kind} ${recorded.receipt.outcome} for ${recorded.receipt.bugId}. Cite this id only when it supports the stated claim.`));
     if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
       const count = recorded.state.attempts[recorded.receipt.bugId] ?? 0;
       if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${recorded.receipt.bugId} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
@@ -169,10 +190,11 @@ async function runStop(event) {
       if (![1, "1"].includes(error?.status)) findings.push("debug-marker cleanup scan could not complete");
     }
   }
-  if (!message.includes(rel) && !message.includes(live.workOrder.id)) findings.push(`response must reference ${rel} or ${live.workOrder.id}`);
-  if (live.workOrder.status === "open" && live.workOrder.run.state === "active") findings.push("turn cannot stop while the work order remains active; pause it with a concrete resume action or close it");
+  if (["closed", "paused", "aborted"].includes(live.workOrder.status) && !message.includes(rel) && !message.includes(live.workOrder.id)) {
+    findings.push(`response must reference ${rel} or ${live.workOrder.id}`);
+  }
   if (findings.length === 0) { closeBinding({ cwd, sessionId, config }); return; }
-  const reason = `[Debugging Workflow Guard] Debug workflow cannot stop:\n- ${findings.join("\n- ")}\nUpdate ${rel}; do not invent receipt ids.`;
+  const reason = `[Debugging Workflow Guard] Debug workflow cannot stop:\n- ${findings.join("\n- ")}\nUse the debug-workflow CLI to update the ledger; do not invent receipt ids.`;
   if (config.mode === "block") writeJson(stopDeny(reason)); else writeJson(contextOutput("Stop", reason));
 }
 

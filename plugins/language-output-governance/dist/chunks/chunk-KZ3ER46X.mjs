@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:b83e188d06912c83de2fac3551a6806bff8e3da1a620013df68136dc230a8f7a
+// harness-source-hash: sha256:e2c899ff74b0ee05fae26bce12ed170de8626cce44835f531da3b915196b3021
 import {
   profileFor
-} from "./chunk-KIRANYPH.mjs";
+} from "./chunk-NAWYRYUG.mjs";
 
 // plugins/language-output-governance/src/lib/han-variants.ts
 var HAN_VARIANT_PAIRS = Object.freeze([
