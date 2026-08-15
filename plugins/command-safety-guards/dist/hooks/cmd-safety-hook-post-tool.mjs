@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7fb8c467fd73922af51b87911c78cf596cce3854916c22baed9a4da1477b76e5
+// harness-source-hash: sha256:ff36d7a35a5c7b3dc3fa7fdbc011d0c2de22cf4cd57492a1a7ae2cd420d36558
 import {
   additionalContextOutput,
-  extractCwd,
-  extractToolInput,
+  eventCwd,
+  eventToolInput,
   extractWriteTargets,
   loadUserConfig,
   readStdinJson,
   resolveRepoRoot,
   resolveRules,
   writeJson
-} from "../chunks/chunk-APOLMI6W.mjs";
+} from "../chunks/chunk-ABJZRXZQ.mjs";
 
 // plugins/command-safety-guards/src/entries/hooks/cmd-safety-hook-post-tool.ts
 import { existsSync } from "node:fs";
@@ -60,12 +60,12 @@ function fileSafetyReports(path, input = {}) {
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const cwd = extractCwd(event);
+  const cwd = eventCwd(event);
   const repoRoot = resolveRepoRoot(cwd);
   const userConfig = await loadUserConfig(repoRoot);
   const { settings } = resolveRules(userConfig);
   if (settings.engines.fileSafety === false) return;
-  const input = extractToolInput(event);
+  const input = eventToolInput(event);
   const reports = extractWriteTargets(event).map((path) => isAbsolute(path) ? path : resolve(cwd, path)).filter(existsSync).flatMap((path) => fileSafetyReports(path, input));
   if (reports.length) {
     writeJson(additionalContextOutput("PostToolUse", reports.join("\n\n")));

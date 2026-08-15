@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:ab266d2f051b8be8a5488dd331bf6efacf12a101f36b81a6afe6e2f49f4de4de
+// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
 
 // plugins/video-project-delivery-guard/src/lib/media.ts
 import { spawn } from "node:child_process";
@@ -46,14 +46,19 @@ function run(binary, args, { cwd, maxBytes = 16 * 1024 * 1024, timeoutMs = 3e4 }
     });
   });
 }
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 function ratio(value) {
-  const [numerator, denominator = "1"] = String(value ?? "").split("/").map(Number);
+  const parts = String(value ?? "").split("/").map(Number);
+  const numerator = parts[0] ?? Number.NaN;
+  const denominator = parts[1] ?? Number("1");
   if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return 0;
   return numerator / denominator;
 }
 async function mediaToolVersion(binary = "ffprobe") {
   const output = await run(binary, ["-version"], { maxBytes: 1024 * 1024 });
-  return output.toString("utf8").split(/\r?\n/u)[0].trim();
+  return (output.toString("utf8").split(/\r?\n/u)[0] ?? "").trim();
 }
 async function probeMedia(filePath, { fps, ffprobe = "ffprobe", cwd } = {}) {
   const output = await run(ffprobe, ["-v", "error", "-show_streams", "-show_format", "-of", "json", filePath], { cwd });
@@ -63,15 +68,17 @@ async function probeMedia(filePath, { fps, ffprobe = "ffprobe", cwd } = {}) {
   } catch {
     throw new Error("FFPROBE_JSON_INVALID");
   }
-  const streams = Array.isArray(payload?.streams) ? payload.streams : [];
-  const video = streams.find((stream) => stream?.codec_type === "video") ?? null;
-  const audio = streams.find((stream) => stream?.codec_type === "audio") ?? null;
+  const payloadRecord = isRecord(payload) ? payload : {};
+  const streams = Array.isArray(payloadRecord.streams) ? payloadRecord.streams.filter(isRecord) : [];
+  const video = streams.find((stream) => stream.codec_type === "video") ?? null;
+  const audio = streams.find((stream) => stream.codec_type === "audio") ?? null;
   const measuredFps = video ? ratio(video.avg_frame_rate || video.r_frame_rate) : Number(fps);
-  const durationSeconds = Number(payload?.format?.duration ?? video?.duration ?? audio?.duration);
+  const formatRecord = isRecord(payloadRecord.format) ? payloadRecord.format : void 0;
+  const durationSeconds = Number(formatRecord?.duration ?? video?.duration ?? audio?.duration);
   const durationInFrames = Number.isFinite(durationSeconds) && Number.isFinite(measuredFps) ? Math.round(durationSeconds * measuredFps) : Number(video?.nb_frames);
   if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || !Number.isInteger(durationInFrames) || durationInFrames <= 0) throw new Error("MEDIA_DURATION_INVALID");
   return {
-    format: String(payload?.format?.format_name ?? ""),
+    format: String(formatRecord?.format_name ?? ""),
     durationSeconds,
     durationInFrames,
     fps: measuredFps,
@@ -79,8 +86,8 @@ async function probeMedia(filePath, { fps, ffprobe = "ffprobe", cwd } = {}) {
     hasAudio: Boolean(audio),
     width: Number(video?.width ?? 0),
     height: Number(video?.height ?? 0),
-    videoCodec: video?.codec_name ?? null,
-    audioCodec: audio?.codec_name ?? null,
+    videoCodec: video?.codec_name == null ? null : String(video.codec_name),
+    audioCodec: audio?.codec_name == null ? null : String(audio.codec_name),
     sampleRate: Number(audio?.sample_rate ?? 0),
     channels: Number(audio?.channels ?? 0)
   };
@@ -88,7 +95,7 @@ async function probeMedia(filePath, { fps, ffprobe = "ffprobe", cwd } = {}) {
 function validateMeasuredMedia(media, { kind, project, expectedFrames }) {
   if (media.durationInFrames !== expectedFrames || Math.abs(media.fps - project.fps) > 1e-3) throw new Error(`MEDIA_FRAME_CONTRACT_MISMATCH:${media.durationInFrames}:${expectedFrames}`);
   if (kind === "audio") {
-    if (media.hasVideo || !media.hasAudio || media.sampleRate <= 0 || !/wav/u.test(media.format)) throw new Error("AUDIO_PROOF_MEDIA_INVALID");
+    if (media.hasVideo || !media.hasAudio || (media.sampleRate ?? 0) <= 0 || !/wav/u.test(media.format)) throw new Error("AUDIO_PROOF_MEDIA_INVALID");
     return;
   }
   if (!media.hasVideo || !/(?:mp4|mov)/u.test(media.format)) throw new Error("VIDEO_PROOF_MEDIA_INVALID");

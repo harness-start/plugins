@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:7fb8c467fd73922af51b87911c78cf596cce3854916c22baed9a4da1477b76e5
+// harness-source-hash: sha256:ff36d7a35a5c7b3dc3fa7fdbc011d0c2de22cf4cd57492a1a7ae2cd420d36558
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -195,15 +195,6 @@ function extractFileTargets(event, options = {}) {
 }
 
 // plugins/command-safety-guards/src/lib/hook-io.ts
-function extractCwd(event) {
-  return eventCwd(event);
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolInput(event) {
-  return eventToolInput(event);
-}
 function extractShellCommand2(toolName, toolInput) {
   return extractShellCommand({ tool_name: toolName, tool_input: toolInput });
 }
@@ -651,7 +642,8 @@ function redisOperation(command) {
     const match = args.join(" ").match(
       /\b(?:KEYS|MONITOR|FLUSHALL|FLUSHDB|DEL|RANDOMKEY|SETBIT|BGSAVE|BGREWRITEAOF)\b/iu
     );
-    if (match) return match[0].toUpperCase();
+    const operation = match?.[0];
+    if (operation) return operation.toUpperCase();
   }
   return null;
 }
@@ -688,8 +680,9 @@ function activeTestReason(command) {
     }
     if (program === "nmap") {
       const cidr = subject.match(/\S+\/(\d{1,2})\b/u);
-      if (cidr && Number(cidr[1]) <= 20) {
-        return `target range /${cidr[1]} exceeds the /21 limit`;
+      const cidrBits = cidr?.[1];
+      if (cidrBits !== void 0 && Number(cidrBits) <= 20) {
+        return `target range /${cidrBits} exceeds the /21 limit`;
       }
       if (/(?:^|\s)-p-(?:\s|$)/u.test(subject) && !/--max-rate(?:=|\s+)\d+/u.test(subject)) {
         return "the all-port scan is missing --max-rate";
@@ -918,13 +911,38 @@ var DEFAULT_SETTINGS = {
   }
 };
 function isMatcher(value) {
-  return value instanceof RegExp || value && typeof value === "object" && typeof value.test === "function";
+  return value instanceof RegExp || isRecord(value) && typeof value.test === "function";
 }
 function testMatcher(matcher, subject) {
   if (matcher instanceof RegExp) {
     return new RegExp(matcher.source, matcher.flags).test(subject);
   }
   return matcher.test(subject);
+}
+function isRuleMode(value) {
+  return value === "deny" || value === "report" || value === "allow";
+}
+function optionalString(value) {
+  return typeof value === "string" ? value : void 0;
+}
+function resolveEngineSettings(raw) {
+  const engines = { ...DEFAULT_SETTINGS.engines };
+  if (!isRecord(raw)) return engines;
+  if (typeof raw.dangerousRm === "boolean") engines.dangerousRm = raw.dangerousRm;
+  if (typeof raw.mysqlReplicationPreflight === "boolean") {
+    engines.mysqlReplicationPreflight = raw.mysqlReplicationPreflight;
+  }
+  if (typeof raw.secretRead === "boolean") engines.secretRead = raw.secretRead;
+  if (typeof raw.fileSafety === "boolean") engines.fileSafety = raw.fileSafety;
+  if (typeof raw.denyEscalation === "boolean") engines.denyEscalation = raw.denyEscalation;
+  return engines;
+}
+function resolveEscalationSettings(raw) {
+  const escalation = { ...DEFAULT_SETTINGS.escalation };
+  if (!isRecord(raw)) return escalation;
+  if (typeof raw.windowMinutes === "number") escalation.windowMinutes = raw.windowMinutes;
+  if (typeof raw.threshold === "number") escalation.threshold = raw.threshold;
+  return escalation;
 }
 function validateRule(rule, i) {
   if (!rule || typeof rule !== "object") {
@@ -934,15 +952,15 @@ function validateRule(rule, i) {
     );
     return false;
   }
-  if (!(rule.match instanceof RegExp)) {
+  if (!("match" in rule) || !(rule.match instanceof RegExp)) {
     process.stderr.write(
       `[command-safety-guards] rule[${i}]: "match" must be a RegExp, skipping
 `
     );
     return false;
   }
-  const mode = rule.mode ?? "deny";
-  if (!["deny", "report", "allow"].includes(mode)) {
+  const mode = "mode" in rule ? rule.mode ?? "deny" : "deny";
+  if (!isRuleMode(mode)) {
     process.stderr.write(
       `[command-safety-guards] rule[${i}]: "mode" must be deny|report|allow, skipping
 `
@@ -952,7 +970,7 @@ function validateRule(rule, i) {
   return true;
 }
 function resolveRules(userConfig) {
-  const config = userConfig && typeof userConfig === "object" && !Array.isArray(userConfig) ? userConfig : {};
+  const config = isRecord(userConfig) ? userConfig : {};
   const rawUser = Array.isArray(config.rules) ? config.rules : [];
   if (config.rules !== void 0 && !Array.isArray(config.rules)) {
     process.stderr.write(
@@ -960,29 +978,27 @@ function resolveRules(userConfig) {
 `
     );
   }
-  const userRules = rawUser.map((rule, i) => ({ rule, i })).filter(({ rule, i }) => validateRule(rule, i)).map(({ rule, i }) => ({
-    id: typeof rule.id === "string" && rule.id ? rule.id : `user-rule[${i}]`,
-    match: rule.match,
-    mode: rule.mode ?? "deny",
-    title: rule.title,
-    reason: rule.reason,
-    recovery: rule.recovery,
-    observedFacts: rule.observedFacts,
-    harm: rule.harm,
-    unblockWhen: rule.unblockWhen,
-    sensitive: Boolean(rule.sensitive)
-  }));
+  const userRules = rawUser.map((rule, i) => ({ rule, i })).filter((item) => validateRule(item.rule, item.i)).map(({ rule, i }) => {
+    const mode = isRuleMode(rule.mode) ? rule.mode : "deny";
+    return {
+      id: typeof rule.id === "string" && rule.id ? rule.id : `user-rule[${i}]`,
+      match: rule.match,
+      mode,
+      title: optionalString(rule.title),
+      reason: optionalString(rule.reason),
+      recovery: optionalString(rule.recovery),
+      observedFacts: optionalString(rule.observedFacts),
+      harm: optionalString(rule.harm),
+      unblockWhen: optionalString(rule.unblockWhen),
+      sensitive: Boolean(rule.sensitive)
+    };
+  });
+  const settingsSource = isRecord(config.settings) ? config.settings : null;
   return {
     rules: [...userRules, ...BUILTIN_RULES],
     settings: {
-      engines: {
-        ...DEFAULT_SETTINGS.engines,
-        ...config.settings?.engines && typeof config.settings.engines === "object" && !Array.isArray(config.settings.engines) ? config.settings.engines : {}
-      },
-      escalation: {
-        ...DEFAULT_SETTINGS.escalation,
-        ...config.settings?.escalation && typeof config.settings.escalation === "object" && !Array.isArray(config.settings.escalation) ? config.settings.escalation : {}
-      }
+      engines: resolveEngineSettings(settingsSource?.engines),
+      escalation: resolveEscalationSettings(settingsSource?.escalation)
     }
   };
 }
@@ -1054,11 +1070,13 @@ async function loadUserConfig(repoRoot) {
     const path = join(repoRoot, name);
     if (!existsSync(path)) continue;
     try {
-      const mod = await import(pathToFileURL(path).href);
-      return mod.default ?? mod;
+      const loaded = await import(pathToFileURL(path).href);
+      if (!isRecord(loaded)) return loaded;
+      return loaded.default ?? loaded;
     } catch (error) {
+      const message = isRecord(error) && error.message != null ? String(error.message) : String(error);
       process.stderr.write(
-        `[command-safety-guards] Failed to load ${name}: ${error.message}
+        `[command-safety-guards] Failed to load ${name}: ${message}
 `
       );
       return null;
@@ -1068,12 +1086,13 @@ async function loadUserConfig(repoRoot) {
 }
 
 export {
+  isRecord,
   readStdinJson,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
   preToolDeny,
   writeJson,
-  extractCwd,
-  extractToolName,
-  extractToolInput,
   extractShellCommand2 as extractShellCommand,
   extractWriteTargets,
   additionalContextOutput,

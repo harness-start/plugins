@@ -1,10 +1,10 @@
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 import {
   encodePcm16Wav
-} from "./chunk-CK3DV5VG.mjs";
+} from "./chunk-B3UIGL2A.mjs";
 import {
   computeMusicSubjectDigest
-} from "./chunk-XYNVSRBJ.mjs";
+} from "./chunk-6UVSZ5EF.mjs";
 
 // plugins/tonejs-music-production/src/lib/browser-renderer.ts
 import { createRequire } from "node:module";
@@ -14,8 +14,9 @@ function moduleSpecifier(value) {
   return value.startsWith("./") ? value : `./${value}`;
 }
 function createBrowserEntry(project) {
-  const imports = project.tracks.map((track, index) => `import { createInstrument as createInstrument${index} } from ${JSON.stringify(moduleSpecifier(track.instrument))};`);
-  const factories = project.tracks.map((track, index) => `${JSON.stringify(track.id)}: createInstrument${index}`).join(",\n  ");
+  const tracks = project.tracks ?? [];
+  const imports = tracks.map((track, index) => `import { createInstrument as createInstrument${index} } from ${JSON.stringify(moduleSpecifier(track.instrument ?? ""))};`);
+  const factories = tracks.map((track, index) => `${JSON.stringify(track.id)}: createInstrument${index}`).join(",\n  ");
   return `import * as Tone from "tone";
 ${imports.join("\n")}
 
@@ -61,15 +62,27 @@ async function loadProjectDependency(root, name) {
   const loaded = await import(pathToFileURL(require2.resolve(name)).href);
   return loaded.default ?? loaded;
 }
+function asEsbuild(value) {
+  const record = typeof value === "object" && value !== null ? value : {};
+  if (typeof record.build !== "function") throw new Error("ESBUILD_UNAVAILABLE");
+  return { build: record.build };
+}
+function asPlaywright(value) {
+  const record = typeof value === "object" && value !== null ? value : {};
+  if (!record.chromium) throw new Error("PLAYWRIGHT_UNAVAILABLE");
+  return { chromium: record.chromium };
+}
 function createToneBrowserRenderer() {
   return async function renderAudio({ root, project, score, trackId }) {
-    const durationSeconds = score.bars * score.timeSignature[0] * (4 / score.timeSignature[1]) * 60 / score.bpm + project.tailSeconds;
+    const numerator = score.timeSignature[0] ?? 0;
+    const denominator = score.timeSignature[1] ?? 1;
+    const durationSeconds = score.bars * numerator * (4 / denominator) * 60 / score.bpm + (project.tailSeconds ?? 0);
     const eventCount = score.tracks.reduce((sum, track) => sum + track.events.length, 0);
     if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > 210) throw new Error("RENDER_DURATION_LIMIT_EXCEEDED");
     if (score.tracks.length > 8 || eventCount > 2e5) throw new Error("RENDER_COMPLEXITY_LIMIT_EXCEEDED");
     const [{ build }, { chromium }] = await Promise.all([
-      loadProjectDependency(root, "esbuild"),
-      loadProjectDependency(root, "playwright")
+      loadProjectDependency(root, "esbuild").then(asEsbuild),
+      loadProjectDependency(root, "playwright").then(asPlaywright)
     ]);
     const result = await build({
       stdin: {
@@ -89,15 +102,24 @@ function createToneBrowserRenderer() {
       const page = await browser.newPage();
       await page.route("**/*", (route) => route.abort());
       await page.setContent("<!doctype html><meta charset=utf-8><title>Tone.js Offline Render</title>");
-      let channels = null;
+      const rendered = { channels: null };
       await page.exposeFunction("__tonejsChunk", ({ channel, totalFrames, offset, samples }) => {
-        if (!channels) channels = Array.from({ length: project.channels }, () => new Float32Array(totalFrames));
-        if (!channels[channel] || channels[channel].length !== totalFrames || offset < 0 || offset + samples.length > totalFrames) throw new Error("RENDER_CHUNK_INVALID");
-        channels[channel].set(samples, offset);
+        if (!rendered.channels) rendered.channels = Array.from({ length: project.channels ?? 0 }, () => new Float32Array(totalFrames));
+        const target = rendered.channels[channel];
+        if (!target || target.length !== totalFrames || offset < 0 || offset + samples.length > totalFrames) throw new Error("RENDER_CHUNK_INVALID");
+        target.set(samples, offset);
       });
-      await page.addScriptTag({ content: result.outputFiles[0].text });
-      const value = await page.evaluate(async (input) => globalThis.__tonejsRender(input), { project, score, trackId });
-      if (!channels || value.channelCount !== channels.length || value.frames !== channels[0].length) throw new Error("RENDER_CHUNKS_INCOMPLETE");
+      const bundled = result.outputFiles[0];
+      if (!bundled) throw new Error("RENDER_BUNDLE_EMPTY");
+      await page.addScriptTag({ content: bundled.text });
+      const value = await page.evaluate(async (input) => {
+        const holder = globalThis;
+        if (typeof holder.__tonejsRender !== "function") throw new Error("RENDER_ENTRY_MISSING");
+        return holder.__tonejsRender(input);
+      }, { project, score, trackId });
+      const channels = rendered.channels;
+      const firstChannel = channels?.[0];
+      if (!channels || value.channelCount !== channels.length || !firstChannel || value.frames !== firstChannel.length) throw new Error("RENDER_CHUNKS_INCOMPLETE");
       return {
         sampleRate: value.sampleRate,
         channels
@@ -133,22 +155,37 @@ async function writeAtomic(filePath, bytes) {
   await rename(temporaryPath, filePath);
 }
 function validateAudio(audio, project) {
-  if (audio?.sampleRate !== project.sampleRate) throw new Error("RENDER_SAMPLE_RATE_MISMATCH");
-  if (!Array.isArray(audio?.channels) || audio.channels.length !== project.channels) throw new Error("RENDER_CHANNEL_COUNT_MISMATCH");
+  if (audio.sampleRate !== project.sampleRate) throw new Error("RENDER_SAMPLE_RATE_MISMATCH");
+  if (!Array.isArray(audio.channels) || audio.channels.length !== project.channels) throw new Error("RENDER_CHANNEL_COUNT_MISMATCH");
   if (audio.channels.some((channel) => !(channel instanceof Float32Array))) throw new Error("RENDER_CHANNEL_DATA_INVALID");
+}
+function asProject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
+}
+function asScore(value) {
+  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? value : {};
+  return {
+    ...record,
+    bpm: Number(record.bpm),
+    bars: Number(record.bars),
+    timeSignature: Array.isArray(record.timeSignature) ? record.timeSignature : [],
+    tracks: Array.isArray(record.tracks) ? record.tracks : [],
+    ...typeof record.ppq === "number" ? { ppq: record.ppq } : {}
+  };
 }
 async function renderProject({ root: inputRoot, renderAudio }) {
   if (typeof renderAudio !== "function") throw new Error("RENDER_BOUNDARY_REQUIRED");
   const root = resolve(inputRoot);
   const files = {};
   await collectSource(root, root, files, { value: 0 });
-  const project = JSON.parse(files["music.project.json"] ?? "null");
+  const project = asProject(JSON.parse(files["music.project.json"] ?? "null"));
   const sourceDigest = computeMusicSubjectDigest({ artifactId: basename(root), files, project });
   const scorePath = join2(root, "build", `score.${sourceDigest}.json`);
   const metricsPath = join2(root, "build", `metrics.${sourceDigest}.json`);
   const [scoreBytes, metricsBytes] = await Promise.all([readFile(scorePath), readFile(metricsPath)]);
-  const score = JSON.parse(scoreBytes.toString("utf8"));
-  if (score?.schema !== "tonejs-symbolic-score/v1" || score?.sourceDigest !== sourceDigest) throw new Error("CURRENT_SCORE_REQUIRED");
+  const parsedScore = JSON.parse(scoreBytes.toString("utf8"));
+  const score = asScore(parsedScore);
+  if (score.schema !== "tonejs-symbolic-score/v1" || score.sourceDigest !== sourceDigest) throw new Error("CURRENT_SCORE_REQUIRED");
   const buildRoot = join2(root, "build");
   const proofsRoot = join2(root, "proofs");
   await Promise.all([mkdir(buildRoot, { recursive: true }), mkdir(proofsRoot, { recursive: true })]);
@@ -171,8 +208,8 @@ async function renderProject({ root: inputRoot, renderAudio }) {
       [`build/score.${sourceDigest}.json`]: createHash("sha256").update(scoreBytes).digest("hex"),
       [`build/metrics.${sourceDigest}.json`]: createHash("sha256").update(metricsBytes).digest("hex")
     };
-    for (const track of project.tracks) {
-      const audio = await renderAudio({ root, project, score, trackId: track.id });
+    for (const track of project.tracks ?? []) {
+      const audio = await renderAudio({ root, project, score, trackId: track.id ?? null });
       validateAudio(audio, project);
       const filePath = join2(proofsRoot, `t${String(track.index).padStart(3, "0")}-${track.role}-${track.id}.${sourceDigest}.wav`);
       const wav = encodePcm16Wav(audio);

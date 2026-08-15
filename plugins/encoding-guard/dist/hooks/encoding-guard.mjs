@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1b5a7c53e6f801bdace3c7855624dd93a7b54f93682d5af8d99c94146b9a5acc
+// harness-source-hash: sha256:93f0c74e4d48cea388c5512feceba31723128bc4345a714da6ccb978c7a1dade
 
 // plugins/encoding-guard/src/entries/hooks/encoding-guard.ts
 import { execFileSync } from "node:child_process";
@@ -237,7 +237,7 @@ function warnConfig(message) {
 `);
 }
 function normalizeUserRule(rule, index, warn = warnConfig) {
-  if (!rule || !(rule.match instanceof RegExp)) {
+  if (!isRecord(rule) || !(rule.match instanceof RegExp)) {
     warn(`rule[${index}]: "match" must be a RegExp, skipping`);
     return null;
   }
@@ -246,14 +246,15 @@ function normalizeUserRule(rule, index, warn = warnConfig) {
     warn(`rule[${index}]: "mode" must be "block" or "skip", skipping`);
     return null;
   }
-  return { ...rule, mode };
+  return { match: rule.match, mode };
 }
 function resolveRules(userConfig, warn = warnConfig) {
-  if (userConfig?.rules !== void 0 && !Array.isArray(userConfig.rules)) {
+  const record = isRecord(userConfig) ? userConfig : void 0;
+  if (record?.rules !== void 0 && !Array.isArray(record.rules)) {
     warn('config "rules" must be an array; using built-in rules');
     return [...BUILTIN_RULES];
   }
-  const userRules = (userConfig?.rules ?? []).map((rule, index) => normalizeUserRule(rule, index, warn)).filter(Boolean);
+  const userRules = (Array.isArray(record?.rules) ? record.rules : []).map((rule, index) => normalizeUserRule(rule, index, warn)).filter((rule) => rule !== null);
   return [...userRules, ...BUILTIN_RULES];
 }
 function matchRule(relativePath, rules) {
@@ -276,7 +277,7 @@ async function loadUserConfig(repoRoot) {
       const loaded = await import(pathToFileURL(configPath).href);
       return loaded.default ?? loaded;
     } catch (error) {
-      warnConfig(`failed to load ${name}: ${error.message}`);
+      warnConfig(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -352,7 +353,9 @@ async function main() {
   const cwd = eventCwd(event);
   const candidates = extractFilePaths(event).filter(existsSync);
   if (candidates.length === 0) return;
-  const repoRoot = resolveRepoRoot(candidates[0]);
+  const firstCandidate = candidates[0];
+  if (!firstCandidate) return;
+  const repoRoot = resolveRepoRoot(firstCandidate);
   const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
   const rules = resolveRules(userConfig);
   const findings = [];

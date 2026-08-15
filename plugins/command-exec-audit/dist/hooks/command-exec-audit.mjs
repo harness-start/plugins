@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:789d57a691fbcdc864af1c8bcb7d4bf983d6db52cd8c60f872a2bbf58e0d491b
+// harness-source-hash: sha256:574665e6384787d66fb895a9709d80c6422b802bf70570b6e6e45fc4958a4de1
 
 // plugins/command-exec-audit/src/entries/hooks/command-exec-audit.ts
 import { resolve as resolve4 } from "node:path";
@@ -219,15 +219,6 @@ function extractFileTargets(event, options = {}) {
 function extractSessionId(event) {
   return eventSessionId(event) || null;
 }
-function extractCwd(event) {
-  return eventCwd(event);
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolResponse(event) {
-  return eventToolResponse(event);
-}
 function extractToolUseId(event) {
   return eventToolUseId(event) || null;
 }
@@ -248,7 +239,9 @@ function sameToolUseId(left, right) {
   if (!a || !b) return false;
   return a === b;
 }
-function redactCommand(command, { maxCommandChars = 2e3, redactSecrets = true } = {}) {
+function redactCommand(command, options = {}) {
+  const maxCommandChars = options.maxCommandChars ?? 2e3;
+  const redactSecrets = options.redactSecrets ?? true;
   let text = String(command ?? "");
   if (redactSecrets) {
     text = text.replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]+/giu, "$1 ***").replace(
@@ -271,7 +264,7 @@ function inferCommandStatus(event, forceFailure = false) {
   if (forceFailure) {
     return { status: "failure", exit_code: extractExitCode(event) };
   }
-  const response = extractToolResponse(event);
+  const response = eventToolResponse(event);
   if (typeof response === "string") {
     const matches = [
       ...response.matchAll(
@@ -287,7 +280,7 @@ function inferCommandStatus(event, forceFailure = false) {
       return { status: "unknown", exit_code: null };
     }
   }
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const code = response.exit_code ?? response.exitCode ?? response.code;
     if (typeof code === "number" && Number.isFinite(code)) {
       return { status: code === 0 ? "success" : "failure", exit_code: code };
@@ -310,7 +303,7 @@ function inferCommandStatus(event, forceFailure = false) {
   return { status: "unknown", exit_code: null };
 }
 function extractExitCode(event) {
-  const response = extractToolResponse(event);
+  const response = eventToolResponse(event);
   if (typeof response === "string") {
     const matches = [
       ...response.matchAll(
@@ -320,7 +313,7 @@ function extractExitCode(event) {
     const codeText = matches.at(-1)?.[1];
     if (codeText !== void 0) return Number.parseInt(codeText, 10);
   }
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const code = response.exit_code ?? response.exitCode ?? response.code;
     if (typeof code === "number" && Number.isFinite(code)) return code;
   }
@@ -396,7 +389,7 @@ function resolveConfig(raw, warn2 = () => {
     maxCommandChars: DEFAULT_CONFIG.maxCommandChars,
     redactSecrets: DEFAULT_CONFIG.redactSecrets
   };
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+  if (!isRecord(raw)) {
     if (raw != null) warn2("config must be an object; using defaults");
     return config;
   }
@@ -629,7 +622,7 @@ function findPendingByToolUseId(sessionPath, toolUseId) {
     if (!line.trim()) continue;
     try {
       const parsed = JSON.parse(line);
-      if (parsed?.schema === "command-exec/v1" && parsed.status === "pending" && String(parsed.tool_use_id ?? "") === id) {
+      if (isRecord(parsed) && parsed.schema === "command-exec/v1" && parsed.status === "pending" && String(parsed.tool_use_id ?? "") === id) {
         found = parsed;
       }
     } catch {
@@ -708,7 +701,7 @@ function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs) {
   return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
 }
 function protectDecision(event, auditRootRel, auditRootAbs) {
-  const toolName = extractToolName(event);
+  const toolName = eventToolName(event);
   if (isFileTool(toolName)) {
     const hits = targetsHitAuditRoot(event, auditRootAbs);
     if (hits.length > 0) {
@@ -748,6 +741,14 @@ function warn(message) {
   process.stderr.write(`[command-exec-audit] ${message}
 `);
 }
+function errorText(error) {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+function stringField(record, key) {
+  const value = record?.[key];
+  return typeof value === "string" ? value : void 0;
+}
 function modeFromArgv() {
   const mode = process.argv[2] ?? "post";
   if (mode === "pre" || mode === "post" || mode === "failure") return mode;
@@ -759,8 +760,8 @@ function buildPendingRecord(event, command, config, now = /* @__PURE__ */ new Da
     schema: "command-exec/v1",
     ts: started,
     session_id: extractSessionId(event),
-    cwd: resolve4(extractCwd(event)),
-    tool_name: extractToolName(event),
+    cwd: resolve4(eventCwd(event)),
+    tool_name: eventToolName(event),
     tool_use_id: extractToolUseId(event),
     command: redactCommand(command, config),
     status: "pending",
@@ -774,22 +775,22 @@ function buildPendingRecord(event, command, config, now = /* @__PURE__ */ new Da
 function finalizeRecord(base, event, forceFailure, config, now = /* @__PURE__ */ new Date()) {
   const ended = now.toISOString();
   const { status, exit_code } = inferCommandStatus(event, forceFailure);
-  const startedAt = base?.started_at ?? base?.ts ?? ended;
-  const command = base?.command ?? redactCommand(extractShellCommand(event) ?? "", config);
+  const startedAt = stringField(base, "started_at") ?? stringField(base, "ts") ?? ended;
+  const command = stringField(base, "command") ?? redactCommand(extractShellCommand(event) ?? "", config);
   return {
     schema: "command-exec/v1",
     ts: ended,
-    session_id: base?.session_id ?? extractSessionId(event),
-    cwd: base?.cwd ?? resolve4(extractCwd(event)),
-    tool_name: base?.tool_name ?? extractToolName(event),
-    tool_use_id: base?.tool_use_id ?? extractToolUseId(event),
+    session_id: stringField(base, "session_id") ?? extractSessionId(event),
+    cwd: stringField(base, "cwd") ?? resolve4(eventCwd(event)),
+    tool_name: stringField(base, "tool_name") ?? eventToolName(event),
+    tool_use_id: stringField(base, "tool_use_id") ?? extractToolUseId(event),
     command,
     status,
     started_at: startedAt,
     ended_at: ended,
     duration_ms: durationMs(startedAt, ended),
     exit_code,
-    host: base?.host ?? inferHost()
+    host: stringField(base, "host") ?? inferHost()
   };
 }
 function matchingPendingTip(sessionPath, toolUseId) {
@@ -799,7 +800,7 @@ function matchingPendingTip(sessionPath, toolUseId) {
   if (!tip) return null;
   try {
     const parsed = JSON.parse(tip.line);
-    if (parsed?.schema === "command-exec/v1" && parsed.status === "pending" && sameToolUseId(parsed.tool_use_id, id)) {
+    if (isRecord(parsed) && parsed.schema === "command-exec/v1" && parsed.status === "pending" && sameToolUseId(parsed.tool_use_id, id)) {
       return parsed;
     }
   } catch {
@@ -810,13 +811,13 @@ function matchingPendingTip(sessionPath, toolUseId) {
 async function main() {
   const mode = modeFromArgv();
   const event = await readStdinJson();
-  if (event?.__parseError) return;
-  const cwd = resolve4(extractCwd(event));
+  if (event.__parseError) return;
+  const cwd = resolve4(eventCwd(event));
   const repoRoot = resolveRepoRoot(cwd) ?? cwd;
   const config = await loadProjectConfig(repoRoot, warn);
   if (!config.enabled) return;
   const auditRootAbs = resolve4(repoRoot, config.auditRoot);
-  const toolName = extractToolName(event);
+  const toolName = eventToolName(event);
   if (mode === "pre") {
     const decision = protectDecision(event, config.auditRoot, auditRootAbs);
     if (decision.deny) {
@@ -831,7 +832,7 @@ async function main() {
       const paths = prepareTrail2(repoRoot, config.auditRoot, sessionKey);
       appendRecord(paths.sessionPath, buildPendingRecord(event, command, config));
     } catch (error) {
-      warn(`failed to record command start: ${error?.message ?? error}`);
+      warn(`failed to record command start: ${errorText(error)}`);
     }
     return;
   }
@@ -846,7 +847,7 @@ async function main() {
       const finalRecord2 = finalizeRecord(tipBase, event, forceFailure, config);
       const result = rewriteTip(
         paths.sessionPath,
-        (parsed) => parsed?.schema === "command-exec/v1" && parsed.status === "pending" && sameToolUseId(parsed.tool_use_id, tipBase.tool_use_id),
+        (parsed) => isRecord(parsed) && parsed.schema === "command-exec/v1" && parsed.status === "pending" && sameToolUseId(parsed.tool_use_id, tipBase.tool_use_id),
         finalRecord2
       );
       if (result === "rewritten") return;
@@ -855,13 +856,14 @@ async function main() {
     const finalRecord = finalizeRecord(scanned, event, forceFailure, config);
     appendRecord(paths.sessionPath, finalRecord);
   } catch (error) {
-    warn(`failed to record command finish: ${error?.message ?? error}`);
+    warn(`failed to record command finish: ${errorText(error)}`);
   }
 }
-var isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve4(process.argv[1]);
+var entryPath = process.argv[1];
+var isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve4(entryPath ?? "");
 if (isMain) {
   main().catch((error) => {
-    warn(error?.message ?? String(error));
+    warn(errorText(error));
     process.exitCode = 0;
   });
 }

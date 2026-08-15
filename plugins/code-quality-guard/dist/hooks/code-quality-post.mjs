@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e6bd927bf1f507bfaf685e7d4beff14fbc7d2942367f9a618fbc4ea84b4ac703
+// harness-source-hash: sha256:e5106d73638b3797ce9e88b8fae0df435d8ba82d9ceaa5377b906564cc62cb67
 import {
   capOutput,
   eventCwd,
@@ -7,6 +7,7 @@ import {
   eventToolName,
   findExecutable,
   hasEslintConfig,
+  isRecord,
   isSkippedPath,
   isSourceFileWithinLimit,
   loadUserConfig,
@@ -19,7 +20,7 @@ import {
   resolveConfig,
   resolveRepoRoot,
   runCommand
-} from "../chunks/chunk-VX67T3D5.mjs";
+} from "../chunks/chunk-YIJIYNLQ.mjs";
 
 // plugins/code-quality-guard/src/entries/hooks/code-quality-post.ts
 import { existsSync } from "node:fs";
@@ -197,14 +198,18 @@ function eslintMessages(result, path, mode) {
     return [finding("ESLint", path, "report", combinedOutput(result) || "ESLint returned no parseable JSON")];
   }
   const findings = [];
+  if (!Array.isArray(parsed)) return findings;
   for (const file of parsed) {
-    for (const message of file.messages ?? []) {
+    if (!isRecord(file)) continue;
+    const messages = Array.isArray(file.messages) ? file.messages : [];
+    for (const message of messages) {
+      if (!isRecord(message)) continue;
       const position = message.line ? `:${message.line}${message.column ? `:${message.column}` : ""}` : "";
       findings.push(finding(
         "ESLint",
         `${path}${position}`,
         message.fatal ? "block" : mode,
-        `${message.message}${message.ruleId ? ` (${message.ruleId})` : ""}`
+        `${String(message.message ?? "")}${message.ruleId ? ` (${message.ruleId})` : ""}`
       ));
     }
   }
@@ -268,7 +273,7 @@ async function main() {
   const tool = (name, localPaths = []) => {
     const key = `${name}\0${localPaths.join("\0")}`;
     if (!tools.has(key)) tools.set(key, findExecutable(name, repoRoot, localPaths));
-    return tools.get(key);
+    return tools.get(key) ?? null;
   };
   const missing = (key, path, message2) => {
     if (config.missingTools === "silent") return;
@@ -399,7 +404,7 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve2(process.argv[1])) {
   main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

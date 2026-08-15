@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7bbd040300470c56230d69416d6fc4116c992ff8cff335c804d72298524f6daf
+// harness-source-hash: sha256:3355a06f9a0b80a7458d259a6f0b938bd136a5b86f30383d606082daf13ee45c
 import {
   additionalContextOutput,
-  extractCwd,
+  eventCwd,
+  eventToolInput,
+  eventToolName,
   extractShellCommand,
-  extractToolInput,
-  extractToolName,
+  isRecord,
   preToolDeny,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-KU3G5JFX.mjs";
+} from "../chunks/chunk-BKG6NMO4.mjs";
 
 // plugins/git-delivery-guards/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";
@@ -367,16 +368,17 @@ function gitInvocations(command, initialCwd) {
     let cwd = resolve(initialCwd);
     while (cursor < rawArgs.length) {
       const token = rawArgs[cursor];
-      if (token === "-C" && rawArgs[cursor + 1]) {
-        cwd = resolve(cwd, rawArgs[cursor + 1]);
+      const next = rawArgs[cursor + 1];
+      if (token === "-C" && next) {
+        cwd = resolve(cwd, next);
         cursor += 2;
         continue;
       }
-      if (["-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(token)) {
+      if (token !== void 0 && ["-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(token)) {
         cursor += 2;
         continue;
       }
-      if (/^--(?:git-dir|work-tree|namespace|config-env)=/u.test(token)) {
+      if (token !== void 0 && /^--(?:git-dir|work-tree|namespace|config-env)=/u.test(token)) {
         cursor += 1;
         continue;
       }
@@ -400,9 +402,10 @@ function gitAdd(invocation, command) {
   const hasBulk = args.some(
     (token) => ["-A", "--all", "-u", "--update"].includes(token) || /^-[^-]*[Au]/u.test(token)
   );
-  const explicit = args.some(
-    (token, index) => !token.startsWith("-") && !["--chmod", "--intent-to-add"].includes(args[index - 1])
-  );
+  const explicit = args.some((token, index) => {
+    const previous = index > 0 ? args[index - 1] : void 0;
+    return !token.startsWith("-") && (previous === void 0 || !["--chmod", "--intent-to-add"].includes(previous));
+  });
   if (hasBulk && !explicit) {
     return finding(
       "deny",
@@ -481,7 +484,8 @@ function destructiveGit(invocation, command) {
   }
   if (subcommand === "stash" && args[0] === "drop") {
     const approved = /(?:^|[;&|]\s*)AI_EXPERTS_ALLOW_GIT_STASH_DROP=1\s+git(?:\s+-\S+)*\s+stash\s+drop\s+['"]?stash@\{\d+\}['"]?(?:\s|$)/u.test(command);
-    if (!approved || args.length !== 2 || !/^stash@\{\d+\}$/u.test(args[1])) {
+    const stashRef = args[1];
+    if (!approved || args.length !== 2 || stashRef === void 0 || !/^stash@\{\d+\}$/u.test(stashRef)) {
       return finding(
         "deny",
         "Dangerous Git Command",
@@ -564,14 +568,18 @@ function commitMessage(invocation, command) {
   const paragraphs = [];
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
-    if (["-m", "--message"].includes(token) && args[index + 1]) {
-      paragraphs.push(args[index += 1]);
+    if (token === void 0) continue;
+    const next = args[index + 1];
+    if (["-m", "--message"].includes(token) && next) {
+      index += 1;
+      paragraphs.push(next);
     } else if (token.startsWith("--message=")) {
       paragraphs.push(token.slice(10));
     } else if (/^-m.+/u.test(token)) {
       paragraphs.push(token.slice(2));
-    } else if (["-F", "--file"].includes(token) && args[index + 1]) {
-      const path = args[index += 1];
+    } else if (["-F", "--file"].includes(token) && next) {
+      index += 1;
+      const path = next;
       try {
         paragraphs.push(readFileSync(resolve(invocation.cwd, path), "utf8"));
       } catch {
@@ -717,6 +725,10 @@ var CONFIG_EXTENSIONS = /* @__PURE__ */ new Set([
   ".yaml",
   ".yml"
 ]);
+function errorText(error) {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
 function git(args, cwd) {
   try {
     return execFileSync("git", args, {
@@ -742,7 +754,7 @@ function processState(pid) {
     process.kill(pid, 0);
     return "alive";
   } catch (error) {
-    if (error?.code === "ESRCH") return "dead";
+    if (isRecord(error) && error.code === "ESRCH") return "dead";
     return "unknown";
   }
 }
@@ -775,12 +787,13 @@ function staleLock(invocation) {
       "wait for the current Git operation to finish, then retry"
     );
   }
-  let pid = null;
+  let parsedPid = null;
   try {
-    pid = Number(readFileSync2(lockPath, "utf8").slice(0, 64).match(/^(\d+)\s/u)?.[1]);
+    const match = readFileSync2(lockPath, "utf8").slice(0, 64).match(/^(\d+)\s/u)?.[1];
+    if (match !== void 0) parsedPid = Number(match);
   } catch {
   }
-  if (!Number.isSafeInteger(pid) || pid <= 0) {
+  if (parsedPid === null || !Number.isSafeInteger(parsedPid) || parsedPid <= 0) {
     return finding2(
       "deny",
       "Git Lock Guard",
@@ -788,6 +801,7 @@ function staleLock(invocation) {
       `confirm that no Git process is running, then delete ${lockPath} manually`
     );
   }
+  const pid = parsedPid;
   const holder = processState(pid);
   if (holder !== "dead") {
     return finding2(
@@ -819,7 +833,7 @@ function staleLock(invocation) {
     return finding2(
       "deny",
       "Git Lock Guard",
-      `the stale index.lock could not be removed safely: ${error?.message ?? error}`,
+      `the stale index.lock could not be removed safely: ${errorText(error)}`,
       `confirm that no Git process is running, then delete ${lockPath} manually`
     );
   }
@@ -831,15 +845,15 @@ function readBoundaryRules(root) {
   try {
     value = JSON.parse(readFileSync2(configPath, "utf8"));
   } catch (error) {
-    return { rules: [], error: `failed to parse ${configPath}: ${error?.message ?? error}` };
+    return { rules: [], error: `failed to parse ${configPath}: ${errorText(error)}` };
   }
-  if (value?.version !== 1 || !Array.isArray(value.boundaries)) {
+  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.boundaries)) {
     return { rules: [], error: `${configPath} must contain version: 1 and a boundaries array` };
   }
   const rules = [];
   const ids = /* @__PURE__ */ new Set();
   for (const [index, item] of value.boundaries.entries()) {
-    if (!item || typeof item.id !== "string" || !item.id.trim() || ids.has(item.id) || !Array.isArray(item.prefixes) || item.prefixes.length === 0) {
+    if (!isRecord(item) || typeof item.id !== "string" || !item.id.trim() || ids.has(item.id) || !Array.isArray(item.prefixes) || item.prefixes.length === 0) {
       return { rules: [], error: `boundaries[${index}] must have a unique non-empty id and a non-empty prefixes array` };
     }
     ids.add(item.id);
@@ -925,6 +939,7 @@ function commitState(invocation) {
     const boundary = boundaryFor(file, root, boundaryConfig.rules);
     if (!groups.has(boundary)) groups.set(boundary, { source: false, config: false });
     const group = groups.get(boundary);
+    if (!group) continue;
     const extension = extname(file).toLowerCase();
     if (SOURCE_EXTENSIONS.has(extension)) group.source = true;
     if (CONFIG_EXTENSIONS.has(extension) || /^(?:Dockerfile|Jenkinsfile|Makefile)$/u.test(basename(file))) group.config = true;
@@ -948,19 +963,19 @@ function commitState(invocation) {
   return findings;
 }
 function deliveryStateFindings(cwd, command) {
-  return gitInvocations(command, cwd).flatMap((invocation) => [
-    staleLock(invocation),
-    ...commitState(invocation)
-  ].filter(Boolean));
+  return gitInvocations(command, cwd).flatMap((invocation) => {
+    const lock = staleLock(invocation);
+    return lock ? [lock, ...commitState(invocation)] : commitState(invocation);
+  });
 }
 
 // plugins/git-delivery-guards/src/entries/hooks/git-delivery-hook-pre-tool.ts
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const command = extractShellCommand(extractToolName(event), extractToolInput(event));
+  const command = extractShellCommand(eventToolName(event), eventToolInput(event));
   if (!command) return;
-  const cwd = extractCwd(event);
+  const cwd = eventCwd(event);
   const findings = [
     ...classifyDeliveryCommand(command, cwd),
     ...deliveryStateFindings(cwd, command)
@@ -975,7 +990,8 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[git-delivery-guards] pre hook failed open: ${error?.message ?? error}
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`[git-delivery-guards] pre hook failed open: ${message}
 `);
   process.exit(0);
 });

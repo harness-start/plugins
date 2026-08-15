@@ -1,17 +1,20 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-D53Y26S6.mjs";
+} from "../chunks/chunk-6VSA7JKI.mjs";
 import {
   PLAN_SCHEMA,
   validateLogoModel
-} from "../chunks/chunk-LHQ5PSUS.mjs";
+} from "../chunks/chunk-XNRN4R7K.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-stage.ts
 import { rename, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+function planField(plan, key) {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan[key] : void 0;
+}
 var root = resolve(process.argv[2] ?? "");
 var targetStage = process.argv[3] ?? "";
 var planPath = join(root, "plan.contract.json");
@@ -21,7 +24,7 @@ async function main() {
   await assertLogoProjectRoot(root);
   if (targetStage !== "release") throw new Error("only the monotonic source to release transition is supported");
   const model = await loadLogoProject(root);
-  if (model.plan?.schema !== PLAN_SCHEMA || model.plan?.artifactId !== model.artifactId || model.plan?.targetStage !== "source") throw new Error("PLAN_TRANSITION_INVALID: current plan must be a bound source plan");
+  if (planField(model.plan, "schema") !== PLAN_SCHEMA || planField(model.plan, "artifactId") !== model.artifactId || planField(model.plan, "targetStage") !== "source") throw new Error("PLAN_TRANSITION_INVALID: current plan must be a bound source plan");
   const findings = validateLogoModel(model, { stage: "source" });
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
   const next = { schema: PLAN_SCHEMA, artifactId: model.artifactId, targetStage: "release" };
@@ -32,7 +35,7 @@ async function main() {
 `);
 }
 main().catch((error) => {
-  process.stderr.write(`[logo-project-stage] ${error.message}
+  process.stderr.write(`[logo-project-stage] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

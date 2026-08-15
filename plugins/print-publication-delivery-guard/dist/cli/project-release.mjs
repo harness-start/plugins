@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7b9d00a7187431ef6fc08d5cc4a14420b072497b073b4b891380b5b321892ea2
+// harness-source-hash: sha256:18a0ebef0e073513e4da28927c8f2f5f9801eeaa910a741d013a00b2be3b57ac
 import {
   createPrintReceipt,
   validatePrintModel,
   validatePrintReceipt
-} from "../chunks/chunk-K56MHSGN.mjs";
+} from "../chunks/chunk-VPHFUAY5.mjs";
 
 // plugins/print-publication-delivery-guard/src/entries/cli/project-release.ts
 import { createHash } from "node:crypto";
@@ -37,7 +37,7 @@ async function load() {
   await collect(root, files, digests, { value: 0 });
   const parse = (filePath) => {
     try {
-      return JSON.parse(files[filePath] ?? "");
+      return JSON.parse(String(files[filePath] ?? ""));
     } catch {
       return null;
     }
@@ -69,7 +69,7 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[print-project-release] ${error.message}
+  process.stderr.write(`[print-project-release] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

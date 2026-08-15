@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e2c899ff74b0ee05fae26bce12ed170de8626cce44835f531da3b915196b3021
+// harness-source-hash: sha256:8b22cb1b21e5f6b88eb09c24ab5257e5560707fea0b68d252123ee742a6e79af
 import {
   PROFILES,
   PROFILE_IDS,
-  extractCwd,
-  extractPrompt,
+  eventCwd,
+  eventPrompt,
   loadConfig,
   readStdinJson,
   recordLanguageIntent,
   warn
-} from "../chunks/chunk-NAWYRYUG.mjs";
+} from "../chunks/chunk-3ZGNNHPU.mjs";
 
 // plugins/language-output-governance/src/lib/intent.ts
 var TRANSLATION_CUE = /翻译|翻譯|译成|譯成|译为|譯為|翻成|translate|translation/iu;
@@ -39,16 +39,20 @@ function classifyLanguageIntent(prompt) {
   if (mentioned.length !== 1) {
     return { preferredProfile: null, authorizedProfiles: mentioned };
   }
-  return { preferredProfile: mentioned[0], authorizedProfiles: [mentioned[0]] };
+  const preferredProfile = mentioned[0];
+  if (preferredProfile === void 0) {
+    return { preferredProfile: null, authorizedProfiles: [] };
+  }
+  return { preferredProfile, authorizedProfiles: [preferredProfile] };
 }
 
 // plugins/language-output-governance/src/entries/hooks/language-output-hook-user-prompt.ts
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const intent = classifyLanguageIntent(extractPrompt(event));
+  const intent = classifyLanguageIntent(eventPrompt(event));
   if (!intent.preferredProfile && intent.authorizedProfiles.length === 0) return;
-  const { config } = await loadConfig(extractCwd(event), warn);
+  const { config } = await loadConfig(eventCwd(event), warn);
   recordLanguageIntent(event, config.defaultProfile, intent);
 }
 main().catch((error) => warn(`UserPromptSubmit failed open: ${error.message}`));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ab266d2f051b8be8a5488dd331bf6efacf12a101f36b81a6afe6e2f49f4de4de
+// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
 import {
   consumeWriterCapability,
   createVideoReceipt,
@@ -7,14 +7,14 @@ import {
   processWriterArgv,
   validateVideoModel,
   validateVideoReceipt
-} from "../chunks/chunk-47Y5Y6SY.mjs";
+} from "../chunks/chunk-MQOGMMXB.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-ZS2FERKO.mjs";
+} from "../chunks/chunk-X2VNCGIS.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/cli/project-release.ts
 function beforeManifestFindings(model) {
@@ -41,7 +41,8 @@ async function main() {
   }, grant);
 }
 main().catch((error) => {
-  process.stderr.write(`[video-project-release] ${error.message}
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[video-project-release] ${message}
 `);
   process.exitCode = 2;
 });

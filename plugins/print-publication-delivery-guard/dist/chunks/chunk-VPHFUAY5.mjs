@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:7b9d00a7187431ef6fc08d5cc4a14420b072497b073b4b891380b5b321892ea2
+// harness-source-hash: sha256:18a0ebef0e073513e4da28927c8f2f5f9801eeaa910a741d013a00b2be3b57ac
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";
@@ -36,22 +36,28 @@ var UNIT_VIOLATION = /(?:\b(?:useState|useEffect|useLayoutEffect|useReducer|hydr
 var RECEIPT_EXCLUDED_PATH = /^(?:build\/|dist\/|evidence(?:\.|\/)|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.print-delivery-journal\.json$)/u;
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
+var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var rec = (value) => isObject(value) ? value : void 0;
+var asList = (value) => Array.isArray(value) ? value : [];
+var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
 function validateIndependentReviewFile(files, filePath, schema, findings) {
   let review;
   try {
-    review = JSON.parse(files[filePath] ?? "null");
+    review = JSON.parse(files[filePath] === void 0 ? "null" : textOf(files[filePath]));
   } catch {
     review = null;
   }
-  if (!review || review.schema !== schema || review.verdict !== "pass") {
+  const reviewRec = rec(review);
+  if (!review || reviewRec?.schema !== schema || reviewRec?.verdict !== "pass") {
     findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
     return;
   }
-  if (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId) {
+  const reviewer = rec(reviewRec?.reviewer);
+  if (!["human", "independent-agent"].includes(reviewer?.kind) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId) {
     findings.push(finding("REVIEWER_INVALID", filePath, "reviewer must declare kind and sessionId"));
     return;
   }
-  if (review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+  if (reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
     findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
   }
 }
@@ -63,10 +69,10 @@ function computePrintSubjectDigest(model) {
 }
 function printOutputPaths(model) {
   return [
-    `dist/${model.artifactId}.interior.proof.pdf`,
-    `dist/${model.artifactId}.interior.print.pdf`,
-    `dist/${model.artifactId}.cover.proof.pdf`,
-    `dist/${model.artifactId}.cover.print.pdf`,
+    `dist/${model?.artifactId}.interior.proof.pdf`,
+    `dist/${model?.artifactId}.interior.print.pdf`,
+    `dist/${model?.artifactId}.cover.proof.pdf`,
+    `dist/${model?.artifactId}.cover.print.pdf`,
     "evidence/pdf.json",
     "evidence/fonts.json",
     "evidence/images.json",
@@ -89,9 +95,10 @@ function createPrintReceipt(model) {
 }
 function validatePrintReceipt(model) {
   try {
-    const actual = JSON.parse(model?.files?.["receipt.release.json"] ?? "");
+    const actual = JSON.parse(textOf(model?.files?.["receipt.release.json"]));
     const expected = createPrintReceipt(model);
-    return actual?.schemaVersion === expected.schemaVersion && actual?.plugin === expected.plugin && actual?.artifactId === expected.artifactId && actual?.stage === expected.stage && actual?.subjectDigest === expected.subjectDigest && JSON.stringify(actual?.outputs) === JSON.stringify(expected.outputs);
+    if (!isObject(actual)) return false;
+    return actual.schemaVersion === expected.schemaVersion && actual.plugin === expected.plugin && actual.artifactId === expected.artifactId && actual.stage === expected.stage && actual.subjectDigest === expected.subjectDigest && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
   } catch {
     return false;
   }
@@ -153,30 +160,36 @@ function validatePrintModel(model, { stage = "source" } = {}) {
   if (".print-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".print-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
   validateRequired(files, findings);
   validateArtifactGitignore(files, findings);
-  if (model?.project?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "print.project.json", "project artifactId must match directory id"));
+  if (rec(model?.project)?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "print.project.json", "project artifactId must match directory id"));
   const manifest = parseJson(files, "src/publication.manifest.json", findings);
-  const sections = Array.isArray(manifest?.sections) ? manifest.sections : [];
+  const sections = asList(rec(manifest)?.sections);
   const ids = /* @__PURE__ */ new Set();
   let prior = -1;
   sections.forEach((entry) => {
-    const match = typeof entry?.source === "string" ? entry.source.match(SECTION_SOURCE) : null;
-    const filePath = `src/sections/${entry?.source ?? "manifest.json"}`;
-    if (!match || Number(match.groups.index) !== entry.index) findings.push(finding("SECTION_NAME_INVALID", filePath, "section source must use NNN-slug.section.tsx and match manifest index"));
-    if (!Number.isInteger(entry?.index) || entry.index <= prior || ids.has(entry?.id)) findings.push(finding("SECTION_ORDER_INVALID", "src/publication.manifest.json", "section indexes must be unique and strictly increasing"));
-    prior = entry?.index;
-    ids.add(entry?.id);
+    const item = rec(entry);
+    const match = typeof item?.source === "string" ? item.source.match(SECTION_SOURCE) : null;
+    const filePath = `src/sections/${item?.source ?? "manifest.json"}`;
+    if (!match || Number(match.groups?.index) !== item?.index) findings.push(finding("SECTION_NAME_INVALID", filePath, "section source must use NNN-slug.section.tsx and match manifest index"));
+    if (!Number.isInteger(item?.index) || Number(item?.index) <= prior || ids.has(item?.id)) findings.push(finding("SECTION_ORDER_INVALID", "src/publication.manifest.json", "section indexes must be unique and strictly increasing"));
+    prior = item?.index;
+    ids.add(item?.id);
     validateUnit(files, filePath, findings);
   });
   for (const cover of ["Front", "Spine", "Back"]) validateUnit(files, `src/cover/${cover}.cover.tsx`, findings);
-  if (typeof files["src/styles/page.css"] === "string" && !/@page(?:\s|\{)/u.test(files["src/styles/page.css"])) findings.push(finding("PAGED_MEDIA_MISSING", "src/styles/page.css", "page stylesheet must declare @page"));
-  if (typeof files["src/render.tsx"] === "string" && !/renderPublication/u.test(files["src/render.tsx"])) findings.push(finding("RENDER_OWNER_INVALID", "src/render.tsx", "render.tsx must own the static publication render"));
+  const pageCss = files["src/styles/page.css"];
+  const renderTsx = files["src/render.tsx"];
+  if (typeof pageCss === "string" && !/@page(?:\s|\{)/u.test(pageCss)) findings.push(finding("PAGED_MEDIA_MISSING", "src/styles/page.css", "page stylesheet must declare @page"));
+  if (typeof renderTsx === "string" && !/renderPublication/u.test(renderTsx)) findings.push(finding("RENDER_OWNER_INVALID", "src/render.tsx", "render.tsx must own the static publication render"));
   if (stage === "release") {
     const outputs = printOutputPaths(model);
     const pdfs = outputs.filter((filePath) => filePath.endsWith(".pdf"));
     for (const filePath of [...outputs, "receipt.release.json"]) {
       if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
     }
-    for (const filePath of pdfs) if (typeof files[filePath] === "string" && !files[filePath].startsWith("%PDF-")) findings.push(finding("PDF_MAGIC_INVALID", filePath, "PDF output must have PDF magic and be directly probed"));
+    for (const filePath of pdfs) {
+      const pdf = files[filePath];
+      if (typeof pdf === "string" && !pdf.startsWith("%PDF-")) findings.push(finding("PDF_MAGIC_INVALID", filePath, "PDF output must have PDF magic and be directly probed"));
+    }
     if ("receipt.release.json" in files && !validatePrintReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current publication sources and outputs"));
     validateIndependentReviewFile(files, "review.print.json", "print-publication-delivery-guard/review/v1", findings);
   }

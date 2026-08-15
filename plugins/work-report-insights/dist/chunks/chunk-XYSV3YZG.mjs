@@ -1,4 +1,66 @@
-// harness-source-hash: sha256:5dd6e44bf9e31a59e88572c25eca20796881558ed08fb016a2769f0eb24fb7e7
+// harness-source-hash: sha256:fabd61f22320e6f936be9aacdac06071e458f80c365b67d265d0bbf037d61138
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+function eventAssistantMessage(event) {
+  return firstString(
+    event.last_assistant_message,
+    event.lastAssistantMessage,
+    event.assistant_message,
+    event.assistant_text,
+    event.assistantText
+  );
+}
 
 // plugins/work-report-insights/src/lib/report-integrity.ts
 import { createHash } from "node:crypto";
@@ -31,8 +93,14 @@ function verifyReport(content) {
     return { ok: false, kind: "malformed", reason: "report must contain exactly one seal marker" };
   }
   const marker = matches[0];
+  if (marker === void 0 || marker.index === void 0) {
+    return { ok: false, kind: "malformed", reason: "seal marker is malformed" };
+  }
   const body = text.slice(0, marker.index);
   const digest = marker[1];
+  if (digest === void 0) {
+    return { ok: false, kind: "malformed", reason: "seal marker is malformed" };
+  }
   const suffix = text.slice(marker.index + marker[0].length);
   if (suffix.includes(SEAL_PREFIX)) {
     return { ok: false, kind: "malformed", reason: "report suffix contains a reserved seal marker" };
@@ -62,6 +130,9 @@ function requireDate(value, label) {
   const text = String(value ?? "");
   if (!DATE.test(text)) throw new Error(`${label} expects YYYY-MM-DD`);
   const [year, month, day] = text.split("-").map(Number);
+  if (year === void 0 || month === void 0 || day === void 0) {
+    throw new Error(`${label} expects YYYY-MM-DD`);
+  }
   const parsed = new Date(year, month - 1, day);
   if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
     throw new Error(`${label} is not a valid date`);
@@ -70,6 +141,12 @@ function requireDate(value, label) {
 }
 function reportsHome(home) {
   return resolve(home ?? process.env.HOME ?? homedir(), ".ai-experts");
+}
+function errorCode(error) {
+  return isRecord(error) ? error.code : void 0;
+}
+function errorMessage(error) {
+  return isRecord(error) && error.message != null ? String(error.message) : String(error);
 }
 function reportPath(options) {
   const home = options.home ?? process.env.HOME ?? homedir();
@@ -96,14 +173,16 @@ function isProtectedReportPath(candidate, home) {
   const rel = relative(root, absolute);
   if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || resolve(root, rel) !== absolute) return false;
   const parts = rel.split(sep);
-  return parts.length === 2 && parts[0].endsWith("-reports") && Boolean(parts[1]);
+  const folder = parts[0];
+  const file = parts[1];
+  return parts.length === 2 && Boolean(folder?.endsWith("-reports")) && Boolean(file);
 }
 async function rejectSymlink(path) {
   try {
     const stats = await lstat(path);
     if (stats.isSymbolicLink()) throw new Error(`refusing symbolic-link report path: ${path}`);
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
 }
 async function prepareReportDirectory(path) {
@@ -133,7 +212,7 @@ async function readUtf8(path, label) {
   try {
     return await readFile(resolve(path), "utf8");
   } catch (error) {
-    throw new Error(`${label} cannot be read: ${error?.message ?? String(error)}`);
+    throw new Error(`${label} cannot be read: ${errorMessage(error)}`);
   }
 }
 async function saveReport(options) {
@@ -149,11 +228,12 @@ async function saveReport(options) {
     if (checked.ok) throw new Error(`report is already sealed: ${target}`);
     if (checked.kind !== "unsealed") throw new Error(`existing report integrity is invalid: ${checked.reason}`);
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
   const sealed = sealReport(normalized);
   await atomicWrite(target, sealed);
-  return { path: target, digest: verifyReport(sealed).digest, bytes: Buffer.byteLength(sealed) };
+  const verified = verifyReport(sealed);
+  return { path: target, digest: verified.ok ? verified.digest : void 0, bytes: Buffer.byteLength(sealed) };
 }
 async function appendReport(options) {
   const target = resolve(options.report ?? "");
@@ -221,12 +301,12 @@ function isoWeekStart(value) {
 function buildReportWindow(options) {
   if (options.kind === "daily") {
     const start = localDay(options.date, "--date");
-    return { label: options.date, startMs: start.getTime(), endMs: endOfLocalDay(start) };
+    return { label: String(options.date), startMs: start.getTime(), endMs: endOfLocalDay(start) };
   }
   if (options.kind === "weekly") {
     const start = isoWeekStart(options.week);
     const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 7).getTime() - 1;
-    return { label: options.week, startMs: start.getTime(), endMs: end };
+    return { label: String(options.week), startMs: start.getTime(), endMs: end };
   }
   if (options.kind === "summary") {
     const start = localDay(options.from, "--from");
@@ -242,7 +322,7 @@ function escapeRegExp(value) {
 function sanitizeSnippet(value, home = homedir2()) {
   let text = String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ");
   text = text.replace(/\bAuthorization:\s*Bearer\s+[^\s,;]+/giu, "Authorization: Bearer [REDACTED]");
-  text = text.replace(/\b(?:token|api[_-]?key|secret|password)\s*[=:]\s*[^\s,;]+/giu, (match) => `${match.split(/[=:]/u)[0].trim()}=[REDACTED]`);
+  text = text.replace(/\b(?:token|api[_-]?key|secret|password)\s*[=:]\s*[^\s,;]+/giu, (match) => `${match.split(/[=:]/u)[0]?.trim()}=[REDACTED]`);
   if (home) text = text.replace(new RegExp(`${escapeRegExp(home)}(?:[\\\\/]\\S*)?`, "gu"), "~/.ai-experts-path");
   text = text.replace(/\s+/gu, " ").trim();
   return text.length > MAX_SNIPPET ? `${text.slice(0, MAX_SNIPPET - 1)}\u2026` : text;
@@ -252,6 +332,7 @@ async function discover(root, matches) {
   const stack = [root];
   while (stack.length > 0) {
     const current = stack.pop();
+    if (current === void 0) continue;
     let entries;
     try {
       entries = await readdir(current, { withFileTypes: true });
@@ -273,8 +354,10 @@ async function discover(root, matches) {
   return files;
 }
 function eventTimestamp(value) {
-  for (const candidate of [value?.timestamp, value?.created_at, value?.createdAt, value?.time, value?.payload?.timestamp]) {
-    const millis = typeof candidate === "number" ? candidate < 1e12 ? candidate * 1e3 : candidate : Date.parse(candidate ?? "");
+  if (!isRecord(value)) return null;
+  const payload = isRecord(value.payload) ? value.payload : void 0;
+  for (const candidate of [value.timestamp, value.created_at, value.createdAt, value.time, payload?.timestamp]) {
+    const millis = typeof candidate === "number" ? candidate < 1e12 ? candidate * 1e3 : candidate : Date.parse(typeof candidate === "string" ? candidate : String(candidate ?? ""));
     if (Number.isFinite(millis)) return millis;
   }
   return null;
@@ -289,7 +372,7 @@ function collectText(value, out = [], depth = 0) {
     for (const item of value) collectText(item, out, depth + 1);
     return out;
   }
-  if (typeof value !== "object") return out;
+  if (!isRecord(value)) return out;
   for (const [key, child] of Object.entries(value)) {
     if (/encrypted|reasoning_content|signature/iu.test(key)) continue;
     if (typeof child === "string" && /^(?:text|content|message|prompt|output_text|input_text)$/u.test(key)) out.push(child);
@@ -303,9 +386,10 @@ function collectTools(value, out = [], depth = 0) {
     for (const item of value) collectTools(item, out, depth + 1);
     return out;
   }
-  if (typeof value !== "object") return out;
+  if (!isRecord(value)) return out;
   const type = String(value.type ?? "");
-  const name = value.name ?? value.tool_name ?? value.function?.name;
+  const fn = isRecord(value.function) ? value.function : void 0;
+  const name = value.name ?? value.tool_name ?? fn?.name;
   if (typeof name === "string" && /tool|function_call/iu.test(type)) out.push(name);
   for (const child of Object.values(value)) {
     if (typeof child === "object") collectTools(child, out, depth + 1);
@@ -313,10 +397,15 @@ function collectTools(value, out = [], depth = 0) {
   return out;
 }
 function inferRole(value) {
-  return value?.role ?? value?.message?.role ?? value?.payload?.role ?? null;
+  if (!isRecord(value)) return null;
+  const message = isRecord(value.message) ? value.message : void 0;
+  const payload = isRecord(value.payload) ? value.payload : void 0;
+  return value.role ?? message?.role ?? payload?.role ?? null;
 }
 function sessionId(value, fallback) {
-  return String(value?.sessionId ?? value?.session_id ?? value?.session?.id ?? fallback);
+  if (!isRecord(value)) return String(fallback);
+  const session = isRecord(value.session) ? value.session : void 0;
+  return String(value.sessionId ?? value.session_id ?? session?.id ?? fallback);
 }
 async function scanFile(candidate, platform, window, home) {
   let raw;
@@ -346,10 +435,11 @@ async function scanFile(candidate, platform, window, home) {
   let id = basename2(candidate.path, ".jsonl");
   let project = null;
   for (let index = 0; index < limited.length; index += 1) {
-    if (!limited[index].trim()) continue;
+    const line = limited[index];
+    if (line === void 0 || !line.trim()) continue;
     let event;
     try {
-      event = JSON.parse(limited[index]);
+      event = JSON.parse(line);
     } catch {
       malformed += 1;
       continue;
@@ -357,18 +447,23 @@ async function scanFile(candidate, platform, window, home) {
     const timestamp = eventTimestamp(event);
     if (timestamp === null || timestamp < window.startMs || timestamp > window.endMs) continue;
     id = sessionId(event, id);
-    const cwd = event.cwd ?? event.working_directory ?? event.payload?.cwd;
+    const record = isRecord(event) ? event : void 0;
+    const payload = record && isRecord(record.payload) ? record.payload : void 0;
+    const cwd = record?.cwd ?? record?.working_directory ?? payload?.cwd;
     if (typeof cwd === "string" && cwd) project = basename2(cwd);
     firstAt = firstAt === null ? timestamp : Math.min(firstAt, timestamp);
     lastAt = lastAt === null ? timestamp : Math.max(lastAt, timestamp);
     const text = sanitizeSnippet(collectText(event).join(" "), home);
     if (text) {
-      for (const match of text.matchAll(/(?:^|\s)[$/]([a-z][a-z0-9-]{1,63})\b/giu)) skills.add(match[1].toLowerCase());
+      for (const match of text.matchAll(/(?:^|\s)[$/]([a-z][a-z0-9-]{1,63})\b/giu)) {
+        const skill = match[1];
+        if (skill) skills.add(skill.toLowerCase());
+      }
       evidence.push({ line: index + 1, role: inferRole(event), text });
     }
     for (const name of collectTools(event)) tools.push({ line: index + 1, id: sanitizeSnippet(name, home) });
   }
-  if (firstAt === null) return { session: null, malformed, unreadable: false, truncated: byteTruncated || lines.length > limited.length };
+  if (firstAt === null || lastAt === null) return { session: null, malformed, unreadable: false, truncated: byteTruncated || lines.length > limited.length };
   return {
     session: {
       platform,
@@ -389,7 +484,7 @@ async function scanTranscripts(options) {
   const env = options.env ?? process.env;
   const home = env.HOME || homedir2();
   const platform = options.platform ?? "all";
-  if (!(/* @__PURE__ */ new Set(["all", "claude", "codex"])).has(platform)) throw new Error("--platform expects claude, codex, or all");
+  if (platform !== "all" && platform !== "claude" && platform !== "codex") throw new Error("--platform expects claude, codex, or all");
   const maxSessions = options.maxSessions ?? 20;
   if (!Number.isInteger(maxSessions) || maxSessions < 1 || maxSessions > 200) throw new Error("--max-sessions expects an integer from 1 to 200");
   const roots = [];
@@ -455,8 +550,15 @@ function valueAfter(argv, index, flag) {
   if (value == null || value.startsWith("-")) throw new Error(`${flag} requires a value`);
   return value;
 }
+function isReportAction(value) {
+  return ACTIONS.has(value);
+}
+function requiredArg(value, flag) {
+  if (value === void 0) throw new Error(`${flag} is required`);
+  return value;
+}
 function parseReportArgs(kind, action, argv) {
-  if (!ACTIONS.has(action)) throw new Error(`unknown report action: ${action}`);
+  if (!isReportAction(action)) throw new Error(`unknown report action: ${action}`);
   const result = { platform: "all", maxSessions: 20, format: "json", skipGit: false, help: false };
   const stringFlags = /* @__PURE__ */ new Map([
     ["--date", "date"],
@@ -470,7 +572,14 @@ function parseReportArgs(kind, action, argv) {
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === "--help" || arg === "-h") return { ...result, help: true };
+    if (arg === "--help" || arg === "-h") {
+      return {
+        ...result,
+        help: true,
+        platform: result.platform === "claude" || result.platform === "codex" ? result.platform : "all",
+        format: result.format === "markdown" ? result.format : "json"
+      };
+    }
     if (arg === "--skip-git") {
       result.skipGit = true;
       continue;
@@ -480,21 +589,33 @@ function parseReportArgs(kind, action, argv) {
       index += 1;
       continue;
     }
-    const key = stringFlags.get(arg);
+    const key = stringFlags.get(arg ?? "");
     if (key) {
-      result[key] = valueAfter(argv, index, arg);
+      result[key] = valueAfter(argv, index, arg ?? "");
       index += 1;
       continue;
     }
     throw new Error(`unknown argument: ${arg}`);
   }
-  if (!(/* @__PURE__ */ new Set(["all", "claude", "codex"])).has(result.platform)) throw new Error("--platform expects claude, codex, or all");
-  if (!(/* @__PURE__ */ new Set(["json", "markdown"])).has(result.format)) throw new Error("--format expects json or markdown");
+  if (result.platform !== "all" && result.platform !== "claude" && result.platform !== "codex") {
+    throw new Error("--platform expects claude, codex, or all");
+  }
+  if (result.format !== "json" && result.format !== "markdown") {
+    throw new Error("--format expects json or markdown");
+  }
   if (!Number.isInteger(result.maxSessions) || result.maxSessions < 1 || result.maxSessions > 200) throw new Error("--max-sessions expects an integer from 1 to 200");
   if (kind === "summary" && (!result.from || !result.to)) throw new Error("--from and --to are required");
-  if ((/* @__PURE__ */ new Set(["prepare", "save", "addition-prepare", "append"])).has(action) && !result.input) throw new Error("--input is required");
-  if ((/* @__PURE__ */ new Set(["addition-prepare", "append", "verify"])).has(action) && !result.report) throw new Error("--report is required");
-  return result;
+  if ((action === "prepare" || action === "save" || action === "addition-prepare" || action === "append") && !result.input) {
+    throw new Error("--input is required");
+  }
+  if ((action === "addition-prepare" || action === "append" || action === "verify") && !result.report) {
+    throw new Error("--report is required");
+  }
+  return {
+    ...result,
+    platform: result.platform,
+    format: result.format
+  };
 }
 function periodOptions(kind, args, home) {
   return { kind, date: args.date, week: args.week, from: args.from, to: args.to, home };
@@ -540,7 +661,13 @@ async function readCandidate(input) {
   return value.endsWith("\n") ? value : `${value}
 `;
 }
-async function executeReportCommand({ kind, action, argv, env = process.env, now = Date.now() }) {
+async function executeReportCommand({
+  kind,
+  action,
+  argv,
+  env = process.env,
+  now = Date.now()
+}) {
   const args = applyPeriodDefaults(kind, parseReportArgs(kind, action, argv), now);
   if (args.help) return { help: true, kind, action };
   const home = env.HOME || homedir3();
@@ -551,47 +678,70 @@ async function executeReportCommand({ kind, action, argv, env = process.env, now
     return scanTranscripts({ window, env, platform: args.platform, maxSessions: args.maxSessions });
   }
   if (action === "prepare") {
-    const body = await readCandidate(args.input);
+    const body = await readCandidate(requiredArg(args.input, "--input"));
     return { kind, action, target: reportPath(period), candidateSha256: sha256(body), bytes: Buffer.byteLength(body) };
   }
-  if (action === "save") return { kind, action, ...await saveReport({ ...period, input: args.input }) };
+  if (action === "save") {
+    return { kind, action, ...await saveReport({ ...period, input: requiredArg(args.input, "--input") }) };
+  }
   if (action === "verify") {
-    const content = await readFile2(resolve2(args.report), "utf8");
+    const report = requiredArg(args.report, "--report");
+    const content = await readFile2(resolve2(report), "utf8");
     const checked = verifyReport(content);
-    return { kind: "report", action, path: resolve2(args.report), ...checked };
+    return { kind: "report", action, path: resolve2(report), ...checked };
   }
   if (action === "addition-prepare") {
-    const content = await readFile2(resolve2(args.report), "utf8");
+    const report = requiredArg(args.report, "--report");
+    const content = await readFile2(resolve2(report), "utf8");
     const checked = verifyReport(content);
     if (!checked.ok) throw new Error(`report cannot be appended: ${checked.reason}`);
-    const addition = await readCandidate(args.input);
-    return { kind: "report", action, path: resolve2(args.report), reportSha256: sha256(content), candidateSha256: sha256(addition), bytes: Buffer.byteLength(addition) };
+    const addition = await readCandidate(requiredArg(args.input, "--input"));
+    return { kind: "report", action, path: resolve2(report), reportSha256: sha256(content), candidateSha256: sha256(addition), bytes: Buffer.byteLength(addition) };
   }
-  if (action === "append") return { kind: "report", action, ...await appendReport({ report: args.report, input: args.input, home }) };
+  if (action === "append") {
+    return {
+      kind: "report",
+      action,
+      ...await appendReport({
+        report: requiredArg(args.report, "--report"),
+        input: requiredArg(args.input, "--input"),
+        home
+      })
+    };
+  }
   throw new Error(`unsupported action: ${action}`);
 }
 function usage(kind, action) {
   const period = kind === "daily" ? "--date YYYY-MM-DD" : kind === "weekly" ? "--week YYYY-Www" : kind === "summary" ? "--from YYYY-MM-DD --to YYYY-MM-DD" : "--report PATH";
-  const input = (/* @__PURE__ */ new Set(["prepare", "save", "addition-prepare", "append"])).has(action) ? " --input PATH" : "";
+  const input = action === "prepare" || action === "save" || action === "addition-prepare" || action === "append" ? " --input PATH" : "";
   return `Usage: ${kind}-${action} ${period}${input}`;
+}
+function errorMessage2(error) {
+  return isRecord(error) && error.message != null ? String(error.message) : String(error);
+}
+function isScanReport(value) {
+  return isRecord(value.window) && Array.isArray(value.sessions) && Array.isArray(value.dataGaps) && isRecord(value.overview);
 }
 async function runCli(kind, action, argv = process.argv.slice(2), env = process.env) {
   try {
     const result = await executeReportCommand({ kind, action, argv, env });
-    if (result.help) {
+    if (result.help === true) {
       process.stdout.write(`${usage(kind, action)}
 `);
       return 0;
     }
     const formatIndex = argv.indexOf("--format");
     const format = formatIndex >= 0 ? argv[formatIndex + 1] : "json";
-    if (action === "scan" && format === "markdown") process.stdout.write(`${renderScanMarkdown(result)}
+    if (action === "scan" && format === "markdown" && isScanReport(result)) {
+      process.stdout.write(`${renderScanMarkdown(result)}
 `);
-    else process.stdout.write(`${JSON.stringify(result, null, 2)}
+    } else {
+      process.stdout.write(`${JSON.stringify(result, null, 2)}
 `);
+    }
     return 0;
   } catch (error) {
-    process.stderr.write(`${error?.message ?? String(error)}
+    process.stderr.write(`${errorMessage2(error)}
 ${usage(kind, action)}
 `);
     return 2;
@@ -599,6 +749,14 @@ ${usage(kind, action)}
 }
 
 export {
+  isRecord,
+  readStdinJson,
+  eventSessionId,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
+  eventToolResponse,
+  eventAssistantMessage,
   SEAL_PREFIX,
   sha256,
   verifyReport,

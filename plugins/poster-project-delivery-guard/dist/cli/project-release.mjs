@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ce1391e033b4614b0a6cb38d556dda14dccc49c8c48ad0139447594c66cc58ca
+// harness-source-hash: sha256:21339e5aa2f538881d437fbd29dbff83b962e871c2e0409ac2452689fb50a359
 import {
   createPosterReceipt,
   validatePosterModel,
   validatePosterReceipt
-} from "../chunks/chunk-CFMAUBMU.mjs";
+} from "../chunks/chunk-J5YS3GVE.mjs";
 
 // plugins/poster-project-delivery-guard/src/entries/cli/project-release.ts
 import { createHash } from "node:crypto";
@@ -39,7 +39,7 @@ async function load() {
   await collect(root, files, digests, bytes, { files: 0 });
   const parse = (filePath) => {
     try {
-      return JSON.parse(files[filePath] ?? "");
+      return JSON.parse(String(files[filePath] ?? ""));
     } catch {
       return null;
     }
@@ -76,7 +76,7 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[poster-project-release] ${error.message}
+  process.stderr.write(`[poster-project-release] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 
 // plugins/logo-project-delivery-guard/src/lib/project.ts
 import { createHash } from "node:crypto";
@@ -23,7 +23,7 @@ async function findLogoProjects(cwd) {
     const roots = (await readdir(artifactRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name)).map((entry) => join(artifactRoot, entry.name));
     return { workspaceRoot, roots };
   } catch (error) {
-    if (error?.code === "ENOENT") return { workspaceRoot, roots: [] };
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return { workspaceRoot, roots: [] };
     throw error;
   }
 }
@@ -56,7 +56,7 @@ async function loadLogoProject(root) {
   await collect(root, root, model, { value: 0 });
   const parse = (path) => {
     try {
-      return JSON.parse(model.files[path] ?? "");
+      return JSON.parse(String(model.files[path] ?? ""));
     } catch {
       return null;
     }

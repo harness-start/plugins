@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d59942f5911d3fcb62dcd437277665c5c3fb210a4e213ae779c36fdae83cb679
+// harness-source-hash: sha256:bf12cabaf4c8987c0122be41e2c3ce8299d1b13696baa5017457ebf61f64d541
 
 // plugins/execution-loop-guard/src/entries/hooks/execution-loop-guard.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";
@@ -10,6 +10,61 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+
+// plugins/execution-loop-guard/src/lib/config.ts
 var CONFIG_NAMES = [
   ".execution-loop-guard.mjs",
   ".execution-loop-guard.cjs",
@@ -54,23 +109,28 @@ function defaultWarn(message) {
 function cloneRegex(pattern) {
   return new RegExp(pattern.source, pattern.flags);
 }
+function isCheckMode(value) {
+  return value === "block" || value === "report" || value === "off";
+}
 function mode(value, fallback, label, warn2) {
   if (value === void 0) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value) && VALID_MODES.has(value)) return value;
   warn2(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 function positiveInteger(value, fallback, label, warn2, { allowZero = false } = {}) {
   const minimum = allowZero ? 0 : 1;
   if (value === void 0) return fallback;
-  if (Number.isInteger(value) && value >= minimum) return value;
+  if (typeof value === "number" && Number.isInteger(value) && value >= minimum) return value;
   warn2(`${label} must be an integer >= ${minimum}; using ${fallback}`);
   return fallback;
 }
 function thresholdPair(source, reportKey, blockKey, defaults, label, warn2) {
-  const reportAt = positiveInteger(source?.[reportKey], defaults[reportKey], `${label}.${reportKey}`, warn2);
-  const blockAt = positiveInteger(source?.[blockKey], defaults[blockKey], `${label}.${blockKey}`, warn2);
-  if (reportAt < blockAt) return { [reportKey]: reportAt, [blockKey]: blockAt };
+  const reportAt = positiveInteger(source[reportKey], defaults[reportKey], `${label}.${reportKey}`, warn2);
+  const blockAt = positiveInteger(source[blockKey], defaults[blockKey], `${label}.${blockKey}`, warn2);
+  if (reportAt < blockAt) {
+    return { [reportKey]: reportAt, [blockKey]: blockAt };
+  }
   warn2(`${label}.${reportKey} must be lower than ${label}.${blockKey}; using defaults`);
   return { [reportKey]: defaults[reportKey], [blockKey]: defaults[blockKey] };
 }
@@ -95,19 +155,19 @@ function exemptPaths(value, warn2) {
   return [...builtIns, ...custom];
 }
 function resolveConfig(userConfig, warn2 = defaultWarn) {
-  const user = userConfig && typeof userConfig === "object" && !Array.isArray(userConfig) ? userConfig : {};
+  const user = userConfig && isRecord(userConfig) ? userConfig : {};
   if (userConfig != null && user !== userConfig) warn2("config default export must be an object; using defaults");
-  const checksSource = user.checks && typeof user.checks === "object" && !Array.isArray(user.checks) ? user.checks : {};
+  const checksSource = user.checks && isRecord(user.checks) ? user.checks : {};
   if (user.checks !== void 0 && checksSource !== user.checks) {
     warn2("checks must be an object; using defaults");
   }
-  const checks = Object.fromEntries(
-    Object.entries(DEFAULT_CONFIG.checks).map(([name, fallback]) => [
-      name,
-      mode(checksSource[name], fallback, `checks.${name}`, warn2)
-    ])
-  );
-  const editSource = user.editLoop && typeof user.editLoop === "object" && !Array.isArray(user.editLoop) ? user.editLoop : {};
+  const checks = {
+    editLoop: mode(checksSource.editLoop, DEFAULT_CONFIG.checks.editLoop, "checks.editLoop", warn2),
+    failedCommandRetry: mode(checksSource.failedCommandRetry, DEFAULT_CONFIG.checks.failedCommandRetry, "checks.failedCommandRetry", warn2),
+    successfulCommandRepeat: mode(checksSource.successfulCommandRepeat, DEFAULT_CONFIG.checks.successfulCommandRepeat, "checks.successfulCommandRepeat", warn2),
+    remotePolling: mode(checksSource.remotePolling, DEFAULT_CONFIG.checks.remotePolling, "checks.remotePolling", warn2)
+  };
+  const editSource = user.editLoop && isRecord(user.editLoop) ? user.editLoop : {};
   const editThresholds = thresholdPair(
     editSource,
     "reportAt",
@@ -126,7 +186,7 @@ function resolveConfig(userConfig, warn2 = defaultWarn) {
     ),
     exemptPaths: exemptPaths(editSource.exemptPaths, warn2)
   };
-  const repeatSource = user.commandRepeat && typeof user.commandRepeat === "object" && !Array.isArray(user.commandRepeat) ? user.commandRepeat : {};
+  const repeatSource = user.commandRepeat && isRecord(user.commandRepeat) ? user.commandRepeat : {};
   const commandRepeat = {
     ...thresholdPair(
       repeatSource,
@@ -157,7 +217,7 @@ function resolveConfig(userConfig, warn2 = defaultWarn) {
       warn2
     )
   };
-  const pollingSource = user.polling && typeof user.polling === "object" && !Array.isArray(user.polling) ? user.polling : {};
+  const pollingSource = user.polling && isRecord(user.polling) ? user.polling : {};
   const polling = {
     sleepBudgetSeconds: positiveInteger(
       pollingSource.sleepBudgetSeconds,
@@ -225,66 +285,14 @@ async function loadProjectConfig(cwd, warn2 = defaultWarn) {
     if (!existsSync(path)) continue;
     try {
       const loaded = await import(pathToFileURL(path).href);
-      return { config: resolveConfig(loaded.default ?? loaded, warn2), repoRoot };
+      const exported = isRecord(loaded) ? loaded.default ?? loaded : loaded;
+      return { config: resolveConfig(exported, warn2), repoRoot };
     } catch (error) {
       warn2(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}; using defaults`);
       return { config: resolveConfig(null, warn2), repoRoot };
     }
   }
   return { config: resolveConfig(null, warn2), repoRoot };
-}
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventSessionId(event) {
-  const context = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context?.session_id
-  );
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-function eventToolResponse(event) {
-  const tool = nestedRecord(event, "tool");
-  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
 }
 
 // core/src/hook-output.ts
@@ -447,29 +455,17 @@ function extractFileTargets(event, options = {}) {
 function extractSessionId(event) {
   return eventSessionId(event) || null;
 }
-function extractCwd(event) {
-  return eventCwd(event);
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolInput(event) {
-  return eventToolInput(event);
-}
-function extractToolResponse(event) {
-  return eventToolResponse(event);
-}
 function extractToolWait(event) {
-  const fullName = String(extractToolName(event));
+  const fullName = String(eventToolName(event));
   const name = fullName.split(".").at(-1)?.toLowerCase();
-  const input = extractToolInput(event);
+  const input = eventToolInput(event);
   if (name === "list_agents") return { label: fullName, sleepSeconds: 0, queryCount: 1 };
   if (name === "wait_agent") {
-    const milliseconds = Number(input?.timeout_ms ?? input?.timeoutMs ?? 0);
+    const milliseconds = Number(input.timeout_ms ?? input.timeoutMs ?? 0);
     return milliseconds > 0 ? { label: fullName, sleepSeconds: milliseconds / 1e3, queryCount: 0 } : null;
   }
   if (name === "wait" || name === "write_stdin") {
-    const milliseconds = Number(input?.yield_time_ms ?? input?.yieldTimeMs ?? 0);
+    const milliseconds = Number(input.yield_time_ms ?? input.yieldTimeMs ?? 0);
     return milliseconds > 0 ? { label: fullName, sleepSeconds: milliseconds / 1e3, queryCount: 0 } : null;
   }
   return null;
@@ -553,7 +549,7 @@ function directCommandWords(command) {
   const source = String(command ?? "").trim();
   if (!source || /[\r\n]/u.test(source)) return null;
   for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
+    const character = source[index] ?? "";
     if (escaped) {
       word += character;
       escaped = false;
@@ -602,13 +598,13 @@ function failureSignature(command, response) {
 }
 function inferCommandOutcome(event, forceFailure = false) {
   if (forceFailure) return "failure";
-  const response = extractToolResponse(event);
+  const response = eventToolResponse(event);
   if (typeof response === "string") {
     const matches = [...response.matchAll(/(?:^|\r?\n)(?:Process exited with code|Exit code:?)\s+(-?\d+)(?=\r?\n|$)/giu)];
     const code = matches.at(-1)?.[1];
     if (code !== void 0) return Number.parseInt(code, 10) === 0 ? "success" : "failure";
   }
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const code = response.exit_code ?? response.exitCode ?? response.code ?? response.status;
     if (typeof code === "number") return code === 0 ? "success" : "failure";
     if (response.success === false || response.is_error === true || response.isError === true) return "failure";
@@ -733,7 +729,7 @@ function ensureStateDir(directory) {
   ensurePluginWorkdirGitignore(dirname2(directory));
 }
 function statePath(event) {
-  const cwd = resolve3(extractCwd(event));
+  const cwd = resolve3(eventCwd(event));
   const session = extractSessionId(event) ?? "default";
   return join4(cwd, STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
@@ -744,13 +740,13 @@ function readState(path) {
   if (!path) return emptyState();
   try {
     const parsed = JSON.parse(readFileSync3(path, "utf8"));
-    if (!parsed || parsed.version !== VERSION || typeof parsed !== "object") return emptyState();
+    if (!parsed || !isRecord(parsed) || parsed.version !== VERSION) return emptyState();
     return {
       version: VERSION,
       updatedAt: Number(parsed.updatedAt) || 0,
-      edits: parsed.edits && typeof parsed.edits === "object" && !Array.isArray(parsed.edits) ? parsed.edits : {},
-      command: parsed.command && typeof parsed.command === "object" ? parsed.command : null,
-      polling: parsed.polling && typeof parsed.polling === "object" ? parsed.polling : null
+      edits: isRecord(parsed.edits) ? parsed.edits : {},
+      command: isRecord(parsed.command) ? parsed.command : null,
+      polling: isRecord(parsed.polling) ? parsed.polling : null
     };
   } catch {
     return emptyState();
@@ -876,7 +872,7 @@ function runPre(event, config, repoRoot, cwd) {
         }
       }
     }
-    const bypassPolling = command?.trim() && regexMatches(config.polling.pollBypass, command);
+    const bypassPolling = Boolean(command?.trim() && regexMatches(config.polling.pollBypass, command));
     if (!block && config.checks.remotePolling !== "off" && !bypassPolling) {
       const sleepSeconds = toolWait ? Math.min(toolWait.sleepSeconds, config.polling.maxSleepPerCommandSeconds) : estimateSleepSeconds(command, config.polling);
       const queryCount = toolWait?.queryCount ?? countRemotePolls(command);
@@ -923,12 +919,12 @@ function recordCommandOutcome(event, config, forceFailure, repoRoot, cwd) {
     const normalizedHash = commandHash(command);
     const inputFingerprint = commandInputFingerprint(command, cwd, repoRoot);
     const previous = state.command && now - Number(state.command.lastSeen) <= config.commandRepeat.windowMinutes * 6e4 && state.command.commandHash === normalizedHash && (state.command.inputFingerprint ?? null) === inputFingerprint ? state.command : null;
-    const signature = outcome === "failure" ? failureSignature(command, extractToolResponse(event)) : null;
+    const signature = outcome === "failure" ? failureSignature(command, eventToolResponse(event)) : null;
     const sameFailure = outcome === "failure" && previous?.lastOutcome === "failure" && previous.failureSignature === signature;
     state.command = {
       commandHash: normalizedHash,
       inputFingerprint,
-      failStreak: outcome === "failure" ? sameFailure ? Number(previous.failStreak) + 1 : 1 : 0,
+      failStreak: outcome === "failure" ? sameFailure && previous ? Number(previous.failStreak) + 1 : 1 : 0,
       successStreak: outcome === "success" && previous?.lastOutcome === "success" ? Number(previous.successStreak) + 1 : outcome === "success" ? 1 : 0,
       lastOutcome: outcome,
       failureSignature: signature,
@@ -997,10 +993,13 @@ function recordEdits(event, config, repoRoot, cwd) {
     writeJson(contextOutput("PostToolUse", message));
   }
 }
+function isHookMode(value) {
+  return value === "pre" || value === "post" || value === "failure";
+}
 async function main(mode2 = process.argv[2]) {
   const event = await readStdinJson();
-  if (event.__parseError || !["pre", "post", "failure"].includes(mode2)) return;
-  const cwd = resolve4(extractCwd(event));
+  if (event.__parseError || !isHookMode(mode2)) return;
+  const cwd = resolve4(eventCwd(event));
   const { config, repoRoot } = await loadProjectConfig(cwd, warn);
   if (mode2 === "pre") {
     runPre(event, config, repoRoot, cwd);

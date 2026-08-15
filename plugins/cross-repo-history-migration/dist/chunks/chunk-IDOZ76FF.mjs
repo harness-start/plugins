@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:38df41e006450d986c5a8ab1e55c4d2dc2519be818dedc83f29ac6eb8554ee3b
+// harness-source-hash: sha256:7437aaef8b98219727b258a00ebd6f4f6784a92041bbc25c9d31b7bfd9354135
 
 // plugins/cross-repo-history-migration/src/lib/history-migration.ts
 import { createHash } from "node:crypto";
@@ -13,18 +13,25 @@ import {
   rmSync
 } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// plugins/cross-repo-history-migration/src/lib/history-migration.ts
 function run(command, args, options = {}) {
   try {
-    return execFileSync(command, args, {
-      cwd: options.cwd,
+    return execFileSync(command, [...args], {
       encoding: "utf8",
       env: options.env ?? process.env,
-      stdio: ["ignore", "pipe", "pipe"]
+      stdio: ["ignore", "pipe", "pipe"],
+      ...options.cwd !== void 0 ? { cwd: options.cwd } : {}
     }).trim();
   } catch (error) {
-    const stderr = typeof error.stderr === "string" ? error.stderr.trim() : "";
-    const stdout = typeof error.stdout === "string" ? error.stdout.trim() : "";
-    const detail = stderr || stdout || error.message;
+    const stderr = isRecord(error) && typeof error.stderr === "string" ? error.stderr.trim() : "";
+    const stdout = isRecord(error) && typeof error.stdout === "string" ? error.stdout.trim() : "";
+    const detail = stderr || stdout || (error instanceof Error ? error.message : String(error));
     throw new Error(`${command} ${args.join(" ")} failed: ${detail}`, { cause: error });
   }
 }
@@ -217,23 +224,25 @@ function parseArguments(argv, { execute = false } = {}) {
       if (!value) throw new Error("--include requires a value");
       result.includePaths.push(value);
       index += 1;
-    } else if (scalar.has(flag)) {
+    } else if (flag !== void 0 && scalar.has(flag)) {
       if (!value) throw new Error(`${flag} requires a value`);
-      result[scalar.get(flag)] = value;
+      const field = scalar.get(flag);
+      if (field) result[field] = value;
       index += 1;
     } else {
       throw new Error(`unknown argument: ${flag}`);
     }
   }
-  for (const field of ["source", "target"]) {
-    if (!result[field]) throw new Error(`--${field} is required`);
-  }
+  const source = result.source;
+  const target = result.target;
+  if (!source) throw new Error("--source is required");
+  if (!target) throw new Error("--target is required");
   if (result.includePaths.length === 0) throw new Error("at least one --include is required");
   if (execute) {
     if (!result.expectedSourceHead) throw new Error("--expected-source-head is required");
     if (!result.expectedPlanDigest) throw new Error("--expected-plan-digest is required");
   }
-  return result;
+  return { ...result, source, target };
 }
 function runCli(toolId, operation, argv) {
   try {
@@ -254,7 +263,7 @@ function runCli(toolId, operation, argv) {
       sessionId: process.env.AI_EXPERTS_SESSION_ID ?? null,
       triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM ?? null,
       observedAt: (/* @__PURE__ */ new Date()).toISOString(),
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     })}
 `);
     process.exitCode = 1;

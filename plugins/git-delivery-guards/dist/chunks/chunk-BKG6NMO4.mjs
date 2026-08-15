@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:7bbd040300470c56230d69416d6fc4116c992ff8cff335c804d72298524f6daf
+// harness-source-hash: sha256:3355a06f9a0b80a7458d259a6f0b938bd136a5b86f30383d606082daf13ee45c
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -195,15 +195,6 @@ function extractFileTargets(event, options = {}) {
 }
 
 // plugins/git-delivery-guards/src/lib/hook-io.ts
-function extractCwd(event) {
-  return eventCwd(event);
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolInput(event) {
-  return eventToolInput(event);
-}
 function extractShellCommand2(toolName, toolInput) {
   return extractShellCommand({ tool_name: toolName, tool_input: toolInput });
 }
@@ -215,12 +206,13 @@ function additionalContextOutput(hookEventName, text) {
 }
 
 export {
+  isRecord,
   readStdinJson,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
   preToolDeny,
   writeJson,
-  extractCwd,
-  extractToolName,
-  extractToolInput,
   extractShellCommand2 as extractShellCommand,
   extractWriteTargets,
   additionalContextOutput

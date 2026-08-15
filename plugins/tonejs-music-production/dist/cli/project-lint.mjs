@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 import {
   loadCompositionDeterministic,
   optimizeComposition
-} from "../chunks/chunk-5OE4AD6R.mjs";
+} from "../chunks/chunk-MTCWS74A.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-MP7NLOF3.mjs";
-import "../chunks/chunk-CK3DV5VG.mjs";
+} from "../chunks/chunk-YFC3FQSZ.mjs";
+import "../chunks/chunk-B3UIGL2A.mjs";
 import {
   validateMusicModel
-} from "../chunks/chunk-XYNVSRBJ.mjs";
+} from "../chunks/chunk-6UVSZ5EF.mjs";
 
 // plugins/tonejs-music-production/src/entries/cli/project-lint.ts
 import { createRequire } from "node:module";
@@ -52,12 +52,16 @@ async function main() {
   for (const result of results) {
     for (const message of result.messages) findings.push({ code: message.ruleId ?? "ESLINT", path: `${result.filePath}:${message.line}:${message.column}`, message: message.message });
   }
-  if (findings.length > 0) throw new Error(`${findings[0].code}:${findings[0].path}:${findings[0].message}`);
+  if (findings.length > 0) {
+    const first = findings[0];
+    throw new Error(`${first?.code}:${first?.path}:${first?.message}`);
+  }
   process.stdout.write(`${JSON.stringify({ valid: true, files: results.length })}
 `);
 }
 main().catch((error) => {
-  process.stderr.write(`[tonejs-music-lint] ${error.message}
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[tonejs-music-lint] ${message}
 `);
   process.exitCode = 2;
 });

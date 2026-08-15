@@ -1,97 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b4aa7a07317a93acdba1920b13e1c547a4f49987dee1aaa39ca57630326be9c7
+// harness-source-hash: sha256:a05b1d74ea0c59a5ebe73e4f1ebb8ac8e3cde56d4086a651f32b0dfbf9c59f23
 
 // plugins/file-access-audit/src/entries/hooks/file-access-audit.ts
 import { resolve as resolve5 } from "node:path";
 import { fileURLToPath } from "node:url";
-
-// plugins/file-access-audit/src/lib/config.ts
-import { isAbsolute } from "node:path";
-
-// core/src/project-config.ts
-import { existsSync } from "node:fs";
-import { join } from "node:path";
-import { pathToFileURL } from "node:url";
-async function loadExecutableConfig(options) {
-  const warn2 = options.warn ?? (() => {
-  });
-  if (!options.repoRoot) return options.resolve(null, warn2);
-  for (const name of options.names) {
-    const path = join(options.repoRoot, name);
-    if (!existsSync(path)) continue;
-    try {
-      const loaded = await import(pathToFileURL(path).href);
-      return options.resolve(loaded.default ?? loaded, warn2);
-    } catch (error) {
-      warn2(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
-      return options.resolve(null, warn2);
-    }
-  }
-  return options.resolve(null, warn2);
-}
-
-// plugins/file-access-audit/src/lib/config.ts
-var DEFAULT_CONFIG = Object.freeze({
-  enabled: true,
-  auditRoot: ".file-access-audit"
-});
-var CONFIG_NAMES = [
-  ".file-access-audit.mjs",
-  ".file-access-audit.cjs",
-  ".file-access-audit.js"
-];
-var RESERVED_ROOTS = /* @__PURE__ */ new Set([
-  "src",
-  "lib",
-  "app",
-  "apps",
-  "packages",
-  "tmp",
-  "temp",
-  "logs",
-  "log",
-  "out",
-  "dist",
-  "build",
-  "node_modules",
-  "vendor",
-  "test",
-  "tests"
-]);
-function resolveConfig(raw, warn2 = () => {
-}) {
-  const config = {
-    enabled: DEFAULT_CONFIG.enabled,
-    auditRoot: DEFAULT_CONFIG.auditRoot
-  };
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    if (raw != null) warn2("config must be an object; using defaults");
-    return config;
-  }
-  if (typeof raw.enabled === "boolean") config.enabled = raw.enabled;
-  else if (raw.enabled !== void 0) warn2("enabled must be boolean");
-  if (typeof raw.auditRoot === "string" && raw.auditRoot.trim()) {
-    const root = raw.auditRoot.trim().replaceAll("\\", "/").replace(/\/+$/u, "");
-    const base = root.split("/").filter(Boolean)[0] ?? "";
-    if (!root || root.includes("..") || isAbsolute(root) || /^[A-Za-z]:\//u.test(root) || RESERVED_ROOTS.has(base.toLowerCase())) {
-      warn2("auditRoot must be a relative non-reserved path without ..; using default");
-    } else {
-      config.auditRoot = root;
-    }
-  } else if (raw.auditRoot !== void 0) {
-    warn2("auditRoot must be a non-empty string");
-  }
-  return config;
-}
-async function loadProjectConfig(repoRoot, warn2 = () => {
-}) {
-  return loadExecutableConfig({
-    repoRoot,
-    names: CONFIG_NAMES,
-    resolve: resolveConfig,
-    warn: warn2
-  });
-}
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -152,6 +64,94 @@ function eventToolUseId(event) {
     toolUse?.id,
     tool?.id
   );
+}
+
+// plugins/file-access-audit/src/lib/config.ts
+import { isAbsolute } from "node:path";
+
+// core/src/project-config.ts
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+async function loadExecutableConfig(options) {
+  const warn2 = options.warn ?? (() => {
+  });
+  if (!options.repoRoot) return options.resolve(null, warn2);
+  for (const name of options.names) {
+    const path = join(options.repoRoot, name);
+    if (!existsSync(path)) continue;
+    try {
+      const loaded = await import(pathToFileURL(path).href);
+      return options.resolve(loaded.default ?? loaded, warn2);
+    } catch (error) {
+      warn2(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
+      return options.resolve(null, warn2);
+    }
+  }
+  return options.resolve(null, warn2);
+}
+
+// plugins/file-access-audit/src/lib/config.ts
+var DEFAULT_CONFIG = Object.freeze({
+  enabled: true,
+  auditRoot: ".file-access-audit"
+});
+var CONFIG_NAMES = [
+  ".file-access-audit.mjs",
+  ".file-access-audit.cjs",
+  ".file-access-audit.js"
+];
+var RESERVED_ROOTS = /* @__PURE__ */ new Set([
+  "src",
+  "lib",
+  "app",
+  "apps",
+  "packages",
+  "tmp",
+  "temp",
+  "logs",
+  "log",
+  "out",
+  "dist",
+  "build",
+  "node_modules",
+  "vendor",
+  "test",
+  "tests"
+]);
+function resolveConfig(raw, warn2 = () => {
+}) {
+  const config = {
+    enabled: DEFAULT_CONFIG.enabled,
+    auditRoot: DEFAULT_CONFIG.auditRoot
+  };
+  if (!isRecord(raw)) {
+    if (raw != null) warn2("config must be an object; using defaults");
+    return config;
+  }
+  if (typeof raw.enabled === "boolean") config.enabled = raw.enabled;
+  else if (raw.enabled !== void 0) warn2("enabled must be boolean");
+  if (typeof raw.auditRoot === "string" && raw.auditRoot.trim()) {
+    const root = raw.auditRoot.trim().replaceAll("\\", "/").replace(/\/+$/u, "");
+    const base = root.split("/").filter(Boolean)[0] ?? "";
+    if (!root || root.includes("..") || isAbsolute(root) || /^[A-Za-z]:\//u.test(root) || RESERVED_ROOTS.has(base.toLowerCase())) {
+      warn2("auditRoot must be a relative non-reserved path without ..; using default");
+    } else {
+      config.auditRoot = root;
+    }
+  } else if (raw.auditRoot !== void 0) {
+    warn2("auditRoot must be a non-empty string");
+  }
+  return config;
+}
+async function loadProjectConfig(repoRoot, warn2 = () => {
+}) {
+  return loadExecutableConfig({
+    repoRoot,
+    names: CONFIG_NAMES,
+    resolve: resolveConfig,
+    warn: warn2
+  });
 }
 
 // core/src/hook-output.ts
@@ -303,9 +303,6 @@ function extractFileTargets(event, options = {}) {
 function extractSessionId(event) {
   return eventSessionId(event) || null;
 }
-function extractToolName(event) {
-  return eventToolName(event);
-}
 function extractToolUseId(event) {
   return eventToolUseId(event) || null;
 }
@@ -318,7 +315,7 @@ function inferFileOp(toolName) {
   return "update";
 }
 function extractStructuredFileAccess(event) {
-  const toolName = String(extractToolName(event));
+  const toolName = String(eventToolName(event));
   if (!isFileTool(toolName)) return null;
   const paths = extractFileTargets(event, { tools: "read-or-mutation" });
   if (paths.length === 0) return null;
@@ -560,7 +557,7 @@ function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs) {
   return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
 }
 function protectDecision(event, auditRootRel, auditRootAbs) {
-  const toolName = extractToolName(event);
+  const toolName = eventToolName(event);
   if (isFileTool(toolName)) {
     const hits = targetsHitAuditRoot(event, auditRootAbs);
     if (hits.length > 0) {
@@ -601,18 +598,23 @@ function warn(message) {
   process.stderr.write(`[file-access-audit] ${message}
 `);
 }
+function errorText(error) {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
 function modeFromArgv() {
   const mode = process.argv[2] ?? "post";
   if (mode === "pre" || mode === "post") return mode;
   return "post";
 }
 function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  const value = event.cwd ?? event.working_directory ?? event.workingDirectory;
+  return typeof value === "string" ? value : process.cwd();
 }
 async function main() {
   const mode = modeFromArgv();
   const event = await readStdinJson();
-  if (event?.__parseError) return;
+  if (event.__parseError) return;
   const cwd = resolve5(extractCwd(event));
   const repoRoot = resolveRepoRoot(cwd) ?? cwd;
   const config = await loadProjectConfig(repoRoot, warn);
@@ -635,7 +637,7 @@ async function main() {
       ts: (/* @__PURE__ */ new Date()).toISOString(),
       session_id: extractSessionId(event),
       cwd,
-      tool_name: access.toolName || extractToolName(event),
+      tool_name: access.toolName || eventToolName(event),
       tool_use_id: extractToolUseId(event),
       op: access.op,
       paths: access.paths.map((path) => toDisplayPath(path, repoRoot)),
@@ -643,13 +645,14 @@ async function main() {
     };
     appendRecord(paths.sessionPath, record);
   } catch (error) {
-    warn(`failed to record file access: ${error?.message ?? error}`);
+    warn(`failed to record file access: ${errorText(error)}`);
   }
 }
-var isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve5(process.argv[1]);
+var entryPath = process.argv[1];
+var isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve5(entryPath ?? "");
 if (isMain) {
   main().catch((error) => {
-    warn(error?.message ?? String(error));
+    warn(errorText(error));
     process.exitCode = 0;
   });
 }

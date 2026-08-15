@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5144022e720a1436cc94ff1ba394de3ed10ca6dad9d50619724476c05db2f9e5
+// harness-source-hash: sha256:58e3e88a88f2c918afd8d01406e0b7b235012b9e74f3a59df63d84c421069e35
 import {
   forgetNotice,
+  isRecord,
   parseProposal,
   validateProposalDocument
-} from "../chunks/chunk-MJOG3RF7.mjs";
+} from "../chunks/chunk-TS5S5LIR.mjs";
 
 // plugins/project-capability-governance/src/entries/cli/project-capability-manage.ts
 import { resolve as resolve2 } from "node:path";
@@ -15,6 +16,9 @@ import { lstat, readFile, readdir, rename, unlink, writeFile } from "node:fs/pro
 import { basename, join, resolve } from "node:path";
 var PROPOSAL_ID = /^[a-z0-9][a-z0-9-]{2,63}$/u;
 var ACTIVE_STATUSES = ["pending", "reviewing", "deferred"];
+function errorCode(error) {
+  return isRecord(error) && typeof error.code === "string" ? error.code : void 0;
+}
 async function realDirectory(path) {
   const stat = await lstat(path);
   if (!stat.isDirectory() || stat.isSymbolicLink()) {
@@ -32,7 +36,7 @@ async function findProposal(projectRoot, proposalId) {
     try {
       await realDirectory(directory);
     } catch (error) {
-      if (error?.code === "ENOENT") continue;
+      if (errorCode(error) === "ENOENT") continue;
       throw error;
     }
     const expectedName = `${proposalId}.md`;
@@ -47,7 +51,9 @@ async function findProposal(projectRoot, proposalId) {
   }
   if (matches.length === 0) throw new Error(`proposal not found: ${proposalId}`);
   if (matches.length > 1) throw new Error(`proposal id is ambiguous: ${proposalId}`);
-  return matches[0];
+  const found = matches[0];
+  if (!found) throw new Error(`proposal not found: ${proposalId}`);
+  return found;
 }
 async function deleteProposal(projectRoot, proposalId, outcome) {
   if (!["accepted", "duplicate", "rejected"].includes(outcome)) {
@@ -67,8 +73,14 @@ function safeNote(value, field) {
 function updateFrontmatter(content, changes) {
   const match = content.match(/^(---\r?\n)([\s\S]*?)(\r?\n---(?:\r?\n|$))/u);
   if (!match) throw new Error("proposal frontmatter is missing");
+  const prefix = match[1];
+  const body = match[2];
+  const suffix = match[3];
+  if (prefix === void 0 || body === void 0 || suffix === void 0) {
+    throw new Error("proposal frontmatter is missing");
+  }
   const pending = new Map(Object.entries(changes));
-  const lines = match[2].split(/\r?\n/u).flatMap((line) => {
+  const lines = body.split(/\r?\n/u).flatMap((line) => {
     const field = line.match(/^([a-z][a-z0-9_]*):/u)?.[1];
     if (!field || !pending.has(field)) return [line];
     const value = pending.get(field);
@@ -79,7 +91,7 @@ function updateFrontmatter(content, changes) {
   for (const [field, value] of pending) {
     if (value !== null) lines.push(`${field}: ${field === "status" ? value : JSON.stringify(value)}`);
   }
-  return `${match[1]}${lines.join("\n")}${match[3]}${content.slice(match[0].length)}`;
+  return `${prefix}${lines.join("\n")}${suffix}${content.slice(match[0].length)}`;
 }
 async function atomicWrite(path, content) {
   const temporary = `${path}.${process.pid}.tmp`;
@@ -94,7 +106,7 @@ async function moveProposal(projectRoot, found, targetStatus, changes) {
     await lstat(target);
     throw new Error(`target proposal already exists: ${targetStatus}`);
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
   const nextContent = updateFrontmatter(found.content, { status: targetStatus, ...changes });
   await rename(found.path, target);
@@ -141,8 +153,10 @@ function parseArgs(argv) {
   const options = {};
   for (let index = 0; index < rest.length; index += 1) {
     const key = rest[index];
-    if (!key.startsWith("--") || index + 1 >= rest.length) throw new Error(`invalid argument: ${key}`);
-    options[key.slice(2)] = rest[index + 1];
+    if (!key?.startsWith("--") || index + 1 >= rest.length) throw new Error(`invalid argument: ${key}`);
+    const value = rest[index + 1];
+    if (value === void 0) throw new Error(`invalid argument: ${key}`);
+    options[key.slice(2)] = value;
     index += 1;
   }
   return { action, options };
@@ -151,11 +165,11 @@ async function main(argv = process.argv.slice(2)) {
   const { action, options } = parseArgs(argv);
   const root = resolve2(options.root ?? process.cwd());
   let result;
-  if (action === "start") result = await startProposal(root, options.proposal);
-  else if (action === "block") result = await blockProposal(root, options.proposal, options.reason);
-  else if (action === "defer") result = await deferProposal(root, options.proposal, options.condition);
-  else if (action === "reopen") result = await reopenProposal(root, options.proposal);
-  else if (action === "delete") result = await deleteProposal(root, options.proposal, options.outcome);
+  if (action === "start") result = await startProposal(root, options.proposal ?? "");
+  else if (action === "block") result = await blockProposal(root, options.proposal ?? "", options.reason);
+  else if (action === "defer") result = await deferProposal(root, options.proposal ?? "", options.condition);
+  else if (action === "reopen") result = await reopenProposal(root, options.proposal ?? "");
+  else if (action === "delete") result = await deleteProposal(root, options.proposal ?? "", options.outcome ?? "");
   else throw new Error("action must be start, block, defer, reopen, or delete");
   process.stdout.write(`${JSON.stringify(result)}
 `);
@@ -163,7 +177,7 @@ async function main(argv = process.argv.slice(2)) {
 var isMain = process.argv[1] && resolve2(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   main().catch((error) => {
-    process.stderr.write(`[project-capability-manage] ${error?.message ?? String(error)}
+    process.stderr.write(`[project-capability-manage] ${error instanceof Error ? error.message : String(error)}
 `);
     process.exitCode = 2;
   });

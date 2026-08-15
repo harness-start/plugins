@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 import {
   masterSubjectDigest
-} from "../chunks/chunk-LHQ5PSUS.mjs";
+} from "../chunks/chunk-XNRN4R7K.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-preview.ts
 import { createHash } from "node:crypto";
@@ -13,8 +13,8 @@ import { basename as basename2, join as join2, resolve as resolve2 } from "node:
 import { inflateSync } from "node:zlib";
 var PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 function decodePngToRgba(buf) {
-  if (!Buffer.isBuffer(buf)) buf = Buffer.from(buf);
-  if (buf.length < 8 || !buf.subarray(0, 8).equals(PNG_SIG)) {
+  const bytes = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+  if (bytes.length < 8 || !bytes.subarray(0, 8).equals(PNG_SIG)) {
     throw new Error("PNG_SIGNATURE_INVALID");
   }
   let offset = 8;
@@ -23,18 +23,18 @@ function decodePngToRgba(buf) {
   let bitDepth = 0;
   let colorType = 0;
   const idats = [];
-  while (offset + 8 <= buf.length) {
-    const length = buf.readUInt32BE(offset);
+  while (offset + 8 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset);
     offset += 4;
-    const type = buf.toString("ascii", offset, offset + 4);
+    const type = bytes.toString("ascii", offset, offset + 4);
     offset += 4;
-    const data = buf.subarray(offset, offset + length);
+    const data = bytes.subarray(offset, offset + length);
     offset += length + 4;
     if (type === "IHDR") {
       width = data.readUInt32BE(0);
       height = data.readUInt32BE(4);
-      bitDepth = data[8];
-      colorType = data[9];
+      bitDepth = data.readUInt8(8);
+      colorType = data.readUInt8(9);
     } else if (type === "IDAT") {
       idats.push(data);
     } else if (type === "IEND") {
@@ -61,10 +61,10 @@ function decodePngToRgba(buf) {
     const filter = row[0];
     const slice = row.subarray(1);
     for (let i = 0; i < slice.length; i += 1) {
-      const left = i >= bpp ? curr[i - bpp] : 0;
-      const up = prev[i];
-      const upLeft = i >= bpp ? prev[i - bpp] : 0;
-      let val = slice[i];
+      const left = i >= bpp ? curr[i - bpp] ?? 0 : 0;
+      const up = prev[i] ?? 0;
+      const upLeft = i >= bpp ? prev[i - bpp] ?? 0 : 0;
+      let val = slice[i] ?? 0;
       if (filter === 1) val = val + left & 255;
       else if (filter === 2) val = val + up & 255;
       else if (filter === 3) val = val + Math.floor((left + up) / 2) & 255;
@@ -75,10 +75,10 @@ function decodePngToRgba(buf) {
     for (let x = 0; x < width; x += 1) {
       const si = x * bpp;
       const di = (y * width + x) * 4;
-      rgba[di] = curr[si];
-      rgba[di + 1] = curr[si + 1];
-      rgba[di + 2] = curr[si + 2];
-      rgba[di + 3] = bpp === 4 ? curr[si + 3] : 255;
+      rgba[di] = curr[si] ?? 0;
+      rgba[di + 1] = curr[si + 1] ?? 0;
+      rgba[di + 2] = curr[si + 2] ?? 0;
+      rgba[di + 3] = bpp === 4 ? curr[si + 3] ?? 0 : 255;
     }
     prev.set(curr);
   }
@@ -117,11 +117,11 @@ function parseSvgSource(source) {
   if (/\b(?:href|src)\s*=/iu.test(svg) || /\burl\s*\(/iu.test(svg)) {
     throw new Error("preview input contains a resource reference");
   }
-  const viewBox = match[1].match(/\bviewBox\s*=\s*["']([^"']+)["']/u)?.[1];
+  const viewBox = match[1]?.match(/\bviewBox\s*=\s*["']([^"']+)["']/u)?.[1];
   if (!viewBox || viewBox.trim().split(/[\s,]+/u).length !== 4) {
     throw new Error("preview input requires a four-number viewBox");
   }
-  return { body: match[2], viewBox };
+  return { body: match[2] ?? "", viewBox };
 }
 function previewGeometry() {
   const maxSize = Math.max(...SIZES);
@@ -165,13 +165,18 @@ function findRenderer(explicit) {
       windowsHide: true
     });
     if (probe.status === 0) return candidate;
-    if (explicit && probe.error?.code !== "ENOENT") {
-      throw new Error(`preview renderer probe failed: ${probe.stderr || probe.error?.message || candidate}`);
+    const probeError = probe.error;
+    if (explicit && probeError && "code" in probeError && probeError.code !== "ENOENT") {
+      throw new Error(`preview renderer probe failed: ${probe.stderr || probeError.message || candidate}`);
     }
   }
   throw new Error("FFmpeg with SVG input support is required (set LOGO_PREVIEW_RENDERER or install ffmpeg in PATH)");
 }
-async function renderPreviewStrip({ svgSource, outputPath, renderer = process.env.LOGO_PREVIEW_RENDERER }) {
+async function renderPreviewStrip({
+  svgSource,
+  outputPath,
+  renderer = process.env.LOGO_PREVIEW_RENDERER
+}) {
   const geometry = previewGeometry();
   const rendererCommand = findRenderer(renderer);
   const temporaryRoot = await mkdtemp(join(tmpdir(), "logo-preview-strip-"));
@@ -213,7 +218,10 @@ function luminance(r, g, b) {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 function extractCell(rgba, width, height, bbox) {
-  const [x0, y0, w, h] = bbox;
+  const x0 = bbox[0] ?? 0;
+  const y0 = bbox[1] ?? 0;
+  const w = bbox[2] ?? 0;
+  const h = bbox[3] ?? 0;
   if (w <= 0 || h <= 0 || x0 < 0 || y0 < 0 || x0 + w > width || y0 + h > height) {
     throw new Error(`SQUINT_BBOX_OOB:${bbox.join(",")}`);
   }
@@ -221,8 +229,8 @@ function extractCell(rgba, width, height, bbox) {
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
       const i = ((y0 + y) * width + (x0 + x)) * 4;
-      const a = rgba[i + 3] / 255;
-      const lum = luminance(rgba[i], rgba[i + 1], rgba[i + 2]);
+      const a = (rgba[i + 3] ?? 0) / 255;
+      const lum = luminance(rgba[i] ?? 0, rgba[i + 1] ?? 0, rgba[i + 2] ?? 0);
       const bg = 128;
       out[y * w + x] = lum * a + bg * (1 - a);
     }
@@ -240,7 +248,7 @@ function boxBlur(lum, w, h, radius = 2) {
       for (let k = -r; k <= r; k += 1) {
         const xx = x + k;
         if (xx < 0 || xx >= w) continue;
-        sum += lum[y * w + xx];
+        sum += lum[y * w + xx] ?? 0;
         n += 1;
       }
       tmp[y * w + x] = sum / n;
@@ -253,7 +261,7 @@ function boxBlur(lum, w, h, radius = 2) {
       for (let k = -r; k <= r; k += 1) {
         const yy = y + k;
         if (yy < 0 || yy >= h) continue;
-        sum += tmp[yy * w + x];
+        sum += tmp[yy * w + x] ?? 0;
         n += 1;
       }
       out[y * w + x] = sum / n;
@@ -265,18 +273,19 @@ function thresholdMask(lum, w, h) {
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < lum.length; i += 1) {
-    if (lum[i] < min) min = lum[i];
-    if (lum[i] > max) max = lum[i];
+    const value = lum[i] ?? 0;
+    if (value < min) min = value;
+    if (value > max) max = value;
   }
   const mid = (min + max) / 2;
   const mask = new Uint8Array(w * h);
   let darkCount = 0;
   for (let i = 0; i < lum.length; i += 1) {
-    if (lum[i] < mid) darkCount += 1;
+    if ((lum[i] ?? 0) < mid) darkCount += 1;
   }
   const inkIsDark = darkCount <= lum.length / 2;
   for (let i = 0; i < lum.length; i += 1) {
-    const isDark = lum[i] < mid;
+    const isDark = (lum[i] ?? 0) < mid;
     mask[i] = (inkIsDark ? isDark : !isDark) ? 1 : 0;
   }
   return mask;
@@ -296,6 +305,7 @@ function connectedComponents(mask, w, h) {
     seen[i] = 1;
     while (stack.length) {
       const idx = stack.pop();
+      if (idx === void 0) break;
       size += 1;
       const x = idx % w;
       const y = (idx - x) / w;
@@ -303,9 +313,9 @@ function connectedComponents(mask, w, h) {
       if (y < minY) minY = y;
       if (x > maxX) maxX = x;
       if (y > maxY) maxY = y;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx;
-        const ny = y + dy;
+      for (const pair of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + pair[0];
+        const ny = y + pair[1];
         if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
         const ni = ny * w + nx;
         if (!mask[ni] || seen[ni]) continue;
@@ -338,7 +348,14 @@ function analyzeSquintCell(rgba, width, height, bbox, { blurRadius = 2 } = {}) {
     bbox
   };
 }
-function buildSquintEvidence({ rgba, width, height, samples, masterDigest, stripDigest }) {
+function buildSquintEvidence({
+  rgba,
+  width,
+  height,
+  samples,
+  masterDigest,
+  stripDigest
+}) {
   const cells = [];
   let allPass = true;
   for (const sample of samples) {
@@ -351,8 +368,7 @@ function buildSquintEvidence({ rgba, width, height, samples, masterDigest, strip
       id: sample.id,
       row: sample.row,
       size: sample.size,
-      region: sample.locator.region ?? sample.id,
-      bbox: bbox.map(Number),
+      region: sample.locator?.region ?? sample.id,
       ...metrics
     });
     if (!metrics.silhouetteIntact) allPass = false;
@@ -463,7 +479,8 @@ async function main() {
     let review = {};
     if (await exists(reviewPath)) {
       try {
-        review = JSON.parse(await readFile2(reviewPath, "utf8"));
+        const parsed = JSON.parse(await readFile2(reviewPath, "utf8"));
+        review = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
       } catch {
         review = {};
       }
@@ -497,7 +514,7 @@ function relativeToRoot(root, abs) {
   return abs.slice(root.length + 1).replaceAll("\\", "/");
 }
 main().catch((error) => {
-  process.stderr.write(`[logo-project-preview] ${error.message}
+  process.stderr.write(`[logo-project-preview] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

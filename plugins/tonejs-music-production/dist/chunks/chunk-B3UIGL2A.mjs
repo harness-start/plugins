@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 
 // plugins/tonejs-music-production/src/lib/wav.ts
 var textEncoder = new TextEncoder();
@@ -12,7 +12,7 @@ function encodePcm16Wav({ channels, sampleRate }) {
   if (!Array.isArray(channels) || channels.length === 0 || channels.length > 8) throw new Error("WAV_CHANNELS_INVALID");
   if (!Number.isInteger(sampleRate) || sampleRate < 8e3 || sampleRate > 192e3) throw new Error("WAV_SAMPLE_RATE_INVALID");
   const frames = channels[0]?.length;
-  if (!Number.isInteger(frames) || channels.some((channel) => channel.length !== frames)) throw new Error("WAV_FRAME_COUNT_INVALID");
+  if (!Number.isInteger(frames) || frames === void 0 || channels.some((channel) => channel.length !== frames)) throw new Error("WAV_FRAME_COUNT_INVALID");
   const dataBytes = frames * channels.length * 2;
   const bytes = new Uint8Array(44 + dataBytes);
   const view = new DataView(bytes.buffer);

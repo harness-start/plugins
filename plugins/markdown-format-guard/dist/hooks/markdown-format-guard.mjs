@@ -1,11 +1,49 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:afbbf28f9bf077faeaf7099fc7cc871efe69b3521ad4172c223ff71f52c29de5
+// harness-source-hash: sha256:47da5431f0819cff61d02b7735dd0be9123e2449fcc8515e833214ee369c14f1
 
 // plugins/markdown-format-guard/src/entries/hooks/markdown-format-guard.ts
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve as resolve2 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
 
 // plugins/markdown-format-guard/src/lib/markdown-policy.ts
 var CHECK_NAMES = [
@@ -36,7 +74,9 @@ var DEFAULT_CHECKS = Object.freeze({
   fencedCodeLanguage: "report",
   singleH1: "off"
 });
-var VALID_MODES = /* @__PURE__ */ new Set(["block", "report", "off"]);
+function isCheckMode(value) {
+  return value === "block" || value === "report" || value === "off";
+}
 var MARKDOWN_EXTENSION = /\.(?:md|markdown|mdown|mkd)$/iu;
 var SKIP_PATH = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 var ATX_HEADING = /^( {0,3})(#{1,6})(.*)$/u;
@@ -48,18 +88,20 @@ function warnDefault(message) {
 }
 function normalizeMode(value, fallback, label, warn) {
   if (value === void 0) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 function resolveConfig(userConfig, warn = warnDefault) {
+  const record = isRecord(userConfig) ? userConfig : void 0;
   const checks = { ...DEFAULT_CHECKS };
-  if (userConfig?.checks !== void 0 && (!userConfig.checks || typeof userConfig.checks !== "object" || Array.isArray(userConfig.checks))) {
+  if (record?.checks !== void 0 && (!record.checks || typeof record.checks !== "object" || Array.isArray(record.checks))) {
     warn('config "checks" must be an object; using defaults');
   } else {
+    const checksSource = isRecord(record?.checks) ? record.checks : void 0;
     for (const name of CHECK_NAMES) {
       checks[name] = normalizeMode(
-        userConfig?.checks?.[name],
+        checksSource?.[name],
         checks[name],
         `checks.${name}`,
         warn
@@ -67,11 +109,12 @@ function resolveConfig(userConfig, warn = warnDefault) {
     }
   }
   const overrides = [];
-  if (userConfig?.overrides !== void 0 && !Array.isArray(userConfig.overrides)) {
+  if (record?.overrides !== void 0 && !Array.isArray(record.overrides)) {
     warn('config "overrides" must be an array; ignoring overrides');
   } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
+    const rawOverrides = Array.isArray(record?.overrides) ? record.overrides : [];
+    for (const [index, override] of rawOverrides.entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
         warn(`override[${index}].match must be a RegExp; skipping`);
         continue;
       }
@@ -79,11 +122,12 @@ function resolveConfig(userConfig, warn = warnDefault) {
         warn(`override[${index}].checks must be an object; skipping`);
         continue;
       }
+      const overrideChecks = isRecord(override.checks) ? override.checks : {};
       const normalizedChecks = {};
       for (const name of CHECK_NAMES) {
-        if (override.checks[name] === void 0) continue;
+        if (overrideChecks[name] === void 0) continue;
         const mode = normalizeMode(
-          override.checks[name],
+          overrideChecks[name],
           null,
           `override[${index}].checks.${name}`,
           warn
@@ -125,9 +169,11 @@ function splitLines(text) {
 }
 function detectFrontMatterEnd(lines) {
   if (lines.length === 0) return 0;
-  if (lines[0].trim() !== "---") return 0;
+  const first = lines[0];
+  if (first === void 0 || first.trim() !== "---") return 0;
   for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i].trim() === "---" || lines[i].trim() === "...") {
+    const line = lines[i];
+    if (line !== void 0 && (line.trim() === "---" || line.trim() === "...")) {
       return i + 1;
     }
   }
@@ -137,9 +183,12 @@ function parseFenceMarker(line) {
   const match = line.match(FENCE_OPEN);
   if (!match) return null;
   const marker = match[2];
+  if (!marker) return null;
   const info = match[3] ?? "";
+  const char = marker[0];
+  if (char === void 0) return null;
   return {
-    char: marker[0],
+    char,
     length: marker.length,
     info: info.trim(),
     rawInfo: info
@@ -159,8 +208,10 @@ function buildDocumentModel(text) {
   let fence = null;
   for (let i = bodyStart; i < lines.length; i += 1) {
     const content = lines[i];
+    const state = lineStates[i];
+    if (content === void 0 || !state) continue;
     if (fence) {
-      lineStates[i].inFence = true;
+      state.inFence = true;
       const close = parseFenceMarker(content);
       if (close && close.char === fence.char && close.length >= fence.length && close.rawInfo.trim() === "") {
         fence = null;
@@ -169,20 +220,24 @@ function buildDocumentModel(text) {
     }
     const open = parseFenceMarker(content);
     if (open) {
-      lineStates[i].inFence = true;
+      state.inFence = true;
       fence = { char: open.char, length: open.length, openLine: i + 1, info: open.info };
-      lineStates[i].fenceOpen = fence;
+      state.fenceOpen = fence;
       continue;
     }
   }
   const headings = [];
   for (let i = bodyStart; i < lines.length; i += 1) {
-    if (lineStates[i].inFence && !lineStates[i].fenceOpen) continue;
-    if (lineStates[i].fenceOpen) continue;
+    const state = lineStates[i];
+    if (!state) continue;
+    if (state.inFence && !state.fenceOpen) continue;
+    if (state.fenceOpen) continue;
     const content = lines[i];
+    if (content === void 0) continue;
     const atx = content.match(ATX_HEADING);
     if (atx) {
       const hashes = atx[2];
+      if (!hashes) continue;
       const rest = atx[3] ?? "";
       headings.push({
         line: i + 1,
@@ -195,10 +250,13 @@ function buildDocumentModel(text) {
       });
       continue;
     }
-    if (i + 1 < lines.length && !lineStates[i + 1].inFence) {
-      const underline = lines[i + 1].match(SETEXT_UNDERLINE);
+    const nextState = lineStates[i + 1];
+    const nextLine = lines[i + 1];
+    if (i + 1 < lines.length && nextState && !nextState.inFence && nextLine !== void 0) {
+      const underline = nextLine.match(SETEXT_UNDERLINE);
       if (underline && content.trim() !== "" && !content.startsWith("#") && !parseFenceMarker(content)) {
         const marker = underline[2];
+        if (!marker) continue;
         headings.push({
           line: i + 1,
           level: marker.startsWith("=") ? 1 : 2,
@@ -254,7 +312,7 @@ function runChecks(text, relativePath, config) {
         const match = state.content.match(/^(.*?)([ \t]+)$/u);
         if (!match) continue;
         const trail = match[2];
-        if (trail === "  ") continue;
+        if (trail === void 0 || trail === "  ") continue;
         if (trail.includes("	")) {
           findings.push({
             mode,
@@ -487,44 +545,6 @@ function analyzeMarkdown(text, relativePath, config) {
   };
 }
 
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
@@ -673,7 +693,7 @@ async function loadUserConfig(repoRoot) {
       const loaded = await import(pathToFileURL(configPath).href);
       return loaded.default ?? loaded;
     } catch (error) {
-      warnConfig(`failed to load ${name}: ${error.message}`);
+      warnConfig(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -746,12 +766,15 @@ function block(pathFindings) {
   process.exit(2);
 }
 async function evaluateEvent(event) {
-  const cwd = event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  const rawCwd = event.cwd ?? event.working_directory ?? event.workingDirectory ?? process.cwd();
+  const cwd = typeof rawCwd === "string" ? rawCwd : String(rawCwd);
   const candidates = extractFilePaths(event).filter(existsSync);
   if (candidates.length === 0) {
     return { block: [], report: [] };
   }
-  const repoRoot = resolveRepoRoot(candidates[0]);
+  const firstCandidate = candidates[0];
+  if (!firstCandidate) return { block: [], report: [] };
+  const repoRoot = resolveRepoRoot(firstCandidate);
   const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
   const config = resolveConfig(userConfig, warnConfig);
   const blockFindings = [];

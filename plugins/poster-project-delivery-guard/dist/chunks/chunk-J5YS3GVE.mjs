@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:ce1391e033b4614b0a6cb38d556dda14dccc49c8c48ad0139447594c66cc58ca
+// harness-source-hash: sha256:21339e5aa2f538881d437fbd29dbff83b962e871c2e0409ac2452689fb50a359
 
 // plugins/poster-project-delivery-guard/src/lib/contract.ts
 import { createHash } from "node:crypto";
@@ -10,26 +10,32 @@ var RECEIPT_EXCLUDED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.poster\.json$|
 var PROOF_PATH = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
+var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var rec = (value) => isObject(value) ? value : void 0;
+var asList = (value) => Array.isArray(value) ? value : [];
+var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
 function validateIndependentReviewFile(model, filePath, schema, findings) {
   const files = model?.files ?? {};
   let review;
   try {
-    review = JSON.parse(files[filePath] ?? "null");
+    review = JSON.parse(files[filePath] === void 0 ? "null" : textOf(files[filePath]));
   } catch {
     review = null;
   }
-  if (!review || review.schema !== schema || review.verdict !== "pass") {
+  const reviewRec = rec(review);
+  if (!review || reviewRec?.schema !== schema || reviewRec?.verdict !== "pass") {
     findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
     return;
   }
-  if (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId) {
+  const reviewer = rec(reviewRec?.reviewer);
+  if (!["human", "independent-agent"].includes(reviewer?.kind) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId) {
     findings.push(finding("REVIEWER_INVALID", filePath, "reviewer must declare kind and sessionId"));
     return;
   }
-  if (review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+  if (reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
     findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
   }
-  if (review.subjectDigest !== computePosterSubjectDigest(model)) {
+  if (reviewRec?.subjectDigest !== computePosterSubjectDigest(model)) {
     findings.push(finding("REVIEW_SUBJECT_STALE", filePath, "review subjectDigest must match the current source subject"));
   }
 }
@@ -60,14 +66,14 @@ function posterOutputPaths(model) {
   const files = model?.files ?? {};
   const manifest = (() => {
     try {
-      return JSON.parse(files["src/variants/manifest.json"] ?? "{}");
+      return JSON.parse(files["src/variants/manifest.json"] === void 0 ? "{}" : textOf(files["src/variants/manifest.json"]));
     } catch {
       return {};
     }
   })();
-  const variants = Array.isArray(manifest?.variants) ? manifest.variants : [];
+  const variants = asList(rec(manifest)?.variants);
   return [
-    ...variants.map(({ id }) => `dist/${model.artifactId}.${id}.png`),
+    ...variants.map((variant) => `dist/${model?.artifactId}.${rec(variant)?.id}.png`),
     ...Object.keys(files).filter((filePath) => PROOF_PATH.test(filePath)).sort(),
     "evidence.accessibility.json",
     "review.poster.json",
@@ -90,7 +96,8 @@ function validatePosterReceipt(model) {
   try {
     const actual = JSON.parse(serialized);
     const expected = createPosterReceipt(model);
-    return actual?.schemaVersion === expected.schemaVersion && actual?.plugin === expected.plugin && actual?.artifactId === expected.artifactId && actual?.stage === expected.stage && actual?.subjectDigest === expected.subjectDigest && JSON.stringify(actual?.outputs) === JSON.stringify(expected.outputs);
+    if (!isObject(actual)) return false;
+    return actual.schemaVersion === expected.schemaVersion && actual.plugin === expected.plugin && actual.artifactId === expected.artifactId && actual.stage === expected.stage && actual.subjectDigest === expected.subjectDigest && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
   } catch {
     return false;
   }
@@ -132,14 +139,15 @@ function validateArtifactGitignore(files, findings) {
 }
 function validateLayer(model, directory, entry, findings) {
   const files = model?.files ?? {};
-  const sourceName = entry?.source;
+  const item = rec(entry);
+  const sourceName = item?.source;
   const match = typeof sourceName === "string" ? sourceName.match(LAYER_SOURCE) : null;
   const sourcePath = `src/variants/${directory}/layers/${sourceName ?? "manifest.json"}`;
   if (!match) {
     findings.push(finding("LAYER_NAME_INVALID", sourcePath, "layer source must use NNN-role-slug.tsx"));
     return;
   }
-  if (Number(match.groups.index) !== entry.index || match.groups.role !== entry.role) {
+  if (Number(match.groups?.index) !== item?.index || match.groups?.role !== item?.role) {
     findings.push(finding("LAYER_MANIFEST_MISMATCH", sourcePath, "layer filename must match manifest index and role"));
   }
   const source = files[sourcePath];
@@ -167,11 +175,13 @@ function validateAccessibilityEvidence(model, findings) {
   if (!(filePath in (model?.files ?? {}))) return;
   let record;
   try {
-    record = JSON.parse(model.files[filePath] ?? "null");
+    record = JSON.parse(textOf(model?.files?.[filePath]) || "null");
   } catch {
     record = null;
   }
-  const ok = record && record.schema === "poster-project-delivery-guard/accessibility/v1" && record.artifactId === model.artifactId && record.subjectDigest === computePosterSubjectDigest(model) && typeof record.tool === "string" && record.tool.trim() && ["pass", "fail"].includes(record.verdict) && Array.isArray(record.checks) && record.checks.length > 0 && record.checks.every((check) => typeof check?.id === "string" && check.id && typeof check?.status === "string" && check.status);
+  const recd = rec(record);
+  const checks = asList(recd?.checks);
+  const ok = recd && recd.schema === "poster-project-delivery-guard/accessibility/v1" && recd.artifactId === model?.artifactId && recd.subjectDigest === computePosterSubjectDigest(model) && typeof recd.tool === "string" && recd.tool.trim() && ["pass", "fail"].includes(recd.verdict) && Array.isArray(recd.checks) && checks.length > 0 && checks.every((check) => typeof rec(check)?.id === "string" && rec(check)?.id && typeof rec(check)?.status === "string" && rec(check)?.status);
   if (!ok) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", filePath, "accessibility evidence must bind the current subject, name a tool, and record at least one check"));
 }
 function validateReleaseManifestFile(model, variants, findings) {
@@ -179,13 +189,14 @@ function validateReleaseManifestFile(model, variants, findings) {
   if (!(filePath in (model?.files ?? {}))) return;
   let record;
   try {
-    record = JSON.parse(model.files[filePath] ?? "null");
+    record = JSON.parse(textOf(model?.files?.[filePath]) || "null");
   } catch {
     record = null;
   }
-  const expectedIds = variants.map((variant) => variant?.id).filter(Boolean);
-  const listed = Array.isArray(record?.variants) ? record.variants : [];
-  const ok = record && record.schema === "poster-project-delivery-guard/release-manifest/v1" && record.artifactId === model.artifactId && record.subjectDigest === computePosterSubjectDigest(model) && expectedIds.length > 0 && listed.length === expectedIds.length && expectedIds.every((id, index) => listed[index]?.id === id) && listed.every((entry) => entry?.output === `dist/${model.artifactId}.${entry.id}.png`);
+  const recordRec = rec(record);
+  const expectedIds = variants.map((variant) => rec(variant)?.id).filter(Boolean);
+  const listed = asList(recordRec?.variants);
+  const ok = recordRec && recordRec.schema === "poster-project-delivery-guard/release-manifest/v1" && recordRec.artifactId === model?.artifactId && recordRec.subjectDigest === computePosterSubjectDigest(model) && expectedIds.length > 0 && listed.length === expectedIds.length && expectedIds.every((id, index) => rec(listed[index])?.id === id) && listed.every((entry) => rec(entry)?.output === `dist/${model?.artifactId}.${rec(entry)?.id}.png`);
   if (!ok) findings.push(finding("RELEASE_MANIFEST_INVALID", filePath, "release manifest must list current variants and their dist output paths"));
 }
 function validatePosterModel(model, { stage = "source" } = {}) {
@@ -194,28 +205,30 @@ function validatePosterModel(model, { stage = "source" } = {}) {
   if (".poster-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".poster-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
   validateRequired(files, findings);
   validateArtifactGitignore(files, findings);
-  if (model?.project?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "poster.project.json", "project artifactId must match directory id"));
+  if (rec(model?.project)?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "poster.project.json", "project artifactId must match directory id"));
   const manifest = parseJson(files, "src/variants/manifest.json", findings);
-  const variants = Array.isArray(manifest?.variants) ? manifest.variants : [];
+  const variants = asList(rec(manifest)?.variants);
   variants.forEach((variant, offset) => {
-    const match = typeof variant?.directory === "string" ? variant.directory.match(VARIANT_DIRECTORY) : null;
-    if (!match || variant.index !== offset + 1 || Number(match?.groups.index) !== variant.index) {
+    const item = rec(variant);
+    const match = typeof item?.directory === "string" ? item.directory.match(VARIANT_DIRECTORY) : null;
+    if (!match || item?.index !== offset + 1 || Number(match.groups?.index) !== item?.index) {
       findings.push(finding("VARIANT_SEQUENCE_INVALID", "src/variants/manifest.json", "variants must be unique, contiguous NNN-slug directories"));
       return;
     }
-    const layersPath = `src/variants/${variant.directory}/layers/manifest.json`;
+    const layersPath = `src/variants/${item.directory}/layers/manifest.json`;
     const layersManifest = parseJson(files, layersPath, findings);
-    const layers = Array.isArray(layersManifest?.layers) ? layersManifest.layers : [];
+    const layers = asList(rec(layersManifest)?.layers);
     const ids = /* @__PURE__ */ new Set();
     layers.forEach((entry, layerOffset) => {
-      if (entry?.index !== layerOffset + 1 || ids.has(entry?.source)) findings.push(finding("LAYER_SEQUENCE_INVALID", layersPath, "layer indexes and sources must be unique and contiguous"));
-      ids.add(entry?.source);
-      validateLayer(model, variant.directory, entry, findings);
+      const layer = rec(entry);
+      if (layer?.index !== layerOffset + 1 || ids.has(layer?.source)) findings.push(finding("LAYER_SEQUENCE_INVALID", layersPath, "layer indexes and sources must be unique and contiguous"));
+      ids.add(layer?.source);
+      validateLayer(model, String(item.directory), entry, findings);
     });
-    if (layers[0]?.role !== "background") findings.push(finding("BACKGROUND_LAYER_REQUIRED", layersPath, "background must be the first painted layer"));
+    if (rec(layers[0])?.role !== "background") findings.push(finding("BACKGROUND_LAYER_REQUIRED", layersPath, "background must be the first painted layer"));
   });
   if (stage === "release") {
-    const expected = variants.map(({ id }) => `dist/${model.artifactId}.${id}.png`);
+    const expected = variants.map((variant) => `dist/${model?.artifactId}.${rec(variant)?.id}.png`);
     for (const filePath of [...expected, "evidence.accessibility.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) {
       if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
     }

@@ -1,17 +1,20 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-D53Y26S6.mjs";
+} from "../chunks/chunk-6VSA7JKI.mjs";
 import {
   validateLogoModel
-} from "../chunks/chunk-LHQ5PSUS.mjs";
+} from "../chunks/chunk-XNRN4R7K.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";
 import { open, unlink } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+function planField(plan, key) {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan[key] : void 0;
+}
 var root = resolve(process.argv[2] ?? "");
 var stage = process.argv[3] ?? "";
 var journalPath = join(root, ".logo-delivery-journal.json");
@@ -32,7 +35,7 @@ async function main() {
   await assertLogoProjectRoot(root);
   if (!["source", "release"].includes(stage)) throw new Error("stage must be source or release");
   const before = await loadLogoProject(root);
-  if (before.plan?.targetStage !== stage) throw new Error("RENDER_STAGE_MISMATCH: plan targetStage must match requested stage");
+  if (planField(before.plan, "targetStage") !== stage) throw new Error("RENDER_STAGE_MISMATCH: plan targetStage must match requested stage");
   const handle = await open(journalPath, "wx");
   await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, plugin: "logo-project-delivery-guard", operation: "render", artifactId: basename(root), stage, sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown" })}
 `);
@@ -52,7 +55,7 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[logo-project-render] ${error.message}
+  process.stderr.write(`[logo-project-render] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

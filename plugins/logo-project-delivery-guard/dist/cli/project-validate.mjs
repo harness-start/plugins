@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 import {
   validateLogoModel
-} from "../chunks/chunk-LHQ5PSUS.mjs";
+} from "../chunks/chunk-XNRN4R7K.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-validate.ts
 import { createHash } from "node:crypto";
@@ -41,14 +41,14 @@ async function main() {
   let plan = null;
   let project = null;
   try {
-    plan = JSON.parse(files["plan.contract.json"] ?? "null");
+    plan = JSON.parse(String(files["plan.contract.json"] ?? "null"));
   } catch {
   }
   try {
-    project = JSON.parse(files["logo.project.json"] ?? "null");
+    project = JSON.parse(String(files["logo.project.json"] ?? "null"));
   } catch {
   }
-  const stage = stageArg ?? plan?.targetStage ?? "source";
+  const stage = stageArg ?? (typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0) ?? "source";
   const model = { artifactId: basename(root), files, bytes, digests, plan, project };
   const findings = validateLogoModel(model, { stage });
   if (asJson) {
@@ -66,7 +66,7 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[logo-project-validate] ${error.message}
+  process.stderr.write(`[logo-project-validate] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ab266d2f051b8be8a5488dd331bf6efacf12a101f36b81a6afe6e2f49f4de4de
+// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-47Y5Y6SY.mjs";
+} from "../chunks/chunk-MQOGMMXB.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-ZS2FERKO.mjs";
+} from "../chunks/chunk-X2VNCGIS.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/hooks/video-project-delivery-guard.ts
 import { relative, resolve as resolve3 } from "node:path";
@@ -278,12 +278,16 @@ function parseShellWords(command) {
 }
 function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!words || words.length < 3) return null;
-  if (!["node", basename(process.execPath), process.execPath].includes(words[0])) return null;
-  if (words[1].startsWith("-")) return null;
-  const script = isAbsolute2(words[1]) ? resolve2(words[1]) : resolve2(cwd, words[1]);
+  const first = words[0];
+  const second = words[1];
+  const third = words[2];
+  if (first === void 0 || second === void 0 || third === void 0) return null;
+  if (!["node", basename(process.execPath), process.execPath].includes(first)) return null;
+  if (second.startsWith("-")) return null;
+  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
   const name = basename(script);
   if (dirname(resolve2(script)) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(words[2]) ? resolve2(words[2]) : resolve2(cwd, words[2]);
+  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
   const expectedParent = resolve2(workspaceRoot, "artifacts", "video");
   if (dirname(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };
@@ -299,7 +303,9 @@ function expandKnownPluginRoot(command) {
 }
 function readOnlyCommand(words) {
   if (!words || words.length === 0) return false;
-  const command = basename(words[0]);
+  const first = words[0];
+  if (first === void 0) return false;
+  const command = basename(first);
   if (!READ_ONLY.has(command)) return false;
   if (command === "git" && !["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
   if (command === "sed" && words.some((word) => /^-.*i/u.test(word))) return false;
@@ -339,17 +345,20 @@ function deny(reason) {
 function context(eventName, message) {
   return additionalContext(eventName, message);
 }
+function isRecord2(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
 async function findingsFor(cwd) {
   const findings = [];
   const { workspaceRoot, roots } = await findVideoProjects(cwd);
   for (const root of roots) {
     const model = await loadVideoProject(root);
     const artifactPath = relative(workspaceRoot, root).replaceAll("\\", "/");
-    if (!("plan.contract.json" in model.files)) {
+    if (!(model.files && "plan.contract.json" in model.files)) {
       findings.push({ artifactId: model.artifactId, code: "PLAN_CONTRACT_MISSING", path: `${artifactPath}/plan.contract.json`, message: "plan.contract.json is required to select a closure stage" });
     }
-    const stage = model.plan?.targetStage;
-    for (const item of validateVideoModel(model, { stage })) findings.push({ artifactId: model.artifactId, ...item });
+    const stage = isRecord2(model.plan) && typeof model.plan.targetStage === "string" ? model.plan.targetStage : void 0;
+    for (const item of validateVideoModel(model, stage === void 0 ? {} : { stage })) findings.push({ artifactId: model.artifactId, ...item });
   }
   return { findings, projectCount: roots.length };
 }
@@ -381,11 +390,12 @@ async function main() {
       const result = evaluateVideoShell({ command, cwd, workspaceRoot });
       if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
-      else if (result.writer && result.writer !== "video-lint") {
+      else if (result.writer && result.writer !== "video-lint" && result.projectRoot && result.argv) {
         try {
           await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, sessionId: sessionOf(event), triggerFrom: `video-project-delivery-guard:pre:${result.writer}` });
         } catch (error) {
-          process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error.message}`))}
+          const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+          process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${message}`))}
 `);
         }
       }
@@ -407,8 +417,11 @@ async function main() {
     writeJson(stopBlock(format(findings)));
   }
 }
-if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {
-  process.stderr.write(`[Video Project Delivery Guard] ${error.message}
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) {
+  main().catch((error) => {
+    const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+    process.stderr.write(`[Video Project Delivery Guard] ${message}
 `);
-  process.exitCode = 2;
-});
+    process.exitCode = 2;
+  });
+}

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7bbd040300470c56230d69416d6fc4116c992ff8cff335c804d72298524f6daf
+// harness-source-hash: sha256:3355a06f9a0b80a7458d259a6f0b938bd136a5b86f30383d606082daf13ee45c
 import {
   additionalContextOutput,
-  extractCwd,
+  eventCwd,
   extractWriteTargets,
+  isRecord,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-KU3G5JFX.mjs";
+} from "../chunks/chunk-BKG6NMO4.mjs";
 
 // plugins/git-delivery-guards/src/entries/hooks/git-delivery-hook-post-tool.ts
 import { resolve } from "node:path";
@@ -18,41 +19,51 @@ import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 var MAX_FILE_BYTES = 2 * 1024 * 1024;
 var CONFIG_FILE_NAME = ".git-delivery-guards.mjs";
-var VALID_MODES = /* @__PURE__ */ new Set(["block", "report", "off"]);
 var SKIP_PATH = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 var TEXT_PATH = /\.(?:bash|c|cc|cfg|cjs|cpp|css|cts|cxx|go|graphql|h|hh|hpp|html|ini|java|js|json|jsx|kt|kts|less|md|mjs|mts|php|py|rb|rs|sass|scss|sh|sql|svelte|swift|toml|ts|tsx|txt|vue|xml|yaml|yml|zsh)$/iu;
+var EMPTY_OVERRIDES = [];
 var DEFAULT_CONFIG = Object.freeze({
   checks: Object.freeze({ mergeConflict: "block" }),
-  overrides: Object.freeze([])
+  overrides: Object.freeze(EMPTY_OVERRIDES)
 });
 function warnDefault(message) {
   process.stderr.write(`[git-delivery-guards] ${message}
 `);
 }
+function errorText(error) {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+function isCheckMode(value) {
+  return value === "block" || value === "report" || value === "off";
+}
 function normalizeMode(value, fallback, label, warn) {
   if (value === void 0) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 function resolveConflictConfig(userConfig, warn = warnDefault) {
   const checks = { mergeConflict: "block" };
-  if (userConfig?.checks !== void 0 && (!userConfig.checks || typeof userConfig.checks !== "object" || Array.isArray(userConfig.checks))) {
+  const record = isRecord(userConfig) ? userConfig : null;
+  if (record?.checks !== void 0 && (!record.checks || typeof record.checks !== "object" || Array.isArray(record.checks))) {
     warn('config "checks" must be an object; using defaults');
   } else {
+    const checksSource = record && isRecord(record.checks) ? record.checks : null;
     checks.mergeConflict = normalizeMode(
-      userConfig?.checks?.mergeConflict,
+      checksSource?.mergeConflict,
       checks.mergeConflict,
       "checks.mergeConflict",
       warn
     );
   }
   const overrides = [];
-  if (userConfig?.overrides !== void 0 && !Array.isArray(userConfig.overrides)) {
+  if (record?.overrides !== void 0 && !Array.isArray(record.overrides)) {
     warn('config "overrides" must be an array; ignoring overrides');
   } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
+    const rawOverrides = record && Array.isArray(record.overrides) ? record.overrides : [];
+    for (const [index, override] of rawOverrides.entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
         warn(`override[${index}].match must be a RegExp; skipping`);
         continue;
       }
@@ -60,7 +71,7 @@ function resolveConflictConfig(userConfig, warn = warnDefault) {
         warn(`override[${index}].checks must be an object; skipping`);
         continue;
       }
-      if (override.checks.mergeConflict === void 0) {
+      if (!isRecord(override.checks) || override.checks.mergeConflict === void 0) {
         warn(`override[${index}] does not declare checks.mergeConflict; skipping`);
         continue;
       }
@@ -123,9 +134,10 @@ async function loadConflictConfig(repoRoot, warn = warnDefault) {
   if (!existsSync(configPath)) return resolveConflictConfig(null, warn);
   try {
     const loaded = await import(pathToFileURL(configPath).href);
-    return resolveConflictConfig(loaded.default ?? loaded, warn);
+    const config = isRecord(loaded) ? loaded.default ?? loaded : loaded;
+    return resolveConflictConfig(config, warn);
   } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error?.message ?? error}; using strict defaults`);
+    warn(`failed to load ${CONFIG_FILE_NAME}: ${errorText(error)}; using strict defaults`);
     return resolveConflictConfig(null, warn);
   }
 }
@@ -184,7 +196,7 @@ async function main() {
   if (event.__parseError) return;
   const targets = extractWriteTargets(event);
   if (!targets.length) return;
-  const cwd = resolve(extractCwd(event));
+  const cwd = resolve(eventCwd(event));
   const repoRoot = resolveRepoRoot(cwd);
   const config = await loadConflictConfig(repoRoot);
   const findings = conflictFileFindings(targets, repoRoot, cwd, config);
@@ -199,7 +211,8 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[git-delivery-guards] post hook failed open: ${error?.message ?? error}
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`[git-delivery-guards] post hook failed open: ${message}
 `);
   process.exit(0);
 });

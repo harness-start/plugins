@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-D53Y26S6.mjs";
+} from "../chunks/chunk-6VSA7JKI.mjs";
 import {
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-LHQ5PSUS.mjs";
+} from "../chunks/chunk-XNRN4R7K.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/hooks/logo-project-delivery-guard.ts
 import { access } from "node:fs/promises";
@@ -264,26 +264,32 @@ function parseShellWords(command) {
 }
 function expandKnownPluginRoot(command) {
   let expanded = String(command ?? "");
-  for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) if (process.env[name]) expanded = expanded.replaceAll(`\${${name}}`, resolve2(process.env[name]));
+  for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
+    const value = process.env[name];
+    if (value) expanded = expanded.replaceAll(`\${${name}}`, resolve2(value));
+  }
   return expanded;
 }
 function wrapperInvocation(words, cwd, workspaceRoot) {
-  if (!words || words.length < 3 || !["node", basename(process.execPath), process.execPath].includes(words[0]) || words[1].startsWith("-")) return null;
-  const script = isAbsolute2(words[1]) ? resolve2(words[1]) : resolve2(cwd, words[1]);
+  const first = words?.[0];
+  const second = words?.[1];
+  const third = words?.[2];
+  if (!words || words.length < 3 || first === void 0 || second === void 0 || third === void 0 || !["node", basename(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
+  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
   const name = basename(script);
   if (dirname(script) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(words[2]) ? resolve2(words[2]) : resolve2(cwd, words[2]);
+  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
   if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
-  if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3]))) return null;
+  if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3] ?? ""))) return null;
   if (name === "project-stage.mjs" && (words.length !== 4 || words[3] !== "release")) return null;
   if (name === "project-validate.mjs") {
     const args = words.slice(3);
     while (args.length > 0) {
       const value = args.shift();
       if (value === "--json") continue;
-      if (/^--stage=(?:source|release)$/u.test(value)) continue;
-      if (value === "--stage" && ["source", "release"].includes(args.shift())) continue;
+      if (value !== void 0 && /^--stage=(?:source|release)$/u.test(value)) continue;
+      if (value === "--stage" && ["source", "release"].includes(args.shift() ?? "")) continue;
       return null;
     }
   }
@@ -298,8 +304,8 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   return { name, projectRoot };
 }
 function readOnlyCommand(words) {
-  if (!words?.length || words[0] !== basename(words[0]) || !READ_ONLY.has(words[0])) return false;
-  const command = words[0];
+  const command = words?.[0];
+  if (!words?.length || command === void 0 || command !== basename(command) || !READ_ONLY.has(command)) return false;
   if (command === "git") {
     if (!["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
     if (words.some((word) => word === "--output" || word.startsWith("--output=") || /^-o.+/u.test(word) || ["--ext-diff", "--textconv"].includes(word))) return false;
@@ -313,7 +319,12 @@ function touchesLogo(command, cwd, workspaceRoot) {
   const current = resolve2(cwd).replaceAll("\\", "/");
   return current.startsWith(`${root}/artifacts/logo/`) || /(?:^|[\s"'=])\.?\/?artifacts\/logo(?:\/|[\s"']|$)/u.test(normalized) || normalized.includes(`${root}/artifacts/logo/`);
 }
-function evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
+function evaluateLogoShell({
+  command,
+  cwd,
+  workspaceRoot,
+  activeProjectCount = 0
+}) {
   if (activeProjectCount < 1 && !touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
@@ -350,12 +361,15 @@ async function existingPlanTarget(cwd, target) {
     return false;
   }
 }
+function planTargetStage(plan) {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan) && "targetStage" in plan ? plan.targetStage : void 0;
+}
 async function findingsFor(cwd) {
   const findings = [];
   const { roots } = await findLogoProjects(cwd);
   for (const root of roots) {
     const model = await loadLogoProject(root);
-    const stage = model.plan?.targetStage;
+    const stage = planTargetStage(model.plan);
     for (const item of validateLogoModel(model, { stage })) findings.push({ artifactId: model.artifactId, ...item });
   }
   findings.sort((left, right) => left.code.localeCompare(right.code) || left.artifactId.localeCompare(right.artifactId) || left.path.localeCompare(right.path));
@@ -393,7 +407,7 @@ async function main() {
     if (command) {
       const { roots } = await findLogoProjects(cwd);
       const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
-      if (result.writer && !roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}
+      if (result.writer && (result.projectRoot === void 0 || !roots.includes(result.projectRoot))) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}
 `);
       else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
@@ -416,7 +430,7 @@ async function main() {
   }
 }
 if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {
-  process.stderr.write(`[Logo Project Delivery Guard] ${error.message}
+  process.stderr.write(`[Logo Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

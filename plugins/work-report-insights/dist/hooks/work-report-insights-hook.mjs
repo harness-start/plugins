@@ -1,81 +1,27 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5dd6e44bf9e31a59e88572c25eca20796881558ed08fb016a2769f0eb24fb7e7
+// harness-source-hash: sha256:fabd61f22320e6f936be9aacdac06071e458f80c365b67d265d0bbf037d61138
 import {
   SEAL_PREFIX,
+  eventAssistantMessage,
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  eventToolResponse,
   isProtectedReportPath,
+  isRecord,
   parseReportArgs,
+  readStdinJson,
   reportPath,
   sha256,
   verifyReport
-} from "../chunks/chunk-BKUUU55L.mjs";
+} from "../chunks/chunk-XYSV3YZG.mjs";
 
 // plugins/work-report-insights/src/entries/hooks/work-report-insights-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";
 import { homedir as homedir2 } from "node:os";
 import { resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventSessionId(event) {
-  const context = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context?.session_id
-  );
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-function eventToolResponse(event) {
-  const tool = nestedRecord(event, "tool");
-  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
-}
-function eventAssistantMessage(event) {
-  return firstString(
-    event.last_assistant_message,
-    event.lastAssistantMessage,
-    event.assistant_message,
-    event.assistant_text,
-    event.assistantText
-  );
-}
 
 // core/src/hook-output.ts
 function preToolDeny(reason) {
@@ -237,39 +183,27 @@ function extractFileTargets(event, options = {}) {
 }
 
 // plugins/work-report-insights/src/lib/hook-io.ts
-function extractCwd(event) {
-  return eventCwd(event);
-}
 function extractSessionId(event) {
   return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "hook";
 }
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolResponse(event) {
-  return eventToolResponse(event);
-}
 function toolReportedFailure(event) {
-  if (event?.error) return true;
-  const response = extractToolResponse(event);
+  if (event.error) return true;
+  const response = eventToolResponse(event);
   if (response == null) return false;
   if (typeof response === "string") {
     return /\b(?:exit(?:ed)?\s+(?:code|status)|exit_code)\s*[:=]?\s*[1-9]\d*\b|\b(?:command|tool)\s+failed\b/iu.test(response);
   }
-  if (typeof response !== "object") return false;
+  if (!isRecord(response)) return false;
   if (response.isError === true || response.success === false) return true;
   const exitCode = response.exit_code ?? response.exitCode;
   if (Number.isInteger(exitCode) && exitCode !== 0) return true;
   return /^(?:error|failed|failure)$/iu.test(String(response.status ?? response.outcome ?? ""));
 }
-function extractAssistantMessage(event) {
-  return eventAssistantMessage(event);
-}
 function isFileMutationTool2(event) {
-  return isFileMutationTool(extractToolName(event));
+  return isFileMutationTool(eventToolName(event));
 }
 function isShellTool2(event) {
-  return isShellTool(extractToolName(event));
+  return isShellTool(eventToolName(event));
 }
 function extractFileTargets2(event) {
   return extractFileTargets(event, { tools: "any" });
@@ -312,19 +246,27 @@ function tokenize(command) {
     return token;
   });
 }
+function errorMessage(error) {
+  return isRecord(error) && error.message != null ? String(error.message) : String(error);
+}
+function hasOfficialError(official) {
+  return "error" in official;
+}
 function parseOfficialCommand(command) {
   const tokens = tokenize(String(command ?? ""));
   if (!tokens) return null;
   let index = 0;
   const assignments = [];
   while (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index] ?? "")) {
-    assignments.push(tokens[index]);
+    const assignment = tokens[index];
+    if (assignment === void 0) break;
+    assignments.push(assignment);
     index += 1;
   }
   if (basename(tokens[index] ?? "") !== "node") return null;
   const script = tokens[index + 1];
   const contract = OFFICIAL.get(basename(script ?? ""));
-  if (!contract) return null;
+  if (!contract || script === void 0) return null;
   const [kind, action] = contract;
   if (assignments.some((item) => /^(?:PLUGIN_ROOT|CLAUDE_PLUGIN_ROOT)=/u.test(item))) {
     return { kind, action, script, error: "host-owned plugin root must not be overridden" };
@@ -332,7 +274,7 @@ function parseOfficialCommand(command) {
   try {
     return { kind, action, script, args: parseReportArgs(kind, action, tokens.slice(index + 2)) };
   } catch (error) {
-    return { kind, action, script, error: error?.message ?? String(error) };
+    return { kind, action, script, error: errorMessage(error) };
   }
 }
 async function officialScriptTrusted(official, options = {}) {
@@ -399,6 +341,10 @@ function denyReason(detail) {
 ${detail}
 Confirmed report bytes are immutable. Use the plugin prepare/confirm/save or addition-prepare/confirm/append workflow.`;
 }
+function requiredArg(value, flag) {
+  if (value === void 0) throw new Error(`${flag} is required`);
+  return value;
+}
 async function protectionDecision(event, options = {}) {
   const home2 = resolve2(options.home ?? process.env.HOME ?? homedir());
   const state = options.state ?? { phase: "idle" };
@@ -411,23 +357,23 @@ async function protectionDecision(event, options = {}) {
   if (!isShellTool2(event)) return { deny: false };
   const command = extractShellCommand(event) ?? "";
   const official = parseOfficialCommand(command);
-  if (official?.error) return { deny: true, reason: denyReason(`Invalid official command: ${official.error}`) };
+  if (official && hasOfficialError(official)) return { deny: true, reason: denyReason(`Invalid official command: ${official.error}`) };
   if (official) {
-    if (!await officialScriptTrusted(official, { pluginRoot: options.pluginRoot, cwd: extractCwd(event) })) {
+    if (!await officialScriptTrusted(official, { pluginRoot: options.pluginRoot, cwd: eventCwd(event) })) {
       return { deny: true, reason: denyReason("A reserved official command name was invoked from an untrusted script path.") };
     }
-    if (!(/* @__PURE__ */ new Set(["save", "append"])).has(official.action)) return { deny: false, official };
+    if (official.action !== "save" && official.action !== "append") return { deny: false, official };
     if (state.phase !== "prepared" || state.operation !== official.action) return { deny: true, reason: denyReason("The candidate has not been prepared.") };
-    const input = resolve2(extractCwd(event), official.args.input);
+    const input = resolve2(eventCwd(event), requiredArg(official.args.input, "--input"));
     if (state.candidatePath !== input || state.candidateSha256 !== await candidateDigest(input)) return { deny: true, reason: denyReason("The candidate bytes changed after confirmation.") };
-    const target = official.action === "save" ? reportPath({ kind: official.kind, ...official.args, home: home2 }) : resolve2(extractCwd(event), official.args.report);
+    const target = official.action === "save" ? reportPath({ kind: official.kind, ...official.args, home: home2 }) : resolve2(eventCwd(event), requiredArg(official.args.report, "--report"));
     if (state.target !== target) return { deny: true, reason: denyReason("The confirmed target does not match this command.") };
     if (official.action === "append" && state.reportSha256 !== sha256(await readFile(target))) {
       return { deny: true, reason: denyReason("The sealed report changed after the addition was prepared.") };
     }
     return { deny: false, official };
   }
-  if (shellMutates(command) && await shellTargetsReports(command, extractCwd(event), home2)) {
+  if (shellMutates(command) && await shellTargetsReports(command, eventCwd(event), home2)) {
     return { deny: true, reason: denyReason("Shell mutation targets the report tree or a resolved report symlink.") };
   }
   return { deny: false };
@@ -484,7 +430,7 @@ function emptyState() {
 }
 function dataRoot(event, env = process.env) {
   if (env.WORK_REPORT_INSIGHTS_DATA) return resolve3(env.WORK_REPORT_INSIGHTS_DATA);
-  return join3(resolve3(extractCwd(event)), STATE_DIR_RELATIVE);
+  return join3(resolve3(eventCwd(event)), STATE_DIR_RELATIVE);
 }
 function statePath(event, env = process.env) {
   const session = extractSessionId(event) || "default";
@@ -493,7 +439,7 @@ function statePath(event, env = process.env) {
 async function readState(event, env = process.env) {
   try {
     const parsed = JSON.parse(await readFile2(statePath(event, env), "utf8"));
-    if (parsed?.version !== VERSION) return emptyState();
+    if (!isRecord(parsed) || parsed.version !== VERSION) return emptyState();
     return { ...emptyState(), ...parsed, version: VERSION };
   } catch {
     return emptyState();
@@ -502,7 +448,7 @@ async function readState(event, env = process.env) {
 async function writeState(event, state, env = process.env) {
   const path = statePath(event, env);
   await mkdir(dirname2(path), { recursive: true, mode: 448 });
-  const storageRoot = env.WORK_REPORT_INSIGHTS_DATA ? resolve3(env.WORK_REPORT_INSIGHTS_DATA) : join3(resolve3(extractCwd(event)), ".work-report-insights");
+  const storageRoot = env.WORK_REPORT_INSIGHTS_DATA ? resolve3(env.WORK_REPORT_INSIGHTS_DATA) : join3(resolve3(eventCwd(event)), ".work-report-insights");
   ensurePluginWorkdirGitignore(storageRoot);
   const temporary = `${path}.${process.pid}.${randomBytes(5).toString("hex")}.tmp`;
   const next = { ...emptyState(), ...state, version: VERSION, updatedAt: Date.now() };
@@ -522,15 +468,22 @@ async function writeState(event, state, env = process.env) {
 function home(env) {
   return resolve4(env.HOME || homedir2());
 }
+function errorMessage2(error) {
+  return isRecord(error) && error.message != null ? String(error.message) : String(error);
+}
+function requiredArg2(value, flag) {
+  if (value === void 0) throw new Error(`${flag} is required`);
+  return value;
+}
 async function prepareState(event, official, env) {
   const state = await readState(event, env);
-  const cwd = extractCwd(event);
-  const candidatePath = resolve4(cwd, official.args.input);
+  const cwd = eventCwd(event);
+  const candidatePath = resolve4(cwd, requiredArg2(official.args.input, "--input"));
   let candidate = await readFile3(candidatePath, "utf8");
   if (!candidate.trim()) throw new Error("candidate content is empty");
   if (candidate.includes(SEAL_PREFIX)) throw new Error("candidate contains a reserved seal marker");
   if (!candidate.endsWith("\n")) candidate += "\n";
-  const target = official.action === "prepare" ? reportPath({ kind: official.kind, ...official.args, home: home(env) }) : resolve4(cwd, official.args.report);
+  const target = official.action === "prepare" ? reportPath({ kind: official.kind, ...official.args, home: home(env) }) : resolve4(cwd, requiredArg2(official.args.report, "--report"));
   let reportSha256 = null;
   if (official.action === "addition-prepare") {
     const report = await readFile3(target, "utf8");
@@ -553,13 +506,13 @@ async function runPre(event, env) {
   const state = await readState(event, env);
   const command = isShellTool2(event) ? extractShellCommand(event) : null;
   const official = parseOfficialCommand(command);
-  const trusted = official && !official.error && await officialScriptTrusted(official, { cwd: extractCwd(event) });
-  if (trusted && (/* @__PURE__ */ new Set(["prepare", "addition-prepare"])).has(official.action)) {
+  const trusted = Boolean(official && !hasOfficialError(official) && await officialScriptTrusted(official, { cwd: eventCwd(event) }));
+  if (trusted && official && !hasOfficialError(official) && (official.action === "prepare" || official.action === "addition-prepare")) {
     try {
       await prepareState(event, official, env);
       writeJson(contextOutput("PreToolUse", "[Work Report Insights] Candidate digest recorded. Present the complete content and wait for explicit confirmation."));
     } catch (error) {
-      writeJson(preToolDeny(`[Work Report Insights] Prepare denied: ${error?.message ?? String(error)}`));
+      writeJson(preToolDeny(`[Work Report Insights] Prepare denied: ${errorMessage2(error)}`));
     }
     return;
   }
@@ -569,16 +522,16 @@ async function runPre(event, env) {
 async function runPost(event, env) {
   if (!isShellTool2(event)) return;
   const official = parseOfficialCommand(extractShellCommand(event));
-  if (!official || official.error) return;
+  if (!official || hasOfficialError(official)) return;
   const state = await readState(event, env);
-  if ((/* @__PURE__ */ new Set(["collect", "scan"])).has(official.action)) {
+  if (official.action === "collect" || official.action === "scan") {
     await writeState(event, { ...state, phase: "evidence-collected", kind: official.kind === "report" ? state.kind : official.kind }, env);
     return;
   }
-  if (!(/* @__PURE__ */ new Set(["save", "append"])).has(official.action)) return;
+  if (official.action !== "save" && official.action !== "append") return;
   if (toolReportedFailure(event) || state.phase !== "prepared" || state.operation !== official.action) return;
   try {
-    const target = official.action === "save" ? reportPath({ kind: official.kind, ...official.args, home: home(env) }) : resolve4(extractCwd(event), official.args.report);
+    const target = official.action === "save" ? reportPath({ kind: official.kind, ...official.args, home: home(env) }) : resolve4(eventCwd(event), requiredArg2(official.args.report, "--report"));
     if (target !== state.target) return;
     const content = await readFile3(target, "utf8");
     const checked = verifyReport(content);
@@ -594,7 +547,7 @@ SHA-256: ${checked.digest}`));
 async function runStop(event, env) {
   const state = await readState(event, env);
   if (state.phase === "idle" || state.phase === "sealed") return;
-  const message = extractAssistantMessage(event);
+  const message = eventAssistantMessage(event);
   if (/(?:\u62a5\u544a|\u65e5\u62a5|\u5468\u62a5|\u603b\u7ed3).{0,12}(?:\u5df2\u4fdd\u5b58|\u5df2\u5199\u5165|\u5df2\u751f\u6210|\u5b8c\u6210)|(?:saved|wrote|generated).{0,16}report/iu.test(message)) {
     writeJson(stopDeny("[Work Report Insights] A report completion claim requires a successful save and a verified SHA-256 seal. Continue the interview or complete prepare \u2192 confirmation \u2192 save."));
   }
@@ -605,20 +558,21 @@ async function main() {
   if (event.__parseError) return;
   const env = process.env;
   try {
-    if ((/* @__PURE__ */ new Set(["prompt", "UserPromptSubmit"])).has(mode)) return;
-    else if ((/* @__PURE__ */ new Set(["pre", "PreToolUse"])).has(mode)) await runPre(event, env);
-    else if ((/* @__PURE__ */ new Set(["post", "PostToolUse"])).has(mode)) await runPost(event, env);
-    else if ((/* @__PURE__ */ new Set(["stop", "Stop"])).has(mode)) await runStop(event, env);
+    if (mode === "prompt" || mode === "UserPromptSubmit") return;
+    else if (mode === "pre" || mode === "PreToolUse") await runPre(event, env);
+    else if (mode === "post" || mode === "PostToolUse") await runPost(event, env);
+    else if (mode === "stop" || mode === "Stop") await runStop(event, env);
   } catch (error) {
-    if ((/* @__PURE__ */ new Set(["pre", "PreToolUse"])).has(mode)) {
-      writeJson(preToolDeny(`[Work Report Insights] Protection check failed closed: ${error?.message ?? String(error)}`));
+    if (mode === "pre" || mode === "PreToolUse") {
+      writeJson(preToolDeny(`[Work Report Insights] Protection check failed closed: ${errorMessage2(error)}`));
     } else {
-      process.stderr.write(`[work-report-insights] ${error?.message ?? String(error)}
+      process.stderr.write(`[work-report-insights] ${errorMessage2(error)}
 `);
     }
   }
 }
-var isMain = process.argv[1] && resolve4(process.argv[1]) === fileURLToPath2(import.meta.url);
+var entry = process.argv[1];
+var isMain = Boolean(entry && resolve4(entry) === fileURLToPath2(import.meta.url));
 if (isMain) await main();
 export {
   runPost,

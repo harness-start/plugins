@@ -1,8 +1,9 @@
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 
 // plugins/logo-project-delivery-guard/src/lib/contract.ts
 import { createHash } from "node:crypto";
 import { inflateSync } from "node:zlib";
+var PATH_ARITY = { A: 7, C: 6, H: 1, L: 2, M: 2, Q: 4, S: 4, T: 2, V: 1, Z: 0 };
 var PLAN_SCHEMA = "logo-project-delivery-guard/plan/v1";
 var PROJECT_SCHEMA = "logo-project-delivery-guard/project/v1";
 var CONSTRUCTION_SCHEMA = "logo-project-delivery-guard/construction/v1";
@@ -41,13 +42,16 @@ var rawBytes = (model, filePath) => {
 };
 var fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(rawBytes(model, filePath));
 var hasFile = (model, filePath) => Object.prototype.hasOwnProperty.call(model?.files ?? {}, filePath);
+function stageName(value) {
+  return typeof value === "string" && STAGES.has(value);
+}
 function parseJson(files, filePath, findings, code = "JSON_INVALID") {
-  if (!Object.prototype.hasOwnProperty.call(files, filePath)) {
+  if (!Object.prototype.hasOwnProperty.call(files ?? {}, filePath)) {
     findings.push(finding(filePath === "plan.contract.json" ? "PLAN_CONTRACT_MISSING" : "REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
     return null;
   }
   try {
-    return JSON.parse(textOf(files[filePath]));
+    return JSON.parse(textOf(files?.[filePath]));
   } catch {
     findings.push(finding(code, filePath, `${filePath} must contain valid JSON`));
     return null;
@@ -70,9 +74,11 @@ function masterSubjectDigest(model) {
 function conceptPreviewPaths(model) {
   try {
     const manifest = JSON.parse(textOf(model?.files?.["src/concepts/manifest.json"]));
-    return (Array.isArray(manifest?.concepts) ? manifest.concepts : []).flatMap((entry) => {
-      const sourcePath = `src/concepts/${entry?.source ?? ""}`;
-      return hasFile(model, sourcePath) ? [`src/concepts/${entry.source.slice(0, -9)}.${fileDigest(model, sourcePath)}.png`] : [];
+    const concepts = isObject(manifest) && Array.isArray(manifest.concepts) ? manifest.concepts : [];
+    return concepts.flatMap((entry) => {
+      const record = isObject(entry) ? entry : void 0;
+      const sourcePath = `src/concepts/${record?.source ?? ""}`;
+      return hasFile(model, sourcePath) ? [`src/concepts/${(record?.source).slice(0, -9)}.${fileDigest(model, sourcePath)}.png`] : [];
     });
   } catch {
     return [];
@@ -145,7 +151,8 @@ function validateLogoReceipt(model) {
   try {
     const actual = JSON.parse(textOf(model?.files?.["receipt.release.json"]));
     const expected = createLogoReceipt(model);
-    return actual?.schemaVersion === expected.schemaVersion && actual?.plugin === expected.plugin && actual?.artifactId === expected.artifactId && actual?.stage === expected.stage && actual?.subjectDigest === expected.subjectDigest && JSON.stringify(actual?.outputs) === JSON.stringify(expected.outputs);
+    if (!isObject(actual)) return false;
+    return actual.schemaVersion === expected.schemaVersion && actual.plugin === expected.plugin && actual.artifactId === expected.artifactId && actual.stage === expected.stage && actual.subjectDigest === expected.subjectDigest && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
   } catch {
     return false;
   }
@@ -221,16 +228,20 @@ function validateRequired(files, findings) {
 }
 function validatePlanAndProject(model, stage, findings) {
   const plan = parseJson(model.files, "plan.contract.json", findings, "PLAN_CONTRACT_INVALID");
-  if (plan && (!isObject(plan) || plan.schema !== PLAN_SCHEMA || plan.artifactId !== model.artifactId || !STAGES.has(plan.targetStage))) findings.push(finding("PLAN_CONTRACT_INVALID", "plan.contract.json", "plan must bind schema, artifactId, and targetStage source|release"));
-  if (!STAGES.has(stage)) findings.push(finding("STAGE_INVALID", "plan.contract.json", "closure stage must be source or release"));
-  else if (plan?.targetStage !== stage) findings.push(finding("PLAN_STAGE_MISMATCH", "plan.contract.json", "validated closure stage must match plan targetStage"));
+  const planRecord = isObject(plan) ? plan : void 0;
+  if (plan && (!planRecord || planRecord.schema !== PLAN_SCHEMA || planRecord.artifactId !== model.artifactId || !stageName(planRecord.targetStage))) findings.push(finding("PLAN_CONTRACT_INVALID", "plan.contract.json", "plan must bind schema, artifactId, and targetStage source|release"));
+  if (!stageName(stage)) findings.push(finding("STAGE_INVALID", "plan.contract.json", "closure stage must be source or release"));
+  else if ((isObject(plan) ? plan.targetStage : void 0) !== stage) findings.push(finding("PLAN_STAGE_MISMATCH", "plan.contract.json", "validated closure stage must match plan targetStage"));
   const project = parseJson(model.files, "logo.project.json", findings);
-  if (project && (!isObject(project) || project.schema !== PROJECT_SCHEMA || project.artifactId !== model.artifactId || typeof project.selectedConcept !== "string" || !project.selectedConcept)) findings.push(finding("LOGO_PROJECT_INVALID", "logo.project.json", "project must bind schema, artifactId, and selectedConcept"));
+  const projectRecord = isObject(project) ? project : void 0;
+  if (project && (!projectRecord || projectRecord.schema !== PROJECT_SCHEMA || projectRecord.artifactId !== model.artifactId || typeof projectRecord.selectedConcept !== "string" || !projectRecord.selectedConcept)) findings.push(finding("LOGO_PROJECT_INVALID", "logo.project.json", "project must bind schema, artifactId, and selectedConcept"));
 }
 function validateToolchain(files, findings) {
   const pkg = parseJson(files, "package.json", findings);
   const lock = parseJson(files, "package-lock.json", findings);
-  if (pkg && (!isObject(pkg) || typeof pkg.scripts?.["logo:render"] !== "string" || !pkg.scripts["logo:render"].trim())) findings.push(finding("RENDER_SCRIPT_MISSING", "package.json", "package.json scripts.logo:render is required"));
+  const scripts = isObject(pkg) && isObject(pkg.scripts) ? pkg.scripts : void 0;
+  const renderScript = scripts?.["logo:render"];
+  if (pkg && (!isObject(pkg) || typeof renderScript !== "string" || !renderScript.trim())) findings.push(finding("RENDER_SCRIPT_MISSING", "package.json", "package.json scripts.logo:render is required"));
   if (lock && (!isObject(lock) || !Number.isInteger(lock.lockfileVersion) || !isObject(lock.packages))) findings.push(finding("PACKAGE_LOCK_INVALID", "package-lock.json", "npm lockfileVersion and packages map are required"));
 }
 function validateArtifactGitignore(files, findings) {
@@ -281,18 +292,18 @@ function pngValid(model, filePath) {
   if (!header || idat.length === 0 || !ended) return false;
   const width = header.readUInt32BE(0);
   const height = header.readUInt32BE(4);
-  const depth = header[8];
-  const colorType = header[9];
+  const depth = header.readUInt8(8);
+  const colorType = header.readUInt8(9);
   const channels = (/* @__PURE__ */ new Map([[0, 1], [2, 3], [3, 1], [4, 2], [6, 4]])).get(colorType);
   const depths = (/* @__PURE__ */ new Map([[0, [1, 2, 4, 8, 16]], [2, [8, 16]], [3, [1, 2, 4, 8]], [4, [8, 16]], [6, [8, 16]]])).get(colorType) ?? [];
-  if (!width || !height || !channels || !depths.includes(depth) || colorType === 3 && !palette || header[10] !== 0 || header[11] !== 0 || header[12] !== 0) return false;
+  if (!width || !height || !channels || !depths.includes(depth) || colorType === 3 && !palette || header.readUInt8(10) !== 0 || header.readUInt8(11) !== 0 || header.readUInt8(12) !== 0) return false;
   const rowBytes = Math.ceil(width * channels * depth / 8) + 1;
   const expectedLength = rowBytes * height;
   if (!Number.isSafeInteger(expectedLength) || expectedLength > 128 * 1024 * 1024) return false;
   try {
     const inflated = inflateSync(Buffer.concat(idat), { maxOutputLength: expectedLength });
     if (inflated.byteLength !== expectedLength) return false;
-    for (let row = 0; row < height; row += 1) if (inflated[row * rowBytes] > 4) return false;
+    for (let row = 0; row < height; row += 1) if ((inflated[row * rowBytes] ?? 0) > 4) return false;
     return true;
   } catch {
     return false;
@@ -303,16 +314,18 @@ function svgWellFormed(svg) {
   let cursor = 0;
   let roots = 0;
   for (const match of svg.matchAll(/<\/?([A-Za-z][A-Za-z0-9]*)\b([^<>]*)>/gu)) {
-    if (svg.slice(cursor, match.index).trim()) return false;
+    const index = match.index ?? 0;
+    if (svg.slice(cursor, index).trim()) return false;
     const token = match[0];
     const name = match[1];
+    const attrs = match[2] ?? "";
     const closing = token.startsWith("</");
-    if (!SVG_TAGS.has(name)) return false;
+    if (!name || !SVG_TAGS.has(name)) return false;
     if (closing) {
-      if (match[2].trim() || stack.pop() !== name) return false;
+      if (attrs.trim() || stack.pop() !== name) return false;
     } else {
       const selfClosing = /\/\s*>$/u.test(token);
-      const attributesText = match[2].replace(/\/\s*$/u, "");
+      const attributesText = attrs.replace(/\/\s*$/u, "");
       const attributes = [...attributesText.matchAll(/\s+([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*(?:"[^"]*"|'[^']*')/gu)];
       const names = attributes.map((attribute) => attribute[1]);
       const remainder = attributesText.replace(/\s+([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*(?:"[^"]*"|'[^']*')/gu, "").trim();
@@ -323,17 +336,24 @@ function svgWellFormed(svg) {
       }
       if (!selfClosing) stack.push(name);
     }
-    cursor = match.index + token.length;
+    cursor = index + token.length;
   }
   return roots === 1 && stack.length === 0 && !svg.slice(cursor).trim();
 }
 function svgAttributes(text) {
-  return new Map([...text.matchAll(/\b([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']/gu)].map((match) => [match[1], match[2]]));
+  return new Map([...text.matchAll(/\b([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']/gu)].flatMap((match) => {
+    const name = match[1];
+    const value = match[2];
+    return name === void 0 || value === void 0 ? [] : [[name, value]];
+  }));
 }
 function finiteNumber(value, { positive = false } = {}) {
   if (typeof value !== "string" || !value.trim()) return false;
   const number = Number(value);
   return Number.isFinite(number) && (!positive || number > 0);
+}
+function isPathCommand(value) {
+  return Object.prototype.hasOwnProperty.call(PATH_ARITY, value);
 }
 function pathDataValid(value) {
   if (typeof value !== "string" || !value.trim()) return false;
@@ -341,13 +361,14 @@ function pathDataValid(value) {
   const tokens = [...value.matchAll(tokenPattern)].map((match) => match[0]);
   if (!tokens.length || value.replace(tokenPattern, "").replace(/[\s,]+/gu, "")) return false;
   const commandPattern = /^[AaCcHhLlMmQqSsTtVvZz]$/u;
-  const arity = { A: 7, C: 6, H: 1, L: 2, M: 2, Q: 4, S: 4, T: 2, V: 1, Z: 0 };
   let cursor = 0;
   let command = null;
   let drawable = false;
   while (cursor < tokens.length) {
-    if (commandPattern.test(tokens[cursor])) {
-      command = tokens[cursor].toUpperCase();
+    const head = tokens[cursor];
+    if (head !== void 0 && commandPattern.test(head)) {
+      const next = head.toUpperCase();
+      command = isPathCommand(next) ? next : null;
       cursor += 1;
       if (command === "Z") {
         command = null;
@@ -356,16 +377,22 @@ function pathDataValid(value) {
     }
     if (!command) return false;
     const values = [];
-    while (cursor < tokens.length && !commandPattern.test(tokens[cursor])) {
-      const number = Number(tokens[cursor]);
+    while (cursor < tokens.length) {
+      const token = tokens[cursor];
+      if (token === void 0 || commandPattern.test(token)) break;
+      const number = Number(token);
       if (!Number.isFinite(number)) return false;
       values.push(number);
       cursor += 1;
     }
-    const size = arity[command];
+    const size = PATH_ARITY[command];
     if (values.length < size || values.length % size !== 0) return false;
     if (command === "A") for (let offset = 0; offset < values.length; offset += size) {
-      if (!(values[offset] > 0) || !(values[offset + 1] > 0) || ![0, 1].includes(values[offset + 3]) || ![0, 1].includes(values[offset + 4])) return false;
+      const rx = values[offset];
+      const ry = values[offset + 1];
+      const largeArc = values[offset + 3];
+      const sweep = values[offset + 4];
+      if (!(rx !== void 0 && rx > 0) || !(ry !== void 0 && ry > 0) || largeArc === void 0 || sweep === void 0 || ![0, 1].includes(largeArc) || ![0, 1].includes(sweep)) return false;
     }
     if (command !== "M" || values.length > size) drawable = true;
   }
@@ -375,6 +402,7 @@ function vectorGeometryValid(svg) {
   const elements = [...svg.matchAll(/<(path|circle|ellipse|rect|line|polyline|polygon)\b([^>]*)>/gu)];
   if (elements.length === 0) return false;
   return elements.every(([, name, raw]) => {
+    if (!name || raw === void 0) return false;
     const attributes = svgAttributes(raw);
     if (name === "path") return pathDataValid(attributes.get("d"));
     if (name === "circle") return finiteNumber(attributes.get("r"), { positive: true });
@@ -399,7 +427,8 @@ function svgValid(value, { sheet = null, masterDigest = null } = {}) {
 function svgPrimitiveIds(value) {
   const ids = /* @__PURE__ */ new Set();
   for (const match of textOf(value).matchAll(/<(?:path|circle|ellipse|rect|line|polyline|polygon)\b([^>]*)>/gu)) {
-    const id = match[1].match(/\bid\s*=\s*["']([^"']+)["']/u)?.[1];
+    const attrs = match[1] ?? "";
+    const id = attrs.match(/\bid\s*=\s*["']([^"']+)["']/u)?.[1];
     if (id) ids.add(id);
   }
   return ids;
@@ -407,9 +436,13 @@ function svgPrimitiveIds(value) {
 function geometrySignature(value) {
   const svg = textOf(value);
   const elements = [...svg.matchAll(/<(svg|g|path|circle|ellipse|rect|line|polyline|polygon)\b([^>]*)>/gu)].map((match) => {
-    const attributes = [...match[2].matchAll(/\b([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']/gu)].filter((attribute) => !["xmlns", "fill", "color"].includes(attribute[1]) && !attribute[1].startsWith("aria-") && !attribute[1].startsWith("data-")).map((attribute) => {
+    const rawAttrs = match[2] ?? "";
+    const attributes = [...rawAttrs.matchAll(/\b([A-Za-z_:][-A-Za-z0-9_:.]*)\s*=\s*["']([^"']*)["']/gu)].filter((attribute) => {
       const name = attribute[1];
-      const raw = attribute[2].trim().replace(/\s+/gu, " ");
+      return name !== void 0 && !["xmlns", "fill", "color"].includes(name) && !name.startsWith("aria-") && !name.startsWith("data-");
+    }).map((attribute) => {
+      const name = attribute[1] ?? "";
+      const raw = (attribute[2] ?? "").trim().replace(/\s+/gu, " ");
       const normalized = name === "stroke" ? raw === "none" ? "none" : "paint" : raw;
       return `${name}=${normalized}`;
     }).sort().join(";");
@@ -417,21 +450,29 @@ function geometrySignature(value) {
   });
   return elements.join("|");
 }
+function rec(value) {
+  return isObject(value) ? value : void 0;
+}
+function asList(value) {
+  return Array.isArray(value) ? value : [];
+}
 function validateConcepts(model, findings) {
   const manifest = parseJson(model.files, "src/concepts/manifest.json", findings);
-  const concepts = Array.isArray(manifest?.concepts) ? manifest.concepts : [];
+  const concepts = asList(rec(manifest)?.concepts);
   let project = null;
   try {
-    project = JSON.parse(textOf(model.files["logo.project.json"]));
+    project = JSON.parse(textOf(model.files?.["logo.project.json"]));
   } catch {
   }
-  const ids = concepts.map((entry) => entry?.id);
-  const sources = concepts.map((entry) => entry?.source);
-  if (concepts.length === 0 || new Set(ids).size !== ids.length || new Set(sources).size !== sources.length || concepts.filter((entry) => entry?.id === project?.selectedConcept).length !== 1) findings.push(finding("CONCEPT_MANIFEST_INVALID", "src/concepts/manifest.json", "concept ids and sources must be unique, ordered, and select exactly the project concept"));
+  const selectedConcept = rec(project)?.selectedConcept;
+  const ids = concepts.map((entry) => rec(entry)?.id);
+  const sources = concepts.map((entry) => rec(entry)?.source);
+  if (concepts.length === 0 || new Set(ids).size !== ids.length || new Set(sources).size !== sources.length || concepts.filter((entry) => rec(entry)?.id === selectedConcept).length !== 1) findings.push(finding("CONCEPT_MANIFEST_INVALID", "src/concepts/manifest.json", "concept ids and sources must be unique, ordered, and select exactly the project concept"));
   concepts.forEach((entry, offset) => {
-    const match = typeof entry?.source === "string" ? entry.source.match(CONCEPT_SOURCE) : null;
-    const sourcePath = `src/concepts/${entry?.source ?? "manifest.json"}`;
-    if (!match || typeof entry.id !== "string" || !entry.id || entry.index !== offset + 1 || Number(match?.groups.index) !== entry.index) {
+    const item = rec(entry);
+    const match = typeof item?.source === "string" ? item.source.match(CONCEPT_SOURCE) : null;
+    const sourcePath = `src/concepts/${item?.source ?? "manifest.json"}`;
+    if (!match || typeof item?.id !== "string" || !item.id || item.index !== offset + 1 || Number(match.groups?.index) !== item.index) {
       findings.push(finding("CONCEPT_SEQUENCE_INVALID", sourcePath, "concepts must use ids and contiguous NNN-slug.logo.tsx sources"));
       return;
     }
@@ -439,7 +480,7 @@ function validateConcepts(model, findings) {
       findings.push(finding("CONCEPT_SOURCE_MISSING", sourcePath, "concept source is missing"));
       return;
     }
-    const preview = `src/concepts/${entry.source.slice(0, -9)}.${fileDigest(model, sourcePath)}.png`;
+    const preview = `src/concepts/${String(item.source).slice(0, -9)}.${fileDigest(model, sourcePath)}.png`;
     if (!hasFile(model, preview)) findings.push(finding("CONCEPT_PREVIEW_MISSING", preview, "current source-hash concept preview is required"));
     else if (!pngValid(model, preview)) findings.push(finding("CONCEPT_PREVIEW_INVALID", preview, "concept preview must be a decodable PNG header with positive dimensions"));
   });
@@ -447,66 +488,71 @@ function validateConcepts(model, findings) {
 function validateMaster(model, findings) {
   for (const [index, displayRole] of ["Mark", "Wordmark", "Lockup"].entries()) {
     const filePath = `src/master/${displayRole}.logo.tsx`;
-    const source = textOf(model.files[filePath]);
+    const source = textOf(model.files?.[filePath]);
     if (!source) continue;
     const exports = source.match(/export\s+function\s+[A-Za-z][A-Za-z0-9]*\s*\(/gu) ?? [];
     if (MASTER_VECTOR_VIOLATION.test(source) || !new RegExp(`export\\s+function\\s+${displayRole}\\s*\\([^)]*\\)\\s*\\{[\\s\\S]*return\\s*\\(?\\s*<svg\\b`, "u").test(source)) findings.push(finding("MASTER_VECTOR_VIOLATION", filePath, "master role must be its named self-contained native-vector SVG component"));
     if (exports.length !== 1) findings.push(finding("MASTER_EXPORT_INVALID", filePath, "master role must export exactly one SVG component"));
     const role = ROLES[index];
     const builtPath = `build/master/${role}.svg`;
-    if (hasFile(model, builtPath) && !svgValid(model.files[builtPath])) findings.push(finding("MASTER_SVG_INVALID", builtPath, "built master must be a self-contained non-empty SVG with viewBox"));
+    if (hasFile(model, builtPath) && !svgValid(model.files?.[builtPath])) findings.push(finding("MASTER_SVG_INVALID", builtPath, "built master must be a self-contained non-empty SVG with viewBox"));
   }
 }
 function validateFibonacciConstruction(model, findings) {
   const path = "src/construction/fibonacci.json";
   const fibonacci = parseJson(model.files, path, findings);
   if (!fibonacci) return;
-  if (JSON.stringify(fibonacci.sequence) !== JSON.stringify(FIB_SEQUENCE)) {
+  const fib = rec(fibonacci) ?? {};
+  if (JSON.stringify(fib.sequence) !== JSON.stringify(FIB_SEQUENCE)) {
     findings.push(finding("FIBONACCI_SEQUENCE_INVALID", path, "Fibonacci sequence must be 1,1,2,3,5,8,13"));
   }
-  if (!(/* @__PURE__ */ new Set(["structural", "optical-reference"])).has(fibonacci.usage)) {
+  if (!(/* @__PURE__ */ new Set(["structural", "optical-reference"])).has(fib.usage)) {
     findings.push(finding("FIBONACCI_USAGE_INVALID", path, "Fibonacci usage must be structural or optical-reference"));
   }
-  const unit = Number(fibonacci.unit);
-  const tolPx = Number(fibonacci.tolerancePx ?? 1.5);
-  const tolRatio = Number(fibonacci.toleranceRatio ?? 0.08);
+  const unit = Number(fib.unit);
+  const tolPx = Number(fib.tolerancePx ?? 1.5);
+  const tolRatio = Number(fib.toleranceRatio ?? 0.08);
   if (!(unit > 0) || !Number.isFinite(unit)) {
     findings.push(finding("FIBONACCI_UNIT_INVALID", path, "fibonacci.unit must be a positive number (base radius)"));
   }
   if (!(tolPx > 0) || !(tolRatio > 0 && tolRatio < 0.5)) {
     findings.push(finding("FIBONACCI_TOLERANCE_INVALID", path, "tolerancePx must be > 0 and toleranceRatio in (0, 0.5)"));
   }
-  const circles = Array.isArray(fibonacci.circles) ? fibonacci.circles : [];
+  const circles = asList(fib.circles);
   if (circles.length < 3) {
     findings.push(finding("FIBONACCI_CIRCLES_MISSING", path, "formal construction requires at least three named Fibonacci circles"));
   }
   const byId = /* @__PURE__ */ new Map();
   for (const circle of circles) {
-    if (!circle || typeof circle.id !== "string" || !circle.id) {
+    const item = rec(circle);
+    if (!item || typeof item.id !== "string" || !item.id) {
       findings.push(finding("FIBONACCI_CIRCLE_INVALID", path, "each circle needs a non-empty id"));
       continue;
     }
-    if (byId.has(circle.id)) findings.push(finding("FIBONACCI_CIRCLE_INVALID", path, `duplicate circle id ${circle.id}`));
-    const cx = Number(circle.cx);
-    const cy = Number(circle.cy);
-    const radiusUnits = Number(circle.radiusUnits);
+    if (byId.has(item.id)) findings.push(finding("FIBONACCI_CIRCLE_INVALID", path, `duplicate circle id ${item.id}`));
+    const cx = Number(item.cx);
+    const cy = Number(item.cy);
+    const radiusUnits = Number(item.radiusUnits);
     if (![cx, cy, radiusUnits].every(Number.isFinite)) {
-      findings.push(finding("FIBONACCI_CIRCLE_INVALID", path, `circle ${circle.id} needs numeric cx, cy, radiusUnits`));
+      findings.push(finding("FIBONACCI_CIRCLE_INVALID", path, `circle ${item.id} needs numeric cx, cy, radiusUnits`));
       continue;
     }
     if (!FIB_SEQUENCE.includes(radiusUnits)) {
-      findings.push(finding("FIBONACCI_RADIUS_NOT_IN_SEQUENCE", path, `circle ${circle.id} radiusUnits=${radiusUnits} is not in 1,1,2,3,5,8,13`));
+      findings.push(finding("FIBONACCI_RADIUS_NOT_IN_SEQUENCE", path, `circle ${item.id} radiusUnits=${radiusUnits} is not in 1,1,2,3,5,8,13`));
     }
-    byId.set(circle.id, { id: circle.id, cx, cy, radiusUnits, r: radiusUnits * (unit > 0 ? unit : 1) });
+    byId.set(item.id, { id: item.id, cx, cy, radiusUnits, r: radiusUnits * (unit > 0 ? unit : 1) });
   }
   const unitSet = [...new Set([...byId.values()].map((c) => c.radiusUnits))].sort((a, b) => a - b);
   let hasAdjacentPair = false;
   for (let i = 0; i < unitSet.length; i += 1) {
     for (let j = i + 1; j < unitSet.length; j += 1) {
-      if (fibAdjacent(unitSet[i], unitSet[j])) {
+      const left = unitSet[i];
+      const right = unitSet[j];
+      if (left === void 0 || right === void 0) continue;
+      if (fibAdjacent(left, right)) {
         hasAdjacentPair = true;
-        const larger = Math.max(unitSet[i], unitSet[j]);
-        const smaller = Math.min(unitSet[i], unitSet[j]);
+        const larger = Math.max(left, right);
+        const smaller = Math.min(left, right);
         const ratio = expectedRatio(larger, smaller);
         const expected = larger === smaller ? 1 : larger / smaller;
         if (ratio != null && Math.abs(ratio - expected) > 1e-9) {
@@ -518,25 +564,29 @@ function validateFibonacciConstruction(model, findings) {
   if (circles.length >= 2 && !hasAdjacentPair) {
     findings.push(finding("FIBONACCI_RATIO_PAIR_MISSING", path, "circles must include at least one adjacent Fibonacci radius pair (e.g. 5+8 or 8+13)"));
   }
-  const spiral = fibonacci.spiral;
-  if (!spiral || spiral.kind !== "fibonacci-quarter-arcs" || !Array.isArray(spiral.orderedCircleIds) || spiral.orderedCircleIds.length < 3) {
+  const spiral = rec(fib.spiral);
+  const orderedIds = spiral && Array.isArray(spiral.orderedCircleIds) ? spiral.orderedCircleIds : null;
+  if (!spiral || spiral.kind !== "fibonacci-quarter-arcs" || !orderedIds || orderedIds.length < 3) {
     findings.push(finding("FIBONACCI_SPIRAL_INVALID", path, "spiral.kind must be fibonacci-quarter-arcs with orderedCircleIds length \u2265 3"));
   } else {
-    const ordered = spiral.orderedCircleIds.map((id) => byId.get(id)).filter(Boolean);
+    const ordered = orderedIds.map((id) => byId.get(id)).filter((value) => Boolean(value));
     if (ordered.length >= 2) {
       let maxCenterDist = 0;
       for (let i = 0; i < ordered.length; i += 1) {
         for (let j = i + 1; j < ordered.length; j += 1) {
-          maxCenterDist = Math.max(maxCenterDist, Math.hypot(ordered[i].cx - ordered[j].cx, ordered[i].cy - ordered[j].cy));
+          const left = ordered[i];
+          const right = ordered[j];
+          if (!left || !right) continue;
+          maxCenterDist = Math.max(maxCenterDist, Math.hypot(left.cx - right.cx, left.cy - right.cy));
         }
       }
       if (maxCenterDist <= tolPx) {
         findings.push(finding("FIBONACCI_SPIRAL_CONCENTRIC", path, "spiral circles must not be concentric; quarter-arc construction needs offset joint centers"));
       }
     }
-    for (let i = 0; i < spiral.orderedCircleIds.length - 1; i += 1) {
-      const a = byId.get(spiral.orderedCircleIds[i]);
-      const b = byId.get(spiral.orderedCircleIds[i + 1]);
+    for (let i = 0; i < orderedIds.length - 1; i += 1) {
+      const a = byId.get(orderedIds[i]);
+      const b = byId.get(orderedIds[i + 1]);
       if (!a || !b) {
         findings.push(finding("FIBONACCI_SPIRAL_INVALID", path, `spiral references unknown circle at index ${i}`));
         continue;
@@ -555,48 +605,51 @@ function validateFibonacciConstruction(model, findings) {
     }
     if (Array.isArray(spiral.arcs) && spiral.arcs.length > 0) {
       for (const arc of spiral.arcs) {
-        if (!byId.has(arc?.circleId)) {
-          findings.push(finding("FIBONACCI_SPIRAL_ARC_INVALID", path, `spiral.arcs references unknown circle ${arc?.circleId}`));
+        const arcRec = rec(arc);
+        if (!byId.has(arcRec?.circleId)) {
+          findings.push(finding("FIBONACCI_SPIRAL_ARC_INVALID", path, `spiral.arcs references unknown circle ${arcRec?.circleId}`));
           continue;
         }
-        const sweep = Math.abs(Number(arc.endAngleDeg) - Number(arc.startAngleDeg));
+        const sweep = Math.abs(Number(arcRec?.endAngleDeg) - Number(arcRec?.startAngleDeg));
         const norm = (sweep % 360 + 360) % 360;
         if (Math.abs(norm - 90) > 1 && Math.abs(norm - 270) > 1) {
-          findings.push(finding("FIBONACCI_SPIRAL_ARC_INVALID", path, `spiral arc on ${arc.circleId} must be a quarter turn (90\xB0), got ${sweep}\xB0`));
+          findings.push(finding("FIBONACCI_SPIRAL_ARC_INVALID", path, `spiral arc on ${arcRec?.circleId} must be a quarter turn (90\xB0), got ${sweep}\xB0`));
         }
       }
     }
   }
-  const bindings = Array.isArray(fibonacci.pathBindings) ? fibonacci.pathBindings : [];
-  const outlineBindings = bindings.filter((b) => b?.role === "outline");
-  const voidBindings = bindings.filter((b) => b?.role === "negative-space" || b?.role === "turn");
+  const bindings = asList(fib.pathBindings);
+  const outlineBindings = bindings.filter((b) => rec(b)?.role === "outline");
+  const voidBindings = bindings.filter((b) => rec(b)?.role === "negative-space" || rec(b)?.role === "turn");
   if (outlineBindings.length < 2 || voidBindings.length < 1) {
     findings.push(finding("FIBONACCI_PATH_BINDINGS_INVALID", path, "pathBindings need \u22652 outline and \u22651 negative-space|turn roles bound to circles"));
   }
   for (const binding of bindings) {
-    if (!byId.has(binding?.circleId)) {
-      findings.push(finding("FIBONACCI_PATH_BINDINGS_INVALID", path, `pathBinding references unknown circleId ${binding?.circleId}`));
+    const item = rec(binding);
+    if (!byId.has(item?.circleId)) {
+      findings.push(finding("FIBONACCI_PATH_BINDINGS_INVALID", path, `pathBinding references unknown circleId ${item?.circleId}`));
     }
-    if (!["center", "rim"].includes(binding?.feature)) {
+    if (!["center", "rim"].includes(item?.feature)) {
       findings.push(finding("FIBONACCI_PATH_BINDINGS_INVALID", path, "pathBinding.feature must be center or rim"));
     }
   }
-  const anchors = Array.isArray(fibonacci.anchors) ? fibonacci.anchors : [];
+  const anchors = asList(fib.anchors);
   if (anchors.length > 0) {
-    if (anchors.filter(({ kind }) => kind === "outline").length < 2 || anchors.filter(({ kind }) => kind === "negative-space" || kind === "turn").length < 1) {
+    if (anchors.filter((anchor) => rec(anchor)?.kind === "outline").length < 2 || anchors.filter((anchor) => rec(anchor)?.kind === "negative-space" || rec(anchor)?.kind === "turn").length < 1) {
       findings.push(finding("FIBONACCI_ANCHORS_INVALID", path, "when anchors are present, need two outline and one negative-space|turn"));
     }
   }
   const geometry = parseJson(model.files, "src/construction/geometry.json", findings);
+  const geometryRec = rec(geometry);
   if (geometry) {
-    const primitives = Array.isArray(geometry.primitives) ? geometry.primitives : [];
-    const circlePrims = primitives.filter((p) => p?.type === "circle" && typeof p.id === "string");
+    const primitives = asList(geometryRec?.primitives);
+    const circlePrims = primitives.filter((p) => rec(p)?.type === "circle" && typeof rec(p)?.id === "string");
     for (const id of byId.keys()) {
-      if (!circlePrims.some((p) => p.id === id)) {
+      if (!circlePrims.some((p) => rec(p)?.id === id)) {
         findings.push(finding("FIBONACCI_GEOMETRY_PRIMITIVE_MISSING", "src/construction/geometry.json", `geometry.primitives must include circle id ${id}`));
       }
     }
-    if (!Array.isArray(geometry.pathMappings) || geometry.pathMappings.length === 0) {
+    if (!Array.isArray(geometryRec?.pathMappings) || asList(geometryRec?.pathMappings).length === 0) {
       findings.push(finding("GEOMETRY_MAPPING_INVALID", "src/construction/geometry.json", "geometry must map master paths to stable primitives"));
     }
   }
@@ -616,13 +669,14 @@ function validateFibonacciConstruction(model, findings) {
     }
   }
   for (const binding of bindings) {
-    const circle = byId.get(binding.circleId);
+    const item = rec(binding);
+    const circle = byId.get(item?.circleId);
     if (!circle) continue;
-    if (binding.feature === "center") {
+    if (item?.feature === "center") {
       const ok = svgCircles.some((s) => Math.hypot(s.cx - circle.cx, s.cy - circle.cy) <= tolPx) || pathPoints.some((p) => Math.hypot(p.x - circle.cx, p.y - circle.cy) <= tolPx);
       if (!ok) findings.push(finding("FIBONACCI_BINDING_CENTER_MISS", "build/master/mark.svg", `outline/void center binding for ${circle.id} not found near (${circle.cx},${circle.cy})`));
     }
-    if (binding.feature === "rim") {
+    if (item?.feature === "rim") {
       const ok = svgCircles.some((s) => Math.hypot(s.cx - circle.cx, s.cy - circle.cy) <= tolPx && Math.abs(s.r - circle.r) <= tolPx) || pathPoints.some((p) => Math.abs(Math.hypot(p.x - circle.cx, p.y - circle.cy) - circle.r) <= tolPx);
       if (!ok) findings.push(finding("FIBONACCI_BINDING_RIM_MISS", "build/master/mark.svg", `rim binding for ${circle.id} not found on circumference r=${circle.r}`));
     }
@@ -631,7 +685,7 @@ function validateFibonacciConstruction(model, findings) {
   for (let i = 0; i < sorted.length - 1; i += 1) {
     const a = sorted[i];
     const b = sorted[i + 1];
-    if (!fibAdjacent(a.radiusUnits, b.radiusUnits) || a.radiusUnits === b.radiusUnits) continue;
+    if (!a || !b || !fibAdjacent(a.radiusUnits, b.radiusUnits) || a.radiusUnits === b.radiusUnits) continue;
     const ratio = b.r / a.r;
     const ideal = b.radiusUnits / a.radiusUnits;
     if (Math.abs(ratio - ideal) > tolRatio * ideal) {
@@ -652,58 +706,68 @@ function validateConstruction(model, findings) {
   const digest = masterSubjectDigest(model);
   if (!isObject(construction) || construction.schema !== CONSTRUCTION_SCHEMA || !(Number(construction.tolerance) >= 0) || !(Number(construction.maxOpticalCorrection) >= 0)) findings.push(finding("CONSTRUCTION_CONFIG_INVALID", "src/construction/construction.json", "construction config must declare schema and non-negative tolerances"));
   if (!isObject(standard) || standard.schema !== STANDARD_GRID_SCHEMA || standard.masterDigest !== digest || !(Number(standard.unit) > 0) || !(Number(standard.clearSpace) > 0) || !(Number(standard.minimumPixels) > 0)) findings.push(finding("STANDARD_GRID_INVALID", "src/construction/standard-grid.json", "standard grid must bind current master and use positive unit, clear space, and minimum size"));
-  const primitives = Array.isArray(geometry?.primitives) ? geometry.primitives : [];
-  const mappings = Array.isArray(geometry?.pathMappings) ? geometry.pathMappings : [];
+  const geometryRec = rec(geometry);
+  const primitives = asList(geometryRec?.primitives);
+  const mappings = asList(geometryRec?.pathMappings);
   const primitiveIds = /* @__PURE__ */ new Set();
   let geometryValid = isObject(geometry) && geometry.schema === GEOMETRY_SCHEMA && geometry.masterDigest === digest && primitives.length > 0 && mappings.length >= ROLES.length;
   for (const primitive of primitives) {
-    const parameters = isObject(primitive?.parameters) ? Object.values(primitive.parameters) : [];
-    if (!isObject(primitive) || typeof primitive.id !== "string" || !primitive.id || primitiveIds.has(primitive.id) || !PRIMITIVE_TYPES.has(primitive.type) || parameters.length === 0 || parameters.some((value) => typeof value !== "number" || !Number.isFinite(value))) geometryValid = false;
-    else primitiveIds.add(primitive.id);
+    const item = rec(primitive);
+    const parameters = isObject(item?.parameters) ? Object.values(item.parameters) : [];
+    if (!item || typeof item.id !== "string" || !item.id || primitiveIds.has(item.id) || typeof item.type !== "string" || !PRIMITIVE_TYPES.has(item.type) || parameters.length === 0 || parameters.some((value) => typeof value !== "number" || !Number.isFinite(value))) geometryValid = false;
+    else primitiveIds.add(item.id);
   }
   const mappingKeys = /* @__PURE__ */ new Set();
   const mappingPrimitives = /* @__PURE__ */ new Map();
   for (const mapping of mappings) {
-    const masterIds = svgPrimitiveIds(model.files[`build/master/${mapping?.role}.svg`]);
-    const key = `${mapping?.role}:${mapping?.pathId}`;
-    if (!ROLES.includes(mapping?.role) || typeof mapping?.pathId !== "string" || !masterIds.has(mapping.pathId) || !Array.isArray(mapping.primitiveIds) || mapping.primitiveIds.length === 0 || new Set(mapping.primitiveIds).size !== mapping.primitiveIds.length || mapping.primitiveIds.some((id) => !primitiveIds.has(id)) || mappingKeys.has(key)) geometryValid = false;
+    const item = rec(mapping);
+    const masterIds = svgPrimitiveIds(model.files?.[`build/master/${item?.role}.svg`]);
+    const key = `${item?.role}:${item?.pathId}`;
+    const primitiveIdList = asList(item?.primitiveIds);
+    if (typeof item?.role !== "string" || !ROLES.includes(item.role) || typeof item?.pathId !== "string" || !masterIds.has(item.pathId) || !Array.isArray(item?.primitiveIds) || primitiveIdList.length === 0 || new Set(primitiveIdList).size !== primitiveIdList.length || primitiveIdList.some((id) => !primitiveIds.has(id)) || mappingKeys.has(key)) geometryValid = false;
     else {
       mappingKeys.add(key);
-      mappingPrimitives.set(key, new Set(mapping.primitiveIds));
+      mappingPrimitives.set(key, new Set(primitiveIdList));
     }
   }
-  if (ROLES.some((role) => !mappings.some((mapping) => mapping?.role === role))) geometryValid = false;
+  if (ROLES.some((role) => !mappings.some((mapping) => rec(mapping)?.role === role))) geometryValid = false;
   if (!geometryValid) findings.push(finding("GEOMETRY_MAPPING_INVALID", "src/construction/geometry.json", "geometry must bind current master ids to unique, numeric stable primitives for every role"));
   const sequence = [1, 1, 2, 3, 5, 8, 13];
-  const anchors = Array.isArray(fibonacci?.anchors) ? fibonacci.anchors : [];
+  const anchors = asList(rec(fibonacci)?.anchors);
   const anchorIds = /* @__PURE__ */ new Set();
   let fibonacciValid = isObject(fibonacci) && fibonacci.schema === FIBONACCI_SCHEMA && fibonacci.masterDigest === digest && JSON.stringify(fibonacci.sequence) === JSON.stringify(sequence) && (/* @__PURE__ */ new Set(["structural", "optical-reference"])).has(fibonacci.usage);
   for (const anchor of anchors) {
-    const key = `${anchor?.role}:${anchor?.pathId}`;
-    if (!isObject(anchor) || typeof anchor.id !== "string" || !anchor.id || anchorIds.has(anchor.id) || !mappingKeys.has(key) || !mappingPrimitives.get(key)?.has(anchor.primitiveId) || !["outline", "negative-space", "turn"].includes(anchor.kind) || !Number.isFinite(anchor.x) || !Number.isFinite(anchor.y) || !sequence.includes(anchor.sequenceValue)) fibonacciValid = false;
-    else anchorIds.add(anchor.id);
+    const item = rec(anchor);
+    const key = `${item?.role}:${item?.pathId}`;
+    if (!item || typeof item.id !== "string" || !item.id || anchorIds.has(item.id) || !mappingKeys.has(key) || !mappingPrimitives.get(key)?.has(item.primitiveId) || !["outline", "negative-space", "turn"].includes(item.kind) || !Number.isFinite(item.x) || !Number.isFinite(item.y) || !sequence.includes(item.sequenceValue)) fibonacciValid = false;
+    else anchorIds.add(item.id);
   }
-  if (anchors.filter(({ kind }) => kind === "outline").length < 2 || anchors.filter(({ kind }) => kind === "negative-space" || kind === "turn").length < 1) fibonacciValid = false;
+  if (anchors.filter((anchor) => rec(anchor)?.kind === "outline").length < 2 || anchors.filter((anchor) => rec(anchor)?.kind === "negative-space" || rec(anchor)?.kind === "turn").length < 1) fibonacciValid = false;
   if (!fibonacciValid) findings.push(finding("FIBONACCI_ANCHORS_INVALID", "src/construction/fibonacci.json", "Fibonacci anchors must bind coordinates and sequence values to mapped current-master paths"));
   for (const sheet of SHEETS) for (const extension of ["svg", "png"]) {
     const filePath = `evidence/construction/${sheet}.${digest}.${extension}`;
     if (!hasFile(model, filePath)) findings.push(finding("CONSTRUCTION_SHEET_MISSING", filePath, `${sheet} ${extension.toUpperCase()} sheet must bind the current master digest`));
-    else if (extension === "svg" ? !svgValid(model.files[filePath], { sheet, masterDigest: digest }) : !pngValid(model, filePath)) findings.push(finding("CONSTRUCTION_SHEET_INVALID", filePath, `${sheet} sheet must be a valid bound ${extension.toUpperCase()}`));
+    else if (extension === "svg" ? !svgValid(model.files?.[filePath], { sheet, masterDigest: digest }) : !pngValid(model, filePath)) findings.push(finding("CONSTRUCTION_SHEET_INVALID", filePath, `${sheet} sheet must be a valid bound ${extension.toUpperCase()}`));
   }
   const manifestPath = `evidence/construction/manifest.${digest}.json`;
   if (!hasFile(model, manifestPath)) findings.push(finding("CONSTRUCTION_MANIFEST_MISSING", manifestPath, "construction manifest is required"));
-  else if (!exactJson(model.files[manifestPath], createConstructionManifest(model))) findings.push(finding("CONSTRUCTION_MANIFEST_INVALID", manifestPath, "construction manifest must bind current master and sheet bytes"));
+  else if (!exactJson(model.files?.[manifestPath], createConstructionManifest(model))) findings.push(finding("CONSTRUCTION_MANIFEST_INVALID", manifestPath, "construction manifest must bind current master and sheet bytes"));
   validateFibonacciConstruction(model, findings);
 }
 function samplesFromManifest(manifest) {
-  if (Array.isArray(manifest?.samples)) return manifest.samples;
-  if (Array.isArray(manifest?.cells)) {
-    return manifest.cells.map((cell, index) => ({
-      id: cell.id ?? `cell-${index}`,
-      row: cell.row,
-      size: cell.size,
-      locator: { bbox: cell.bbox ?? cell.locator?.bbox, region: cell.region ?? cell.locator?.region }
-    }));
+  const record = rec(manifest);
+  if (Array.isArray(record?.samples)) return record.samples;
+  if (Array.isArray(record?.cells)) {
+    return record.cells.map((cell, index) => {
+      const item = rec(cell) ?? {};
+      const locator = rec(item.locator);
+      return {
+        id: item.id ?? `cell-${index}`,
+        row: item.row,
+        size: item.size,
+        locator: { bbox: item.bbox ?? locator?.bbox, region: item.region ?? locator?.region }
+      };
+    });
   }
   return [];
 }
@@ -715,6 +779,7 @@ function validatePreviewAndAesthetic(model, findings) {
   if (!hasFile(model, stripPath)) findings.push(finding("PREVIEW_STRIP_MISSING", stripPath, "multi-size preview strip PNG bound to master digest is required for release"));
   else if (!pngValid(model, stripPath)) findings.push(finding("PREVIEW_STRIP_INVALID", stripPath, "preview strip must be a valid PNG"));
   const manifest = parseJson(model.files, manifestPath, findings);
+  const manifestRec = rec(manifest);
   const samples = samplesFromManifest(manifest);
   if (manifest) {
     const sizes = new Set(samples.map((sample) => Number(sample.size)).filter(Number.isFinite));
@@ -726,40 +791,45 @@ function validatePreviewAndAesthetic(model, findings) {
       if (!Array.isArray(bbox) || bbox.length !== 4 || bbox.some((value) => !Number.isFinite(Number(value)))) findings.push(finding("PREVIEW_STRIP_BBOX_INVALID", manifestPath, `sample ${sample?.id ?? "?"} missing locator.bbox[4]`));
     }
     if (samples.length > 1 && samples.every((sample) => Number(sample?.locator?.bbox?.[0]) === 0 && Number(sample?.locator?.bbox?.[1]) === 0)) findings.push(finding("PREVIEW_STRIP_BBOX_FABRICATED", manifestPath, "sample bboxes must come from the rendered strip"));
-    const claimed = manifest.artifact?.sha256 ?? manifest.pngSha256 ?? manifest.stripDigest ?? manifest.sha256;
+    const artifact = rec(manifestRec?.artifact);
+    const claimed = artifact?.sha256 ?? manifestRec?.pngSha256 ?? manifestRec?.stripDigest ?? manifestRec?.sha256;
     if (typeof claimed !== "string" || claimed !== fileDigest(model, stripPath)) findings.push(finding("PREVIEW_STRIP_DIGEST_MISMATCH", manifestPath, "manifest strip digest must match strip PNG bytes"));
-    if (manifest.masterDigest !== digest) findings.push(finding("PREVIEW_STRIP_MASTER_STALE", manifestPath, "preview manifest masterDigest must match current master digest"));
+    if (manifestRec?.masterDigest !== digest) findings.push(finding("PREVIEW_STRIP_MASTER_STALE", manifestPath, "preview manifest masterDigest must match current master digest"));
   }
   const squint = parseJson(model.files, squintPath, findings);
+  const squintRec = rec(squint);
   if (squint) {
-    if (squint.masterDigest !== digest) findings.push(finding("SQUINT_MASTER_STALE", squintPath, "squint evidence masterDigest must match current masters"));
-    if (squint.stripDigest !== fileDigest(model, stripPath)) findings.push(finding("SQUINT_STRIP_DIGEST_MISMATCH", squintPath, "squint.stripDigest must equal the preview strip PNG digest"));
-    if (squint.method !== "box-blur-threshold-connected-components") findings.push(finding("SQUINT_METHOD_INVALID", squintPath, "squint.method must use measured connected-component analysis"));
-    if (squint.pass !== true) findings.push(finding("SQUINT_FAILED", squintPath, "squint observation must pass"));
-    const cells = Array.isArray(squint.cells) ? squint.cells : [];
-    const sizes = new Set(cells.map((cell) => Number(cell.size)));
+    if (squintRec?.masterDigest !== digest) findings.push(finding("SQUINT_MASTER_STALE", squintPath, "squint evidence masterDigest must match current masters"));
+    if (squintRec?.stripDigest !== fileDigest(model, stripPath)) findings.push(finding("SQUINT_STRIP_DIGEST_MISMATCH", squintPath, "squint.stripDigest must equal the preview strip PNG digest"));
+    if (squintRec?.method !== "box-blur-threshold-connected-components") findings.push(finding("SQUINT_METHOD_INVALID", squintPath, "squint.method must use measured connected-component analysis"));
+    if (squintRec?.pass !== true) findings.push(finding("SQUINT_FAILED", squintPath, "squint observation must pass"));
+    const cells = asList(squintRec?.cells);
+    const sizes = new Set(cells.map((cell) => Number(rec(cell)?.size)));
     for (const need of [16, 32, 64]) if (!sizes.has(need)) findings.push(finding("SQUINT_CELLS_INCOMPLETE", squintPath, `squint cells must cover ${need}px`));
     for (const cell of cells) {
-      if (typeof cell.silhouetteIntact !== "boolean" || !(Number(cell.primaryShare) >= 0) || !(Number(cell.density) >= 0)) findings.push(finding("SQUINT_METRICS_MISSING", squintPath, `cell ${cell.id ?? cell.size} must contain measured metrics`));
-      if (squint.pass === true && cell.silhouetteIntact !== true) findings.push(finding("SQUINT_PASS_INCONSISTENT", squintPath, `pass=true conflicts with cell ${cell.id ?? cell.size}`));
-      const bbox = cell.bbox;
-      if (!Array.isArray(bbox) || bbox.length !== 4) findings.push(finding("SQUINT_BBOX_MISSING", squintPath, `cell ${cell.id ?? cell.size} must include bbox`));
+      const item = rec(cell) ?? {};
+      if (typeof item.silhouetteIntact !== "boolean" || !(Number(item.primaryShare) >= 0) || !(Number(item.density) >= 0)) findings.push(finding("SQUINT_METRICS_MISSING", squintPath, `cell ${item.id ?? item.size} must contain measured metrics`));
+      if (squintRec?.pass === true && item.silhouetteIntact !== true) findings.push(finding("SQUINT_PASS_INCONSISTENT", squintPath, `pass=true conflicts with cell ${item.id ?? item.size}`));
+      const bbox = item.bbox;
+      if (!Array.isArray(bbox) || bbox.length !== 4) findings.push(finding("SQUINT_BBOX_MISSING", squintPath, `cell ${item.id ?? item.size} must include bbox`));
       else if (samples.length > 0 && !samples.some((sample) => sample?.locator?.bbox?.every((value, index) => Number(value) === Number(bbox[index])))) findings.push(finding("SQUINT_BBOX_NOT_IN_MANIFEST", squintPath, `cell bbox ${bbox.join(",")} is not in the preview manifest`));
     }
-    if (typeof squint.observation !== "string" || squint.observation.trim().length < 24) findings.push(finding("SQUINT_OBSERVATION_WEAK", squintPath, "squint observation must describe the silhouette result"));
+    if (typeof squintRec?.observation !== "string" || squintRec.observation.trim().length < 24) findings.push(finding("SQUINT_OBSERVATION_WEAK", squintPath, "squint observation must describe the silhouette result"));
   }
   const review = parseJson(model.files, "review.logo.json", findings);
+  const reviewRec = rec(review);
   if (review) {
-    if (review.masterDigest !== digest) findings.push(finding("REVIEW_MASTER_STALE", "review.logo.json", "review masterDigest must match current masters"));
-    if (review.autoStamped === true || review.source === "project-preview-default") findings.push(finding("AESTHETIC_SCORES_AUTOSTAMPED", "review.logo.json", "aesthetic criteria must not be auto-stamped"));
+    if (reviewRec?.masterDigest !== digest) findings.push(finding("REVIEW_MASTER_STALE", "review.logo.json", "review masterDigest must match current masters"));
+    if (reviewRec?.autoStamped === true || reviewRec?.source === "project-preview-default") findings.push(finding("AESTHETIC_SCORES_AUTOSTAMPED", "review.logo.json", "aesthetic criteria must not be auto-stamped"));
+    const criteria = rec(reviewRec?.criteria);
     for (const key of AESTHETIC_CRITERIA) {
-      const row = review.criteria?.[key];
+      const row = rec(criteria?.[key]);
       const score = Number(row?.score);
       const requiredMin = Number(row?.requiredMin ?? 2);
       if (!Number.isFinite(score) || score < requiredMin) findings.push(finding("AESTHETIC_SCORE_BELOW_THRESHOLD", "review.logo.json", `${key} score ${score} < requiredMin ${requiredMin}`));
       if (typeof row?.note !== "string" || row.note.trim().length < 8) findings.push(finding("AESTHETIC_NOTE_MISSING", "review.logo.json", `${key} requires a substantive note`));
     }
-    if (review.squintStripDigest !== fileDigest(model, stripPath)) findings.push(finding("REVIEW_SQUINT_DIGEST_MISMATCH", "review.logo.json", "review squintStripDigest must match strip PNG"));
+    if (reviewRec?.squintStripDigest !== fileDigest(model, stripPath)) findings.push(finding("REVIEW_SQUINT_DIGEST_MISMATCH", "review.logo.json", "review squintStripDigest must match strip PNG"));
   }
 }
 function validateVariants(model, findings) {
@@ -768,8 +838,8 @@ function validateVariants(model, findings) {
 }
 function validateEvidenceRecord(model, filePath, schema, requiredChecks, code, findings) {
   const record = parseJson(model.files, filePath, findings, code);
-  const checks = Array.isArray(record?.checks) ? record.checks : [];
-  const valid = isObject(record) && record.schema === schema && record.artifactId === model.artifactId && record.subjectDigest === computeLogoSubjectDigest(model) && requiredChecks.every((id) => checks.some((check) => check?.id === id && check?.status === "pass"));
+  const checks = asList(rec(record)?.checks);
+  const valid = isObject(record) && record.schema === schema && record.artifactId === model.artifactId && record.subjectDigest === computeLogoSubjectDigest(model) && requiredChecks.every((id) => checks.some((check) => rec(check)?.id === id && rec(check)?.status === "pass"));
   if (!valid) findings.push(finding(code, filePath, `${filePath} must bind the current subject and all required passing checks`));
   return record;
 }
@@ -778,22 +848,23 @@ function validateRelease(model, findings) {
   for (const variant of VARIANTS) for (const role of ROLES) {
     const filePath = `dist/${variant}/${role}.svg`;
     if (!hasFile(model, filePath)) continue;
-    if (!svgValid(model.files[filePath])) findings.push(finding("RELEASE_SVG_INVALID", filePath, "release SVG must be a self-contained non-empty vector"));
-    else if (geometrySignature(model.files[filePath]) !== geometrySignature(model.files[`build/master/${role}.svg`])) findings.push(finding("RELEASE_GEOMETRY_MISMATCH", filePath, "release SVG geometry must match the built master role"));
+    if (!svgValid(model.files?.[filePath])) findings.push(finding("RELEASE_SVG_INVALID", filePath, "release SVG must be a self-contained non-empty vector"));
+    else if (geometrySignature(model.files?.[filePath]) !== geometrySignature(model.files?.[`build/master/${role}.svg`])) findings.push(finding("RELEASE_GEOMETRY_MISMATCH", filePath, "release SVG geometry must match the built master role"));
   }
   for (const role of ROLES) {
     const filePath = `dist/primary/${role}.png`;
     if (hasFile(model, filePath) && !pngValid(model, filePath)) findings.push(finding("RELEASE_PNG_INVALID", filePath, "primary PNG must have a valid PNG header and positive dimensions"));
   }
   validateEvidenceRecord(model, "evidence.accessibility.json", ACCESSIBILITY_SCHEMA, ["minimum-size", "contrast"], "ACCESSIBILITY_EVIDENCE_INVALID", findings);
-  const review = validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, ["geometry", "legibility", "variants"], "REVIEW_INVALID", findings);
+  const review = rec(validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, ["geometry", "legibility", "variants"], "REVIEW_INVALID", findings));
+  const reviewer = rec(review?.reviewer);
   if (review?.decision !== "approved") findings.push(finding("REVIEW_INVALID", "review.logo.json", "logo review decision must be approved"));
-  if (review && (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId)) {
+  if (review && (!["human", "independent-agent"].includes(reviewer?.kind) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId)) {
     findings.push(finding("REVIEWER_INVALID", "review.logo.json", "logo review must name an independent reviewer kind and sessionId"));
-  } else if (review?.reviewer?.sessionId && review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+  } else if (reviewer?.sessionId && reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
     findings.push(finding("REVIEW_SELF", "review.logo.json", "logo reviewer session must differ from the current release session"));
   }
-  if (hasFile(model, "release.manifest.json") && !exactJson(model.files["release.manifest.json"], createLogoReleaseManifest(model))) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind current source and every delivery byte"));
+  if (hasFile(model, "release.manifest.json") && !exactJson(model.files?.["release.manifest.json"], createLogoReleaseManifest(model))) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind current source and every delivery byte"));
   if (!hasFile(model, "receipt.release.json")) findings.push(finding("RELEASE_PATH_MISSING", "receipt.release.json", "receipt.release.json is required for release"));
   else if (!validateLogoReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current logo sources, masters, evidence, and outputs"));
 }
@@ -802,16 +873,16 @@ function validateLogoModel(model, { stage = "source" } = {}) {
   const files = model?.files ?? {};
   if (hasFile(model, ".logo-delivery-journal.json")) findings.push(finding("MUTATION_JOURNAL_OPEN", ".logo-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
   validateRequired(files, findings);
-  validatePlanAndProject(model, stage, findings);
+  validatePlanAndProject(model ?? {}, stage, findings);
   validateToolchain(files, findings);
   validateArtifactGitignore(files, findings);
-  validateConcepts(model, findings);
-  validateMaster(model, findings);
-  validateConstruction(model, findings);
-  validateVariants(model, findings);
+  validateConcepts(model ?? {}, findings);
+  validateMaster(model ?? {}, findings);
+  validateConstruction(model ?? {}, findings);
+  validateVariants(model ?? {}, findings);
   if (stage === "release") {
-    validateRelease(model, findings);
-    validatePreviewAndAesthetic(model, findings);
+    validateRelease(model ?? {}, findings);
+    validatePreviewAndAesthetic(model ?? {}, findings);
   }
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
@@ -819,7 +890,8 @@ function evaluateLogoWrite({ relativePath = "", toolName = "" } = {}) {
   const normalized = relativePath.replaceAll("\\", "/");
   const match = normalized.match(/(?:^|\/)artifacts\/logo\/[^/]+\/(?<inside>.+)$/u);
   if (!match) return { decision: "allow" };
-  const inside = match.groups.inside;
+  const inside = match.groups?.inside;
+  if (inside === void 0) return { decision: "allow" };
   if (generatedSubjectPath(inside)) return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a registered logo guard tool, not ${toolName || "an unregistered tool"}` };
   return { decision: "allow" };
 }

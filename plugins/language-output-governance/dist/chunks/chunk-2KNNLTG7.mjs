@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:e2c899ff74b0ee05fae26bce12ed170de8626cce44835f531da3b915196b3021
+// harness-source-hash: sha256:8b22cb1b21e5f6b88eb09c24ab5257e5560707fea0b68d252123ee742a6e79af
 import {
   profileFor
-} from "./chunk-NAWYRYUG.mjs";
+} from "./chunk-3ZGNNHPU.mjs";
 
 // plugins/language-output-governance/src/lib/han-variants.ts
 var HAN_VARIANT_PAIRS = Object.freeze([
@@ -197,6 +197,7 @@ var SCRIPT_PATTERNS = {
   kana: /[\p{Script=Hiragana}\p{Script=Katakana}]/gu,
   thai: new RegExp("\\p{Script=Thai}", "gu")
 };
+var SCRIPT_KEYS = ["han", "hangul", "kana", "thai"];
 var MIN_VARIANT_CHARACTERS = 3;
 var MIN_JAPANESE_KANA = 2;
 var SCRIPT_LABELS = Object.freeze({
@@ -285,7 +286,7 @@ function detectLanguageDrift(text, {
   const candidate = stripMarkdown ? stripNonProseMarkdown(text) : text;
   const segments = [...candidate.split(/\r?\n/u), candidate];
   const findings = [];
-  for (const script of Object.keys(SCRIPT_PATTERNS)) {
+  for (const script of SCRIPT_KEYS) {
     if (allowed.has(script)) continue;
     let strongest = null;
     for (const segment of segments) {

@@ -1,41 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:019842eddaaaa3200c327f3d06f42b3a86e3f7fcb3fbd566c1556b872f0d609c
+// harness-source-hash: sha256:c8ec552415b90cbd7f90d64b58f8a5e36f463ae272ee86f95934562875a15576
 import {
+  eventCwd,
+  eventToolInput,
+  eventToolName,
   formatFindings,
-  inspectChange
-} from "../chunks/chunk-B3QED6YW.mjs";
+  inspectChange,
+  isRecord
+} from "../chunks/chunk-45PNVDIH.mjs";
 
 // plugins/sdd-workflow/src/entries/hooks/sdd-workflow-hook.ts
 import { existsSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
@@ -168,6 +145,12 @@ function extractFileTargets(event, options = {}) {
 // plugins/sdd-workflow/src/entries/hooks/sdd-workflow-hook.ts
 var ARTIFACTS = /* @__PURE__ */ new Set(["spec.md", "plan.md", "tasks.md"]);
 var TARGET_PATH_CODES = /* @__PURE__ */ new Set(["invalid-change-name", "invalid-spec-root", "symlink-artifact", "artifact-read-error"]);
+function isArtifactName(value) {
+  return value !== void 0 && ARTIFACTS.has(value);
+}
+function isErrno(error) {
+  return isRecord(error) && typeof error.code === "string";
+}
 function targets(event) {
   const core = extractFileTargets(event, { includeShellWrites: true });
   if (!isShellTool(eventToolName(event))) return core;
@@ -185,7 +168,7 @@ function directArtifactTarget(path, workspaceRoot) {
   const changeDir = dirname(absolute);
   if (dirname(changeDir) !== resolve2(workspaceRoot, ".specs")) return null;
   const artifact = absolute.split("/").at(-1);
-  if (!ARTIFACTS.has(artifact)) return null;
+  if (!isArtifactName(artifact)) return null;
   return { artifact, changeDir };
 }
 function canonicalPath(path) {
@@ -195,7 +178,7 @@ function canonicalPath(path) {
     try {
       return resolve2(realpathSync(cursor), ...suffix);
     } catch (error) {
-      if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") return resolve2(path);
+      if (!isErrno(error) || error.code !== "ENOENT" && error.code !== "ENOTDIR") return resolve2(path);
     }
     const parent = dirname(cursor);
     if (parent === cursor) return resolve2(path);
@@ -224,13 +207,13 @@ function diagnostic(text) {
 function upstreamFindings(target, inspection) {
   const findings = [];
   if (target.artifact === "plan.md") {
-    if (!inspection.spec) findings.push({ code: "missing-spec", message: "Create spec.md first." });
+    if (!inspection.spec) findings.push({ code: "missing-spec", message: "Create spec.md first.", artifact: null });
     else findings.push(...inspection.spec.findings);
   }
   if (target.artifact === "tasks.md") {
-    if (!inspection.spec) findings.push({ code: "missing-spec", message: "Create spec.md first." });
+    if (!inspection.spec) findings.push({ code: "missing-spec", message: "Create spec.md first.", artifact: null });
     else findings.push(...inspection.spec.findings);
-    if (!inspection.plan) findings.push({ code: "missing-plan", message: "Create plan.md after spec.md." });
+    if (!inspection.plan) findings.push({ code: "missing-plan", message: "Create plan.md after spec.md.", artifact: null });
     else findings.push(...inspection.plan.findings);
   }
   return findings;
@@ -239,12 +222,13 @@ function targetPathFindings(target, inspection) {
   return inspection.findings.filter((item) => TARGET_PATH_CODES.has(item.code) && (item.artifact === target.artifact || item.artifact === target.changeDir.split("/").at(-1)));
 }
 function evaluateHook(mode, event) {
-  const workspaceRoot = repositoryRoot(event?.cwd ?? process.cwd());
-  const resolvedTargets = targets(event);
-  const artifacts = resolvedTargets.map((path) => artifactTarget(path, workspaceRoot)).filter(Boolean);
+  const rawCwd = event?.cwd;
+  const workspaceRoot = repositoryRoot(typeof rawCwd === "string" ? rawCwd : rawCwd == null ? process.cwd() : String(rawCwd));
+  const resolvedTargets = targets(event ?? {});
+  const artifacts = resolvedTargets.map((path) => artifactTarget(path, workspaceRoot)).filter((target) => target !== null);
   if (artifacts.length === 0) return null;
   if (mode === "pre") {
-    const command = isShellTool(eventToolName(event)) ? String(extractShellCommand(event) ?? "") : "";
+    const command = isShellTool(eventToolName(event ?? {})) ? String(extractShellCommand(event ?? {}) ?? "") : "";
     if (command && /(?:&&|\|\||;|\n)/u.test(command)) return deny("Compound shell writes that target .specs artifacts are not safe; write one artifact per tool call.");
     for (const target of artifacts) {
       const sameChange = artifacts.filter((candidate) => candidate.changeDir === target.changeDir).map(({ artifact }) => artifact);
@@ -274,7 +258,8 @@ async function main() {
   for await (const chunk of process.stdin) raw += chunk;
   let event;
   try {
-    event = raw.trim() ? JSON.parse(raw) : {};
+    const parsed = raw.trim() ? JSON.parse(raw) : {};
+    event = isRecord(parsed) ? parsed : {};
   } catch {
     return;
   }

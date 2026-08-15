@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:dabf6dd1113c58d71d04b6ebaa3b3792c605b6d37fb76b44cbe06813872b3bc5
+// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
 import {
   createPptxReceipt,
   loadPptxProject,
   validatePptxModel,
   validatePptxReceipt
-} from "../chunks/chunk-C3BXNGNL.mjs";
+} from "../chunks/chunk-5FDEPKIR.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/cli/project-release.ts
 import { open, rename, unlink, writeFile } from "node:fs/promises";
@@ -57,7 +57,7 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`${error.message}
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

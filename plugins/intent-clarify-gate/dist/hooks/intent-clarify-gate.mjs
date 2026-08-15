@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:3f437eeefcb433232febda2e49046c49fc0a75b2953b76ed0b981ea8b05dbd56
+// harness-source-hash: sha256:737fd0e622eb42dcf8367d1c9592dc471d4a9446933f917dd2cd321f1feb218e
 
 // plugins/intent-clarify-gate/src/entries/hooks/intent-clarify-gate.ts
 import { resolve } from "node:path";
@@ -112,14 +112,14 @@ function claimFirstPrompt(event, env = process.env, now = /* @__PURE__ */ new Da
     });
     return { claimed: true, persisted: true, path, reason: null };
   } catch (error) {
-    if (error?.code === "EEXIST") {
+    if (isRecord(error) && error.code === "EEXIST") {
       return { claimed: false, persisted: true, path, reason: null };
     }
     return {
       claimed: true,
       persisted: false,
       path,
-      reason: `first-prompt state was not persisted: ${error?.message ?? String(error)}`
+      reason: `first-prompt state was not persisted: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
@@ -152,7 +152,7 @@ async function main() {
 }
 var isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
-  main().catch((error) => warn(error?.message ?? String(error)));
+  main().catch((error) => warn(error instanceof Error ? error.message : String(error)));
 }
 export {
   firstTurnContext,

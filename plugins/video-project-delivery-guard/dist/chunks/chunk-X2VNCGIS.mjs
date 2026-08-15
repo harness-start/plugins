@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:ab266d2f051b8be8a5488dd331bf6efacf12a101f36b81a6afe6e2f49f4de4de
+// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
 
 // plugins/video-project-delivery-guard/src/lib/project.ts
 import { createHash } from "node:crypto";
@@ -46,7 +46,8 @@ async function findVideoProjects(cwd, { maxProjects = 32 } = {}) {
   try {
     entries = await readdir(carrierRoot, { withFileTypes: true });
   } catch (error) {
-    if (error?.code === "ENOENT") return { workspaceRoot, roots: [] };
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : void 0;
+    if (code === "ENOENT") return { workspaceRoot, roots: [] };
     throw error;
   }
   const roots = [];
@@ -92,7 +93,7 @@ async function collect(root, directory, state, limits) {
     state.digests[relativePath] = digest;
     state.sizes[relativePath] = bytes;
     try {
-      state.files[relativePath] = text ? UTF8.decode(content) : null;
+      state.files[relativePath] = text && content ? UTF8.decode(content) : null;
     } catch {
       throw new Error(`PROJECT_TEXT_ENCODING_INVALID:${relativePath}`);
     }
@@ -113,6 +114,7 @@ async function loadVideoProject(projectRoot, limits = {}) {
       return null;
     }
   };
+  const project = parse("video.project.json");
   return {
     artifactId: basename(root),
     root,
@@ -120,7 +122,7 @@ async function loadVideoProject(projectRoot, limits = {}) {
     digests: state.digests,
     sizes: state.sizes,
     plan: parse("plan.contract.json"),
-    project: parse("video.project.json")
+    project: project !== null && typeof project === "object" && !Array.isArray(project) ? project : null
   };
 }
 
@@ -163,7 +165,8 @@ async function withWriterJournal(root, capability, callback, grant = {}) {
   }
   const result = await callback();
   await unlink(journalPath).catch((error) => {
-    if (error?.code !== "ENOENT") throw error;
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : void 0;
+    if (code !== "ENOENT") throw error;
   });
   return result;
 }
