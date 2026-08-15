@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/file-access-audit.mjs\" pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/file-access-audit.mjs\" pre",
             "statusMessage": "Protecting file access audit trail",
             "timeout": 10000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/file-access-audit.mjs\" post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/file-access-audit.mjs\" post",
             "statusMessage": "Recording file access",
             "timeout": 10000
           }

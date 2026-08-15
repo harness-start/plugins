@@ -1,6 +1,6 @@
 {
   "name": "source-sanity-guard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Blocks backup artifacts and obvious replacement-character corruption in source files.",
   "author": {
     "name": "Harness Start",

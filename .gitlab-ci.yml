@@ -47,6 +47,7 @@ validate:plugins:
     - apt-get install -y --no-install-recommends jq ca-certificates git ffmpeg
     - node --version
     - npm --version
+    - npm ci
     - jq --version
     - ffmpeg -version
     - mkdir -p "${CODEX_HOME}"

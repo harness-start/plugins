@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/logo-project-delivery-guard.mjs\" session",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/logo-project-delivery-guard.mjs\" session",
             "statusMessage": "Discovering Logo artifact projects",
             "timeout": 10000
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/logo-project-delivery-guard.mjs\" pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/logo-project-delivery-guard.mjs\" pre",
             "statusMessage": "Checking Logo artifact writer boundaries",
             "timeout": 10000
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/logo-project-delivery-guard.mjs\" post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/logo-project-delivery-guard.mjs\" post",
             "statusMessage": "Revalidating Logo artifact evidence",
             "timeout": 10000
           }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/logo-project-delivery-guard.mjs\" failure",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/logo-project-delivery-guard.mjs\" failure",
             "statusMessage": "Checking partial Logo mutations",
             "timeout": 10000
           }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/logo-project-delivery-guard.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/logo-project-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Logo artifact closure",
             "timeout": 10000
           }
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/logo-project-delivery-guard.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/logo-project-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Logo artifact closure",
             "timeout": 10000
           }

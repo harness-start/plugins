@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/intent-clarify-gate.mjs\" prompt",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/intent-clarify-gate.mjs\" prompt",
             "statusMessage": "Preparing first-turn intent discovery",
             "timeout": 10000
           }

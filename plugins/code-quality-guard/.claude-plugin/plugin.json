@@ -1,6 +1,6 @@
 {
   "name": "code-quality-guard",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Runs bounded JavaScript, TypeScript, Python, and PHP syntax and quality checks after file edits.",
   "author": {
     "name": "Harness Start",

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/markdown-format-guard.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/markdown-format-guard.mjs\"",
             "timeout": 10000
           }
         ]

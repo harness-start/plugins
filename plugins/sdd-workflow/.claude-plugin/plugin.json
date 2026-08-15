@@ -1,6 +1,6 @@
 {
   "name": "sdd-workflow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Guides spec-driven changes and validates artifact order for recognized spec, plan, and tasks writes.",
   "author": {
     "name": "Harness Start",

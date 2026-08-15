@@ -1,15 +1,27 @@
 {
-  "name": "plugins",
+  "name": "@harness-start/plugins",
   "version": "1.0.0",
   "description": "Marketplace id: `harness-start` · Display name: **Harness Start**",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsx scripts/build-plugins.ts",
+    "check:dist": "tsx scripts/build-plugins.ts --check",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint --no-error-on-unmatched-pattern core/src core/tests plugins/*/src plugins/*/tests scripts/*.ts",
+    "test": "tsx --test core/tests/**/*.test.ts plugins/*/tests/*.test.ts",
+    "verify": "npm run typecheck && npm run lint && npm run check:dist && npm test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "20.19.39",
+    "esbuild": "0.28.2",
+    "eslint": "9.39.5",
+    "tsx": "4.23.12",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0"
+  }
 }

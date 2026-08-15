@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sdd-workflow-hook.mjs\" pre claude",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/sdd-workflow-hook.mjs\" pre claude",
             "statusMessage": "Checking SDD artifact prerequisites",
             "timeout": 10000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/sdd-workflow-hook.mjs\" post claude",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/sdd-workflow-hook.mjs\" post claude",
             "statusMessage": "Checking SDD artifact consistency",
             "timeout": 10000
           }

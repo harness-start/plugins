@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/git-delivery-hook-pre-tool.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/git-delivery-hook-pre-tool.mjs\"",
             "timeout": 20000
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/git-delivery-hook-post-tool.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/git-delivery-hook-post-tool.mjs\"",
             "timeout": 15000
           }
         ]

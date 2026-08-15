@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/execution-loop-guard.mjs\" pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/execution-loop-guard.mjs\" pre",
             "statusMessage": "Checking execution loop budget",
             "timeout": 10000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/execution-loop-guard.mjs\" post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/execution-loop-guard.mjs\" post",
             "statusMessage": "Recording execution progress",
             "timeout": 10000
           }
@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/execution-loop-guard.mjs\" failure",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/execution-loop-guard.mjs\" failure",
             "statusMessage": "Recording failed command",
             "timeout": 10000
           }

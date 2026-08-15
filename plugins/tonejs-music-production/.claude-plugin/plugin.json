@@ -1,6 +1,6 @@
 {
   "name": "tonejs-music-production",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Creates deterministic, mathematically optimized Tone.js music with digest-bound WAV proofs and release evidence.",
   "author": {
     "name": "Harness Start",

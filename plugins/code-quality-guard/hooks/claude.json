@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/code-quality-post.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/code-quality-post.mjs\"",
             "timeout": 60000
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/code-quality-stop.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/code-quality-stop.mjs\"",
             "timeout": 60000
           }
         ]

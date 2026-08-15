@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/encoding-guard.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/encoding-guard.mjs\"",
             "timeout": 10000
           }
         ]

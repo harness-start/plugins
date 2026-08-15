@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/cmd-safety-hook-pre-tool.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/cmd-safety-hook-pre-tool.mjs\"",
             "statusMessage": "command-safety-guards: checking shell command",
             "timeout": 15000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/cmd-safety-hook-post-tool.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/cmd-safety-hook-post-tool.mjs\"",
             "statusMessage": "command-safety-guards: checking written files",
             "timeout": 15000
           }

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"code-quality-guard:post\" node \"${PLUGIN_ROOT}/scripts/code-quality-post.mjs\"",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"code-quality-guard:post\" node \"${PLUGIN_ROOT}/dist/hooks/code-quality-post.mjs\"",
             "statusMessage": "Running source quality checks",
             "timeout": 60000
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"code-quality-guard:stop\" node \"${PLUGIN_ROOT}/scripts/code-quality-stop.mjs\"",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"code-quality-guard:stop\" node \"${PLUGIN_ROOT}/dist/hooks/code-quality-stop.mjs\"",
             "statusMessage": "Running PHPStan batch checks",
             "timeout": 60000
           }

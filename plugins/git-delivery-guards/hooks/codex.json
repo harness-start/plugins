@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"git-delivery-guards:pre\" node \"${PLUGIN_ROOT}/scripts/git-delivery-hook-pre-tool.mjs\"",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"git-delivery-guards:pre\" node \"${PLUGIN_ROOT}/dist/hooks/git-delivery-hook-pre-tool.mjs\"",
             "statusMessage": "Checking Git command and repository state",
             "timeout": 20000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"git-delivery-guards:post\" node \"${PLUGIN_ROOT}/scripts/git-delivery-hook-post-tool.mjs\"",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"git-delivery-guards:post\" node \"${PLUGIN_ROOT}/dist/hooks/git-delivery-hook-post-tool.mjs\"",
             "statusMessage": "Checking final files for merge conflict markers",
             "timeout": 15000
           }

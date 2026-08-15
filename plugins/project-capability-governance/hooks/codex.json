@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"project-capability-governance:session\" node \"${PLUGIN_ROOT}/scripts/project-capability-governance-hook.mjs\" session codex",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"project-capability-governance:session\" node \"${PLUGIN_ROOT}/dist/hooks/project-capability-governance-hook.mjs\" session codex",
             "statusMessage": "Loading project capability discovery criteria",
             "timeout": 5000,
             "additionalContextLimit": 2400
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"project-capability-governance:pre\" node \"${PLUGIN_ROOT}/scripts/project-capability-governance-hook.mjs\" pre codex",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"project-capability-governance:pre\" node \"${PLUGIN_ROOT}/dist/hooks/project-capability-governance-hook.mjs\" pre codex",
             "statusMessage": "Protecting the project capability inbox",
             "timeout": 10000
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"project-capability-governance:stop\" node \"${PLUGIN_ROOT}/scripts/project-capability-governance-hook.mjs\" stop codex",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"project-capability-governance:stop\" node \"${PLUGIN_ROOT}/dist/hooks/project-capability-governance-hook.mjs\" stop codex",
             "statusMessage": "Checking for new human-only capability notices",
             "timeout": 10000
           }

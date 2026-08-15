@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"command-exec-audit:pre\" node \"${PLUGIN_ROOT}/scripts/command-exec-audit.mjs\" pre",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"command-exec-audit:pre\" node \"${PLUGIN_ROOT}/dist/hooks/command-exec-audit.mjs\" pre",
             "statusMessage": "Recording command start / protecting command audit trail",
             "timeout": 10000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"command-exec-audit:post\" node \"${PLUGIN_ROOT}/scripts/command-exec-audit.mjs\" post",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"command-exec-audit:post\" node \"${PLUGIN_ROOT}/dist/hooks/command-exec-audit.mjs\" post",
             "statusMessage": "Recording command finish",
             "timeout": 10000
           }
