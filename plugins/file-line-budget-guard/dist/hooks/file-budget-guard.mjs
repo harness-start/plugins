@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:7026392320dc1a102dd6de68545195911db0c161d64baf6bf4b317a047668c70
 
 // plugins/file-line-budget-guard/src/entries/hooks/file-budget-guard.ts
 import { execFileSync } from "node:child_process";

@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:0c9b59266df9aeac4a946c1c444158ac110d1f46e6f5c56be2e5dafb4fdb0776
+
 // plugins/code-quality-guard/src/lib/code-quality-core.ts
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";

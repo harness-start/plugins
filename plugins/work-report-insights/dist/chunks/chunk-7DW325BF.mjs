@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:732189012c5713973ec69794b790c4b7fa6094b07cc53261957e2fe6b257c901
+
 // plugins/work-report-insights/src/lib/report-integrity.ts
 import { createHash } from "node:crypto";
 var SEAL_PREFIX = "<!-- work-report-insights:sha256:";

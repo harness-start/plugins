@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:1ecafbd0352621e15e0b605402136b0ea866ca961edf865301c35a5fa8c3b975
+
 // plugins/logo-project-delivery-guard/src/lib/project.ts
 import { createHash } from "node:crypto";
 import { readdir, readFile, realpath } from "node:fs/promises";

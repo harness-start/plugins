@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:f6ee0a60916c8223fe8e37cf61a3567244de97e243635cbc1722d6f3340807b8
 
 // plugins/file-access-audit/src/entries/hooks/file-access-audit.ts
 import { resolve as resolve5 } from "node:path";

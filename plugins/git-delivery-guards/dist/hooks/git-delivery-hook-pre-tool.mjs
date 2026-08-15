@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:bd3d4316ce6487f962121d181f846434aefeeb207cc82c5c3ed29ec0efabbdb3
 import {
   additionalContextOutput,
   extractCwd,
@@ -8,7 +9,7 @@ import {
   preToolDeny,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-KY2SPYQ6.mjs";
+} from "../chunks/chunk-2Z63OBKD.mjs";
 
 // plugins/git-delivery-guards/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";

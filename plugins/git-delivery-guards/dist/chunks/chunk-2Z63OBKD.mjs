@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:bd3d4316ce6487f962121d181f846434aefeeb207cc82c5c3ed29ec0efabbdb3
+
 // plugins/git-delivery-guards/src/lib/hook-io.ts
 import { isAbsolute, resolve } from "node:path";
 var FILE_TOOLS = /* @__PURE__ */ new Set([

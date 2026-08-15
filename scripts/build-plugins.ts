@@ -1,4 +1,5 @@
 import { builtinModules } from "node:module";
+import { createHash } from "node:crypto";
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
 
@@ -6,7 +7,9 @@ import { build, type BuildResult, type OutputFile } from "esbuild";
 
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const pluginsRoot = resolve(repositoryRoot, "plugins");
+const coreSourceRoot = resolve(repositoryRoot, "core", "src");
 const checkOnly = process.argv.includes("--check");
+const ensureOnly = process.argv.includes("--ensure");
 const pluginFlag = process.argv.indexOf("--plugin");
 const selectedPlugin = pluginFlag >= 0 ? process.argv[pluginFlag + 1] : undefined;
 const nodeBuiltins = new Set([
@@ -31,6 +34,22 @@ async function filesUnder(root: string, extension?: string): Promise<string[]> {
   return found;
 }
 
+async function sourceHash(pluginRoot: string): Promise<string> {
+  const sourceFiles = [
+    ...await filesUnder(resolve(pluginRoot, "src"), ".ts"),
+    ...await filesUnder(coreSourceRoot, ".ts"),
+  ].toSorted();
+  const hash = createHash("sha256");
+  for (const filePath of sourceFiles) {
+    const projectPath = relative(repositoryRoot, filePath).split(sep).join("/");
+    const contents = await readFile(filePath);
+    hash.update(`${Buffer.byteLength(projectPath)}:${projectPath}\0${contents.byteLength}:`);
+    hash.update(contents);
+    hash.update("\0");
+  }
+  return hash.digest("hex");
+}
+
 function assertInside(path: string, parent: string): void {
   const rel = relative(parent, path);
   if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) {
@@ -52,6 +71,7 @@ async function compilePlugin(pluginRoot: string): Promise<OutputFile[]> {
   const entryRoot = resolve(pluginRoot, "src", "entries");
   const entryPoints = await filesUnder(entryRoot, ".ts");
   if (entryPoints.length === 0) return [];
+  const currentSourceHash = await sourceHash(pluginRoot);
   const result = await build({
     absWorkingDir: repositoryRoot,
     entryPoints,
@@ -69,6 +89,7 @@ async function compilePlugin(pluginRoot: string): Promise<OutputFile[]> {
     minify: false,
     sourcemap: false,
     legalComments: "external",
+    banner: { js: `// harness-source-hash: sha256:${currentSourceHash}` },
     metafile: true,
     tsconfig: resolve(repositoryRoot, "tsconfig.json"),
     write: false,
@@ -78,7 +99,7 @@ async function compilePlugin(pluginRoot: string): Promise<OutputFile[]> {
   return result.outputFiles ?? [];
 }
 
-async function compareOutput(pluginRoot: string, outputFiles: OutputFile[]): Promise<void> {
+async function outputDifferences(pluginRoot: string, outputFiles: OutputFile[]): Promise<string[]> {
   const distRoot = resolve(pluginRoot, "dist");
   const expected = new Map(outputFiles.map((file) => [resolve(file.path), file.contents]));
   const actualFiles = await filesUnder(distRoot);
@@ -95,7 +116,7 @@ async function compareOutput(pluginRoot: string, outputFiles: OutputFile[]): Pro
   for (const path of actualFiles) {
     if (!expected.has(resolve(path))) differences.push(`extra ${relative(repositoryRoot, path)}`);
   }
-  if (differences.length > 0) throw new Error(differences.join("\n"));
+  return differences;
 }
 
 async function writeOutput(pluginRoot: string, outputFiles: OutputFile[]): Promise<void> {
@@ -110,6 +131,7 @@ async function writeOutput(pluginRoot: string, outputFiles: OutputFile[]): Promi
 }
 
 async function main(): Promise<void> {
+  if (checkOnly && ensureOnly) throw new Error("--check and --ensure are mutually exclusive");
   await access(pluginsRoot);
   const entries = await readdir(pluginsRoot, { withFileTypes: true });
   const pluginNames = entries
@@ -126,9 +148,18 @@ async function main(): Promise<void> {
       if (staleFiles.length > 0) throw new Error(`${name} has dist/ files but no TypeScript entries`);
       continue;
     }
-    if (checkOnly) await compareOutput(pluginRoot, outputFiles);
-    else await writeOutput(pluginRoot, outputFiles);
-    process.stdout.write(`${checkOnly ? "checked" : "built"} ${name}: ${outputFiles.length} file(s)\n`);
+    const differences = (checkOnly || ensureOnly)
+      ? await outputDifferences(pluginRoot, outputFiles)
+      : [];
+    if (checkOnly && differences.length > 0) throw new Error(differences.join("\n"));
+    if (ensureOnly && differences.length > 0) await writeOutput(pluginRoot, outputFiles);
+    if (!checkOnly && !ensureOnly) await writeOutput(pluginRoot, outputFiles);
+    const action = checkOnly
+      ? "checked"
+      : ensureOnly
+        ? differences.length > 0 ? "rebuilt" : "current"
+        : "built";
+    process.stdout.write(`${action} ${name}: ${outputFiles.length} file(s)\n`);
   }
 }
 

@@ -1,12 +1,13 @@
+// harness-source-hash: sha256:365857310e834149df95196ac7e040f83521b5c0e6ffc6bc25069911ae9a8f80
 import {
   analyzePcm16Wav
-} from "./chunk-XAHQWE2J.mjs";
+} from "./chunk-ZEIB74IQ.mjs";
 import {
   MUSIC_ENGINE,
   computeMusicSubjectDigest,
   createMusicReceipt,
   validateMusicModel
-} from "./chunk-62TCAD7O.mjs";
+} from "./chunk-4EU6XMSF.mjs";
 
 // plugins/tonejs-music-production/src/lib/release.ts
 import { createHash } from "node:crypto";

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:2aff1d064d6b7d23103f1a68f7475ebcbee3145b1fa48dc93f13d01953380e8b
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-DJZ7XPPH.mjs";
+} from "../chunks/chunk-NXSTRNUW.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -14,7 +15,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-WMYY5SBL.mjs";
+} from "../chunks/chunk-EHHD26IL.mjs";
 
 // plugins/research-provenance-guard/src/entries/hooks/research-provenance-guard.ts
 import { join as join3, resolve as resolve3 } from "node:path";

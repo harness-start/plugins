@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:219059477b7e084f1f8b50f88b6872d4685cce2116824f4a86b5c521b3143d14
+
 // plugins/pptx-project-delivery-guard/src/lib/contract.ts
 import { createHash } from "node:crypto";
 import { lstat, readdir, readFile } from "node:fs/promises";

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:4a391c1b38c7dd3563e434bb4053384da63b150884e33ea0cb0f4b9f8379cd11
 
 // plugins/encoding-guard/src/entries/hooks/encoding-guard.ts
 import { execFileSync } from "node:child_process";

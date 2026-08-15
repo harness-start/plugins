@@ -94,7 +94,7 @@ codex plugin add <name>@harness-start --json
 
 每个插件都必须自包含。源码可以通过 `@harness/core/*` 复用根级逻辑，但 esbuild 会把它内联进插件自己的 `dist/`；运行时不得引用自身目录外的文件，因为 Claude Code 会将单个插件目录复制到缓存。仓库不是 npm workspace，也不使用 monorepo 包链接。
 
-本仓库还提交了仅对当前项目生效的 Claude Code 与 Codex `PreToolUse` Hook。它们会拒绝文件工具、补丁或显式 shell 命令直接写入 `plugins/<name>/dist/`；应修改 `src/` 后执行 `npm run build`。Codex 首次加载项目 Hook 时仍需按宿主提示审查并信任配置。
+本仓库还提交了仅对当前项目生效的 Claude Code 与 Codex `PreToolUse` Hook。它们会拒绝文件工具、补丁或显式 shell 命令直接写入 `plugins/<name>/dist/`；应修改 `src/` 后执行 `npm run build`。执行当前项目的 `git push` 或 `git send-pack` 前，Hook 会运行 `npm run ensure:dist`：产物不一致时自动重建并停止本次推送，待新 `dist/` 提交后重试；产物一致时直接放行。Codex 首次加载项目 Hook 时仍需按宿主提示审查并信任配置。
 
 `GUIDE.md` 中的 `session-hooks`、`policy-checks` 等名称只用于示例。真实插件位于 `plugins/`，并同时登记在两个 marketplace 索引中。
 
@@ -195,7 +195,7 @@ npm run verify
 bash scripts/ci/validate-plugins.sh
 ```
 
-`npm run build` 会从每个 `src/entries/**/*.ts` 生成对应的 `dist/**/*.mjs`；提交前必须把这些产物一并提交。`npm run check:dist` 以内存重建结果逐字节检查仓库中的产物，不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
+`npm run build` 会从每个 `src/entries/**/*.ts` 生成对应的 `dist/**/*.mjs`；每个生成文件都写入 `harness-source-hash`，摘要覆盖插件自身 `src/**/*.ts` 与共享 `core/src/**/*.ts` 的相对路径和文件字节。提交前必须把这些产物一并提交。`npm run ensure:dist` 以内存重建并只刷新不一致的插件；`npm run check:dist` 做同样的逐字节检查但不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
 
 宿主已安装时运行：
 

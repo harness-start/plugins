@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:a95f1fa94d234e4c7beaadecab740528ed895cb471df9069d8f5c923e47d9dda
+
 // plugins/cross-repo-history-migration/src/lib/history-migration.ts
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";

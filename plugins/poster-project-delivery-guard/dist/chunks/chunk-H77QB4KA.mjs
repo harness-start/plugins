@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:f29b1f41f0ba95036663639eaa3c08347831135940143339caf4061064bb57eb
+
 // plugins/poster-project-delivery-guard/src/lib/contract.ts
 import { createHash } from "node:crypto";
 var VARIANT_DIRECTORY = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$/u;

@@ -1,8 +1,9 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:5e11ef3f596992bbddc4b948501a82c2fe522745f083c8da9bc70e6343ff14b3
 import {
   extractFrameDigest,
   mediaToolVersion
-} from "../chunks/chunk-VDPDJ7LH.mjs";
+} from "../chunks/chunk-VOVXBSNB.mjs";
 import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   FRAME_EVIDENCE_SCHEMA,
@@ -12,14 +13,14 @@ import {
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-6W43YK4G.mjs";
+} from "../chunks/chunk-XLWX7UV3.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-MQPEWRNU.mjs";
+} from "../chunks/chunk-EWUCZHBK.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/cli/project-review.ts
 import { readFile } from "node:fs/promises";

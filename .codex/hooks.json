@@ -7,7 +7,7 @@
           {
             "type": "command",
             "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-project-dist-write-guard}\" AI_EXPERTS_TRIGGER_FROM=\"project-dist-write-guard:pre-tool-use\" node \"$(git rev-parse --show-toplevel)/.codex/hooks/project-dist-write-guard.mjs\"",
-            "timeout": 5
+            "timeout": 120
           }
         ]
       }

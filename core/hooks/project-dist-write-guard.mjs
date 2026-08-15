@@ -1,4 +1,5 @@
 import { existsSync, realpathSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -234,6 +235,59 @@ function extractShellTargets(command, initialCwd) {
   return targets;
 }
 
+function isInsideProject(candidate) {
+  const resolved = resolveThroughExistingAncestor(candidate);
+  const project = resolveThroughExistingAncestor(PROJECT_ROOT);
+  const relative = path.relative(project, resolved);
+  return !relative.startsWith("..") && !path.isAbsolute(relative);
+}
+
+function gitSubcommand(words, executableIndex, initialCwd) {
+  let cwd = initialCwd;
+  let index = executableIndex + 1;
+  while (index < words.length) {
+    const word = words[index];
+    if (word === "-C") {
+      const resolved = resolveCandidate(words[index + 1], cwd);
+      if (resolved) cwd = resolved;
+      index += 2;
+      continue;
+    }
+    if (["-c", "--config-env", "--exec-path", "--git-dir", "--namespace", "--work-tree"].includes(word)) {
+      index += 2;
+      continue;
+    }
+    if (word?.startsWith("-")) {
+      index += 1;
+      continue;
+    }
+    return { cwd, name: word ?? "" };
+  }
+  return { cwd, name: "" };
+}
+
+function containsProjectRemotePush(command, initialCwd) {
+  let cwd = initialCwd;
+  const segments = command.split(/&&|\|\||\||;|\n/gu);
+  for (const segment of segments) {
+    const words = shellWords(segment);
+    const executable = commandName(words);
+    if (!executable.name) continue;
+    if (executable.name === "cd") {
+      const resolved = resolveCandidate(words[executable.index + 1], cwd);
+      if (resolved) cwd = resolved;
+      continue;
+    }
+    if (executable.name === "git") {
+      const command = gitSubcommand(words, executable.index, cwd);
+      if (["push", "send-pack"].includes(command.name) && isInsideProject(command.cwd)) return true;
+    } else if (executable.name === "git-send-pack" && isInsideProject(cwd)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function denyReason() {
   return [
     "[Project Dist Write Guard] 插件 dist/ 是构建产物，禁止直接修改。",
@@ -247,17 +301,113 @@ function denyReason() {
   ].join("\n");
 }
 
+function rebuiltPushReason(details) {
+  return [
+    "[Project Dist Write Guard] 检测到 src/ 与 dist/ 不一致，已自动重建；本次 push 已停止。",
+    "",
+    details.trim(),
+    "",
+    "blockingContract:",
+    "  observedFacts: 构建命令刷新了一个或多个 plugins/<name>/dist/ 文件。",
+    "  harm: 直接继续 push 不会把工作区中新生成但尚未提交的 dist/ 带入远端提交。",
+    "  unblockWhen: 提交自动重建的 dist/，并重试原 git push。",
+    "  recovery:",
+    "    - 检查并提交 src/ 与对应 dist/ 的变更。",
+    "    - 重试原 git push 命令。",
+  ].filter(Boolean).join("\n");
+}
+
+function failedPushReason(details) {
+  return [
+    "[Project Dist Write Guard] push 前的 dist 校验或重建失败，本次 push 已停止。",
+    "",
+    details.trim(),
+    "",
+    "blockingContract:",
+    "  observedFacts: npm run ensure:dist 未成功完成。",
+    "  harm: 无法证明远端提交中的 src/ 与 dist/ 对应。",
+    "  unblockWhen: 修复构建错误，确保 npm run ensure:dist 成功，再重试 push。",
+    "  recovery:",
+    "    - 运行 npm run ensure:dist 并修复报告的错误。",
+  ].filter(Boolean).join("\n");
+}
+
+function uncommittedPushReason(details) {
+  return [
+    "[Project Dist Write Guard] dist/ 已与当前 src/ 对应，但生成文件尚未全部提交，本次 push 已停止。",
+    "",
+    details.trim(),
+    "",
+    "blockingContract:",
+    "  observedFacts: plugins/<name>/dist/ 相对 HEAD 仍有 staged、unstaged 或 untracked 变更。",
+    "  harm: git push 不会把尚未提交的生成文件带入远端提交。",
+    "  unblockWhen: 提交对应的 dist/ 变更，并重试原 git push。",
+    "  recovery:",
+    "    - 使用 git status 检查并提交生成文件。",
+    "    - 重试原 git push 命令。",
+  ].filter(Boolean).join("\n");
+}
+
+function summarizeChangedDist(statusOutput) {
+  const lines = statusOutput.trim().split("\n").filter(Boolean);
+  const preview = lines.slice(0, 20);
+  if (lines.length > preview.length) preview.push(`... 另有 ${lines.length - preview.length} 个 dist/ 变更`);
+  return preview.join("\n");
+}
+
+export async function ensureProjectDist() {
+  const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+  const result = spawnSync(npmCommand, ["run", "ensure:dist", "--silent"], {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+    env: process.env,
+    timeout: 120_000,
+  });
+  const details = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
+  if (result.error || result.status !== 0) {
+    const error = result.error?.message ?? `npm run ensure:dist exited with status ${result.status}`;
+    return { status: "failed", details: [details, error].filter(Boolean).join("\n") };
+  }
+  const rebuilt = result.stdout
+    .split("\n")
+    .filter((line) => /^rebuilt\s+/u.test(line))
+    .join("\n");
+  const status = spawnSync("git", [
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=all",
+    "--",
+    ":(glob)plugins/*/dist/**",
+  ], {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+    timeout: 10_000,
+  });
+  if (status.error || status.status !== 0) {
+    const error = status.error?.message ?? `git status exited with status ${status.status}`;
+    return { status: "failed", details: [status.stderr, error].filter(Boolean).join("\n") };
+  }
+  const changedDist = summarizeChangedDist(status.stdout);
+  if (!changedDist) return { status: "current", details: "" };
+  return {
+    status: rebuilt ? "rebuilt" : "uncommitted",
+    details: [rebuilt, changedDist].filter(Boolean).join("\n"),
+  };
+}
+
 export function evaluateEvent(event) {
   if (!event || typeof event !== "object") return { deny: false };
   const input = eventToolInput(event);
   const cwd = eventCwd(event);
   const candidates = [];
+  let ensureDist = false;
   collectDirectPaths(input, "", candidates);
   candidates.push(...extractPatchPaths(input));
 
   for (const key of COMMAND_KEYS) {
     const command = input[key];
     if (typeof command === "string") {
+      if (containsProjectRemotePush(command, cwd)) ensureDist = true;
       for (const target of extractShellTargets(command, cwd)) {
         const resolved = resolveCandidate(target.value, target.cwd);
         if (resolved && isPluginDistPath(resolved)) return { deny: true, reason: denyReason() };
@@ -269,10 +419,12 @@ export function evaluateEvent(event) {
     const resolved = resolveCandidate(candidate, cwd);
     if (resolved && isPluginDistPath(resolved)) return { deny: true, reason: denyReason() };
   }
-  return { deny: false };
+  return ensureDist ? { deny: false, ensureDist: true } : { deny: false };
 }
 
-export async function runHook(input = process.stdin) {
+export async function runHook(input = process.stdin, options = {}) {
+  const ensure = options.ensureProjectDist ?? ensureProjectDist;
+  const writeStdout = options.writeStdout ?? ((value) => process.stdout.write(value));
   let text = "";
   for await (const chunk of input) text += chunk.toString();
   let event;
@@ -283,12 +435,20 @@ export async function runHook(input = process.stdin) {
     return;
   }
   const decision = evaluateEvent(event);
-  if (!decision.deny) return;
-  process.stdout.write(`${JSON.stringify({
+  let reason;
+  if (decision.deny) reason = decision.reason;
+  else if (decision.ensureDist) {
+    const result = await ensure();
+    if (result.status === "rebuilt") reason = rebuiltPushReason(result.details);
+    else if (result.status === "uncommitted") reason = uncommittedPushReason(result.details);
+    else if (result.status === "failed") reason = failedPushReason(result.details);
+  }
+  if (!reason) return;
+  writeStdout(`${JSON.stringify({
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
-      permissionDecisionReason: decision.reason,
+      permissionDecisionReason: reason,
     },
   })}\n`);
 }

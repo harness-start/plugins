@@ -1,14 +1,15 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:5e11ef3f596992bbddc4b948501a82c2fe522745f083c8da9bc70e6343ff14b3
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-6W43YK4G.mjs";
+} from "../chunks/chunk-XLWX7UV3.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-MQPEWRNU.mjs";
+} from "../chunks/chunk-EWUCZHBK.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/hooks/video-project-delivery-guard.ts
 import { relative, resolve as resolve2 } from "node:path";

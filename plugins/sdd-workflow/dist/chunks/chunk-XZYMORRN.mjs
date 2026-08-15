@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:e8e3b6cbf6e71c64f442000ef3064fdc50861517e78f5ef9b8a7ebf4dc78879d
+
 // plugins/sdd-workflow/src/lib/artifacts.ts
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";

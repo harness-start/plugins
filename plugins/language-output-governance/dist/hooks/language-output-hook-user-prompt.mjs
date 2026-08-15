@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:43c7b70ada066962018a5e669c0d465c150544f2552f0164bc66b6b6f8600cae
 import {
   PROFILES,
   PROFILE_IDS,
@@ -8,7 +9,7 @@ import {
   readStdinJson,
   recordLanguageIntent,
   warn
-} from "../chunks/chunk-7YW25IUP.mjs";
+} from "../chunks/chunk-6XG3DXCN.mjs";
 
 // plugins/language-output-governance/src/lib/intent.ts
 var TRANSLATION_CUE = /翻译|翻譯|译成|譯成|译为|譯為|翻成|translate|translation/iu;

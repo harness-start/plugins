@@ -1,8 +1,9 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:e8e3b6cbf6e71c64f442000ef3064fdc50861517e78f5ef9b8a7ebf4dc78879d
 import {
   formatFindings,
   inspectChange
-} from "../chunks/chunk-MKJPGG3C.mjs";
+} from "../chunks/chunk-XZYMORRN.mjs";
 
 // plugins/sdd-workflow/src/entries/hooks/sdd-workflow-hook.ts
 import { existsSync, realpathSync } from "node:fs";

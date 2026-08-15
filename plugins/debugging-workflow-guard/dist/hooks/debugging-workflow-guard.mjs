@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:2927fdd901a8ec55d9f15943c17a0262fe1dd7a215c35673f78fefaed68bd81a
 
 // plugins/debugging-workflow-guard/src/entries/hooks/debugging-workflow-guard.ts
 import { appendFileSync, existsSync as existsSync4, readFileSync as readFileSync3 } from "node:fs";

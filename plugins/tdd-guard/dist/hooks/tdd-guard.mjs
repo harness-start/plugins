@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:a6b411ed65dd0a5bc8fe414060fd48ea546c489eb339a6a23245b053dda3c18a
 
 // plugins/tdd-guard/src/entries/hooks/tdd-guard.ts
 import { existsSync as existsSync4, readFileSync as readFileSync5 } from "node:fs";

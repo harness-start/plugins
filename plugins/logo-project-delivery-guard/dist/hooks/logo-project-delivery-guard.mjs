@@ -1,13 +1,14 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:1ecafbd0352621e15e0b605402136b0ea866ca961edf865301c35a5fa8c3b975
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-KDHJZQG7.mjs";
+} from "../chunks/chunk-QPTNINUP.mjs";
 import {
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-3G6Z6NZF.mjs";
+} from "../chunks/chunk-GKYXOIB4.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/hooks/logo-project-delivery-guard.ts
 import { access } from "node:fs/promises";

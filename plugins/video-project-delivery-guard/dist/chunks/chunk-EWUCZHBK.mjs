@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:5e11ef3f596992bbddc4b948501a82c2fe522745f083c8da9bc70e6343ff14b3
+
 // plugins/video-project-delivery-guard/src/lib/project.ts
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";

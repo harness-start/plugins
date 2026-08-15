@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:4dc259374017bb6758dea6306038b685d0b56393925470225f40b110f1360cfa
 
 // plugins/print-publication-delivery-guard/src/entries/cli/project-lint.ts
 import { createRequire } from "node:module";

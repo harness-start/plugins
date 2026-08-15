@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:4dc259374017bb6758dea6306038b685d0b56393925470225f40b110f1360cfa
+
 // plugins/print-publication-delivery-guard/src/lib/contract.ts
 import { createHash } from "node:crypto";
 var SECTION_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.section\.tsx$/u;

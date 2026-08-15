@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:2aff1d064d6b7d23103f1a68f7475ebcbee3145b1fa48dc93f13d01953380e8b
+
 // plugins/research-provenance-guard/src/lib/workflow-fs.ts
 import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, isAbsolute } from "node:path";

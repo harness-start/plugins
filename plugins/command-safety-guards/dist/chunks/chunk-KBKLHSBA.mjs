@@ -1,3 +1,5 @@
+// harness-source-hash: sha256:39b4337cbcdab5383bad679a39524650c16992dc11d8bfa5f99e8d24ab4a85a8
+
 // plugins/command-safety-guards/src/lib/hook-io.ts
 async function readStdinJson() {
   let raw = "";

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// harness-source-hash: sha256:0c9b59266df9aeac4a946c1c444158ac110d1f46e6f5c56be2e5dafb4fdb0776
 import {
   capOutput,
   findExecutable,
@@ -12,7 +13,7 @@ import {
   resolveRepoRoot,
   runCommand,
   writeState
-} from "../chunks/chunk-PHYN3VBW.mjs";
+} from "../chunks/chunk-3P4ZFOA2.mjs";
 
 // plugins/code-quality-guard/src/entries/hooks/code-quality-stop.ts
 import { existsSync } from "node:fs";
