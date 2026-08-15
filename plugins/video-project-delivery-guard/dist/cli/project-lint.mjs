@@ -1,0 +1,85 @@
+#!/usr/bin/env node
+import {
+  assertVideoProjectRoot
+} from "../chunks/chunk-MQPEWRNU.mjs";
+
+// plugins/video-project-delivery-guard/src/entries/cli/project-lint.ts
+import { createRequire } from "node:module";
+import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
+
+// plugins/video-project-delivery-guard/src/lib/eslint/local-rules/artifact-unit-owner.ts
+var jsxName = (node) => node?.name?.name ?? node?.name;
+var FORBIDDEN_REMOTION_IMPORTS = /* @__PURE__ */ new Set(["Audio", "Composition", "Sequence", "Series", "TransitionSeries"]);
+function report(context, node) {
+  context.report({ node, messageId: "owner" });
+}
+var artifact_unit_owner_default = {
+  meta: { type: "problem", schema: [], messages: { owner: "A visual unit may not own audio, composition, global scheduling, I/O, network, or wall-clock randomness." } },
+  create(context) {
+    return {
+      ImportDeclaration(node) {
+        const source = node.source?.value;
+        if (source === "@remotion/renderer" || /^node:(?:fs|child_process)$/u.test(source ?? "")) report(context, node);
+        if (source === "remotion" && node.specifiers?.some((specifier) => specifier.type === "ImportNamespaceSpecifier" || FORBIDDEN_REMOTION_IMPORTS.has(specifier.imported?.name))) report(context, node);
+      },
+      ImportExpression(node) {
+        if (["@remotion/renderer", "node:fs", "node:child_process"].includes(node.source?.value)) report(context, node);
+      },
+      JSXOpeningElement(node) {
+        if (FORBIDDEN_REMOTION_IMPORTS.has(jsxName(node))) report(context, node);
+      },
+      CallExpression(node) {
+        const name = node.callee?.name ?? node.callee?.property?.name;
+        if (["fetch", "setTimeout", "setInterval", "random"].includes(name)) report(context, node);
+      },
+      NewExpression(node) {
+        if (["XMLHttpRequest", "WebSocket"].includes(node.callee?.name)) report(context, node);
+      }
+    };
+  }
+};
+
+// plugins/video-project-delivery-guard/src/lib/eslint/preset.ts
+function createPreset({ parser }) {
+  return [{
+    files: ["src/visual/*.tsx"],
+    languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true }, ecmaVersion: "latest", sourceType: "module" } },
+    plugins: { "artifact-guard": { rules: { "artifact-unit-owner": artifact_unit_owner_default } } },
+    rules: {
+      "artifact-guard/artifact-unit-owner": "error",
+      "no-restricted-globals": ["error", "fetch", "setTimeout", "setInterval"],
+      "no-restricted-imports": ["error", { patterns: ["node:fs*", "node:child_process", "@remotion/renderer"] }]
+    }
+  }];
+}
+
+// plugins/video-project-delivery-guard/src/entries/cli/project-lint.ts
+async function main() {
+  const root = assertVideoProjectRoot(resolve(process.argv[2] ?? ""));
+  const requested = process.argv.slice(3);
+  if (requested.some((filePath) => !/^src\/visual\/(?:\*|[a-z0-9][a-z0-9.-]*)\.tsx$/u.test(filePath))) throw new Error("LINT_TARGET_OUT_OF_SCOPE");
+  const projectRequire = createRequire(join(root, "package.json"));
+  let eslintEntry;
+  let parserEntry;
+  try {
+    eslintEntry = projectRequire.resolve("eslint");
+    parserEntry = projectRequire.resolve("@typescript-eslint/parser");
+  } catch {
+    throw new Error(`TOOLCHAIN_MISSING:${root}: run npm ci in the artifact root`);
+  }
+  const eslintModule = await import(pathToFileURL(eslintEntry));
+  const parserModule = await import(pathToFileURL(parserEntry));
+  const ESLint = eslintModule.ESLint ?? eslintModule.default?.ESLint;
+  if (typeof ESLint !== "function") throw new Error("UNSUPPORTED_TOOLCHAIN: ESLint API unavailable");
+  const eslint = new ESLint({ cwd: root, ignore: false, overrideConfigFile: true, overrideConfig: createPreset({ parser: parserModule.default ?? parserModule }) });
+  const results = await eslint.lintFiles(requested.length > 0 ? requested : ["src/visual/*.tsx"]);
+  const output = (await eslint.loadFormatter("stylish")).format(results);
+  if (output) process.stdout.write(output);
+  if (results.some(({ errorCount, fatalErrorCount }) => errorCount > 0 || fatalErrorCount > 0)) process.exitCode = 2;
+}
+main().catch((error) => {
+  process.stderr.write(`[video-project-lint] ${error.message}
+`);
+  process.exitCode = 2;
+});

@@ -6,7 +6,7 @@ def allowed_parent_call:
   elif .payload.type == "function_call" and .payload.name == "update_plan" then true
   elif .payload.type == "function_call" and .payload.name == "exec_command" then
     ((.payload.arguments | fromjson? // {}) as $arguments
-      | (($arguments.cmd | test("^cat /out/[A-Za-z0-9._/-]+/sdd-workflow/0\\.1\\.0/skills/sdd-build/SKILL\\.md(?:; echo '---'; ls -la /out/[A-Za-z0-9._/-]+/workspace)?$"))
+      | (($arguments.cmd | test("^cat /out/[A-Za-z0-9._/-]+/sdd-workflow/[0-9]+\\.[0-9]+\\.[0-9]+/skills/sdd-build/SKILL\\.md(?:; echo '---'; ls -la /out/[A-Za-z0-9._/-]+/workspace)?$"))
         or ($arguments.cmd == "pwd && ls -la")
         or ($arguments.cmd | test("^(?:(?:cat(?: -A)?|wc -(?:c|l)|od -c) rejection\\.txt|echo \\\"---\\\")(?: && (?:(?:cat(?: -A)?|wc -(?:c|l)|od -c) rejection\\.txt|echo \\\"---\\\"))*$"))
         or ($arguments.cmd == "printf '%s\\n' 'parent rejected unverified workers' > rejection.txt && cat rejection.txt && printf 'bytes: ' && wc -c < rejection.txt")

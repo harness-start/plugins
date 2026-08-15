@@ -74,7 +74,7 @@ seed_host_skills_into_home() {
   return 0
 }
 
-# Fingerprint for install-all cache invalidation (catalog + skill-deps + installer).
+# Fingerprint for install-all cache invalidation (catalog + runtime payload + installer).
 project_install_fingerprint() {
   local repo_root="$1"
   {
@@ -92,7 +92,15 @@ project_install_fingerprint() {
           sha256sum "${f}"
         done
     printf 'plugin-manifests\n'
-    find "${repo_root}/plugins" -path '*/.claude-plugin/plugin.json' -type f \
+    find "${repo_root}/plugins" \
+      \( -path '*/.claude-plugin/plugin.json' \
+        -o -path '*/.codex-plugin/plugin.json' \
+        -o -path '*/hooks/*.json' \
+        -o -path '*/mcp/*.json' \
+        -o -name '.mcp.json' \
+        -o -path '*/dist/*' \
+        -o -path '*/skills/*' \) \
+      -type f \
       | sort \
       | while IFS= read -r f; do
           sha256sum "${f}"

@@ -8,7 +8,7 @@ require_guard_hook_signal "${MARKERS_MARKDOWN_FORMAT}"
 target="${ACCEPT_WORKSPACE}/docs/guide.md"
 require_file_exists "${target}"
 
-policy="${ACCEPT_REPO}/plugins/markdown-format-guard/scripts/lib/markdown-policy.mjs"
+policy="${ACCEPT_REPO}/plugins/markdown-format-guard/src/lib/markdown-policy.ts"
 node --input-type=module -e '
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
