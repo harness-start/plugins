@@ -26,6 +26,54 @@ function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 }
 
+function makeHermeticFilterRepo(root) {
+  const executable = join(root, "git-filter-repo-fixture");
+  writeFileSync(executable, [
+    "#!/usr/bin/env bash",
+    "set -euo pipefail",
+    "if [ \"${1:-}\" = \"--version\" ]; then",
+    "  printf 'fixture-filter-repo-v1\\n'",
+    "  exit 0",
+    "fi",
+    "keep_file=\"$(git rev-parse --absolute-git-dir)/fixture-filter-repo-keep\"",
+    "trap 'rm -f \"$keep_file\"' EXIT",
+    ": > \"$keep_file\"",
+    "while [ \"$#\" -gt 0 ]; do",
+    "  case \"$1\" in",
+    "    --force) shift ;;",
+    "    --path)",
+    "      printf '%s\\n' \"$2\" >> \"$keep_file\"",
+    "      shift 2",
+    "      ;;",
+    "    *)",
+    "      printf 'unsupported fixture argument: %s\\n' \"$1\" >&2",
+    "      exit 64",
+    "      ;;",
+    "  esac",
+    "done",
+    "export FIXTURE_FILTER_KEEP_FILE=\"$keep_file\"",
+    "FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --force --prune-empty --index-filter '",
+    "  git ls-files | while IFS= read -r candidate; do",
+    "    keep=0",
+    "    while IFS= read -r selected; do",
+    "      case \"$candidate\" in",
+    "        \"$selected\"|\"$selected\"/*) keep=1; break ;;",
+    "      esac",
+    "    done < \"$FIXTURE_FILTER_KEEP_FILE\"",
+    "    if [ \"$keep\" -eq 0 ]; then",
+    "      git rm --cached -q --ignore-unmatch -- \"$candidate\"",
+    "    fi",
+    "  done",
+    "' -- --all",
+    "git for-each-ref --format='%(refname)' refs/original | while IFS= read -r ref; do",
+    "  [ -z \"$ref\" ] || git update-ref -d \"$ref\"",
+    "done",
+    "",
+  ].join("\n"));
+  chmodSync(executable, 0o755);
+  return executable;
+}
+
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), "history-migration-test-"));
   tempRoots.push(root);
@@ -44,7 +92,7 @@ function fixture() {
   git(source, "add", "packages/widget/data.txt");
   git(source, "commit", "-m", "update widget");
 
-  return { root, source, target };
+  return { root, source, target, gitFilterRepo: makeHermeticFilterRepo(root) };
 }
 
 test("include paths reject absolute paths, traversal, backslashes, and dot segments", () => {
@@ -55,7 +103,7 @@ test("include paths reject absolute paths, traversal, backslashes, and dot segme
 });
 
 test("preflight seals source head and plan digest without changing the source", () => {
-  const { source, target } = fixture();
+  const { source, target, gitFilterRepo } = fixture();
   const beforeHead = git(source, "rev-parse", "HEAD");
   const beforeStatus = git(source, "status", "--porcelain=v1");
 
@@ -64,6 +112,7 @@ test("preflight seals source head and plan digest without changing the source", 
     target,
     ref: "main",
     includePaths: ["packages/widget"],
+    gitFilterRepo,
   });
 
   assert.equal(result.ok, true);
@@ -127,7 +176,7 @@ test("preflight resolves a symlinked target parent before enforcing source isola
 });
 
 test("execute preserves selected history, excludes unrelated content, and leaves source unchanged", () => {
-  const { source, target } = fixture();
+  const { source, target, gitFilterRepo } = fixture();
   const sourceHead = git(source, "rev-parse", "HEAD");
   const sourceRefs = git(source, "show-ref");
   const seal = preflightMigration({
@@ -135,6 +184,7 @@ test("execute preserves selected history, excludes unrelated content, and leaves
     target,
     ref: "main",
     includePaths: ["packages/widget"],
+    gitFilterRepo,
   });
 
   const result = executeMigration({
@@ -142,6 +192,7 @@ test("execute preserves selected history, excludes unrelated content, and leaves
     target,
     ref: "main",
     includePaths: ["packages/widget"],
+    gitFilterRepo,
     expectedSourceHead: seal.sourceHead,
     expectedPlanDigest: seal.planDigest,
   });
@@ -160,12 +211,13 @@ test("execute preserves selected history, excludes unrelated content, and leaves
 });
 
 test("execute publishes only the requested target branch", () => {
-  const { source, target } = fixture();
+  const { source, target, gitFilterRepo } = fixture();
   const seal = preflightMigration({
     source,
     target,
     targetBranch: "trunk",
     includePaths: ["packages/widget"],
+    gitFilterRepo,
   });
 
   executeMigration({
@@ -173,6 +225,7 @@ test("execute publishes only the requested target branch", () => {
     target,
     targetBranch: "trunk",
     includePaths: ["packages/widget"],
+    gitFilterRepo,
     expectedSourceHead: seal.sourceHead,
     expectedPlanDigest: seal.planDigest,
   });
@@ -185,12 +238,13 @@ test("execute publishes only the requested target branch", () => {
 });
 
 test("execute rejects a stale source seal before creating the target", () => {
-  const { source, target } = fixture();
+  const { source, target, gitFilterRepo } = fixture();
   const seal = preflightMigration({
     source,
     target,
     ref: "main",
     includePaths: ["packages/widget"],
+    gitFilterRepo,
   });
   writeFileSync(join(source, "packages", "widget", "data.txt"), "one\ntwo\nthree\n");
   git(source, "add", "packages/widget/data.txt");
@@ -202,6 +256,7 @@ test("execute rejects a stale source seal before creating the target", () => {
       target,
       ref: "main",
       includePaths: ["packages/widget"],
+      gitFilterRepo,
       expectedSourceHead: seal.sourceHead,
       expectedPlanDigest: seal.planDigest,
     }),
@@ -211,11 +266,12 @@ test("execute rejects a stale source seal before creating the target", () => {
 });
 
 test("execute rejects a mismatched plan digest before creating the target", () => {
-  const { source, target } = fixture();
+  const { source, target, gitFilterRepo } = fixture();
   const seal = preflightMigration({
     source,
     target,
     includePaths: ["packages/widget"],
+    gitFilterRepo,
   });
 
   assert.throws(
@@ -223,6 +279,7 @@ test("execute rejects a mismatched plan digest before creating the target", () =
       source,
       target,
       includePaths: ["packages/widget"],
+      gitFilterRepo,
       expectedSourceHead: seal.sourceHead,
       expectedPlanDigest: "0".repeat(64),
     }),
@@ -267,13 +324,14 @@ test("failed filtering cleans its unique temporary clone and leaves target absen
 });
 
 test("CLI refuses missing provenance and emits a bound JSON receipt when provided", () => {
-  const { source, target } = fixture();
+  const { source, target, gitFilterRepo } = fixture();
   const script = join(PLUGIN_ROOT, "scripts", "git-history-migration-preflight.mjs");
   const args = [
     script,
     "--source", source,
     "--target", target,
     "--include", "packages/widget",
+    "--git-filter-repo", gitFilterRepo,
   ];
   const withoutProvenance = { ...process.env };
   delete withoutProvenance.AI_EXPERTS_SESSION_ID;
