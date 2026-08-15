@@ -97,7 +97,7 @@ Hook 自身出错（超时、异常、无效 JSON）时放行，不阻塞用户�
 | `.codex-plugin/plugin.json` | Codex manifest |
 | `hooks/claude.json` | Claude Code `PostToolUse` hook |
 | `hooks/codex.json` | Codex `PostToolUse` hook |
-| `scripts/file-budget-guard.mjs` | 核心守卫脚本 |
+| `dist/hooks/file-budget-guard.mjs` | 核心守卫脚本 |
 | `skills/file-line-budget-guard-config/` | 配置文件 init/编辑/诊断 skill |
 
 ## 安装
@@ -124,7 +124,7 @@ codex plugin add file-line-budget-guard@harness-start
 - 不写入插件安装目录
 - 不记录文件内容、凭据或完整事件
 
-版本：`0.3.3`
+版本：`0.4.0`
 
 ## 实现演进
 

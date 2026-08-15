@@ -26,7 +26,7 @@ Set provenance for every bundled tool call:
 ```bash
 AI_EXPERTS_SESSION_ID="<current-session-id>" \
 AI_EXPERTS_TRIGGER_FROM="cross-repo-history-migration:preflight" \
-node "${PLUGIN_ROOT}/scripts/git-history-migration-preflight.mjs" \
+node "${PLUGIN_ROOT}/dist/cli/git-history-migration-preflight.mjs" \
   --source /absolute/source \
   --target /absolute/target \
   --ref main \

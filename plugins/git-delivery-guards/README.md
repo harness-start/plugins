@@ -70,8 +70,8 @@ export default {
 ## 验证
 
 ```bash
-node --test plugins/git-delivery-guards/tests/*.test.mjs
+npx tsx --test plugins/git-delivery-guards/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin git-delivery-guards
 ```
 
-版本：`0.2.1`
+版本：`0.3.0`

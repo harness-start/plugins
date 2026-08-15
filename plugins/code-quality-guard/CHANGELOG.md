@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.1
+## 0.2.0
 
 - Store session JSON under `.code-quality-guard/state/` and place the matching `.gitignore` at `.code-quality-guard/.gitignore`.
 

@@ -87,11 +87,11 @@ writer 必须在插件生效时通过宿主 shell Tool 调用。`PreToolUse` 只
 在 marketplace 根目录依次为每个已登记 unit 和最终 composition 运行；每条 writer 命令都应单独提交：
 
 ```bash
-node plugins/video-project-delivery-guard/scripts/tools/project-lint.mjs artifacts/video/demo
-node plugins/video-project-delivery-guard/scripts/tools/project-render.mjs artifacts/video/demo visual v001-intro.f000000-f000090.tsx
-node plugins/video-project-delivery-guard/scripts/tools/project-render.mjs artifacts/video/demo audio a001-music-bed.f000000-f000240.audio.json
-node plugins/video-project-delivery-guard/scripts/tools/project-render.mjs artifacts/video/demo final
-node plugins/video-project-delivery-guard/scripts/tools/project-probe.mjs artifacts/video/demo
+node plugins/video-project-delivery-guard/dist/cli/project-lint.mjs artifacts/video/demo
+node plugins/video-project-delivery-guard/dist/cli/project-render.mjs artifacts/video/demo visual v001-intro.f000000-f000090.tsx
+node plugins/video-project-delivery-guard/dist/cli/project-render.mjs artifacts/video/demo audio a001-music-bed.f000000-f000240.audio.json
+node plugins/video-project-delivery-guard/dist/cli/project-render.mjs artifacts/video/demo final
+node plugins/video-project-delivery-guard/dist/cli/project-probe.mjs artifacts/video/demo
 ```
 
 这些 writer 必须作为启用插件的宿主 shell Tool 中的单一命令执行，Hook 才能签发一次性 capability；在普通终端直接运行会被拒绝。干净环境还需先在 artifact root 按 `package-lock.json` 安装依赖，并确认 `ffmpeg`、`ffprobe` 可执行。
@@ -132,8 +132,8 @@ node plugins/video-project-delivery-guard/scripts/tools/project-probe.mjs artifa
 然后运行：
 
 ```bash
-node plugins/video-project-delivery-guard/scripts/tools/project-review.mjs artifacts/video/demo /tmp/video-review-input.json
-node plugins/video-project-delivery-guard/scripts/tools/project-release.mjs artifacts/video/demo
+node plugins/video-project-delivery-guard/dist/cli/project-review.mjs artifacts/video/demo /tmp/video-review-input.json
+node plugins/video-project-delivery-guard/dist/cli/project-release.mjs artifacts/video/demo
 ```
 
 reviewer session 取自一次性 capability，不能只信任输入 JSON。review writer 用 ffmpeg 抽取至少 start/interior/final 三帧并记录 PNG 字节 hash，同时生成结构化 accessibility 与 review evidence。release writer 会拒绝缺失、过期、自审、格式错误或字节不匹配的 evidence；只有全部 proof/evidence 当前且结构有效时，才生成绑定所有交付角色的 `release-manifest/v1` 和 receipt v2。
@@ -156,7 +156,7 @@ reviewer session 取自一次性 capability，不能只信任输入 JSON。revie
 ## 验证与证明边界
 
 ```bash
-node --test plugins/video-project-delivery-guard/tests/*.test.mjs
+npx tsx --test plugins/video-project-delivery-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin video-project-delivery-guard
 ```
 

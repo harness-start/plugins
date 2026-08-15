@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" session",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/video-project-delivery-guard.mjs\" session",
             "statusMessage": "Discovering Video artifact projects",
             "timeout": 10000
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/video-project-delivery-guard.mjs\" pre",
             "statusMessage": "Checking Video artifact writer boundaries",
             "timeout": 10000
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/video-project-delivery-guard.mjs\" post",
             "statusMessage": "Revalidating Video artifact evidence",
             "timeout": 120000
           }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" failure",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/video-project-delivery-guard.mjs\" failure",
             "statusMessage": "Checking partial Video mutations",
             "timeout": 120000
           }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/video-project-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Video artifact closure",
             "timeout": 120000
           }
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/video-project-delivery-guard.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/video-project-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Video artifact closure",
             "timeout": 120000
           }

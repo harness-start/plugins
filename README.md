@@ -79,7 +79,9 @@ codex plugin add <name>@harness-start --json
 .
 ├── .claude-plugin/marketplace.json    # Claude Code marketplace
 ├── .agents/plugins/marketplace.json   # Codex marketplace
+├── core/src/                          # 构建时内联到插件的共享 TypeScript 逻辑
 ├── plugins/                           # 自包含插件目录
+├── package.json                       # 根级 TypeScript、esbuild、测试与 lint 命令
 ├── scripts/install-all.sh             # marketplace 与全部插件的一键安装脚本
 ├── scripts/ci/validate-plugins.sh     # GitHub/GitLab 共用 CI 检查
 ├── docs/architecture.md               # Working harness architecture
@@ -90,7 +92,7 @@ codex plugin add <name>@harness-start --json
 
 默认分支：`master`
 
-每个插件都必须自包含。运行时不得引用自身目录外的文件，因为 Claude Code 会将单个插件目录复制到缓存。
+每个插件都必须自包含。源码可以通过 `@harness/core/*` 复用根级逻辑，但 esbuild 会把它内联进插件自己的 `dist/`；运行时不得引用自身目录外的文件，因为 Claude Code 会将单个插件目录复制到缓存。仓库不是 npm workspace，也不使用 monorepo 包链接。
 
 `GUIDE.md` 中的 `session-hooks`、`policy-checks` 等名称只用于示例。真实插件位于 `plugins/`，并同时登记在两个 marketplace 索引中。
 
@@ -152,12 +154,15 @@ plugins/<name>/
 ├── .codex-plugin/plugin.json    # Codex manifest（版本必须与 Claude 一致）
 ├── hooks/claude.json            # 可选 Claude Hook 配置
 ├── hooks/codex.json             # 可选 Codex Hook 配置
-├── scripts/*.mjs                # 可选 Node ESM 校验脚本，零运行时依赖
+├── src/                         # TypeScript 源码；entries/hooks|cli|mcp 为多入口
+├── dist/                        # 已提交的 Node ESM bundle；插件安装后直接运行
 ├── skills/                      # 可选 Skill，大部分插件附带
 ├── acceptance/cases/            # 宿主验收用例（case.toml + prompt.md + expect.sh + workspace/）
-├── tests/*.test.mjs             # node --test 单元测试
+├── tests/*.test.ts              # 与源码同名或同职责的离线测试
 └── skill-deps.json              # 可选社区 Skill 依赖声明
 ```
+
+纯内容插件可以没有 `src/` 和 `dist/`。代码插件的运行时依赖由 esbuild 打进各自 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一插件目录即可安装和运行。
 
 两个宿主的字段名、环境变量与生命周期事件不同，因此 marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护，业务脚本在插件目录内共享。Hook 事件覆盖：`SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`PostToolUseFailure`、`Stop`、`SubagentStart`、`SubagentStop`、`PreCompact`、`PostCompact`。
 
@@ -167,12 +172,12 @@ plugins/<name>/
 - **证据**：工作流插件用磁盘回执和 SHA-256 receipt 绑新鲜度；交付前要求回执和 trail 对得上。Hook 被调用、格式对、或多走几轮模型，都不算做完。
 - **fail-open / fail-closed**：解析失败和证据缺失就放行；写入安全、trail 完整性和交付新鲜度出问题就拦住。
 - **可配置**：多数守卫支持项目级配置（如 `.encoding-guard.mjs`、`.language-output-governance.mjs`），解析失败回退内置规则。
-- **验证配套**：每个插件至少一个 `node --test` 单元测试与一套 acceptance cases；CI 统一运行 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
+- **验证配套**：每个插件至少一个 TypeScript 离线测试与一套 acceptance cases；CI 统一运行 typecheck、ESLint、`check:dist`、单元测试和 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
 
 ## 前置条件
 
 - Git
-- Node.js 20+
+- Node.js 20.19+
 - Claude Code CLI 和/或 Codex CLI，用于安装与宿主检查
 - FFmpeg，用于 Logo 预览以及视音频类插件的本地生成与验证
 - `jq`，建议安装
@@ -182,10 +187,13 @@ plugins/<name>/
 GitHub Actions 与 GitLab CI 都运行同一脚本：
 
 ```bash
+npm ci
+npm run build
+npm run verify
 bash scripts/ci/validate-plugins.sh
 ```
 
-脚本会校验 JSON、全部插件 JavaScript 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。它还要求每个 `plugins/*` 目录同时登记在两个 marketplace 索引中，并拒绝孤立索引条目。
+`npm run build` 会从每个 `src/entries/**/*.ts` 生成对应的 `dist/**/*.mjs`；提交前必须把这些产物一并提交。`npm run check:dist` 以内存重建结果逐字节检查仓库中的产物，不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
 
 宿主已安装时运行：
 

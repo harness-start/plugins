@@ -1,6 +1,6 @@
 {
   "name": "work-report-insights",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Builds guided daily, weekly, and range work reports from local session transcripts and protects confirmed report bodies with SHA-256 seals.",
   "author": {
     "name": "Harness Start",

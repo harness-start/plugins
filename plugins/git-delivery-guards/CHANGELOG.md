@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.1
+## 0.3.0
 
 - Ignore standalone `=======` lines unless the file also contains a merge-conflict boundary marker, avoiding false positives on RST table borders and similar document syntax.
 

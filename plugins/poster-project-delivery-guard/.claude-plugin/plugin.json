@@ -1,6 +1,6 @@
 {
   "name": "poster-project-delivery-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Enforces ordered Satori layer projects, paired proofs, and fresh poster delivery evidence.",
   "author": {
     "name": "Harness Start",

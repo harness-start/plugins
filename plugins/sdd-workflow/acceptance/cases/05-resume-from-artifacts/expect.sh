@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-node "${ACCEPT_REPO}/plugins/sdd-workflow/scripts/sdd-workflow-validate.mjs" validate "${ACCEPT_WORKSPACE}/.specs/001-greeting" >/dev/null
+node "${ACCEPT_REPO}/plugins/sdd-workflow/dist/cli/sdd-workflow-validate.mjs" validate "${ACCEPT_WORKSPACE}/.specs/001-greeting" >/dev/null
 cmp "${ACCEPT_WORKSPACE}/baseline/spec.md" "${ACCEPT_WORKSPACE}/.specs/001-greeting/spec.md"
 cmp "${ACCEPT_WORKSPACE}/baseline/plan.md" "${ACCEPT_WORKSPACE}/.specs/001-greeting/plan.md"
 cmp "${ACCEPT_WORKSPACE}/baseline/tasks.md" "${ACCEPT_WORKSPACE}/.specs/001-greeting/tasks.md"

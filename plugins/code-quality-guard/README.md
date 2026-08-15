@@ -86,8 +86,8 @@ PHP 文件路径会写入 Git 根目录的 `.code-quality-guard/state/`。`Stop`
 ## 验证
 
 ```bash
-node --test plugins/code-quality-guard/tests/*.test.mjs
+npx tsx --test plugins/code-quality-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin code-quality-guard
 ```
 
-版本：`0.1.1`
+版本：`0.2.0`

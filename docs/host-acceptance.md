@@ -21,7 +21,7 @@ invokes `claude` / `codex` for these suites.
 
 | Layer | Where | Command |
 | --- | --- | --- |
-| Unit tests (`node:test`) | Host | `node --test plugins/*/tests/*.mjs` |
+| Unit tests (`node:test` + `tsx`) | Host | `npm test` |
 | Expect honesty gate (no API) | Host or container | `./scripts/acceptance/run.sh --honesty-only` |
 | Live Claude + Codex suites (per-plugin) | **Docker only** | `./scripts/acceptance/run.sh` (auto-wraps Docker) |
 | Project scenarios (full `install-all`) | **Docker only** | `./scripts/acceptance/run-project.sh` |

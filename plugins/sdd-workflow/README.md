@@ -23,7 +23,7 @@ Skills 把 subagent 用作上下文收口：默认 `fork_turns: "none"`、最大
 ## 验证
 
 ```bash
-node --test plugins/sdd-workflow/tests/*.test.mjs
+npx tsx --test plugins/sdd-workflow/tests/*.test.ts
 bash scripts/ci/validate-plugins.sh
 ./scripts/acceptance/run.sh --plugin sdd-workflow
 ```

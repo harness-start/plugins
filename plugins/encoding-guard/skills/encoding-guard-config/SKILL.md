@@ -1,7 +1,7 @@
 ---
 name: encoding-guard-config
 description: Change encoding-guard project settings or investigate BOM / invalid UTF-8 findings via .encoding-guard.mjs.
-version: 0.1.0
+version: 0.2.0
 ---
 
 # encoding-guard-config

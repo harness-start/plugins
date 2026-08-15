@@ -31,6 +31,9 @@ jobs:
       - name: Install validation dependencies
         run: sudo apt-get update && sudo apt-get install -y jq ffmpeg
 
+      - name: Install repository toolchain
+        run: npm ci
+
       - name: Validate plugins
         shell: bash
         run: bash scripts/ci/validate-plugins.sh

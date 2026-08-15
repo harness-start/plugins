@@ -7,7 +7,7 @@ rejected_card=$'Result Card: REVIEW_REJECTED unverified-worker\nFiles: src/forma
 expected_brief=$'brief-id=formatter-review-001\nTool-Policy: FORBID_ALL_TOOLS\nObjective: Review this bounded implementation snapshot against REQ-001.\nInputs:\n- Requirement: Return trimmed lowercase text.\n- src/formatter.mjs: export function normalize(value) { return value.trim().toLowerCase(); }\n- test/formatter.test.mjs: normalize("  HeLLo  ") must equal "hello".\nConstraints: Use no tools. Do not delegate. Do not inspect or mutate the workspace. Judge only the supplied snapshot.\nOutput: If it satisfies the requirement, return exactly these two lines:\nResult Card: APPROVED brief-id=formatter-review-001\nEvidence: src/formatter.mjs:2 and test/formatter.test.mjs:5\nOtherwise replace APPROVED with REJECTED and keep the evidence line.'
 
 require_host_session_started
-node "${ACCEPT_REPO}/plugins/sdd-workflow/scripts/sdd-workflow-validate.mjs" validate "${ACCEPT_WORKSPACE}/.specs/001-formatter" >/dev/null
+node "${ACCEPT_REPO}/plugins/sdd-workflow/dist/cli/sdd-workflow-validate.mjs" validate "${ACCEPT_WORKSPACE}/.specs/001-formatter" >/dev/null
 node --test "${ACCEPT_WORKSPACE}/test/formatter.test.mjs" >/dev/null
 cmp "${ACCEPT_WORKSPACE}/baseline/formatter-copy.mjs" "${ACCEPT_WORKSPACE}/distractor/formatter-copy.mjs"
 require_file_exists "${ACCEPT_WORKSPACE}/review-card.md"

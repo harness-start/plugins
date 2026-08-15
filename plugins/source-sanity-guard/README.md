@@ -48,8 +48,8 @@ export default {
 ## 验证
 
 ```bash
-node --test plugins/source-sanity-guard/tests/*.test.mjs
+npx tsx --test plugins/source-sanity-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin source-sanity-guard
 ```
 
-版本：`0.2.0`
+版本：`0.3.0`

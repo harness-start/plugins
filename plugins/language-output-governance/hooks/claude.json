@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/language-output-hook-session-start.mjs\"",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/language-output-hook-session-start.mjs\"",
             "timeout": 10000
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/language-output-hook-user-prompt.mjs\"",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/language-output-hook-user-prompt.mjs\"",
             "timeout": 10000
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/language-output-hook-post-tool.mjs\"",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/language-output-hook-post-tool.mjs\"",
             "timeout": 10000
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/language-output-hook-stop.mjs\"",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/language-output-hook-stop.mjs\"",
             "timeout": 10000
           }
         ]
@@ -50,7 +50,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/scripts/language-output-hook-stop.mjs\"",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/language-output-hook-stop.mjs\"",
             "timeout": 10000
           }
         ]

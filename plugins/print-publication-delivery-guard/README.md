@@ -53,8 +53,8 @@ artifacts/print/field-manual/
 ## 校验与发布
 
 ```bash
-node plugins/print-publication-delivery-guard/scripts/tools/project-lint.mjs artifacts/print/field-manual
-AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="print-publication-delivery-guard:manual-release" node plugins/print-publication-delivery-guard/scripts/tools/project-release.mjs artifacts/print/field-manual
+node plugins/print-publication-delivery-guard/dist/cli/project-lint.mjs artifacts/print/field-manual
+AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="print-publication-delivery-guard:manual-release" node plugins/print-publication-delivery-guard/dist/cli/project-release.mjs artifacts/print/field-manual
 ```
 
 lint 使用 artifact 本地 ESLint/parser，干净环境需先按 `package-lock.json` 安装依赖。release 要求四份 PDF 都以 `%PDF` 开头且所有 evidence 已存在，然后通过 `.print-delivery-journal.json` 原子签发 receipt。章节、CSS、字体、素材、配置或输出的任何变化都会使旧 receipt 失效。
@@ -73,7 +73,7 @@ lint 使用 artifact 本地 ESLint/parser，干净环境需先按 `package-lock.
 Claude Code 使用 `CLAUDE_PLUGIN_ROOT` 并观察 `PostToolUseFailure`；Codex 使用 `PLUGIN_ROOT`，由 Hook 命令补充 provenance 环境变量。安装态调用 writer 时须使用对应变量或已安装插件的精确绝对路径，不能使用 `...` 占位。两者都会在 Stop 重算交付闭包，但 Hook 只能约束宿主可观察的工具调用，不是操作系统沙箱。
 
 ```bash
-node --test plugins/print-publication-delivery-guard/tests/*.test.mjs
+npx tsx --test plugins/print-publication-delivery-guard/tests/*.test.ts
 ```
 
 当前没有外部 Skill 依赖。

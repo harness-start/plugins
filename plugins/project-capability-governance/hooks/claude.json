@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/project-capability-governance-hook.mjs\" session claude",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/project-capability-governance-hook.mjs\" session claude",
             "statusMessage": "Loading project capability discovery criteria",
             "timeout": 5000
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/project-capability-governance-hook.mjs\" pre claude",
+            "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/dist/hooks/project-capability-governance-hook.mjs\" pre claude",
             "statusMessage": "Protecting the project capability inbox",
             "timeout": 10000
           }
@@ -30,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/scripts/project-capability-governance-hook.mjs\" stop claude",
+            "command": "node \"${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT}}/dist/hooks/project-capability-governance-hook.mjs\" stop claude",
             "statusMessage": "Checking for new human-only capability notices",
             "timeout": 10000
           }

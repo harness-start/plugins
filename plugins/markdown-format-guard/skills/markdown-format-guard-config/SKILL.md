@@ -1,7 +1,7 @@
 ---
 name: markdown-format-guard-config
 description: Change markdown-format-guard heading/fence/whitespace rules or investigate format findings via .markdown-format-guard.mjs.
-version: 0.1.0
+version: 0.2.0
 ---
 
 # markdown-format-guard-config

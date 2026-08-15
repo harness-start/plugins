@@ -238,7 +238,7 @@ agent TOML 中显式固定的值
 
 ```bash
 # cwd: 本仓库根目录
-node --test plugins/project-capability-governance/tests/subagent-architecture.test.mjs
+npx tsx --test plugins/project-capability-governance/tests/subagent-architecture.test.ts
 ```
 
 这项测试证明仓库没有重新引入专用 agent 文件、`SubagentStart` / `SubagentStop` hook 或旧 marker/nonce 协议。它不证明宿主的通用 subagent 一定正确；正确性仍由领域产物、测试和父 agent 的复核建立。

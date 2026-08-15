@@ -55,17 +55,16 @@ validate_json() {
 }
 
 check_scripts() {
-  log "Checking plugin scripts"
+  log "Checking committed plugin bundles"
   require_cmd node
 
   local -a files=()
   mapfile -t files < <(
-    find plugins -type f -name '*.mjs' \
-      \( -path '*/scripts/*' -o -path '*/server/*' \) | sort
+    find plugins -type f -name '*.mjs' -path '*/dist/*' | sort
   )
 
   if [ "${#files[@]}" -eq 0 ]; then
-    printf 'No plugin scripts found under plugins/*/scripts/**/*.mjs\n' >&2
+    printf 'No committed bundles found under plugins/*/dist/**/*.mjs\n' >&2
     exit 1
   fi
 
@@ -74,6 +73,38 @@ check_scripts() {
     printf 'Checking %s\n' "${file}"
     node --check "${file}"
   done
+
+  if find plugins -type f -print \
+    | awk -F/ '$3 == "scripts" || $3 == "server" || $3 == "eslint" { found = 1 } END { exit found ? 0 : 1 }'; then
+    printf 'Legacy plugin runtime files remain under scripts/, server/, or eslint/\n' >&2
+    exit 1
+  fi
+
+  local plugin
+  for plugin in plugins/*; do
+    [ -d "${plugin}" ] || continue
+    if [ -d "${plugin}/src" ] && [ ! -d "${plugin}/dist" ]; then
+      printf 'Code plugin is missing committed dist/: %s\n' "${plugin}" >&2
+      exit 1
+    fi
+    if [ ! -d "${plugin}/src" ] && [ -d "${plugin}/dist" ]; then
+      printf 'Content-only plugin has an unexpected dist/: %s\n' "${plugin}" >&2
+      exit 1
+    fi
+  done
+
+  log "Checking Hook manifest entrypoints"
+  local command
+  while IFS= read -r -d '' manifest; do
+    plugin_root="$(cd "$(dirname "$(dirname "${manifest}")")" && pwd)"
+    while IFS= read -r command; do
+      entry="$(printf '%s\n' "${command}" | grep -oE 'dist/[A-Za-z0-9_./-]+\.mjs' | head -n 1 || true)"
+      if [ -n "${entry}" ] && [ ! -f "${plugin_root}/${entry}" ]; then
+        printf 'Hook entrypoint missing: %s -> %s\n' "${manifest}" "${entry}" >&2
+        exit 1
+      fi
+    done < <(jq -r '.. | objects | select(.type? == "command") | .command' "${manifest}")
+  done < <(find plugins -path '*/hooks/*.json' -type f -print0)
 
   log "Checking MCP manifest entrypoints"
   local manifest entry plugin_root
@@ -101,8 +132,7 @@ check_scripts() {
 }
 
 check_unit_tests() {
-  log "Running offline unit tests for every plugin"
-  require_cmd node
+  log "Checking and running offline TypeScript tests"
 
   local plugin name
   local -a test_files=()
@@ -112,16 +142,17 @@ check_unit_tests() {
     test_files=()
     if [ -d "${plugin}/tests" ]; then
       mapfile -t test_files < <(
-        find "${plugin}/tests" -maxdepth 1 -name '*.test.mjs' -type f | sort
+        find "${plugin}/tests" -maxdepth 1 -name '*.test.ts' -type f | sort
       )
     fi
     if [ "${#test_files[@]}" -eq 0 ]; then
       printf 'Plugin has no offline unit tests: %s\n' "${name}" >&2
       exit 1
     fi
-    printf 'Testing %s (%s file(s))\n' "${name}" "${#test_files[@]}"
-    node --test "${test_files[@]}"
+    printf 'Found tests for %s (%s file(s))\n' "${name}" "${#test_files[@]}"
   done
+
+  npm test
 }
 
 check_acceptance_suites() {
@@ -506,6 +537,10 @@ main() {
   require_cmd jq
 
   install_hosts_if_needed
+  log "Checking TypeScript, ESLint, and committed dist freshness"
+  npm run typecheck
+  npm run lint
+  npm run check:dist
   validate_json
   check_scripts
   check_unit_tests

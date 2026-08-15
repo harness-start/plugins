@@ -1,6 +1,6 @@
 {
   "name": "pptx-project-delivery-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Enforces a source-bound, one-slide-per-module PptxGenJS project and fresh delivery evidence.",
   "author": {
     "name": "Harness Start",

@@ -139,11 +139,11 @@ project-owned paths.
 PCG_PLUGIN_ROOT="${PROJECT_CAPABILITY_GOVERNANCE_ROOT:-${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}"
 test -n "${PCG_PLUGIN_ROOT}"
 
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" start --root "${PWD}" --proposal pc-release-check
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" block --root "${PWD}" --proposal pc-release-check --reason "<verified blocker>"
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" defer --root "${PWD}" --proposal pc-release-check --condition "<revisit condition>"
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" reopen --root "${PWD}" --proposal pc-release-check
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" delete --root "${PWD}" --proposal pc-release-check --outcome accepted
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" start --root "${PWD}" --proposal pc-release-check
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" block --root "${PWD}" --proposal pc-release-check --reason "<verified blocker>"
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" defer --root "${PWD}" --proposal pc-release-check --condition "<revisit condition>"
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" reopen --root "${PWD}" --proposal pc-release-check
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" delete --root "${PWD}" --proposal pc-release-check --outcome accepted
 ```
 
 Invalid schemas, overwrites, symlink targets, duplicate ids, invalid lifecycle
@@ -159,7 +159,7 @@ proposal file and the human adoption workflow, not hook activation.
 ## Verification
 
 ```bash
-node --test plugins/project-capability-governance/tests/*.test.mjs
+npx tsx --test plugins/project-capability-governance/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin project-capability-governance
 ```
 

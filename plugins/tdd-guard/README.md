@@ -155,7 +155,7 @@ JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/featur
 从 marketplace 根目录运行：
 
 ```bash
-node --test plugins/tdd-guard/tests/*.test.mjs
+npx tsx --test plugins/tdd-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin tdd-guard
 ```
 

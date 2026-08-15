@@ -74,7 +74,7 @@ export default {
 ## 验证
 
 ```bash
-node --test plugins/file-access-audit/tests/*.test.mjs
+npx tsx --test plugins/file-access-audit/tests/*.test.ts
 ```
 
-版本：`0.1.2`
+版本：`0.2.0`

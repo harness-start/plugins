@@ -11,7 +11,7 @@ Keep one durable change at `.specs/<NNN>-<slug>/`. The user only needs `$sdd`; r
 
 1. Read project instructions and inspect `.specs/` without rewriting valid artifacts.
 2. Select the explicitly named change. If none is named, continue the only incomplete change; otherwise create the next numeric directory.
-3. Validate the directory with the bundled `scripts/sdd-workflow-validate.mjs`.
+3. Validate the directory with the bundled `dist/cli/sdd-workflow-validate.mjs`.
 4. Choose exactly one next action:
    - missing or invalid `spec.md` → specify;
    - missing, invalid, or stale `plan.md` → plan;

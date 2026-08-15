@@ -52,8 +52,8 @@ slide preview、`dist/`、evidence、review 和 manifest 是受保护路径。�
 ## 校验与发布
 
 ```bash
-node plugins/pptx-project-delivery-guard/scripts/tools/project-lint.mjs artifacts/pptx/quarterly-review
-AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="pptx-project-delivery-guard:manual-release" node plugins/pptx-project-delivery-guard/scripts/tools/project-release.mjs artifacts/pptx/quarterly-review
+node plugins/pptx-project-delivery-guard/dist/cli/project-lint.mjs artifacts/pptx/quarterly-review
+AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="pptx-project-delivery-guard:manual-release" node plugins/pptx-project-delivery-guard/dist/cli/project-release.mjs artifacts/pptx/quarterly-review
 ```
 
 lint 从 artifact 本地加载 ESLint，因此干净环境需先按 `package-lock.json` 安装依赖。release 校验交付闭包后，通过 `.pptx-delivery-journal.json` 独占写入 `receipt.release.json`。主题、deck owner、manifest、素材、字体、配置或输出变化都会使 receipt 失效。
@@ -72,7 +72,7 @@ lint 从 artifact 本地加载 ESLint，因此干净环境需先按 `package-loc
 Claude Code 使用 `CLAUDE_PLUGIN_ROOT` 并提供 `PostToolUseFailure`；Codex 使用 `PLUGIN_ROOT`，Hook 命令设置 `AI_EXPERTS_SESSION_ID` 和 `AI_EXPERTS_TRIGGER_FROM`。安装态调用 writer 时须使用对应变量或已安装插件的精确绝对路径，不能使用 `...` 占位。两者都在 Stop/SubagentStop 重算项目闭包。Hook 只约束宿主可观察的 Tool，不是操作系统沙箱。
 
 ```bash
-node --test plugins/pptx-project-delivery-guard/tests/*.test.mjs
+npx tsx --test plugins/pptx-project-delivery-guard/tests/*.test.ts
 ```
 
 `skill-deps.json` 声明的可选设计顾问只提供只读建议，不能写 preview、dist、evidence 或 receipt。

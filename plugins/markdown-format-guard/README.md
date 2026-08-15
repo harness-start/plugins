@@ -69,8 +69,8 @@ codex plugin add markdown-format-guard@harness-start
 ## 验证
 
 ```bash
-node --test plugins/markdown-format-guard/tests/*.test.mjs
+npx tsx --test plugins/markdown-format-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin markdown-format-guard
 ```
 
-版本：`0.1.0`
+版本：`0.2.0`

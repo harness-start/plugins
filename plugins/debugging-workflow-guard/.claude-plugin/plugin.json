@@ -1,6 +1,6 @@
 {
   "name": "debugging-workflow-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Activates an evidence-first, multi-bug debugging workflow only after a valid Debug Work Order is created or resumed.",
   "author": {
     "name": "Harness Start",

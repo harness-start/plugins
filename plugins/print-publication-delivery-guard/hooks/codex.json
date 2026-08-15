@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:session\" node \"${PLUGIN_ROOT}/scripts/print-publication-delivery-guard.mjs\" session",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:session\" node \"${PLUGIN_ROOT}/dist/hooks/print-publication-delivery-guard.mjs\" session",
             "statusMessage": "Discovering Print artifact projects",
             "timeout": 10000
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:pre\" node \"${PLUGIN_ROOT}/scripts/print-publication-delivery-guard.mjs\" pre",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:pre\" node \"${PLUGIN_ROOT}/dist/hooks/print-publication-delivery-guard.mjs\" pre",
             "statusMessage": "Checking Print artifact writer boundaries",
             "timeout": 10000
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:post\" node \"${PLUGIN_ROOT}/scripts/print-publication-delivery-guard.mjs\" post",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:post\" node \"${PLUGIN_ROOT}/dist/hooks/print-publication-delivery-guard.mjs\" post",
             "statusMessage": "Revalidating Print artifact evidence",
             "timeout": 10000
           }
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:stop\" node \"${PLUGIN_ROOT}/scripts/print-publication-delivery-guard.mjs\" stop",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:stop\" node \"${PLUGIN_ROOT}/dist/hooks/print-publication-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Print artifact closure",
             "timeout": 10000
           }
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:subagent-stop\" node \"${PLUGIN_ROOT}/scripts/print-publication-delivery-guard.mjs\" stop",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"print-publication-delivery-guard:subagent-stop\" node \"${PLUGIN_ROOT}/dist/hooks/print-publication-delivery-guard.mjs\" stop",
             "statusMessage": "Validating Print artifact closure",
             "timeout": 10000
           }

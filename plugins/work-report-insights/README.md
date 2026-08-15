@@ -31,7 +31,7 @@
 在 marketplace 根目录运行：
 
 ```bash
-node --test plugins/work-report-insights/tests/*.test.mjs
+npx tsx --test plugins/work-report-insights/tests/*.test.ts
 find plugins/work-report-insights/scripts -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
 SKIP_HOST_INSTALL=1 SKIP_CODEX_LOAD=1 bash scripts/ci/validate-plugins.sh
 ```

@@ -20,7 +20,7 @@ Build music as reviewable source code, then establish a complete causal chain fr
 Create the project under `artifacts/music/<id>`:
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-init.mjs" <id> --workspace "${PWD}" --install-browser
+node "${PLUGIN_ROOT}/dist/cli/project-init.mjs" <id> --workspace "${PWD}" --install-browser
 ```
 
 The command pins `tone@15.1.22`, `tonal@6.4.3`, `playwright@1.62.1`, `esbuild@0.28.2`, and `eslint@9.39.2`. Treat the generated `package-lock.json` as part of the source digest.
@@ -50,13 +50,13 @@ Use Euclidean rhythm only when distributed pulses suit the musical role. Do not 
 Run structural and ownership validation:
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-lint.mjs" "artifacts/music/<id>"
+node "${PLUGIN_ROOT}/dist/cli/project-lint.mjs" "artifacts/music/<id>"
 ```
 
 Generate the current symbolic score and metrics:
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-optimize.mjs" "artifacts/music/<id>"
+node "${PLUGIN_ROOT}/dist/cli/project-optimize.mjs" "artifacts/music/<id>"
 ```
 
 Inspect both `build/score.<sourceDigest>.json` and `build/metrics.<sourceDigest>.json`. Confirm hard violations are empty. Compare candidate metrics, but listen before deciding whether the selected variant serves the brief.
@@ -66,7 +66,7 @@ Inspect both `build/score.<sourceDigest>.json` and `build/metrics.<sourceDigest>
 Render each track and the mix through browser-side `Tone.Offline`:
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-render.mjs" "artifacts/music/<id>"
+node "${PLUGIN_ROOT}/dist/cli/project-render.mjs" "artifacts/music/<id>"
 ```
 
 The renderer bundles only local instruments, blocks browser network requests, renders at 48 kHz stereo, and writes:
@@ -78,7 +78,7 @@ The renderer bundles only local instruments, blocks browser network requests, re
 For interactive listening:
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-preview.mjs" "artifacts/music/<id>"
+node "${PLUGIN_ROOT}/dist/cli/project-preview.mjs" "artifacts/music/<id>"
 ```
 
 Listen to the complete mix and relevant proofs. Create `review/music-review.md` with these exact current bindings:
@@ -99,7 +99,7 @@ Revise source, re-optimize, re-render, and re-listen when the result does not me
 Set `plan.contract.json` to `{"schema":"tonejs-music-plan/v1","targetStage":"release"}` only after review. Then run:
 
 ```bash
-node "${PLUGIN_ROOT}/scripts/tools/project-release.mjs" "artifacts/music/<id>"
+node "${PLUGIN_ROOT}/dist/cli/project-release.mjs" "artifacts/music/<id>"
 ```
 
 Release succeeds only if current source artifacts exist, the listening review binds the current mix, and objective WAV thresholds pass. It writes the final WAV, audio evidence, manifest, and receipt. Do not edit those protected files directly.

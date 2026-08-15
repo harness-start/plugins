@@ -1,6 +1,6 @@
 {
   "name": "encoding-guard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Blocks BOM-bearing and invalid UTF-8 text files after AI write operations.",
   "author": {
     "name": "Harness Start",

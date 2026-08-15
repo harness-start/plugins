@@ -68,8 +68,8 @@ codex plugin add encoding-guard@harness-start
 ## 验证
 
 ```bash
-node --test plugins/encoding-guard/tests/*.test.mjs
+npx tsx --test plugins/encoding-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin encoding-guard
 ```
 
-版本：`0.1.0`
+版本：`0.2.0`

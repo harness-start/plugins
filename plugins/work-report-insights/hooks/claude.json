@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/work-report-insights-hook.mjs\" pre",
             "statusMessage": "Protecting confirmed work reports",
             "timeout": 10000
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/work-report-insights-hook.mjs\" post",
             "statusMessage": "Verifying work report receipt",
             "timeout": 10000
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/work-report-insights-hook.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/work-report-insights-hook.mjs\" stop",
             "statusMessage": "Checking work report closure",
             "timeout": 10000
           }

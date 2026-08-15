@@ -13,9 +13,9 @@
 
 ## ESLint 与跨文件合同
 
-每个插件的 `eslint/preset.mjs` 和 `eslint/local-rules/` 只处理单文件 AST 能可靠表达的 owner 边界；`scripts/tools/project-lint.mjs` 从 artifact 自己的 `package.json` 解析本地 `eslint` 与 `@typescript-eslint/parser`，不使用全局包或 `npx`。
+每个插件的 `src/lib/eslint/preset.ts` 和 `src/lib/eslint/local-rules/` 只处理单文件 AST 能可靠表达的 owner 边界；运行时 `dist/cli/project-lint.mjs` 从 artifact 自己的 `package.json` 解析本地 `eslint` 与 `@typescript-eslint/parser`，不使用全局包或 `npx`。
 
-文件名、manifest 顺序、source-hash proof、跨文件依赖、最终输出和 receipt 由 `scripts/lib/contract.mjs` 复核。正则合同不是 ESLint 的降级替代，而是 Hook 在没有 artifact toolchain 时仍能 fail closed 的最小闭包。
+文件名、manifest 顺序、source-hash proof、跨文件依赖、最终输出和 receipt 由 `src/lib/contract.ts` 复核，并随各 entry 打入 bundle。正则合同不是 ESLint 的降级替代，而是 Hook 在没有 artifact toolchain 时仍能 fail closed 的最小闭包。
 
 ## 生成依赖与社区 Skill
 

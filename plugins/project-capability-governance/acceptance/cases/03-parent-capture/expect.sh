@@ -6,7 +6,7 @@ require_host_session_started
 proposal="${ACCEPT_WORKSPACE}/.project-capabilities/inbox/pending/pc-repeatable-release-check.md"
 require_file_exists "${proposal}"
 
-node --input-type=module - "${ACCEPT_PLUGIN_DIR}/scripts/lib/proposals.mjs" "${proposal}" <<'NODE'
+node --input-type=module - "${ACCEPT_PLUGIN_DIR}/dist/cli/project-capability-manage.mjs" "${proposal}" <<'NODE'
 import { readFile } from "node:fs/promises";
 import { basename } from "node:path";
 const [{ validateProposalDocument }, content] = await Promise.all([

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" session",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/debugging-workflow-guard.mjs\" session",
             "statusMessage": "Discovering Debug Work Orders",
             "timeout": 10000
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/debugging-workflow-guard.mjs\" pre",
             "statusMessage": "Checking active debug bug",
             "timeout": 10000
           }
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/debugging-workflow-guard.mjs\" post",
             "statusMessage": "Recording debug evidence",
             "timeout": 10000
           }
@@ -44,7 +44,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" failure",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/debugging-workflow-guard.mjs\" failure",
             "statusMessage": "Recording failed debug evidence",
             "timeout": 10000
           }
@@ -56,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/debugging-workflow-guard.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/debugging-workflow-guard.mjs\" stop",
             "statusMessage": "Validating Debug Work Order",
             "timeout": 10000
           }
