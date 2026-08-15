@@ -1,0 +1,4 @@
+id = "04-stale-head-success"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["skill", "remote-state", "stale-sha"]
