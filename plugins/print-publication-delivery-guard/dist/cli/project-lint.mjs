@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7b9d00a7187431ef6fc08d5cc4a14420b072497b073b4b891380b5b321892ea2
+// harness-source-hash: sha256:18a0ebef0e073513e4da28927c8f2f5f9801eeaa910a741d013a00b2be3b57ac
 
 // plugins/print-publication-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";
@@ -34,7 +34,7 @@ async function runLocalEslint(options) {
 }
 
 // plugins/print-publication-delivery-guard/src/lib/eslint/local-rules/artifact-unit-owner.ts
-var artifact_unit_owner_default = {
+var rule = {
   meta: { type: "problem", schema: [], messages: { static: "Publication units must be static React without client runtime, I/O, network, or nondeterminism.", export: "A publication unit must export exactly one component." } },
   create(context) {
     let exports = 0;
@@ -44,7 +44,7 @@ var artifact_unit_owner_default = {
       },
       CallExpression(node) {
         const name = node.callee?.name ?? node.callee?.property?.name;
-        if (["useState", "useEffect", "useLayoutEffect", "useReducer", "hydrateRoot", "createRoot", "createPortal", "fetch", "setTimeout", "setInterval", "random"].includes(name)) context.report({ node, messageId: "static" });
+        if (name !== void 0 && ["useState", "useEffect", "useLayoutEffect", "useReducer", "hydrateRoot", "createRoot", "createPortal", "fetch", "setTimeout", "setInterval", "random"].includes(name)) context.report({ node, messageId: "static" });
       },
       "Program:exit"(node) {
         if (exports !== 1) context.report({ node, messageId: "export" });
@@ -52,6 +52,7 @@ var artifact_unit_owner_default = {
     };
   }
 };
+var artifact_unit_owner_default = rule;
 
 // plugins/print-publication-delivery-guard/src/lib/eslint/preset.ts
 function createPreset({ parser }) {
@@ -79,7 +80,7 @@ async function main() {
   if (failed) process.exitCode = 2;
 }
 main().catch((error) => {
-  process.stderr.write(`[print-project-lint] ${error.message}
+  process.stderr.write(`[print-project-lint] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

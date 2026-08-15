@@ -1,115 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:389789750a68bbbe04693037f22a1412e50d4ffade0d675fbcf007b65277c2bc
+// harness-source-hash: sha256:1c3f10a7e8cda1d0a05a47fe46532de16ac4b7a56b93ec07116476dbc97a336d
 
 // plugins/source-sanity-guard/src/entries/hooks/source-sanity-guard.ts
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { isAbsolute as isAbsolute2, join, relative, resolve as resolve2 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-
-// plugins/source-sanity-guard/src/lib/source-sanity-policy.ts
-var CHECK_NAMES = [
-  "backupArtifact",
-  "garbledText"
-];
-var DEFAULT_CHECKS = Object.freeze({
-  backupArtifact: "block",
-  garbledText: "block"
-});
-var VALID_MODES = /* @__PURE__ */ new Set(["block", "report", "off"]);
-var SKIP_PATH = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
-var SOURCE_PATH = /(?:^|\/)(?:app|client|cmd|components|include|internal|lib|packages|pkg|server|src|tests?)(?:\/|$)/iu;
-var BACKUP_SUFFIX = /(?:\.bak|\.backup|\.old|\.orig|\.rej|\.swp|\.temp|\.tmp|~)$/iu;
-var TEXT_PATH = /\.(?:bash|c|cc|cfg|cjs|cpp|css|cts|cxx|go|graphql|h|hh|hpp|html|ini|java|js|json|jsx|kt|kts|less|md|mjs|mts|php|py|rb|rs|sass|scss|sh|sql|svelte|swift|toml|ts|tsx|txt|vue|xml|yaml|yml|zsh)$/iu;
-function warnDefault(message) {
-  process.stderr.write(`[source-sanity-guard] ${message}
-`);
-}
-function normalizeMode(value, fallback, label, warn2) {
-  if (value === void 0) return fallback;
-  if (VALID_MODES.has(value)) return value;
-  warn2(`${label} must be "block", "report", or "off"; using ${fallback}`);
-  return fallback;
-}
-function resolveConfig(userConfig, warn2 = warnDefault) {
-  const checks = { ...DEFAULT_CHECKS };
-  if (userConfig?.checks !== void 0 && (!userConfig.checks || typeof userConfig.checks !== "object" || Array.isArray(userConfig.checks))) {
-    warn2('config "checks" must be an object; using defaults');
-  } else {
-    for (const name of CHECK_NAMES) {
-      checks[name] = normalizeMode(
-        userConfig?.checks?.[name],
-        checks[name],
-        `checks.${name}`,
-        warn2
-      );
-    }
-  }
-  const overrides = [];
-  if (userConfig?.overrides !== void 0 && !Array.isArray(userConfig.overrides)) {
-    warn2('config "overrides" must be an array; ignoring overrides');
-  } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
-        warn2(`override[${index}].match must be a RegExp; skipping`);
-        continue;
-      }
-      if (!override.checks || typeof override.checks !== "object" || Array.isArray(override.checks)) {
-        warn2(`override[${index}].checks must be an object; skipping`);
-        continue;
-      }
-      const normalizedChecks = {};
-      for (const name of CHECK_NAMES) {
-        if (override.checks[name] === void 0) continue;
-        const mode = normalizeMode(
-          override.checks[name],
-          null,
-          `override[${index}].checks.${name}`,
-          warn2
-        );
-        if (mode) normalizedChecks[name] = mode;
-      }
-      if (Object.keys(normalizedChecks).length === 0) {
-        warn2(`override[${index}] has no valid checks; skipping`);
-        continue;
-      }
-      overrides.push({ match: override.match, checks: normalizedChecks });
-    }
-  }
-  return { checks, overrides };
-}
-function regexMatches(pattern, value) {
-  try {
-    return new RegExp(pattern.source, pattern.flags).test(value);
-  } catch {
-    return false;
-  }
-}
-function modeFor(checkName, relativePath2, config) {
-  for (const override of config.overrides) {
-    if (override.checks[checkName] !== void 0 && regexMatches(override.match, relativePath2)) {
-      return override.checks[checkName];
-    }
-  }
-  return config.checks[checkName] ?? "off";
-}
-function isBuiltInSkippedPath(relativePath2) {
-  return SKIP_PATH.test(relativePath2);
-}
-function isBackupArtifactPath(relativePath2) {
-  return SOURCE_PATH.test(relativePath2) && BACKUP_SUFFIX.test(relativePath2);
-}
-function isTextPath(relativePath2) {
-  return TEXT_PATH.test(relativePath2);
-}
-function analyzeGarbledText(text) {
-  if (typeof text !== "string" || !text.includes("\uFFFD")) return null;
-  const total = [...text].filter((character) => character === "\uFFFD").length;
-  if (/\uFFFD{2,}/u.test(text) || total >= 3) {
-    return { replacementCharacters: total };
-  }
-  return null;
-}
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -147,6 +43,117 @@ function eventToolInput(event) {
   const tool = nestedRecord(event, "tool");
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
+}
+
+// plugins/source-sanity-guard/src/lib/source-sanity-policy.ts
+var CHECK_NAMES = [
+  "backupArtifact",
+  "garbledText"
+];
+var DEFAULT_CHECKS = Object.freeze({
+  backupArtifact: "block",
+  garbledText: "block"
+});
+function isCheckMode(value) {
+  return value === "block" || value === "report" || value === "off";
+}
+var SKIP_PATH = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
+var SOURCE_PATH = /(?:^|\/)(?:app|client|cmd|components|include|internal|lib|packages|pkg|server|src|tests?)(?:\/|$)/iu;
+var BACKUP_SUFFIX = /(?:\.bak|\.backup|\.old|\.orig|\.rej|\.swp|\.temp|\.tmp|~)$/iu;
+var TEXT_PATH = /\.(?:bash|c|cc|cfg|cjs|cpp|css|cts|cxx|go|graphql|h|hh|hpp|html|ini|java|js|json|jsx|kt|kts|less|md|mjs|mts|php|py|rb|rs|sass|scss|sh|sql|svelte|swift|toml|ts|tsx|txt|vue|xml|yaml|yml|zsh)$/iu;
+function warnDefault(message) {
+  process.stderr.write(`[source-sanity-guard] ${message}
+`);
+}
+function normalizeMode(value, fallback, label, warn2) {
+  if (value === void 0) return fallback;
+  if (isCheckMode(value)) return value;
+  warn2(`${label} must be "block", "report", or "off"; using ${fallback}`);
+  return fallback;
+}
+function resolveConfig(userConfig, warn2 = warnDefault) {
+  const record = isRecord(userConfig) ? userConfig : void 0;
+  const checks = { ...DEFAULT_CHECKS };
+  if (record?.checks !== void 0 && (!record.checks || typeof record.checks !== "object" || Array.isArray(record.checks))) {
+    warn2('config "checks" must be an object; using defaults');
+  } else {
+    const checksSource = isRecord(record?.checks) ? record.checks : void 0;
+    for (const name of CHECK_NAMES) {
+      checks[name] = normalizeMode(
+        checksSource?.[name],
+        checks[name],
+        `checks.${name}`,
+        warn2
+      );
+    }
+  }
+  const overrides = [];
+  if (record?.overrides !== void 0 && !Array.isArray(record.overrides)) {
+    warn2('config "overrides" must be an array; ignoring overrides');
+  } else {
+    const rawOverrides = Array.isArray(record?.overrides) ? record.overrides : [];
+    for (const [index, override] of rawOverrides.entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
+        warn2(`override[${index}].match must be a RegExp; skipping`);
+        continue;
+      }
+      if (!override.checks || typeof override.checks !== "object" || Array.isArray(override.checks)) {
+        warn2(`override[${index}].checks must be an object; skipping`);
+        continue;
+      }
+      const overrideChecks = isRecord(override.checks) ? override.checks : {};
+      const normalizedChecks = {};
+      for (const name of CHECK_NAMES) {
+        if (overrideChecks[name] === void 0) continue;
+        const mode = normalizeMode(
+          overrideChecks[name],
+          null,
+          `override[${index}].checks.${name}`,
+          warn2
+        );
+        if (mode) normalizedChecks[name] = mode;
+      }
+      if (Object.keys(normalizedChecks).length === 0) {
+        warn2(`override[${index}] has no valid checks; skipping`);
+        continue;
+      }
+      overrides.push({ match: override.match, checks: normalizedChecks });
+    }
+  }
+  return { checks, overrides };
+}
+function regexMatches(pattern, value) {
+  try {
+    return new RegExp(pattern.source, pattern.flags).test(value);
+  } catch {
+    return false;
+  }
+}
+function modeFor(checkName, relativePath2, config) {
+  for (const override of config.overrides) {
+    const mode = override.checks[checkName];
+    if (mode !== void 0 && regexMatches(override.match, relativePath2)) {
+      return mode;
+    }
+  }
+  return config.checks[checkName] ?? "off";
+}
+function isBuiltInSkippedPath(relativePath2) {
+  return SKIP_PATH.test(relativePath2);
+}
+function isBackupArtifactPath(relativePath2) {
+  return SOURCE_PATH.test(relativePath2) && BACKUP_SUFFIX.test(relativePath2);
+}
+function isTextPath(relativePath2) {
+  return TEXT_PATH.test(relativePath2);
+}
+function analyzeGarbledText(text) {
+  if (typeof text !== "string" || !text.includes("\uFFFD")) return null;
+  const total = [...text].filter((character) => character === "\uFFFD").length;
+  if (/\uFFFD{2,}/u.test(text) || total >= 3) {
+    return { replacementCharacters: total };
+  }
+  return null;
 }
 
 // core/src/hook-targets.ts
@@ -435,6 +442,7 @@ function unwrapCommand(tokens) {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
+    if (token === void 0) break;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
       index += 1;
       continue;
@@ -442,7 +450,9 @@ function unwrapCommand(tokens) {
     const name = tokenBasename(token);
     if (SIMPLE_WRAPPERS.has(name)) {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-") && tokens[index] !== "--") {
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-") || option === "--") break;
         index += 1;
       }
       if (tokens[index] === "--") index += 1;
@@ -450,8 +460,9 @@ function unwrapCommand(tokens) {
     }
     if (name === "sudo") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
         index += 1;
         if (["-C", "-g", "-u", "--group", "--user"].includes(option)) index += 1;
       }
@@ -459,22 +470,32 @@ function unwrapCommand(tokens) {
     }
     if (name === "env") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     if (name === "timeout") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
         index += 1;
         if (["-k", "-s", "--kill-after", "--signal"].includes(option)) index += 1;
       }
-      if (index < tokens.length && !tokens[index].startsWith("-")) index += 1;
+      const duration = tokens[index];
+      if (duration !== void 0 && !duration.startsWith("-")) index += 1;
       continue;
     }
     if (name === "nice" || name === "stdbuf") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     break;
@@ -486,6 +507,7 @@ function nonFlagOperands(args) {
   let skipNext = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === void 0) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -505,6 +527,7 @@ function nonFlagOperands(args) {
 function targetDirectory(args) {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === void 0) continue;
     if (arg === "-t" || arg === "--target-directory") {
       return args[index + 1] ?? "";
     }
@@ -518,7 +541,8 @@ function copyDestTargets(args) {
   const dest = targetDirectory(args);
   if (dest) return [dest];
   const operands = nonFlagOperands(args);
-  return operands.length ? [operands.at(-1)] : [];
+  const last = operands.at(-1);
+  return last === void 0 ? [] : [last];
 }
 function moveWriteTargets(args) {
   const dest = targetDirectory(args);
@@ -538,6 +562,7 @@ function sedWriteTargets(args) {
   let skippedScript = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === void 0) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -611,16 +636,18 @@ function extractFileTargets2(event) {
   return extractFileTargets(event);
 }
 function extractInsertedText(event) {
-  const input = event.tool_input ?? event.toolInput ?? event.tool?.input ?? event.input ?? {};
+  const tool = isRecord(event.tool) ? event.tool : void 0;
+  const input = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input ?? {};
   const texts = [];
   if (isShellTool(eventToolName(event))) {
     const command = extractShellCommand(event);
     if (command) texts.push(command);
   }
   const visit = (value) => {
-    if (!value || typeof value !== "object") return;
+    if (!isRecord(value)) return;
     for (const key of ["content", "new_string", "newString", "text", "cell_source", "patch", "input"]) {
-      if (typeof value[key] === "string") texts.push(value[key]);
+      const field = value[key];
+      if (typeof field === "string") texts.push(field);
     }
     if (Array.isArray(value.edits)) value.edits.forEach(visit);
   };
@@ -653,7 +680,7 @@ async function loadUserConfig(repoRoot) {
     const loaded = await import(pathToFileURL(configPath).href);
     return loaded.default ?? loaded;
   } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error.message}`);
+    warn(`failed to load ${CONFIG_FILE_NAME}: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
@@ -730,7 +757,7 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve2(process.argv[1])) {
   main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

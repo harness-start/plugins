@@ -7,12 +7,12 @@ import { join, resolve } from "node:path";
 const args = process.argv.slice(2);
 const id = args[0] ?? "";
 const workspaceIndex = args.indexOf("--workspace");
-const workspace = resolve(workspaceIndex >= 0 ? args[workspaceIndex + 1] : process.cwd());
+const workspace = resolve((workspaceIndex >= 0 ? args[workspaceIndex + 1] : process.cwd()) ?? process.cwd());
 const skipInstall = args.includes("--skip-install");
 const installBrowser = args.includes("--install-browser");
 
-function run(command, commandArgs, cwd, timeoutMs = 180000) {
-  return new Promise((resolvePromise, reject) => {
+function run(command: string, commandArgs: readonly string[], cwd: string, timeoutMs = 180000) {
+  return new Promise<void>((resolvePromise, reject) => {
     const child = spawn(command, commandArgs, { cwd, stdio: "inherit" });
     const timer = setTimeout(() => {
       child.kill("SIGTERM");
@@ -30,7 +30,7 @@ function run(command, commandArgs, cwd, timeoutMs = 180000) {
   });
 }
 
-async function writeJson(filePath, value) {
+async function writeJson(filePath: string, value: unknown) {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
 }
 
@@ -75,7 +75,7 @@ async function main() {
     writeFile(join(root, "src", "composition.mjs"), `export default {
   schema: "tonejs-composition/v1",
   id: "${id}",
-  title: "${id.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ")}",
+  title: "${id.split("-").map((part) => `${part[0] ?? ""}`.toUpperCase() + part.slice(1)).join(" ")}",
   bpm: 120,
   timeSignature: [4, 4],
   bars: 4,
@@ -108,7 +108,8 @@ async function main() {
   process.stdout.write(`${JSON.stringify({ root, installed: !skipInstall, browserInstalled: !skipInstall && installBrowser })}\n`);
 }
 
-main().catch((error) => {
-  process.stderr.write(`[tonejs-music-init] ${error.message}\n`);
+main().catch((error: unknown) => {
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[tonejs-music-init] ${message}\n`);
   process.exitCode = 2;
 });

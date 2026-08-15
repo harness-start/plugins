@@ -1,13 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5144022e720a1436cc94ff1ba394de3ed10ca6dad9d50619724476c05db2f9e5
+// harness-source-hash: sha256:58e3e88a88f2c918afd8d01406e0b7b235012b9e74f3a59df63d84c421069e35
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
   isProposalInboxTarget,
+  isRecord,
   proposalLocation,
+  readStdinJson,
   renderHumanNotice,
   validateProposalDocument
-} from "../chunks/chunk-MJOG3RF7.mjs";
+} from "../chunks/chunk-TS5S5LIR.mjs";
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 import { execFileSync } from "node:child_process";
@@ -17,55 +23,6 @@ import { fileURLToPath } from "node:url";
 
 // plugins/project-capability-governance/src/lib/hook-io.ts
 import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventSessionId(event) {
-  const context = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context?.session_id
-  );
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
 
 // core/src/hook-output.ts
 function preToolDeny(reason) {
@@ -224,52 +181,44 @@ function extractFileTargets(event, options = {}) {
 }
 
 // plugins/project-capability-governance/src/lib/hook-io.ts
-function extractCwd(event) {
-  return eventCwd(event);
-}
 function extractSessionId(event) {
   return eventSessionId(event) || "unknown";
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolInput(event) {
-  return eventToolInput(event);
 }
 function extractShellCommand2(event) {
   return extractShellCommand(event) ?? "";
 }
 function extractShellWorkingDirectory(event) {
-  if (!isShellTool(extractToolName(event))) return null;
-  const input = extractToolInput(event);
-  const value = input?.workdir ?? input?.cwd ?? input?.working_directory ?? input?.workingDirectory;
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const value = input.workdir ?? input.cwd ?? input.working_directory ?? input.workingDirectory;
   if (typeof value !== "string" || !value.trim()) return null;
-  return isAbsolute2(value) ? resolve2(value) : resolve2(extractCwd(event), value);
+  return isAbsolute2(value) ? resolve2(value) : resolve2(eventCwd(event), value);
 }
 function extractFileTargets2(event) {
   return extractFileTargets(event);
 }
 function extractWriteContent(event) {
-  const input = extractToolInput(event);
-  const value = input?.content ?? input?.file_text ?? input?.text;
+  const input = eventToolInput(event);
+  const value = input.content ?? input.file_text ?? input.text;
   if (typeof value === "string") return value;
-  if (!/^(?:apply_patch|ApplyPatch)$/u.test(String(extractToolName(event)))) return null;
-  const patch = typeof input === "string" ? input : input?.patch ?? input?.input ?? "";
+  if (!/^(?:apply_patch|ApplyPatch)$/u.test(String(eventToolName(event)))) return null;
+  const patch = input.patch ?? input.input ?? "";
   if (typeof patch !== "string") return null;
   const lines = patch.split("\n");
   const directives = lines.map((line, index) => ({ line, index })).filter(({ line }) => /^\*\*\*\s+(?:Add|Update|Delete) File:\s+/u.test(line));
-  if (directives.length !== 1 || !/^\*\*\*\s+Add File:\s+/u.test(directives[0].line)) return null;
-  const end = lines.indexOf("*** End Patch", directives[0].index + 1);
+  const firstDirective = directives[0];
+  if (directives.length !== 1 || !firstDirective || !/^\*\*\*\s+Add File:\s+/u.test(firstDirective.line)) return null;
+  const end = lines.indexOf("*** End Patch", firstDirective.index + 1);
   if (end < 0) return null;
-  const body = lines.slice(directives[0].index + 1, end);
+  const body = lines.slice(firstDirective.index + 1, end);
   if (body.length === 0 || body.some((line) => !line.startsWith("+"))) return null;
   return body.map((line) => line.slice(1)).join("\n");
 }
 function isFileTool(event) {
-  return isFileMutationTool(extractToolName(event));
+  return isFileMutationTool(eventToolName(event));
 }
 function isShellTool2(event) {
-  return isShellTool(extractToolName(event));
+  return isShellTool(eventToolName(event));
 }
 function contextOutput(eventName, text) {
   return additionalContext(eventName, text);
@@ -327,7 +276,7 @@ function resolveProjectRoot(cwd) {
   }
 }
 async function runStop(event) {
-  const projectRoot = resolveProjectRoot(extractCwd(event));
+  const projectRoot = resolveProjectRoot(eventCwd(event));
   const delta = await consumeNoticeDelta(projectRoot);
   if (delta.length === 0) return;
   writeJson(systemMessageOutput(renderHumanNotice(delta.length)));
@@ -337,14 +286,18 @@ async function runSession(event) {
   writeJson(contextOutput("SessionStart", sessionContext()));
 }
 async function handleProposalWrite(event, projectRoot, locations) {
-  const relevant = locations.filter(Boolean);
+  const relevant = locations.filter((location2) => location2 !== null);
   if (relevant.length === 0) return false;
   if (relevant.length !== locations.length || relevant.length !== 1) {
     writeJson(preToolDeny("[Project Capability Governance] proposal writes must target one exact inbox Markdown file"));
     return true;
   }
   const location = relevant[0];
-  const toolName = String(extractToolName(event));
+  if (!location) {
+    writeJson(preToolDeny("[Project Capability Governance] proposal writes must target one exact inbox Markdown file"));
+    return true;
+  }
+  const toolName = String(eventToolName(event));
   const content = extractWriteContent(event);
   if (location.status !== "pending" || !/^(?:Write|create_file|apply_patch)$/iu.test(toolName) || content === null) {
     writeJson(preToolDeny("[Project Capability Governance] create one new pending proposal with Write/create_file or a single Add File patch"));
@@ -360,8 +313,8 @@ async function handleProposalWrite(event, projectRoot, locations) {
     writeJson(preToolDeny("[Project Capability Governance] an existing proposal path cannot be overwritten"));
     return true;
   } catch (error) {
-    if (error?.code !== "ENOENT") {
-      writeJson(preToolDeny(`[Project Capability Governance] proposal target cannot be inspected safely: ${error?.message ?? String(error)}`));
+    if (!isRecord(error) || error.code !== "ENOENT") {
+      writeJson(preToolDeny(`[Project Capability Governance] proposal target cannot be inspected safely: ${error instanceof Error ? error.message : String(error)}`));
       return true;
     }
   }
@@ -369,7 +322,7 @@ async function handleProposalWrite(event, projectRoot, locations) {
   return true;
 }
 async function runPre(event) {
-  const projectRoot = resolveProjectRoot(extractCwd(event));
+  const projectRoot = resolveProjectRoot(eventCwd(event));
   if (isFileTool(event)) {
     const targets = extractFileTargets2(event);
     const locations = targets.map((target) => proposalLocation(projectRoot, target));
@@ -398,7 +351,7 @@ async function main() {
     else if (mode === "pre" || mode === "PreToolUse") await runPre(event);
     else if (mode === "stop" || mode === "Stop") await runStop(event);
   } catch (error) {
-    process.stderr.write(`[project-capability-governance] ${error?.message ?? String(error)}
+    process.stderr.write(`[project-capability-governance] ${error instanceof Error ? error.message : String(error)}
 `);
   }
 }

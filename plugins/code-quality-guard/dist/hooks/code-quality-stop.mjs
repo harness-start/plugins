@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e6bd927bf1f507bfaf685e7d4beff14fbc7d2942367f9a618fbc4ea84b4ac703
+// harness-source-hash: sha256:e5106d73638b3797ce9e88b8fae0df435d8ba82d9ceaa5377b906564cc62cb67
 import {
   capOutput,
   eventCwd,
@@ -16,7 +16,7 @@ import {
   resolveRepoRoot,
   runCommand,
   writeState
-} from "../chunks/chunk-VX67T3D5.mjs";
+} from "../chunks/chunk-YIJIYNLQ.mjs";
 
 // plugins/code-quality-guard/src/entries/hooks/code-quality-stop.ts
 import { existsSync } from "node:fs";
@@ -114,7 +114,7 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

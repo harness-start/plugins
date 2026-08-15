@@ -3,7 +3,7 @@
  * Ambiguous multi-map characters (hou/fa/li/tai and similar) are omitted on purpose.
  * Code points only — no Han literals — so runtime-language stays English.
  */
-export const HAN_VARIANT_PAIRS = Object.freeze([
+export const HAN_VARIANT_PAIRS: readonly (readonly [number, number])[] = Object.freeze([
   [0x4e1a, 0x696d],
   [0x4e1c, 0x6771],
   [0x4e2a, 0x500b],
@@ -180,7 +180,7 @@ export const HAN_VARIANT_PAIRS = Object.freeze([
 const SIMPLIFIED = new Set(HAN_VARIANT_PAIRS.map(([simplified]) => String.fromCodePoint(simplified)));
 const TRADITIONAL = new Set(HAN_VARIANT_PAIRS.map(([, traditional]) => String.fromCodePoint(traditional)));
 
-export function countHanVariants(text) {
+export function countHanVariants(text: unknown): { simplified: number; traditional: number } {
   let simplified = 0;
   let traditional = 0;
   for (const character of String(text ?? "")) {

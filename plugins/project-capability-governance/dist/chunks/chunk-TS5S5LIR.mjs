@@ -1,27 +1,84 @@
-// harness-source-hash: sha256:5144022e720a1436cc94ff1ba394de3ed10ca6dad9d50619724476c05db2f9e5
+// harness-source-hash: sha256:58e3e88a88f2c918afd8d01406e0b7b235012b9e74f3a59df63d84c421069e35
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
 
 // plugins/project-capability-governance/src/lib/proposals.ts
 import { lstat, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { basename, join, relative, resolve, sep } from "node:path";
 var PROPOSAL_ID = /^[a-z0-9][a-z0-9-]{2,63}$/u;
+function errorCode(error) {
+  return isRecord(error) && typeof error.code === "string" ? error.code : void 0;
+}
 function parseFrontmatter(content) {
   const match = String(content).match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u);
-  if (!match) return null;
+  const body = match?.[1];
+  if (body === void 0) return null;
   const values = {};
-  for (const line of match[1].split(/\r?\n/u)) {
+  for (const line of body.split(/\r?\n/u)) {
     const field = line.match(/^([a-z][a-z0-9_]*):\s*(.*?)\s*$/u);
-    if (field) values[field[1]] = field[2];
+    const key = field?.[1];
+    const value = field?.[2];
+    if (key !== void 0 && value !== void 0) values[key] = value;
   }
   return values;
 }
 function parseProposal(content, fileName = "") {
   const fields = parseFrontmatter(content);
-  if (!fields || !PROPOSAL_ID.test(fields.proposal_id ?? "")) return null;
+  const proposalId = fields?.proposal_id;
+  if (!fields || !PROPOSAL_ID.test(proposalId ?? "")) return null;
+  if (!proposalId) return null;
   const revision = Number(fields.proposal_revision);
   if (!Number.isSafeInteger(revision) || revision < 1) return null;
-  if (fileName && basename(fileName) !== `${fields.proposal_id}.md`) return null;
+  if (fileName && basename(fileName) !== `${proposalId}.md`) return null;
   return {
-    id: fields.proposal_id,
+    id: proposalId,
     revision,
     kind: fields.kind ?? null,
     status: fields.status ?? null
@@ -31,7 +88,8 @@ function validateProposalDocument(content, fileName) {
   const parsed = parseProposal(content, fileName);
   if (!parsed) return { ok: false, reason: "frontmatter, proposal id, revision, or filename is invalid" };
   const fields = parseFrontmatter(content);
-  if (!["hook", "instruction", "skill", "sop"].includes(parsed.kind)) {
+  if (!fields) return { ok: false, reason: "frontmatter, proposal id, revision, or filename is invalid" };
+  if (!["hook", "instruction", "skill", "sop"].includes(parsed.kind ?? "")) {
     return { ok: false, reason: "kind must be hook, instruction, skill, or sop" };
   }
   if (parsed.status !== "pending") return { ok: false, reason: "new proposals must use status: pending" };
@@ -54,7 +112,7 @@ function validateProposalDocument(content, fileName) {
   }
   const evidenceCount = bulletCount("Evidence");
   if (parsed.kind === "hook") {
-    if (!(/* @__PURE__ */ new Set(["ordinary", "severe"])).has(fields.risk)) {
+    if (fields.risk !== "ordinary" && fields.risk !== "severe") {
       return { ok: false, reason: "Hook risk must be ordinary or severe" };
     }
     const minimum = fields.risk === "severe" ? 1 : 2;
@@ -76,7 +134,12 @@ function proposalLocation(projectRoot, target) {
   if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) return null;
   const normalized = rel.split(sep).join("/");
   const match = normalized.match(/^\.project-capabilities\/inbox\/(pending|reviewing|deferred)\/([^/]+\.md)$/u);
-  return match ? { absolute, relative: normalized, status: match[1], fileName: match[2] } : null;
+  const status = match?.[1];
+  const fileName = match?.[2];
+  if (!match || status !== "pending" && status !== "reviewing" && status !== "deferred" || !fileName) {
+    return null;
+  }
+  return { absolute, relative: normalized, status, fileName };
 }
 function isProposalInboxTarget(projectRoot, target) {
   const rel = relative(resolve(projectRoot), resolve(target));
@@ -91,7 +154,7 @@ async function ensureCapabilityWorkspace(projectRoot) {
       const stat = await lstat(path);
       if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error(`expected a real directory: ${path}`);
     } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
+      if (errorCode(error) !== "ENOENT") throw error;
       await mkdir(path, { recursive: false });
     }
   }
@@ -114,7 +177,7 @@ async function ensureCapabilityWorkspace(projectRoot) {
 `, "utf8");
     }
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
     await writeFile(ignorePath, "*\n", { encoding: "utf8", flag: "wx" });
   }
 }
@@ -149,7 +212,7 @@ function statePath(projectRoot) {
 async function readNoticeState(projectRoot) {
   try {
     const parsed = JSON.parse(await readFile(statePath(projectRoot), "utf8"));
-    return parsed && typeof parsed.notified === "object" && !Array.isArray(parsed.notified) ? parsed : { version: 1, notified: {} };
+    return isRecord(parsed) && isRecord(parsed.notified) && !Array.isArray(parsed.notified) ? { version: 1, notified: parsed.notified } : { version: 1, notified: {} };
   } catch {
     return { version: 1, notified: {} };
   }
@@ -182,7 +245,7 @@ async function forgetNotice(projectRoot, proposalId) {
     const stat = await lstat(target);
     if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("notice state must be a real file");
   } catch (error) {
-    if (error?.code === "ENOENT") return;
+    if (errorCode(error) === "ENOENT") return;
     throw error;
   }
   const state = await readNoticeState(projectRoot);
@@ -209,6 +272,12 @@ function renderHumanNotice(count) {
 }
 
 export {
+  isRecord,
+  readStdinJson,
+  eventSessionId,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
   parseProposal,
   validateProposalDocument,
   proposalLocation,

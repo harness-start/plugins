@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7fb8c467fd73922af51b87911c78cf596cce3854916c22baed9a4da1477b76e5
+// harness-source-hash: sha256:ff36d7a35a5c7b3dc3fa7fdbc011d0c2de22cf4cd57492a1a7ae2cd420d36558
 import {
   additionalContextOutput,
   commandInvocation,
-  extractCwd,
+  eventCwd,
+  eventToolInput,
+  eventToolName,
   extractShellCommand,
-  extractToolInput,
-  extractToolName,
   formatFinding,
+  isRecord,
   loadUserConfig,
   matchRule,
   preToolDeny,
@@ -18,7 +19,7 @@ import {
   splitShellLogicalLines,
   tokenizeShell,
   writeJson
-} from "../chunks/chunk-APOLMI6W.mjs";
+} from "../chunks/chunk-ABJZRXZQ.mjs";
 
 // plugins/command-safety-guards/src/lib/matchers.ts
 var SHELL_TOOLS = /^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i;
@@ -41,7 +42,8 @@ function normalizeToolName(toolName) {
     exec: "Shell",
     local_shell: "Shell"
   };
-  if (map[lower]) return map[lower];
+  const mapped = map[lower];
+  if (mapped) return mapped;
   if (/^(Edit|Write|MultiEdit|ApplyPatch|NotebookEdit|Bash|Shell)$/.test(toolName)) {
     return toolName;
   }
@@ -53,14 +55,15 @@ function isShellTool(toolName) {
 
 // plugins/command-safety-guards/src/engines/mysql-preflight.ts
 function successfulPreflightEvidence(event) {
+  const record = isRecord(event) ? event : null;
   const candidates = [
     event,
-    event?.mysql_replication_preflight,
-    event?.mysqlReplicationPreflight,
-    event?.preflight
+    record?.mysql_replication_preflight,
+    record?.mysqlReplicationPreflight,
+    record?.preflight
   ];
   return candidates.some((candidate) => {
-    if (!candidate || typeof candidate !== "object") return false;
+    if (!isRecord(candidate)) return false;
     const tool = typeof candidate.tool === "string" && candidate.tool || candidate.tool_name || candidate.toolName;
     const exitCode = candidate.exit_code ?? candidate.exitCode;
     const timedOut = candidate.timed_out ?? candidate.timedOut;
@@ -154,11 +157,14 @@ function ensurePluginWorkdirGitignore(pluginRoot) {
 var DEFAULT_WINDOW_MS = 10 * 60 * 1e3;
 var DEFAULT_THRESHOLD = 3;
 var STATE_DIR_RELATIVE = ".command-safety-guards/.state";
+function eventCwd2(event) {
+  return typeof event.cwd === "string" && event.cwd ? event.cwd : process.cwd();
+}
 function stateFile(cwd) {
   return join2(resolve(cwd), STATE_DIR_RELATIVE, "denies.jsonl");
 }
 function ensureStateFile(event) {
-  const cwd = event?.cwd || process.cwd();
+  const cwd = eventCwd2(event);
   const path = stateFile(cwd);
   try {
     const directory = join2(resolve(cwd), STATE_DIR_RELATIVE);
@@ -173,15 +179,18 @@ function hash(value) {
   return createHash("sha256").update(value).digest("hex");
 }
 function target(event, command) {
-  const cwd = event?.cwd || process.cwd();
-  const direct = event?.tool?.input?.file_path ?? event?.tool?.input?.filePath ?? event?.tool?.input?.path ?? event?.tool?.fileTargets?.[0];
+  const cwd = eventCwd2(event);
+  const tool = isRecord(event.tool) ? event.tool : null;
+  const input = tool && isRecord(tool.input) ? tool.input : null;
+  const fileTargets = tool && Array.isArray(tool.fileTargets) ? tool.fileTargets : null;
+  const direct = input?.file_path ?? input?.filePath ?? input?.path ?? fileTargets?.[0];
   if (direct) return hash(resolve(cwd, String(direct)));
   const tokens = tokenizeShell(command).filter(
     (token) => ![";", "&&", "||", "|", "&"].includes(token)
   );
   const operation = tokens.find(
     (token) => /^(?:rm|sed|cat|mysql|mysqlsh|redis-cli|nmap|masscan|zmap|ffuf|gobuster|feroxbuster)$/u.test(
-      token.split("/").at(-1)
+      token.split("/").at(-1) ?? ""
     )
   )?.split("/").at(-1) ?? tokens[0] ?? "command";
   const path = [...tokens].reverse().find(
@@ -189,11 +198,17 @@ function target(event, command) {
   );
   return hash(`${operation}:${path ?? tokens[1] ?? ""}`);
 }
+function isDenyEntry(value) {
+  return isRecord(value) && typeof value.ts === "number";
+}
 function entries(event) {
-  const path = stateFile(event?.cwd || process.cwd());
+  const path = stateFile(eventCwd2(event));
   if (!path) return [];
   try {
-    return readFileSync2(path, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
+    return readFileSync2(path, "utf8").split("\n").filter(Boolean).map((line) => {
+      const parsed = JSON.parse(line);
+      return parsed;
+    }).filter(isDenyEntry);
   } catch {
     return [];
   }
@@ -204,7 +219,7 @@ function escalationMessage(event, command, options = {}) {
   const threshold = typeof options.threshold === "number" && options.threshold > 0 ? options.threshold : DEFAULT_THRESHOLD;
   const key = target(event, command);
   const cutoff = Date.now() - windowMs;
-  const currentTurn = event?.turn_id ?? event?.turnId ?? "";
+  const currentTurn = event.turn_id ?? event.turnId ?? "";
   const recent = entries(event).filter(
     (entry) => entry.ts >= cutoff && entry.target === key && (!currentTurn || entry.turn !== currentTurn)
   );
@@ -225,7 +240,7 @@ function recordDeny(event, command, hook) {
       path,
       `${JSON.stringify({
         ts: Date.now(),
-        turn: event?.turn_id ?? event?.turnId ?? "",
+        turn: event.turn_id ?? event.turnId ?? "",
         target: target(event, command),
         hook
       })}
@@ -357,7 +372,7 @@ function dangerousCommandReason(command, cwd, depth = 0) {
         const commandIndex = invocation.args.findIndex(
           (argument) => /^-[^-]*c/u.test(argument)
         );
-        const nestedCommand = invocation.args[commandIndex + 1];
+        const nestedCommand = commandIndex >= 0 ? invocation.args[commandIndex + 1] : void 0;
         if (commandIndex >= 0 && nestedCommand) {
           if (depth >= 4) {
             return "nested shell -c commands are too deep to prove the deletion scope safe";
@@ -399,11 +414,13 @@ function nestedCommandSubstitutions(command) {
       let end2 = index + 1;
       let body2 = "";
       for (; end2 < command.length; end2 += 1) {
-        if (command[end2] === "\\" && end2 + 1 < command.length) {
-          body2 += command[end2 + 1];
+        const escaped = command[end2];
+        const escapedNext = command[end2 + 1];
+        if (escaped === "\\" && escapedNext !== void 0) {
+          body2 += escapedNext;
           end2 += 1;
-        } else if (command[end2] === "`") break;
-        else body2 += command[end2];
+        } else if (escaped === "`") break;
+        else if (escaped !== void 0) body2 += escaped;
       }
       if (end2 < command.length) {
         nested.push(body2);
@@ -418,8 +435,10 @@ function nestedCommandSubstitutions(command) {
     let end = index + 2;
     for (; end < command.length && depth > 0; end += 1) {
       const current = command[end];
+      if (current === void 0) continue;
       if (current === "\\") {
-        if (end + 1 < command.length) body += `${current}${command[end + 1]}`;
+        const nextChar = command[end + 1];
+        if (nextChar !== void 0) body += `${current}${nextChar}`;
         end += 1;
         continue;
       }
@@ -469,20 +488,22 @@ function dangerousCommandDenyMessage(hits, command = "") {
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) process.exit(0);
-  const toolName = normalizeToolName(extractToolName(event));
-  const toolInput = extractToolInput(event);
-  const cwd = extractCwd(event);
+  const toolName = normalizeToolName(eventToolName(event));
+  const toolInput = eventToolInput(event);
+  const cwd = eventCwd(event);
   const repoRoot = resolveRepoRoot(cwd);
   const userConfig = await loadUserConfig(repoRoot);
   const { rules, settings } = resolveRules(userConfig);
   if (/^Read$/iu.test(toolName)) {
     if (settings.engines.secretRead !== false) {
+      const tool = isRecord(event.tool) ? event.tool : null;
+      const extraTargets = Array.isArray(tool?.fileTargets) ? tool.fileTargets : [];
       const report = secretReadReport(
         [
-          toolInput?.file_path,
-          toolInput?.filePath,
-          toolInput?.path,
-          ...event?.tool?.fileTargets ?? []
+          toolInput.file_path,
+          toolInput.filePath,
+          toolInput.path,
+          ...extraTargets
         ].filter(Boolean)
       );
       if (report) writeJson(additionalContextOutput("PreToolUse", report));

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1a18147c713d0d7d0f2809316fa8f97e33c4cf2a584b7833d9efb1f6bf2a8dc5
+// harness-source-hash: sha256:68374c14b70cc17da60e212865c30b54d35ffc8941453b439e418a08b1a42b61
 import {
   DEFAULT_CONFIG,
   findLedgerDir,
+  isRecord,
   loadLedger,
   scanLedgers
-} from "../chunks/chunk-E6UWXWTJ.mjs";
+} from "../chunks/chunk-CSCGDWJM.mjs";
 
 // plugins/debugging-workflow-guard/src/entries/cli/debug-workflow.ts
 import { resolve as resolve3 } from "node:path";
@@ -149,7 +150,7 @@ function context(input) {
 function resultOf(loaded, extra = {}) {
   return {
     ok: true,
-    id: loaded.workOrder.id,
+    id: String(loaded.workOrder.id ?? ""),
     path: loaded.path,
     workOrder: loaded.workOrder,
     ...extra
@@ -158,8 +159,8 @@ function resultOf(loaded, extra = {}) {
 function defaultOpenDir(repoRoot, config) {
   const items = scanLedgers(repoRoot, config).filter((item) => item.store === "events");
   const open = items.filter((item) => item.workOrder.status === "open");
-  if (open.length === 1) return open[0].path;
-  return items.length === 1 ? items[0].path : null;
+  if (open.length === 1) return open[0]?.path ?? null;
+  return items.length === 1 ? items[0]?.path ?? null : null;
 }
 function resolveExisting(input) {
   const ctx = context(input);
@@ -281,7 +282,8 @@ function addBug(input) {
     },
     hypotheses: defaultHypotheses(input)
   };
-  if (!bug.id || !bug.summary || !bug.symptom?.actual || !bug.symptom?.reproduction) {
+  const symptom = isRecord(bug.symptom) ? bug.symptom : void 0;
+  if (!bug.id || !bug.summary || !symptom?.actual || !symptom?.reproduction) {
     return { ok: false, error: "add-bug requires id, summary, actual, and reproduction" };
   }
   return appendLedgerEvent({ ...input, event: { t: "queued-bug", bug } });
@@ -310,7 +312,7 @@ function abortLedger(input) {
 function resumeLedger(input) {
   const existing = resolveExisting(input);
   if (!existing.ok) return existing;
-  const epoch = existing.loaded.workOrder.run.epoch + 1;
+  const epoch = Number(existing.loaded.workOrder.run?.epoch) + 1;
   return appendLedgerEvent({
     ...input,
     event: { t: "resume", epoch, bugId: input.bugId || existing.loaded.workOrder.resume?.nextBugId }
@@ -328,6 +330,7 @@ function parseArgs(argv) {
   const positionals = [];
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === void 0) continue;
     if (!value.startsWith("--")) {
       positionals.push(value);
       continue;
@@ -347,7 +350,8 @@ function output(value) {
 `);
 }
 function fail(error) {
-  output({ ok: false, error: String(error?.message ?? error) });
+  const message = error instanceof Error ? error.message : error;
+  output({ ok: false, error: String(message ?? error) });
   process.exitCode = 1;
 }
 function list(value) {

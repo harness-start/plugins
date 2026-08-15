@@ -1,23 +1,28 @@
 import { extractFileTargets, extractShellCommand, extractToolName, isFileTool, isShellTool } from "./hook-io.js";
 import { commandMentionsRoot, isGenericMutationCommand, pathUnderRoot } from "@harness/core/path-protect";
+import type { HookEvent } from "@harness/core/hook-event";
 
-export function targetsHitAuditRoot(event, auditRootAbs) {
+export type ProtectDecision =
+  | { deny: true; reason: string }
+  | { deny: false };
+
+export function targetsHitAuditRoot(event: HookEvent, auditRootAbs: string): string[] {
   return extractFileTargets(event).filter((target) => pathUnderRoot(target, auditRootAbs));
 }
 
-export function commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) {
+export function commandMentionsAuditRoot(command: string, auditRootRel: string, auditRootAbs: string): boolean {
   return commandMentionsRoot(command, auditRootRel, auditRootAbs);
 }
 
-export function isAuditMutationCommand(command) {
+export function isAuditMutationCommand(command: string): boolean {
   return isGenericMutationCommand(command);
 }
 
-export function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs) {
+export function shellMutatesAuditRoot(command: string, auditRootRel: string, auditRootAbs: string): boolean {
   return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
 }
 
-export function protectDecision(event, auditRootRel, auditRootAbs) {
+export function protectDecision(event: HookEvent, auditRootRel: string, auditRootAbs: string): ProtectDecision {
   const toolName = extractToolName(event);
   if (isFileTool(toolName)) {
     const hits = targetsHitAuditRoot(event, auditRootAbs);

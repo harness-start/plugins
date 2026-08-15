@@ -4,13 +4,13 @@ import { open, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:
 import { basename, join, relative, resolve } from "node:path";
 
 import { loadCompositionDeterministic } from "../../lib/composition-loader.js";
-import { computeMusicSubjectDigest } from "../../lib/contract.js";
+import { computeMusicSubjectDigest, type MusicFileMap, type MusicProjectConfig } from "../../lib/contract.js";
 import { optimizeComposition } from "../../lib/music-math.js";
 
 const root = resolve(process.argv[2] ?? "");
 const journalPath = join(root, ".music-delivery-journal.json");
 
-async function collect(directory, files, count) {
+async function collect(directory: string, files: MusicFileMap, count: { value: number }) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
     if (["node_modules", ".git", ".cache", ".tmp", "build", "proofs", "dist", "review"].includes(entry.name)) continue;
@@ -25,16 +25,17 @@ async function collect(directory, files, count) {
   }
 }
 
-async function writeJsonAtomic(filePath, value) {
+async function writeJsonAtomic(filePath: string, value: unknown) {
   const temporaryPath = `${filePath}.${process.pid}.tmp`;
   await writeFile(temporaryPath, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
   await rename(temporaryPath, filePath);
 }
 
 async function main() {
-  const files = {};
+  const files: MusicFileMap = {};
   await collect(root, files, { value: 0 });
-  const project = JSON.parse(files["music.project.json"] ?? "null");
+  const parsed: unknown = JSON.parse(files["music.project.json"] ?? "null");
+  const project = typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed as MusicProjectConfig : null;
   const model = { artifactId: basename(root), files, project };
   const sourceDigest = computeMusicSubjectDigest(model);
   const score = optimizeComposition(await loadCompositionDeterministic(root));
@@ -74,7 +75,8 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`[tonejs-music-optimize] ${error.message}\n`);
+main().catch((error: unknown) => {
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[tonejs-music-optimize] ${message}\n`);
   process.exitCode = 2;
 });

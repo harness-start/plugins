@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:dabf6dd1113c58d71d04b6ebaa3b3792c605b6d37fb76b44cbe06813872b3bc5
+// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
 
 // plugins/pptx-project-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";
@@ -35,7 +35,7 @@ async function runLocalEslint(options) {
 
 // plugins/pptx-project-delivery-guard/src/lib/eslint/local-rules/artifact-unit-owner.ts
 var nameOf = (callee) => callee?.type === "Identifier" ? callee.name : callee?.property?.name;
-var artifact_unit_owner_default = {
+var rule = {
   meta: { type: "problem", schema: [], messages: { owner: "A slide module may only export renderSlide and may not create decks, slides, files, or network effects.", export: "A slide module must export exactly one renderSlide function." } },
   create(context) {
     let exports = 0;
@@ -44,10 +44,12 @@ var artifact_unit_owner_default = {
         if (node.declaration?.type === "FunctionDeclaration" && node.declaration.id?.name === "renderSlide") exports += 1;
       },
       CallExpression(node) {
-        if (["addSlide", "writeFile", "writeFileSync", "createWriteStream", "fetch", "setTimeout", "setInterval"].includes(nameOf(node.callee))) context.report({ node, messageId: "owner" });
+        const name = nameOf(node.callee);
+        if (name !== void 0 && ["addSlide", "writeFile", "writeFileSync", "createWriteStream", "fetch", "setTimeout", "setInterval"].includes(name)) context.report({ node, messageId: "owner" });
       },
       NewExpression(node) {
-        if (["pptxgen", "PptxGenJS"].includes(nameOf(node.callee))) context.report({ node, messageId: "owner" });
+        const name = nameOf(node.callee);
+        if (name !== void 0 && ["pptxgen", "PptxGenJS"].includes(name)) context.report({ node, messageId: "owner" });
       },
       "Program:exit"(node) {
         if (exports !== 1) context.report({ node, messageId: "export" });
@@ -55,6 +57,7 @@ var artifact_unit_owner_default = {
     };
   }
 };
+var artifact_unit_owner_default = rule;
 
 // plugins/pptx-project-delivery-guard/src/lib/eslint/preset.ts
 function createPreset({ parser }) {
@@ -82,7 +85,7 @@ async function main() {
   if (failed) process.exitCode = 2;
 }
 main().catch((error) => {
-  process.stderr.write(`[pptx-project-lint] ${error.message}
+  process.stderr.write(`[pptx-project-lint] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

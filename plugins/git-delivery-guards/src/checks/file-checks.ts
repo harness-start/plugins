@@ -2,50 +2,95 @@ import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isRecord } from "@harness/core/hook-event";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const CONFIG_FILE_NAME = ".git-delivery-guards.mjs";
-const VALID_MODES = new Set(["block", "report", "off"]);
 const SKIP_PATH = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 const TEXT_PATH = /\.(?:bash|c|cc|cfg|cjs|cpp|css|cts|cxx|go|graphql|h|hh|hpp|html|ini|java|js|json|jsx|kt|kts|less|md|mjs|mts|php|py|rb|rs|sass|scss|sh|sql|svelte|swift|toml|ts|tsx|txt|vue|xml|yaml|yml|zsh)$/iu;
 
-export const DEFAULT_CONFIG = Object.freeze({
+export type CheckMode = "block" | "report" | "off";
+
+export type ConflictOverride = {
+  match: RegExp;
+  mode: CheckMode;
+};
+
+export type ConflictConfig = {
+  checks: { mergeConflict: CheckMode };
+  overrides: readonly ConflictOverride[];
+};
+
+export type ConflictMarker = {
+  line: number;
+  marker: string;
+};
+
+export type ConflictFinding = {
+  path: string;
+  mode: CheckMode;
+  line: number;
+  marker: string;
+};
+
+type WarnFn = (message: string) => void;
+
+const EMPTY_OVERRIDES: ConflictOverride[] = [];
+
+export const DEFAULT_CONFIG: ConflictConfig = Object.freeze({
   checks: Object.freeze({ mergeConflict: "block" }),
-  overrides: Object.freeze([]),
+  overrides: Object.freeze(EMPTY_OVERRIDES),
 });
 
-function warnDefault(message) {
+function warnDefault(message: string): void {
   process.stderr.write(`[git-delivery-guards] ${message}\n`);
 }
 
-function normalizeMode(value, fallback, label, warn) {
+function errorText(error: unknown): string {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+
+function isCheckMode(value: unknown): value is CheckMode {
+  return value === "block" || value === "report" || value === "off";
+}
+
+function normalizeMode<T extends CheckMode | null>(
+  value: unknown,
+  fallback: T,
+  label: string,
+  warn: WarnFn,
+): CheckMode | T {
   if (value === undefined) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 
-export function resolveConflictConfig(userConfig, warn = warnDefault) {
-  const checks = { mergeConflict: "block" };
-  if (userConfig?.checks !== undefined && (
-    !userConfig.checks || typeof userConfig.checks !== "object" || Array.isArray(userConfig.checks)
+export function resolveConflictConfig(userConfig: unknown, warn: WarnFn = warnDefault): ConflictConfig {
+  const checks: { mergeConflict: CheckMode } = { mergeConflict: "block" };
+  const record = isRecord(userConfig) ? userConfig : null;
+  if (record?.checks !== undefined && (
+    !record.checks || typeof record.checks !== "object" || Array.isArray(record.checks)
   )) {
     warn('config "checks" must be an object; using defaults');
   } else {
+    const checksSource = record && isRecord(record.checks) ? record.checks : null;
     checks.mergeConflict = normalizeMode(
-      userConfig?.checks?.mergeConflict,
+      checksSource?.mergeConflict,
       checks.mergeConflict,
       "checks.mergeConflict",
       warn,
     );
   }
 
-  const overrides = [];
-  if (userConfig?.overrides !== undefined && !Array.isArray(userConfig.overrides)) {
+  const overrides: ConflictOverride[] = [];
+  if (record?.overrides !== undefined && !Array.isArray(record.overrides)) {
     warn('config "overrides" must be an array; ignoring overrides');
   } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
+    const rawOverrides = record && Array.isArray(record.overrides) ? record.overrides : [];
+    for (const [index, override] of rawOverrides.entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
         warn(`override[${index}].match must be a RegExp; skipping`);
         continue;
       }
@@ -53,7 +98,7 @@ export function resolveConflictConfig(userConfig, warn = warnDefault) {
         warn(`override[${index}].checks must be an object; skipping`);
         continue;
       }
-      if (override.checks.mergeConflict === undefined) {
+      if (!isRecord(override.checks) || override.checks.mergeConflict === undefined) {
         warn(`override[${index}] does not declare checks.mergeConflict; skipping`);
         continue;
       }
@@ -69,18 +114,20 @@ export function resolveConflictConfig(userConfig, warn = warnDefault) {
   return { checks, overrides };
 }
 
-export function modeForConflict(relativePath, config) {
+export function modeForConflict(relativePath: string, config: ConflictConfig): CheckMode {
   for (const override of config.overrides) {
     try {
       if (new RegExp(override.match.source, override.match.flags).test(relativePath)) return override.mode;
-    } catch {}
+    } catch {
+      // ignore invalid override flags
+    }
   }
   return config.checks.mergeConflict;
 }
 
-export function findMergeConflictMarkers(text) {
+export function findMergeConflictMarkers(text: unknown): ConflictMarker[] {
   if (typeof text !== "string") return [];
-  const findings = [];
+  const findings: ConflictMarker[] = [];
   let hasBoundaryMarker = false;
   for (const [index, line] of text.split(/\r?\n/u).entries()) {
     if (/^(?:<<<<<<<|=======|>>>>>>>)(?:\s|$)/u.test(line)) {
@@ -104,7 +151,7 @@ export function findMergeConflictMarkers(text) {
   return hasBoundaryMarker ? findings : [];
 }
 
-export function resolveRepoRoot(cwd) {
+export function resolveRepoRoot(cwd: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -118,27 +165,33 @@ export function resolveRepoRoot(cwd) {
   }
 }
 
-export async function loadConflictConfig(repoRoot, warn = warnDefault) {
+export async function loadConflictConfig(repoRoot: string | null, warn: WarnFn = warnDefault): Promise<ConflictConfig> {
   if (!repoRoot) return resolveConflictConfig(null, warn);
   const configPath = join(repoRoot, CONFIG_FILE_NAME);
   if (!existsSync(configPath)) return resolveConflictConfig(null, warn);
   try {
-    const loaded = await import(pathToFileURL(configPath).href);
-    return resolveConflictConfig(loaded.default ?? loaded, warn);
-  } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error?.message ?? error}; using strict defaults`);
+    const loaded: unknown = await import(pathToFileURL(configPath).href);
+    const config = isRecord(loaded) ? loaded.default ?? loaded : loaded;
+    return resolveConflictConfig(config, warn);
+  } catch (error: unknown) {
+    warn(`failed to load ${CONFIG_FILE_NAME}: ${errorText(error)}; using strict defaults`);
     return resolveConflictConfig(null, warn);
   }
 }
 
-function repositoryRelativePath(filePath, repoRoot, cwd) {
+function repositoryRelativePath(filePath: string, repoRoot: string | null, cwd: string): string {
   const base = repoRoot ?? cwd;
   const candidate = relative(base, filePath).replaceAll("\\", "/");
   return candidate.startsWith("../") ? filePath.replaceAll("\\", "/") : candidate;
 }
 
-export function conflictFileFindings(filePaths, repoRoot, cwd, config) {
-  const findings = [];
+export function conflictFileFindings(
+  filePaths: readonly string[],
+  repoRoot: string | null,
+  cwd: string,
+  config: ConflictConfig,
+): ConflictFinding[] {
+  const findings: ConflictFinding[] = [];
   for (const filePath of filePaths) {
     if (!existsSync(filePath)) continue;
     const path = repositoryRelativePath(filePath, repoRoot, cwd);
@@ -166,7 +219,7 @@ export function conflictFileFindings(filePaths, repoRoot, cwd, config) {
   return findings;
 }
 
-export function formatConflictFindings(findings) {
+export function formatConflictFindings(findings: readonly ConflictFinding[]): string {
   return [
     "[Git Delivery Guards] Unresolved merge conflict detected",
     "",

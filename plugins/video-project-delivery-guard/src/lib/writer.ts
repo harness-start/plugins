@@ -3,14 +3,19 @@ import { basename, dirname, join, resolve } from "node:path";
 
 import { isVideoProjectRoot, resolveWorkspaceRoot } from "./project.js";
 
-export function assertVideoProjectRoot(value) {
+export type WriterSessionGrant = {
+  sessionId?: string;
+  triggerFrom?: string;
+};
+
+export function assertVideoProjectRoot(value: string | undefined) {
   const root = resolve(value ?? "");
   const workspaceRoot = resolveWorkspaceRoot(root);
   if (!isVideoProjectRoot(root, workspaceRoot)) throw new Error("PROJECT_ROOT_OUT_OF_SCOPE");
   return root;
 }
 
-export function sessionMetadata(capability, grant = {}) {
+export function sessionMetadata(capability: string, grant: WriterSessionGrant = {}) {
   return {
     createdAt: new Date().toISOString(),
     sessionId: grant.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? "unknown",
@@ -19,7 +24,7 @@ export function sessionMetadata(capability, grant = {}) {
   };
 }
 
-export async function atomicWriteJson(root, relativePath, payload) {
+export async function atomicWriteJson(root: string, relativePath: string, payload: unknown) {
   const target = join(root, relativePath);
   const temporaryDirectory = join(root, ".tmp", "video-guard");
   await mkdir(temporaryDirectory, { recursive: true });
@@ -29,7 +34,7 @@ export async function atomicWriteJson(root, relativePath, payload) {
   await rename(temporary, target);
 }
 
-export async function withWriterJournal(root, capability, callback, grant = {}) {
+export async function withWriterJournal<T>(root: string, capability: string, callback: () => Promise<T>, grant: WriterSessionGrant = {}) {
   const journalPath = join(root, ".video-delivery-journal.json");
   const handle = await open(journalPath, "wx");
   try {
@@ -39,6 +44,9 @@ export async function withWriterJournal(root, capability, callback, grant = {}) 
     await handle.close();
   }
   const result = await callback();
-  await unlink(journalPath).catch((error) => { if (error?.code !== "ENOENT") throw error; });
+  await unlink(journalPath).catch((error: unknown) => {
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  });
   return result;
 }

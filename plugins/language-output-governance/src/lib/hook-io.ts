@@ -5,44 +5,33 @@ import {
   eventSessionId,
   eventToolInput,
   eventToolName,
+  isRecord,
   isStopHookActive,
   readStdinJson,
+  type HookEvent,
 } from "@harness/core/hook-event";
-import { additionalContext, stopBlock, writeJson } from "@harness/core/hook-output";
+import { additionalContext, stopBlock, writeJson, type HookEventName } from "@harness/core/hook-output";
 import { canonicalToolName, extractFileTargets as extractCoreFileTargets } from "@harness/core/hook-targets";
 
 export { readStdinJson, writeJson, isStopHookActive, stopBlock };
+export {
+  eventAssistantMessage as extractAssistantMessage,
+  eventCwd as extractCwd,
+  eventPrompt as extractPrompt,
+  eventToolInput as extractToolInput,
+  eventToolName as extractToolName,
+};
 
-export function extractSessionId(event) {
+export function extractSessionId(event: HookEvent): string | null {
   const value = eventSessionId(event);
   return value || null;
 }
 
-export function extractCwd(event) {
-  return eventCwd(event);
+export function extractSource(event: HookEvent): string {
+  return typeof event.source === "string" ? event.source : "startup";
 }
 
-export function extractSource(event) {
-  return typeof event?.source === "string" ? event.source : "startup";
-}
-
-export function extractPrompt(event) {
-  return eventPrompt(event);
-}
-
-export function extractAssistantMessage(event) {
-  return eventAssistantMessage(event);
-}
-
-export function extractToolName(event) {
-  return eventToolName(event);
-}
-
-export function extractToolInput(event) {
-  return eventToolInput(event);
-}
-
-function patchAddedText(command) {
+function patchAddedText(command: unknown): string {
   return String(command ?? "")
     .split(/\r?\n/u)
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
@@ -50,8 +39,8 @@ function patchAddedText(command) {
     .join("\n");
 }
 
-function quotedShellText(command) {
-  const values = [];
+function quotedShellText(command: unknown): string {
+  const values: string[] = [];
   const pattern = /'([^']*)'|"((?:\\.|[^"\\])*)"/gu;
   for (const match of String(command ?? "").matchAll(pattern)) {
     const value = match[1] ?? match[2] ?? "";
@@ -60,9 +49,9 @@ function quotedShellText(command) {
   return values.join("\n");
 }
 
-export function generatedToolText(event) {
-  const input = extractToolInput(event);
-  const tool = canonicalToolName(extractToolName(event));
+export function generatedToolText(event: HookEvent): string {
+  const input = eventToolInput(event);
+  const tool = canonicalToolName(eventToolName(event));
   if (tool === "bash" || tool === "execcommand" || tool === "shellcommand") {
     const command = typeof input.command === "string"
       ? input.command
@@ -72,13 +61,16 @@ export function generatedToolText(event) {
   }
   if (tool === "write") return typeof input.content === "string" ? input.content : "";
   if (tool === "edit") {
-    return typeof (input.new_string ?? input.newString) === "string"
-      ? input.new_string ?? input.newString
-      : "";
+    const next = input.new_string ?? input.newString;
+    return typeof next === "string" ? next : "";
   }
   if (tool === "multiedit") {
     return Array.isArray(input.edits)
-      ? input.edits.map((edit) => edit?.new_string ?? edit?.newString ?? "").filter(Boolean).join("\n")
+      ? input.edits.map((edit) => {
+        if (!isRecord(edit)) return "";
+        const next = edit.new_string ?? edit.newString;
+        return typeof next === "string" ? next : "";
+      }).filter(Boolean).join("\n")
       : "";
   }
   if (tool === "applypatch") {
@@ -91,22 +83,22 @@ export function generatedToolText(event) {
   return "";
 }
 
-export function extractFileTargets(event) {
+export function extractFileTargets(event: HookEvent): string[] {
   return extractCoreFileTargets(event, { tools: "any" });
 }
 
-export function additionalContextOutput(hookEventName, text) {
+export function additionalContextOutput(hookEventName: HookEventName, text: string) {
   return additionalContext(hookEventName, text);
 }
 
-export function supportsPostToolFeedback() {
+export function supportsPostToolFeedback(): boolean {
   return !(process.env.PLUGIN_ROOT && process.env.DEEPSEEK_MODEL);
 }
 
-export function postToolFeedbackOutput(text) {
+export function postToolFeedbackOutput(text: string) {
   return additionalContextOutput("PostToolUse", text);
 }
 
-export function warn(message) {
+export function warn(message: string): void {
   process.stderr.write(`[language-output-governance] ${message}\n`);
 }

@@ -6,16 +6,20 @@ export const BOM_SIGNATURES = [
   { name: "UTF-8 BOM", bytes: [0xef, 0xbb, 0xbf] },
   { name: "UTF-16 LE BOM", bytes: [0xff, 0xfe] },
   { name: "UTF-16 BE BOM", bytes: [0xfe, 0xff] },
-];
+] as const;
 
-function startsWithBytes(buffer, signature) {
+export type EncodingIssue =
+  | { kind: "bom"; name: string; bytes: string }
+  | { kind: "invalid-utf8" };
+
+function startsWithBytes(buffer: Uint8Array, signature: readonly number[]): boolean {
   return (
     buffer.length >= signature.length &&
     signature.every((value, index) => buffer[index] === value)
   );
 }
 
-export function analyzeEncoding(buffer) {
+export function analyzeEncoding(buffer: Uint8Array | null | undefined): EncodingIssue | null {
   if (!buffer || buffer.length === 0) return null;
 
   for (const signature of BOM_SIGNATURES) {

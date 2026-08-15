@@ -1,21 +1,29 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1a18147c713d0d7d0f2809316fa8f97e33c4cf2a584b7833d9efb1f6bf2a8dc5
+// harness-source-hash: sha256:68374c14b70cc17da60e212865c30b54d35ffc8941453b439e418a08b1a42b61
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
   commandFlag,
   describeLedger,
   ensurePluginWorkdirGitignore,
+  eventAssistantMessage,
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  eventToolResponse,
   findLedgerDir,
   isLedgerManagedPath,
   isOfficialWriterCommand,
+  isRecord,
   isWorkOrderPath,
   loadLedger,
   loadProjectConfig,
   parseWriterStdout,
+  readStdinJson,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-E6UWXWTJ.mjs";
+} from "../chunks/chunk-CSCGDWJM.mjs";
 
 // plugins/debugging-workflow-guard/src/entries/hooks/debugging-workflow-guard.ts
 import { appendFileSync, existsSync, readFileSync as readFileSync2 } from "node:fs";
@@ -23,70 +31,36 @@ import { execFileSync as execFileSync2 } from "node:child_process";
 import { relative as relative2, resolve as resolve5 } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// core/src/path-protect.ts
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+function commandMentionsRoot(command, rootRel, rootAbs) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  const normalized = String(rootRel ?? "").replace(/^\.\//u, "").replace(/\/+$/u, "");
+  const markers = [rootRel, normalized, rootAbs, normalized ? `${normalized}/` : null, normalized ? `./${normalized}` : null, normalized ? `./${normalized}/` : null].filter(Boolean);
+  return markers.some((marker) => new RegExp(
+    `(?:^|[\\s;|&\`"'(){}\\[\\]])${escapeRegExp(marker)}(?:$|[\\s;|&\`"'(){}\\[\\]//])`,
+    "u"
+  ).test(text));
+}
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/debugging-workflow-guard/src/lib/hook-io.ts
 import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventSessionId(event) {
-  const context2 = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context2?.session_id
-  );
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-function eventToolResponse(event) {
-  const tool = nestedRecord(event, "tool");
-  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
-}
-function eventAssistantMessage(event) {
-  return firstString(
-    event.last_assistant_message,
-    event.lastAssistantMessage,
-    event.assistant_message,
-    event.assistant_text,
-    event.assistantText
-  );
-}
 
 // core/src/hook-output.ts
 function preToolDeny(reason) {
@@ -251,17 +225,8 @@ function extractFileTargets(event, options = {}) {
 function extractSessionId(event) {
   return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || null;
 }
-function extractCwd(event) {
-  return eventCwd(event);
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
 function extractToolResponse(event) {
-  return eventToolResponse(event) ?? event?.error ?? null;
-}
-function extractAssistantMessage(event) {
-  return eventAssistantMessage(event);
+  return eventToolResponse(event) ?? event.error ?? null;
 }
 function stripMatchingQuotes2(value) {
   const text = String(value ?? "").trim();
@@ -271,18 +236,21 @@ function stripMatchingQuotes2(value) {
   return text;
 }
 function objectPaths2(input) {
-  if (!input || typeof input !== "object") return [];
+  if (!isRecord(input)) return [];
   const paths = [];
   for (const key of ["file_path", "filePath", "path", "target_file", "targetFile", "output_file", "outputFile", "notebook_path", "notebookPath"]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
+    const value = input[key];
+    if (typeof value === "string" && value) paths.push(value);
   }
-  if (Array.isArray(input.paths)) paths.push(...input.paths);
+  if (Array.isArray(input.paths)) {
+    paths.push(...input.paths.filter((path) => typeof path === "string"));
+  }
   if (Array.isArray(input.edits)) for (const edit of input.edits) paths.push(...objectPaths2(edit));
   return paths;
 }
 function responsePaths(response) {
   const paths = [];
-  if (response && typeof response === "object") {
+  if (isRecord(response)) {
     if (response.changes && typeof response.changes === "object" && !Array.isArray(response.changes)) {
       paths.push(...Object.keys(response.changes));
     }
@@ -296,23 +264,23 @@ function responsePaths(response) {
   for (const line of response.split("\n")) {
     const status = line.match(/^(?:A|M|D|R[0-9]*)\s+(.+)$/u);
     const changed = line.match(/^(?:added|updated|deleted):\s+(.+)$/iu);
-    if (status) paths.push(stripMatchingQuotes2(status[1]));
-    if (changed) paths.push(stripMatchingQuotes2(changed[1]));
+    if (status?.[1]) paths.push(stripMatchingQuotes2(status[1]));
+    if (changed?.[1]) paths.push(stripMatchingQuotes2(changed[1]));
   }
   return paths;
 }
 function extractFileTargets2(event) {
-  const cwd = resolve2(extractCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const core = extractFileTargets(event);
   const extras = responsePaths(extractToolResponse(event)).map((value) => isAbsolute2(value) ? resolve2(value) : resolve2(cwd, stripMatchingQuotes2(value).replace(/^\.\//u, "")));
   return [.../* @__PURE__ */ new Set([...core, ...extras])];
 }
 function isMutationTool(event) {
-  return isFileMutationTool(extractToolName(event));
+  return isFileMutationTool(eventToolName(event));
 }
 function responseText(response) {
   if (typeof response === "string") return response;
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const fields = ["stdout", "stderr", "output", "content", "message"].map((key) => response[key]).filter((value) => typeof value === "string");
     if (fields.length > 0) return fields.join("\n");
   }
@@ -325,7 +293,7 @@ function responseText(response) {
 function inferOutcome(event, forceFailure = false) {
   if (forceFailure) return "failure";
   const response = extractToolResponse(event);
-  if (response && typeof response === "object") {
+  if (isRecord(response)) {
     if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
     const code = response.exit_code ?? response.exitCode ?? response.code;
     if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
@@ -334,13 +302,14 @@ function inferOutcome(event, forceFailure = false) {
   }
   const text = responseText(response);
   const codes = [...text.matchAll(/(?:Process exited with code|Exit code:?|exited with code)\s+(-?[0-9]+)/giu)];
-  if (codes.length > 0) return Number(codes.at(-1)[1]) === 0 ? "success" : "failure";
+  const lastCode = codes.at(-1)?.[1];
+  if (lastCode !== void 0) return Number(lastCode) === 0 ? "success" : "failure";
   const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (failed && Number(failed[1]) > 0) return "failure";
+  if (failed?.[1] && Number(failed[1]) > 0) return "failure";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
-  if (passed && Number(passed[1]) > 0 && (!failed || Number(failed[1]) === 0)) return "success";
+  if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
   if (/(?:^|\n)not ok\s+[0-9]+\b|command failed|is_error["']?\s*:\s*true/iu.test(text)) return "failure";
-  if (!process.env.PLUGIN_ROOT && response && typeof response === "object" && !Array.isArray(response)) return "success";
+  if (!process.env.PLUGIN_ROOT && isRecord(response)) return "success";
   return "unknown";
 }
 function contextOutput(eventName, text) {
@@ -383,13 +352,41 @@ function ensureStateDir(directory) {
 function emptyState() {
   return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, invalid: false, updatedAt: 0 };
 }
+function asReceipts(value) {
+  if (!Array.isArray(value)) return [];
+  const receipts = [];
+  for (const item of value.slice(-1e3)) {
+    if (isRecord(item)) receipts.push({ ...item, id: typeof item.id === "string" ? item.id : String(item.id ?? "") });
+    else receipts.push({ id: "", value: item });
+  }
+  return receipts;
+}
+function asAttempts(value) {
+  if (!isRecord(value)) return {};
+  const attempts = {};
+  for (const [key, count] of Object.entries(value)) attempts[key] = Number(count);
+  return attempts;
+}
+function nullableString(value) {
+  if (value === null || value === void 0) return null;
+  return typeof value === "string" ? value : String(value);
+}
 function sanitize(value) {
-  if (!value || value.version !== VERSION || Date.now() - Number(value.updatedAt || 0) > TTL_MS) return emptyState();
+  if (!isRecord(value) || value.version !== VERSION || Date.now() - Number(value.updatedAt || 0) > TTL_MS) return emptyState();
   return {
     ...emptyState(),
-    ...value,
-    receipts: Array.isArray(value.receipts) ? value.receipts.slice(-1e3) : [],
-    attempts: value.attempts && typeof value.attempts === "object" ? value.attempts : {}
+    bound: Boolean(value.bound),
+    workOrderPath: nullableString(value.workOrderPath),
+    workOrderId: nullableString(value.workOrderId),
+    epoch: Number(value.epoch) || 0,
+    activeBugId: nullableString(value.activeBugId),
+    revision: Number(value.revision) || 0,
+    eventSeq: Number(value.eventSeq) || 0,
+    mutationSeq: Number(value.mutationSeq) || 0,
+    receipts: asReceipts(value.receipts),
+    attempts: asAttempts(value.attempts),
+    invalid: Boolean(value.invalid),
+    updatedAt: Number(value.updatedAt) || 0
   };
 }
 function statePath(sessionId, cwd) {
@@ -416,7 +413,8 @@ function atomicWrite(path, value) {
 }
 function read(path, fallback = null) {
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    return parsed;
   } catch {
     return fallback;
   }
@@ -452,10 +450,11 @@ function acquireLease({ repoRoot: repoRoot2, workOrderId, epoch, sessionId, leas
   }
   try {
     const current = read(path, null);
-    const live = current && Number(current.expiresAt) > now;
-    if (live && current.sessionId !== sessionId) return { ok: false, reason: `work order is leased by another session until ${new Date(current.expiresAt).toISOString()}` };
-    if (current && current.sessionId !== sessionId && Number(epoch) <= Number(current.maxEpoch || 0)) return { ok: false, reason: `run.epoch must exceed ${current.maxEpoch} when another session resumes this work order` };
-    const next = { workOrderId, maxEpoch: Math.max(Number(epoch), Number(current?.maxEpoch || 0)), sessionId, expiresAt: now + leaseMinutes * 6e4, updatedAt: now };
+    const currentRecord = isRecord(current) ? current : null;
+    const live = Boolean(currentRecord && Number(currentRecord.expiresAt) > now);
+    if (live && currentRecord && currentRecord.sessionId !== sessionId) return { ok: false, reason: `work order is leased by another session until ${new Date(Number(currentRecord.expiresAt)).toISOString()}` };
+    if (currentRecord && currentRecord.sessionId !== sessionId && Number(epoch) <= Number(currentRecord.maxEpoch || 0)) return { ok: false, reason: `run.epoch must exceed ${String(currentRecord.maxEpoch)} when another session resumes this work order` };
+    const next = { workOrderId, maxEpoch: Math.max(Number(epoch), Number(currentRecord?.maxEpoch || 0)), sessionId, expiresAt: now + leaseMinutes * 6e4, updatedAt: now };
     return { ok: atomicWrite(path, next), persisted: true, reason: "failed to persist work-order lease" };
   } finally {
     try {
@@ -468,37 +467,9 @@ function releaseLease({ repoRoot: repoRoot2, workOrderId, sessionId }) {
   const path = registryPath(repoRoot2, workOrderId);
   if (!path) return false;
   const current = read(path, null);
-  if (!current || current.sessionId !== sessionId) return false;
+  if (!isRecord(current) || current.sessionId !== sessionId) return false;
   current.expiresAt = 0;
   return atomicWrite(path, current);
-}
-
-// core/src/path-protect.ts
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-function commandMentionsRoot(command, rootRel, rootAbs) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  const normalized = String(rootRel ?? "").replace(/^\.\//u, "").replace(/\/+$/u, "");
-  const markers = [rootRel, normalized, rootAbs, normalized ? `${normalized}/` : null, normalized ? `./${normalized}` : null, normalized ? `./${normalized}/` : null].filter(Boolean);
-  return markers.some((marker) => new RegExp(
-    `(?:^|[\\s;|&\`"'(){}\\[\\]])${escapeRegExp(marker)}(?:$|[\\s;|&\`"'(){}\\[\\]//])`,
-    "u"
-  ).test(text));
-}
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
 }
 
 // plugins/debugging-workflow-guard/src/lib/workflow.ts
@@ -526,7 +497,7 @@ function safeRegex(pattern) {
   }
 }
 function matchesAny(value, patterns) {
-  return patterns.some((pattern) => safeRegex(pattern)?.test(value));
+  return patterns.some((pattern) => Boolean(safeRegex(pattern)?.test(value)));
 }
 function configuredOutcome(command, observed, config) {
   const normalized = normalizeCommand(command);
@@ -536,7 +507,8 @@ function configuredOutcome(command, observed, config) {
 }
 function classifyCommand(command, bug, config) {
   const normalized = normalizeCommand(command);
-  if (normalizeCommand(bug?.symptom?.reproduction) === normalized || matchesAny(normalized, config.commands.reproductionPatterns)) return "reproduction";
+  const reproduction = isRecord(bug?.symptom) ? bug.symptom.reproduction : void 0;
+  if (normalizeCommand(reproduction) === normalized || matchesAny(normalized, config.commands.reproductionPatterns)) return "reproduction";
   if (matchesAny(normalized, config.commands.verificationPatterns) || /(?:^|\s)(?:test|tests|pytest|phpunit|rspec|cargo test|go test|npm test|pnpm test|yarn test|mvn test|gradle test)(?:\s|$)/iu.test(normalized)) return "verification";
   return "command";
 }
@@ -556,51 +528,53 @@ function sameLedgerPath(left, right) {
 }
 function bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths, config = DEFAULT_CONFIG, now = Date.now() }) {
   const repoRoot2 = gitRoot(cwd);
-  const candidates = [...new Set((touchedPaths ?? []).map((path) => canonicalizeLedgerPath(path)))].filter((path) => isWorkOrderPath(path, repoRoot2, config));
+  const candidates = [...new Set((Array.isArray(touchedPaths) ? touchedPaths : []).map((path) => canonicalizeLedgerPath(String(path))))].filter((path) => isWorkOrderPath(path, repoRoot2, config));
   if (candidates.length === 0) return { kind: "idle" };
   if (candidates.length > 1) return { kind: "invalid", findings: ["one hook event cannot bind multiple work orders"] };
+  const candidate = candidates[0];
+  if (candidate === void 0) return { kind: "idle" };
   const existing = readState(sessionId, repoRoot2);
-  if (existing.bound && existing.workOrderPath && !sameLedgerPath(existing.workOrderPath, candidates[0])) {
-    return { kind: "conflict", path: candidates[0], findings: [`this session is already bound to ${relative(repoRoot2, existing.workOrderPath)}`] };
+  if (existing.bound && existing.workOrderPath && !sameLedgerPath(existing.workOrderPath, candidate)) {
+    return { kind: "conflict", path: candidate, findings: [`this session is already bound to ${relative(repoRoot2, existing.workOrderPath)}`] };
   }
-  const checked = loadLedger(candidates[0], config);
+  const checked = loadLedger(candidate, config);
   if (!checked.valid) {
     const state2 = {
       ...existing.bound ? existing : emptyState(),
       bound: true,
-      workOrderPath: candidates[0],
+      workOrderPath: candidate,
       invalid: true,
       eventSeq: existing.bound ? existing.eventSeq + 1 : 1,
       updatedAt: now
     };
     writeState(sessionId, repoRoot2, state2);
-    return { kind: "invalid", repoRoot: repoRoot2, state: state2, path: candidates[0], findings: checked.findings };
+    return { kind: "invalid", repoRoot: repoRoot2, state: state2, path: candidate, findings: checked.findings };
   }
   const workOrder = checked.workOrder;
   if (existing.bound && existing.workOrderId && existing.workOrderId !== workOrder.id) {
     existing.invalid = true;
     existing.eventSeq += 1;
     writeState(sessionId, repoRoot2, existing);
-    return { kind: "invalid", repoRoot: repoRoot2, state: existing, path: candidates[0], findings: ["a corrected bound work order must preserve its id and run.epoch"] };
+    return { kind: "invalid", repoRoot: repoRoot2, state: existing, path: candidate, findings: ["a corrected bound work order must preserve its id and run.epoch"] };
   }
-  if (existing.bound && existing.workOrderId && Number(workOrder.run.epoch) < Number(existing.epoch)) {
+  if (existing.bound && existing.workOrderId && Number(workOrder.run?.epoch) < Number(existing.epoch)) {
     existing.invalid = true;
     existing.eventSeq += 1;
     writeState(sessionId, repoRoot2, existing);
-    return { kind: "invalid", repoRoot: repoRoot2, state: existing, path: candidates[0], findings: ["a corrected bound work order must preserve its id and run.epoch"] };
+    return { kind: "invalid", repoRoot: repoRoot2, state: existing, path: candidate, findings: ["a corrected bound work order must preserve its id and run.epoch"] };
   }
-  const active = workOrder.status === "open" && workOrder.run.state === "active";
+  const active = workOrder.status === "open" && workOrder.run?.state === "active";
   if (active) {
-    const lease = acquireLease({ repoRoot: repoRoot2, workOrderId: workOrder.id, epoch: workOrder.run.epoch, sessionId, leaseMinutes: config.limits.leaseMinutes, now });
-    if (!lease.ok) return { kind: "conflict", path: candidates[0], findings: [lease.reason] };
+    const lease = acquireLease({ repoRoot: repoRoot2, workOrderId: String(workOrder.id ?? ""), epoch: workOrder.run?.epoch, sessionId, leaseMinutes: config.limits.leaseMinutes, now });
+    if (!lease.ok) return { kind: "conflict", path: candidate, findings: [lease.reason ?? "work-order lease update is already in progress"] };
   }
   const state = {
     ...existing.bound ? existing : emptyState(),
     bound: true,
-    workOrderPath: checked.path ?? candidates[0],
-    workOrderId: workOrder.id,
-    epoch: workOrder.run.epoch,
-    activeBugId: workOrder.activeBugId,
+    workOrderPath: checked.path ?? candidate,
+    workOrderId: workOrder.id == null ? null : String(workOrder.id),
+    epoch: Number(workOrder.run?.epoch) || 0,
+    activeBugId: workOrder.activeBugId == null ? null : String(workOrder.activeBugId),
     revision: existing.bound ? existing.revision + 1 : 1,
     eventSeq: existing.bound ? existing.eventSeq + 1 : 1,
     invalid: false,
@@ -620,14 +594,14 @@ function refreshBoundWorkOrder({ cwd, sessionId, config = DEFAULT_CONFIG }) {
     return { kind: "invalid", repoRoot: repoRoot2, state, findings: checked.findings };
   }
   if (checked.workOrder.id !== state.workOrderId) return { kind: "invalid", repoRoot: repoRoot2, state, findings: ["bound work-order id or run.epoch changed unexpectedly"] };
-  if (Number(checked.workOrder.run.epoch) < Number(state.epoch)) return { kind: "invalid", repoRoot: repoRoot2, state, findings: ["bound work-order id or run.epoch changed unexpectedly"] };
-  if (Number(checked.workOrder.run.epoch) > Number(state.epoch)) {
-    state.epoch = checked.workOrder.run.epoch;
+  if (Number(checked.workOrder.run?.epoch) < Number(state.epoch)) return { kind: "invalid", repoRoot: repoRoot2, state, findings: ["bound work-order id or run.epoch changed unexpectedly"] };
+  if (Number(checked.workOrder.run?.epoch) > Number(state.epoch)) {
+    state.epoch = Number(checked.workOrder.run?.epoch);
     writeState(sessionId, repoRoot2, state);
   }
   state.invalid = false;
-  state.activeBugId = checked.workOrder.activeBugId;
-  if (checked.workOrder.status !== "open" || checked.workOrder.run.state !== "active") {
+  state.activeBugId = checked.workOrder.activeBugId == null ? null : String(checked.workOrder.activeBugId);
+  if (checked.workOrder.status !== "open" || checked.workOrder.run?.state !== "active") {
     return { kind: "inactive", repoRoot: repoRoot2, state, workOrder: checked.workOrder };
   }
   return { kind: "active", repoRoot: repoRoot2, state, workOrder: checked.workOrder };
@@ -651,8 +625,9 @@ function recordReceipt({ cwd, sessionId, config = DEFAULT_CONFIG, kind, command 
     at: now
   };
   live.state.receipts.push(receipt);
-  if (receipt.kind === "reproduction" && outcome === "failure" && receipt.mutationSeq > 0) {
-    live.state.attempts[bug.id] = Number(live.state.attempts[bug.id] || 0) + 1;
+  if (receipt.kind === "reproduction" && outcome === "failure" && Number(receipt.mutationSeq) > 0) {
+    const attemptKey = String(bug.id ?? "");
+    live.state.attempts[attemptKey] = Number(live.state.attempts[attemptKey] || 0) + 1;
   }
   live.state.receipts = live.state.receipts.slice(-config.limits.maxReceipts);
   writeState(sessionId, live.repoRoot, live.state);
@@ -661,32 +636,36 @@ function recordReceipt({ cwd, sessionId, config = DEFAULT_CONFIG, kind, command 
 function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CONFIG }) {
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
   if (["idle", "inactive"].includes(live.kind)) return { action: "allow", reason: "no active bound work order" };
-  if (live.kind === "invalid" && live.state?.workOrderPath && paths.length > 0 && paths.every((path) => resolve4(path) === resolve4(live.state.workOrderPath))) {
+  const boundPath = live.kind === "invalid" ? live.state?.workOrderPath : void 0;
+  if (live.kind === "invalid" && boundPath && paths.length > 0 && paths.every((path) => resolve4(path) === resolve4(boundPath))) {
     return { action: "allow", reason: "allowing correction of the invalid bound work order" };
   }
   if (live.kind !== "active") return { action: config.mode === "block" ? "block" : "report", reason: `bound work order is invalid: ${(live.findings ?? []).join("; ")}` };
   const bug = live.workOrder.bugs.find((item) => item.id === live.workOrder.activeBugId);
   const codePaths = paths.filter((path) => classifyPath(path, live.repoRoot, config) === "code" && !isWorkOrderPath(path, live.repoRoot, config));
   if (codePaths.length === 0) return { action: "allow" };
-  const attempts = Number(live.state.attempts[bug.id] || 0);
-  if (attempts >= config.limits.maxFailedFixAttempts) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} reached ${attempts} failed fix attempts; move it to architecture-review and record a new decision before further code changes` };
+  const attempts = Number(live.state.attempts[String(bug.id ?? "")] || 0);
+  if (attempts >= config.limits.maxFailedFixAttempts) return { action: config.mode === "block" ? "block" : "report", reason: `${String(bug.id)} reached ${attempts} failed fix attempts; move it to architecture-review and record a new decision before further code changes` };
   const firstMutation = Math.min(...live.state.receipts.filter((receipt) => receipt.bugId === bug.id && receipt.kind === "mutation").map(receiptSequence));
   const baseline = live.state.receipts.find((receipt) => receipt.bugId === bug.id && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
-  if (!baseline) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} has no pre-mutation failing baseline; run the exact reproduction command verbatim, without pipes, redirections, or an echo suffix, and observe its failure` };
-  const affectedIds = Array.isArray(bug.fix?.affectedBugIds) && bug.fix.affectedBugIds.length > 0 ? bug.fix.affectedBugIds : [bug.id];
+  if (!baseline) return { action: config.mode === "block" ? "block" : "report", reason: `${String(bug.id)} has no pre-mutation failing baseline; run the exact reproduction command verbatim, without pipes, redirections, or an echo suffix, and observe its failure` };
+  const affected = isRecord(bug.fix) && Array.isArray(bug.fix.affectedBugIds) ? bug.fix.affectedBugIds : [];
+  const affectedIds = affected.length > 0 ? affected : [bug.id];
   for (const affectedId of affectedIds) {
     if (affectedId === bug.id) continue;
     const affectedBaseline = live.state.receipts.find((receipt) => receipt.bugId === affectedId && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
-    if (!affectedBaseline) return { action: config.mode === "block" ? "block" : "report", reason: `${bug.id} shared fix affected bug ${affectedId} has no attributed failing baseline before the production mutation; switch activeBugId to ${affectedId}, run its exact reproduction verbatim, then switch back` };
+    if (!affectedBaseline) return { action: config.mode === "block" ? "block" : "report", reason: `${String(bug.id)} shared fix affected bug ${String(affectedId)} has no attributed failing baseline before the production mutation; switch activeBugId to ${String(affectedId)}, run its exact reproduction verbatim, then switch back` };
   }
   return { action: "allow" };
 }
 function receiptSequence(receipt) {
   const matched = /^R-([0-9]+)$/u.exec(String(receipt?.id ?? ""));
-  return matched ? Number(matched[1]) : Number.NaN;
+  const raw = matched?.[1];
+  return raw !== void 0 ? Number(raw) : Number.NaN;
 }
 function completionFindings(live) {
   if (!["active", "inactive"].includes(live.kind)) return live.kind === "idle" ? [] : live.findings ?? ["work order is unavailable"];
+  if (live.kind !== "active" && live.kind !== "inactive") return live.findings ?? ["work order is unavailable"];
   const { workOrder, state } = live;
   if (workOrder.status !== "closed") return [];
   const findings = [];
@@ -694,7 +673,8 @@ function completionFindings(live) {
   if (mutations.length === 0) return findings;
   const ownersByBug = /* @__PURE__ */ new Map();
   for (const bug of workOrder.bugs) {
-    const affected = Array.isArray(bug.fix?.affectedBugIds) && bug.fix.affectedBugIds.length > 0 ? bug.fix.affectedBugIds : [bug.id];
+    const fix = isRecord(bug.fix) ? bug.fix : void 0;
+    const affected = Array.isArray(fix?.affectedBugIds) && fix.affectedBugIds.length > 0 ? fix.affectedBugIds : [bug.id];
     if (!mutations.some((receipt) => receipt.bugId === bug.id)) continue;
     for (const affectedId of affected) {
       const owners = ownersByBug.get(affectedId) ?? [];
@@ -710,15 +690,15 @@ function completionFindings(live) {
     const firstMutation = Math.min(...relevantMutations.map(receiptSequence));
     const lastMutation = Math.max(...relevantMutations.map(receiptSequence));
     const baseline = state.receipts.find((receipt) => receipt.bugId === bugId && receipt.kind === "reproduction" && receipt.outcome === "failure" && receiptSequence(receipt) < firstMutation);
-    if (!baseline) findings.push(`${bugId}: no failing original reproduction was observed before production mutation`);
+    if (!baseline) findings.push(`${String(bugId)}: no failing original reproduction was observed before production mutation`);
     const after = state.receipts.filter((receipt) => receipt.bugId === bugId && receiptSequence(receipt) > lastMutation);
     const repro = after.find((receipt) => receipt.kind === "reproduction" && receipt.outcome === "success");
-    if (!repro) findings.push(`${bugId}: original reproduction lacks a successful current-session receipt`);
+    if (!repro) findings.push(`${String(bugId)}: original reproduction lacks a successful current-session receipt`);
     const regression = after.find((receipt) => receipt.id !== repro?.id && receipt.outcome === "success");
-    if (!regression) findings.push(`${bugId}: regression verification is missing`);
+    if (!regression) findings.push(`${String(bugId)}: regression verification is missing`);
     const cleanup = after.find((receipt) => receipt.id !== repro?.id && receipt.id !== regression?.id && receipt.outcome !== "failure");
-    if (!cleanup) findings.push(`${bugId}: debug-marker cleanup receipt is missing, cross-bug, or failed`);
-    if (repro && receiptSequence(repro) <= lastMutation) findings.push(`${bugId}: original reproduction predates the last relevant mutation`);
+    if (!cleanup) findings.push(`${String(bugId)}: debug-marker cleanup receipt is missing, cross-bug, or failed`);
+    if (repro && receiptSequence(repro) <= lastMutation) findings.push(`${String(bugId)}: original reproduction predates the last relevant mutation`);
   }
   return [...new Set(findings)];
 }
@@ -730,15 +710,20 @@ function bindAfterWriter({ cwd, sessionId, command = "", stdout = "", config = D
   if (action === "status") return refreshBoundWorkOrder({ cwd, sessionId, config });
   const repoRoot2 = gitRoot(cwd);
   const touched = [];
-  if (printed?.path) touched.push(printed.path);
-  if (commandFlag(command, "slug")) touched.push(resolve4(repoRoot2, config.ledger.root, commandFlag(command, "slug")));
+  if (typeof printed?.path === "string") touched.push(printed.path);
+  else if (printed?.path) touched.push(String(printed.path));
+  const slug = commandFlag(command, "slug");
+  if (slug) touched.push(resolve4(repoRoot2, config.ledger.root, slug));
   if (printed?.id) {
     const dir = findLedgerDir(repoRoot2, config, printed.id);
     if (dir) touched.push(dir);
   }
   if (touched.length === 0) {
     const open = scanLedgers(repoRoot2, config).filter((item) => item.store === "events");
-    if (open.length === 1) touched.push(open[0].path);
+    if (open.length === 1) {
+      const only = open[0];
+      if (only) touched.push(only.path);
+    }
   }
   if (touched.length === 0) return { kind: "idle" };
   return bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths: touched, config, now });
@@ -746,13 +731,14 @@ function bindAfterWriter({ cwd, sessionId, command = "", stdout = "", config = D
 function closeBinding({ cwd, sessionId, config = DEFAULT_CONFIG }) {
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
   if (!["active", "inactive"].includes(live.kind)) return live;
-  if (["closed", "aborted", "paused"].includes(live.workOrder.status)) releaseLease({ repoRoot: live.repoRoot, workOrderId: live.workOrder.id, sessionId });
+  if (live.kind !== "active" && live.kind !== "inactive") return live;
+  if (["closed", "aborted", "paused"].includes(String(live.workOrder.status))) releaseLease({ repoRoot: live.repoRoot, workOrderId: String(live.workOrder.id ?? ""), sessionId });
   return live;
 }
 
 // plugins/debugging-workflow-guard/src/entries/hooks/debugging-workflow-guard.ts
 function warn(message) {
-  process.stderr.write(`[debugging-workflow-guard] ${message}
+  process.stderr.write(`[debugging-workflow-guard] ${String(message)}
 `);
 }
 function repoRoot(cwd) {
@@ -780,11 +766,12 @@ function ensureLocalExclude(root, config) {
     if (!existing.split(/\r?\n/u).includes(entry)) appendFileSync(absolute, `${existing && !existing.endsWith("\n") ? "\n" : ""}${entry}
 `, "utf8");
   } catch (error) {
-    warn(`cannot update .git/info/exclude: ${error?.message ?? error}`);
+    const message = error instanceof Error ? error.message : error;
+    warn(`cannot update .git/info/exclude: ${message ?? error}`);
   }
 }
 async function context(event) {
-  const cwd = extractCwd(event);
+  const cwd = eventCwd(event);
   const root = repoRoot(cwd);
   const config = await loadProjectConfig(root, warn);
   return { cwd, root, config, sessionId: extractSessionId(event) };
@@ -825,8 +812,11 @@ async function runPre(event) {
 function responseStdout(event) {
   const response = extractToolResponse(event);
   if (typeof response === "string") return response;
-  if (response && typeof response === "object" && typeof response.stdout === "string") return response.stdout;
+  if (isRecord(response) && typeof response.stdout === "string") return response.stdout;
   return conciseResponse(event);
+}
+function execStatus(error) {
+  return isRecord(error) ? error.status : void 0;
 }
 async function runPost(event, forceFailure = false) {
   const { cwd, root, config, sessionId } = await context(event);
@@ -839,12 +829,13 @@ async function runPost(event, forceFailure = false) {
     if (bound.kind !== "idle") {
       if (bound.kind === "bound") {
         ensureLocalExclude(root, config);
-        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Bound ${bound.workOrder.id} at ${relative2(root, bound.state.workOrderPath)}; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.${bound.active ? " Evidence and mutations are now attributed to that bug." : " No active mutation guard remains."}`));
+        const boundPath = bound.state.workOrderPath ?? "";
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Bound ${String(bound.workOrder.id)} at ${relative2(root, boundPath)}; state ${String(bound.workOrder.status)}/${String(bound.workOrder.run?.state)}; active bug ${bound.workOrder.activeBugId ?? "none"}.${bound.active ? " Evidence and mutations are now attributed to that bug." : " No active mutation guard remains."}`));
         closeBinding({ cwd, sessionId, config });
-      } else if (["invalid", "conflict"].includes(bound.kind)) {
+      } else if (bound.kind === "invalid" || bound.kind === "conflict") {
         writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order activation rejected: ${(bound.findings ?? []).join("; ")}`));
-      } else if (["active", "inactive"].includes(bound.kind)) {
-        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order ${bound.workOrder.id} refreshed; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.`));
+      } else if (bound.kind === "active" || bound.kind === "inactive") {
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order ${String(bound.workOrder.id)} refreshed; state ${String(bound.workOrder.status)}/${String(bound.workOrder.run?.state)}; active bug ${bound.workOrder.activeBugId ?? "none"}.`));
         closeBinding({ cwd, sessionId, config });
       }
       return;
@@ -863,10 +854,10 @@ async function runPost(event, forceFailure = false) {
   if (command) {
     const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
     const recorded = recordReceipt({ cwd, sessionId, config, kind: shellMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
-    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${recorded.receipt.kind} ${recorded.receipt.outcome} for ${recorded.receipt.bugId}. Cite this id only when it supports the stated claim.`));
+    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
     if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
-      const count = recorded.state.attempts[recorded.receipt.bugId] ?? 0;
-      if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${recorded.receipt.bugId} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
+      const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
+      if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${String(recorded.receipt.bugId)} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
     }
     return;
   }
@@ -876,7 +867,7 @@ async function runPost(event, forceFailure = false) {
     const codePaths = paths.filter((path) => classifyPath(path, root, config) === "code");
     if (codePaths.length > 0) {
       const recorded = recordReceipt({ cwd, sessionId, config, kind: "mutation", paths: codePaths, outcome: "success", summary: `${codePaths.length} production path(s) changed` });
-      if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: production mutation attributed to ${recorded.receipt.bugId}.`));
+      if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: production mutation attributed to ${String(recorded.receipt.bugId)}.`));
     }
   }
 }
@@ -885,26 +876,26 @@ async function runStop(event) {
   if (config.mode === "off") return;
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
   if (live.kind === "idle") return;
-  if (!["active", "inactive"].includes(live.kind)) {
+  if (live.kind !== "active" && live.kind !== "inactive") {
     const reason2 = `[Debugging Workflow Guard] Bound Work Order is invalid: ${(live.findings ?? []).join("; ")}`;
     if (config.mode === "block") writeJson(stopDeny(reason2));
     else writeJson(contextOutput("Stop", reason2));
     return;
   }
-  const message = extractAssistantMessage(event);
-  const rel = relative2(root, live.state.workOrderPath).replaceAll("\\", "/");
+  const message = eventAssistantMessage(event);
+  const rel = relative2(root, live.state.workOrderPath ?? "").replaceAll("\\", "/");
   const findings = live.workOrder.status === "closed" ? completionFindings(live) : [];
   if (live.workOrder.status === "closed") {
-    const marker = `DBG_${live.workOrder.id.replace(/[^A-Za-z0-9]+/gu, "_")}`;
+    const marker = `DBG_${String(live.workOrder.id).replace(/[^A-Za-z0-9]+/gu, "_")}`;
     try {
       const matches = execFileSync2("git", ["grep", "--untracked", "-n", "-I", "-e", marker, "--", ".", `:!${config.ledger.root}`], { cwd: root, encoding: "utf8", timeout: 5e3, stdio: ["ignore", "pipe", "ignore"] }).trim();
       if (matches) findings.push(`debug instrumentation remains under marker prefix ${marker}`);
     } catch (error) {
-      if (![1, "1"].includes(error?.status)) findings.push("debug-marker cleanup scan could not complete");
+      if (execStatus(error) !== 1 && execStatus(error) !== "1") findings.push("debug-marker cleanup scan could not complete");
     }
   }
-  if (["closed", "paused", "aborted"].includes(live.workOrder.status) && !message.includes(rel) && !message.includes(live.workOrder.id)) {
-    findings.push(`response must reference ${rel} or ${live.workOrder.id}`);
+  if (["closed", "paused", "aborted"].includes(String(live.workOrder.status)) && !message.includes(rel) && !message.includes(String(live.workOrder.id))) {
+    findings.push(`response must reference ${rel} or ${String(live.workOrder.id)}`);
   }
   if (findings.length === 0) {
     closeBinding({ cwd, sessionId, config });
@@ -929,7 +920,7 @@ async function main(mode = process.argv[2]) {
       process.exitCode = 2;
     }
   } catch (error) {
-    warn(error?.stack ?? error);
+    warn(error instanceof Error ? error.stack ?? error : error);
     process.exitCode = 1;
   }
 }

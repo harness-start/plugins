@@ -1,13 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8707a0bd61e64ba629a5119d88a5df02f5f7c10eaa3728fa8955bd8d21fbe244
+// harness-source-hash: sha256:29ff972776d396a634c551e2a7860eb481341fbdbad2feba3ce29cc1d95354bd
 
 // plugins/tdd-guard/src/entries/hooks/tdd-guard.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
 import { resolve as resolve6 } from "node:path";
 import { fileURLToPath } from "node:url";
-
-// plugins/tdd-guard/src/lib/hook-io.ts
-import { isAbsolute, relative, resolve } from "node:path";
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -57,6 +54,10 @@ function eventToolInput(event) {
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
 }
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
 function eventToolUseId(event) {
   const tool = nestedRecord(event, "tool");
   const toolUse = nestedRecord(event, "tool_use");
@@ -69,6 +70,9 @@ function eventToolUseId(event) {
     tool?.id
   );
 }
+
+// plugins/tdd-guard/src/lib/hook-io.ts
+import { isAbsolute, relative, resolve } from "node:path";
 
 // core/src/hook-output.ts
 function preToolDeny(reason) {
@@ -137,7 +141,7 @@ function extractShellCommand(event) {
 
 // plugins/tdd-guard/src/lib/hook-io.ts
 function cwdOf(event) {
-  const raw = event?.cwd ?? event?.working_directory ?? event?.workingDirectory;
+  const raw = event.cwd ?? event.working_directory ?? event.workingDirectory;
   if (raw !== void 0 && raw !== null && typeof raw !== "string") return resolve(raw);
   return resolve(eventCwd(event));
 }
@@ -145,7 +149,7 @@ function sessionIdOf(event) {
   return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
 }
 function toolUseIdOf(event) {
-  return eventToolUseId(event) || String(event?.id ?? "pending");
+  return eventToolUseId(event) || String(event.id ?? "pending");
 }
 function toolNameOf(event) {
   return canonicalToolName(eventToolName(event));
@@ -157,11 +161,11 @@ function shellCommandOf(event) {
   return extractShellCommand(event);
 }
 function responseOf(event) {
-  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? null;
+  return eventToolResponse(event) ?? event.error ?? null;
 }
 function responseText(response) {
   if (typeof response === "string") return response;
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const fields = ["stdout", "stderr", "output", "content", "message"].map((key) => response[key]).filter((value) => typeof value === "string");
     if (fields.length > 0) return fields.join("\n");
   }
@@ -170,7 +174,7 @@ function responseText(response) {
 function inferOutcome(event, forceFailure = false) {
   if (forceFailure) return "failure";
   const response = responseOf(event);
-  if (response && typeof response === "object") {
+  if (isRecord(response)) {
     if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
     const code = response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code;
     if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
@@ -179,11 +183,11 @@ function inferOutcome(event, forceFailure = false) {
   }
   const text = responseText(response);
   const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
-  if (exitLine) return Number(exitLine[1]) === 0 ? "success" : "failure";
+  if (exitLine?.[1] !== void 0) return Number(exitLine[1]) === 0 ? "success" : "failure";
   const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (failed && Number(failed[1]) > 0) return "failure";
+  if (failed?.[1] && Number(failed[1]) > 0) return "failure";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
-  if (passed && Number(passed[1]) > 0 && (!failed || Number(failed[1]) === 0)) return "success";
+  if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
   if (/(?:^|\n)not ok\s+[0-9]+\b|\b[1-9][0-9]*\s+failures?\b/iu.test(text)) return "failure";
   if (/\b0\s+failures?\b/iu.test(text)) return "success";
   return "unknown";
@@ -194,10 +198,11 @@ function stripQuotes(value) {
   return text;
 }
 function nestedPaths(input) {
-  if (!input || typeof input !== "object") return [];
+  if (!isRecord(input)) return [];
   const paths = [];
   for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "notebook_path"]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
+    const value = input[key];
+    if (typeof value === "string" && value) paths.push(value);
   }
   if (Array.isArray(input.edits)) for (const edit of input.edits) paths.push(...nestedPaths(edit));
   return paths;
@@ -207,14 +212,16 @@ function patchPaths(input) {
   const paths = [];
   for (const line of text.split("\n")) {
     const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) paths.push(stripQuotes(file[1]));
+    if (file?.[1]) paths.push(stripQuotes(file[1]));
     const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (move) paths.push(stripQuotes(move[1]));
+    if (move?.[1]) paths.push(stripQuotes(move[1]));
   }
   return paths;
 }
 function patchText(input) {
-  return typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
+  if (typeof input === "string") return input;
+  if (!isRecord(input)) return "";
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
 }
 function contentFromPatch(input, target, cwd, currentText) {
   const targetPath = resolve(target);
@@ -223,7 +230,7 @@ function contentFromPatch(input, target, cwd, currentText) {
   const added = [];
   for (const line of patchText(input).split("\n")) {
     const file = line.match(/^\*\*\*\s+(Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) {
+    if (file?.[1] && file[2]) {
       active = resolve(cwd, stripQuotes(file[2])) === targetPath;
       if (active) targetMode = file[1].toLowerCase();
       continue;
@@ -242,7 +249,7 @@ ${added.join("\n")}`;
 function tokenize(command) {
   const tokens = [];
   for (const match of String(command ?? "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)) {
-    tokens.push(match[1] ?? match[2] ?? match[3]);
+    tokens.push(match[1] ?? match[2] ?? match[3] ?? "");
   }
   return tokens;
 }
@@ -251,13 +258,13 @@ function invocations(command, names) {
   for (const segment of String(command ?? "").split(/\s*(?:&&|\|\||;|\n)\s*/u)) {
     const tokens = tokenize(segment);
     let index = 0;
-    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index])) index += 1;
+    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index] ?? "")) index += 1;
     if (index >= tokens.length) continue;
     const base = String(tokens[index]).replace(/^.*\//u, "");
     if (!names.has(base)) continue;
     index += 1;
     const operands = [];
-    while (index < tokens.length && tokens[index].startsWith("-")) {
+    while (index < tokens.length && (tokens[index] ?? "").startsWith("-")) {
       if (tokens[index] === "--") {
         index += 1;
         break;
@@ -265,7 +272,8 @@ function invocations(command, names) {
       index += 1;
     }
     while (index < tokens.length) {
-      if (!tokens[index].startsWith("-")) operands.push(tokens[index]);
+      const token = tokens[index];
+      if (token && !token.startsWith("-")) operands.push(token);
       index += 1;
     }
     found.push(operands);
@@ -273,7 +281,7 @@ function invocations(command, names) {
   return found;
 }
 function shellPaths(input) {
-  const command = String(input?.command ?? input?.cmd ?? "");
+  const command = String(input.command ?? input.cmd ?? "");
   const paths = [];
   const push = (raw) => {
     const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
@@ -306,7 +314,7 @@ function targetOperation(event, absolutePath) {
   const input = toolInputOf(event);
   for (const line of patchText(input).split("\n")) {
     const file = line.match(/^\*\*\*\s+Delete File:\s+(.+)$/u);
-    if (file && resolvedEquals(cwd, file[1], absolutePath)) return "delete";
+    if (file?.[1] && resolvedEquals(cwd, file[1], absolutePath)) return "delete";
   }
   const command = shellCommandOf(event);
   if (command) {
@@ -475,7 +483,7 @@ function matches(text, pattern, group = 1) {
   return found;
 }
 function unique(values) {
-  return [...new Set(values.filter(Boolean))];
+  return [...new Set(values.filter((value) => Boolean(value)))];
 }
 function identifiers(text) {
   return unique(matches(text, /\b([A-Za-z_$][A-Za-z0-9_$]{2,})\b/gu).filter((value) => !RESERVED.has(value.toLowerCase())));
@@ -515,8 +523,8 @@ function phpNamespace(code) {
 function phpImports(code) {
   const imports = /* @__PURE__ */ new Map();
   for (const match of code.matchAll(/^\s*use\s+(?!function\b|const\b)([A-Za-z_\\][A-Za-z0-9_\\]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*;/gmu)) {
-    const qualified = match[1].replace(/^\\/u, "");
-    imports.set(match[2] ?? qualified.split("\\").at(-1), qualified);
+    const qualified = (match[1] ?? "").replace(/^\\/u, "");
+    imports.set(match[2] ?? qualified.split("\\").at(-1) ?? "", qualified);
   }
   return imports;
 }
@@ -525,7 +533,7 @@ function resolvePhpName(name, namespace, imports) {
   if (!value) return "";
   if (value.startsWith("\\")) return value.slice(1);
   const [head, ...tail] = value.split("\\");
-  if (imports.has(head)) return [imports.get(head), ...tail].join("\\");
+  if (head !== void 0 && imports.has(head)) return [imports.get(head), ...tail].join("\\");
   return namespace ? `${namespace}\\${value}` : value;
 }
 function phpCoverageTargets(raw, code) {
@@ -544,13 +552,13 @@ function pythonTargets(code) {
   const body = code.replace(/^\s*(?:from\s+[^\n]+\s+import\s+[^\n]+|import\s+[^\n]+)$/gmu, "");
   const targets = [];
   for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
-    for (const item of match[2].replace(/[()]/gu, "").split(",")) {
+    for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
       const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
       if (binding && identifierUsed(body, binding[2] ?? binding[1])) targets.push(`python:${match[1]}#${binding[1]}`);
     }
   }
   for (const match of code.matchAll(/^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*$/gmu)) {
-    const local = match[2] ?? match[1].split(".")[0];
+    const local = match[2] ?? match[1]?.split(".")[0];
     if (identifierUsed(body, local)) targets.push(`python-module:${match[1]}`);
   }
   return unique(targets);
@@ -568,22 +576,22 @@ function javascriptTargets(code, testPath) {
     targets.push(`javascript-module:${resolved}`);
   };
   for (const match of code.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+["']([^"']+)["']/gu)) {
-    const clause = match[1].replace(/^type\s+/u, "").trim();
+    const clause = (match[1] ?? "").replace(/^type\s+/u, "").trim();
     const bindings = [];
     const namespace = clause.match(/^\*\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)$/u);
-    if (namespace) bindings.push(namespace[1]);
+    if (namespace?.[1]) bindings.push(namespace[1]);
     const named = clause.match(/\{([\s\S]*?)\}/u)?.[1] ?? "";
     for (const item of named.split(",")) {
       const binding = item.trim().replace(/^type\s+/u, "").match(/^([A-Za-z_$][A-Za-z0-9_$]*)(?:\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*))?$/u);
-      if (binding) bindings.push(binding[2] ?? binding[1]);
+      if (binding) bindings.push(binding[2] ?? binding[1] ?? "");
     }
     const defaultBinding = clause.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:,|$)/u)?.[1];
     if (defaultBinding) bindings.push(defaultBinding);
-    addModule(match[2], bindings);
+    addModule(match[2] ?? "", bindings);
   }
   for (const match of code.matchAll(/\b(?:const|let|var)\s+(.+?)\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\)/gu)) {
-    const bindings = identifiers(match[1]);
-    addModule(match[2], bindings);
+    const bindings = identifiers(match[1] ?? "");
+    addModule(match[2] ?? "", bindings);
   }
   return unique(targets);
 }
@@ -594,9 +602,9 @@ function rustTargets(code, context) {
   if (!crateName) return [];
   const targets = [];
   for (const match of code.matchAll(/^\s*use\s+([^;]+)\s*;/gmu)) {
-    const expression = match[1].trim();
+    const expression = (match[1] ?? "").trim();
     const grouped = expression.match(/^(.+?)::\{(.+)\}$/u);
-    const paths = grouped ? grouped[2].split(",").map((item) => `${grouped[1]}::${item.trim()}`) : [expression];
+    const paths = grouped ? (grouped[2] ?? "").split(",").map((item) => `${grouped[1]}::${item.trim()}`) : [expression];
     for (const path of paths) {
       const alias = path.match(/\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/u)?.[1];
       const segments = path.replace(/\s+as\s+[A-Za-z_][A-Za-z0-9_]*$/u, "").split("::");
@@ -616,7 +624,7 @@ function goTargets(code) {
   const body = code.replace(/^\s*import\s+(?:\([^)]*\)|[^\n]+)$/gmu, "");
   const targets = [];
   for (const match of code.matchAll(/^\s*(?:import\s+)?(?:([A-Za-z_][A-Za-z0-9_]*)\s+)?"([^"]+)"\s*$/gmu)) {
-    const local = match[1] ?? match[2].split("/").at(-1);
+    const local = match[1] ?? match[2]?.split("/").at(-1);
     for (const used of body.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_][A-Za-z0-9_]*)`, "gu"))) {
       targets.push(`go-import:${match[2]}#${used[1]}`);
     }
@@ -657,7 +665,8 @@ function rustModule(path) {
   if (index < 0) return null;
   const scope = segments.slice(0, index).join("/");
   const modules = segments.slice(index + 1);
-  if (["lib", "main", "mod"].includes(modules.at(-1))) modules.pop();
+  const last = modules.at(-1);
+  if (last !== void 0 && ["lib", "main", "mod"].includes(last)) modules.pop();
   return { scope, module: modules.join("::") };
 }
 function extractSourceSymbols(language, text) {
@@ -737,7 +746,9 @@ function mirrorIdentity(path, language, kind) {
   const descriptor = rootDescriptor(path, kind === "test" ? TEST_ROOTS : SOURCE_ROOTS);
   if (!descriptor) return null;
   const rest = [...descriptor.rest];
-  if (kind === "test") while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0].toLowerCase())) rest.shift();
+  if (kind === "test") {
+    while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0]?.toLowerCase() ?? "")) rest.shift();
+  }
   const name = kind === "test" ? removeTestSuffix(rest.pop(), language) : stripExtension(rest.pop());
   return `${descriptor.scope}#${[...rest, name].join("/")}`;
 }
@@ -751,9 +762,9 @@ function goPackageMatches(source, testRecord) {
   const sourceDirectory = posix.dirname(normalize(source.path));
   const testDirectory = posix.dirname(normalize(testRecord.path));
   const sourcePackage = goPackage(withoutComments("go", source.content));
-  const testPackage = String(testRecord.evidence.package ?? "").replace(/_test$/u, "");
+  const testPackage = String(testRecord.evidence?.package ?? "").replace(/_test$/u, "");
   const symbols = new Set(extractSourceSymbols("go", source.content));
-  const references = testRecord.evidence.references ?? [];
+  const references = testRecord.evidence?.references ?? [];
   if (sourceDirectory === testDirectory && sourcePackage && sourcePackage === testPackage && references.some((value) => symbols.has(value))) return true;
   return false;
 }
@@ -766,7 +777,7 @@ function sourceAuthorizedByTest(source, testRecord, context = {}) {
   return mirrorMatches(source, testRecord);
 }
 function pascal(value) {
-  return String(value).split(/[-_]/u).filter(Boolean).map((part) => part[0]?.toUpperCase() + part.slice(1)).join("");
+  return String(value).split(/[-_]/u).filter(Boolean).map((part) => (part[0]?.toUpperCase() ?? "") + part.slice(1)).join("");
 }
 function languageTestFileName(stem, language) {
   if (language === "php") return `${pascal(stem)}Test.php`;
@@ -832,6 +843,7 @@ function listTestFiles(root, language) {
   const stack = [workspace];
   while (stack.length > 0) {
     const directory = stack.pop();
+    if (directory === void 0) continue;
     let entries = [];
     try {
       entries = readdirSync(directory, { withFileTypes: true });
@@ -873,7 +885,7 @@ function historicalCorrespondingTests(root, source, state, context = {}) {
   });
 }
 function formatTestPathList(paths) {
-  const values = [...new Set((paths ?? []).filter(Boolean))];
+  const values = [...new Set((paths ?? []).filter((value) => Boolean(value)))];
   if (values.length <= 4) return values.join(", ");
   return `${values.slice(0, 4).join(", ")} and ${values.length - 4} more`;
 }
@@ -1048,6 +1060,9 @@ function withPathLock(path, operation) {
 // plugins/tdd-guard/src/lib/state-store.ts
 var VERSION = 3;
 var STATE_DIR_RELATIVE = ".tdd-guard/state";
+function emptyState() {
+  return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
+}
 function digest(value) {
   return digestKey(value);
 }
@@ -1061,13 +1076,13 @@ function statePath(sessionId, root) {
 }
 function readState(sessionId, root) {
   const path = statePath(sessionId, root);
-  if (!path) return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
+  if (!path) return emptyState();
   try {
     const value = JSON.parse(readFileSync5(path, "utf8"));
-    if (value?.version !== VERSION) throw new Error("version mismatch");
+    if (!isRecord(value) || value.version !== VERSION) throw new Error("version mismatch");
     return { observedRed: {}, ...value };
   } catch {
-    return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
+    return emptyState();
   }
 }
 function writeState(sessionId, root, state) {
@@ -1092,11 +1107,19 @@ function readText(path) {
 function hashPath(path) {
   return existsSync4(path) ? digest(readText(path)) : "missing";
 }
+function errorMessage(error) {
+  if (error instanceof Error) return error.message;
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+function isActiveTarget(target) {
+  return target.kind !== "ignored" && target.language !== null;
+}
 function targetsFor(event, root) {
   return extractTargets(event).map((absolutePath) => {
     const path = relativePath(root, absolutePath);
     return { absolutePath, path, ...classifyPath(path) };
-  }).filter((target) => target.kind !== "ignored");
+  }).filter(isActiveTarget);
 }
 function mixedWriteFinding() {
   return "[TDD Guard] A single tool call cannot mix test and implementation files. Use separate tool calls: write the test first, let the hook record it, then write implementation files.";
@@ -1109,7 +1132,8 @@ function namedTestPaths(command, root) {
   const normalized = String(command ?? "").replaceAll("\\", "/");
   const found = [];
   for (const match of normalized.matchAll(TEST_FILE_IN_COMMAND)) {
-    const relative4 = relativePath(root, resolve6(root, match[1].replace(/^\.\//u, "")));
+    const captured = match[1] ?? "";
+    const relative4 = relativePath(root, resolve6(root, captured.replace(/^\.\//u, "")));
     if (classifyPath(relative4).kind === "test") found.push(relative4);
   }
   return [...new Set(found)];
@@ -1118,7 +1142,7 @@ function coveredOutcomePaths(command, root, state, outcome) {
   const named = namedTestPaths(command, root);
   if (named.length > 0) {
     if (outcome === "success" && state.needsGreen?.testPaths?.length) {
-      return named.filter((path) => state.needsGreen.testPaths.includes(path));
+      return named.filter((path) => state.needsGreen?.testPaths.includes(path));
     }
     return named;
   }
@@ -1270,7 +1294,7 @@ async function runPost(event, platform, forceFailure = false) {
         const record = (state.tests ?? []).find((item) => item.path === path);
         if (record) record.redHash = hash;
       }
-      state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter(Boolean) };
+      state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter((value) => Boolean(value)) };
     } else if (outcome === "success" && state.needsGreen) {
       const covered = coveredOutcomePaths(command, root, state, outcome);
       if (covered.length === 0) return;
@@ -1313,13 +1337,14 @@ async function runPost(event, platform, forceFailure = false) {
     const afterHash = hashPath(absolutePath);
     state.tests = (state.tests ?? []).filter((record) => record.path !== target.path);
     if (afterHash === "missing" || afterHash === target.beforeHash) continue;
-    const context = resolveLanguageContext(root, target.path, target.language);
-    const evidence = extractTestEvidence(target.language, readText(absolutePath), target.path, context);
+    const language = target.language ?? "";
+    const context = resolveLanguageContext(root, target.path, language);
+    const evidence = extractTestEvidence(language, readText(absolutePath), target.path, context);
     if (!evidence.valid) continue;
     state.sequence = (state.sequence ?? 0) + 1;
     state.tests.push({
       path: target.path,
-      language: target.language,
+      language,
       hash: afterHash,
       sequence: state.sequence,
       created: target.beforeHash === "missing",
@@ -1360,7 +1385,7 @@ async function main() {
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve6(process.argv[1])) {
   main().catch((error) => {
     const mode = process.argv[2];
-    warn(`hook validation failed: ${error?.message ?? error}`);
+    warn(`hook validation failed: ${errorMessage(error)}`);
     if (mode === "pre") {
       writeJson(preToolDeny("[TDD Guard] The hook could not validate this write safely, so it was blocked. Fix the hook input or state error, then retry."));
     }

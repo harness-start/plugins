@@ -1,4 +1,4 @@
-import { lstatSync, readdirSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, type Dirent } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 import {
@@ -7,11 +7,14 @@ import {
   isSkippedPath,
   resolveLanguageContext,
   sourceAuthorizedByTest,
+  type LanguageContext,
+  type SourceLike,
 } from "./patterns.js";
+import type { GuardState } from "./state-store.js";
 
 const MAX_TEST_BYTES = 1_048_576;
 
-function readLimited(path) {
+function readLimited(path: string): string {
   try {
     const stat = lstatSync(path);
     if (!stat.isFile() || stat.size > MAX_TEST_BYTES) return "";
@@ -21,13 +24,14 @@ function readLimited(path) {
   }
 }
 
-function listTestFiles(root, language) {
+function listTestFiles(root: string, language: string): string[] {
   const workspace = resolve(root);
-  const found = [];
+  const found: string[] = [];
   const stack = [workspace];
   while (stack.length > 0) {
     const directory = stack.pop();
-    let entries = [];
+    if (directory === undefined) continue;
+    let entries: Dirent[] = [];
     try {
       entries = readdirSync(directory, { withFileTypes: true });
     } catch {
@@ -50,9 +54,9 @@ function listTestFiles(root, language) {
   return found.sort();
 }
 
-export function findCorrespondingTests(root, source, context = {}) {
+export function findCorrespondingTests(root: string, source: SourceLike | null | undefined, context: LanguageContext = {}): string[] {
   if (!source?.path || !source.language) return [];
-  const found = [];
+  const found: string[] = [];
   for (const path of listTestFiles(root, source.language)) {
     const testContext = resolveLanguageContext(root, path, source.language);
     const evidence = extractTestEvidence(source.language, readLimited(resolve(root, path)), path, testContext);
@@ -63,15 +67,20 @@ export function findCorrespondingTests(root, source, context = {}) {
   return found;
 }
 
-export function historicalCorrespondingTests(root, source, state, context = {}) {
+export function historicalCorrespondingTests(
+  root: string,
+  source: SourceLike,
+  state: Pick<GuardState, "tests"> | null | undefined,
+  context: LanguageContext = {},
+): string[] {
   return findCorrespondingTests(root, source, context).filter((path) => {
     const record = (state?.tests ?? []).find((item) => item.path === path);
     return record?.created !== true;
   });
 }
 
-export function formatTestPathList(paths) {
-  const values = [...new Set((paths ?? []).filter(Boolean))];
+export function formatTestPathList(paths: Array<string | null | undefined> | null | undefined): string {
+  const values = [...new Set((paths ?? []).filter((value): value is string => Boolean(value)))];
   if (values.length <= 4) return values.join(", ");
   return `${values.slice(0, 4).join(", ")} and ${values.length - 4} more`;
 }

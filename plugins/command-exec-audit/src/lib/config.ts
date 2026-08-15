@@ -1,7 +1,17 @@
 import { isAbsolute } from "node:path";
+import { isRecord } from "@harness/core/hook-event";
 import { loadExecutableConfig } from "@harness/core/project-config";
 
-export const DEFAULT_CONFIG = Object.freeze({
+export type CommandExecConfig = {
+  enabled: boolean;
+  auditRoot: string;
+  maxCommandChars: number;
+  redactSecrets: boolean;
+};
+
+type WarnFn = (message: string) => void;
+
+export const DEFAULT_CONFIG: Readonly<CommandExecConfig> = Object.freeze({
   enabled: true,
   auditRoot: ".command-exec-audit",
   maxCommandChars: 2000,
@@ -33,14 +43,14 @@ const RESERVED_ROOTS = new Set([
   "tests",
 ]);
 
-export function resolveConfig(raw, warn = () => {}) {
-  const config = {
+export function resolveConfig(raw: unknown, warn: WarnFn = () => {}): CommandExecConfig {
+  const config: CommandExecConfig = {
     enabled: DEFAULT_CONFIG.enabled,
     auditRoot: DEFAULT_CONFIG.auditRoot,
     maxCommandChars: DEFAULT_CONFIG.maxCommandChars,
     redactSecrets: DEFAULT_CONFIG.redactSecrets,
   };
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+  if (!isRecord(raw)) {
     if (raw != null) warn("config must be an object; using defaults");
     return config;
   }
@@ -79,7 +89,10 @@ export function resolveConfig(raw, warn = () => {}) {
   return config;
 }
 
-export async function loadProjectConfig(repoRoot, warn = () => {}) {
+export async function loadProjectConfig(
+  repoRoot: string | null,
+  warn: WarnFn = () => {},
+): Promise<CommandExecConfig> {
   return loadExecutableConfig({
     repoRoot,
     names: CONFIG_NAMES,

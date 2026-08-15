@@ -1,4 +1,65 @@
-// harness-source-hash: sha256:e2c899ff74b0ee05fae26bce12ed170de8626cce44835f531da3b915196b3021
+// harness-source-hash: sha256:8b22cb1b21e5f6b88eb09c24ab5257e5560707fea0b68d252123ee742a6e79af
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
+}
+function eventAssistantMessage(event) {
+  return firstString(
+    event.last_assistant_message,
+    event.lastAssistantMessage,
+    event.assistant_message,
+    event.assistant_text,
+    event.assistantText
+  );
+}
 
 // plugins/language-output-governance/src/lib/config.ts
 import { execFileSync } from "node:child_process";
@@ -60,16 +121,23 @@ var PROFILE_DEFINITIONS = {
     rewriteInstruction: "Rewrite the complete previous response in Thai."
   }
 };
-var PROFILES = Object.freeze(
-  Object.fromEntries(
-    Object.entries(PROFILE_DEFINITIONS).map(([id, profile]) => [
-      id,
-      Object.freeze({ id, ...profile, allowedScripts: Object.freeze(profile.allowedScripts) })
-    ])
-  )
-);
+function freezeProfile(id, profile) {
+  return Object.freeze({
+    id,
+    ...profile,
+    allowedScripts: Object.freeze(profile.allowedScripts)
+  });
+}
+var PROFILES = Object.freeze({
+  "zh-CN": freezeProfile("zh-CN", PROFILE_DEFINITIONS["zh-CN"]),
+  "zh-TW": freezeProfile("zh-TW", PROFILE_DEFINITIONS["zh-TW"]),
+  "en-US": freezeProfile("en-US", PROFILE_DEFINITIONS["en-US"]),
+  "ja-JP": freezeProfile("ja-JP", PROFILE_DEFINITIONS["ja-JP"]),
+  "ko-KR": freezeProfile("ko-KR", PROFILE_DEFINITIONS["ko-KR"]),
+  "th-TH": freezeProfile("th-TH", PROFILE_DEFINITIONS["th-TH"])
+});
 function isProfileId(value) {
-  return typeof value === "string" && Object.hasOwn(PROFILES, value);
+  return typeof value === "string" && PROFILE_IDS.includes(value);
 }
 function profileFor(value) {
   return PROFILES[isProfileId(value) ? value : "zh-CN"];
@@ -92,8 +160,14 @@ var DEFAULT_CONFIG = Object.freeze({
 function strictDefault() {
   return { ...DEFAULT_CONFIG, detection: { ...DEFAULT_CONFIG.detection } };
 }
+function isToolFeedbackMode(value) {
+  return value === "report" || value === "off";
+}
+function isStopMode(value) {
+  return value === "block" || value === "off";
+}
 function resolveConfig(source) {
-  if (!source || typeof source !== "object" || Array.isArray(source)) {
+  if (!isRecord(source)) {
     throw new Error("default export must be an object");
   }
   if (Object.keys(source).some((key) => !TOP_LEVEL_KEYS.has(key))) {
@@ -102,14 +176,14 @@ function resolveConfig(source) {
   if (source.defaultProfile !== void 0 && !isProfileId(source.defaultProfile)) {
     throw new Error("defaultProfile must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
   }
-  if (source.toolFeedback !== void 0 && !["report", "off"].includes(source.toolFeedback)) {
+  if (source.toolFeedback !== void 0 && !isToolFeedbackMode(source.toolFeedback)) {
     throw new Error("toolFeedback must be report or off");
   }
-  if (source.stop !== void 0 && !["block", "off"].includes(source.stop)) {
+  if (source.stop !== void 0 && !isStopMode(source.stop)) {
     throw new Error("stop must be block or off");
   }
   const detection = source.detection ?? {};
-  if (!detection || typeof detection !== "object" || Array.isArray(detection)) {
+  if (!isRecord(detection)) {
     throw new Error("detection must be an object");
   }
   if (Object.keys(detection).some((key) => !DETECTION_KEYS.has(key))) {
@@ -117,16 +191,16 @@ function resolveConfig(source) {
   }
   const minScriptCharacters = detection.minScriptCharacters ?? DEFAULT_CONFIG.detection.minScriptCharacters;
   const minLetterRatio = detection.minLetterRatio ?? DEFAULT_CONFIG.detection.minLetterRatio;
-  if (!Number.isInteger(minScriptCharacters) || minScriptCharacters < 1 || minScriptCharacters > 100) {
+  if (typeof minScriptCharacters !== "number" || !Number.isInteger(minScriptCharacters) || minScriptCharacters < 1 || minScriptCharacters > 100) {
     throw new Error("minScriptCharacters must be an integer from 1 to 100");
   }
   if (typeof minLetterRatio !== "number" || minLetterRatio < 0.01 || minLetterRatio > 1) {
     throw new Error("minLetterRatio must be a number from 0.01 to 1");
   }
   return {
-    defaultProfile: source.defaultProfile ?? DEFAULT_CONFIG.defaultProfile,
-    toolFeedback: source.toolFeedback ?? DEFAULT_CONFIG.toolFeedback,
-    stop: source.stop ?? DEFAULT_CONFIG.stop,
+    defaultProfile: isProfileId(source.defaultProfile) ? source.defaultProfile : DEFAULT_CONFIG.defaultProfile,
+    toolFeedback: isToolFeedbackMode(source.toolFeedback) ? source.toolFeedback : DEFAULT_CONFIG.toolFeedback,
+    stop: isStopMode(source.stop) ? source.stop : DEFAULT_CONFIG.stop,
     detection: { minScriptCharacters, minLetterRatio }
   };
 }
@@ -178,67 +252,6 @@ async function loadConfig(cwd, warn2 = () => {
     warn2(`invalid ${path}; using strict defaults: ${error instanceof Error ? error.message : String(error)}`);
     return { config: strictDefault(), path };
   }
-}
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventSessionId(event) {
-  const context = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context?.session_id
-  );
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-function eventPrompt(event) {
-  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
-}
-function eventAssistantMessage(event) {
-  return firstString(
-    event.last_assistant_message,
-    event.lastAssistantMessage,
-    event.assistant_message,
-    event.assistant_text,
-    event.assistantText
-  );
 }
 
 // core/src/hook-output.ts
@@ -396,23 +409,8 @@ function extractSessionId(event) {
   const value = eventSessionId(event);
   return value || null;
 }
-function extractCwd(event) {
-  return eventCwd(event);
-}
 function extractSource(event) {
-  return typeof event?.source === "string" ? event.source : "startup";
-}
-function extractPrompt(event) {
-  return eventPrompt(event);
-}
-function extractAssistantMessage(event) {
-  return eventAssistantMessage(event);
-}
-function extractToolName(event) {
-  return eventToolName(event);
-}
-function extractToolInput(event) {
-  return eventToolInput(event);
+  return typeof event.source === "string" ? event.source : "startup";
 }
 function patchAddedText(command) {
   return String(command ?? "").split(/\r?\n/u).filter((line) => line.startsWith("+") && !line.startsWith("+++")).map((line) => line.slice(1)).join("\n");
@@ -427,8 +425,8 @@ function quotedShellText(command) {
   return values.join("\n");
 }
 function generatedToolText(event) {
-  const input = extractToolInput(event);
-  const tool = canonicalToolName(extractToolName(event));
+  const input = eventToolInput(event);
+  const tool = canonicalToolName(eventToolName(event));
   if (tool === "bash" || tool === "execcommand" || tool === "shellcommand") {
     const command = typeof input.command === "string" ? input.command : typeof input.cmd === "string" ? input.cmd : "";
     const quoted = quotedShellText(command);
@@ -437,10 +435,15 @@ ${quoted}` : command;
   }
   if (tool === "write") return typeof input.content === "string" ? input.content : "";
   if (tool === "edit") {
-    return typeof (input.new_string ?? input.newString) === "string" ? input.new_string ?? input.newString : "";
+    const next = input.new_string ?? input.newString;
+    return typeof next === "string" ? next : "";
   }
   if (tool === "multiedit") {
-    return Array.isArray(input.edits) ? input.edits.map((edit) => edit?.new_string ?? edit?.newString ?? "").filter(Boolean).join("\n") : "";
+    return Array.isArray(input.edits) ? input.edits.map((edit) => {
+      if (!isRecord(edit)) return "";
+      const next = edit.new_string ?? edit.newString;
+      return typeof next === "string" ? next : "";
+    }).filter(Boolean).join("\n") : "";
   }
   if (tool === "applypatch") {
     return [input.command, input.input, input.patch].filter((value) => typeof value === "string").map(patchAddedText).filter(Boolean).join("\n");
@@ -512,13 +515,16 @@ var STATE_DIR_RELATIVE = ".language-output-governance/state";
 function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
+function errorCode(error) {
+  return isRecord(error) ? error.code : void 0;
+}
 function ensureStateDir(directory) {
   mkdirSync2(directory, { recursive: true, mode: 448 });
   ensurePluginWorkdirGitignore(dirname(directory));
 }
 function statePath(event) {
   const session = extractSessionId(event) ?? "default";
-  return join3(resolve3(extractCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
+  return join3(resolve3(eventCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 function emptyState(defaultProfile = "zh-CN") {
   return {
@@ -530,7 +536,7 @@ function emptyState(defaultProfile = "zh-CN") {
   };
 }
 function sanitize(value, defaultProfile) {
-  if (!value || typeof value !== "object" || value.version !== VERSION) {
+  if (!isRecord(value) || value.version !== VERSION) {
     return emptyState(defaultProfile);
   }
   if (Date.now() - Number(value.updatedAt || 0) > TTL_MS) {
@@ -538,7 +544,7 @@ function sanitize(value, defaultProfile) {
   }
   return {
     version: VERSION,
-    preferredProfile: isProfileId(value.preferredProfile) ? value.preferredProfile : defaultProfile,
+    preferredProfile: isProfileId(value.preferredProfile) ? value.preferredProfile : isProfileId(defaultProfile) ? defaultProfile : "zh-CN",
     authorizedProfiles: Array.isArray(value.authorizedProfiles) ? [...new Set(value.authorizedProfiles.filter(isProfileId))] : [],
     toolFeedbackDelivered: value.toolFeedbackDelivered === true,
     updatedAt: Number(value.updatedAt) || 0
@@ -584,14 +590,14 @@ function withLock(path, operation) {
         rmSync(lock, { recursive: true, force: true });
       }
     } catch (error) {
-      if (error?.code !== "EEXIST") throw error;
+      if (errorCode(error) !== "EEXIST") throw error;
       try {
         if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) {
           rmSync(lock, { recursive: true, force: true });
           continue;
         }
       } catch (cause) {
-        if (cause?.code !== "ENOENT") throw cause;
+        if (errorCode(cause) !== "ENOENT") throw cause;
         continue;
       }
       Atomics.wait(WAIT_BUFFER, 0, 0, LOCK_WAIT_MS);
@@ -642,17 +648,17 @@ function claimToolFeedback(event, defaultProfile) {
 }
 
 export {
+  readStdinJson,
+  eventCwd,
+  eventPrompt,
+  eventAssistantMessage,
   PROFILE_IDS,
   PROFILES,
   profileFor,
   loadConfig,
-  readStdinJson,
   stopBlock,
   writeJson,
-  extractCwd,
   extractSource,
-  extractPrompt,
-  extractAssistantMessage,
   generatedToolText,
   extractFileTargets2 as extractFileTargets,
   additionalContextOutput,

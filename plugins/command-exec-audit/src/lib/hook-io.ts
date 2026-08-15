@@ -6,6 +6,7 @@ import {
   eventToolResponse,
   eventToolUseId,
   readStdinJson,
+  type HookEvent,
 } from "@harness/core/hook-event";
 import { preToolDeny, writeJson } from "@harness/core/hook-output";
 import {
@@ -17,39 +18,29 @@ import {
 } from "@harness/core/hook-targets";
 
 export { readStdinJson, extractShellCommand, preToolDeny, writeJson };
+export {
+  eventCwd as extractCwd,
+  eventToolInput as extractToolInput,
+  eventToolName as extractToolName,
+  eventToolResponse as extractToolResponse,
+};
 
-export function extractSessionId(event) {
+export function extractSessionId(event: HookEvent): string | null {
   return eventSessionId(event) || null;
 }
 
-export function extractCwd(event) {
-  return eventCwd(event);
-}
-
-export function extractToolName(event) {
-  return eventToolName(event);
-}
-
-export function extractToolInput(event) {
-  return eventToolInput(event);
-}
-
-export function extractToolResponse(event) {
-  return eventToolResponse(event);
-}
-
-export function extractToolUseId(event) {
+export function extractToolUseId(event: HookEvent): string | null {
   return eventToolUseId(event) || null;
 }
 
-export function extractFileTargets(event) {
+export function extractFileTargets(event: HookEvent): string[] {
   return extractCoreFileTargets(event, { tools: "read-or-mutation" });
 }
 
-export function isShellTool(toolName) {
+export function isShellTool(toolName: string): boolean {
   return isCoreShellTool(toolName);
 }
 
-export function isFileTool(toolName) {
+export function isFileTool(toolName: string): boolean {
   return isFileMutationTool(toolName) || isReadTool(toolName);
 }

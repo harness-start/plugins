@@ -12,8 +12,15 @@ import {
   isTextPath,
   modeFor,
   resolveConfig,
+  type SanityConfig,
 } from "../../lib/source-sanity-policy.js";
-import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import {
+  eventCwd,
+  eventToolName,
+  isRecord,
+  readStdinJson,
+  type HookEvent,
+} from "@harness/core/hook-event";
 import { extractFileTargets as extractCoreFileTargets, extractPatchPaths, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 import { tokenizeShell } from "@harness/core/shell-parse";
 
@@ -21,9 +28,9 @@ const CONFIG_FILE_NAME = ".source-sanity-guard.mjs";
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
 const SIMPLE_WRAPPERS = new Set(["busybox", "command", "exec", "nohup", "time"]);
 
-function splitSimpleCommands(tokens) {
-  const commands = [];
-  let current = [];
+function splitSimpleCommands(tokens: string[]): string[][] {
+  const commands: string[][] = [];
+  let current: string[] = [];
   for (const token of tokens) {
     if (COMMAND_SEPARATORS.has(token)) {
       if (current.length) commands.push(current);
@@ -36,14 +43,15 @@ function splitSimpleCommands(tokens) {
   return commands;
 }
 
-function tokenBasename(token) {
+function tokenBasename(token: unknown): string {
   return String(token ?? "").replaceAll("\\", "/").split("/").at(-1) ?? "";
 }
 
-function unwrapCommand(tokens) {
+function unwrapCommand(tokens: string[]): string[] {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
+    if (token === undefined) break;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
       index += 1;
       continue;
@@ -51,7 +59,9 @@ function unwrapCommand(tokens) {
     const name = tokenBasename(token);
     if (SIMPLE_WRAPPERS.has(name)) {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-") && tokens[index] !== "--") {
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === undefined || !option.startsWith("-") || option === "--") break;
         index += 1;
       }
       if (tokens[index] === "--") index += 1;
@@ -59,8 +69,9 @@ function unwrapCommand(tokens) {
     }
     if (name === "sudo") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
         index += 1;
         if (["-C", "-g", "-u", "--group", "--user"].includes(option)) index += 1;
       }
@@ -68,22 +79,32 @@ function unwrapCommand(tokens) {
     }
     if (name === "env") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     if (name === "timeout") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
         index += 1;
         if (["-k", "-s", "--kill-after", "--signal"].includes(option)) index += 1;
       }
-      if (index < tokens.length && !tokens[index].startsWith("-")) index += 1;
+      const duration = tokens[index];
+      if (duration !== undefined && !duration.startsWith("-")) index += 1;
       continue;
     }
     if (name === "nice" || name === "stdbuf") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     break;
@@ -91,11 +112,12 @@ function unwrapCommand(tokens) {
   return tokens.slice(index);
 }
 
-function nonFlagOperands(args) {
-  const operands = [];
+function nonFlagOperands(args: string[]): string[] {
+  const operands: string[] = [];
   let skipNext = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -113,9 +135,10 @@ function nonFlagOperands(args) {
   return operands;
 }
 
-function targetDirectory(args) {
+function targetDirectory(args: string[]): string {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) continue;
     if (arg === "-t" || arg === "--target-directory") {
       return args[index + 1] ?? "";
     }
@@ -126,33 +149,35 @@ function targetDirectory(args) {
   return "";
 }
 
-function copyDestTargets(args) {
+function copyDestTargets(args: string[]): string[] {
   const dest = targetDirectory(args);
   if (dest) return [dest];
   const operands = nonFlagOperands(args);
-  return operands.length ? [operands.at(-1)] : [];
+  const last = operands.at(-1);
+  return last === undefined ? [] : [last];
 }
 
-function moveWriteTargets(args) {
+function moveWriteTargets(args: string[]): string[] {
   const dest = targetDirectory(args);
   const operands = nonFlagOperands(args);
   return dest ? [dest, ...operands] : operands;
 }
 
-function looksLikeSedScript(token) {
+function looksLikeSedScript(token: string): boolean {
   return /(?:^|[0-9,${}]*[!]*s)[/#@|]./u.test(token);
 }
 
-function sedWriteTargets(args) {
+function sedWriteTargets(args: string[]): string[] {
   const inplace = args.some(
     (arg) => arg === "--in-place" || arg.startsWith("--in-place=") || /^-[A-Za-z]*i/u.test(arg),
   );
   if (!inplace) return [];
-  const files = [];
+  const files: string[] = [];
   let skipNext = false;
   let skippedScript = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -176,7 +201,7 @@ function sedWriteTargets(args) {
   return files;
 }
 
-function commandWriteTargets(tokens) {
+function commandWriteTargets(tokens: string[]): string[] {
   const invocation = unwrapCommand(tokens);
   if (!invocation.length) return [];
   const name = tokenBasename(invocation[0]);
@@ -188,10 +213,10 @@ function commandWriteTargets(tokens) {
   return [];
 }
 
-export function extractShellWriteTargets(command) {
+export function extractShellWriteTargets(command: unknown): string[] {
   const text = String(command ?? "");
-  const paths = [];
-  const push = (raw) => {
+  const paths: string[] = [];
+  const push = (raw: unknown) => {
     const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
     if (value && !value.startsWith("-")) paths.push(value);
   };
@@ -213,13 +238,13 @@ export function extractShellWriteTargets(command) {
   return [...new Set(paths)];
 }
 
-function warn(message) {
+function warn(message: string) {
   process.stderr.write(`[source-sanity-guard] ${message}\n`);
 }
 
 export const extractPatchTargets = extractPatchPaths;
 
-export function extractFileTargets(event) {
+export function extractFileTargets(event: HookEvent): string[] {
   if (isShellTool(eventToolName(event))) {
     const cwd = eventCwd(event);
     return [...new Set(
@@ -232,17 +257,19 @@ export function extractFileTargets(event) {
   return extractCoreFileTargets(event);
 }
 
-export function extractInsertedText(event) {
-  const input = event.tool_input ?? event.toolInput ?? event.tool?.input ?? event.input ?? {};
-  const texts = [];
+export function extractInsertedText(event: HookEvent): string {
+  const tool = isRecord(event.tool) ? event.tool : undefined;
+  const input = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input ?? {};
+  const texts: string[] = [];
   if (isShellTool(eventToolName(event))) {
     const command = extractShellCommand(event);
     if (command) texts.push(command);
   }
-  const visit = (value) => {
-    if (!value || typeof value !== "object") return;
+  const visit = (value: unknown): void => {
+    if (!isRecord(value)) return;
     for (const key of ["content", "new_string", "newString", "text", "cell_source", "patch", "input"]) {
-      if (typeof value[key] === "string") texts.push(value[key]);
+      const field = value[key];
+      if (typeof field === "string") texts.push(field);
     }
     if (Array.isArray(value.edits)) value.edits.forEach(visit);
   };
@@ -251,7 +278,7 @@ export function extractInsertedText(event) {
   return texts.join("\n");
 }
 
-export function resolveRepoRoot(cwd) {
+export function resolveRepoRoot(cwd: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -264,13 +291,13 @@ export function resolveRepoRoot(cwd) {
   }
 }
 
-function relativePath(filePath, repoRoot, cwd) {
+function relativePath(filePath: string, repoRoot: string | null, cwd: string): string {
   const base = repoRoot ?? cwd;
   const candidate = relative(base, filePath).replaceAll("\\", "/");
   return candidate.startsWith("../") ? filePath.replaceAll("\\", "/") : candidate;
 }
 
-async function loadUserConfig(repoRoot) {
+async function loadUserConfig(repoRoot: string | null): Promise<unknown> {
   if (!repoRoot) return null;
   const configPath = join(repoRoot, CONFIG_FILE_NAME);
   if (!existsSync(configPath)) return null;
@@ -278,12 +305,12 @@ async function loadUserConfig(repoRoot) {
     const loaded = await import(pathToFileURL(configPath).href);
     return loaded.default ?? loaded;
   } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error.message}`);
+    warn(`failed to load ${CONFIG_FILE_NAME}: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
 
-function preToolDeny(reason) {
+function preToolDeny(reason: string) {
   return {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
@@ -293,7 +320,7 @@ function preToolDeny(reason) {
   };
 }
 
-function reportOutput(eventName, text) {
+function reportOutput(eventName: string, text: string) {
   return {
     hookSpecificOutput: {
       hookEventName: eventName,
@@ -302,11 +329,11 @@ function reportOutput(eventName, text) {
   };
 }
 
-function writeOutput(value) {
+function writeOutput(value: unknown) {
   if (value) process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-function formatPreFindings(findings) {
+function formatPreFindings(findings: Array<{ path: string; message: string }>) {
   return [
     "[Source Sanity Guard] Unsafe source write detected",
     "",
@@ -320,12 +347,12 @@ function formatPreFindings(findings) {
   ].join("\n");
 }
 
-async function runPre(event, config, repoRoot, cwd) {
+async function runPre(event: HookEvent, config: SanityConfig, repoRoot: string | null, cwd: string) {
   const targets = extractFileTargets(event);
   if (targets.length === 0) return;
   const insertedText = extractInsertedText(event);
   const garbled = analyzeGarbledText(insertedText);
-  const findings = [];
+  const findings: Array<{ path: string; mode: string; message: string }> = [];
   let hasBlock = false;
 
   for (const target of targets) {
@@ -362,7 +389,7 @@ export async function main() {
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

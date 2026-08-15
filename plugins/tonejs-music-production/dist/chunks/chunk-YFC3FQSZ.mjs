@@ -1,13 +1,13 @@
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 import {
   analyzePcm16Wav
-} from "./chunk-CK3DV5VG.mjs";
+} from "./chunk-B3UIGL2A.mjs";
 import {
   MUSIC_ENGINE,
   computeMusicSubjectDigest,
   createMusicReceipt,
   validateMusicModel
-} from "./chunk-XYNVSRBJ.mjs";
+} from "./chunk-6UVSZ5EF.mjs";
 
 // plugins/tonejs-music-production/src/lib/release.ts
 import { createHash } from "node:crypto";
@@ -30,10 +30,15 @@ async function collect(root, directory, model, count) {
     }
   }
 }
+function asProject(value) {
+  if (value === null) return null;
+  if (typeof value !== "object" || Array.isArray(value)) return null;
+  return value;
+}
 async function collectMusicModel(root) {
   const model = { artifactId: "", files: {}, digests: {}, project: null };
   await collect(root, root, model, { value: 0 });
-  model.project = JSON.parse(model.files["music.project.json"] ?? "null");
+  model.project = asProject(JSON.parse(model.files["music.project.json"] ?? "null"));
   model.artifactId = basename(root);
   return model;
 }
@@ -57,7 +62,7 @@ function assessQuality(analysis, quality) {
 }
 function validateListeningReview(review, { sourceDigest, mixSha256, releaseSessionId = process.env.AI_EXPERTS_SESSION_ID ?? "unknown" }) {
   if (typeof review !== "string") return false;
-  const findings = review.match(/^findings:\s*(?<value>.+)$/mu)?.groups?.value.trim() ?? "";
+  const findings = review.match(/^findings:\s*(?<value>.+)$/mu)?.groups?.value?.trim() ?? "";
   const reviewerSession = review.match(/^reviewerSession:\s*(?<value>\S+)\s*$/mu)?.groups?.value ?? "";
   return new RegExp(`^sourceDigest: ${sourceDigest}$`, "mu").test(review) && new RegExp(`^mixSha256: ${mixSha256}$`, "mu").test(review) && /^method:\s*listened\s*$/mu.test(review) && /^reviewerKind:\s*(?:human|independent-agent)\s*$/mu.test(review) && reviewerSession.length > 0 && reviewerSession !== releaseSessionId && findings.length > 0 && !/^(?:<.*>|TODO|TBD)$/iu.test(findings);
 }
@@ -66,18 +71,22 @@ async function releaseProject(inputRoot) {
   const initial = await collectMusicModel(root);
   const sourceDigest = computeMusicSubjectDigest(initial);
   const findings = validateMusicModel(initial, { stage: "source" });
-  if (findings.length > 0) throw new Error(`SOURCE_CONTRACT_FAILED:${findings[0].code}:${findings[0].path}`);
-  const plan = JSON.parse(initial.files["plan.contract.json"] ?? "null");
-  if (plan?.targetStage !== "release") throw new Error("RELEASE_STAGE_NOT_REQUESTED");
+  if (findings.length > 0) {
+    const first = findings[0];
+    throw new Error(`SOURCE_CONTRACT_FAILED:${first?.code}:${first?.path}`);
+  }
+  const plan = JSON.parse(initial.files?.["plan.contract.json"] ?? "null");
+  const planRecord = typeof plan === "object" && plan !== null ? plan : {};
+  if (planRecord.targetStage !== "release") throw new Error("RELEASE_STAGE_NOT_REQUESTED");
   const mixPath = join(root, "build", `mix.${sourceDigest}.wav`);
   const mixBytes = await readFile(mixPath);
   const mixSha256 = sha256(mixBytes);
-  const review = initial.files["review/music-review.md"] ?? "";
+  const review = initial.files?.["review/music-review.md"] ?? "";
   if (!validateListeningReview(review, { sourceDigest, mixSha256 })) {
     throw new Error("CURRENT_LISTENING_REVIEW_REQUIRED");
   }
   const analysis = analyzePcm16Wav(mixBytes);
-  const quality = assessQuality(analysis, initial.project.quality ?? {});
+  const quality = assessQuality(analysis, initial.project?.quality ?? {});
   if (!quality.pass) throw new Error(`AUDIO_QUALITY_FAILED:${Object.entries(quality.checks).filter(([, pass]) => !pass).map(([name]) => name).join(",")}`);
   await mkdir(join(root, "dist"), { recursive: true });
   const journalPath = join(root, ".music-delivery-journal.json");
@@ -107,18 +116,21 @@ async function releaseProject(inputRoot) {
       artifactId: initial.artifactId,
       sourceDigest,
       outputs: {
-        [`dist/${initial.artifactId}.wav`]: beforeManifest.digests[`dist/${initial.artifactId}.wav`],
-        "evidence.audio.json": beforeManifest.digests["evidence.audio.json"],
-        "review/music-review.md": beforeManifest.digests["review/music-review.md"]
+        [`dist/${initial.artifactId}.wav`]: beforeManifest.digests?.[`dist/${initial.artifactId}.wav`],
+        "evidence.audio.json": beforeManifest.digests?.["evidence.audio.json"],
+        "review/music-review.md": beforeManifest.digests?.["review/music-review.md"]
       }
     });
     const beforeReceipt = await collectMusicModel(root);
     await writeJsonAtomic(join(root, "receipt.release.json"), createMusicReceipt(beforeReceipt));
     const finalModel = await collectMusicModel(root);
-    delete finalModel.files[".music-delivery-journal.json"];
-    delete finalModel.digests[".music-delivery-journal.json"];
+    if (finalModel.files) delete finalModel.files[".music-delivery-journal.json"];
+    if (finalModel.digests) delete finalModel.digests[".music-delivery-journal.json"];
     const releaseFindings = validateMusicModel(finalModel, { stage: "release" });
-    if (releaseFindings.length > 0) throw new Error(`RELEASE_CONTRACT_FAILED:${releaseFindings[0].code}:${releaseFindings[0].path}`);
+    if (releaseFindings.length > 0) {
+      const first = releaseFindings[0];
+      throw new Error(`RELEASE_CONTRACT_FAILED:${first?.code}:${first?.path}`);
+    }
     complete = true;
     return { sourceDigest, distPath, evidencePath: join(root, "evidence.audio.json"), receiptPath: join(root, "receipt.release.json") };
   } finally {

@@ -2,31 +2,74 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { cwd, sessionId } from "./hook-io.js";
-import { findActiveWorkflow, isActivePhase, readWorkflowFile, workflowPath } from "./workflow-fs.js";
+import { findActiveWorkflow, isActivePhase, readWorkflowFile, workflowPath, type ResearchWorkflow } from "./workflow-fs.js";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 
-function hash(value) {
+export type StatePayload = {
+  abort?: boolean;
+  runId?: string | null;
+  tool?: string;
+  seal?: string | null;
+  promptEpoch?: number;
+  revision?: number;
+  eventId?: string | null;
+  observedAt?: number;
+  conservative?: boolean;
+};
+
+export type ResearchHookState = {
+  promptEpoch: number;
+  revision: number;
+  active: boolean;
+  aborted: boolean;
+  abortedRunId: string | null;
+  completed: boolean;
+  completedRunId: string | null;
+  seal: StatePayload | null;
+  runId: string | null;
+  receipts: StatePayload[];
+  workflow: ResearchWorkflow | null;
+  workflowPhase: string | null;
+};
+
+function hash(value: string): string {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
 export const STATE_DIR_RELATIVE = ".research/state";
 
-function ensureStateDir(directory) {
+function ensureStateDir(directory: string): void {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   ensurePluginWorkdirGitignore(dirname(directory));
 }
 
-function directory(event) {
+function directory(event: HookEvent): string {
   const session = sessionId(event) || "default";
   const target = join(resolve(cwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
   return target;
 }
 
-export function appendStateEvent(event, type, payload = {}) {
+function payloadFromUnknown(value: unknown): StatePayload {
+  if (!isRecord(value)) return {};
+  const payload: StatePayload = {};
+  if (typeof value.abort === "boolean") payload.abort = value.abort;
+  if (typeof value.runId === "string" || value.runId === null) payload.runId = value.runId;
+  if (typeof value.tool === "string") payload.tool = value.tool;
+  if (typeof value.seal === "string" || value.seal === null) payload.seal = value.seal;
+  if (typeof value.promptEpoch === "number") payload.promptEpoch = value.promptEpoch;
+  if (typeof value.revision === "number") payload.revision = value.revision;
+  if (typeof value.eventId === "string" || value.eventId === null) payload.eventId = value.eventId;
+  if (typeof value.observedAt === "number") payload.observedAt = value.observedAt;
+  if (typeof value.conservative === "boolean") payload.conservative = value.conservative;
+  return payload;
+}
+
+export function appendStateEvent(event: HookEvent, type: string, payload: Record<string, unknown> = {}): boolean {
   const target = directory(event);
   if (!target) return false;
   try {
@@ -40,10 +83,10 @@ export function appendStateEvent(event, type, payload = {}) {
   }
 }
 
-export function readState(event) {
+export function readState(event: HookEvent): ResearchHookState {
   const workspace = resolve(cwd(event));
   const workflow = findActiveWorkflow(workspace);
-  const state = {
+  const state: ResearchHookState = {
     promptEpoch: 0,
     revision: 0,
     active: false,
@@ -60,16 +103,18 @@ export function readState(event) {
 
   const target = directory(event);
   if (target) {
-    let files;
+    let files: string[];
     try {
       files = readdirSync(target).filter((name) => name.endsWith(".json")).sort();
     } catch {
       files = [];
     }
     for (const file of files) {
-      let item;
+      let item: Record<string, unknown>;
       try {
-        item = JSON.parse(readFileSync(join(target, file), "utf8"));
+        const parsed: unknown = JSON.parse(readFileSync(join(target, file), "utf8"));
+        if (!isRecord(parsed)) continue;
+        item = parsed;
       } catch {
         continue;
       }
@@ -79,30 +124,31 @@ export function readState(event) {
         } catch {}
         continue;
       }
+      const payload = payloadFromUnknown(item.payload);
       if (item.type === "prompt") {
         state.promptEpoch += 1;
-        if (item.payload.abort === true) {
+        if (payload.abort === true) {
           state.aborted = true;
-          state.abortedRunId = item.payload.runId ?? state.runId;
-          state.runId = item.payload.runId ?? state.runId;
+          state.abortedRunId = payload.runId ?? state.runId;
+          state.runId = payload.runId ?? state.runId;
         }
       } else if (item.type === "mutation") {
         state.revision += 1;
         state.seal = null;
       } else if (item.type === "receipt") {
-        state.receipts.push(item.payload);
-        if (item.payload.tool === "research_begin") {
-          state.runId = item.payload.runId ?? state.runId;
+        state.receipts.push(payload);
+        if (payload.tool === "research_begin") {
+          state.runId = payload.runId ?? state.runId;
           state.seal = null;
           state.aborted = false;
           state.completed = false;
         }
-        if (item.payload.tool === "research_seal" && (!state.runId || item.payload.runId === state.runId)) state.seal = item.payload;
+        if (payload.tool === "research_seal" && (!state.runId || payload.runId === state.runId)) state.seal = payload;
       } else if (item.type === "complete") {
-        if (!item.payload.runId || !state.runId || item.payload.runId === state.runId) {
+        if (!payload.runId || !state.runId || payload.runId === state.runId) {
           state.completed = true;
-          state.completedRunId = item.payload.runId ?? state.runId;
-          state.runId = item.payload.runId ?? state.runId;
+          state.completedRunId = payload.runId ?? state.runId;
+          state.runId = payload.runId ?? state.runId;
         }
       }
     }

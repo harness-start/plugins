@@ -1,18 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e135a9d3aa608f5f15f040e311aab5ea1eb67716b0d39bac38b0c614bfe29ffa
+// harness-source-hash: sha256:d945f3b122937f9aa290663ad4b77a5862f9dd48007b111f6f6c2dd40fb0bf38
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-P4LNGOG4.mjs";
+} from "../chunks/chunk-NTJ5JQIZ.mjs";
 import {
   defaultWorkflow,
   ensureRunSkeleton,
   findActiveWorkflow,
+  isRecord,
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-QHUYZAJU.mjs";
+} from "../chunks/chunk-HFEXQAU3.mjs";
 
 // plugins/research-provenance-guard/src/entries/mcp/research-provenance-server.ts
 import { realpath as realpath2 } from "node:fs/promises";
@@ -35,11 +36,13 @@ var MAX_BYTES = 8 * 1024 * 1024;
 function privateIpv4(address) {
   const parts = address.split(".").map(Number);
   if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-  const [a, b] = parts;
+  const a = parts[0];
+  const b = parts[1];
+  if (a === void 0 || b === void 0) return true;
   return a === 0 || a === 10 || a === 127 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 || a === 100 && b >= 64 && b <= 127 || a === 192 && (b === 0 || b === 168) || a === 198 && (b === 18 || b === 19 || b === 51) || a === 203 && b === 0 || a >= 224;
 }
 function isPrivateAddress(address) {
-  const normalized = address.toLowerCase().split("%")[0];
+  const normalized = address.toLowerCase().split("%")[0] ?? "";
   if (isIP(normalized) === 4) return privateIpv4(normalized);
   if (isIP(normalized) !== 6) return true;
   if (normalized === "::" || normalized === "::1" || normalized.startsWith("2001:db8:") || normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb") || normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
@@ -63,7 +66,7 @@ function validateUrl(value) {
 async function requestOnce(url, timeoutMs, maxBytes) {
   const addresses = await resolvePublic(url.hostname);
   const transport = url.protocol === "https:" ? https : http;
-  return await new Promise((resolve3, reject) => {
+  return await new Promise((resolvePromise, reject) => {
     const request = transport.request(url, {
       method: "GET",
       headers: { Accept: "text/html,text/plain,application/json,application/xml;q=0.9,*/*;q=0.1", "User-Agent": "research-provenance-guard/0.1" },
@@ -76,7 +79,7 @@ async function requestOnce(url, timeoutMs, maxBytes) {
         if (size > maxBytes) response.destroy(new Error(`source exceeds ${maxBytes} byte limit`));
         else chunks.push(chunk);
       });
-      response.on("end", () => resolve3({ status: response.statusCode ?? 0, headers: response.headers, body: Buffer.concat(chunks) }));
+      response.on("end", () => resolvePromise({ status: response.statusCode ?? 0, headers: response.headers, body: Buffer.concat(chunks) }));
       response.on("error", reject);
     });
     request.setTimeout(timeoutMs, () => request.destroy(new Error("source request timed out")));
@@ -94,6 +97,10 @@ function pinnedLookup(addresses) {
       return;
     }
     const selected = pinned[0];
+    if (!selected) {
+      done(null, "", 0);
+      return;
+    }
     done(null, selected.address, selected.family);
   };
 }
@@ -103,12 +110,13 @@ async function safeFetchText(value, { timeoutMs = 15e3, maxBytes = MAX_BYTES, ma
     const response = await requestOnce(url, timeoutMs, maxBytes);
     if ([301, 302, 303, 307, 308].includes(response.status)) {
       if (redirect === maxRedirects) throw new Error("too many redirects");
-      if (!response.headers.location) throw new Error("redirect is missing Location header");
-      url = validateUrl(new URL(response.headers.location, url).toString());
+      const location = response.headers.location;
+      if (!location) throw new Error("redirect is missing Location header");
+      url = validateUrl(new URL(String(location), url).toString());
       continue;
     }
     if (response.status < 200 || response.status >= 300) throw new Error(`source returned HTTP ${response.status}`);
-    const type = String(response.headers["content-type"] ?? "").split(";", 1)[0].trim().toLowerCase();
+    const type = String(response.headers["content-type"] ?? "").split(";", 1)[0]?.trim().toLowerCase() ?? "";
     const allowed = /^(?:text\/|application\/(?:json|xml|xhtml\+xml))/u.test(type);
     if (!allowed) throw new Error(`unsupported source MIME type: ${type || "unknown"}`);
     const raw = response.body.toString("utf8");
@@ -169,7 +177,9 @@ function renderReport(run, claims, anchorsById, sourcesById) {
     if (claim.limitation) lines.push(`Limitation: ${claim.limitation}`, "");
     for (const anchorId of claim.anchor_ids ?? []) {
       const anchor = anchorsById.get(anchorId);
+      if (!anchor) continue;
       const source = sourcesById.get(anchor.source_id);
+      if (!source) continue;
       lines.push(`- [${anchor.anchor_id}] ${source.final_url ?? source.workspace_path} \u2014 ${anchor.label}`);
     }
     lines.push("");
@@ -179,39 +189,67 @@ function renderReport(run, claims, anchorsById, sourcesById) {
   lines.push("", "## Method and limitations", "", "Sources were captured by the research_provenance MCP service. Anchors refer to the captured immutable content; discovery results alone are not evidence.", "");
   return lines.join("\n");
 }
+function anchorKey(id) {
+  return typeof id === "string" ? id : null;
+}
 function validateClaims(claims, anchorsById) {
   if (!Array.isArray(claims) || claims.length === 0) throw new Error("claims must be a non-empty array");
   const seen = /* @__PURE__ */ new Set();
-  for (const claim of claims) {
-    assertObject(claim, "claim");
-    assertExactKeys(claim, ["id", "status", "text", "anchor_ids", "basis", "caveat", "limitation", "supporting_anchor_ids", "opposing_anchor_ids"], "claim");
-    if (!ID.test(claim.id ?? "") || seen.has(claim.id)) throw new Error("claim id must be unique ASCII identifier such as C1");
-    seen.add(claim.id);
-    requiredLine(claim.text, `claim ${claim.id} text`);
-    if (!CLAIM_STATUSES.has(claim.status)) throw new Error(`claim ${claim.id} has invalid status`);
-    const ids = claim.anchor_ids ?? [];
-    if (!Array.isArray(ids) || ids.some((id) => !anchorsById.has(id))) throw new Error(`claim ${claim.id} references an unknown anchor`);
-    const sources = new Set(ids.map((id) => anchorsById.get(id).source_id));
-    if (claim.status === "anchored" && ids.length < 1) throw new Error("anchored claim requires at least one anchor");
-    if (claim.status === "multi_anchored" && sources.size < 2) throw new Error("multi_anchored claim requires anchors from at least two distinct sources");
-    if (claim.status === "inferred" && (ids.length < 1 || !claim.basis || !claim.caveat)) throw new Error("inferred claim requires evidence, basis, and caveat");
-    if (claim.basis) requiredLine(claim.basis, `claim ${claim.id} basis`);
-    if (claim.caveat) requiredLine(claim.caveat, `claim ${claim.id} caveat`);
-    if (claim.limitation) requiredLine(claim.limitation, `claim ${claim.id} limitation`);
-    if (claim.status === "unverified" && (!claim.limitation || ids.length !== 0)) throw new Error("unverified claim requires limitation and no anchors");
-    if (claim.status === "contested") {
-      const support = claim.supporting_anchor_ids ?? [];
-      const oppose = claim.opposing_anchor_ids ?? [];
+  for (const rawClaim of claims) {
+    assertObject(rawClaim, "claim");
+    assertExactKeys(rawClaim, ["id", "status", "text", "anchor_ids", "basis", "caveat", "limitation", "supporting_anchor_ids", "opposing_anchor_ids"], "claim");
+    const id = String(rawClaim.id ?? "");
+    if (!ID.test(id) || seen.has(id)) throw new Error("claim id must be unique ASCII identifier such as C1");
+    seen.add(id);
+    requiredLine(rawClaim.text, `claim ${id} text`);
+    if (typeof rawClaim.status !== "string" || !CLAIM_STATUSES.has(rawClaim.status)) throw new Error(`claim ${id} has invalid status`);
+    const ids = rawClaim.anchor_ids ?? [];
+    if (!Array.isArray(ids) || ids.some((anchorId) => !anchorKey(anchorId) || !anchorsById.has(anchorKey(anchorId) ?? ""))) throw new Error(`claim ${id} references an unknown anchor`);
+    const sources = new Set(
+      ids.flatMap((anchorId) => {
+        const key = anchorKey(anchorId);
+        const anchor = key ? anchorsById.get(key) : void 0;
+        return anchor ? [anchor.source_id] : [];
+      })
+    );
+    if (rawClaim.status === "anchored" && ids.length < 1) throw new Error("anchored claim requires at least one anchor");
+    if (rawClaim.status === "multi_anchored" && sources.size < 2) throw new Error("multi_anchored claim requires anchors from at least two distinct sources");
+    if (rawClaim.status === "inferred" && (ids.length < 1 || !rawClaim.basis || !rawClaim.caveat)) throw new Error("inferred claim requires evidence, basis, and caveat");
+    if (rawClaim.basis) requiredLine(rawClaim.basis, `claim ${id} basis`);
+    if (rawClaim.caveat) requiredLine(rawClaim.caveat, `claim ${id} caveat`);
+    if (rawClaim.limitation) requiredLine(rawClaim.limitation, `claim ${id} limitation`);
+    if (rawClaim.status === "unverified" && (!rawClaim.limitation || ids.length !== 0)) throw new Error("unverified claim requires limitation and no anchors");
+    if (rawClaim.status === "contested") {
+      const support = rawClaim.supporting_anchor_ids ?? [];
+      const oppose = rawClaim.opposing_anchor_ids ?? [];
       if (!Array.isArray(support) || !Array.isArray(oppose) || support.length < 1 || oppose.length < 1) throw new Error("contested claim requires supporting and opposing anchors");
-      const supportSources = new Set(support.map((id) => anchorsById.get(id)?.source_id));
-      const opposeSources = new Set(oppose.map((id) => anchorsById.get(id)?.source_id));
+      const supportSources = new Set(support.map((anchorId) => {
+        const key = anchorKey(anchorId);
+        return key ? anchorsById.get(key)?.source_id : void 0;
+      }));
+      const opposeSources = new Set(oppose.map((anchorId) => {
+        const key = anchorKey(anchorId);
+        return key ? anchorsById.get(key)?.source_id : void 0;
+      }));
       const crossSource = [...supportSources].some((sourceId) => [...opposeSources].some((opposingId) => opposingId !== sourceId));
-      if ([...support, ...oppose].some((id) => !anchorsById.has(id)) || !crossSource) throw new Error("contested claim requires distinct known supporting and opposing sources");
-      claim.anchor_ids = [.../* @__PURE__ */ new Set([...ids, ...support, ...oppose])];
+      if ([...support, ...oppose].some((anchorId) => {
+        const key = anchorKey(anchorId);
+        return !key || !anchorsById.has(key);
+      }) || !crossSource) throw new Error("contested claim requires distinct known supporting and opposing sources");
+      rawClaim.anchor_ids = [...new Set([...ids, ...support, ...oppose].map((anchorId) => anchorKey(anchorId)).filter((key) => Boolean(key)))];
     }
   }
 }
 var ResearchService = class {
+  workspaceRoot;
+  dataRoot;
+  sessionId;
+  fetchText;
+  discoveryExecutable;
+  now;
+  run;
+  sources;
+  anchors;
   constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, discoveryExecutable = process.env.FIRECRAWL_BIN || "firecrawl", now = () => /* @__PURE__ */ new Date() }) {
     this.workspaceRoot = resolve(requiredString(workspaceRoot, "workspaceRoot"));
     this.dataRoot = resolve(requiredString(dataRoot, "dataRoot"));
@@ -223,11 +261,15 @@ var ResearchService = class {
     this.sources = /* @__PURE__ */ new Map();
     this.anchors = /* @__PURE__ */ new Map();
   }
-  async event(type, payload) {
+  activeRun() {
     if (!this.run) throw new Error("research_begin must be called first");
-    const eventId = `E${String(this.run.event_seq += 1).padStart(6, "0")}`;
-    const event = { schema: "research-event/v1", event_id: eventId, type, run_id: this.run.run_id, at: this.now().toISOString(), payload };
-    await atomicWrite(join(this.dataRoot, "research-provenance-guard", "runs", this.run.run_id, "events", `${eventId}.json`), `${canonicalJson(event)}
+    return this.run;
+  }
+  async event(type, payload) {
+    const run = this.activeRun();
+    const eventId = `E${String(run.event_seq += 1).padStart(6, "0")}`;
+    const event = { schema: "research-event/v1", event_id: eventId, type, run_id: run.run_id, at: this.now().toISOString(), payload };
+    await atomicWrite(join(this.dataRoot, "research-provenance-guard", "runs", run.run_id, "events", `${eventId}.json`), `${canonicalJson(event)}
 `);
     return eventId;
   }
@@ -245,9 +287,10 @@ var ResearchService = class {
     throw new Error(`unknown tool: ${name}`);
   }
   syncWorkflow(mutator) {
-    const runId = this.run.run_id;
+    const run = this.activeRun();
+    const runId = run.run_id;
     ensureRunSkeleton(this.workspaceRoot, runId);
-    const existing = readWorkflowFile(workflowPath(this.workspaceRoot, runId)) ?? defaultWorkflow({ runId, question: this.run.question, scope: this.run.scope, asOf: this.run.as_of, promptEpoch: this.run.prompt_epoch });
+    const existing = readWorkflowFile(workflowPath(this.workspaceRoot, runId)) ?? defaultWorkflow({ runId, question: run.question, scope: run.scope, asOf: run.as_of, promptEpoch: run.prompt_epoch });
     const next = mutator({ ...existing, completeness: { ...existing.completeness }, mcp: { ...existing.mcp } });
     writeWorkflow(this.workspaceRoot, next);
     return next;
@@ -318,7 +361,7 @@ var ResearchService = class {
     assertExactKeys(args, ["query", "category", "limit"], "source_discover");
     const query = requiredString(args.query, "query");
     const category = args.category ?? "web";
-    if (!SOURCE_KINDS.has(category) || category === "workspace") throw new Error("invalid discovery category");
+    if (typeof category !== "string" || !SOURCE_KINDS.has(category) || category === "workspace") throw new Error("invalid discovery category");
     const limit = Number(args.limit ?? 5);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) throw new Error("discovery limit must be an integer from 1 to 20");
     const discovery = await new Promise((resolvePromise, reject) => {
@@ -350,7 +393,9 @@ var ResearchService = class {
     });
     if (!discovery.available) {
       const eventId2 = await this.event("source_discover", { query_sha256: sha256(query), category, count: 0, available: false });
-      return { event_id: eventId2, discovery_only: true, available: false, results: [], limitation: discovery.limitation };
+      const result = { event_id: eventId2, discovery_only: true, available: false, results: [] };
+      if (discovery.limitation) result.limitation = discovery.limitation;
+      return result;
     }
     let results;
     try {
@@ -366,7 +411,7 @@ var ResearchService = class {
     if (args.via !== void 0 && args.via !== "direct") throw new Error("source_capture via must be direct; Firecrawl is discovery-only in this version");
     if (args.path !== void 0 === (args.url !== void 0)) throw new Error("source_capture requires exactly one of path or url");
     const kind = args.kind ?? (args.path ? "workspace" : "web");
-    if (!SOURCE_KINDS.has(kind)) throw new Error("invalid source kind");
+    if (typeof kind !== "string" || !SOURCE_KINDS.has(kind)) throw new Error("invalid source kind");
     let text;
     let locator;
     let finalUrl = null;
@@ -389,9 +434,10 @@ var ResearchService = class {
       contentType = result.contentType;
       locator = finalUrl;
     }
+    const run = this.activeRun();
     const sourceId = `S${String(this.sources.size + 1).padStart(3, "0")}`;
     const contentHash = sha256(text);
-    const contentPath = join(this.dataRoot, "research-provenance-guard", "runs", this.run.run_id, "sources", `${sourceId}.txt`);
+    const contentPath = join(this.dataRoot, "research-provenance-guard", "runs", run.run_id, "sources", `${sourceId}.txt`);
     await atomicWrite(contentPath, text);
     const source = { source_id: sourceId, kind, workspace_path: args.path ? locator : null, final_url: finalUrl, content_type: contentType, sha256: contentHash, bytes: Buffer.byteLength(text), captured_at: this.now().toISOString() };
     this.sources.set(sourceId, { ...source, content_path: contentPath });
@@ -405,7 +451,7 @@ var ResearchService = class {
   }
   async read(args) {
     assertExactKeys(args, ["source_id", "offset", "limit"], "source_read");
-    const source = this.sources.get(args.source_id);
+    const source = typeof args.source_id === "string" ? this.sources.get(args.source_id) : void 0;
     if (!source) throw new Error("unknown source_id");
     const offset = Number(args.offset ?? 0);
     const limit = Number(args.limit ?? 8e3);
@@ -415,7 +461,7 @@ var ResearchService = class {
   }
   async anchor(args) {
     assertExactKeys(args, ["source_id", "kind", "value", "start_line", "end_line"], "source_anchor");
-    const source = this.sources.get(args.source_id);
+    const source = typeof args.source_id === "string" ? this.sources.get(args.source_id) : void 0;
     if (!source) throw new Error("unknown source_id");
     const text = await readFile(source.content_path, "utf8");
     let excerpt;
@@ -434,11 +480,13 @@ var ResearchService = class {
       locator = { start_line: start, end_line: end };
     } else if (args.kind === "json_pointer") {
       const pointer = requiredString(args.value, "value", 1024);
-      excerpt = canonicalJson(jsonPointer(JSON.parse(text), pointer));
+      const parsed = JSON.parse(text);
+      excerpt = canonicalJson(jsonPointer(parsed, pointer));
       locator = { json_pointer: pointer };
     } else throw new Error("anchor kind must be exact_quote, line_range, or json_pointer");
     const anchorId = `A${String(this.anchors.size + 1).padStart(3, "0")}`;
-    const anchor = { anchor_id: anchorId, source_id: source.source_id, kind: args.kind, locator, excerpt_sha256: sha256(excerpt), label: excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt };
+    const kind = typeof args.kind === "string" ? args.kind : String(args.kind);
+    const anchor = { anchor_id: anchorId, source_id: source.source_id, kind, locator, excerpt_sha256: sha256(excerpt), label: excerpt.length > 180 ? `${excerpt.slice(0, 177)}...` : excerpt };
     this.anchors.set(anchorId, anchor);
     this.syncWorkflow((workflow) => {
       workflow.mcp = { ...workflow.mcp, begun: true, source_count: this.sources.size, anchor_count: this.anchors.size };
@@ -449,32 +497,34 @@ var ResearchService = class {
   }
   async status(args) {
     assertExactKeys(args, [], "research_status");
-    return { run_id: this.run.run_id, prompt_epoch: this.run.prompt_epoch, sealed: this.run.sealed, source_count: this.sources.size, anchor_count: this.anchors.size, event_seq: this.run.event_seq };
+    const run = this.activeRun();
+    return { run_id: run.run_id, prompt_epoch: run.prompt_epoch, sealed: run.sealed, source_count: this.sources.size, anchor_count: this.anchors.size, event_seq: run.event_seq };
   }
   async seal(args) {
     assertExactKeys(args, ["run_id", "prompt_epoch", "mutation_revision", "claims"], "research_seal");
-    if (args.run_id !== this.run.run_id) throw new Error("run_id does not match the active run");
-    if (Number(args.prompt_epoch) !== this.run.prompt_epoch) throw new Error("seal prompt_epoch does not match research_begin");
+    const run = this.activeRun();
+    if (args.run_id !== run.run_id) throw new Error("run_id does not match the active run");
+    if (Number(args.prompt_epoch) !== run.prompt_epoch) throw new Error("seal prompt_epoch does not match research_begin");
     const revision = Number(args.mutation_revision);
     if (!Number.isSafeInteger(revision) || revision < 0) throw new Error("mutation_revision must be a non-negative integer");
     validateClaims(args.claims, this.anchors);
     const sources = [...this.sources.values()].map(({ content_path: _contentPath, ...source }) => source);
     const anchors = [...this.anchors.values()];
-    const base = { schema: "research-manifest/v1", run_id: this.run.run_id, question: this.run.question, scope: this.run.scope, as_of: this.run.as_of, prompt_epoch: this.run.prompt_epoch, mutation_revision: revision, sources, anchors, claims: args.claims };
-    const report = renderReport(this.run, args.claims, this.anchors, this.sources);
+    const base = { schema: "research-manifest/v1", run_id: run.run_id, question: run.question, scope: run.scope, as_of: run.as_of, prompt_epoch: run.prompt_epoch, mutation_revision: revision, sources, anchors, claims: args.claims };
+    const report = renderReport(run, args.claims, this.anchors, this.sources);
     const manifestPayloadHash = sha256(canonicalJson(base));
     const reportHash = sha256(report);
-    const sealData = sealPayload({ runId: this.run.run_id, promptEpoch: this.run.prompt_epoch, mutationRevision: revision, manifestPayloadHash, reportHash });
+    const sealData = sealPayload({ runId: run.run_id, promptEpoch: run.prompt_epoch, mutationRevision: revision, manifestPayloadHash, reportHash });
     const seal = `sha256:${sha256(canonicalJson(sealData))}`;
     const manifest = { ...base, integrity: { ...sealData, seal } };
-    const directory = join(this.workspaceRoot, ".research", "runs", this.run.run_id);
+    const directory = join(this.workspaceRoot, ".research", "runs", run.run_id);
     const manifestPath = join(directory, "research.json");
     const reportPath = join(directory, "report.md");
     await atomicWrite(manifestPath, `${JSON.stringify(manifest, null, 2)}
 `);
     await atomicWrite(reportPath, report);
-    const eventId = await this.event("research_seal", { seal, manifest_payload_sha256: manifestPayloadHash, report_sha256: reportHash, prompt_epoch: this.run.prompt_epoch, mutation_revision: revision });
-    this.run.sealed = true;
+    const eventId = await this.event("research_seal", { seal, manifest_payload_sha256: manifestPayloadHash, report_sha256: reportHash, prompt_epoch: run.prompt_epoch, mutation_revision: revision });
+    run.sealed = true;
     this.syncWorkflow((workflow) => {
       workflow.phase = "sealed";
       workflow.completeness = {
@@ -487,40 +537,48 @@ var ResearchService = class {
       workflow.seal = { seal, mutation_revision: revision, at: this.now().toISOString() };
       return workflow;
     });
-    const rel = `.research/runs/${this.run.run_id}`;
-    return { event_id: eventId, run_id: this.run.run_id, seal, manifest_path: `${rel}/research.json`, report_path: `${rel}/report.md`, trailer: `Research-Evidence: research-evidence/v1
-Research-Run: ${this.run.run_id}
+    const rel = `.research/runs/${run.run_id}`;
+    return { event_id: eventId, run_id: run.run_id, seal, manifest_path: `${rel}/research.json`, report_path: `${rel}/report.md`, trailer: `Research-Evidence: research-evidence/v1
+Research-Run: ${run.run_id}
 Research-Seal: ${seal}` };
   }
 };
 
 // plugins/research-provenance-guard/src/entries/mcp/research-provenance-server.ts
-var TOOLS = [
-  ["research_begin", "Begin a hard-mode research run bound to the client workspace root. Optional run_id binds an existing project workflow opened by research-evidence-workflow.", { question: "string", scope: "string", as_of: "string", prompt_epoch: "integer", run_id: "string" }, ["question", "scope", "as_of", "prompt_epoch"]],
-  ["source_discover", "Discover candidate sources through Firecrawl. Discovery output is not evidence until captured.", { query: "string", category: "string", limit: "integer" }, ["query"]],
-  ["source_capture", "Capture a workspace file or public http(s) URL into immutable private plugin data.", { kind: "string", path: "string", url: "string", via: "string" }, []],
-  ["source_read", "Read a bounded slice of captured untrusted source content.", { source_id: "string", offset: "integer", limit: "integer" }, ["source_id"]],
-  ["source_anchor", "Create an exact quote, line range, or RFC 6901 JSON pointer anchor.", { source_id: "string", kind: "string", value: "string", start_line: "integer", end_line: "integer" }, ["source_id", "kind"]],
-  ["research_status", "Inspect active run, source, anchor, epoch, and seal state.", {}, []],
-  ["research_seal", "Validate claims and atomically generate the canonical research manifest and report.", { run_id: "string", prompt_epoch: "integer", mutation_revision: "integer", claims: "array" }, ["run_id", "prompt_epoch", "mutation_revision", "claims"]]
-].map(([name, description, properties, required]) => ({
-  name,
-  description,
+var TOOL_SPECS = [
+  { name: "research_begin", description: "Begin a hard-mode research run bound to the client workspace root. Optional run_id binds an existing project workflow opened by research-evidence-workflow.", properties: { question: "string", scope: "string", as_of: "string", prompt_epoch: "integer", run_id: "string" }, required: ["question", "scope", "as_of", "prompt_epoch"] },
+  { name: "source_discover", description: "Discover candidate sources through Firecrawl. Discovery output is not evidence until captured.", properties: { query: "string", category: "string", limit: "integer" }, required: ["query"] },
+  { name: "source_capture", description: "Capture a workspace file or public http(s) URL into immutable private plugin data.", properties: { kind: "string", path: "string", url: "string", via: "string" }, required: [] },
+  { name: "source_read", description: "Read a bounded slice of captured untrusted source content.", properties: { source_id: "string", offset: "integer", limit: "integer" }, required: ["source_id"] },
+  { name: "source_anchor", description: "Create an exact quote, line range, or RFC 6901 JSON pointer anchor.", properties: { source_id: "string", kind: "string", value: "string", start_line: "integer", end_line: "integer" }, required: ["source_id", "kind"] },
+  { name: "research_status", description: "Inspect active run, source, anchor, epoch, and seal state.", properties: {}, required: [] },
+  { name: "research_seal", description: "Validate claims and atomically generate the canonical research manifest and report.", properties: { run_id: "string", prompt_epoch: "integer", mutation_revision: "integer", claims: "array" }, required: ["run_id", "prompt_epoch", "mutation_revision", "claims"] }
+];
+var TOOLS = TOOL_SPECS.map((spec) => ({
+  name: spec.name,
+  description: spec.description,
   inputSchema: {
     type: "object",
     additionalProperties: false,
-    properties: Object.fromEntries(Object.entries(properties).map(([key, type]) => [key, type === "array" ? { type, items: { type: "object" } } : { type }])),
-    required
+    properties: Object.fromEntries(Object.entries(spec.properties).map(([key, type]) => [key, type === "array" ? { type, items: { type: "object" } } : { type }])),
+    required: spec.required
   },
   annotations: {
-    readOnlyHint: ["source_read", "research_status"].includes(name),
+    readOnlyHint: ["source_read", "research_status"].includes(spec.name),
     destructiveHint: false,
-    idempotentHint: ["source_read", "research_status"].includes(name),
-    openWorldHint: ["source_discover", "source_capture"].includes(name)
+    idempotentHint: ["source_read", "research_status"].includes(spec.name),
+    openWorldHint: ["source_discover", "source_capture"].includes(spec.name)
   }
 }));
-TOOLS.find(({ name }) => name === "source_discover").inputSchema.properties.category = { type: "string", enum: ["web", "news", "github", "research", "pdf", "developer"] };
-TOOLS.find(({ name }) => name === "source_capture").inputSchema = {
+function requireTool(name) {
+  const tool = TOOLS.find((item) => item.name === name);
+  if (!tool) throw new Error(`missing tool definition: ${name}`);
+  return tool;
+}
+var sourceDiscover = requireTool("source_discover");
+if (!sourceDiscover.inputSchema.properties) sourceDiscover.inputSchema.properties = {};
+sourceDiscover.inputSchema.properties.category = { type: "string", enum: ["web", "news", "github", "research", "pdf", "developer"] };
+requireTool("source_capture").inputSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -530,8 +588,12 @@ TOOLS.find(({ name }) => name === "source_capture").inputSchema = {
     via: { type: "string", enum: ["direct"] }
   }
 };
-TOOLS.find(({ name }) => name === "source_anchor").inputSchema.properties.kind = { type: "string", enum: ["exact_quote", "line_range", "json_pointer"] };
-TOOLS.find(({ name }) => name === "research_seal").inputSchema.properties.claims = {
+var sourceAnchor = requireTool("source_anchor");
+if (!sourceAnchor.inputSchema.properties) sourceAnchor.inputSchema.properties = {};
+sourceAnchor.inputSchema.properties.kind = { type: "string", enum: ["exact_quote", "line_range", "json_pointer"] };
+var researchSeal = requireTool("research_seal");
+if (!researchSeal.inputSchema.properties) researchSeal.inputSchema.properties = {};
+researchSeal.inputSchema.properties.claims = {
   type: "array",
   minItems: 1,
   items: {
@@ -551,14 +613,16 @@ TOOLS.find(({ name }) => name === "research_seal").inputSchema.properties.claims
     required: ["id", "status", "text"]
   }
 };
+function rpcErrorCode(error) {
+  if (isRecord(error) && typeof error.code === "number") return error.code;
+  return -32602;
+}
 var StdioPeer = class {
-  constructor() {
-    this.nextId = 1;
-    this.pending = /* @__PURE__ */ new Map();
-    this.service = null;
-    this.protocolVersion = "2025-06-18";
-    this.reader = createInterface({ input: process.stdin, crlfDelay: Infinity });
-  }
+  nextId = 1;
+  pending = /* @__PURE__ */ new Map();
+  service = null;
+  protocolVersion = "2025-06-18";
+  reader = createInterface({ input: process.stdin, crlfDelay: Infinity });
   send(value) {
     process.stdout.write(`${JSON.stringify(value)}
 `);
@@ -578,12 +642,15 @@ var StdioPeer = class {
     if (this.service) return this.service;
     const sessionId = process.env.AI_EXPERTS_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? process.env.CODEX_SESSION_ID ?? `mcp-${process.pid}`;
     const result = await this.request("roots/list");
-    const roots = result?.roots;
+    const roots = isRecord(result) ? result.roots : void 0;
     let workspaceRoot;
-    if (Array.isArray(roots) && roots.length === 1 && typeof roots[0]?.uri === "string" && roots[0].uri.startsWith("file:")) {
-      workspaceRoot = resolve2(decodeURIComponent(new URL(roots[0].uri).pathname));
+    const firstRoot = Array.isArray(roots) ? roots[0] : void 0;
+    if (Array.isArray(roots) && roots.length === 1 && isRecord(firstRoot) && typeof firstRoot.uri === "string" && firstRoot.uri.startsWith("file:")) {
+      workspaceRoot = resolve2(decodeURIComponent(new URL(firstRoot.uri).pathname));
     } else if (Array.isArray(roots) && roots.length === 0 && process.env.RESEARCH_PROVENANCE_HOST === "codex" && isAbsolute2(process.env.PWD ?? "")) {
-      workspaceRoot = await realpath2(process.env.PWD);
+      const pwd = process.env.PWD;
+      if (!pwd) throw new Error("exactly one file workspace root is required");
+      workspaceRoot = await realpath2(pwd);
     } else {
       throw new Error("exactly one file workspace root is required");
     }
@@ -595,19 +662,24 @@ var StdioPeer = class {
     return this.service;
   }
   async handle(message) {
+    if (!isRecord(message)) return;
     if (message && message.id !== void 0 && !message.method && this.pending.has(String(message.id))) {
       const pending = this.pending.get(String(message.id));
+      if (!pending) return;
       clearTimeout(pending.timer);
       this.pending.delete(String(message.id));
-      if (message.error) pending.reject(new Error(message.error.message ?? "client request failed"));
-      else pending.resolve(message.result);
+      if (message.error) {
+        const error = isRecord(message.error) ? message.error : {};
+        pending.reject(new Error(typeof error.message === "string" ? error.message : "client request failed"));
+      } else pending.resolve(message.result);
       return;
     }
     if (!message?.method || message.id === void 0) return;
     try {
       let result;
       if (message.method === "initialize") {
-        this.protocolVersion = message.params?.protocolVersion ?? this.protocolVersion;
+        const params = isRecord(message.params) ? message.params : void 0;
+        if (typeof params?.protocolVersion === "string") this.protocolVersion = params.protocolVersion;
         result = {
           protocolVersion: this.protocolVersion,
           capabilities: { tools: { listChanged: false } },
@@ -618,28 +690,31 @@ var StdioPeer = class {
       else if (message.method === "tools/list") result = { tools: TOOLS };
       else if (message.method === "tools/call") {
         const service = await this.ensureService();
-        const payload = await service.call(message.params?.name, message.params?.arguments ?? {});
+        const params = isRecord(message.params) ? message.params : {};
+        const toolName = String(params.name);
+        const args = params.arguments ?? {};
+        const payload = await service.call(toolName, args);
         result = { content: [{ type: "text", text: JSON.stringify(payload) }], structuredContent: payload, isError: false };
-      } else throw Object.assign(new Error(`method not found: ${message.method}`), { code: -32601 });
+      } else throw Object.assign(new Error(`method not found: ${String(message.method)}`), { code: -32601 });
       this.send({ jsonrpc: "2.0", id: message.id, result });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (message.method === "tools/call") {
         this.send({ jsonrpc: "2.0", id: message.id, result: { content: [{ type: "text", text: errorMessage }], isError: true } });
-      } else this.send({ jsonrpc: "2.0", id: message.id, error: { code: error.code ?? -32602, message: errorMessage } });
+      } else this.send({ jsonrpc: "2.0", id: message.id, error: { code: rpcErrorCode(error), message: errorMessage } });
     }
   }
   run() {
     this.reader.on("line", (line) => {
       if (!line.trim()) return;
-      let message;
+      let parsed;
       try {
-        message = JSON.parse(line);
+        parsed = JSON.parse(line);
       } catch {
         this.send({ jsonrpc: "2.0", id: null, error: { code: -32700, message: "parse error" } });
         return;
       }
-      this.handle(message).catch(() => {
+      this.handle(parsed).catch(() => {
       });
     });
   }

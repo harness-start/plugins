@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7b9d00a7187431ef6fc08d5cc4a14420b072497b073b4b891380b5b321892ea2
+// harness-source-hash: sha256:18a0ebef0e073513e4da28927c8f2f5f9801eeaa910a741d013a00b2be3b57ac
 import {
   evaluatePrintWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
   validatePrintModel
-} from "../chunks/chunk-K56MHSGN.mjs";
+} from "../chunks/chunk-VPHFUAY5.mjs";
 
 // plugins/print-publication-delivery-guard/src/entries/hooks/print-publication-delivery-guard.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -328,6 +328,9 @@ var PLUGIN_DIRECTORY = resolve4(
 function deny(reason) {
   return preToolDeny(`[Print Project Delivery Guard] ${reason}`);
 }
+function targetStageOf(plan) {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0;
+}
 async function findingsFor(cwd) {
   const findings = [];
   const { roots } = await findCarrierProjects(cwd, "print");
@@ -345,7 +348,7 @@ async function findingsFor(cwd) {
     } catch {
     }
     const model = { artifactId: basename2(root), files: collected.files, digests: collected.digests, plan, project };
-    for (const item of validatePrintModel(model, { stage: plan?.targetStage ?? "source" })) {
+    for (const item of validatePrintModel(model, { stage: targetStageOf(plan) ?? "source" })) {
       findings.push({ artifactId: model.artifactId, ...item });
     }
   }
@@ -402,7 +405,7 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve4(process.argv[1])) {
   main().catch((error) => {
-    process.stderr.write(`[Print Project Delivery Guard] ${error.message}
+    process.stderr.write(`[Print Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);
     process.exitCode = 2;
   });

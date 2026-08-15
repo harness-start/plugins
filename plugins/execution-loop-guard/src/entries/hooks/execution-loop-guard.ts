@@ -3,7 +3,9 @@
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { loadProjectConfig } from "../../lib/config.js";
+import type { HookEvent } from "@harness/core/hook-event";
+
+import { loadProjectConfig, type CheckMode, type LoopConfig } from "../../lib/config.js";
 import {
   contextOutput,
   extractCwd,
@@ -27,25 +29,47 @@ import {
   normalizeCommand,
   regexMatches,
 } from "../../lib/execution-loop-policy.js";
-import { digest, updateState } from "../../lib/state-store.js";
+import { digest, updateState, type LoopState, type PollingEntry } from "../../lib/state-store.js";
 
-function warn(message) {
+type GuardAction = "allow" | "block" | "report";
+
+type RetryMessageInput = {
+  action: Exclude<GuardAction, "allow">;
+  command: string;
+  outcome: "failure" | "success";
+  streak: number;
+  blockAt: number;
+  windowMinutes: number;
+};
+
+type PreDecision = {
+  block: string | null;
+  reports: string[];
+};
+
+type EditFinding = {
+  path: string;
+  count: number;
+  action: GuardAction;
+};
+
+function warn(message: string): void {
   process.stderr.write(`[execution-loop-guard] ${message}\n`);
 }
 
-function relativePath(path, repoRoot, cwd) {
+function relativePath(path: string, repoRoot: string | null, cwd: string): string {
   const base = repoRoot ?? cwd;
   const candidate = relative(base, path).replaceAll("\\", "/");
   return candidate.startsWith("../") ? path.replaceAll("\\", "/") : candidate;
 }
 
-function actionFor(mode, streak, reportAt, blockAt) {
+function actionFor(mode: CheckMode, streak: number, reportAt: number, blockAt: number): GuardAction {
   if (mode === "off" || streak < reportAt) return "allow";
   if (mode === "block" && streak >= blockAt) return "block";
   return "report";
 }
 
-function retryMessage({ action, command, outcome, streak, blockAt, windowMinutes }) {
+function retryMessage({ action, command, outcome, streak, blockAt, windowMinutes }: RetryMessageInput): string {
   const kind = outcome === "failure" ? "failed command" : "successful command";
   const lines = [
     `[Execution Loop Guard] ${kind} repeated ${streak} times`,
@@ -71,7 +95,14 @@ function retryMessage({ action, command, outcome, streak, blockAt, windowMinutes
   return lines.join("\n");
 }
 
-function pollingMessage(action, command, sleepSum, querySum, settings, requested = false) {
+function pollingMessage(
+  action: Exclude<GuardAction, "allow">,
+  command: string | null | undefined,
+  sleepSum: number,
+  querySum: number,
+  settings: LoopConfig["polling"],
+  requested = false,
+): string {
   const lines = [
     `[Execution Loop Guard] ${requested ? "Requested wait budget exceeded: requested approximately" : "Remote polling budget exceeded: approximately"} ${Math.round(sleepSum)}s of wait and ${querySum} status queries in the last ${settings.windowMinutes} minutes`,
     `Current command: ${String(command).trim().slice(0, 160)}`,
@@ -94,14 +125,14 @@ function pollingMessage(action, command, sleepSum, querySum, settings, requested
   return lines.join("\n");
 }
 
-function runPre(event, config, repoRoot, cwd) {
+function runPre(event: HookEvent, config: LoopConfig, repoRoot: string | null, cwd: string): void {
   const command = extractShellCommand(event);
   const toolWait = extractToolWait(event);
   if (!command?.trim() && !toolWait) return;
   const now = Date.now();
-  const decision = updateState(event, (state) => {
-    const reports = [];
-    let block = null;
+  const decision = updateState(event, (state: LoopState): PreDecision => {
+    const reports: string[] = [];
+    let block: string | null = null;
     const repeat = config.commandRepeat;
     const retryBypass = command?.trim() ? regexMatches(repeat.retryBypass, command) : false;
 
@@ -141,7 +172,7 @@ function runPre(event, config, repoRoot, cwd) {
       }
     }
 
-    const bypassPolling = command?.trim() && regexMatches(config.polling.pollBypass, command);
+    const bypassPolling = Boolean(command?.trim() && regexMatches(config.polling.pollBypass, command));
     if (!block && config.checks.remotePolling !== "off" && !bypassPolling) {
       const sleepSeconds = toolWait
         ? Math.min(toolWait.sleepSeconds, config.polling.maxSleepPerCommandSeconds)
@@ -152,7 +183,7 @@ function runPre(event, config, repoRoot, cwd) {
         const previous = state.polling && now - Number(state.polling.lastSeen) <= windowMs
           ? state.polling
           : null;
-        const entries = Array.isArray(previous?.entries)
+        const entries: PollingEntry[] = Array.isArray(previous?.entries)
           ? previous.entries.filter((entry) => now - Number(entry.at) <= windowMs)
           : [];
         entries.push({ at: now, sleepSeconds, queryCount });
@@ -181,11 +212,11 @@ function runPre(event, config, repoRoot, cwd) {
   else if (decision.reports.length > 0) writeJson(contextOutput("PreToolUse", decision.reports.join("\n\n")));
 }
 
-function recordCommandOutcome(event, config, forceFailure, repoRoot, cwd) {
+function recordCommandOutcome(event: HookEvent, config: LoopConfig, forceFailure: boolean, repoRoot: string | null, cwd: string): void {
   const command = extractShellCommand(event);
   if (!command?.trim()) return;
   const now = Date.now();
-  updateState(event, (state) => {
+  updateState(event, (state: LoopState) => {
     if (regexMatches(config.commandRepeat.retryBypass, command)) {
       state.command = null;
       return;
@@ -209,7 +240,7 @@ function recordCommandOutcome(event, config, forceFailure, repoRoot, cwd) {
     state.command = {
       commandHash: normalizedHash,
       inputFingerprint,
-      failStreak: outcome === "failure" ? (sameFailure ? Number(previous.failStreak) + 1 : 1) : 0,
+      failStreak: outcome === "failure" ? (sameFailure && previous ? Number(previous.failStreak) + 1 : 1) : 0,
       successStreak: outcome === "success" && previous?.lastOutcome === "success"
         ? Number(previous.successStreak) + 1
         : outcome === "success" ? 1 : 0,
@@ -221,7 +252,7 @@ function recordCommandOutcome(event, config, forceFailure, repoRoot, cwd) {
   });
 }
 
-function editMessage(action, findings, settings) {
+function editMessage(action: Exclude<GuardAction, "allow">, findings: EditFinding[], settings: LoopConfig["editLoop"]): string {
   const lines = [
     `[Execution Loop Guard] ${action === "block" ? "Edit loop blocked" : "High-frequency edits detected"}`,
     "",
@@ -244,12 +275,12 @@ function editMessage(action, findings, settings) {
   return lines.join("\n");
 }
 
-function recordEdits(event, config, repoRoot, cwd) {
+function recordEdits(event: HookEvent, config: LoopConfig, repoRoot: string | null, cwd: string): void {
   const targets = extractFileTargets(event);
   if (targets.length === 0 || config.checks.editLoop === "off") return;
   const now = Date.now();
-  const result = updateState(event, (state) => {
-    const findings = [];
+  const result = updateState(event, (state: LoopState): EditFinding[] => {
+    const findings: EditFinding[] = [];
     const windowMs = config.editLoop.windowMinutes * 60_000;
     for (const target of targets) {
       const path = relativePath(target, repoRoot, cwd);
@@ -284,9 +315,13 @@ function recordEdits(event, config, repoRoot, cwd) {
   }
 }
 
-export async function main(mode = process.argv[2]) {
+function isHookMode(value: string | undefined): value is "pre" | "post" | "failure" {
+  return value === "pre" || value === "post" || value === "failure";
+}
+
+export async function main(mode = process.argv[2]): Promise<void> {
   const event = await readStdinJson();
-  if (event.__parseError || !["pre", "post", "failure"].includes(mode)) return;
+  if (event.__parseError || !isHookMode(mode)) return;
   const cwd = resolve(extractCwd(event));
   const { config, repoRoot } = await loadProjectConfig(cwd, warn);
   if (mode === "pre") {
@@ -298,7 +333,7 @@ export async function main(mode = process.argv[2]) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
+  main().catch((error: unknown) => {
     warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });

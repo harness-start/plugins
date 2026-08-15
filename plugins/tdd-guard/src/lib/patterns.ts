@@ -7,7 +7,42 @@ const TEST_ROOTS = new Set(["test", "tests", "spec", "specs"]);
 const SOURCE_ROOTS = new Set(["app", "lib", "src"]);
 const SUITE_DIRECTORIES = new Set(["acceptance", "feature", "functional", "integration", "unit"]);
 
-const EXTENSIONS = [
+export type Language = "typescript" | "javascript" | "python" | "php" | "rust" | "go";
+export type PathKind = "ignored" | "test" | "source";
+
+export type ClassifiedPath = {
+  kind: PathKind;
+  language: Language | null;
+};
+
+export type LanguageContext = {
+  rustCrateName?: string;
+  rustCrateRoot?: string;
+  goModulePath?: string;
+  goModuleRoot?: string;
+};
+
+export type TestEvidence = {
+  valid: boolean;
+  testNames: string[];
+  targets: string[];
+  references: string[];
+  package: string;
+};
+
+export type SourceLike = {
+  path: string;
+  language: string;
+  content?: string | null;
+};
+
+export type TestRecordLike = {
+  path: string;
+  language: string;
+  evidence?: Partial<TestEvidence> | null;
+};
+
+const EXTENSIONS: ReadonlyArray<readonly [Language, RegExp]> = [
   ["typescript", /\.(?:cts|mts|ts|tsx)$/iu],
   ["javascript", /\.(?:cjs|js|jsx|mjs)$/iu],
   ["python", /\.(?:py|pyi)$/iu],
@@ -23,20 +58,20 @@ const RESERVED = new Set([
   "type", "use", "void",
 ]);
 
-function normalize(path) {
+function normalize(path: string | null | undefined): string {
   return String(path ?? "").replaceAll("\\", "/").replace(/^\.\//u, "");
 }
 
-export function isSkippedPath(path) {
+export function isSkippedPath(path: string): boolean {
   return SKIPPED.test(normalize(path));
 }
 
-function insideRoot(root, path) {
+function insideRoot(root: string, path: string): boolean {
   const value = relative(resolve(root), resolve(path));
   return value === "" || (!value.startsWith("..") && !value.startsWith("/"));
 }
 
-function nearestManifest(root, path, name) {
+function nearestManifest(root: string, path: string, name: string): string | null {
   const workspace = resolve(root);
   let directory = resolve(workspace, dirname(normalize(path)));
   while (insideRoot(workspace, directory)) {
@@ -48,12 +83,12 @@ function nearestManifest(root, path, name) {
   return null;
 }
 
-function relativeDirectory(root, path) {
+function relativeDirectory(root: string, path: string): string {
   const value = normalize(relative(resolve(root), dirname(resolve(path))));
   return value === "." ? "" : value;
 }
 
-function tomlSection(text, name) {
+function tomlSection(text: string, name: string): string {
   const header = new RegExp(`^\\[${name}\\]\\s*$`, "mu").exec(text);
   if (!header) return "";
   const remainder = text.slice(header.index + header[0].length);
@@ -61,7 +96,7 @@ function tomlSection(text, name) {
   return next ? remainder.slice(0, next.index) : remainder;
 }
 
-export function resolveLanguageContext(root, path, language) {
+export function resolveLanguageContext(root: string, path: string, language: string): LanguageContext {
   if (language === "rust") {
     const manifest = nearestManifest(root, path, "Cargo.toml");
     if (!manifest) return {};
@@ -82,12 +117,12 @@ export function resolveLanguageContext(root, path, language) {
   return {};
 }
 
-function languageFor(path) {
+function languageFor(path: string): Language | null {
   for (const [language, pattern] of EXTENSIONS) if (pattern.test(path)) return language;
   return null;
 }
 
-function isTestPath(path, language) {
+function isTestPath(path: string, language: Language): boolean {
   const name = posix.basename(path);
   if (language === "php") return TEST_DIRECTORY.test(path) || /Test\.php$/u.test(name);
   if (language === "python") return TEST_DIRECTORY.test(path) || /^test_.+\.py$/u.test(name) || /_test\.py$/u.test(name);
@@ -99,7 +134,7 @@ function isTestPath(path, language) {
   return false;
 }
 
-export function classifyPath(path) {
+export function classifyPath(path: string): ClassifiedPath {
   const value = normalize(path);
   if (!value || SKIPPED.test(value) || /(?:^|\/)\.tdd-guard\.mjs$/u.test(value)) {
     return { kind: "ignored", language: null };
@@ -109,8 +144,8 @@ export function classifyPath(path) {
   return { kind: isTestPath(value, language) ? "test" : "source", language };
 }
 
-function matches(text, pattern, group = 1) {
-  const found = [];
+function matches(text: string, pattern: RegExp, group = 1): string[] {
+  const found: string[] = [];
   for (const match of String(text ?? "").matchAll(pattern)) {
     const value = match[group];
     if (value) found.push(value);
@@ -118,16 +153,16 @@ function matches(text, pattern, group = 1) {
   return found;
 }
 
-function unique(values) {
-  return [...new Set(values.filter(Boolean))];
+function unique(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }
 
-function identifiers(text) {
+function identifiers(text: string): string[] {
   return unique(matches(text, /\b([A-Za-z_$][A-Za-z0-9_$]{2,})\b/gu)
     .filter((value) => !RESERVED.has(value.toLowerCase())));
 }
 
-function withoutComments(language, text) {
+function withoutComments(language: string, text: unknown): string {
   let value = String(text ?? "");
   if (["php", "javascript", "typescript", "rust", "go"].includes(language)) {
     value = value.replace(/\/\*[\s\S]*?\*\//gu, "").replace(/\/\/.*$/gmu, "");
@@ -137,7 +172,7 @@ function withoutComments(language, text) {
   return value;
 }
 
-function testNames(language, text) {
+function testNames(language: string, text: string): string[] {
   if (language === "php") {
     return [
       ...matches(text, /\bfunction\s+(test[A-Za-z0-9_]*)\s*\(/gu),
@@ -154,37 +189,37 @@ function testNames(language, text) {
   return [];
 }
 
-function identifierUsed(text, identifier) {
+function identifierUsed(text: string, identifier: string | null | undefined): boolean {
   if (!identifier) return false;
   return new RegExp(`\\b${identifier.replace(/[$]/gu, "\\$")}\\b`, "u").test(text);
 }
 
-function phpNamespace(code) {
+function phpNamespace(code: string): string {
   return code.match(/\bnamespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]/u)?.[1]?.replace(/^\\/u, "") ?? "";
 }
 
-function phpImports(code) {
-  const imports = new Map();
+function phpImports(code: string): Map<string, string> {
+  const imports = new Map<string, string>();
   for (const match of code.matchAll(/^\s*use\s+(?!function\b|const\b)([A-Za-z_\\][A-Za-z0-9_\\]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*;/gmu)) {
-    const qualified = match[1].replace(/^\\/u, "");
-    imports.set(match[2] ?? qualified.split("\\").at(-1), qualified);
+    const qualified = (match[1] ?? "").replace(/^\\/u, "");
+    imports.set(match[2] ?? qualified.split("\\").at(-1) ?? "", qualified);
   }
   return imports;
 }
 
-function resolvePhpName(name, namespace, imports) {
+function resolvePhpName(name: string, namespace: string, imports: Map<string, string>): string {
   const value = String(name ?? "").trim();
   if (!value) return "";
   if (value.startsWith("\\")) return value.slice(1);
   const [head, ...tail] = value.split("\\");
-  if (imports.has(head)) return [imports.get(head), ...tail].join("\\");
+  if (head !== undefined && imports.has(head)) return [imports.get(head), ...tail].join("\\");
   return namespace ? `${namespace}\\${value}` : value;
 }
 
-function phpCoverageTargets(raw, code) {
+function phpCoverageTargets(raw: string, code: string): string[] {
   const namespace = phpNamespace(code);
   const imports = phpImports(code);
-  const targets = [];
+  const targets: string[] = [];
   for (const reference of matches(code, /\bCoversClass\s*\(\s*([\\A-Za-z_][\\A-Za-z0-9_]*)\s*::class\s*\)/gu)) {
     targets.push(`php:${resolvePhpName(reference, namespace, imports)}`);
   }
@@ -194,69 +229,69 @@ function phpCoverageTargets(raw, code) {
   return unique(targets);
 }
 
-function pythonTargets(code) {
+function pythonTargets(code: string): string[] {
   const body = code.replace(/^\s*(?:from\s+[^\n]+\s+import\s+[^\n]+|import\s+[^\n]+)$/gmu, "");
-  const targets = [];
+  const targets: string[] = [];
   for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
-    for (const item of match[2].replace(/[()]/gu, "").split(",")) {
+    for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
       const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
       if (binding && identifierUsed(body, binding[2] ?? binding[1])) targets.push(`python:${match[1]}#${binding[1]}`);
     }
   }
   for (const match of code.matchAll(/^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*$/gmu)) {
-    const local = match[2] ?? match[1].split(".")[0];
+    const local = match[2] ?? match[1]?.split(".")[0];
     if (identifierUsed(body, local)) targets.push(`python-module:${match[1]}`);
   }
   return unique(targets);
 }
 
-function stripExtension(path) {
+function stripExtension(path: string | null | undefined): string {
   return normalize(path).replace(/\.(?:cjs|cts|js|jsx|mjs|mts|php|py|pyi|rs|ts|tsx|go)$/iu, "");
 }
 
-function javascriptTargets(code, testPath) {
+function javascriptTargets(code: string, testPath: string): string[] {
   const body = code
     .replace(/\bimport\s+[\s\S]*?\s+from\s+["'][^"']+["']\s*;?/gu, "")
     .replace(/\b(?:const|let|var)\s+[^=]+?=\s*require\s*\(\s*["'][^"']+["']\s*\)\s*;?/gu, "");
-  const targets = [];
-  const addModule = (specifier, bindings) => {
+  const targets: string[] = [];
+  const addModule = (specifier: string, bindings: string[]) => {
     if (!specifier.startsWith(".")) return;
     if (!bindings.some((binding) => identifierUsed(body, binding))) return;
     const resolved = stripExtension(posix.normalize(posix.join(posix.dirname(normalize(testPath)), specifier)));
     targets.push(`javascript-module:${resolved}`);
   };
   for (const match of code.matchAll(/\bimport\s+([\s\S]*?)\s+from\s+["']([^"']+)["']/gu)) {
-    const clause = match[1].replace(/^type\s+/u, "").trim();
-    const bindings = [];
+    const clause = (match[1] ?? "").replace(/^type\s+/u, "").trim();
+    const bindings: string[] = [];
     const namespace = clause.match(/^\*\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*)$/u);
-    if (namespace) bindings.push(namespace[1]);
+    if (namespace?.[1]) bindings.push(namespace[1]);
     const named = clause.match(/\{([\s\S]*?)\}/u)?.[1] ?? "";
     for (const item of named.split(",")) {
       const binding = item.trim().replace(/^type\s+/u, "").match(/^([A-Za-z_$][A-Za-z0-9_$]*)(?:\s+as\s+([A-Za-z_$][A-Za-z0-9_$]*))?$/u);
-      if (binding) bindings.push(binding[2] ?? binding[1]);
+      if (binding) bindings.push(binding[2] ?? binding[1] ?? "");
     }
     const defaultBinding = clause.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:,|$)/u)?.[1];
     if (defaultBinding) bindings.push(defaultBinding);
-    addModule(match[2], bindings);
+    addModule(match[2] ?? "", bindings);
   }
   for (const match of code.matchAll(/\b(?:const|let|var)\s+(.+?)\s*=\s*require\s*\(\s*["']([^"']+)["']\s*\)/gu)) {
-    const bindings = identifiers(match[1]);
-    addModule(match[2], bindings);
+    const bindings = identifiers(match[1] ?? "");
+    addModule(match[2] ?? "", bindings);
   }
   return unique(targets);
 }
 
-function rustTargets(code, context) {
+function rustTargets(code: string, context: LanguageContext): string[] {
   const body = code.replace(/^\s*use\s+[^;]+;\s*$/gmu, "");
   const crateName = String(context.rustCrateName ?? "");
   const crateRoot = normalize(context.rustCrateRoot ?? "");
   if (!crateName) return [];
-  const targets = [];
+  const targets: string[] = [];
   for (const match of code.matchAll(/^\s*use\s+([^;]+)\s*;/gmu)) {
-    const expression = match[1].trim();
+    const expression = (match[1] ?? "").trim();
     const grouped = expression.match(/^(.+?)::\{(.+)\}$/u);
     const paths = grouped
-      ? grouped[2].split(",").map((item) => `${grouped[1]}::${item.trim()}`)
+      ? (grouped[2] ?? "").split(",").map((item) => `${grouped[1]}::${item.trim()}`)
       : [expression];
     for (const path of paths) {
       const alias = path.match(/\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/u)?.[1];
@@ -271,15 +306,15 @@ function rustTargets(code, context) {
   return unique(targets);
 }
 
-function goPackage(code) {
+function goPackage(code: string): string {
   return code.match(/^\s*package\s+([A-Za-z_][A-Za-z0-9_]*)/mu)?.[1] ?? "";
 }
 
-function goTargets(code) {
+function goTargets(code: string): string[] {
   const body = code.replace(/^\s*import\s+(?:\([^)]*\)|[^\n]+)$/gmu, "");
-  const targets = [];
+  const targets: string[] = [];
   for (const match of code.matchAll(/^\s*(?:import\s+)?(?:([A-Za-z_][A-Za-z0-9_]*)\s+)?"([^"]+)"\s*$/gmu)) {
-    const local = match[1] ?? match[2].split("/").at(-1);
+    const local = match[1] ?? match[2]?.split("/").at(-1);
     for (const used of body.matchAll(new RegExp(`\\b${local}\\.([A-Za-z_][A-Za-z0-9_]*)`, "gu"))) {
       targets.push(`go-import:${match[2]}#${used[1]}`);
     }
@@ -287,11 +322,11 @@ function goTargets(code) {
   return unique(targets);
 }
 
-export function extractTestEvidence(language, text, testPath = "", context = {}) {
+export function extractTestEvidence(language: string, text: unknown, testPath = "", context: LanguageContext = {}): TestEvidence {
   const raw = String(text ?? "");
   const code = withoutComments(language, raw);
   const names = unique(testNames(language, code));
-  let targets = [];
+  let targets: string[] = [];
   if (language === "php") targets = phpCoverageTargets(raw, code);
   else if (language === "python") targets = pythonTargets(code);
   else if (["javascript", "typescript"].includes(language)) targets = javascriptTargets(code, testPath);
@@ -306,7 +341,7 @@ export function extractTestEvidence(language, text, testPath = "", context = {})
   };
 }
 
-function sourceModule(path) {
+function sourceModule(path: string): string {
   const segments = stripExtension(path).split("/");
   const sourceIndex = segments.reduce((found, segment, index) => ["lib", "src"].includes(segment.toLowerCase()) ? index : found, -1);
   const moduleSegments = sourceIndex >= 0 ? segments.slice(sourceIndex + 1) : segments;
@@ -314,21 +349,22 @@ function sourceModule(path) {
   return moduleSegments.join(".");
 }
 
-function javascriptModule(path) {
+function javascriptModule(path: string): string {
   return stripExtension(path);
 }
 
-function rustModule(path) {
+function rustModule(path: string): { scope: string; module: string } | null {
   const segments = stripExtension(path).split("/");
   const index = segments.lastIndexOf("src");
   if (index < 0) return null;
   const scope = segments.slice(0, index).join("/");
   const modules = segments.slice(index + 1);
-  if (["lib", "main", "mod"].includes(modules.at(-1))) modules.pop();
+  const last = modules.at(-1);
+  if (last !== undefined && ["lib", "main", "mod"].includes(last)) modules.pop();
   return { scope, module: modules.join("::") };
 }
 
-export function extractSourceSymbols(language, text) {
+export function extractSourceSymbols(language: string, text: unknown): string[] {
   const value = withoutComments(language, text);
   if (language === "php") {
     const namespace = phpNamespace(value);
@@ -344,7 +380,7 @@ export function extractSourceSymbols(language, text) {
   return [];
 }
 
-function goImportPath(sourcePath, context) {
+function goImportPath(sourcePath: string, context: LanguageContext): string {
   const modulePath = String(context.goModulePath ?? "").replace(/\/$/u, "");
   if (!modulePath) return "";
   const moduleRoot = normalize(context.goModuleRoot ?? "");
@@ -354,7 +390,7 @@ function goImportPath(sourcePath, context) {
   return relativePackage === "." || relativePackage === "" ? modulePath : `${modulePath}/${relativePackage}`;
 }
 
-function explicitSourceTargets(source, context) {
+function explicitSourceTargets(source: SourceLike, context: LanguageContext): string[] {
   const symbols = extractSourceSymbols(source.language, source.content);
   if (source.language === "php") return symbols.map((symbol) => `php:${symbol}`);
   if (source.language === "python") {
@@ -379,7 +415,7 @@ function explicitSourceTargets(source, context) {
   return [];
 }
 
-function removeTestSuffix(name, language) {
+function removeTestSuffix(name: string | null | undefined, language: string): string {
   let value = stripExtension(name);
   if (language === "php") value = value.replace(/Test$/u, "");
   else if (language === "python") value = value.replace(/^test_/u, "").replace(/_test$/u, "");
@@ -388,14 +424,14 @@ function removeTestSuffix(name, language) {
   return value;
 }
 
-function rootDescriptor(path, roots) {
+function rootDescriptor(path: string, roots: Set<string>): { scope: string; rest: string[] } | null {
   const segments = normalize(path).split("/");
   const index = segments.findIndex((segment) => roots.has(segment.toLowerCase()));
   if (index < 0) return null;
   return { scope: segments.slice(0, index).join("/"), rest: segments.slice(index + 1) };
 }
 
-function mirrorIdentity(path, language, kind) {
+function mirrorIdentity(path: string, language: string, kind: "source" | "test"): string | null {
   if (["javascript", "typescript"].includes(language) && kind === "test") {
     const segments = normalize(path).split("/").filter((segment) => segment !== "__tests__");
     const name = removeTestSuffix(segments.pop(), language);
@@ -411,30 +447,32 @@ function mirrorIdentity(path, language, kind) {
   const descriptor = rootDescriptor(path, kind === "test" ? TEST_ROOTS : SOURCE_ROOTS);
   if (!descriptor) return null;
   const rest = [...descriptor.rest];
-  if (kind === "test") while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0].toLowerCase())) rest.shift();
+  if (kind === "test") {
+    while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0]?.toLowerCase() ?? "")) rest.shift();
+  }
   const name = kind === "test" ? removeTestSuffix(rest.pop(), language) : stripExtension(rest.pop());
   return `${descriptor.scope}#${[...rest, name].join("/")}`;
 }
 
-function mirrorMatches(source, testRecord) {
+function mirrorMatches(source: SourceLike, testRecord: TestRecordLike): boolean {
   const sourceIdentity = mirrorIdentity(source.path, source.language, "source");
   const testIdentity = mirrorIdentity(testRecord.path, source.language, "test");
   return Boolean(sourceIdentity && testIdentity && sourceIdentity === testIdentity);
 }
 
-function goPackageMatches(source, testRecord) {
+function goPackageMatches(source: SourceLike, testRecord: TestRecordLike): boolean {
   if (source.language !== "go") return false;
   const sourceDirectory = posix.dirname(normalize(source.path));
   const testDirectory = posix.dirname(normalize(testRecord.path));
   const sourcePackage = goPackage(withoutComments("go", source.content));
-  const testPackage = String(testRecord.evidence.package ?? "").replace(/_test$/u, "");
+  const testPackage = String(testRecord.evidence?.package ?? "").replace(/_test$/u, "");
   const symbols = new Set(extractSourceSymbols("go", source.content));
-  const references = testRecord.evidence.references ?? [];
+  const references = testRecord.evidence?.references ?? [];
   if (sourceDirectory === testDirectory && sourcePackage && sourcePackage === testPackage && references.some((value) => symbols.has(value))) return true;
   return false;
 }
 
-export function sourceAuthorizedByTest(source, testRecord, context = {}) {
+export function sourceAuthorizedByTest(source: SourceLike | null | undefined, testRecord: TestRecordLike | null | undefined, context: LanguageContext = {}): boolean {
   if (!source || !testRecord || source.language !== testRecord.language || !testRecord.evidence?.valid) return false;
   const testTargets = new Set(testRecord.evidence.targets ?? []);
   if (explicitSourceTargets(source, context).some((target) => testTargets.has(target))) return true;
@@ -443,11 +481,11 @@ export function sourceAuthorizedByTest(source, testRecord, context = {}) {
   return mirrorMatches(source, testRecord);
 }
 
-function pascal(value) {
-  return String(value).split(/[-_]/u).filter(Boolean).map((part) => part[0]?.toUpperCase() + part.slice(1)).join("");
+function pascal(value: string): string {
+  return String(value).split(/[-_]/u).filter(Boolean).map((part) => (part[0]?.toUpperCase() ?? "") + part.slice(1)).join("");
 }
 
-function languageTestFileName(stem, language) {
+function languageTestFileName(stem: string, language: string): string {
   if (language === "php") return `${pascal(stem)}Test.php`;
   if (language === "python") return `test_${stem}.py`;
   if (language === "javascript") return `${stem}.test.js`;
@@ -457,11 +495,11 @@ function languageTestFileName(stem, language) {
   return stem;
 }
 
-function suiteExampleName(language) {
+function suiteExampleName(language: string): string {
   return ["python", "javascript", "typescript"].includes(language) ? "unit" : "Unit";
 }
 
-export function expectedMirrorTestPaths(sourcePath, language) {
+export function expectedMirrorTestPaths(sourcePath: string, language: string): string[] {
   const normalized = normalize(sourcePath);
   if (language === "go") {
     const directory = posix.dirname(normalized);
@@ -486,7 +524,7 @@ export function expectedMirrorTestPaths(sourcePath, language) {
   return paths;
 }
 
-export function expectedTestExample(sourcePath, language) {
+export function expectedTestExample(sourcePath: string, language: string): string {
   const listed = expectedMirrorTestPaths(sourcePath, language).join(" or ");
   if (!listed) return "a matching test file";
   if (language === "php") return `${listed} or a test with #[CoversClass(Target::class)]`;

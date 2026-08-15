@@ -1,4 +1,69 @@
-// harness-source-hash: sha256:e135a9d3aa608f5f15f040e311aab5ea1eb67716b0d39bac38b0c614bfe29ffa
+// harness-source-hash: sha256:d945f3b122937f9aa290663ad4b77a5862f9dd48007b111f6f6c2dd40fb0bf38
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
+}
+function eventAssistantMessage(event) {
+  return firstString(
+    event.last_assistant_message,
+    event.lastAssistantMessage,
+    event.assistant_message,
+    event.assistant_text,
+    event.assistantText
+  );
+}
 
 // plugins/research-provenance-guard/src/lib/workflow-fs.ts
 import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, existsSync, statSync } from "node:fs";
@@ -50,7 +115,7 @@ function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEp
 function readWorkflowFile(path) {
   try {
     const raw = JSON.parse(readFileSync(path, "utf8"));
-    if (!raw || raw.schema !== WORKFLOW_SCHEMA || !RUN_ID.test(raw.run_id ?? "")) return null;
+    if (!isRecord(raw) || raw.schema !== WORKFLOW_SCHEMA || !RUN_ID.test(String(raw.run_id ?? ""))) return null;
     return raw;
   } catch {
     return null;
@@ -85,7 +150,7 @@ function findActiveWorkflow(workspaceRoot) {
   const open = listWorkflows(workspaceRoot).filter((item) => OPEN_PHASES.has(item.phase) && !TERMINAL_PHASES.has(item.phase));
   if (open.length === 0) return null;
   open.sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at)));
-  return open[0];
+  return open[0] ?? null;
 }
 function isActivePhase(phase) {
   return OPEN_PHASES.has(phase) && !TERMINAL_PHASES.has(phase);
@@ -116,7 +181,10 @@ function extractResearchRelativePaths(serialized) {
   const re = /\.research\/runs\/(r-[a-z0-9-]+)\/([^\s'"\\]+)/giu;
   let match;
   while (match = re.exec(text)) {
-    found.add(`.research/runs/${match[1]}/${match[2].replace(/[),.;]+$/u, "")}`);
+    const runId = match[1];
+    const rest = match[2];
+    if (!runId || !rest) continue;
+    found.add(`.research/runs/${runId}/${rest.replace(/[),.;]+$/u, "")}`);
   }
   if (/\.research(?:\/|\\|$)/u.test(text) && found.size === 0) {
     found.add(".research/");
@@ -136,11 +204,12 @@ function terminalizeWorkflow(workspaceRoot, runId, phase) {
   workflow.phase = phase;
   writeWorkflow(workspaceRoot, workflow);
   try {
+    const notes = phase === "aborted" ? "exact user abort" : "validated Stop";
     appendSkillTrace(workspaceRoot, runId, {
       phase,
       skill: "research-evidence-workflow",
       mode: "hook",
-      notes: phase === "aborted" ? "exact user abort" : "validated Stop"
+      notes
     });
   } catch {
   }
@@ -148,6 +217,15 @@ function terminalizeWorkflow(workspaceRoot, runId, phase) {
 }
 
 export {
+  isRecord,
+  readStdinJson,
+  eventSessionId,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
+  eventToolResponse,
+  eventPrompt,
+  eventAssistantMessage,
   SEALED_OR_LATER,
   workflowPath,
   defaultWorkflow,

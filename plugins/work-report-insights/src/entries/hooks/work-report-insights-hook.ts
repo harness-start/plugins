@@ -17,30 +17,43 @@ import {
   toolReportedFailure,
   writeJson,
 } from "../../lib/hook-io.js";
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
+
 import {
+  hasOfficialError,
   officialScriptTrusted,
   parseOfficialCommand,
   protectionDecision,
+  type OfficialCommandOk,
 } from "../../lib/hook-policy.js";
 import { readState, writeState } from "../../lib/hook-state.js";
 import { SEAL_PREFIX, sha256, verifyReport } from "../../lib/report-integrity.js";
 import { reportPath } from "../../lib/report-store.js";
 
-function home(env) {
+function home(env: NodeJS.ProcessEnv): string {
   return resolve(env.HOME || homedir());
 }
 
-async function prepareState(event, official, env) {
+function errorMessage(error: unknown): string {
+  return isRecord(error) && error.message != null ? String(error.message) : String(error);
+}
+
+function requiredArg(value: string | undefined, flag: string): string {
+  if (value === undefined) throw new Error(`${flag} is required`);
+  return value;
+}
+
+async function prepareState(event: HookEvent, official: OfficialCommandOk, env: NodeJS.ProcessEnv): Promise<void> {
   const state = await readState(event, env);
   const cwd = extractCwd(event);
-  const candidatePath = resolve(cwd, official.args.input);
+  const candidatePath = resolve(cwd, requiredArg(official.args.input, "--input"));
   let candidate = await readFile(candidatePath, "utf8");
   if (!candidate.trim()) throw new Error("candidate content is empty");
   if (candidate.includes(SEAL_PREFIX)) throw new Error("candidate contains a reserved seal marker");
   if (!candidate.endsWith("\n")) candidate += "\n";
   const target = official.action === "prepare"
     ? reportPath({ kind: official.kind, ...official.args, home: home(env) })
-    : resolve(cwd, official.args.report);
+    : resolve(cwd, requiredArg(official.args.report, "--report"));
   let reportSha256 = null;
   if (official.action === "addition-prepare") {
     const report = await readFile(target, "utf8");
@@ -60,17 +73,17 @@ async function prepareState(event, official, env) {
   }, env);
 }
 
-async function runPre(event, env) {
+async function runPre(event: HookEvent, env: NodeJS.ProcessEnv): Promise<void> {
   const state = await readState(event, env);
   const command = isShellTool(event) ? extractShellCommand(event) : null;
   const official = parseOfficialCommand(command);
-  const trusted = official && !official.error && await officialScriptTrusted(official, { cwd: extractCwd(event) });
-  if (trusted && new Set(["prepare", "addition-prepare"]).has(official.action)) {
+  const trusted = Boolean(official && !hasOfficialError(official) && await officialScriptTrusted(official, { cwd: extractCwd(event) }));
+  if (trusted && official && !hasOfficialError(official) && (official.action === "prepare" || official.action === "addition-prepare")) {
     try {
       await prepareState(event, official, env);
       writeJson(contextOutput("PreToolUse", "[Work Report Insights] Candidate digest recorded. Present the complete content and wait for explicit confirmation."));
     } catch (error) {
-      writeJson(preToolDeny(`[Work Report Insights] Prepare denied: ${error?.message ?? String(error)}`));
+      writeJson(preToolDeny(`[Work Report Insights] Prepare denied: ${errorMessage(error)}`));
     }
     return;
   }
@@ -78,21 +91,21 @@ async function runPre(event, env) {
   if (decision.deny) writeJson(preToolDeny(decision.reason));
 }
 
-async function runPost(event, env) {
+async function runPost(event: HookEvent, env: NodeJS.ProcessEnv): Promise<void> {
   if (!isShellTool(event)) return;
   const official = parseOfficialCommand(extractShellCommand(event));
-  if (!official || official.error) return;
+  if (!official || hasOfficialError(official)) return;
   const state = await readState(event, env);
-  if (new Set(["collect", "scan"]).has(official.action)) {
+  if (official.action === "collect" || official.action === "scan") {
     await writeState(event, { ...state, phase: "evidence-collected", kind: official.kind === "report" ? state.kind : official.kind }, env);
     return;
   }
-  if (!new Set(["save", "append"]).has(official.action)) return;
+  if (official.action !== "save" && official.action !== "append") return;
   if (toolReportedFailure(event) || state.phase !== "prepared" || state.operation !== official.action) return;
   try {
     const target = official.action === "save"
       ? reportPath({ kind: official.kind, ...official.args, home: home(env) })
-      : resolve(extractCwd(event), official.args.report);
+      : resolve(extractCwd(event), requiredArg(official.args.report, "--report"));
     if (target !== state.target) return;
     const content = await readFile(target, "utf8");
     const checked = verifyReport(content);
@@ -106,7 +119,7 @@ async function runPost(event, env) {
   }
 }
 
-async function runStop(event, env) {
+async function runStop(event: HookEvent, env: NodeJS.ProcessEnv): Promise<void> {
   const state = await readState(event, env);
   if (state.phase === "idle" || state.phase === "sealed") return;
   const message = extractAssistantMessage(event);
@@ -115,26 +128,27 @@ async function runStop(event, env) {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   const mode = process.argv[2] ?? "pre";
   const event = await readStdinJson();
   if (event.__parseError) return;
   const env = process.env;
   try {
-    if (new Set(["prompt", "UserPromptSubmit"]).has(mode)) return;
-    else if (new Set(["pre", "PreToolUse"]).has(mode)) await runPre(event, env);
-    else if (new Set(["post", "PostToolUse"]).has(mode)) await runPost(event, env);
-    else if (new Set(["stop", "Stop"]).has(mode)) await runStop(event, env);
+    if (mode === "prompt" || mode === "UserPromptSubmit") return;
+    else if (mode === "pre" || mode === "PreToolUse") await runPre(event, env);
+    else if (mode === "post" || mode === "PostToolUse") await runPost(event, env);
+    else if (mode === "stop" || mode === "Stop") await runStop(event, env);
   } catch (error) {
-    if (new Set(["pre", "PreToolUse"]).has(mode)) {
-      writeJson(preToolDeny(`[Work Report Insights] Protection check failed closed: ${error?.message ?? String(error)}`));
+    if (mode === "pre" || mode === "PreToolUse") {
+      writeJson(preToolDeny(`[Work Report Insights] Protection check failed closed: ${errorMessage(error)}`));
     } else {
-      process.stderr.write(`[work-report-insights] ${error?.message ?? String(error)}\n`);
+      process.stderr.write(`[work-report-insights] ${errorMessage(error)}\n`);
     }
   }
 }
 
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const entry = process.argv[1];
+const isMain = Boolean(entry && resolve(entry) === fileURLToPath(import.meta.url));
 if (isMain) await main();
 
 export { runPost, runPre, runStop };

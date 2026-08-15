@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
+// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
 import {
   assertLogoProjectRoot
-} from "../chunks/chunk-D53Y26S6.mjs";
+} from "../chunks/chunk-6VSA7JKI.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";
@@ -37,8 +37,12 @@ async function runLocalEslint(options) {
 }
 
 // plugins/logo-project-delivery-guard/src/lib/eslint/local-rules/artifact-unit-owner.ts
-var jsxName = (node) => node?.name?.name ?? node?.name;
-var artifact_unit_owner_default = {
+var jsxName = (node) => {
+  const name = node.name;
+  if (name && typeof name === "object") return name.name;
+  return name;
+};
+var rule = {
   meta: { type: "problem", schema: [], messages: { vector: "Logo master modules must remain self-contained native SVG vectors.", export: "A logo master module must export exactly one component." } },
   create(context) {
     let exports = 0;
@@ -47,11 +51,11 @@ var artifact_unit_owner_default = {
         if (node.declaration?.type === "FunctionDeclaration") exports += 1;
       },
       JSXOpeningElement(node) {
-        if (["image", "text", "foreignObject", "script", "style", "iframe"].includes(jsxName(node))) context.report({ node, messageId: "vector" });
+        if (["image", "text", "foreignObject", "script", "style", "iframe"].includes(String(jsxName(node)))) context.report({ node, messageId: "vector" });
       },
       CallExpression(node) {
         const name = node.callee?.name ?? node.callee?.property?.name;
-        if (["fetch", "useState", "useEffect", "setTimeout", "setInterval", "random"].includes(name)) context.report({ node, messageId: "vector" });
+        if (name !== void 0 && ["fetch", "useState", "useEffect", "setTimeout", "setInterval", "random"].includes(name)) context.report({ node, messageId: "vector" });
       },
       "Program:exit"(node) {
         if (exports !== 1) context.report({ node, messageId: "export" });
@@ -59,6 +63,7 @@ var artifact_unit_owner_default = {
     };
   }
 };
+var artifact_unit_owner_default = rule;
 
 // plugins/logo-project-delivery-guard/src/lib/eslint/preset.ts
 function createPreset({ parser }) {
@@ -88,7 +93,7 @@ async function main() {
   if (failed) process.exitCode = 2;
 }
 main().catch((error) => {
-  process.stderr.write(`[logo-project-lint] ${error.message}
+  process.stderr.write(`[logo-project-lint] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

@@ -8,8 +8,9 @@ import {
   analyzeMarkdown,
   isMarkdownPath,
   resolveConfig,
+  type MarkdownFinding,
 } from "../../lib/markdown-policy.js";
-import { eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { extractFileTargets } from "@harness/core/hook-targets";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -20,11 +21,11 @@ const CONFIG_FILE_NAMES = [
   ".markdown-format-guard.js",
 ];
 
-function warnConfig(message) {
+function warnConfig(message: string) {
   process.stderr.write(`[markdown-format-guard] ${message}\n`);
 }
 
-export async function loadUserConfig(repoRoot) {
+export async function loadUserConfig(repoRoot: string): Promise<unknown> {
   for (const name of CONFIG_FILE_NAMES) {
     const configPath = join(repoRoot, name);
     if (!existsSync(configPath)) continue;
@@ -32,21 +33,21 @@ export async function loadUserConfig(repoRoot) {
       const loaded = await import(pathToFileURL(configPath).href);
       return loaded.default ?? loaded;
     } catch (error) {
-      warnConfig(`failed to load ${name}: ${error.message}`);
+      warnConfig(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
   return null;
 }
 
-export function extractFilePaths(event) {
+export function extractFilePaths(event: HookEvent): string[] {
   return extractFileTargets(event, {
     tools: eventToolName(event) ? "mutation" : "any",
     includeShellWrites: true,
   });
 }
 
-function resolveRepoRoot(filePath) {
+function resolveRepoRoot(filePath: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd: dirname(filePath),
@@ -59,7 +60,7 @@ function resolveRepoRoot(filePath) {
   }
 }
 
-function relativeMatchPath(filePath, repoRoot, cwd) {
+function relativeMatchPath(filePath: string, repoRoot: string | null, cwd: string): string {
   if (repoRoot) return relative(repoRoot, filePath).replaceAll("\\", "/");
   const fromCwd = relative(cwd, filePath).replaceAll("\\", "/");
   return fromCwd.startsWith("../")
@@ -67,7 +68,7 @@ function relativeMatchPath(filePath, repoRoot, cwd) {
     : fromCwd;
 }
 
-function readTextCapped(filePath) {
+function readTextCapped(filePath: string): string | null {
   try {
     if (statSync(filePath).size > MAX_FILE_BYTES) return null;
     return readFileSync(filePath, "utf8");
@@ -76,11 +77,13 @@ function readTextCapped(filePath) {
   }
 }
 
-function formatFinding(path, item) {
+function formatFinding(path: string, item: MarkdownFinding) {
   return `- ${path}:${item.line} [${item.check}] ${item.message}`;
 }
 
-function emitReport(pathFindings) {
+type PathFindings = { path: string; findings: MarkdownFinding[] };
+
+function emitReport(pathFindings: PathFindings[]) {
   if (pathFindings.length === 0) return;
   const details = pathFindings.flatMap(({ path, findings }) =>
     findings.map((item) => formatFinding(path, item)),
@@ -94,7 +97,7 @@ function emitReport(pathFindings) {
   );
 }
 
-function block(pathFindings) {
+function block(pathFindings: PathFindings[]) {
   const details = pathFindings.flatMap(({ path, findings }) =>
     findings.map((item) => formatFinding(path, item)),
   );
@@ -114,23 +117,22 @@ function block(pathFindings) {
   process.exit(2);
 }
 
-export async function evaluateEvent(event) {
-  const cwd =
-    event?.cwd ??
-    event?.working_directory ??
-    event?.workingDirectory ??
-    process.cwd();
+export async function evaluateEvent(event: HookEvent): Promise<{ block: PathFindings[]; report: PathFindings[] }> {
+  const rawCwd = event.cwd ?? event.working_directory ?? event.workingDirectory ?? process.cwd();
+  const cwd = typeof rawCwd === "string" ? rawCwd : String(rawCwd);
   const candidates = extractFilePaths(event).filter(existsSync);
   if (candidates.length === 0) {
     return { block: [], report: [] };
   }
 
-  const repoRoot = resolveRepoRoot(candidates[0]);
+  const firstCandidate = candidates[0];
+  if (!firstCandidate) return { block: [], report: [] };
+  const repoRoot = resolveRepoRoot(firstCandidate);
   const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
   const config = resolveConfig(userConfig, warnConfig);
 
-  const blockFindings = [];
-  const reportFindings = [];
+  const blockFindings: PathFindings[] = [];
+  const reportFindings: PathFindings[] = [];
   let total = 0;
 
   for (const filePath of candidates) {

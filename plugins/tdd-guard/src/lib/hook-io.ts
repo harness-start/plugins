@@ -5,44 +5,60 @@ import {
   eventSessionId,
   eventToolInput,
   eventToolName,
+  eventToolResponse,
   eventToolUseId,
+  isRecord,
   readStdinJson,
+  type HookEvent,
+  type HookToolInput,
 } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { canonicalToolName, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 
+export type CommandOutcome = "success" | "failure" | "unknown";
+
 export { readStdinJson, preToolDeny, writeJson };
 
-export function cwdOf(event) {
-  const raw = event?.cwd ?? event?.working_directory ?? event?.workingDirectory;
-  if (raw !== undefined && raw !== null && typeof raw !== "string") return resolve(raw);
+export function cwdOf(event: HookEvent): string {
+  const raw = event.cwd ?? event.working_directory ?? event.workingDirectory;
+  if (raw !== undefined && raw !== null && typeof raw !== "string") return resolve(raw as string);
   return resolve(eventCwd(event));
 }
-export function sessionIdOf(event) { return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"; }
-export function toolUseIdOf(event) { return eventToolUseId(event) || String(event?.id ?? "pending"); }
-export function toolNameOf(event) { return canonicalToolName(eventToolName(event)); }
-export function toolInputOf(event) { return eventToolInput(event); }
-export function shellCommandOf(event) { return extractShellCommand(event); }
-
-function responseOf(event) {
-  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? null;
+export function sessionIdOf(event: HookEvent): string {
+  return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+}
+export function toolUseIdOf(event: HookEvent): string {
+  return eventToolUseId(event) || String(event.id ?? "pending");
+}
+export function toolNameOf(event: HookEvent): string {
+  return canonicalToolName(eventToolName(event));
+}
+export function toolInputOf(event: HookEvent): HookToolInput {
+  return eventToolInput(event);
+}
+export function shellCommandOf(event: HookEvent): string | null {
+  return extractShellCommand(event);
 }
 
-function responseText(response) {
+function responseOf(event: HookEvent): unknown {
+  return eventToolResponse(event) ?? event.error ?? null;
+}
+
+function responseText(response: unknown): string {
   if (typeof response === "string") return response;
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const fields = ["stdout", "stderr", "output", "content", "message"]
       .map((key) => response[key])
-      .filter((value) => typeof value === "string");
+      .filter((value): value is string => typeof value === "string");
     if (fields.length > 0) return fields.join("\n");
   }
   return "";
 }
 
-export function inferOutcome(event, forceFailure = false) {
+export function inferOutcome(event: HookEvent, forceFailure = false): CommandOutcome {
   if (forceFailure) return "failure";
   const response = responseOf(event);
-  if (response && typeof response === "object") {
+  if (isRecord(response)) {
     if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
     const code = response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code;
     if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
@@ -51,56 +67,59 @@ export function inferOutcome(event, forceFailure = false) {
   }
   const text = responseText(response);
   const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
-  if (exitLine) return Number(exitLine[1]) === 0 ? "success" : "failure";
+  if (exitLine?.[1] !== undefined) return Number(exitLine[1]) === 0 ? "success" : "failure";
   const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (failed && Number(failed[1]) > 0) return "failure";
+  if (failed?.[1] && Number(failed[1]) > 0) return "failure";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
-  if (passed && Number(passed[1]) > 0 && (!failed || Number(failed[1]) === 0)) return "success";
+  if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
   if (/(?:^|\n)not ok\s+[0-9]+\b|\b[1-9][0-9]*\s+failures?\b/iu.test(text)) return "failure";
   if (/\b0\s+failures?\b/iu.test(text)) return "success";
   return "unknown";
 }
 
-function stripQuotes(value) {
+function stripQuotes(value: unknown): string {
   const text = String(value ?? "").trim();
   if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) return text.slice(1, -1);
   return text;
 }
 
-function nestedPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
+function nestedPaths(input: unknown): string[] {
+  if (!isRecord(input)) return [];
+  const paths: string[] = [];
   for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "notebook_path"]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
+    const value = input[key];
+    if (typeof value === "string" && value) paths.push(value);
   }
   if (Array.isArray(input.edits)) for (const edit of input.edits) paths.push(...nestedPaths(edit));
   return paths;
 }
 
-function patchPaths(input) {
+function patchPaths(input: unknown): string[] {
   const text = patchText(input);
-  const paths = [];
+  const paths: string[] = [];
   for (const line of text.split("\n")) {
     const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) paths.push(stripQuotes(file[1]));
+    if (file?.[1]) paths.push(stripQuotes(file[1]));
     const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (move) paths.push(stripQuotes(move[1]));
+    if (move?.[1]) paths.push(stripQuotes(move[1]));
   }
   return paths;
 }
 
-function patchText(input) {
-  return typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
+function patchText(input: unknown): string {
+  if (typeof input === "string") return input;
+  if (!isRecord(input)) return "";
+  return [input.patch, input.input, input.command].filter((value): value is string => typeof value === "string").join("\n");
 }
 
-function contentFromPatch(input, target, cwd, currentText) {
+function contentFromPatch(input: unknown, target: string, cwd: string, currentText: string): string {
   const targetPath = resolve(target);
   let active = false;
   let targetMode = "";
-  const added = [];
+  const added: string[] = [];
   for (const line of patchText(input).split("\n")) {
     const file = line.match(/^\*\*\*\s+(Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) {
+    if (file?.[1] && file[2]) {
       active = resolve(cwd, stripQuotes(file[2])) === targetPath;
       if (active) targetMode = file[1].toLowerCase();
       continue;
@@ -116,26 +135,26 @@ function contentFromPatch(input, target, cwd, currentText) {
   return currentText;
 }
 
-function tokenize(command) {
-  const tokens = [];
+function tokenize(command: unknown): string[] {
+  const tokens: string[] = [];
   for (const match of String(command ?? "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)) {
-    tokens.push(match[1] ?? match[2] ?? match[3]);
+    tokens.push(match[1] ?? match[2] ?? match[3] ?? "");
   }
   return tokens;
 }
 
-function invocations(command, names) {
-  const found = [];
+function invocations(command: unknown, names: Set<string>): string[][] {
+  const found: string[][] = [];
   for (const segment of String(command ?? "").split(/\s*(?:&&|\|\||;|\n)\s*/u)) {
     const tokens = tokenize(segment);
     let index = 0;
-    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index])) index += 1;
+    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index] ?? "")) index += 1;
     if (index >= tokens.length) continue;
     const base = String(tokens[index]).replace(/^.*\//u, "");
     if (!names.has(base)) continue;
     index += 1;
-    const operands = [];
-    while (index < tokens.length && tokens[index].startsWith("-")) {
+    const operands: string[] = [];
+    while (index < tokens.length && (tokens[index] ?? "").startsWith("-")) {
       if (tokens[index] === "--") {
         index += 1;
         break;
@@ -143,7 +162,8 @@ function invocations(command, names) {
       index += 1;
     }
     while (index < tokens.length) {
-      if (!tokens[index].startsWith("-")) operands.push(tokens[index]);
+      const token = tokens[index];
+      if (token && !token.startsWith("-")) operands.push(token);
       index += 1;
     }
     found.push(operands);
@@ -151,10 +171,10 @@ function invocations(command, names) {
   return found;
 }
 
-function shellPaths(input) {
-  const command = String(input?.command ?? input?.cmd ?? "");
-  const paths = [];
-  const push = (raw) => {
+function shellPaths(input: HookToolInput): string[] {
+  const command = String(input.command ?? input.cmd ?? "");
+  const paths: string[] = [];
+  const push = (raw: unknown) => {
     const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
     if (value && !value.startsWith("-")) paths.push(value);
   };
@@ -171,11 +191,11 @@ function shellPaths(input) {
   return paths;
 }
 
-function resolvedEquals(cwd, rawPath, absolutePath) {
+function resolvedEquals(cwd: string, rawPath: unknown, absolutePath: string): boolean {
   return resolve(cwd, stripQuotes(rawPath)) === resolve(absolutePath);
 }
 
-export function extractTargets(event) {
+export function extractTargets(event: HookEvent): string[] {
   const name = toolNameOf(event);
   const input = toolInputOf(event);
   const raw = isFileMutationTool(name) ? [...nestedPaths(input), ...patchPaths(input)] : isShellTool(name) ? shellPaths(input) : [];
@@ -183,12 +203,12 @@ export function extractTargets(event) {
   return [...new Set(raw.map(stripQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
 }
 
-export function targetOperation(event, absolutePath) {
+export function targetOperation(event: HookEvent, absolutePath: string): "delete" | "write" {
   const cwd = cwdOf(event);
   const input = toolInputOf(event);
   for (const line of patchText(input).split("\n")) {
     const file = line.match(/^\*\*\*\s+Delete File:\s+(.+)$/u);
-    if (file && resolvedEquals(cwd, file[1], absolutePath)) return "delete";
+    if (file?.[1] && resolvedEquals(cwd, file[1], absolutePath)) return "delete";
   }
   const command = shellCommandOf(event);
   if (command) {
@@ -203,7 +223,7 @@ export function targetOperation(event, absolutePath) {
   return "write";
 }
 
-export function proposedContent(event, target, currentText = "") {
+export function proposedContent(event: HookEvent, target: string, currentText = ""): string {
   const input = toolInputOf(event);
   const paths = nestedPaths(input).map((path) => resolve(cwdOf(event), path));
   if (paths.includes(resolve(target)) && typeof input.content === "string") return input.content;
@@ -213,6 +233,12 @@ export function proposedContent(event, target, currentText = "") {
   return contentFromPatch(input, target, cwdOf(event), currentText);
 }
 
-export function relativePath(root, path) { return relative(root, resolve(path)).replaceAll("\\", "/") || "."; }
-export function contextOutput(eventName, text) { return additionalContext(eventName, text); }
-export function stopDeny(reason) { return stopBlock(reason); }
+export function relativePath(root: string, path: string): string {
+  return relative(root, resolve(path)).replaceAll("\\", "/") || ".";
+}
+export function contextOutput(eventName: Parameters<typeof additionalContext>[0], text: string) {
+  return additionalContext(eventName, text);
+}
+export function stopDeny(reason: string) {
+  return stopBlock(reason);
+}

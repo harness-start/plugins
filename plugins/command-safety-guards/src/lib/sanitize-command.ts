@@ -2,7 +2,7 @@
  * Strip payloads that often embed guard keywords as documentation or
  * commit-message text, so declarative rules do not false-positive.
  */
-export function sanitizeCommand(command) {
+export function sanitizeCommand(command: unknown): string {
   if (typeof command !== "string" || !command) return "";
   let stripped = command.replace(
     /\$\(cat\s+<<'?(\w+)'?\n[\s\S]*?\n\1\s*\)/g,

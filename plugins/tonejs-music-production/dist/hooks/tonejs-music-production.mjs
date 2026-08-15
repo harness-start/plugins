@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 import {
   evaluateMusicWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
   validateMusicModel
-} from "../chunks/chunk-XYNVSRBJ.mjs";
+} from "../chunks/chunk-6UVSZ5EF.mjs";
 
 // plugins/tonejs-music-production/src/entries/hooks/tonejs-music-production.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -331,6 +331,9 @@ var PLUGIN_DIRECTORY = resolve4(
 function deny(reason) {
   return preToolDeny(`[Tone.js Music Production] ${reason}`);
 }
+function isRecord2(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 async function findingsFor(cwd) {
   const findings = [];
   const { roots } = await findCarrierProjects(cwd, "music");
@@ -346,8 +349,15 @@ async function findingsFor(cwd) {
     };
     const plan = parse("plan.contract.json");
     const project = parse("music.project.json");
-    const model = { artifactId: basename2(root), files: collected.files, digests: collected.digests, plan, project };
-    for (const item of validateMusicModel(model, { stage: plan?.targetStage ?? "source" })) {
+    const model = {
+      artifactId: basename2(root),
+      files: collected.files,
+      digests: collected.digests,
+      plan,
+      project: isRecord2(project) ? project : null
+    };
+    const stage = isRecord2(plan) && typeof plan.targetStage === "string" ? plan.targetStage : "source";
+    for (const item of validateMusicModel(model, { stage })) {
       findings.push({ artifactId: model.artifactId, ...item });
     }
   }
@@ -409,7 +419,8 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve4(process.argv[1])) {
   main().catch((error) => {
-    process.stderr.write(`[Tone.js Music Production] ${error.message}
+    const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+    process.stderr.write(`[Tone.js Music Production] ${message}
 `);
     process.exitCode = 2;
   });

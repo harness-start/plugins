@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ce1391e033b4614b0a6cb38d556dda14dccc49c8c48ad0139447594c66cc58ca
+// harness-source-hash: sha256:21339e5aa2f538881d437fbd29dbff83b962e871c2e0409ac2452689fb50a359
 
 // plugins/poster-project-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";
@@ -34,7 +34,7 @@ async function runLocalEslint(options) {
 }
 
 // plugins/poster-project-delivery-guard/src/lib/eslint/local-rules/artifact-unit-owner.ts
-var artifact_unit_owner_default = {
+var rule = {
   meta: { type: "problem", schema: [], messages: { owner: "A poster layer may not own stacking, rendering, I/O, network, or runtime hooks.", export: "A poster layer must export exactly one buildLayer function." } },
   create(context) {
     let exports = 0;
@@ -47,7 +47,7 @@ var artifact_unit_owner_default = {
       },
       CallExpression(node) {
         const name = node.callee?.name ?? node.callee?.property?.name;
-        if (["fetch", "setTimeout", "setInterval", "useState", "useEffect", "useLayoutEffect"].includes(name)) context.report({ node, messageId: "owner" });
+        if (name !== void 0 && ["fetch", "setTimeout", "setInterval", "useState", "useEffect", "useLayoutEffect"].includes(name)) context.report({ node, messageId: "owner" });
       },
       "Program:exit"(node) {
         if (exports !== 1) context.report({ node, messageId: "export" });
@@ -55,6 +55,7 @@ var artifact_unit_owner_default = {
     };
   }
 };
+var artifact_unit_owner_default = rule;
 
 // plugins/poster-project-delivery-guard/src/lib/eslint/preset.ts
 function createPreset({ parser }) {
@@ -82,7 +83,7 @@ async function main() {
   if (failed) process.exitCode = 2;
 }
 main().catch((error) => {
-  process.stderr.write(`[poster-project-lint] ${error.message}
+  process.stderr.write(`[poster-project-lint] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

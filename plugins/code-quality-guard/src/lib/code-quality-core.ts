@@ -13,6 +13,7 @@ import {
 import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { eventSessionId, isRecord, type HookEvent } from "@harness/core/hook-event";
 import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 export const CHECK_NAMES = [
@@ -24,7 +25,47 @@ export const CHECK_NAMES = [
   "phpSyntax",
   "composerValidate",
   "phpstan",
-];
+] as const;
+
+export type CheckName = (typeof CHECK_NAMES)[number];
+export type CheckMode = "block" | "report" | "off";
+export type MissingToolsMode = "report-once" | "silent";
+export type WarnFn = (message: string) => void;
+
+export type QualityLimits = {
+  maxImmediateFiles: number;
+  maxPhpstanFiles: number;
+  immediateTimeoutMs: number;
+  phpstanTimeoutMs: number;
+  maxOutputLines: number;
+};
+
+export type QualityOverride = {
+  match: RegExp;
+  checks: Partial<Record<CheckName, CheckMode>>;
+};
+
+export type QualityConfig = {
+  checks: Record<CheckName, CheckMode>;
+  overrides: QualityOverride[];
+  limits: QualityLimits;
+  missingTools: MissingToolsMode;
+};
+
+export type CommandResult = {
+  code: number | null;
+  signal?: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+  error: { message: string } | null;
+  timedOut: boolean;
+};
+
+export type QualityState = {
+  path: string | null;
+  missing: string[];
+  phpFiles: string[];
+};
 
 export const DEFAULT_CONFIG = Object.freeze({
   checks: Object.freeze({
@@ -48,41 +89,62 @@ export const DEFAULT_CONFIG = Object.freeze({
 });
 
 const CONFIG_FILE_NAME = ".code-quality-guard.mjs";
-const VALID_MODES = new Set(["block", "report", "off"]);
+const VALID_MODES = new Set<CheckMode>(["block", "report", "off"]);
 const SKIP_PATH =
   /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 
-function warnDefault(message) {
+function warnDefault(message: string): void {
   process.stderr.write(`[code-quality-guard] ${message}\n`);
 }
 
-function normalizeMode(value, fallback, label, warn) {
+function isCheckMode(value: unknown): value is CheckMode {
+  return value === "block" || value === "report" || value === "off";
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (isRecord(error) && typeof error.message === "string") return error.message;
+  return String(error);
+}
+
+function normalizeMode(value: unknown, fallback: CheckMode, label: string, warn: WarnFn): CheckMode;
+function normalizeMode(value: unknown, fallback: CheckMode | null, label: string, warn: WarnFn): CheckMode | null;
+function normalizeMode(value: unknown, fallback: CheckMode | null, label: string, warn: WarnFn): CheckMode | null {
   if (value === undefined) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value) && VALID_MODES.has(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 
-function boundedInteger(value, fallback, minimum, maximum, label, warn) {
+function boundedInteger(
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+  label: string,
+  warn: WarnFn,
+): number {
   if (value === undefined) return fallback;
-  if (Number.isInteger(value) && value >= minimum && value <= maximum) return value;
+  if (typeof value === "number" && Number.isInteger(value) && value >= minimum && value <= maximum) return value;
   warn(`${label} must be an integer in [${minimum}, ${maximum}]; using ${fallback}`);
   return fallback;
 }
 
-export function resolveConfig(userConfig, warn = warnDefault) {
-  const checks = { ...DEFAULT_CONFIG.checks };
-  if (userConfig?.checks !== undefined && (
-    !userConfig.checks ||
-    typeof userConfig.checks !== "object" ||
-    Array.isArray(userConfig.checks)
+export function resolveConfig(userConfig: unknown, warn: WarnFn = warnDefault): QualityConfig {
+  const raw = isRecord(userConfig) ? userConfig : null;
+  const checks: Record<CheckName, CheckMode> = { ...DEFAULT_CONFIG.checks };
+  if (raw?.checks !== undefined && (
+    !raw.checks ||
+    typeof raw.checks !== "object" ||
+    Array.isArray(raw.checks)
   )) {
     warn('config "checks" must be an object; using defaults');
   } else {
+    const checksSource = raw && isRecord(raw.checks) ? raw.checks : {};
     for (const name of CHECK_NAMES) {
       checks[name] = normalizeMode(
-        userConfig?.checks?.[name],
+        checksSource[name],
         checks[name],
         `checks.${name}`,
         warn,
@@ -90,12 +152,12 @@ export function resolveConfig(userConfig, warn = warnDefault) {
     }
   }
 
-  const overrides = [];
-  if (userConfig?.overrides !== undefined && !Array.isArray(userConfig.overrides)) {
+  const overrides: QualityOverride[] = [];
+  if (raw?.overrides !== undefined && !Array.isArray(raw.overrides)) {
     warn('config "overrides" must be an array; ignoring overrides');
   } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
+    for (const [index, override] of (Array.isArray(raw?.overrides) ? raw.overrides : []).entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
         warn(`override[${index}].match must be a RegExp; skipping`);
         continue;
       }
@@ -103,11 +165,12 @@ export function resolveConfig(userConfig, warn = warnDefault) {
         warn(`override[${index}].checks must be an object; skipping`);
         continue;
       }
-      const normalizedChecks = {};
+      const overrideChecks = isRecord(override.checks) ? override.checks : {};
+      const normalizedChecks: Partial<Record<CheckName, CheckMode>> = {};
       for (const name of CHECK_NAMES) {
-        if (override.checks[name] === undefined) continue;
+        if (overrideChecks[name] === undefined) continue;
         const mode = normalizeMode(
-          override.checks[name],
+          overrideChecks[name],
           null,
           `override[${index}].checks.${name}`,
           warn,
@@ -122,9 +185,10 @@ export function resolveConfig(userConfig, warn = warnDefault) {
     }
   }
 
-  const limits = {
+  const limitsSource = raw && isRecord(raw.limits) ? raw.limits : {};
+  const limits: QualityLimits = {
     maxImmediateFiles: boundedInteger(
-      userConfig?.limits?.maxImmediateFiles,
+      limitsSource.maxImmediateFiles,
       DEFAULT_CONFIG.limits.maxImmediateFiles,
       1,
       100,
@@ -132,7 +196,7 @@ export function resolveConfig(userConfig, warn = warnDefault) {
       warn,
     ),
     maxPhpstanFiles: boundedInteger(
-      userConfig?.limits?.maxPhpstanFiles,
+      limitsSource.maxPhpstanFiles,
       DEFAULT_CONFIG.limits.maxPhpstanFiles,
       1,
       200,
@@ -140,7 +204,7 @@ export function resolveConfig(userConfig, warn = warnDefault) {
       warn,
     ),
     immediateTimeoutMs: boundedInteger(
-      userConfig?.limits?.immediateTimeoutMs,
+      limitsSource.immediateTimeoutMs,
       DEFAULT_CONFIG.limits.immediateTimeoutMs,
       1000,
       60000,
@@ -148,7 +212,7 @@ export function resolveConfig(userConfig, warn = warnDefault) {
       warn,
     ),
     phpstanTimeoutMs: boundedInteger(
-      userConfig?.limits?.phpstanTimeoutMs,
+      limitsSource.phpstanTimeoutMs,
       DEFAULT_CONFIG.limits.phpstanTimeoutMs,
       1000,
       120000,
@@ -156,7 +220,7 @@ export function resolveConfig(userConfig, warn = warnDefault) {
       warn,
     ),
     maxOutputLines: boundedInteger(
-      userConfig?.limits?.maxOutputLines,
+      limitsSource.maxOutputLines,
       DEFAULT_CONFIG.limits.maxOutputLines,
       5,
       500,
@@ -165,15 +229,19 @@ export function resolveConfig(userConfig, warn = warnDefault) {
     ),
   };
 
-  let missingTools = userConfig?.missingTools ?? DEFAULT_CONFIG.missingTools;
-  if (missingTools !== "report-once" && missingTools !== "silent") {
+  let missingTools: MissingToolsMode = raw && (raw.missingTools === "report-once" || raw.missingTools === "silent")
+    ? raw.missingTools
+    : raw?.missingTools === undefined
+      ? DEFAULT_CONFIG.missingTools
+      : DEFAULT_CONFIG.missingTools;
+  if (raw?.missingTools !== undefined && missingTools !== raw.missingTools) {
     warn('missingTools must be "report-once" or "silent"; using report-once');
     missingTools = DEFAULT_CONFIG.missingTools;
   }
   return { checks, overrides, limits, missingTools };
 }
 
-function regexMatches(pattern, value) {
+function regexMatches(pattern: RegExp, value: string): boolean {
   try {
     return new RegExp(pattern.source, pattern.flags).test(value);
   } catch {
@@ -181,23 +249,24 @@ function regexMatches(pattern, value) {
   }
 }
 
-export function modeFor(checkName, relativePath, config) {
+export function modeFor(checkName: CheckName, relativePath: string, config: QualityConfig): CheckMode {
   for (const override of config.overrides) {
+    const overrideMode = override.checks[checkName];
     if (
-      override.checks[checkName] !== undefined &&
+      overrideMode !== undefined &&
       regexMatches(override.match, relativePath)
     ) {
-      return override.checks[checkName];
+      return overrideMode;
     }
   }
   return config.checks[checkName] ?? "off";
 }
 
-export function isSkippedPath(relativePath) {
+export function isSkippedPath(relativePath: string): boolean {
   return SKIP_PATH.test(relativePath);
 }
 
-export function isSourceFileWithinLimit(filePath) {
+export function isSourceFileWithinLimit(filePath: string): boolean {
   try {
     const stat = statSync(filePath);
     return stat.isFile() && stat.size <= MAX_SOURCE_BYTES;
@@ -206,7 +275,7 @@ export function isSourceFileWithinLimit(filePath) {
   }
 }
 
-export function resolveRepoRoot(cwd) {
+export function resolveRepoRoot(cwd: string): string | null {
   try {
     const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -220,26 +289,26 @@ export function resolveRepoRoot(cwd) {
   }
 }
 
-export function repoRelativePath(filePath, repoRoot, cwd) {
+export function repoRelativePath(filePath: string, repoRoot: string | null | undefined, cwd: string): string {
   const base = repoRoot ?? cwd;
   const candidate = relative(base, filePath).replaceAll("\\", "/");
   return candidate.startsWith("../") ? filePath.replaceAll("\\", "/") : candidate;
 }
 
-export async function loadUserConfig(repoRoot, warn = warnDefault) {
+export async function loadUserConfig(repoRoot: string | null | undefined, warn: WarnFn = warnDefault): Promise<unknown> {
   if (!repoRoot) return null;
   const configPath = join(repoRoot, CONFIG_FILE_NAME);
   if (!existsSync(configPath)) return null;
   try {
-    const loaded = await import(pathToFileURL(configPath).href);
-    return loaded.default ?? loaded;
-  } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error.message}`);
+    const loaded: unknown = await import(pathToFileURL(configPath).href);
+    return isRecord(loaded) ? loaded.default ?? loaded : loaded;
+  } catch (error: unknown) {
+    warn(`failed to load ${CONFIG_FILE_NAME}: ${errorMessage(error)}`);
     return null;
   }
 }
 
-function executableCandidate(path) {
+function executableCandidate(path: string): string | null {
   if (!existsSync(path)) return null;
   if (process.platform === "win32") return path;
   try {
@@ -250,13 +319,18 @@ function executableCandidate(path) {
   }
 }
 
-function executableNames(name) {
+function executableNames(name: string): string[] {
   if (process.platform !== "win32") return [name];
   if (/\.(?:bat|cmd|com|exe)$/iu.test(name)) return [name];
   return [name, `${name}.cmd`, `${name}.exe`, `${name}.bat`];
 }
 
-export function findExecutable(name, repoRoot, localRelativePaths = [], env = process.env) {
+export function findExecutable(
+  name: string,
+  repoRoot: string,
+  localRelativePaths: readonly string[] = [],
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
   for (const relativePath of localRelativePaths) {
     for (const candidateName of executableNames(relativePath)) {
       const candidate = executableCandidate(resolve(repoRoot, candidateName));
@@ -272,7 +346,7 @@ export function findExecutable(name, repoRoot, localRelativePaths = [], env = pr
   return null;
 }
 
-export function hasEslintConfig(repoRoot) {
+export function hasEslintConfig(repoRoot: string | null | undefined): boolean {
   if (!repoRoot) return false;
   for (const name of [
     "eslint.config.js",
@@ -289,21 +363,25 @@ export function hasEslintConfig(repoRoot) {
     if (existsSync(join(repoRoot, name))) return true;
   }
   try {
-    const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
-    return pkg.eslintConfig !== undefined;
+    const pkg: unknown = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+    return isRecord(pkg) && pkg.eslintConfig !== undefined;
   } catch {
     return false;
   }
 }
 
-export function hasPhpstanConfig(repoRoot) {
+export function hasPhpstanConfig(repoRoot: string | null | undefined): boolean {
   if (!repoRoot) return false;
   return ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"].some((name) =>
     existsSync(join(repoRoot, name)),
   );
 }
 
-export function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 1024 }) {
+export function runCommand(
+  command: string,
+  args: readonly string[],
+  { cwd, timeoutMs, maxBytes = 128 * 1024 }: { cwd: string; timeoutMs: number; maxBytes?: number },
+): Promise<CommandResult> {
   return new Promise((resolvePromise) => {
     let child;
     try {
@@ -313,24 +391,24 @@ export function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 102
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       });
-    } catch (error) {
-      resolvePromise({ code: null, stdout: "", stderr: "", error, timedOut: false });
+    } catch (error: unknown) {
+      resolvePromise({ code: null, stdout: "", stderr: "", error: { message: errorMessage(error) }, timedOut: false });
       return;
     }
     let stdout = "";
     let stderr = "";
-    const append = (current, chunk) => {
+    const append = (current: string, chunk: string | Buffer) => {
       if (Buffer.byteLength(current) >= maxBytes) return current;
       return `${current}${chunk}`.slice(0, maxBytes);
     };
-    child.stdout.on("data", (chunk) => { stdout = append(stdout, chunk); });
-    child.stderr.on("data", (chunk) => { stderr = append(stderr, chunk); });
+    child.stdout?.on("data", (chunk: string | Buffer) => { stdout = append(stdout, chunk); });
+    child.stderr?.on("data", (chunk: string | Buffer) => { stderr = append(stderr, chunk); });
     let timedOut = false;
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill("SIGTERM");
     }, timeoutMs);
-    child.on("error", (error) => {
+    child.on("error", (error: Error) => {
       clearTimeout(timer);
       resolvePromise({ code: null, stdout, stderr, error, timedOut });
     });
@@ -341,19 +419,19 @@ export function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 102
   });
 }
 
-export function capOutput(text, maxLines) {
+export function capOutput(text: unknown, maxLines: number): string {
   const lines = String(text ?? "").trim().split(/\r?\n/u).filter(Boolean);
   if (lines.length <= maxLines) return lines.join("\n");
   return [...lines.slice(0, maxLines), `… ${lines.length - maxLines} additional line(s) omitted`].join("\n");
 }
 
-export function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.sessionID ?? event?.context?.session_id ?? "session";
+export function extractSessionId(event: HookEvent): string {
+  return eventSessionId(event) || "session";
 }
 
 export const STATE_DIR_RELATIVE = ".code-quality-guard/state";
 
-function stateFile(event, repoRoot) {
+function stateFile(event: HookEvent, repoRoot: string | null | undefined): string {
   const root = resolve(repoRoot ?? process.cwd());
   const key = createHash("sha256")
     .update(extractSessionId(event))
@@ -362,22 +440,23 @@ function stateFile(event, repoRoot) {
   return join(root, STATE_DIR_RELATIVE, `${key}.json`);
 }
 
-export function readState(event, repoRoot) {
+export function readState(event: HookEvent, repoRoot: string | null | undefined): QualityState {
   const path = stateFile(event, repoRoot);
   if (!path) return { path: null, missing: [], phpFiles: [] };
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+    const record = isRecord(parsed) ? parsed : {};
     return {
       path,
-      missing: Array.isArray(parsed.missing) ? parsed.missing.filter((item) => typeof item === "string") : [],
-      phpFiles: Array.isArray(parsed.phpFiles) ? parsed.phpFiles.filter((item) => typeof item === "string") : [],
+      missing: Array.isArray(record.missing) ? record.missing.filter((item): item is string => typeof item === "string") : [],
+      phpFiles: Array.isArray(record.phpFiles) ? record.phpFiles.filter((item): item is string => typeof item === "string") : [],
     };
   } catch {
     return { path, missing: [], phpFiles: [] };
   }
 }
 
-export function writeState(state) {
+export function writeState(state: QualityState): boolean {
   if (!state.path) return false;
   try {
     const stateDir = dirname(state.path);
@@ -395,14 +474,14 @@ export function writeState(state) {
   }
 }
 
-export function markMissingOnce(state, key) {
+export function markMissingOnce(state: QualityState, key: string): boolean {
   if (state.missing.includes(key)) return false;
   state.missing.push(key);
   writeState(state);
   return true;
 }
 
-export function recordPhpFiles(state, paths) {
+export function recordPhpFiles(state: QualityState, paths: string[]): void {
   state.phpFiles.push(...paths.map((path) => resolve(path)));
   state.phpFiles = [...new Set(state.phpFiles)].slice(-500);
   writeState(state);

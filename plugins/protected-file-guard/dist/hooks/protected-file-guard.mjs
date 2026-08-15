@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bdf8ac6492406af2ccbb72244b8daede251a84a36fd9d117a5e1946b48a65c43
+// harness-source-hash: sha256:2fcbb176e3644bbd85052cd4dec073a079ba9e8d670ee63cec2a1805b186538d
 
 // plugins/protected-file-guard/src/entries/hooks/protected-file-guard.ts
 import { execFileSync } from "node:child_process";
@@ -16,6 +16,44 @@ import {
   resolve as resolve2
 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
 
 // plugins/protected-file-guard/src/lib/protected-file-policy.ts
 var LOCKFILE_GROUPS = [
@@ -118,7 +156,7 @@ function warnDefault(message) {
 `);
 }
 function normalizeUserRule(rule, index, warn2 = warnDefault) {
-  if (!rule || !(rule.match instanceof RegExp)) {
+  if (!isRecord(rule) || !(rule.match instanceof RegExp)) {
     warn2(`rule[${index}]: "match" must be a RegExp, skipping`);
     return null;
   }
@@ -133,18 +171,23 @@ function normalizeUserRule(rule, index, warn2 = warnDefault) {
       return null;
     }
   }
-  return {
-    ...rule,
-    id: rule.id?.trim() || `user-rule-${index + 1}`,
+  const id = typeof rule.id === "string" && rule.id.trim() ? rule.id.trim() : `user-rule-${index + 1}`;
+  const normalized = {
+    id,
+    match: rule.match,
     mode
   };
+  if (typeof rule.reason === "string") normalized.reason = rule.reason;
+  if (typeof rule.recovery === "string") normalized.recovery = rule.recovery;
+  return normalized;
 }
 function resolveRules(userConfig, warn2 = warnDefault) {
-  if (userConfig?.rules !== void 0 && !Array.isArray(userConfig.rules)) {
+  if (!isRecord(userConfig)) return [...BUILTIN_RULES];
+  if (userConfig.rules !== void 0 && !Array.isArray(userConfig.rules)) {
     warn2('config "rules" must be an array; using built-in rules');
     return [...BUILTIN_RULES];
   }
-  const userRules = (userConfig?.rules ?? []).map((rule, index) => normalizeUserRule(rule, index, warn2)).filter(Boolean);
+  const userRules = (Array.isArray(userConfig.rules) ? userConfig.rules : []).map((rule, index) => normalizeUserRule(rule, index, warn2)).filter((rule) => rule !== null);
   return [...userRules, ...BUILTIN_RULES];
 }
 function regexMatches(pattern, value) {
@@ -159,44 +202,6 @@ function matchRule(matchPaths, rules) {
     if (matchPaths.some((path) => regexMatches(rule.match, path))) return rule;
   }
   return null;
-}
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
 }
 
 // core/src/hook-targets.ts
@@ -489,6 +494,7 @@ function unwrapCommand(tokens) {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
+    if (token === void 0) break;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
       index += 1;
       continue;
@@ -496,7 +502,9 @@ function unwrapCommand(tokens) {
     const name = tokenBasename(token);
     if (SIMPLE_WRAPPERS.has(name)) {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-") && tokens[index] !== "--") {
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-") || option === "--") break;
         index += 1;
       }
       if (tokens[index] === "--") index += 1;
@@ -504,8 +512,9 @@ function unwrapCommand(tokens) {
     }
     if (name === "sudo") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
         index += 1;
         if (["-C", "-g", "-u", "--group", "--user"].includes(option)) index += 1;
       }
@@ -513,22 +522,32 @@ function unwrapCommand(tokens) {
     }
     if (name === "env") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     if (name === "timeout") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
         index += 1;
         if (["-k", "-s", "--kill-after", "--signal"].includes(option)) index += 1;
       }
-      if (index < tokens.length && !tokens[index].startsWith("-")) index += 1;
+      const duration = tokens[index];
+      if (duration !== void 0 && !duration.startsWith("-")) index += 1;
       continue;
     }
     if (name === "nice" || name === "stdbuf") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === void 0 || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     break;
@@ -540,6 +559,7 @@ function nonFlagOperands(args) {
   let skipNext = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === void 0) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -559,6 +579,7 @@ function nonFlagOperands(args) {
 function targetDirectory(args) {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === void 0) continue;
     if (arg === "-t" || arg === "--target-directory") {
       return args[index + 1] ?? "";
     }
@@ -572,7 +593,8 @@ function copyDestTargets(args) {
   const dest = targetDirectory(args);
   if (dest) return [dest];
   const operands = nonFlagOperands(args);
-  return operands.length ? [operands.at(-1)] : [];
+  const last = operands.at(-1);
+  return last === void 0 ? [] : [last];
 }
 function moveWriteTargets(args) {
   const dest = targetDirectory(args);
@@ -592,6 +614,7 @@ function sedWriteTargets(args) {
   let skippedScript = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === void 0) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -718,7 +741,7 @@ async function loadUserConfig(repoRoot) {
       const loaded = await import(pathToFileURL(configPath).href);
       return loaded.default ?? loaded;
     } catch (error) {
-      warn(`failed to load ${name}: ${error.message}`);
+      warn(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
@@ -787,7 +810,7 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve2(process.argv[1])) {
   main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

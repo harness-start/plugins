@@ -10,7 +10,7 @@ import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
-import { evaluatePrintWrite, validatePrintModel } from "../../lib/contract.js";
+import { evaluatePrintWrite, validatePrintModel, type ContractFinding } from "../../lib/contract.js";
 
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIRECTORY = resolve(
@@ -18,29 +18,37 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
 
-function deny(reason) {
+function deny(reason: string) {
   return preToolDeny(`[Print Project Delivery Guard] ${reason}`);
 }
 
-async function findingsFor(cwd) {
-  const findings = [];
+type ProjectFinding = ContractFinding & { artifactId: string };
+
+function targetStageOf(plan: unknown): unknown {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan)
+    ? (plan as Record<string, unknown>).targetStage
+    : undefined;
+}
+
+async function findingsFor(cwd: string): Promise<ProjectFinding[]> {
+  const findings: ProjectFinding[] = [];
   const { roots } = await findCarrierProjects(cwd, "print");
   for (const root of roots) {
     const collected = await collectProjectFiles(root, { maxFiles: 2048 });
     if (!("plan.contract.json" in collected.files)) continue;
-    let plan = null;
-    let project = null;
+    let plan: unknown = null;
+    let project: unknown = null;
     try { plan = JSON.parse(collected.files["plan.contract.json"] ?? ""); } catch {}
     try { project = JSON.parse(collected.files["print.project.json"] ?? ""); } catch {}
     const model = { artifactId: basename(root), files: collected.files, digests: collected.digests, plan, project };
-    for (const item of validatePrintModel(model, { stage: plan?.targetStage ?? "source" })) {
+    for (const item of validatePrintModel(model, { stage: targetStageOf(plan) ?? "source" })) {
       findings.push({ artifactId: model.artifactId, ...item });
     }
   }
   return findings;
 }
 
-function format(findings) {
+function format(findings: ProjectFinding[]): string {
   return [
     "[Print Project Delivery Guard] Project contract violations",
     ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`),
@@ -93,8 +101,8 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
-    process.stderr.write(`[Print Project Delivery Guard] ${error.message}\n`);
+  main().catch((error: unknown) => {
+    process.stderr.write(`[Print Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;
   });
 }

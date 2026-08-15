@@ -4,11 +4,11 @@
 
 import { basename, extname } from "node:path";
 
-export function matchExt(filePath, exts) {
+export function matchExt(filePath: string, exts: readonly string[]): boolean {
   return exts.includes(extname(filePath).toLowerCase());
 }
 
-export function matchName(filePath, names) {
+export function matchName(filePath: string, names: readonly string[]): boolean {
   return names.includes(basename(filePath));
 }
 
@@ -23,10 +23,10 @@ const SHELL_TOOLS =
  * Normalize host tool names so Claude (ApplyPatch/Bash) and Codex
  * (apply_patch/shell_command/exec_command) share one switch surface.
  */
-export function normalizeToolName(toolName) {
+export function normalizeToolName(toolName: unknown): string {
   if (typeof toolName !== "string" || !toolName) return "";
   const lower = toolName.trim().toLowerCase();
-  const map = {
+  const map: Record<string, string> = {
     apply_patch: "ApplyPatch",
     applypatch: "ApplyPatch",
     write: "Write",
@@ -42,7 +42,8 @@ export function normalizeToolName(toolName) {
     exec: "Shell",
     local_shell: "Shell",
   };
-  if (map[lower]) return map[lower];
+  const mapped = map[lower];
+  if (mapped) return mapped;
   // Preserve original casing for already-canonical Claude names.
   if (/^(Edit|Write|MultiEdit|ApplyPatch|NotebookEdit|Bash|Shell)$/.test(toolName)) {
     return toolName;
@@ -50,10 +51,10 @@ export function normalizeToolName(toolName) {
   return toolName;
 }
 
-export function isWriteTool(toolName) {
+export function isWriteTool(toolName: unknown): boolean {
   return typeof toolName === "string" && WRITE_TOOLS.test(toolName);
 }
 
-export function isShellTool(toolName) {
+export function isShellTool(toolName: unknown): boolean {
   return typeof toolName === "string" && SHELL_TOOLS.test(toolName);
 }

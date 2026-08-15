@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ce1391e033b4614b0a6cb38d556dda14dccc49c8c48ad0139447594c66cc58ca
+// harness-source-hash: sha256:21339e5aa2f538881d437fbd29dbff83b962e871c2e0409ac2452689fb50a359
 import {
   evaluatePosterWrite,
   validatePosterModel
-} from "../chunks/chunk-CFMAUBMU.mjs";
+} from "../chunks/chunk-J5YS3GVE.mjs";
 
 // plugins/poster-project-delivery-guard/src/entries/hooks/poster-project-delivery-guard.ts
 import { createHash } from "node:crypto";
@@ -264,18 +264,22 @@ function parseShellWords(command) {
 function expandKnownPluginRoot(command) {
   let expanded = String(command ?? "");
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
-    if (process.env[name]) expanded = expanded.replaceAll(`\${${name}}`, resolve2(process.env[name]));
+    const value = process.env[name];
+    if (value) expanded = expanded.replaceAll(`\${${name}}`, resolve2(value));
   }
   return expanded;
 }
 function wrapperInvocation(words, cwd, workspaceRoot) {
-  if (!words || words.length < 3 || !["node", basename(process.execPath), process.execPath].includes(words[0]) || words[1].startsWith("-")) {
+  const first = words?.[0];
+  const second = words?.[1];
+  const third = words?.[2];
+  if (!words || words.length < 3 || first === void 0 || second === void 0 || third === void 0 || !["node", basename(process.execPath), process.execPath].includes(first) || second.startsWith("-")) {
     return null;
   }
-  const script = isAbsolute2(words[1]) ? resolve2(words[1]) : resolve2(cwd, words[1]);
+  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
   const name = basename(script);
   if (dirname(script) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(words[2]) ? resolve2(words[2]) : resolve2(cwd, words[2]);
+  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
   if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) {
     return null;
   }
@@ -284,14 +288,15 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   return { name, projectRoot };
 }
 function readOnlyCommand(words) {
-  if (!words?.length || words[0] !== basename(words[0]) || !READ_ONLY.has(words[0])) return false;
-  if (words[0] === "git") {
+  const command = words?.[0];
+  if (!words?.length || command === void 0 || command !== basename(command) || !READ_ONLY.has(command)) return false;
+  if (command === "git") {
     if (!["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
     if (words.some((word) => word === "--output" || word.startsWith("--output=") || /^-o.+/u.test(word) || ["--ext-diff", "--textconv"].includes(word))) {
       return false;
     }
   }
-  if (words[0] === "rg" && words.some((word) => word === "--pre" || word.startsWith("--pre="))) return false;
+  if (command === "rg" && words.some((word) => word === "--pre" || word.startsWith("--pre="))) return false;
   return true;
 }
 function touchesPoster(command, cwd, workspaceRoot) {
@@ -341,7 +346,7 @@ async function discover(cwd) {
   try {
     return (await readdir(root, { withFileTypes: true })).filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name)).slice(0, 32).map((entry) => join(root, entry.name));
   } catch (error) {
-    if (error?.code === "ENOENT") return [];
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return [];
     throw error;
   }
 }
@@ -361,6 +366,9 @@ async function collect(root, directory, files, digests, bytesMap) {
     }
   }
 }
+function targetStageOf(plan) {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0;
+}
 async function findingsFor(cwd) {
   const findings = [];
   for (const root of await discover(cwd)) {
@@ -372,15 +380,15 @@ async function findingsFor(cwd) {
     let plan = null;
     let project = null;
     try {
-      plan = JSON.parse(files["plan.contract.json"]);
+      plan = JSON.parse(String(files["plan.contract.json"] ?? ""));
     } catch {
     }
     try {
-      project = JSON.parse(files["poster.project.json"]);
+      project = JSON.parse(String(files["poster.project.json"] ?? ""));
     } catch {
     }
     const model = { artifactId: basename2(root), files, digests, bytes, plan, project };
-    for (const item of validatePosterModel(model, { stage: plan?.targetStage ?? "source" })) findings.push({ artifactId: model.artifactId, ...item });
+    for (const item of validatePosterModel(model, { stage: targetStageOf(plan) ?? "source" })) findings.push({ artifactId: model.artifactId, ...item });
   }
   return findings;
 }
@@ -427,7 +435,7 @@ async function main() {
   }
 }
 if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {
-  process.stderr.write(`[Poster Project Delivery Guard] ${error.message}
+  process.stderr.write(`[Poster Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

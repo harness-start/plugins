@@ -45,10 +45,83 @@ export const PROFILE_WEIGHTS = {
   },
 };
 
-const clamp01 = (value) => Math.max(0, Math.min(1, value));
-const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+export type MetricKey =
+  | "harmonicCoherence"
+  | "voiceLeading"
+  | "rhythmicFit"
+  | "motifCoherence"
+  | "structuralArc"
+  | "registerSeparation"
+  | "controlledNovelty";
 
-export function euclideanPattern(pulses, steps) {
+export type MetricWeights = Record<MetricKey, number>;
+export type MetricVector = Record<MetricKey, number>;
+export type ProfileName = keyof typeof PROFILE_WEIGHTS;
+
+export type CompositionSection = {
+  id: string;
+  startBar: number;
+  bars: number;
+  key: string;
+  mode: string;
+  chords: number[];
+  energy: number;
+};
+
+export type CompositionMotif = {
+  id: string;
+  degrees: number[];
+  rhythmTicks: number[];
+};
+
+export type CompositionTrack = {
+  id: string;
+  role: string;
+  instrument: string;
+  motif: string;
+  octave: number;
+  sections: string[];
+};
+
+export type CompositionSpec = {
+  schema: string;
+  id: string;
+  title?: string;
+  bpm: number;
+  timeSignature: number[];
+  bars: number;
+  seed: number;
+  profile: string;
+  sections: CompositionSection[];
+  motifs: CompositionMotif[];
+  tracks: CompositionTrack[];
+};
+
+export type ScoreEvent = {
+  startTick: number;
+  durationTick: number;
+  midi: number;
+  velocity: number;
+  voice: string;
+  sectionId: string;
+  chordDegree: number | undefined;
+};
+
+export type RenderedTrack = {
+  id: string;
+  role: string;
+  instrument: string;
+  events: ScoreEvent[];
+};
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+const digest = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function euclideanPattern(pulses: number, steps: number): Array<0 | 1> {
   if (!Number.isInteger(steps) || steps <= 0 || !Number.isInteger(pulses) || pulses < 0 || pulses > steps) {
     throw new Error("EUCLIDEAN_ARGUMENT_INVALID");
   }
@@ -57,57 +130,121 @@ export function euclideanPattern(pulses, steps) {
   ));
 }
 
-function assertComposition(spec) {
-  if (spec?.schema !== "tonejs-composition/v1") throw new Error("COMPOSITION_SCHEMA_INVALID");
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(spec?.id ?? "")) throw new Error("COMPOSITION_ID_INVALID");
-  if (!Number.isFinite(spec?.bpm) || spec.bpm < 20 || spec.bpm > 300) throw new Error("BPM_INVALID");
-  if (!Number.isInteger(spec?.bars) || spec.bars <= 0) throw new Error("BARS_INVALID");
-  if (!Number.isInteger(spec?.seed)) throw new Error("SEED_INVALID");
-  if (!Array.isArray(spec?.timeSignature) || spec.timeSignature.length !== 2
-    || !Number.isInteger(spec.timeSignature[0]) || spec.timeSignature[0] < 1 || spec.timeSignature[0] > 16
-    || ![1, 2, 4, 8, 16].includes(spec.timeSignature[1])) throw new Error("TIME_SIGNATURE_INVALID");
-  if (!(spec.profile in PROFILE_WEIGHTS)) throw new Error("PROFILE_INVALID");
-  if (!Array.isArray(spec.sections) || spec.sections.length === 0 || spec.sections.some((section) => (
-    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(section.id ?? "")
-    || !Number.isInteger(section.startBar) || !Number.isInteger(section.bars) || section.startBar < 0 || section.bars <= 0 || section.startBar + section.bars > spec.bars
-    || !Number.isFinite(section.energy) || section.energy < 0 || section.energy > 1
-    || !Array.isArray(section.chords) || section.chords.length === 0 || section.chords.some((degree) => !Number.isInteger(degree) || degree < 1 || degree > 7)
-    || !PITCH_CLASSES.has(section.key) || !(section.mode in MODE_INTERVALS)
-  ))) throw new Error("SECTION_INVALID");
-  const sortedSections = spec.sections.toSorted((left, right) => left.startBar - right.startBar);
-  if (new Set(spec.sections.map(({ id }) => id)).size !== spec.sections.length
-    || sortedSections.some((section, index) => index > 0 && section.startBar < sortedSections[index - 1].startBar + sortedSections[index - 1].bars)) throw new Error("SECTION_INVALID");
-  if (!Array.isArray(spec.motifs) || spec.motifs.length === 0 || spec.motifs.some((motif) => (
-    !Array.isArray(motif.degrees) || motif.degrees.length === 0 || motif.degrees.some((degree) => !Number.isInteger(degree) || degree < -28 || degree > 28)
-    || !Array.isArray(motif.rhythmTicks) || motif.rhythmTicks.length !== motif.degrees.length || motif.rhythmTicks.some((ticks) => !Number.isInteger(ticks) || ticks <= 0)
-  )) || new Set(spec.motifs.map(({ id }) => id)).size !== spec.motifs.length) throw new Error("MOTIF_INVALID");
-  if (!Array.isArray(spec.tracks) || spec.tracks.length === 0 || spec.tracks.length > 8 || spec.tracks.some((track) => !Number.isInteger(track.octave) || track.octave < -1 || track.octave > 9)
-    || new Set(spec.tracks.map(({ id }) => id)).size !== spec.tracks.length) throw new Error("TRACK_INVALID");
-  const durationSeconds = spec.bars * spec.timeSignature[0] * (4 / spec.timeSignature[1]) * 60 / spec.bpm;
+function asSection(value: unknown): CompositionSection {
+  const record = isRecord(value) ? value : {};
+  return {
+    id: typeof record.id === "string" ? record.id : String(record.id ?? ""),
+    startBar: record.startBar as number,
+    bars: record.bars as number,
+    key: typeof record.key === "string" ? record.key : String(record.key ?? ""),
+    mode: typeof record.mode === "string" ? record.mode : String(record.mode ?? ""),
+    chords: Array.isArray(record.chords) ? record.chords as number[] : [],
+    energy: record.energy as number,
+  };
+}
+
+function asMotif(value: unknown): CompositionMotif {
+  const record = isRecord(value) ? value : {};
+  return {
+    id: typeof record.id === "string" ? record.id : String(record.id ?? ""),
+    degrees: Array.isArray(record.degrees) ? record.degrees as number[] : [],
+    rhythmTicks: Array.isArray(record.rhythmTicks) ? record.rhythmTicks as number[] : [],
+  };
+}
+
+function asTrack(value: unknown): CompositionTrack {
+  const record = isRecord(value) ? value : {};
+  return {
+    id: typeof record.id === "string" ? record.id : String(record.id ?? ""),
+    role: typeof record.role === "string" ? record.role : String(record.role ?? ""),
+    instrument: typeof record.instrument === "string" ? record.instrument : String(record.instrument ?? ""),
+    motif: typeof record.motif === "string" ? record.motif : String(record.motif ?? ""),
+    octave: record.octave as number,
+    sections: Array.isArray(record.sections) ? record.sections.map((item) => String(item)) : [],
+  };
+}
+
+function assertComposition(spec: unknown): asserts spec is CompositionSpec {
+  const record = isRecord(spec) ? spec : {};
+  if (record.schema !== "tonejs-composition/v1") throw new Error("COMPOSITION_SCHEMA_INVALID");
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(typeof record.id === "string" ? record.id : String(record.id ?? ""))) throw new Error("COMPOSITION_ID_INVALID");
+  if (!Number.isFinite(record.bpm) || (record.bpm as number) < 20 || (record.bpm as number) > 300) throw new Error("BPM_INVALID");
+  if (!Number.isInteger(record.bars) || (record.bars as number) <= 0) throw new Error("BARS_INVALID");
+  if (!Number.isInteger(record.seed)) throw new Error("SEED_INVALID");
+  const timeSignature = Array.isArray(record.timeSignature) ? record.timeSignature : [];
+  const numerator = timeSignature[0];
+  const denominator = timeSignature[1];
+  if (!Array.isArray(record.timeSignature) || record.timeSignature.length !== 2
+    || !Number.isInteger(numerator) || (numerator as number) < 1 || (numerator as number) > 16
+    || ![1, 2, 4, 8, 16].includes(denominator as number)) throw new Error("TIME_SIGNATURE_INVALID");
+  if (typeof record.profile !== "string" || !(record.profile in PROFILE_WEIGHTS)) throw new Error("PROFILE_INVALID");
+  if (!Array.isArray(record.sections) || record.sections.length === 0 || record.sections.some((section) => {
+    const item = isRecord(section) ? section : {};
+    return !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(typeof item.id === "string" ? item.id : String(item.id ?? ""))
+    || !Number.isInteger(item.startBar) || !Number.isInteger(item.bars) || (item.startBar as number) < 0 || (item.bars as number) <= 0 || (item.startBar as number) + (item.bars as number) > (record.bars as number)
+    || !Number.isFinite(item.energy) || (item.energy as number) < 0 || (item.energy as number) > 1
+    || !Array.isArray(item.chords) || item.chords.length === 0 || item.chords.some((degree) => !Number.isInteger(degree) || (degree as number) < 1 || (degree as number) > 7)
+    || !PITCH_CLASSES.has(typeof item.key === "string" ? item.key : String(item.key ?? "")) || !(typeof item.mode === "string" && item.mode in MODE_INTERVALS);
+  })) throw new Error("SECTION_INVALID");
+  const sections = record.sections.map(asSection);
+  const sortedSections = sections.toSorted((left, right) => left.startBar - right.startBar);
+  if (new Set(sections.map(({ id }) => id)).size !== sections.length
+    || sortedSections.some((section, index) => {
+      const previous = sortedSections[index - 1];
+      return index > 0 && previous !== undefined && section.startBar < previous.startBar + previous.bars;
+    })) throw new Error("SECTION_INVALID");
+  if (!Array.isArray(record.motifs) || record.motifs.length === 0 || record.motifs.some((motif) => {
+    const item = isRecord(motif) ? motif : {};
+    return !Array.isArray(item.degrees) || item.degrees.length === 0 || item.degrees.some((degree) => !Number.isInteger(degree) || (degree as number) < -28 || (degree as number) > 28)
+    || !Array.isArray(item.rhythmTicks) || item.rhythmTicks.length !== item.degrees.length || item.rhythmTicks.some((ticks) => !Number.isInteger(ticks) || (ticks as number) <= 0);
+  }) || new Set(record.motifs.map((motif) => asMotif(motif).id)).size !== record.motifs.length) throw new Error("MOTIF_INVALID");
+  if (!Array.isArray(record.tracks) || record.tracks.length === 0 || record.tracks.length > 8 || record.tracks.some((track) => {
+    const item = isRecord(track) ? track : {};
+    return !Number.isInteger(item.octave) || (item.octave as number) < -1 || (item.octave as number) > 9;
+  }) || new Set(record.tracks.map((track) => asTrack(track).id)).size !== record.tracks.length) throw new Error("TRACK_INVALID");
+  const durationSeconds = (record.bars as number) * (numerator as number) * (4 / (denominator as number)) * 60 / (record.bpm as number);
   if (durationSeconds > 180) throw new Error("DURATION_LIMIT_EXCEEDED");
 }
 
-function ticksPerBar([numerator, denominator]) {
-  const value = PPQ * numerator * (4 / denominator);
+function ticksPerBar([numerator, denominator]: number[] | readonly [number, number]) {
+  const value = PPQ * Number(numerator) * (4 / Number(denominator));
   if (!Number.isInteger(value) || value <= 0) throw new Error("TIME_SIGNATURE_INVALID");
   return value;
 }
 
-function degreeToMidi({ degree, key, mode, octave }) {
+function modeIntervals(mode: string): number[] | undefined {
+  if (mode === "major" || mode === "minor") return MODE_INTERVALS[mode];
+  return undefined;
+}
+
+function degreeToMidi({ degree, key, mode, octave }: {
+  degree: number;
+  key: string;
+  mode: string;
+  octave: number;
+}) {
   const tonic = PITCH_CLASSES.get(key);
-  const intervals = MODE_INTERVALS[mode];
+  const intervals = modeIntervals(mode);
   if (tonic === undefined || !intervals) throw new Error("TONALITY_INVALID");
   const scaleLength = intervals.length;
   const octaveOffset = Math.floor(degree / scaleLength);
   const normalizedDegree = ((degree % scaleLength) + scaleLength) % scaleLength;
-  return 12 * (octave + 1 + octaveOffset) + tonic + intervals[normalizedDegree];
+  const interval = intervals[normalizedDegree];
+  if (interval === undefined) throw new Error("TONALITY_INVALID");
+  return 12 * (octave + 1 + octaveOffset) + tonic + interval;
 }
 
-function eventsForTrack(spec, track, motifById, sectionById, barTicks) {
+function eventsForTrack(
+  spec: CompositionSpec,
+  track: CompositionTrack,
+  motifById: Map<string, CompositionMotif>,
+  sectionById: Map<string, CompositionSection>,
+  barTicks: number,
+): ScoreEvent[] {
   const motif = motifById.get(track.motif);
   if (!motif) throw new Error(`MOTIF_NOT_FOUND:${track.motif}`);
   if (motif.degrees.length !== motif.rhythmTicks.length || motif.degrees.length === 0) throw new Error(`MOTIF_INVALID:${motif.id}`);
-  const events = [];
+  const events: ScoreEvent[] = [];
   for (const sectionId of track.sections) {
     const section = sectionById.get(sectionId);
     if (!section) throw new Error(`SECTION_NOT_FOUND:${sectionId}`);
@@ -118,45 +255,49 @@ function eventsForTrack(spec, track, motifById, sectionById, barTicks) {
     while (cursor < sectionEnd) {
       const position = motifIndex % motif.degrees.length;
       const durationTick = motif.rhythmTicks[position];
-      if (!Number.isInteger(durationTick) || durationTick <= 0) throw new Error(`RHYTHM_INVALID:${motif.id}`);
-      if (cursor + durationTick > sectionEnd) break;
+      if (!Number.isInteger(durationTick) || (durationTick as number) <= 0) throw new Error(`RHYTHM_INVALID:${motif.id}`);
+      if (cursor + (durationTick as number) > sectionEnd) break;
       events.push({
         startTick: cursor,
-        durationTick,
-        midi: degreeToMidi({ degree: motif.degrees[position], key: section.key, mode: section.mode, octave: track.octave }),
+        durationTick: durationTick as number,
+        midi: degreeToMidi({ degree: motif.degrees[position] as number, key: section.key, mode: section.mode, octave: track.octave }),
         velocity: Math.round(64 + 48 * clamp01(section.energy)),
         voice: track.id,
         sectionId,
         chordDegree: section.chords[Math.floor((cursor - sectionStart) / barTicks) % section.chords.length],
       });
-      cursor += durationTick;
+      cursor += durationTick as number;
       motifIndex += 1;
     }
   }
   return events;
 }
 
-function mean(values, fallback = 1) {
+function mean(values: number[], fallback = 1) {
   return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : fallback;
 }
 
-function chordPitchClasses(section, chordDegree) {
+function chordPitchClasses(section: CompositionSection | undefined, chordDegree: number | string | undefined) {
+  if (!section) return new Set<number>();
   const tonic = PITCH_CLASSES.get(section.key);
-  const scale = MODE_INTERVALS[section.mode];
-  if (tonic === undefined || !scale || !Number.isInteger(chordDegree)) return new Set();
-  const root = chordDegree - 1;
+  const scale = modeIntervals(section.mode);
+  if (tonic === undefined || !scale || !Number.isInteger(chordDegree)) return new Set<number>();
+  const root = Number(chordDegree) - 1;
   return new Set([root, root + 2, root + 4].map((degree) => {
     const octave = Math.floor(degree / scale.length);
-    return (tonic + scale[((degree % scale.length) + scale.length) % scale.length] + octave * 12) % 12;
+    const index = ((degree % scale.length) + scale.length) % scale.length;
+    const interval = scale[index] ?? 0;
+    return (tonic + interval + octave * 12) % 12;
   }));
 }
 
-function scoreVector(spec, tracks, novelty) {
+function scoreVector(spec: CompositionSpec, tracks: RenderedTrack[], novelty: number): MetricVector {
   const events = tracks.flatMap((track) => track.events);
   const sections = new Map(spec.sections.map((section) => [section.id, section]));
   const harmonic = events.map((event) => chordPitchClasses(sections.get(event.sectionId), event.chordDegree).has(event.midi % 12) ? 1 : 0.6);
   const voiceLeading = tracks.map((track) => mean(track.events.slice(1).map((event, index) => {
-    const interval = Math.abs(event.midi - track.events[index].midi);
+    const previous = track.events[index];
+    const interval = Math.abs(event.midi - (previous ? previous.midi : event.midi));
     return 1 / (1 + Math.max(0, interval - 2) / 12);
   })));
   const grid = PPQ / 4;
@@ -166,13 +307,13 @@ function scoreVector(spec, tracks, novelty) {
     const motifLength = spec.motifs.find((motif) => motif.id === sourceTrack.motif)?.degrees.length ?? 0;
     if (!track || motifLength <= 0 || track.events.length <= motifLength) return 1;
     return mean(track.events.slice(motifLength).map((event, index) => (
-      event.midi % 12 === track.events[index].midi % 12 && event.durationTick === track.events[index].durationTick ? 1 : 0
+      event.midi % 12 === (track.events[index]?.midi ?? event.midi) % 12 && event.durationTick === (track.events[index]?.durationTick ?? event.durationTick) ? 1 : 0
     )));
   });
   const occupiedTicks = events.reduce((sum, event) => sum + event.durationTick, 0);
   const totalTicks = ticksPerBar(spec.timeSignature) * spec.bars * Math.max(1, tracks.length);
   const density = clamp01(occupiedTicks / totalTicks);
-  const energySmoothness = mean(spec.sections.slice(1).map((section, index) => 1 - clamp01(Math.abs(section.energy - spec.sections[index].energy))));
+  const energySmoothness = mean(spec.sections.slice(1).map((section, index) => 1 - clamp01(Math.abs(section.energy - (spec.sections[index]?.energy ?? section.energy)))));
   const coverage = clamp01(spec.sections.reduce((sum, section) => sum + section.bars, 0) / spec.bars);
   const centers = tracks.map((track) => mean(track.events.map((event) => event.midi), 60));
   const separations = centers.flatMap((center, index) => centers.slice(index + 1).map((other) => clamp01(Math.abs(center - other) / 12)));
@@ -187,11 +328,18 @@ function scoreVector(spec, tracks, novelty) {
   };
 }
 
-function weightedScore(vector, weights) {
-  return Object.entries(weights).reduce((total, [key, weight]) => total + vector[key] * weight, 0);
+function weightedScore(vector: MetricVector, weights: MetricWeights) {
+  return Object.entries(weights).reduce((total, [key, weight]) => total + Number(vector[key as MetricKey]) * Number(weight), 0);
 }
 
-export function optimizeComposition(spec) {
+function profileWeights(profile: string): MetricWeights {
+  if (profile === "tonal-classical" || profile === "pop-electronic" || profile === "ambient-cinematic") {
+    return PROFILE_WEIGHTS[profile];
+  }
+  throw new Error("PROFILE_INVALID");
+}
+
+export function optimizeComposition(spec: unknown) {
   assertComposition(spec);
   const barTicks = ticksPerBar(spec.timeSignature);
   const sectionById = new Map(spec.sections.map((section) => [section.id, section]));
@@ -210,16 +358,16 @@ export function optimizeComposition(spec) {
       instrument: track.instrument,
       events: eventsForTrack(spec, track, motifById, sectionById, barTicks),
     }));
-    const hardViolations = tracks.flatMap((track) => track.events
+    const hardViolations: Array<{ code: string; trackId?: string }> = tracks.flatMap((track) => track.events
       .filter((event) => Object.values(event).some((value) => typeof value === "number" && !Number.isFinite(value))
         || event.startTick < 0 || event.startTick + event.durationTick > spec.bars * barTicks || event.midi < 0 || event.midi > 127 || event.velocity < 0 || event.velocity > 127)
       .map(() => ({ code: "EVENT_OUT_OF_RANGE", trackId: track.id })));
     if (tracks.every((track) => track.events.length === 0)) hardViolations.push({ code: "COMPOSITION_SILENT" });
     const noveltyValues = motifs.flatMap((motif, motifIndex) => motif.degrees.map((degree, degreeIndex) => (
-      clamp01(Math.abs(degree - baseMotifs[motifIndex].degrees[degreeIndex]) / 7)
+      clamp01(Math.abs(degree - (baseMotifs[motifIndex]?.degrees[degreeIndex] ?? degree)) / 7)
     )));
     const metrics = scoreVector(spec, tracks, mean(noveltyValues, 0));
-    const overall = weightedScore(metrics, PROFILE_WEIGHTS[spec.profile]);
+    const overall = weightedScore(metrics, profileWeights(spec.profile));
     const contentDigest = digest(tracks);
     const id = digest({ seed: spec.seed, contentDigest, profile: spec.profile }).slice(0, 16);
     return { id, contentDigest, tracks, hardViolations, metrics: { ...metrics, overall } };
@@ -229,6 +377,7 @@ export function optimizeComposition(spec) {
   if (eligible.length === 0) throw new Error("NO_VALID_CANDIDATE");
   eligible.sort((left, right) => right.metrics.overall - left.metrics.overall || left.id.localeCompare(right.id));
   const selected = eligible[0];
+  if (!selected) throw new Error("NO_VALID_CANDIDATE");
   return {
     schema: "tonejs-symbolic-score/v1",
     engine: MUSIC_ENGINE,

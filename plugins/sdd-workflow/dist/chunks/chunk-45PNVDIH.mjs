@@ -1,4 +1,31 @@
-// harness-source-hash: sha256:019842eddaaaa3200c327f3d06f42b3a86e3f7fcb3fbd566c1556b872f0d609c
+// harness-source-hash: sha256:c8ec552415b90cbd7f90d64b58f8a5e36f463ae272ee86f95934562875a15576
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
 
 // plugins/sdd-workflow/src/lib/artifacts.ts
 import { createHash } from "node:crypto";
@@ -13,6 +40,9 @@ var REQUIRED_SPEC_SECTIONS = ["Intent", "Requirements", "Non-goals"];
 var REQUIRED_PLAN_SECTIONS = ["Approach", "Change Surface", "Risks", "Validation"];
 function finding(code, message, artifact = null) {
   return { code, message, artifact };
+}
+function isErrno(error) {
+  return isRecord(error) && typeof error.code === "string";
 }
 function maskRange(text) {
   return text.replace(/[^\n]/gu, " ");
@@ -31,7 +61,7 @@ function maskFencedBlocks(text) {
     }
     const open = body.match(/^ {0,3}(`{3,}|~{3,})/u)?.[1];
     if (open) {
-      fence = { character: open[0], length: open.length };
+      fence = { character: open[0] ?? "", length: open.length };
       visible += maskRange(line);
     } else visible += line;
   }
@@ -43,10 +73,12 @@ function maskCodeSpans(text) {
   const runs = [...text.matchAll(/`+/gu)];
   for (let index = 0; index < runs.length; index += 1) {
     const open = runs[index];
+    if (!open || open.index === void 0) continue;
     let closeIndex = index + 1;
-    while (closeIndex < runs.length && runs[closeIndex][0].length !== open[0].length) closeIndex += 1;
+    while (closeIndex < runs.length && runs[closeIndex]?.[0].length !== open[0].length) closeIndex += 1;
     if (closeIndex >= runs.length) continue;
     const close = runs[closeIndex];
+    if (!close || close.index === void 0) continue;
     visible += text.slice(cursor, open.index);
     visible += maskRange(text.slice(open.index, close.index + close[0].length));
     cursor = close.index + close[0].length;
@@ -88,8 +120,10 @@ function sections(text, level = 2) {
   const matches = [...text.matchAll(expression)];
   const result = /* @__PURE__ */ new Map();
   for (let index = 0; index < matches.length; index += 1) {
-    const name = matches[index][1].trim();
-    const start = matches[index].index + matches[index][0].length;
+    const current = matches[index];
+    if (!current?.[1] || current.index === void 0) continue;
+    const name = current[1].trim();
+    const start = current.index + current[0].length;
     const end = matches[index + 1]?.index ?? text.length;
     const values = result.get(name.toLowerCase()) ?? [];
     values.push(text.slice(start, end).trim());
@@ -116,13 +150,15 @@ function validateSpecText(input) {
   const sectionMap = sections(syntax);
   requireUniqueSections(sectionMap, REQUIRED_SPEC_SECTIONS, "spec.md", findings);
   if (unresolved(syntax)) findings.push(finding("unresolved-marker", "spec.md contains an unresolved marker.", "spec.md"));
-  const requirementBody = (sectionMap.get("requirements") ?? [""])[0];
+  const requirementBody = (sectionMap.get("requirements") ?? [""])[0] ?? "";
   const headings = [...requirementBody.matchAll(/^###\s+(REQ-\d{3}):\s*(\S.*?)\s*$/gmu)];
   const requirements = [];
   const seen = /* @__PURE__ */ new Set();
   for (let index = 0; index < headings.length; index += 1) {
-    const id = headings[index][1];
-    const start = headings[index].index + headings[index][0].length;
+    const heading = headings[index];
+    if (!heading?.[1] || heading[2] === void 0 || heading.index === void 0) continue;
+    const id = heading[1];
+    const start = heading.index + heading[0].length;
     const end = headings[index + 1]?.index ?? requirementBody.length;
     const body = requirementBody.slice(start, end);
     if (seen.has(id)) findings.push(finding("duplicate-requirement", `Duplicate requirement ${id}.`, "spec.md"));
@@ -131,14 +167,14 @@ function validateSpecText(input) {
     if (scenarios.length === 0 || !/^-\s+Given\b\s*\S/imu.test(body) || !/^-\s+When\b\s*\S/imu.test(body) || !/^-\s+Then\b\s*\S/imu.test(body)) {
       findings.push(finding("invalid-scenario", `${id} requires a Scenario with non-empty Given, When, and Then bullets.`, "spec.md"));
     }
-    requirements.push({ id, title: headings[index][2].trim() });
+    requirements.push({ id, title: heading[2].trim() });
   }
   if (requirements.length === 0) findings.push(finding("missing-requirement", "spec.md requires at least one ### REQ-NNN requirement.", "spec.md"));
   return { kind: "spec", text, digest: digestText(text), requirements, findings };
 }
 function digestField(text, name) {
   const matches = [...text.matchAll(new RegExp(`^${name}:\\s*sha256:([0-9a-f]{64})\\s*$`, "gmu"))];
-  return matches.length === 1 ? matches[0][1] : null;
+  return matches.length === 1 ? matches[0]?.[1] ?? null : null;
 }
 function validatePlanText(input, specResult) {
   const text = canonicalText(input);
@@ -197,8 +233,10 @@ function validateTasksText(input, specResult, planResult, repoRoot = null) {
   const headings = [...syntax.matchAll(/^##\s+(TASK-\d{3}):\s*(\S.*?)\s*$/gmu)];
   const tasks = /* @__PURE__ */ new Map();
   for (let index = 0; index < headings.length; index += 1) {
-    const id = headings[index][1];
-    const start = headings[index].index + headings[index][0].length;
+    const heading = headings[index];
+    if (!heading?.[1] || heading.index === void 0) continue;
+    const id = heading[1];
+    const start = heading.index + heading[0].length;
     const end = headings[index + 1]?.index ?? syntax.length;
     const body = syntax.slice(start, end);
     if (tasks.has(id)) findings.push(finding("duplicate-task", `Duplicate task ${id}.`, "tasks.md"));
@@ -206,7 +244,13 @@ function validateTasksText(input, specResult, planResult, repoRoot = null) {
     const dependsField = fieldOf(body, "Depends");
     const filesField = fieldOf(body, "Files");
     const verifyField = fieldOf(body, "Verify");
-    for (const [name, field] of [["Requirement", requirementField], ["Depends", dependsField], ["Files", filesField], ["Verify", verifyField]]) {
+    const fields = [
+      ["Requirement", requirementField],
+      ["Depends", dependsField],
+      ["Files", filesField],
+      ["Verify", verifyField]
+    ];
+    for (const [name, field] of fields) {
       if (field.count !== 1 || !field.value) findings.push(finding("invalid-task-field", `${id} requires exactly one non-empty ${name} field.`, "tasks.md"));
     }
     const requirements = splitValues(requirementField.value);
@@ -251,6 +295,7 @@ function validateTasksText(input, specResult, planResult, repoRoot = null) {
     for (let rightIndex = leftIndex + 1; rightIndex < taskList.length; rightIndex += 1) {
       const left = taskList[leftIndex];
       const right = taskList[rightIndex];
+      if (!left || !right) continue;
       if (reachable(tasks, left.id, right.id) || reachable(tasks, right.id, left.id)) continue;
       for (const leftFile of left.files) for (const rightFile of right.files) {
         if (pathOverlaps(leftFile, rightFile)) findings.push(finding("parallel-file-overlap", `${left.id} and ${right.id} may run in parallel but overlap at ${leftFile} / ${rightFile}.`, "tasks.md"));
@@ -303,10 +348,10 @@ function inspectChange(changeDir) {
         continue;
       }
       const decoded = decodeArtifact(path);
-      if (decoded.error) findings.push(decoded.error);
+      if ("error" in decoded) findings.push(decoded.error);
       else values[name] = decoded.text;
     } catch (error) {
-      if (error?.code !== "ENOENT") findings.push(finding("artifact-read-error", `Cannot read ${name}.`, name));
+      if (!isErrno(error) || error.code !== "ENOENT") findings.push(finding("artifact-read-error", `Cannot read ${name}.`, name));
     }
   }
   const spec = values["spec.md"] === void 0 ? null : validateSpecText(values["spec.md"]);
@@ -320,6 +365,10 @@ function formatFindings(findings) {
 }
 
 export {
+  isRecord,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
   digestText,
   inspectChange,
   formatFindings

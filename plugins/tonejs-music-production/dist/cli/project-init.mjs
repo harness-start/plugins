@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 
 // plugins/tonejs-music-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -8,7 +8,7 @@ import { join, resolve } from "node:path";
 var args = process.argv.slice(2);
 var id = args[0] ?? "";
 var workspaceIndex = args.indexOf("--workspace");
-var workspace = resolve(workspaceIndex >= 0 ? args[workspaceIndex + 1] : process.cwd());
+var workspace = resolve((workspaceIndex >= 0 ? args[workspaceIndex + 1] : process.cwd()) ?? process.cwd());
 var skipInstall = args.includes("--skip-install");
 var installBrowser = args.includes("--install-browser");
 function run(command, commandArgs, cwd, timeoutMs = 18e4) {
@@ -74,7 +74,7 @@ async function main() {
     writeFile(join(root, "src", "composition.mjs"), `export default {
   schema: "tonejs-composition/v1",
   id: "${id}",
-  title: "${id.split("-").map((part) => part[0].toUpperCase() + part.slice(1)).join(" ")}",
+  title: "${id.split("-").map((part) => `${part[0] ?? ""}`.toUpperCase() + part.slice(1)).join(" ")}",
   bpm: 120,
   timeSignature: [4, 4],
   bars: 4,
@@ -108,7 +108,8 @@ async function main() {
 `);
 }
 main().catch((error) => {
-  process.stderr.write(`[tonejs-music-init] ${error.message}
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[tonejs-music-init] ${message}
 `);
   process.exitCode = 2;
 });

@@ -3,13 +3,46 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { isRecord } from "@harness/core/hook-event";
+
 export const CONFIG_NAMES = [
   ".execution-loop-guard.mjs",
   ".execution-loop-guard.cjs",
   ".execution-loop-guard.js",
 ];
 
-const VALID_MODES = new Set(["block", "report", "off"]);
+export type CheckMode = "block" | "report" | "off";
+export type CheckName = "editLoop" | "failedCommandRetry" | "successfulCommandRepeat" | "remotePolling";
+export type WarnFn = (message: string) => void;
+
+export type LoopConfig = {
+  checks: Record<CheckName, CheckMode>;
+  editLoop: {
+    reportAt: number;
+    blockAt: number;
+    windowMinutes: number;
+    exemptPaths: RegExp[];
+  };
+  commandRepeat: {
+    failureReportAt: number;
+    failureBlockAt: number;
+    successReportAt: number;
+    successBlockAt: number;
+    windowMinutes: number;
+    retryBypass: RegExp;
+  };
+  polling: {
+    sleepBudgetSeconds: number;
+    queryBudgetCount: number;
+    windowMinutes: number;
+    cooldownMinutes: number;
+    maxSleepPerCommandSeconds: number;
+    whileLoopAssumedIterations: number;
+    pollBypass: RegExp;
+  };
+};
+
+const VALID_MODES = new Set<CheckMode>(["block", "report", "off"]);
 
 export const DEFAULT_CONFIG = Object.freeze({
   checks: Object.freeze({
@@ -43,52 +76,71 @@ export const DEFAULT_CONFIG = Object.freeze({
   }),
 });
 
-function defaultWarn(message) {
+function defaultWarn(message: string): void {
   process.stderr.write(`[execution-loop-guard] ${message}\n`);
 }
 
-function cloneRegex(pattern) {
+function cloneRegex(pattern: RegExp): RegExp {
   return new RegExp(pattern.source, pattern.flags);
 }
 
-function mode(value, fallback, label, warn) {
+function isCheckMode(value: unknown): value is CheckMode {
+  return value === "block" || value === "report" || value === "off";
+}
+
+function mode(value: unknown, fallback: CheckMode, label: string, warn: WarnFn): CheckMode {
   if (value === undefined) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value) && VALID_MODES.has(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 
-function positiveInteger(value, fallback, label, warn, { allowZero = false } = {}) {
+function positiveInteger(
+  value: unknown,
+  fallback: number,
+  label: string,
+  warn: WarnFn,
+  { allowZero = false }: { allowZero?: boolean } = {},
+): number {
   const minimum = allowZero ? 0 : 1;
   if (value === undefined) return fallback;
-  if (Number.isInteger(value) && value >= minimum) return value;
+  if (typeof value === "number" && Number.isInteger(value) && value >= minimum) return value;
   warn(`${label} must be an integer >= ${minimum}; using ${fallback}`);
   return fallback;
 }
 
-function thresholdPair(source, reportKey, blockKey, defaults, label, warn) {
-  const reportAt = positiveInteger(source?.[reportKey], defaults[reportKey], `${label}.${reportKey}`, warn);
-  const blockAt = positiveInteger(source?.[blockKey], defaults[blockKey], `${label}.${blockKey}`, warn);
-  if (reportAt < blockAt) return { [reportKey]: reportAt, [blockKey]: blockAt };
+function thresholdPair<KReport extends string, KBlock extends string>(
+  source: Record<string, unknown>,
+  reportKey: KReport,
+  blockKey: KBlock,
+  defaults: Record<KReport | KBlock, number>,
+  label: string,
+  warn: WarnFn,
+): Record<KReport | KBlock, number> {
+  const reportAt = positiveInteger(source[reportKey], defaults[reportKey], `${label}.${reportKey}`, warn);
+  const blockAt = positiveInteger(source[blockKey], defaults[blockKey], `${label}.${blockKey}`, warn);
+  if (reportAt < blockAt) {
+    return { [reportKey]: reportAt, [blockKey]: blockAt } as Record<KReport | KBlock, number>;
+  }
   warn(`${label}.${reportKey} must be lower than ${label}.${blockKey}; using defaults`);
-  return { [reportKey]: defaults[reportKey], [blockKey]: defaults[blockKey] };
+  return { [reportKey]: defaults[reportKey], [blockKey]: defaults[blockKey] } as Record<KReport | KBlock, number>;
 }
 
-function regex(value, fallback, label, warn) {
+function regex(value: unknown, fallback: RegExp, label: string, warn: WarnFn): RegExp {
   if (value === undefined) return cloneRegex(fallback);
   if (value instanceof RegExp) return cloneRegex(value);
   warn(`${label} must be a RegExp; using the default`);
   return cloneRegex(fallback);
 }
 
-function exemptPaths(value, warn) {
+function exemptPaths(value: unknown, warn: WarnFn): RegExp[] {
   const builtIns = DEFAULT_CONFIG.editLoop.exemptPaths.map(cloneRegex);
   if (value === undefined) return builtIns;
   if (!Array.isArray(value)) {
     warn("editLoop.exemptPaths must be an array of RegExp values; using built-ins");
     return builtIns;
   }
-  const custom = [];
+  const custom: RegExp[] = [];
   for (const [index, pattern] of value.entries()) {
     if (pattern instanceof RegExp) custom.push(cloneRegex(pattern));
     else warn(`editLoop.exemptPaths[${index}] must be a RegExp; skipping`);
@@ -96,28 +148,22 @@ function exemptPaths(value, warn) {
   return [...builtIns, ...custom];
 }
 
-export function resolveConfig(userConfig, warn = defaultWarn) {
-  const user = userConfig && typeof userConfig === "object" && !Array.isArray(userConfig)
-    ? userConfig
-    : {};
+export function resolveConfig(userConfig: unknown, warn: WarnFn = defaultWarn): LoopConfig {
+  const user = userConfig && isRecord(userConfig) ? userConfig : {};
   if (userConfig != null && user !== userConfig) warn("config default export must be an object; using defaults");
 
-  const checksSource = user.checks && typeof user.checks === "object" && !Array.isArray(user.checks)
-    ? user.checks
-    : {};
+  const checksSource = user.checks && isRecord(user.checks) ? user.checks : {};
   if (user.checks !== undefined && checksSource !== user.checks) {
     warn("checks must be an object; using defaults");
   }
-  const checks = Object.fromEntries(
-    Object.entries(DEFAULT_CONFIG.checks).map(([name, fallback]) => [
-      name,
-      mode(checksSource[name], fallback, `checks.${name}`, warn),
-    ]),
-  );
+  const checks: LoopConfig["checks"] = {
+    editLoop: mode(checksSource.editLoop, DEFAULT_CONFIG.checks.editLoop, "checks.editLoop", warn),
+    failedCommandRetry: mode(checksSource.failedCommandRetry, DEFAULT_CONFIG.checks.failedCommandRetry, "checks.failedCommandRetry", warn),
+    successfulCommandRepeat: mode(checksSource.successfulCommandRepeat, DEFAULT_CONFIG.checks.successfulCommandRepeat, "checks.successfulCommandRepeat", warn),
+    remotePolling: mode(checksSource.remotePolling, DEFAULT_CONFIG.checks.remotePolling, "checks.remotePolling", warn),
+  };
 
-  const editSource = user.editLoop && typeof user.editLoop === "object" && !Array.isArray(user.editLoop)
-    ? user.editLoop
-    : {};
+  const editSource = user.editLoop && isRecord(user.editLoop) ? user.editLoop : {};
   const editThresholds = thresholdPair(
     editSource,
     "reportAt",
@@ -126,7 +172,7 @@ export function resolveConfig(userConfig, warn = defaultWarn) {
     "editLoop",
     warn,
   );
-  const editLoop = {
+  const editLoop: LoopConfig["editLoop"] = {
     ...editThresholds,
     windowMinutes: positiveInteger(
       editSource.windowMinutes,
@@ -137,10 +183,8 @@ export function resolveConfig(userConfig, warn = defaultWarn) {
     exemptPaths: exemptPaths(editSource.exemptPaths, warn),
   };
 
-  const repeatSource = user.commandRepeat && typeof user.commandRepeat === "object" && !Array.isArray(user.commandRepeat)
-    ? user.commandRepeat
-    : {};
-  const commandRepeat = {
+  const repeatSource = user.commandRepeat && isRecord(user.commandRepeat) ? user.commandRepeat : {};
+  const commandRepeat: LoopConfig["commandRepeat"] = {
     ...thresholdPair(
       repeatSource,
       "failureReportAt",
@@ -171,10 +215,8 @@ export function resolveConfig(userConfig, warn = defaultWarn) {
     ),
   };
 
-  const pollingSource = user.polling && typeof user.polling === "object" && !Array.isArray(user.polling)
-    ? user.polling
-    : {};
-  const polling = {
+  const pollingSource = user.polling && isRecord(user.polling) ? user.polling : {};
+  const polling: LoopConfig["polling"] = {
     sleepBudgetSeconds: positiveInteger(
       pollingSource.sleepBudgetSeconds,
       DEFAULT_CONFIG.polling.sleepBudgetSeconds,
@@ -223,7 +265,7 @@ export function resolveConfig(userConfig, warn = defaultWarn) {
   return { checks, editLoop, commandRepeat, polling };
 }
 
-export function resolveRepoRoot(cwd) {
+export function resolveRepoRoot(cwd: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -236,16 +278,17 @@ export function resolveRepoRoot(cwd) {
   }
 }
 
-export async function loadProjectConfig(cwd, warn = defaultWarn) {
+export async function loadProjectConfig(cwd: string, warn: WarnFn = defaultWarn): Promise<{ config: LoopConfig; repoRoot: string | null }> {
   const repoRoot = resolveRepoRoot(cwd);
   if (!repoRoot) return { config: resolveConfig(null, warn), repoRoot: null };
   for (const name of CONFIG_NAMES) {
     const path = join(repoRoot, name);
     if (!existsSync(path)) continue;
     try {
-      const loaded = await import(pathToFileURL(path).href);
-      return { config: resolveConfig(loaded.default ?? loaded, warn), repoRoot };
-    } catch (error) {
+      const loaded: unknown = await import(pathToFileURL(path).href);
+      const exported = isRecord(loaded) ? loaded.default ?? loaded : loaded;
+      return { config: resolveConfig(exported, warn), repoRoot };
+    } catch (error: unknown) {
       warn(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}; using defaults`);
       return { config: resolveConfig(null, warn), repoRoot };
     }

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f39458424842356a20167de1a7109c0fb792bb5e954cf4b9eb7faaa6aa35f2fa
+// harness-source-hash: sha256:e523627cdb7cb90c4b1de7893c3cb0a39eae8bc7828023ba764a1067ac2d9844
 import {
   loadCompositionDeterministic,
   optimizeComposition
-} from "../chunks/chunk-5OE4AD6R.mjs";
+} from "../chunks/chunk-MTCWS74A.mjs";
 import {
   computeMusicSubjectDigest
-} from "../chunks/chunk-XYNVSRBJ.mjs";
+} from "../chunks/chunk-6UVSZ5EF.mjs";
 
 // plugins/tonejs-music-production/src/entries/cli/project-optimize.ts
 import { open, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";
@@ -36,7 +36,8 @@ async function writeJsonAtomic(filePath, value) {
 async function main() {
   const files = {};
   await collect(root, files, { value: 0 });
-  const project = JSON.parse(files["music.project.json"] ?? "null");
+  const parsed = JSON.parse(files["music.project.json"] ?? "null");
+  const project = typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? parsed : null;
   const model = { artifactId: basename(root), files, project };
   const sourceDigest = computeMusicSubjectDigest(model);
   const score = optimizeComposition(await loadCompositionDeterministic(root));
@@ -78,7 +79,8 @@ async function main() {
   }
 }
 main().catch((error) => {
-  process.stderr.write(`[tonejs-music-optimize] ${error.message}
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[tonejs-music-optimize] ${message}
 `);
   process.exitCode = 2;
 });

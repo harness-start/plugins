@@ -8,6 +8,7 @@
  *   shell → escalation → dangerousRm → declarative rules → mysql preflight
  */
 
+import { isRecord } from "@harness/core/hook-event";
 import {
   additionalContextOutput,
   extractCwd,
@@ -51,12 +52,14 @@ async function main() {
 
   if (/^Read$/iu.test(toolName)) {
     if (settings.engines.secretRead !== false) {
+      const tool = isRecord(event.tool) ? event.tool : null;
+      const extraTargets = Array.isArray(tool?.fileTargets) ? tool.fileTargets : [];
       const report = secretReadReport(
         [
-          toolInput?.file_path,
-          toolInput?.filePath,
-          toolInput?.path,
-          ...(event?.tool?.fileTargets ?? []),
+          toolInput.file_path,
+          toolInput.filePath,
+          toolInput.path,
+          ...extraTargets,
         ].filter(Boolean),
       );
       if (report) writeJson(additionalContextOutput("PreToolUse", report));

@@ -1,13 +1,13 @@
-import { createHash } from "node:crypto";
+import { createHash, type BinaryLike } from "node:crypto";
 
 export const SEAL_PREFIX = "<!-- work-report-insights:sha256:";
 const SEAL_PATTERN = /^<!-- work-report-insights:sha256:([a-f0-9]{64}) -->$/gmu;
 
-export function sha256(value) {
+export function sha256(value: BinaryLike): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-export function sealReport(body) {
+export function sealReport(body: unknown): string {
   const bytes = String(body ?? "");
   if (bytes.includes(SEAL_PREFIX)) {
     throw new Error("report body contains a reserved seal marker");
@@ -18,7 +18,22 @@ export function sealReport(body) {
   return `${bytes}${SEAL_PREFIX}${sha256(bytes)} -->\n`;
 }
 
-export function verifyReport(content) {
+export type VerifyFailure = {
+  ok: false;
+  kind: "malformed" | "unsealed" | "mismatch";
+  reason: string;
+};
+
+export type VerifySuccess = {
+  ok: true;
+  body: string;
+  digest: string;
+  suffix: string;
+};
+
+export type VerifyResult = VerifyFailure | VerifySuccess;
+
+export function verifyReport(content: unknown): VerifyResult {
   const text = String(content ?? "");
   const matches = [...text.matchAll(SEAL_PATTERN)];
   if (matches.length === 0) {
@@ -31,8 +46,14 @@ export function verifyReport(content) {
     return { ok: false, kind: "malformed", reason: "report must contain exactly one seal marker" };
   }
   const marker = matches[0];
+  if (marker === undefined || marker.index === undefined) {
+    return { ok: false, kind: "malformed", reason: "seal marker is malformed" };
+  }
   const body = text.slice(0, marker.index);
   const digest = marker[1];
+  if (digest === undefined) {
+    return { ok: false, kind: "malformed", reason: "seal marker is malformed" };
+  }
   const suffix = text.slice(marker.index + marker[0].length);
   if (suffix.includes(SEAL_PREFIX)) {
     return { ok: false, kind: "malformed", reason: "report suffix contains a reserved seal marker" };

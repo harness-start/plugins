@@ -8,6 +8,7 @@ import {
   sanitizeSessionKey,
   trailPaths,
 } from "@harness/core/jsonl-trail";
+import { isRecord } from "@harness/core/hook-event";
 
 const README_TEXT = `# Command exec audit
 
@@ -21,16 +22,24 @@ Write policy:
 
 export { appendRecord, readLastNonEmptyLine, rewriteTip, sanitizeSessionKey, trailPaths };
 
-export function findPendingByToolUseId(sessionPath, toolUseId) {
+export function findPendingByToolUseId(
+  sessionPath: string,
+  toolUseId: unknown,
+): Record<string, unknown> | null {
   const id = String(toolUseId ?? "").trim();
   if (!id || !existsSync(sessionPath)) return null;
   const content = readFileSync(sessionPath, "utf8");
-  let found = null;
+  let found: Record<string, unknown> | null = null;
   for (const line of content.split("\n")) {
     if (!line.trim()) continue;
     try {
-      const parsed = JSON.parse(line);
-      if (parsed?.schema === "command-exec/v1" && parsed.status === "pending" && String(parsed.tool_use_id ?? "") === id) {
+      const parsed: unknown = JSON.parse(line);
+      if (
+        isRecord(parsed)
+        && parsed.schema === "command-exec/v1"
+        && parsed.status === "pending"
+        && String(parsed.tool_use_id ?? "") === id
+      ) {
         found = parsed;
       }
     } catch {
@@ -40,6 +49,6 @@ export function findPendingByToolUseId(sessionPath, toolUseId) {
   return found;
 }
 
-export function prepareTrail(repoRoot, auditRoot, sessionKey) {
+export function prepareTrail(repoRoot: string, auditRoot: string, sessionKey: string) {
   return prepareCoreTrail(repoRoot, auditRoot, sessionKey, { readme: README_TEXT });
 }

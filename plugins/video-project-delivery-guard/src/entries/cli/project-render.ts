@@ -4,14 +4,14 @@ import { spawn } from "node:child_process";
 import { mkdir, rename, stat, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import { audioProofPaths, createVideoRenderProof, finalRenderPaths, validateVideoModel, visualProofPaths } from "../../lib/contract.js";
+import { audioProofPaths, createVideoRenderProof, finalRenderPaths, validateVideoModel, visualProofPaths, type VideoModel } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { probeMedia, validateMeasuredMedia } from "../../lib/media.js";
 import { loadVideoProject } from "../../lib/project.js";
 import { assertVideoProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 
-function runNpm(root, script, args) {
-  return new Promise((resolve, reject) => {
+function runNpm(root: string, script: string, args: readonly string[]) {
+  return new Promise<void>((resolve, reject) => {
     const child = spawn("npm", ["run", "--silent", script, "--", ...args], { cwd: root, stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     let settled = false;
@@ -32,13 +32,14 @@ function runNpm(root, script, args) {
   });
 }
 
-function sourceEntry(model, kind, sourceName) {
-  let manifest;
-  try { manifest = JSON.parse(model.files[`src/${kind}/manifest.json`]); } catch { return null; }
-  return manifest?.units?.find((entry) => entry?.source === sourceName) ?? null;
+function sourceEntry(model: VideoModel, kind: string, sourceName: string) {
+  let manifest: unknown;
+  try { manifest = JSON.parse(model.files?.[`src/${kind}/manifest.json`] ?? ""); } catch { return null; }
+  const units = typeof manifest === "object" && manifest !== null && "units" in manifest && Array.isArray(manifest.units) ? manifest.units : [];
+  return units.find((entry) => typeof entry === "object" && entry !== null && "source" in entry && entry.source === sourceName) ?? null;
 }
 
-function structuralFindings(model) {
+function structuralFindings(model: VideoModel) {
   const ignored = new Set(["AUDIO_PROOF_MISSING", "AUDIO_RENDER_PROOF_INVALID", "VISUAL_PROOF_MISSING", "VISUAL_RENDER_PROOF_INVALID"]);
   return validateVideoModel(model, { stage: "source" }).filter(({ code }) => !ignored.has(code));
 }
@@ -48,37 +49,50 @@ async function main() {
   const grant = await consumeWriterCapability({ root, capability: "video-render", argv: processWriterArgv() });
   const kind = process.argv[3];
   const sourceName = process.argv[4] ?? null;
-  if (!["visual", "audio", "final"].includes(kind)) throw new Error("RENDER_KIND_INVALID");
+  if (kind !== "visual" && kind !== "audio" && kind !== "final") throw new Error("RENDER_KIND_INVALID");
   let model = await loadVideoProject(root);
   const findings = structuralFindings(model);
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
 
-  let sourcePath = null;
-  let entry = null;
-  let output;
+  let sourcePath: string | null = null;
+  let startFrame: unknown = 0;
+  let endFrame: unknown = model.project?.durationInFrames;
+  let output: { mediaPath: string; proofPath: string };
   if (kind === "visual" || kind === "audio") {
     if (!sourceName || basename(sourceName) !== sourceName) throw new Error("RENDER_SOURCE_INVALID");
-    entry = sourceEntry(model, kind, sourceName);
-    if (!entry) throw new Error("RENDER_SOURCE_NOT_REGISTERED");
+    const entry = sourceEntry(model, kind, sourceName);
+    if (!entry || typeof entry !== "object") throw new Error("RENDER_SOURCE_NOT_REGISTERED");
+    const record = entry as Record<string, unknown>;
+    startFrame = record.startFrame;
+    endFrame = record.endFrame;
     sourcePath = `src/${kind}/${sourceName}`;
-    output = kind === "visual" ? visualProofPaths(sourcePath, model.files[sourcePath]) : audioProofPaths(sourcePath, model.files[sourcePath]);
+    const sourceText = model.files?.[sourcePath];
+    output = kind === "visual" ? visualProofPaths(sourcePath, typeof sourceText === "string" ? sourceText : "") : audioProofPaths(sourcePath, typeof sourceText === "string" ? sourceText : "");
   } else {
     output = finalRenderPaths(model);
-    entry = { startFrame: 0, endFrame: model.project.durationInFrames };
   }
 
+  const project = model.project ?? {};
   await withWriterJournal(root, "video-render", async () => {
     const temporaryDirectory = join(root, ".tmp", "video-guard");
     const temporaryPath = join(temporaryDirectory, `render-${kind}-${process.pid}-${Date.now()}.${kind === "audio" ? "wav" : "mp4"}`);
     await mkdir(temporaryDirectory, { recursive: true });
     try {
       const script = `video:render:${kind}`;
-      const args = ["--output", temporaryPath, "--start-frame", String(entry.startFrame), "--end-frame", String(entry.endFrame), "--fps", String(model.project.fps), "--composition-id", model.project.compositionId];
+      const args = ["--output", temporaryPath, "--start-frame", String(startFrame), "--end-frame", String(endFrame), "--fps", String(project.fps), "--composition-id", String(project.compositionId)];
       if (sourcePath) args.push("--source", sourcePath);
       await runNpm(root, script, args);
-      try { const metadata = await stat(temporaryPath); if (!metadata.isFile() || metadata.size === 0) throw new Error("RENDER_OUTPUT_MISSING"); } catch (error) { if (error?.code === "ENOENT") throw new Error("RENDER_OUTPUT_MISSING"); throw error; }
-      const media = await probeMedia(temporaryPath, { fps: model.project.fps, cwd: root });
-      validateMeasuredMedia(media, { kind, project: model.project, expectedFrames: entry.endFrame - entry.startFrame });
+      try { const metadata = await stat(temporaryPath); if (!metadata.isFile() || metadata.size === 0) throw new Error("RENDER_OUTPUT_MISSING"); } catch (error) {
+        const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+        if (code === "ENOENT") throw new Error("RENDER_OUTPUT_MISSING");
+        throw error;
+      }
+      const media = await probeMedia(temporaryPath, { fps: project.fps, cwd: root });
+      validateMeasuredMedia(media, {
+        kind,
+        project: { fps: project.fps ?? Number.NaN, width: project.width ?? Number.NaN, height: project.height ?? Number.NaN },
+        expectedFrames: Number(endFrame) - Number(startFrame),
+      });
       await mkdir(join(root, output.mediaPath.split("/").slice(0, -1).join("/")), { recursive: true });
       await rename(temporaryPath, join(root, output.mediaPath));
       model = await loadVideoProject(root);
@@ -91,4 +105,8 @@ async function main() {
   }, grant);
 }
 
-main().catch((error) => { process.stderr.write(`[video-project-render] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => {
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[video-project-render] ${message}\n`);
+  process.exitCode = 2;
+});

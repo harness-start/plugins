@@ -1,21 +1,30 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e135a9d3aa608f5f15f040e311aab5ea1eb67716b0d39bac38b0c614bfe29ffa
+// harness-source-hash: sha256:d945f3b122937f9aa290663ad4b77a5862f9dd48007b111f6f6c2dd40fb0bf38
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-P4LNGOG4.mjs";
+} from "../chunks/chunk-NTJ5JQIZ.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
+  eventAssistantMessage,
+  eventCwd,
+  eventPrompt,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  eventToolResponse,
   extractResearchRelativePaths,
   findActiveWorkflow,
   isActivePhase,
+  isRecord,
   pathLooksLikeResearchWrite,
+  readStdinJson,
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-QHUYZAJU.mjs";
+} from "../chunks/chunk-HFEXQAU3.mjs";
 
 // plugins/research-provenance-guard/src/entries/hooks/research-provenance-guard.ts
 import { join as join4, resolve as resolve3 } from "node:path";
@@ -26,16 +35,20 @@ import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 function parseTrailer(message) {
   const match = String(message).match(/(?:^|\n)Research-Evidence: research-evidence\/v1\nResearch-Run: ([a-z0-9-]+)\nResearch-Seal: (sha256:[a-f0-9]{64})(?:\n|$)/u);
-  return match ? { runId: match[1], seal: match[2] } : null;
+  const runId = match?.[1];
+  const seal = match?.[2];
+  return runId && seal ? { runId, seal } : null;
 }
 async function validateSealedArtifacts({ workspaceRoot, runId, seal, promptEpoch, mutationRevision }) {
   const findings = [];
-  if (!/^r-[a-z0-9-]+$/u.test(runId ?? "")) return ["invalid research run id"];
+  if (typeof runId !== "string" || !/^r-[a-z0-9-]+$/u.test(runId)) return ["invalid research run id"];
   const directory2 = join(resolve(workspaceRoot), ".research", "runs", runId);
   let manifest;
   let report;
   try {
-    manifest = JSON.parse(await readFile(join(directory2, "research.json"), "utf8"));
+    const parsed = JSON.parse(await readFile(join(directory2, "research.json"), "utf8"));
+    if (!isRecord(parsed)) return ["research manifest is missing or invalid JSON"];
+    manifest = parsed;
   } catch {
     return ["research manifest is missing or invalid JSON"];
   }
@@ -46,11 +59,12 @@ async function validateSealedArtifacts({ workspaceRoot, runId, seal, promptEpoch
   }
   if (manifest.schema !== "research-manifest/v1" || manifest.run_id !== runId) findings.push("research manifest identity mismatch");
   const { integrity, ...base } = manifest;
-  if (!integrity || integrity.seal !== seal) findings.push("research seal does not match manifest");
+  const integrityRecord = isRecord(integrity) ? integrity : null;
+  if (!integrityRecord || integrityRecord.seal !== seal) findings.push("research seal does not match manifest");
   const manifestPayloadHash = sha256(canonicalJson(base));
   const reportHash = sha256(report);
-  if (integrity?.manifest_payload_sha256 !== manifestPayloadHash) findings.push("manifest hash mismatch");
-  if (integrity?.report_sha256 !== reportHash) findings.push("report hash mismatch");
+  if (integrityRecord?.manifest_payload_sha256 !== manifestPayloadHash) findings.push("manifest hash mismatch");
+  if (integrityRecord?.report_sha256 !== reportHash) findings.push("report hash mismatch");
   const expectedPayload = sealPayload({ runId, promptEpoch: base.prompt_epoch, mutationRevision: base.mutation_revision, manifestPayloadHash, reportHash });
   const expectedSeal = `sha256:${sha256(canonicalJson(expectedPayload))}`;
   if (expectedSeal !== seal) findings.push("research seal digest mismatch");
@@ -87,71 +101,6 @@ function ensurePluginWorkdirGitignore(pluginRoot) {
   if (current !== null && normalizeGitignore(current) === "*") return;
   if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
   writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
-}
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventSessionId(event) {
-  const context = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context?.session_id
-  );
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-function eventToolResponse(event) {
-  const tool = nestedRecord(event, "tool");
-  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
-}
-function eventPrompt(event) {
-  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
-}
-function eventAssistantMessage(event) {
-  return firstString(
-    event.last_assistant_message,
-    event.lastAssistantMessage,
-    event.assistant_message,
-    event.assistant_text,
-    event.assistantText
-  );
 }
 
 // core/src/hook-output.ts
@@ -197,18 +146,14 @@ function extractShellCommand(event) {
 }
 
 // plugins/research-provenance-guard/src/lib/hook-io.ts
-var sessionId = (event) => eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || null;
-var cwd = (event) => eventCwd(event);
-var prompt = (event) => eventPrompt(event);
-var assistantMessage = (event) => eventAssistantMessage(event);
-var toolName = (event) => eventToolName(event);
-var toolInput = (event) => eventToolInput(event);
-var toolResponse = (event) => eventToolResponse(event);
+function sessionId(event) {
+  return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || null;
+}
 function shellCommand(event) {
   return extractShellCommand(event);
 }
 function fileMutation(event) {
-  return isFileMutationTool(toolName(event));
+  return isFileMutationTool(eventToolName(event));
 }
 
 // plugins/research-provenance-guard/src/lib/state-store.ts
@@ -223,14 +168,28 @@ function ensureStateDir(directory2) {
 }
 function directory(event) {
   const session = sessionId(event) || "default";
-  const target = join3(resolve2(cwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
+  const target = join3(resolve2(eventCwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
   return target;
+}
+function payloadFromUnknown(value) {
+  if (!isRecord(value)) return {};
+  const payload = {};
+  if (typeof value.abort === "boolean") payload.abort = value.abort;
+  if (typeof value.runId === "string" || value.runId === null) payload.runId = value.runId;
+  if (typeof value.tool === "string") payload.tool = value.tool;
+  if (typeof value.seal === "string" || value.seal === null) payload.seal = value.seal;
+  if (typeof value.promptEpoch === "number") payload.promptEpoch = value.promptEpoch;
+  if (typeof value.revision === "number") payload.revision = value.revision;
+  if (typeof value.eventId === "string" || value.eventId === null) payload.eventId = value.eventId;
+  if (typeof value.observedAt === "number") payload.observedAt = value.observedAt;
+  if (typeof value.conservative === "boolean") payload.conservative = value.conservative;
+  return payload;
 }
 function appendStateEvent(event, type, payload = {}) {
   const target = directory(event);
   if (!target) return false;
   try {
-    ensureStateDir(join3(resolve2(cwd(event)), STATE_DIR_RELATIVE));
+    ensureStateDir(join3(resolve2(eventCwd(event)), STATE_DIR_RELATIVE));
     mkdirSync2(target, { recursive: true, mode: 448 });
     const stamp = `${String(Date.now()).padStart(13, "0")}-${process.hrtime.bigint()}-${process.pid}-${randomBytes(5).toString("hex")}`;
     writeFileSync2(join3(target, `${stamp}.json`), `${JSON.stringify({ version: 1, type, at: Date.now(), payload })}
@@ -241,7 +200,7 @@ function appendStateEvent(event, type, payload = {}) {
   }
 }
 function readState(event) {
-  const workspace = resolve2(cwd(event));
+  const workspace = resolve2(eventCwd(event));
   const workflow = findActiveWorkflow(workspace);
   const state = {
     promptEpoch: 0,
@@ -268,7 +227,9 @@ function readState(event) {
     for (const file of files) {
       let item;
       try {
-        item = JSON.parse(readFileSync2(join3(target, file), "utf8"));
+        const parsed = JSON.parse(readFileSync2(join3(target, file), "utf8"));
+        if (!isRecord(parsed)) continue;
+        item = parsed;
       } catch {
         continue;
       }
@@ -279,30 +240,31 @@ function readState(event) {
         }
         continue;
       }
+      const payload = payloadFromUnknown(item.payload);
       if (item.type === "prompt") {
         state.promptEpoch += 1;
-        if (item.payload.abort === true) {
+        if (payload.abort === true) {
           state.aborted = true;
-          state.abortedRunId = item.payload.runId ?? state.runId;
-          state.runId = item.payload.runId ?? state.runId;
+          state.abortedRunId = payload.runId ?? state.runId;
+          state.runId = payload.runId ?? state.runId;
         }
       } else if (item.type === "mutation") {
         state.revision += 1;
         state.seal = null;
       } else if (item.type === "receipt") {
-        state.receipts.push(item.payload);
-        if (item.payload.tool === "research_begin") {
-          state.runId = item.payload.runId ?? state.runId;
+        state.receipts.push(payload);
+        if (payload.tool === "research_begin") {
+          state.runId = payload.runId ?? state.runId;
           state.seal = null;
           state.aborted = false;
           state.completed = false;
         }
-        if (item.payload.tool === "research_seal" && (!state.runId || item.payload.runId === state.runId)) state.seal = item.payload;
+        if (payload.tool === "research_seal" && (!state.runId || payload.runId === state.runId)) state.seal = payload;
       } else if (item.type === "complete") {
-        if (!item.payload.runId || !state.runId || item.payload.runId === state.runId) {
+        if (!payload.runId || !state.runId || payload.runId === state.runId) {
           state.completed = true;
-          state.completedRunId = item.payload.runId ?? state.runId;
-          state.runId = item.payload.runId ?? state.runId;
+          state.completedRunId = payload.runId ?? state.runId;
+          state.runId = payload.runId ?? state.runId;
         }
       }
     }
@@ -341,22 +303,28 @@ var SESSION_CONTEXT = [
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open\u2014not because this SessionStart text appeared.",
   "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence."
 ].join("\n");
+function objectLike(value) {
+  return typeof value === "object" && value !== null;
+}
 function mcpMethod(event) {
-  return String(toolName(event)).match(MCP_TOOL)?.[1] ?? null;
+  return String(eventToolName(event)).match(MCP_TOOL)?.[1] ?? null;
 }
 function responsePayload(event) {
-  const response = toolResponse(event);
-  if (response?.structuredContent && typeof response.structuredContent === "object") return response.structuredContent;
-  if (response?.content && Array.isArray(response.content)) {
-    const text = response.content.find((item) => item?.type === "text")?.text;
+  const response = eventToolResponse(event);
+  if (objectLike(response) && objectLike(response.structuredContent)) return response.structuredContent;
+  if (objectLike(response) && Array.isArray(response.content)) {
+    const textItem = response.content.find((item) => objectLike(item) && item.type === "text");
+    const text = objectLike(textItem) && typeof textItem.text === "string" ? textItem.text : void 0;
     try {
-      return JSON.parse(text);
+      const parsed = JSON.parse(String(text));
+      return objectLike(parsed) ? parsed : null;
     } catch {
     }
   }
   if (typeof response === "string") {
     try {
-      return JSON.parse(response);
+      const parsed = JSON.parse(response);
+      return objectLike(parsed) ? parsed : null;
     } catch {
     }
   }
@@ -364,7 +332,7 @@ function responsePayload(event) {
 }
 function writeTargetClasses(event) {
   const command = shellCommand(event) ?? "";
-  const serialized = JSON.stringify(toolInput(event)) + command;
+  const serialized = JSON.stringify(eventToolInput(event)) + command;
   if (!pathLooksLikeResearchWrite(serialized)) return [];
   const paths = extractResearchRelativePaths(serialized);
   if (paths.length === 0) return ["orchestration"];
@@ -404,14 +372,14 @@ function preDecision(event, state) {
     if (!appendStateEvent(event, "receipt", { tool: "research_begin_preflight", promptEpoch: state.promptEpoch })) {
       return "research plugin data is unavailable; cannot establish a durable evidence session.";
     }
-    const input = toolInput(event);
+    const input = eventToolInput(event);
     if (Number(input?.prompt_epoch) !== state.promptEpoch) {
       return `research_begin requires current prompt_epoch=${state.promptEpoch}.`;
     }
     return null;
   }
   if (method === "research_seal" && state.active) {
-    const input = toolInput(event);
+    const input = eventToolInput(event);
     if (Number(input?.prompt_epoch) !== state.promptEpoch || Number(input?.mutation_revision) !== state.revision) {
       return `research_seal is stale; retry with prompt_epoch=${state.promptEpoch} and mutation_revision=${state.revision}.`;
     }
@@ -446,7 +414,9 @@ function post(event) {
   const method = mcpMethod(event);
   if (method) {
     const payload = responsePayload(event);
-    if (!payload || payload.isError === true || toolResponse(event)?.isError === true) return null;
+    const rawResponse = eventToolResponse(event);
+    const responseIsError = objectLike(rawResponse) && rawResponse.isError === true;
+    if (!payload || payload.isError === true || responseIsError) return null;
     appendStateEvent(event, "receipt", {
       tool: method,
       eventId: payload.event_id ?? null,
@@ -462,16 +432,16 @@ function post(event) {
   if (state.seal?.seal) return null;
   if (trustedWorkflowCommand(shellCommand(event), "handoff-outbound")) return null;
   let mutated = false;
-  if (fileMutation(event)) mutated = appendStateEvent(event, "mutation", { tool: toolName(event) });
+  if (fileMutation(event)) mutated = appendStateEvent(event, "mutation", { tool: eventToolName(event) });
   else if (shellCommand(event) && !shellCommandIsReadOnly(shellCommand(event))) {
-    mutated = appendStateEvent(event, "mutation", { tool: toolName(event), conservative: true });
+    mutated = appendStateEvent(event, "mutation", { tool: eventToolName(event), conservative: true });
   }
   return mutated ? readState(event) : null;
 }
 async function evaluateStop(event) {
   const state = readState(event);
-  if (!state.active || state.aborted) return { allow: true, state };
-  const trailer = parseTrailer(assistantMessage(event));
+  if (!state.active || state.aborted) return { allow: true, findings: [], state, trailer: null };
+  const trailer = parseTrailer(eventAssistantMessage(event));
   const findings = [];
   if (!trailer) findings.push("final response is missing the exact research-evidence/v1 trailer");
   if (!state.seal?.seal) findings.push("no successful research_seal MCP receipt was observed in this session");
@@ -484,7 +454,7 @@ async function evaluateStop(event) {
   }
   if (trailer && findings.length === 0) {
     findings.push(...await validateSealedArtifacts({
-      workspaceRoot: resolve3(cwd(event)),
+      workspaceRoot: resolve3(eventCwd(event)),
       runId: trailer.runId,
       seal: trailer.seal,
       promptEpoch: state.promptEpoch,
@@ -499,7 +469,7 @@ async function main(mode = process.argv[2]) {
   if (mode === "session") {
     writeJson({ hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: SESSION_CONTEXT } });
   } else if (mode === "prompt") {
-    const text = prompt(event).trim();
+    const text = eventPrompt(event).trim();
     const abort = text === "# research-abort";
     const prior = readState(event);
     if (!appendStateEvent(event, "prompt", { abort, runId: prior.runId }) && abort) {
@@ -507,7 +477,7 @@ async function main(mode = process.argv[2]) {
       return;
     }
     if (abort) {
-      if (prior.workflow && !terminalizeWorkflow(resolve3(cwd(event)), prior.workflow.run_id, "aborted")) {
+      if (prior.workflow && !terminalizeWorkflow(resolve3(eventCwd(event)), prior.workflow.run_id, "aborted")) {
         writeJson({ decision: "block", reason: "research workflow could not be terminalized after the abort request." });
         return;
       }
@@ -544,7 +514,7 @@ async function main(mode = process.argv[2]) {
 Recovery: open/use research-evidence-workflow, capture and anchor through research_provenance, call research_seal after the last mutation, paste its exact trailer. Outbound handoff only after seal. To abandon, submit exactly # research-abort.`
       });
     } else if (result.trailer) {
-      const terminalized = !result.state.workflow || terminalizeWorkflow(resolve3(cwd(event)), result.trailer.runId, "complete");
+      const terminalized = !result.state.workflow || terminalizeWorkflow(resolve3(eventCwd(event)), result.trailer.runId, "complete");
       const recorded = terminalized && appendStateEvent(event, "complete", { runId: result.trailer.runId });
       if (!recorded || !terminalized) {
         writeJson({ decision: "block", reason: "[Research Provenance Guard] Completion could not be recorded durably; retry Stop without changing the workspace." });

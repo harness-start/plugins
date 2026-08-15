@@ -23,11 +23,15 @@ async function main() {
   for (const result of results) {
     for (const message of result.messages) findings.push({ code: message.ruleId ?? "ESLINT", path: `${result.filePath}:${message.line}:${message.column}`, message: message.message });
   }
-  if (findings.length > 0) throw new Error(`${findings[0].code}:${findings[0].path}:${findings[0].message}`);
+  if (findings.length > 0) {
+    const first = findings[0];
+    throw new Error(`${first?.code}:${first?.path}:${first?.message}`);
+  }
   process.stdout.write(`${JSON.stringify({ valid: true, files: results.length })}\n`);
 }
 
-main().catch((error) => {
-  process.stderr.write(`[tonejs-music-lint] ${error.message}\n`);
+main().catch((error: unknown) => {
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[tonejs-music-lint] ${message}\n`);
   process.exitCode = 2;
 });

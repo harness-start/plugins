@@ -1,4 +1,10 @@
-type HookEventName = "PreToolUse" | "PostToolUse" | "PostToolUseFailure" | "UserPromptSubmit" | "Stop" | "SessionStart";
+export type HookEventName =
+  | "PreToolUse"
+  | "PostToolUse"
+  | "PostToolUseFailure"
+  | "UserPromptSubmit"
+  | "Stop"
+  | "SessionStart";
 
 export type AdditionalContextOptions = {
   echoStderr?: boolean;

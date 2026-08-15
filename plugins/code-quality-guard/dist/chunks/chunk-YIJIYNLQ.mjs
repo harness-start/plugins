@@ -1,4 +1,56 @@
-// harness-source-hash: sha256:e6bd927bf1f507bfaf685e7d4beff14fbc7d2942367f9a618fbc4ea84b4ac703
+// harness-source-hash: sha256:e5106d73638b3797ce9e88b8fae0df435d8ba82d9ceaa5377b906564cc62cb67
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function isStopHookActive(event) {
+  return event.stop_hook_active === true || event.stopHookActive === true;
+}
 
 // plugins/code-quality-guard/src/lib/code-quality-core.ts
 import { spawn, spawnSync } from "node:child_process";
@@ -80,26 +132,36 @@ function warnDefault(message) {
   process.stderr.write(`[code-quality-guard] ${message}
 `);
 }
+function isCheckMode(value) {
+  return value === "block" || value === "report" || value === "off";
+}
+function errorMessage(error) {
+  if (error instanceof Error) return error.message;
+  if (isRecord(error) && typeof error.message === "string") return error.message;
+  return String(error);
+}
 function normalizeMode(value, fallback, label, warn) {
   if (value === void 0) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value) && VALID_MODES.has(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 function boundedInteger(value, fallback, minimum, maximum, label, warn) {
   if (value === void 0) return fallback;
-  if (Number.isInteger(value) && value >= minimum && value <= maximum) return value;
+  if (typeof value === "number" && Number.isInteger(value) && value >= minimum && value <= maximum) return value;
   warn(`${label} must be an integer in [${minimum}, ${maximum}]; using ${fallback}`);
   return fallback;
 }
 function resolveConfig(userConfig, warn = warnDefault) {
+  const raw = isRecord(userConfig) ? userConfig : null;
   const checks = { ...DEFAULT_CONFIG.checks };
-  if (userConfig?.checks !== void 0 && (!userConfig.checks || typeof userConfig.checks !== "object" || Array.isArray(userConfig.checks))) {
+  if (raw?.checks !== void 0 && (!raw.checks || typeof raw.checks !== "object" || Array.isArray(raw.checks))) {
     warn('config "checks" must be an object; using defaults');
   } else {
+    const checksSource = raw && isRecord(raw.checks) ? raw.checks : {};
     for (const name of CHECK_NAMES) {
       checks[name] = normalizeMode(
-        userConfig?.checks?.[name],
+        checksSource[name],
         checks[name],
         `checks.${name}`,
         warn
@@ -107,11 +169,11 @@ function resolveConfig(userConfig, warn = warnDefault) {
     }
   }
   const overrides = [];
-  if (userConfig?.overrides !== void 0 && !Array.isArray(userConfig.overrides)) {
+  if (raw?.overrides !== void 0 && !Array.isArray(raw.overrides)) {
     warn('config "overrides" must be an array; ignoring overrides');
   } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
+    for (const [index, override] of (Array.isArray(raw?.overrides) ? raw.overrides : []).entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
         warn(`override[${index}].match must be a RegExp; skipping`);
         continue;
       }
@@ -119,11 +181,12 @@ function resolveConfig(userConfig, warn = warnDefault) {
         warn(`override[${index}].checks must be an object; skipping`);
         continue;
       }
+      const overrideChecks = isRecord(override.checks) ? override.checks : {};
       const normalizedChecks = {};
       for (const name of CHECK_NAMES) {
-        if (override.checks[name] === void 0) continue;
+        if (overrideChecks[name] === void 0) continue;
         const mode = normalizeMode(
-          override.checks[name],
+          overrideChecks[name],
           null,
           `override[${index}].checks.${name}`,
           warn
@@ -137,9 +200,10 @@ function resolveConfig(userConfig, warn = warnDefault) {
       }
     }
   }
+  const limitsSource = raw && isRecord(raw.limits) ? raw.limits : {};
   const limits = {
     maxImmediateFiles: boundedInteger(
-      userConfig?.limits?.maxImmediateFiles,
+      limitsSource.maxImmediateFiles,
       DEFAULT_CONFIG.limits.maxImmediateFiles,
       1,
       100,
@@ -147,7 +211,7 @@ function resolveConfig(userConfig, warn = warnDefault) {
       warn
     ),
     maxPhpstanFiles: boundedInteger(
-      userConfig?.limits?.maxPhpstanFiles,
+      limitsSource.maxPhpstanFiles,
       DEFAULT_CONFIG.limits.maxPhpstanFiles,
       1,
       200,
@@ -155,7 +219,7 @@ function resolveConfig(userConfig, warn = warnDefault) {
       warn
     ),
     immediateTimeoutMs: boundedInteger(
-      userConfig?.limits?.immediateTimeoutMs,
+      limitsSource.immediateTimeoutMs,
       DEFAULT_CONFIG.limits.immediateTimeoutMs,
       1e3,
       6e4,
@@ -163,7 +227,7 @@ function resolveConfig(userConfig, warn = warnDefault) {
       warn
     ),
     phpstanTimeoutMs: boundedInteger(
-      userConfig?.limits?.phpstanTimeoutMs,
+      limitsSource.phpstanTimeoutMs,
       DEFAULT_CONFIG.limits.phpstanTimeoutMs,
       1e3,
       12e4,
@@ -171,7 +235,7 @@ function resolveConfig(userConfig, warn = warnDefault) {
       warn
     ),
     maxOutputLines: boundedInteger(
-      userConfig?.limits?.maxOutputLines,
+      limitsSource.maxOutputLines,
       DEFAULT_CONFIG.limits.maxOutputLines,
       5,
       500,
@@ -179,8 +243,8 @@ function resolveConfig(userConfig, warn = warnDefault) {
       warn
     )
   };
-  let missingTools = userConfig?.missingTools ?? DEFAULT_CONFIG.missingTools;
-  if (missingTools !== "report-once" && missingTools !== "silent") {
+  let missingTools = raw && (raw.missingTools === "report-once" || raw.missingTools === "silent") ? raw.missingTools : raw?.missingTools === void 0 ? DEFAULT_CONFIG.missingTools : DEFAULT_CONFIG.missingTools;
+  if (raw?.missingTools !== void 0 && missingTools !== raw.missingTools) {
     warn('missingTools must be "report-once" or "silent"; using report-once');
     missingTools = DEFAULT_CONFIG.missingTools;
   }
@@ -195,8 +259,9 @@ function regexMatches(pattern, value) {
 }
 function modeFor(checkName, relativePath, config) {
   for (const override of config.overrides) {
-    if (override.checks[checkName] !== void 0 && regexMatches(override.match, relativePath)) {
-      return override.checks[checkName];
+    const overrideMode = override.checks[checkName];
+    if (overrideMode !== void 0 && regexMatches(override.match, relativePath)) {
+      return overrideMode;
     }
   }
   return config.checks[checkName] ?? "off";
@@ -236,9 +301,9 @@ async function loadUserConfig(repoRoot, warn = warnDefault) {
   if (!existsSync(configPath)) return null;
   try {
     const loaded = await import(pathToFileURL(configPath).href);
-    return loaded.default ?? loaded;
+    return isRecord(loaded) ? loaded.default ?? loaded : loaded;
   } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error.message}`);
+    warn(`failed to load ${CONFIG_FILE_NAME}: ${errorMessage(error)}`);
     return null;
   }
 }
@@ -290,7 +355,7 @@ function hasEslintConfig(repoRoot) {
   }
   try {
     const pkg = JSON.parse(readFileSync2(join2(repoRoot, "package.json"), "utf8"));
-    return pkg.eslintConfig !== void 0;
+    return isRecord(pkg) && pkg.eslintConfig !== void 0;
   } catch {
     return false;
   }
@@ -312,7 +377,7 @@ function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 1024 }) {
         windowsHide: true
       });
     } catch (error) {
-      resolvePromise({ code: null, stdout: "", stderr: "", error, timedOut: false });
+      resolvePromise({ code: null, stdout: "", stderr: "", error: { message: errorMessage(error) }, timedOut: false });
       return;
     }
     let stdout = "";
@@ -321,10 +386,10 @@ function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 1024 }) {
       if (Buffer.byteLength(current) >= maxBytes) return current;
       return `${current}${chunk}`.slice(0, maxBytes);
     };
-    child.stdout.on("data", (chunk) => {
+    child.stdout?.on("data", (chunk) => {
       stdout = append(stdout, chunk);
     });
-    child.stderr.on("data", (chunk) => {
+    child.stderr?.on("data", (chunk) => {
       stderr = append(stderr, chunk);
     });
     let timedOut = false;
@@ -348,7 +413,7 @@ function capOutput(text, maxLines) {
   return [...lines.slice(0, maxLines), `\u2026 ${lines.length - maxLines} additional line(s) omitted`].join("\n");
 }
 function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.sessionID ?? event?.context?.session_id ?? "session";
+  return eventSessionId(event) || "session";
 }
 var STATE_DIR_RELATIVE = ".code-quality-guard/state";
 function stateFile(event, repoRoot) {
@@ -361,10 +426,11 @@ function readState(event, repoRoot) {
   if (!path) return { path: null, missing: [], phpFiles: [] };
   try {
     const parsed = JSON.parse(readFileSync2(path, "utf8"));
+    const record = isRecord(parsed) ? parsed : {};
     return {
       path,
-      missing: Array.isArray(parsed.missing) ? parsed.missing.filter((item) => typeof item === "string") : [],
-      phpFiles: Array.isArray(parsed.phpFiles) ? parsed.phpFiles.filter((item) => typeof item === "string") : []
+      missing: Array.isArray(record.missing) ? record.missing.filter((item) => typeof item === "string") : [],
+      phpFiles: Array.isArray(record.phpFiles) ? record.phpFiles.filter((item) => typeof item === "string") : []
     };
   } catch {
     return { path, missing: [], phpFiles: [] };
@@ -400,48 +466,13 @@ function recordPhpFiles(state, paths) {
   writeState(state);
 }
 
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-function firstString(...values) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) return value;
-  }
-  return "";
-}
-function nestedRecord(event, key) {
-  const value = event[key];
-  return isRecord(value) ? value : null;
-}
-async function readStdinJson(input = process.stdin) {
-  let raw = "";
-  for await (const chunk of input) raw += chunk.toString();
-  if (!raw.trim()) return {};
-  try {
-    const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? parsed : { __parseError: true };
-  } catch {
-    return { __parseError: true };
-  }
-}
-function eventCwd(event) {
-  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
-}
-function eventToolName(event) {
-  const tool = nestedRecord(event, "tool");
-  return firstString(event.tool_name, event.toolName, tool?.name);
-}
-function eventToolInput(event) {
-  const tool = nestedRecord(event, "tool");
-  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
-  return isRecord(value) ? value : {};
-}
-function isStopHookActive(event) {
-  return event.stop_hook_active === true || event.stopHookActive === true;
-}
-
 export {
+  isRecord,
+  readStdinJson,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
+  isStopHookActive,
   resolveConfig,
   modeFor,
   isSkippedPath,
@@ -457,10 +488,5 @@ export {
   readState,
   writeState,
   markMissingOnce,
-  recordPhpFiles,
-  readStdinJson,
-  eventCwd,
-  eventToolName,
-  eventToolInput,
-  isStopHookActive
+  recordPhpFiles
 };

@@ -15,7 +15,7 @@ const journalPath = join(root, ".pptx-delivery-journal.json");
 const receiptPath = join(root, "receipt.release.json");
 const temporaryPath = join(root, `.receipt.release.${process.pid}.tmp`);
 
-function fail(message) {
+function fail(message: string): never {
   throw new Error(`[pptx-project-release] ${message}`);
 }
 
@@ -59,7 +59,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
+main().catch((error: unknown) => {
+  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 2;
 });

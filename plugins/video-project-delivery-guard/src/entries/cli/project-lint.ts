@@ -20,4 +20,8 @@ async function main() {
   if (failed) process.exitCode = 2;
 }
 
-main().catch((error) => { process.stderr.write(`[video-project-lint] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => {
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[video-project-lint] ${message}\n`);
+  process.exitCode = 2;
+});

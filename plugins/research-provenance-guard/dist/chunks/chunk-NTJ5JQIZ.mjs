@@ -1,13 +1,17 @@
-// harness-source-hash: sha256:e135a9d3aa608f5f15f040e311aab5ea1eb67716b0d39bac38b0c614bfe29ffa
+// harness-source-hash: sha256:d945f3b122937f9aa290663ad4b77a5862f9dd48007b111f6f6c2dd40fb0bf38
 
 // plugins/research-provenance-guard/src/lib/server/integrity.ts
 import { createHash } from "node:crypto";
+function isJsonObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 function canonicalJson(value) {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
-  if (value && typeof value === "object") {
+  if (isJsonObject(value)) {
     return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
   }
-  return JSON.stringify(value);
+  const serialized = JSON.stringify(value);
+  return typeof serialized === "string" ? serialized : "null";
 }
 function sha256(value) {
   return createHash("sha256").update(value).digest("hex");

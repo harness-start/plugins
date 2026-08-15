@@ -21,6 +21,8 @@ import {
   systemMessageOutput,
   writeJson,
 } from "../../lib/hook-io.js";
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
+
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
@@ -28,9 +30,10 @@ import {
   proposalLocation,
   renderHumanNotice,
   validateProposalDocument,
+  type ProposalLocation,
 } from "../../lib/proposals.js";
 
-function shellSingleQuote(value) {
+function shellSingleQuote(value: string) {
   return `'${String(value).replaceAll("'", `'"'"'`)}'`;
 }
 
@@ -46,7 +49,7 @@ function sessionContext() {
   ].join("\n");
 }
 
-async function persistClaudeSession(event) {
+async function persistClaudeSession(event: HookEvent) {
   const environmentFile = process.env.CLAUDE_ENV_FILE;
   if (!environmentFile) return;
   const lines = [
@@ -58,7 +61,7 @@ async function persistClaudeSession(event) {
   await appendFile(environmentFile, `${lines.join("\n")}\n`, "utf8");
 }
 
-function shellMayMutate(command) {
+function shellMayMutate(command: string) {
   const value = String(command ?? "");
   if (/(?:^|[;&|()\s])(?:apply_patch|cp|dd|install|ln|mkdir|mv|rm|rmdir|tee|touch|truncate)(?:\s|$)/iu.test(value)) return true;
   if (/(?:^|[;&|()\s])(?:node|perl|php|python3?|ruby)(?:\s|$)/iu.test(value)) return true;
@@ -68,7 +71,7 @@ function shellMayMutate(command) {
   return false;
 }
 
-function resolveProjectRoot(cwd) {
+function resolveProjectRoot(cwd: string) {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -81,26 +84,34 @@ function resolveProjectRoot(cwd) {
   }
 }
 
-async function runStop(event) {
+async function runStop(event: HookEvent) {
   const projectRoot = resolveProjectRoot(extractCwd(event));
   const delta = await consumeNoticeDelta(projectRoot);
   if (delta.length === 0) return;
   writeJson(systemMessageOutput(renderHumanNotice(delta.length)));
 }
 
-async function runSession(event) {
+async function runSession(event: HookEvent) {
   await persistClaudeSession(event);
   writeJson(contextOutput("SessionStart", sessionContext()));
 }
 
-async function handleProposalWrite(event, projectRoot, locations) {
-  const relevant = locations.filter(Boolean);
+async function handleProposalWrite(
+  event: HookEvent,
+  projectRoot: string,
+  locations: Array<ProposalLocation | null>,
+) {
+  const relevant = locations.filter((location): location is ProposalLocation => location !== null);
   if (relevant.length === 0) return false;
   if (relevant.length !== locations.length || relevant.length !== 1) {
     writeJson(preToolDeny("[Project Capability Governance] proposal writes must target one exact inbox Markdown file"));
     return true;
   }
   const location = relevant[0];
+  if (!location) {
+    writeJson(preToolDeny("[Project Capability Governance] proposal writes must target one exact inbox Markdown file"));
+    return true;
+  }
   const toolName = String(extractToolName(event));
   const content = extractWriteContent(event);
   if (location.status !== "pending" || !/^(?:Write|create_file|apply_patch)$/iu.test(toolName) || content === null) {
@@ -116,9 +127,9 @@ async function handleProposalWrite(event, projectRoot, locations) {
     await lstat(location.absolute);
     writeJson(preToolDeny("[Project Capability Governance] an existing proposal path cannot be overwritten"));
     return true;
-  } catch (error) {
-    if (error?.code !== "ENOENT") {
-      writeJson(preToolDeny(`[Project Capability Governance] proposal target cannot be inspected safely: ${error?.message ?? String(error)}`));
+  } catch (error: unknown) {
+    if (!isRecord(error) || error.code !== "ENOENT") {
+      writeJson(preToolDeny(`[Project Capability Governance] proposal target cannot be inspected safely: ${error instanceof Error ? error.message : String(error)}`));
       return true;
     }
   }
@@ -126,7 +137,7 @@ async function handleProposalWrite(event, projectRoot, locations) {
   return true;
 }
 
-async function runPre(event) {
+async function runPre(event: HookEvent) {
   const projectRoot = resolveProjectRoot(extractCwd(event));
   if (isFileTool(event)) {
     const targets = extractFileTargets(event);
@@ -158,7 +169,7 @@ async function main() {
     else if (mode === "pre" || mode === "PreToolUse") await runPre(event);
     else if (mode === "stop" || mode === "Stop") await runStop(event);
   } catch (error) {
-    process.stderr.write(`[project-capability-governance] ${error?.message ?? String(error)}\n`);
+    process.stderr.write(`[project-capability-governance] ${error instanceof Error ? error.message : String(error)}\n`);
   }
 }
 

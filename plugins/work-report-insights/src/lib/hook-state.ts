@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
@@ -9,11 +10,23 @@ import { extractCwd, extractSessionId } from "./hook-io.js";
 const VERSION = 1;
 export const STATE_DIR_RELATIVE = ".work-report-insights/.state";
 
-function digest(value) {
+export type ReportHookState = {
+  version: number;
+  phase: string;
+  kind: string | null;
+  candidateSha256: string | null;
+  candidatePath: string | null;
+  reportSha256: string | null;
+  target: string | null;
+  operation: string | null;
+  updatedAt: number;
+};
+
+function digest(value: string): string {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-export function emptyState() {
+export function emptyState(): ReportHookState {
   return {
     version: VERSION,
     phase: "idle",
@@ -27,27 +40,31 @@ export function emptyState() {
   };
 }
 
-function dataRoot(event, env = process.env) {
+function dataRoot(event: HookEvent, env: NodeJS.ProcessEnv = process.env): string {
   if (env.WORK_REPORT_INSIGHTS_DATA) return resolve(env.WORK_REPORT_INSIGHTS_DATA);
   return join(resolve(extractCwd(event)), STATE_DIR_RELATIVE);
 }
 
-export function statePath(event, env = process.env) {
+export function statePath(event: HookEvent, env: NodeJS.ProcessEnv = process.env): string {
   const session = extractSessionId(event) || "default";
   return join(dataRoot(event, env), `${digest(session)}.json`);
 }
 
-export async function readState(event, env = process.env) {
+export async function readState(event: HookEvent, env: NodeJS.ProcessEnv = process.env): Promise<ReportHookState> {
   try {
-    const parsed = JSON.parse(await readFile(statePath(event, env), "utf8"));
-    if (parsed?.version !== VERSION) return emptyState();
+    const parsed: unknown = JSON.parse(await readFile(statePath(event, env), "utf8"));
+    if (!isRecord(parsed) || parsed.version !== VERSION) return emptyState();
     return { ...emptyState(), ...parsed, version: VERSION };
   } catch {
     return emptyState();
   }
 }
 
-export async function writeState(event, state, env = process.env) {
+export async function writeState(
+  event: HookEvent,
+  state: Partial<ReportHookState>,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<ReportHookState> {
   const path = statePath(event, env);
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   const storageRoot = env.WORK_REPORT_INSIGHTS_DATA
@@ -66,7 +83,11 @@ export async function writeState(event, state, env = process.env) {
   return next;
 }
 
-export async function updateState(event, updater, env = process.env) {
+export async function updateState(
+  event: HookEvent,
+  updater: (state: ReportHookState) => ReportHookState | Partial<ReportHookState> | null | undefined | Promise<ReportHookState | Partial<ReportHookState> | null | undefined>,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<ReportHookState> {
   const current = await readState(event, env);
   const next = await updater({ ...current });
   return writeState(event, next ?? current, env);

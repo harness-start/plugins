@@ -4,6 +4,9 @@ import { existsSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRecord, eventCwd, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
+
 import {
   capOutput,
   findExecutable,
@@ -19,14 +22,22 @@ import {
   resolveConfig,
   resolveRepoRoot,
   runCommand,
+  type CheckMode,
+  type CommandResult,
+  type QualityState,
 } from "../../lib/code-quality-core.js";
-import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
-import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 
-function extractShellWriteTargets(command) {
+type Finding = {
+  check: string;
+  path: string;
+  mode: string;
+  message: string;
+};
+
+function extractShellWriteTargets(command: string): string[] {
   const text = String(command ?? "");
-  const paths = [];
-  const push = (raw) => {
+  const paths: string[] = [];
+  const push = (raw: string | undefined) => {
     const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
     if (value && !value.startsWith("-")) paths.push(value);
   };
@@ -38,11 +49,11 @@ function extractShellWriteTargets(command) {
 }
 const ESLINT_PATH = /\.(?:cjs|cts|js|jsx|mjs|mts|ts|tsx)$/iu;
 
-function warn(message) {
+function warn(message: string): void {
   process.stderr.write(`[code-quality-guard] ${message}\n`);
 }
 
-export function extractFileTargets(event) {
+export function extractFileTargets(event: HookEvent): string[] {
   if (isShellTool(eventToolName(event))) {
     const cwd = eventCwd(event);
     return [...new Set(
@@ -55,37 +66,41 @@ export function extractFileTargets(event) {
   return extractCoreFileTargets(event);
 }
 
-function combinedOutput(result) {
+function combinedOutput(result: CommandResult): string {
   return [result.stdout, result.stderr].filter((value) => value?.trim()).join("\n").trim();
 }
 
-function finding(check, path, mode, message) {
+function finding(check: string, path: string, mode: string, message: string): Finding {
   return { check, path, mode, message };
 }
 
-function eslintMessages(result, path, mode) {
-  let parsed;
+function eslintMessages(result: CommandResult, path: string, mode: string): Finding[] {
+  let parsed: unknown;
   try {
     parsed = JSON.parse(result.stdout || "[]");
   } catch {
     return [finding("ESLint", path, "report", combinedOutput(result) || "ESLint returned no parseable JSON")];
   }
-  const findings = [];
+  const findings: Finding[] = [];
+  if (!Array.isArray(parsed)) return findings;
   for (const file of parsed) {
-    for (const message of file.messages ?? []) {
+    if (!isRecord(file)) continue;
+    const messages = Array.isArray(file.messages) ? file.messages : [];
+    for (const message of messages) {
+      if (!isRecord(message)) continue;
       const position = message.line ? `:${message.line}${message.column ? `:${message.column}` : ""}` : "";
       findings.push(finding(
         "ESLint",
         `${path}${position}`,
         message.fatal ? "block" : mode,
-        `${message.message}${message.ruleId ? ` (${message.ruleId})` : ""}`,
+        `${String(message.message ?? "")}${message.ruleId ? ` (${message.ruleId})` : ""}`,
       ));
     }
   }
   return findings;
 }
 
-function reportOutput(text) {
+function reportOutput(text: string): void {
   if (process.env.PLUGIN_ROOT) {
     process.stderr.write(`${text}\n`);
     return;
@@ -98,7 +113,7 @@ function reportOutput(text) {
   })}\n`);
 }
 
-function formatFindings(findings, omittedFiles) {
+function formatFindings(findings: Finding[], omittedFiles: number): string {
   const lines = ["[Code Quality Guard] Source check results", ""];
   for (const item of findings) {
     lines.push(`- [${item.mode}] ${item.check}: ${item.path}`);
@@ -118,7 +133,7 @@ function formatFindings(findings, omittedFiles) {
   return lines.join("\n");
 }
 
-async function main() {
+async function main(): Promise<void> {
   const event = await readStdinJson();
   if (event.__parseError) return;
   const cwd = resolve(eventCwd(event));
@@ -135,7 +150,7 @@ async function main() {
     .filter(({ path }) => !isSkippedPath(path));
   if (allTargets.length === 0) return;
 
-  const state = readState(event, repoRoot);
+  const state: QualityState = readState(event, repoRoot);
   recordPhpFiles(
     state,
     allTargets.filter(({ path }) => /\.php$/iu.test(path)).map(({ filePath }) => filePath),
@@ -144,22 +159,22 @@ async function main() {
   const targets = allTargets.slice(0, config.limits.maxImmediateFiles);
   let omittedFiles = allTargets.length - targets.length;
   const deadline = Date.now() + Math.min(50000, config.limits.immediateTimeoutMs * 3);
-  const findings = [];
-  const tools = new Map();
-  const tool = (name, localPaths = []) => {
+  const findings: Finding[] = [];
+  const tools = new Map<string, string | null>();
+  const tool = (name: string, localPaths: readonly string[] = []): string | null => {
     const key = `${name}\0${localPaths.join("\0")}`;
     if (!tools.has(key)) tools.set(key, findExecutable(name, repoRoot, localPaths));
-    return tools.get(key);
+    return tools.get(key) ?? null;
   };
-  const missing = (key, path, message) => {
+  const missing = (key: string, path: string, message: string): void => {
     if (config.missingTools === "silent") return;
     if (markMissingOnce(state, key)) findings.push(finding("Tool discovery", path, "report", message));
   };
-  const run = (command, args) => runCommand(command, args, {
+  const run = (command: string, args: readonly string[]): Promise<CommandResult> => runCommand(command, args, {
     cwd: repoRoot,
     timeoutMs: config.limits.immediateTimeoutMs,
   });
-  const commandFailure = (check, path, mode, result) => {
+  const commandFailure = (check: string, path: string, mode: CheckMode | string, result: CommandResult): boolean => {
     if (result.timedOut) {
       findings.push(finding(check, path, "report", `Check timed out after ${config.limits.immediateTimeoutMs}ms`));
       return true;
@@ -287,8 +302,8 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+  main().catch((error: unknown) => {
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

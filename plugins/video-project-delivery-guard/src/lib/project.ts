@@ -5,16 +5,18 @@ import { lstat, readdir } from "node:fs/promises";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { TextDecoder } from "node:util";
 
+import type { VideoFileMap, VideoModel, VideoProjectConfig } from "./contract.js";
+
 const TEXT_EXTENSIONS = new Set([".cjs", ".css", ".html", ".js", ".json", ".jsx", ".md", ".mjs", ".toml", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
 const TEXT_BASENAMES = new Set([".gitignore", "LICENSE"]);
 const SKIPPED_DIRECTORIES = new Set(["node_modules", ".git", ".cache", ".tmp"]);
 const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 
-function isTextPath(filePath) {
+function isTextPath(filePath: string) {
   return TEXT_BASENAMES.has(basename(filePath)) || TEXT_EXTENSIONS.has(extname(filePath).toLowerCase());
 }
 
-export function resolveWorkspaceRoot(cwd) {
+export function resolveWorkspaceRoot(cwd: string) {
   const absolute = resolve(cwd);
   try {
     const root = execFileSync("git", ["rev-parse", "--show-toplevel"], {
@@ -36,19 +38,20 @@ export function resolveWorkspaceRoot(cwd) {
   return absolute;
 }
 
-export function isVideoProjectRoot(projectRoot, workspaceRoot) {
+export function isVideoProjectRoot(projectRoot: string, workspaceRoot: string) {
   const expectedParent = join(resolve(workspaceRoot), "artifacts", "video");
   return dirname(resolve(projectRoot)) === expectedParent && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot));
 }
 
-export async function findVideoProjects(cwd, { maxProjects = 32 } = {}) {
+export async function findVideoProjects(cwd: string, { maxProjects = 32 }: { maxProjects?: number } = {}) {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const carrierRoot = join(workspaceRoot, "artifacts", "video");
   let entries;
   try {
     entries = await readdir(carrierRoot, { withFileTypes: true });
   } catch (error) {
-    if (error?.code === "ENOENT") return { workspaceRoot, roots: [] };
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+    if (code === "ENOENT") return { workspaceRoot, roots: [] };
     throw error;
   }
 
@@ -62,13 +65,16 @@ export async function findVideoProjects(cwd, { maxProjects = 32 } = {}) {
   return { workspaceRoot, roots: roots.sort() };
 }
 
-export async function hashFile(filePath, { maxBytes = 8 * 1024 * 1024 * 1024, collectBytes = false } = {}) {
+export async function hashFile(filePath: string, { maxBytes = 8 * 1024 * 1024 * 1024, collectBytes = false }: {
+  maxBytes?: number;
+  collectBytes?: boolean;
+} = {}) {
   const before = await lstat(filePath, { bigint: true });
   if (!before.isFile()) throw new Error(`NOT_A_FILE:${filePath}`);
   if (before.size > BigInt(maxBytes)) throw new Error(`PROJECT_FILE_SIZE_EXCEEDED:${basename(filePath)}`);
   const hash = createHash("sha256");
   let bytes = 0;
-  const chunks = collectBytes ? [] : null;
+  const chunks: Buffer[] | null = collectBytes ? [] : null;
   for await (const chunk of createReadStream(filePath)) {
     bytes += chunk.byteLength;
     hash.update(chunk);
@@ -79,7 +85,20 @@ export async function hashFile(filePath, { maxBytes = 8 * 1024 * 1024 * 1024, co
   return { digest: hash.digest("hex"), bytes, content: chunks ? Buffer.concat(chunks) : null };
 }
 
-async function collect(root, directory, state, limits) {
+type ProjectScanState = {
+  files: VideoFileMap;
+  digests: Record<string, string>;
+  sizes: Record<string, number>;
+  count: number;
+};
+
+type ProjectLimits = {
+  maxFiles: number;
+  maxBytesPerFile: number;
+  maxTextBytes: number;
+};
+
+async function collect(root: string, directory: string, state: ProjectScanState, limits: ProjectLimits) {
   const entries = await readdir(directory, { withFileTypes: true });
   for (const entry of entries) {
     const absolute = join(directory, entry.name);
@@ -96,22 +115,27 @@ async function collect(root, directory, state, limits) {
     const { digest, bytes, content } = await hashFile(absolute, { maxBytes: text ? Math.min(limits.maxBytesPerFile, limits.maxTextBytes) : limits.maxBytesPerFile, collectBytes: text });
     state.digests[relativePath] = digest;
     state.sizes[relativePath] = bytes;
-    try { state.files[relativePath] = text ? UTF8.decode(content) : null; }
+    try { state.files[relativePath] = text && content ? UTF8.decode(content) : null; }
     catch { throw new Error(`PROJECT_TEXT_ENCODING_INVALID:${relativePath}`); }
   }
 }
 
-export async function loadVideoProject(projectRoot, limits = {}) {
+export async function loadVideoProject(projectRoot: string, limits: {
+  maxFiles?: number;
+  maxBytesPerFile?: number;
+  maxTextBytes?: number;
+} = {}): Promise<VideoModel> {
   const root = resolve(projectRoot);
-  const state = { files: {}, digests: {}, sizes: {}, count: 0 };
+  const state: ProjectScanState = { files: {}, digests: {}, sizes: {}, count: 0 };
   await collect(root, root, state, {
     maxFiles: limits.maxFiles ?? 4096,
     maxBytesPerFile: limits.maxBytesPerFile ?? 8 * 1024 * 1024 * 1024,
     maxTextBytes: limits.maxTextBytes ?? 4 * 1024 * 1024,
   });
-  const parse = (filePath) => {
-    try { return JSON.parse(state.files[filePath] ?? ""); } catch { return null; }
+  const parse = (filePath: string): unknown => {
+    try { return JSON.parse(state.files[filePath] ?? "") as unknown; } catch { return null; }
   };
+  const project = parse("video.project.json");
   return {
     artifactId: basename(root),
     root,
@@ -119,6 +143,6 @@ export async function loadVideoProject(projectRoot, limits = {}) {
     digests: state.digests,
     sizes: state.sizes,
     plan: parse("plan.contract.json"),
-    project: parse("video.project.json"),
+    project: project !== null && typeof project === "object" && !Array.isArray(project) ? project as VideoProjectConfig : null,
   };
 }

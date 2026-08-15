@@ -1,6 +1,6 @@
 import ownerRule from "./local-rules/artifact-unit-owner.js";
 
-export function createPreset({ parser }) {
+export function createPreset({ parser }: { parser: unknown }) {
   return [{
     files: ["src/slides/*.ts"],
     languageOptions: { parser, parserOptions: { ecmaVersion: "latest", sourceType: "module" } },

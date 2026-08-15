@@ -6,9 +6,9 @@ const PNG_SIG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
  * Decode 8-bit RGB/RGBA PNG to { width, height, rgba: Uint8ClampedArray }.
  * Supports filter types 0–4 on scanlines.
  */
-export function decodePngToRgba(buf) {
-  if (!Buffer.isBuffer(buf)) buf = Buffer.from(buf);
-  if (buf.length < 8 || !buf.subarray(0, 8).equals(PNG_SIG)) {
+export function decodePngToRgba(buf: Buffer | Uint8Array): { width: number; height: number; rgba: Uint8ClampedArray } {
+  const bytes = Buffer.isBuffer(buf) ? buf : Buffer.from(buf);
+  if (bytes.length < 8 || !bytes.subarray(0, 8).equals(PNG_SIG)) {
     throw new Error("PNG_SIGNATURE_INVALID");
   }
   let offset = 8;
@@ -16,19 +16,19 @@ export function decodePngToRgba(buf) {
   let height = 0;
   let bitDepth = 0;
   let colorType = 0;
-  const idats = [];
-  while (offset + 8 <= buf.length) {
-    const length = buf.readUInt32BE(offset);
+  const idats: Buffer[] = [];
+  while (offset + 8 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset);
     offset += 4;
-    const type = buf.toString("ascii", offset, offset + 4);
+    const type = bytes.toString("ascii", offset, offset + 4);
     offset += 4;
-    const data = buf.subarray(offset, offset + length);
+    const data = bytes.subarray(offset, offset + length);
     offset += length + 4; // skip CRC
     if (type === "IHDR") {
       width = data.readUInt32BE(0);
       height = data.readUInt32BE(4);
-      bitDepth = data[8];
-      colorType = data[9];
+      bitDepth = data.readUInt8(8);
+      colorType = data.readUInt8(9);
     } else if (type === "IDAT") {
       idats.push(data);
     } else if (type === "IEND") {
@@ -55,10 +55,10 @@ export function decodePngToRgba(buf) {
     const filter = row[0];
     const slice = row.subarray(1);
     for (let i = 0; i < slice.length; i += 1) {
-      const left = i >= bpp ? curr[i - bpp] : 0;
-      const up = prev[i];
-      const upLeft = i >= bpp ? prev[i - bpp] : 0;
-      let val = slice[i];
+      const left = i >= bpp ? curr[i - bpp] ?? 0 : 0;
+      const up = prev[i] ?? 0;
+      const upLeft = i >= bpp ? prev[i - bpp] ?? 0 : 0;
+      let val = slice[i] ?? 0;
       if (filter === 1) val = (val + left) & 255;
       else if (filter === 2) val = (val + up) & 255;
       else if (filter === 3) val = (val + Math.floor((left + up) / 2)) & 255;
@@ -69,17 +69,17 @@ export function decodePngToRgba(buf) {
     for (let x = 0; x < width; x += 1) {
       const si = x * bpp;
       const di = (y * width + x) * 4;
-      rgba[di] = curr[si];
-      rgba[di + 1] = curr[si + 1];
-      rgba[di + 2] = curr[si + 2];
-      rgba[di + 3] = bpp === 4 ? curr[si + 3] : 255;
+      rgba[di] = curr[si] ?? 0;
+      rgba[di + 1] = curr[si + 1] ?? 0;
+      rgba[di + 2] = curr[si + 2] ?? 0;
+      rgba[di + 3] = bpp === 4 ? curr[si + 3] ?? 0 : 255;
     }
     prev.set(curr);
   }
   return { width, height, rgba };
 }
 
-function paeth(a, b, c) {
+function paeth(a: number, b: number, c: number): number {
   const p = a + b - c;
   const pa = Math.abs(p - a);
   const pb = Math.abs(p - b);

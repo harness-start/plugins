@@ -10,20 +10,20 @@ import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
-import { masterSubjectDigest } from "../../lib/contract.js";
+import { masterSubjectDigest, type DigestMap, type FileMap, type JsonRecord } from "../../lib/contract.js";
 import { decodePngToRgba } from "../../lib/png-decode.js";
 import { renderPreviewStrip } from "../../lib/preview-strip.js";
 import { buildSquintEvidence } from "../../lib/squint.js";
 
-async function exists(path) {
+async function exists(path: string): Promise<boolean> {
   try { await access(path); return true; } catch { return false; }
 }
 
-async function loadTextTree(root) {
+async function loadTextTree(root: string): Promise<{ files: FileMap; digests: DigestMap }> {
   const { readdir } = await import("node:fs/promises");
-  const files = {};
-  const digests = {};
-  async function walk(dir) {
+  const files: FileMap = {};
+  const digests: DigestMap = {};
+  async function walk(dir: string): Promise<void> {
     for (const entry of await readdir(dir, { withFileTypes: true })) {
       if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
       const abs = join(dir, entry.name);
@@ -101,9 +101,12 @@ async function main() {
   if (writeReview) {
     // Only bind digests; never invent passing aesthetic scores.
     const reviewPath = join(root, "review.logo.json");
-    let review = {};
+    let review: JsonRecord = {};
     if (await exists(reviewPath)) {
-      try { review = JSON.parse(await readFile(reviewPath, "utf8")); } catch { review = {}; }
+      try {
+        const parsed: unknown = JSON.parse(await readFile(reviewPath, "utf8"));
+        review = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as JsonRecord : {};
+      } catch { review = {}; }
     }
     review.masterDigest = digest;
     review.squintStripDigest = stripDigest;
@@ -130,11 +133,11 @@ async function main() {
   }, null, 2)}\n`);
 }
 
-function relativeToRoot(root, abs) {
+function relativeToRoot(root: string, abs: string): string {
   return abs.slice(root.length + 1).replaceAll("\\", "/");
 }
 
-main().catch((error) => {
-  process.stderr.write(`[logo-project-preview] ${error.message}\n`);
+main().catch((error: unknown) => {
+  process.stderr.write(`[logo-project-preview] ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 2;
 });

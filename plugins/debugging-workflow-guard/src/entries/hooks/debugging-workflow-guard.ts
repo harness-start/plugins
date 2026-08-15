@@ -5,7 +5,10 @@ import { execFileSync } from "node:child_process";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { loadProjectConfig } from "../../lib/config.js";
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
+import { commandMentionsRoot, isGenericMutationCommand } from "@harness/core/path-protect";
+
+import { loadProjectConfig, type PluginConfig } from "../../lib/config.js";
 import {
   contextOutput,
   extractAssistantMessage,
@@ -21,15 +24,13 @@ import {
   stopDeny,
   writeJson,
 } from "../../lib/hook-io.js";
-import { readState } from "../../lib/state-store.js";
-import { commandMentionsRoot, isGenericMutationCommand } from "@harness/core/path-protect";
-
 import {
   describeLedger,
   isLedgerManagedPath,
   isOfficialWriterCommand,
   scanLedgers,
 } from "../../lib/ledger.js";
+import { readState } from "../../lib/state-store.js";
 import {
   bindAfterWriter,
   classifyPath,
@@ -41,20 +42,20 @@ import {
   refreshBoundWorkOrder,
 } from "../../lib/workflow.js";
 
-function warn(message) { process.stderr.write(`[debugging-workflow-guard] ${message}\n`); }
-function repoRoot(cwd) {
+function warn(message: unknown): void { process.stderr.write(`[debugging-workflow-guard] ${String(message)}\n`); }
+function repoRoot(cwd: string): string {
   try { return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim(); }
   catch { return resolve(cwd); }
 }
-function shellMutates(command) {
+function shellMutates(command: string): boolean {
   const withoutNullRedirects = command.replace(/(?:[0-9]*>>?|&>)\s*\/dev\/null\b/gu, "");
   return /(?:^|[;&|]\s*)(?:sed\s+(?:-[^\s]*i)|perl\s+(?:-[^\s]*i)|tee\b|cp\b|mv\b|touch\b|mkdir\b|truncate\b|git\s+(?:apply|am|merge|rebase|cherry-pick)|npm\s+(?:install|uninstall)|pnpm\s+(?:add|remove)|yarn\s+(?:add|remove))|(?:>|>>)[^&]/iu.test(withoutNullRedirects);
 }
-function conciseResponse(event) {
+function conciseResponse(event: HookEvent): string {
   const value = event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? "";
   return (typeof value === "string" ? value : JSON.stringify(value)).replace(/\s+/gu, " ").slice(0, 240);
 }
-function ensureLocalExclude(root, config) {
+function ensureLocalExclude(root: string, config: PluginConfig): void {
   if (config.ledger.persistence !== "local") return;
   try {
     const path = execFileSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5000 }).trim();
@@ -62,17 +63,20 @@ function ensureLocalExclude(root, config) {
     const entry = `/${config.ledger.root}/`;
     const existing = existsSync(absolute) ? readFileSync(absolute, "utf8") : "";
     if (!existing.split(/\r?\n/u).includes(entry)) appendFileSync(absolute, `${existing && !existing.endsWith("\n") ? "\n" : ""}${entry}\n`, "utf8");
-  } catch (error) { warn(`cannot update .git/info/exclude: ${error?.message ?? error}`); }
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : error;
+    warn(`cannot update .git/info/exclude: ${message ?? error}`);
+  }
 }
 
-async function context(event) {
+async function context(event: HookEvent) {
   const cwd = extractCwd(event);
   const root = repoRoot(cwd);
   const config = await loadProjectConfig(root, warn);
   return { cwd, root, config, sessionId: extractSessionId(event) };
 }
 
-async function runSession(event) {
+async function runSession(event: HookEvent): Promise<void> {
   const { root, config } = await context(event);
   if (config.mode === "off") return;
   const orders = scanLedgers(root, config);
@@ -83,7 +87,7 @@ async function runSession(event) {
   writeJson(contextOutput("SessionStart", lines.join("\n")));
 }
 
-async function runPre(event) {
+async function runPre(event: HookEvent): Promise<void> {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
   const command = extractShellCommand(event);
@@ -107,14 +111,18 @@ async function runPre(event) {
   else if (decision.action === "report") writeJson(contextOutput("PreToolUse", `[Debugging Workflow Guard] ${decision.reason}`));
 }
 
-function responseStdout(event) {
+function responseStdout(event: HookEvent): string {
   const response = extractToolResponse(event);
   if (typeof response === "string") return response;
-  if (response && typeof response === "object" && typeof response.stdout === "string") return response.stdout;
+  if (isRecord(response) && typeof response.stdout === "string") return response.stdout;
   return conciseResponse(event);
 }
 
-async function runPost(event, forceFailure = false) {
+function execStatus(error: unknown): unknown {
+  return isRecord(error) ? error.status : undefined;
+}
+
+async function runPost(event: HookEvent, forceFailure = false): Promise<void> {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
   const postEvent = forceFailure ? "PostToolUseFailure" : "PostToolUse";
@@ -125,12 +133,13 @@ async function runPost(event, forceFailure = false) {
     if (bound.kind !== "idle") {
       if (bound.kind === "bound") {
         ensureLocalExclude(root, config);
-        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Bound ${bound.workOrder.id} at ${relative(root, bound.state.workOrderPath)}; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.${bound.active ? " Evidence and mutations are now attributed to that bug." : " No active mutation guard remains."}`));
+        const boundPath = bound.state.workOrderPath ?? "";
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Bound ${String(bound.workOrder.id)} at ${relative(root, boundPath)}; state ${String(bound.workOrder.status)}/${String(bound.workOrder.run?.state)}; active bug ${bound.workOrder.activeBugId ?? "none"}.${bound.active ? " Evidence and mutations are now attributed to that bug." : " No active mutation guard remains."}`));
         closeBinding({ cwd, sessionId, config });
-      } else if (["invalid", "conflict"].includes(bound.kind)) {
+      } else if (bound.kind === "invalid" || bound.kind === "conflict") {
         writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order activation rejected: ${(bound.findings ?? []).join("; ")}`));
-      } else if (["active", "inactive"].includes(bound.kind)) {
-        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order ${bound.workOrder.id} refreshed; state ${bound.workOrder.status}/${bound.workOrder.run.state}; active bug ${bound.workOrder.activeBugId ?? "none"}.`));
+      } else if (bound.kind === "active" || bound.kind === "inactive") {
+        writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Work Order ${String(bound.workOrder.id)} refreshed; state ${String(bound.workOrder.status)}/${String(bound.workOrder.run?.state)}; active bug ${bound.workOrder.activeBugId ?? "none"}.`));
         closeBinding({ cwd, sessionId, config });
       }
       return;
@@ -150,10 +159,10 @@ async function runPost(event, forceFailure = false) {
   if (command) {
     const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
     const recorded = recordReceipt({ cwd, sessionId, config, kind: shellMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
-    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${recorded.receipt.kind} ${recorded.receipt.outcome} for ${recorded.receipt.bugId}. Cite this id only when it supports the stated claim.`));
+    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
     if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
-      const count = recorded.state.attempts[recorded.receipt.bugId] ?? 0;
-      if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${recorded.receipt.bugId} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
+      const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
+      if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${String(recorded.receipt.bugId)} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
     }
     return;
   }
@@ -163,42 +172,42 @@ async function runPost(event, forceFailure = false) {
     const codePaths = paths.filter((path) => classifyPath(path, root, config) === "code");
     if (codePaths.length > 0) {
       const recorded = recordReceipt({ cwd, sessionId, config, kind: "mutation", paths: codePaths, outcome: "success", summary: `${codePaths.length} production path(s) changed` });
-      if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: production mutation attributed to ${recorded.receipt.bugId}.`));
+      if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: production mutation attributed to ${String(recorded.receipt.bugId)}.`));
     }
   }
 }
 
-async function runStop(event) {
+async function runStop(event: HookEvent): Promise<void> {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
   if (live.kind === "idle") return;
-  if (!["active", "inactive"].includes(live.kind)) {
+  if (live.kind !== "active" && live.kind !== "inactive") {
     const reason = `[Debugging Workflow Guard] Bound Work Order is invalid: ${(live.findings ?? []).join("; ")}`;
     if (config.mode === "block") writeJson(stopDeny(reason)); else writeJson(contextOutput("Stop", reason));
     return;
   }
   const message = extractAssistantMessage(event);
-  const rel = relative(root, live.state.workOrderPath).replaceAll("\\", "/");
+  const rel = relative(root, live.state.workOrderPath ?? "").replaceAll("\\", "/");
   const findings = live.workOrder.status === "closed" ? completionFindings(live) : [];
   if (live.workOrder.status === "closed") {
-    const marker = `DBG_${live.workOrder.id.replace(/[^A-Za-z0-9]+/gu, "_")}`;
+    const marker = `DBG_${String(live.workOrder.id).replace(/[^A-Za-z0-9]+/gu, "_")}`;
     try {
       const matches = execFileSync("git", ["grep", "--untracked", "-n", "-I", "-e", marker, "--", ".", `:!${config.ledger.root}`], { cwd: root, encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
       if (matches) findings.push(`debug instrumentation remains under marker prefix ${marker}`);
-    } catch (error) {
-      if (![1, "1"].includes(error?.status)) findings.push("debug-marker cleanup scan could not complete");
+    } catch (error: unknown) {
+      if (execStatus(error) !== 1 && execStatus(error) !== "1") findings.push("debug-marker cleanup scan could not complete");
     }
   }
-  if (["closed", "paused", "aborted"].includes(live.workOrder.status) && !message.includes(rel) && !message.includes(live.workOrder.id)) {
-    findings.push(`response must reference ${rel} or ${live.workOrder.id}`);
+  if (["closed", "paused", "aborted"].includes(String(live.workOrder.status)) && !message.includes(rel) && !message.includes(String(live.workOrder.id))) {
+    findings.push(`response must reference ${rel} or ${String(live.workOrder.id)}`);
   }
   if (findings.length === 0) { closeBinding({ cwd, sessionId, config }); return; }
   const reason = `[Debugging Workflow Guard] Debug workflow cannot stop:\n- ${findings.join("\n- ")}\nUse the debug-workflow CLI to update the ledger; do not invent receipt ids.`;
   if (config.mode === "block") writeJson(stopDeny(reason)); else writeJson(contextOutput("Stop", reason));
 }
 
-export async function main(mode = process.argv[2]) {
+export async function main(mode: string | undefined = process.argv[2]): Promise<void> {
   const event = await readStdinJson();
   try {
     if (mode === "session") await runSession(event);
@@ -207,8 +216,8 @@ export async function main(mode = process.argv[2]) {
     else if (mode === "failure") await runPost(event, true);
     else if (mode === "stop") await runStop(event);
     else { warn(`unknown mode: ${mode}`); process.exitCode = 2; }
-  } catch (error) {
-    warn(error?.stack ?? error);
+  } catch (error: unknown) {
+    warn(error instanceof Error ? error.stack ?? error : error);
     process.exitCode = 1;
   }
 }

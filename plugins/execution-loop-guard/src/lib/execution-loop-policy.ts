@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { relative, resolve } from "node:path";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
+
 import { extractToolResponse } from "./hook-io.js";
 
 const READ_ONLY_COMMAND_RE =
@@ -29,7 +31,14 @@ const VERIFY_PATTERNS = [
   /\b(?:terraform|tofu)\s+(?:validate|fmt\s+-check)\b/iu,
 ];
 
-export function regexMatches(pattern, value) {
+export type CommandOutcome = "success" | "failure" | "unknown";
+
+export type SleepSettings = {
+  whileLoopAssumedIterations: number;
+  maxSleepPerCommandSeconds: number;
+};
+
+export function regexMatches(pattern: RegExp, value: string): boolean {
   try {
     return new RegExp(pattern.source, pattern.flags).test(value);
   } catch {
@@ -37,7 +46,7 @@ export function regexMatches(pattern, value) {
   }
 }
 
-export function normalizeCommand(command) {
+export function normalizeCommand(command: unknown): string {
   let normalized = String(command ?? "").replace(/\s+#\s*retry-ok\b.*$/iu, "").trim();
   normalized = normalized.replace(/\s+2>&1/gu, " ");
   normalized = normalized.replace(/\s+(?:1>>|2>>|1>|2>|>>|>)\s*(?:"[^"]+"|'[^']+'|\S+)\s*$/gu, "");
@@ -47,7 +56,7 @@ export function normalizeCommand(command) {
   return normalized.replace(/\s+/gu, " ").replace(/;+$/u, "").trim();
 }
 
-function stripLeadingAssignments(command) {
+function stripLeadingAssignments(command: string): string {
   let rest = command.trim();
   while (true) {
     const next = rest.match(/^[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+([\s\S]+)$/u);
@@ -56,7 +65,7 @@ function stripLeadingAssignments(command) {
   }
 }
 
-export function isReadOnlyCommand(command) {
+export function isReadOnlyCommand(command: unknown): boolean {
   const trimmed = String(command ?? "").trim();
   if (!trimmed) return true;
   const stripped = stripLeadingAssignments(trimmed);
@@ -67,19 +76,19 @@ export function isReadOnlyCommand(command) {
     : false;
 }
 
-export function commandHash(command) {
+export function commandHash(command: unknown): string {
   return createHash("sha256").update(normalizeCommand(command)).digest("hex");
 }
 
-function directCommandWords(command) {
-  const words = [];
+function directCommandWords(command: unknown): string[] | null {
+  const words: string[] = [];
   let word = "";
-  let quote = null;
+  let quote: string | null = null;
   let escaped = false;
   const source = String(command ?? "").trim();
   if (!source || /[\r\n]/u.test(source)) return null;
   for (let index = 0; index < source.length; index += 1) {
-    const character = source[index];
+    const character = source[index] ?? "";
     if (escaped) {
       word += character;
       escaped = false;
@@ -99,11 +108,11 @@ function directCommandWords(command) {
   return words;
 }
 
-export function commandInputFingerprint(command, cwd, repoRoot) {
+export function commandInputFingerprint(command: unknown, cwd: string, repoRoot: string | null): string | null {
   const words = directCommandWords(command);
   if (!words?.length) return null;
-  const root = resolve(repoRoot);
-  const inputs = [];
+  const root = resolve(repoRoot!);
+  const inputs: string[] = [];
   for (const word of words) {
     const candidate = resolve(cwd, word.replace(/^\.\//u, ""));
     try {
@@ -117,14 +126,14 @@ export function commandInputFingerprint(command, cwd, repoRoot) {
   return createHash("sha256").update([...new Set(inputs)].sort().join("\0")).digest("hex");
 }
 
-export function failureSignature(command, response) {
+export function failureSignature(command: unknown, response: unknown): string {
   let serialized = "";
   try { serialized = JSON.stringify(response ?? null); } catch { serialized = String(response ?? ""); }
   const normalizedResponse = serialized.replace(/\u001b\[[0-9;]*m/gu, "").replace(/\s+/gu, " ").trim().slice(-8192);
   return createHash("sha256").update(`${normalizeCommand(command)}\0${normalizedResponse}`).digest("hex");
 }
 
-export function inferCommandOutcome(event, forceFailure = false) {
+export function inferCommandOutcome(event: HookEvent, forceFailure = false): CommandOutcome {
   if (forceFailure) return "failure";
   const response = extractToolResponse(event);
   if (typeof response === "string") {
@@ -132,7 +141,7 @@ export function inferCommandOutcome(event, forceFailure = false) {
     const code = matches.at(-1)?.[1];
     if (code !== undefined) return Number.parseInt(code, 10) === 0 ? "success" : "failure";
   }
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const code = response.exit_code ?? response.exitCode ?? response.code ?? response.status;
     if (typeof code === "number") return code === 0 ? "success" : "failure";
     if (response.success === false || response.is_error === true || response.isError === true) return "failure";
@@ -141,12 +150,12 @@ export function inferCommandOutcome(event, forceFailure = false) {
   return "unknown";
 }
 
-export function isVerificationCommand(command) {
+export function isVerificationCommand(command: unknown): boolean {
   const normalized = normalizeCommand(command);
   return VERIFY_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
-export function estimateSleepSeconds(command, settings) {
+export function estimateSleepSeconds(command: unknown, settings: SleepSettings): number {
   let total = 0;
   for (const match of String(command).matchAll(/\bsleep\s+(\d+(?:\.\d+)?)\b/giu)) total += Number(match[1]);
   if (total <= 0) return 0;
@@ -160,6 +169,6 @@ export function estimateSleepSeconds(command, settings) {
   return Math.min(total, settings.maxSleepPerCommandSeconds);
 }
 
-export function countRemotePolls(command) {
+export function countRemotePolls(command: unknown): number {
   return REMOTE_POLL_RE.test(String(command)) ? 1 : 0;
 }

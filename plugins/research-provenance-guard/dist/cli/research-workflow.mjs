@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e135a9d3aa608f5f15f040e311aab5ea1eb67716b0d39bac38b0c614bfe29ffa
+// harness-source-hash: sha256:d945f3b122937f9aa290663ad4b77a5862f9dd48007b111f6f6c2dd40fb0bf38
 import {
   SEALED_OR_LATER,
   appendSkillTrace,
@@ -7,11 +7,12 @@ import {
   ensureRunSkeleton,
   findActiveWorkflow,
   generateRunId,
+  isRecord,
   listWorkflows,
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-QHUYZAJU.mjs";
+} from "../chunks/chunk-HFEXQAU3.mjs";
 
 // plugins/research-provenance-guard/src/entries/cli/research-workflow.ts
 import { createHash } from "node:crypto";
@@ -23,6 +24,7 @@ function parseArgs(argv) {
   const positionals = [];
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === void 0) continue;
     if (!value.startsWith("--")) {
       positionals.push(value);
       continue;
@@ -120,7 +122,7 @@ function cmdClaimsDraft(cwd, options) {
   writeFileSync(dest, `${JSON.stringify(claims, null, 2)}
 `, "utf8");
   workflow.phase = "claims_drafted";
-  workflow.completeness.all_claims_classified = claims.every((claim) => claim && typeof claim.status === "string");
+  workflow.completeness.all_claims_classified = claims.every((claim) => isRecord(claim) && typeof claim.status === "string");
   writeWorkflow(cwd, workflow);
   appendSkillTrace(cwd, runId, { phase: "claims_drafted", skill: "research-evidence-workflow", mode: "invoke", artifact_paths: ["claims.draft.json"] });
   output({ ok: true, run_id: runId, phase: workflow.phase, claim_count: claims.length });

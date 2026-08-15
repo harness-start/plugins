@@ -4,15 +4,16 @@ import { createHash } from "node:crypto";
 import { open, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { basename, join, relative, resolve } from "node:path";
 
-import { createPrintReceipt, validatePrintModel, validatePrintReceipt } from "../../lib/contract.js";
+import { createPrintReceipt, validatePrintModel, validatePrintReceipt, type DigestMap, type FileMap } from "../../lib/contract.js";
+import type { BinaryLike } from "node:crypto";
 
 const root = resolve(process.argv[2] ?? "");
 const journalPath = join(root, ".print-delivery-journal.json");
 const receiptPath = join(root, "receipt.release.json");
 const temporaryPath = join(root, `.receipt.release.${process.pid}.tmp`);
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");
 
-async function collect(directory, files, digests, count) {
+async function collect(directory: string, files: FileMap, digests: DigestMap, count: { value: number }): Promise<void> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
     if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
@@ -30,10 +31,10 @@ async function collect(directory, files, digests, count) {
 }
 
 async function load() {
-  const files = {};
-  const digests = {};
+  const files: FileMap = {};
+  const digests: DigestMap = {};
   await collect(root, files, digests, { value: 0 });
-  const parse = (filePath) => { try { return JSON.parse(files[filePath] ?? ""); } catch { return null; } };
+  const parse = (filePath: string): unknown => { try { return JSON.parse(String(files[filePath] ?? "")); } catch { return null; } };
   return { artifactId: basename(root), files, digests, plan: parse("plan.contract.json"), project: parse("print.project.json") };
 }
 
@@ -59,4 +60,4 @@ async function main() {
   }
 }
 
-main().catch((error) => { process.stderr.write(`[print-project-release] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => { process.stderr.write(`[print-project-release] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

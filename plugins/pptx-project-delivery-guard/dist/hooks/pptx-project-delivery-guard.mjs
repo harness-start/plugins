@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:dabf6dd1113c58d71d04b6ebaa3b3792c605b6d37fb76b44cbe06813872b3bc5
+// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
 import {
   evaluatePptxWrite,
   findPptxProjects,
@@ -7,7 +7,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-C3BXNGNL.mjs";
+} from "../chunks/chunk-5FDEPKIR.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/hooks/pptx-project-delivery-guard.ts
 import { dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -331,18 +331,21 @@ async function runPre(event) {
   }
   return void 0;
 }
+function planTargetStage(plan) {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0;
+}
 async function projectFindings(cwd, forceStage) {
   const findings = [];
   const roots = typeof findPptxProjects === "function" ? await findPptxProjects(cwd) : (await findCarrierProjects(cwd, "pptx")).roots;
   for (const root of roots) {
     try {
       const model = await loadPptxProject(root);
-      const stage = forceStage ?? model.plan?.targetStage ?? "source";
+      const stage = forceStage ?? planTargetStage(model.plan) ?? "source";
       for (const item of validatePptxModel(model, { stage })) {
-        findings.push({ artifactId: model.artifactId, ...item });
+        findings.push({ artifactId: model.artifactId ?? relative2(cwd, root), ...item });
       }
     } catch (error) {
-      findings.push({ artifactId: relative2(cwd, root), code: "PROJECT_READ_FAILED", path: ".", message: error.message });
+      findings.push({ artifactId: relative2(cwd, root), code: "PROJECT_READ_FAILED", path: ".", message: error instanceof Error ? error.message : String(error) });
     }
   }
   return findings;
@@ -380,7 +383,7 @@ async function main() {
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve4(process.argv[1])) {
   main().catch((error) => {
-    process.stderr.write(`[PPTX Project Delivery Guard] ${error.message}
+    process.stderr.write(`[PPTX Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);
     process.exitCode = 2;
   });

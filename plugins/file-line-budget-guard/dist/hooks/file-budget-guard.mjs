@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1dc129b907a83ffbbaddec6ca3611edb44a72a17880888ec969981376e7632bb
+// harness-source-hash: sha256:8021f65b56ecc67a256942ebae86e0a846a48ff6bf644bfad430b7e0e3c0c17c
 
 // plugins/file-line-budget-guard/src/entries/hooks/file-budget-guard.ts
 import { execFileSync } from "node:child_process";
@@ -209,6 +209,12 @@ function extractFileTargets(event, options = {}) {
 }
 
 // plugins/file-line-budget-guard/src/entries/hooks/file-budget-guard.ts
+function isBudgetMode(value) {
+  return value === "block" || value === "report" || value === "skip";
+}
+function isSettingsKey(key) {
+  return key === "nearBudgetWarnRatio" || key === "warnCooldownMinutes" || key === "oversizeSoftGrowthLimit";
+}
 var BUILTIN_RULES = [
   // ── skip: tests, fixtures, generated paths ──
   { match: /(^|\/)tests?\//, mode: "skip" },
@@ -308,7 +314,7 @@ async function loadUserConfig(repoRoot) {
       const mod = await import(pathToFileURL(p).href);
       return mod.default ?? mod;
     } catch (e) {
-      process.stderr.write(`[file-line-budget-guard] Failed to load ${name}: ${e.message}
+      process.stderr.write(`[file-line-budget-guard] Failed to load ${name}: ${e instanceof Error ? e.message : String(e)}
 `);
       return null;
     }
@@ -316,7 +322,7 @@ async function loadUserConfig(repoRoot) {
   return null;
 }
 function validateRule(rule, i) {
-  if (!rule || typeof rule !== "object" || Array.isArray(rule)) {
+  if (!isRecord(rule) || Array.isArray(rule)) {
     process.stderr.write(`[file-line-budget-guard] rule[${i}]: must be an object, skipping
 `);
     return false;
@@ -327,7 +333,7 @@ function validateRule(rule, i) {
     return false;
   }
   const mode = rule.mode ?? "block";
-  if (!["block", "report", "skip"].includes(mode)) {
+  if (!isBudgetMode(mode)) {
     process.stderr.write(`[file-line-budget-guard] rule[${i}]: "mode" must be block|report|skip, skipping
 `);
     return false;
@@ -343,7 +349,7 @@ function validateRule(rule, i) {
 }
 function resolveSettings(rawSettings) {
   if (rawSettings === void 0) return { ...DEFAULT_SETTINGS };
-  if (!rawSettings || typeof rawSettings !== "object" || Array.isArray(rawSettings)) {
+  if (!isRecord(rawSettings) || Array.isArray(rawSettings)) {
     process.stderr.write('[file-line-budget-guard] config "settings" must be an object, using defaults\n');
     return { ...DEFAULT_SETTINGS };
   }
@@ -354,13 +360,13 @@ function resolveSettings(rawSettings) {
   };
   const settings = { ...DEFAULT_SETTINGS };
   for (const [key, value] of Object.entries(rawSettings)) {
-    const validate = validators[key];
-    if (!validate) {
+    if (!isSettingsKey(key)) {
       process.stderr.write(`[file-line-budget-guard] settings.${key}: unknown setting, ignoring
 `);
       continue;
     }
-    if (!validate(value)) {
+    const validate = validators[key];
+    if (!validate(value) || typeof value !== "number") {
       process.stderr.write(`[file-line-budget-guard] settings.${key}: invalid value, using default
 `);
       continue;
@@ -370,13 +376,14 @@ function resolveSettings(rawSettings) {
   return settings;
 }
 function resolveRules(userConfig) {
-  const rawRules = Array.isArray(userConfig?.rules) ? userConfig.rules : [];
-  if (userConfig?.rules !== void 0 && !Array.isArray(userConfig.rules)) {
+  const record = isRecord(userConfig) ? userConfig : void 0;
+  const rawRules = Array.isArray(record?.rules) ? record.rules : [];
+  if (record?.rules !== void 0 && !Array.isArray(record.rules)) {
     process.stderr.write('[file-line-budget-guard] config "rules" must be an array, using built-ins\n');
   }
   const userRules = rawRules.map((rule, i) => ({ rule, i })).filter(({ rule, i }) => validateRule(rule, i)).map(({ rule }) => rule.mode == null ? { ...rule, mode: "block" } : rule);
   const rules = [...userRules, ...BUILTIN_RULES];
-  const settings = resolveSettings(userConfig?.settings);
+  const settings = resolveSettings(record?.settings);
   return { rules, settings };
 }
 function matchRule(relPath, rules) {
@@ -397,6 +404,7 @@ function countLines(text) {
   return lines.length;
 }
 function readGitHeadContent(filePath, repoRoot) {
+  if (!repoRoot) return null;
   try {
     const relPath = relative(repoRoot, filePath).replaceAll("\\", "/");
     if (relPath === ".." || relPath.startsWith("../")) return null;
@@ -457,7 +465,8 @@ async function main() {
   const event = await readStdinJson();
   if (event.__parseError) process.exit(0);
   const filePaths = extractFilePaths(event).filter((p) => existsSync(p));
-  if (filePaths.length === 0) {
+  const firstPath = filePaths[0];
+  if (!firstPath) {
     process.exit(0);
   }
   let repoRoot;
@@ -466,7 +475,7 @@ async function main() {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5e3,
-      cwd: dirname(filePaths[0])
+      cwd: dirname(firstPath)
     }).trim();
   } catch {
     try {
@@ -495,7 +504,7 @@ async function main() {
     const content = readTextFileCapped(candidate);
     if (content === null) continue;
     const lines = countLines(content);
-    if (matched.mode === "report" || matched.mode === "block") {
+    if ((matched.mode === "report" || matched.mode === "block") && typeof matched.budget === "number") {
       filePath = candidate;
       rule = matched;
       currentLines = lines;

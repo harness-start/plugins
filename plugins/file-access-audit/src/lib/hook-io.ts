@@ -5,6 +5,7 @@ import {
   eventToolName,
   eventToolUseId,
   readStdinJson,
+  type HookEvent,
 } from "@harness/core/hook-event";
 import { preToolDeny, writeJson } from "@harness/core/hook-output";
 import {
@@ -15,29 +16,30 @@ import {
   isShellTool as isCoreShellTool,
 } from "@harness/core/hook-targets";
 
-export { readStdinJson, extractShellCommand, preToolDeny, writeJson };
+export type FileAccessOp = "read" | "write" | "update";
 
-export function extractSessionId(event) {
+export type StructuredFileAccess = {
+  toolName: string;
+  op: FileAccessOp;
+  paths: string[];
+};
+
+export { readStdinJson, extractShellCommand, preToolDeny, writeJson };
+export {
+  eventCwd as extractCwd,
+  eventToolInput as extractToolInput,
+  eventToolName as extractToolName,
+};
+
+export function extractSessionId(event: HookEvent): string | null {
   return eventSessionId(event) || null;
 }
 
-export function extractCwd(event) {
-  return eventCwd(event);
-}
-
-export function extractToolName(event) {
-  return eventToolName(event);
-}
-
-export function extractToolInput(event) {
-  return eventToolInput(event);
-}
-
-export function extractToolUseId(event) {
+export function extractToolUseId(event: HookEvent): string | null {
   return eventToolUseId(event) || null;
 }
 
-export function inferFileOp(toolName) {
+export function inferFileOp(toolName: string): FileAccessOp {
   const name = String(toolName ?? "").replaceAll("_", "").toLowerCase();
   if (name === "read") return "read";
   if (name === "write" || name === "createfile") return "write";
@@ -46,22 +48,22 @@ export function inferFileOp(toolName) {
   return "update";
 }
 
-export function extractStructuredFileAccess(event) {
-  const toolName = String(extractToolName(event));
+export function extractStructuredFileAccess(event: HookEvent): StructuredFileAccess | null {
+  const toolName = String(eventToolName(event));
   if (!isFileTool(toolName)) return null;
   const paths = extractCoreFileTargets(event, { tools: "read-or-mutation" });
   if (paths.length === 0) return null;
   return { toolName, op: inferFileOp(toolName), paths };
 }
 
-export function extractFileTargets(event) {
+export function extractFileTargets(event: HookEvent): string[] {
   return extractStructuredFileAccess(event)?.paths ?? [];
 }
 
-export function isShellTool(toolName) {
+export function isShellTool(toolName: string): boolean {
   return isCoreShellTool(toolName);
 }
 
-export function isFileTool(toolName) {
+export function isFileTool(toolName: string): boolean {
   return isFileMutationTool(toolName) || isReadTool(toolName);
 }

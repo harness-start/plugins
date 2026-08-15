@@ -6,6 +6,12 @@ import { basename, join, resolve } from "node:path";
 import { createLogoReceipt, validateLogoModel, validateLogoReceipt } from "../../lib/contract.js";
 import { assertLogoProjectRoot, loadLogoProject } from "../../lib/project.js";
 
+function planField(plan: unknown, key: string): unknown {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan)
+    ? (plan as Record<string, unknown>)[key]
+    : undefined;
+}
+
 const root = resolve(process.argv[2] ?? "");
 const journalPath = join(root, ".logo-delivery-journal.json");
 const receiptPath = join(root, "receipt.release.json");
@@ -15,7 +21,7 @@ async function main() {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(root))) throw new Error("project root must end in a kebab-case artifact id");
   await assertLogoProjectRoot(root);
   const model = await loadLogoProject(root);
-  if (model.plan?.targetStage !== "release") throw new Error("RELEASE_STAGE_NOT_REQUESTED");
+  if (planField(model.plan, "targetStage") !== "release") throw new Error("RELEASE_STAGE_NOT_REQUESTED");
   const findings = validateLogoModel(model, { stage: "release" }).filter(({ code, path }) => code !== "RECEIPT_INVALID" && !(code === "RELEASE_PATH_MISSING" && path === "receipt.release.json"));
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
   const handle = await open(journalPath, "wx");
@@ -35,4 +41,4 @@ async function main() {
   }
 }
 
-main().catch((error) => { process.stderr.write(`[logo-project-release] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => { process.stderr.write(`[logo-project-release] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

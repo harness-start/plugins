@@ -3,8 +3,14 @@ import {
   existsSync, lstatSync, readFileSync, unlinkSync,
 } from "node:fs";
 import { basename, extname, join, posix, resolve } from "node:path";
+import { isRecord } from "@harness/core/hook-event";
 
-import { gitInvocations } from "./command-rules.js";
+import {
+  gitInvocations,
+  type DeliveryAction,
+  type DeliveryFinding,
+  type GitInvocation,
+} from "./command-rules.js";
 
 const WRITE_COMMANDS = new Set([
   "add", "am", "checkout", "cherry-pick", "commit", "merge", "mv", "pull",
@@ -26,7 +32,27 @@ const CONFIG_EXTENSIONS = new Set([
   ".tfvars", ".toml", ".xml", ".yaml", ".yml",
 ]);
 
-function git(args, cwd) {
+type BoundaryRule = {
+  id: string;
+  prefix: string;
+};
+
+type BoundaryConfig = {
+  rules: BoundaryRule[];
+  error: string | null;
+};
+
+type ConcernFlags = {
+  source: boolean;
+  config: boolean;
+};
+
+function errorText(error: unknown): string {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+
+function git(args: readonly string[], cwd: string): string | null {
   try {
     return execFileSync("git", args, {
       cwd,
@@ -40,26 +66,26 @@ function git(args, cwd) {
   }
 }
 
-function lines(args, cwd) {
+function lines(args: readonly string[], cwd: string): string[] | null {
   const output = git(args, cwd);
   return output === null ? null : output ? output.split("\n").filter(Boolean) : [];
 }
 
-function finding(action, id, reason, recovery) {
+function finding(action: DeliveryAction, id: string, reason: string, recovery: string): DeliveryFinding {
   return { action, id, reason, recovery };
 }
 
-function processState(pid) {
+function processState(pid: number): "alive" | "dead" | "unknown" {
   try {
     process.kill(pid, 0);
     return "alive";
-  } catch (error) {
-    if (error?.code === "ESRCH") return "dead";
+  } catch (error: unknown) {
+    if (isRecord(error) && error.code === "ESRCH") return "dead";
     return "unknown";
   }
 }
 
-function staleLock(invocation) {
+function staleLock(invocation: GitInvocation): DeliveryFinding | null {
   if (!WRITE_COMMANDS.has(invocation.subcommand)) return null;
   const rawGitDir = git(["rev-parse", "--git-dir"], invocation.cwd);
   if (!rawGitDir) return null;
@@ -87,16 +113,20 @@ function staleLock(invocation) {
     );
   }
 
-  let pid = null;
+  let parsedPid: number | null = null;
   try {
-    pid = Number(readFileSync(lockPath, "utf8").slice(0, 64).match(/^(\d+)\s/u)?.[1]);
-  } catch {}
-  if (!Number.isSafeInteger(pid) || pid <= 0) {
+    const match = readFileSync(lockPath, "utf8").slice(0, 64).match(/^(\d+)\s/u)?.[1];
+    if (match !== undefined) parsedPid = Number(match);
+  } catch {
+    // keep null
+  }
+  if (parsedPid === null || !Number.isSafeInteger(parsedPid) || parsedPid <= 0) {
     return finding(
       "deny", "Git Lock Guard", "the stale index.lock has no verifiable holder PID; automatic deletion is refused",
       `confirm that no Git process is running, then delete ${lockPath} manually`,
     );
   }
+  const pid = parsedPid;
 
   const holder = processState(pid);
   if (holder !== "dead") {
@@ -123,30 +153,37 @@ function staleLock(invocation) {
       "report", "Git Lock Guard", `removed an index.lock that was ${Math.round(age / 1000)} seconds old after PID ${pid} exited`,
       "no action is required; if Git still fails, check for a new lock holder",
     );
-  } catch (error) {
+  } catch (error: unknown) {
     return finding(
-      "deny", "Git Lock Guard", `the stale index.lock could not be removed safely: ${error?.message ?? error}`,
+      "deny", "Git Lock Guard", `the stale index.lock could not be removed safely: ${errorText(error)}`,
       `confirm that no Git process is running, then delete ${lockPath} manually`,
     );
   }
 }
 
-function readBoundaryRules(root) {
+function readBoundaryRules(root: string): BoundaryConfig {
   const configPath = join(root, ".ai-experts", "commit-boundaries.json");
   if (!existsSync(configPath)) return { rules: [], error: null };
-  let value;
+  let value: unknown;
   try {
     value = JSON.parse(readFileSync(configPath, "utf8"));
-  } catch (error) {
-    return { rules: [], error: `failed to parse ${configPath}: ${error?.message ?? error}` };
+  } catch (error: unknown) {
+    return { rules: [], error: `failed to parse ${configPath}: ${errorText(error)}` };
   }
-  if (value?.version !== 1 || !Array.isArray(value.boundaries)) {
+  if (!isRecord(value) || value.version !== 1 || !Array.isArray(value.boundaries)) {
     return { rules: [], error: `${configPath} must contain version: 1 and a boundaries array` };
   }
-  const rules = [];
-  const ids = new Set();
+  const rules: BoundaryRule[] = [];
+  const ids = new Set<string>();
   for (const [index, item] of value.boundaries.entries()) {
-    if (!item || typeof item.id !== "string" || !item.id.trim() || ids.has(item.id) || !Array.isArray(item.prefixes) || item.prefixes.length === 0) {
+    if (
+      !isRecord(item)
+      || typeof item.id !== "string"
+      || !item.id.trim()
+      || ids.has(item.id)
+      || !Array.isArray(item.prefixes)
+      || item.prefixes.length === 0
+    ) {
       return { rules: [], error: `boundaries[${index}] must have a unique non-empty id and a non-empty prefixes array` };
     }
     ids.add(item.id);
@@ -166,7 +203,7 @@ function readBoundaryRules(root) {
   return { rules, error: null };
 }
 
-function boundaryFor(file, root, rules) {
+function boundaryFor(file: string, root: string, rules: readonly BoundaryRule[]): string {
   const normalized = file.replaceAll("\\", "/");
   const explicit = rules.find((rule) =>
     !rule.prefix || normalized === rule.prefix || normalized.startsWith(`${rule.prefix}/`),
@@ -185,7 +222,7 @@ function boundaryFor(file, root, rules) {
   }
 }
 
-function commitState(invocation) {
+function commitState(invocation: GitInvocation): DeliveryFinding[] {
   if (invocation.subcommand !== "commit" || invocation.args.some((arg) =>
     /^(?:--amend|--fixup|--squash)(?:=|$)/u.test(arg),
   )) return [];
@@ -195,7 +232,7 @@ function commitState(invocation) {
   const unstaged = lines(["diff", "--name-only"], invocation.cwd);
   const unstagedSet = new Set(unstaged ?? []);
   const overlap = staged.filter((file) => unstagedSet.has(file));
-  const findings = [];
+  const findings: DeliveryFinding[] = [];
   const commitAll = invocation.args.some((arg) => arg === "-a" || arg === "--all" || /^-[^-]*a/u.test(arg));
   if (overlap.length && !commitAll) {
     findings.push(finding(
@@ -228,11 +265,12 @@ function commitState(invocation) {
     return findings;
   }
 
-  const groups = new Map();
+  const groups = new Map<string, ConcernFlags>();
   for (const file of files) {
     const boundary = boundaryFor(file, root, boundaryConfig.rules);
     if (!groups.has(boundary)) groups.set(boundary, { source: false, config: false });
     const group = groups.get(boundary);
+    if (!group) continue;
     const extension = extname(file).toLowerCase();
     if (SOURCE_EXTENSIONS.has(extension)) group.source = true;
     if (CONFIG_EXTENSIONS.has(extension) || /^(?:Dockerfile|Jenkinsfile|Makefile)$/u.test(basename(file))) group.config = true;
@@ -253,8 +291,9 @@ function commitState(invocation) {
   return findings;
 }
 
-export function deliveryStateFindings(cwd, command) {
-  return gitInvocations(command, cwd).flatMap((invocation) => [
-    staleLock(invocation), ...commitState(invocation),
-  ].filter(Boolean));
+export function deliveryStateFindings(cwd: string, command: string): DeliveryFinding[] {
+  return gitInvocations(command, cwd).flatMap((invocation) => {
+    const lock = staleLock(invocation);
+    return lock ? [lock, ...commitState(invocation)] : commitState(invocation);
+  });
 }

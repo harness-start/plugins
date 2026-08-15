@@ -3,17 +3,26 @@
  * Needs hook event evidence — cannot be a pure command regex rule.
  */
 
+import { isRecord } from "@harness/core/hook-event";
 import { shellCommandInvocations } from "../lib/shell-parse.js";
 
-function successfulPreflightEvidence(event) {
-  const candidates = [
+export type MysqlPreflightFinding = {
+  action: "deny";
+  id: string;
+  reason: string;
+  recovery: string;
+};
+
+function successfulPreflightEvidence(event: unknown): boolean {
+  const record = isRecord(event) ? event : null;
+  const candidates: unknown[] = [
     event,
-    event?.mysql_replication_preflight,
-    event?.mysqlReplicationPreflight,
-    event?.preflight,
+    record?.mysql_replication_preflight,
+    record?.mysqlReplicationPreflight,
+    record?.preflight,
   ];
   return candidates.some((candidate) => {
-    if (!candidate || typeof candidate !== "object") return false;
+    if (!isRecord(candidate)) return false;
     const tool =
       (typeof candidate.tool === "string" && candidate.tool) ||
       candidate.tool_name ||
@@ -30,7 +39,7 @@ function successfulPreflightEvidence(event) {
   });
 }
 
-function replicationMutation(command) {
+function replicationMutation(command: string): string | null {
   for (const { executable, args } of shellCommandInvocations(command)) {
     if (!["mysql", "mysqlsh"].includes(executable.toLowerCase())) continue;
     const mutation = args.join(" ").match(
@@ -41,10 +50,10 @@ function replicationMutation(command) {
   return null;
 }
 
-/**
- * @returns {{ action: "deny", id: string, reason: string, recovery: string } | null}
- */
-export function mysqlReplicationPreflightFinding(command, event = {}) {
+export function mysqlReplicationPreflightFinding(
+  command: string,
+  event: unknown = {},
+): MysqlPreflightFinding | null {
   const mutation = replicationMutation(command);
   if (!mutation) return null;
   if (successfulPreflightEvidence(event)) return null;
@@ -57,7 +66,7 @@ export function mysqlReplicationPreflightFinding(command, event = {}) {
   };
 }
 
-export function mysqlPreflightDenyMessage(finding, command = "") {
+export function mysqlPreflightDenyMessage(finding: MysqlPreflightFinding, command = ""): string {
   return [
     `[${finding.id}] Blocked`,
     "",

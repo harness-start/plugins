@@ -1,14 +1,29 @@
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { extractToolResponse } from "./hook-io.js";
 
+export type CommandStatus = "success" | "failure" | "unknown";
+
+export type CommandStatusResult = {
+  status: CommandStatus;
+  exit_code: number | null;
+};
+
+export type RedactOptions = {
+  maxCommandChars?: number | undefined;
+  redactSecrets?: boolean | undefined;
+};
+
 /** Tip rewrite requires a non-empty tool_use_id on both sides. */
-export function sameToolUseId(left, right) {
+export function sameToolUseId(left: unknown, right: unknown): boolean {
   const a = left == null ? "" : String(left).trim();
   const b = right == null ? "" : String(right).trim();
   if (!a || !b) return false;
   return a === b;
 }
 
-export function redactCommand(command, { maxCommandChars = 2000, redactSecrets = true } = {}) {
+export function redactCommand(command: unknown, options: RedactOptions = {}): string {
+  const maxCommandChars = options.maxCommandChars ?? 2000;
+  const redactSecrets = options.redactSecrets ?? true;
   let text = String(command ?? "");
   if (redactSecrets) {
     text = text
@@ -34,7 +49,7 @@ export function redactCommand(command, { maxCommandChars = 2000, redactSecrets =
   return text;
 }
 
-export function inferCommandStatus(event, forceFailure = false) {
+export function inferCommandStatus(event: HookEvent, forceFailure = false): CommandStatusResult {
   if (forceFailure) {
     return { status: "failure", exit_code: extractExitCode(event) };
   }
@@ -55,7 +70,7 @@ export function inferCommandStatus(event, forceFailure = false) {
       return { status: "unknown", exit_code: null };
     }
   }
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const code = response.exit_code ?? response.exitCode ?? response.code;
     if (typeof code === "number" && Number.isFinite(code)) {
       return { status: code === 0 ? "success" : "failure", exit_code: code };
@@ -81,7 +96,7 @@ export function inferCommandStatus(event, forceFailure = false) {
   return { status: "unknown", exit_code: null };
 }
 
-function extractExitCode(event) {
+function extractExitCode(event: HookEvent): number | null {
   const response = extractToolResponse(event);
   if (typeof response === "string") {
     const matches = [
@@ -92,14 +107,14 @@ function extractExitCode(event) {
     const codeText = matches.at(-1)?.[1];
     if (codeText !== undefined) return Number.parseInt(codeText, 10);
   }
-  if (response && typeof response === "object" && !Array.isArray(response)) {
+  if (isRecord(response)) {
     const code = response.exit_code ?? response.exitCode ?? response.code;
     if (typeof code === "number" && Number.isFinite(code)) return code;
   }
   return null;
 }
 
-export function durationMs(startedAt, endedAt = new Date()) {
+export function durationMs(startedAt: string, endedAt: string | Date = new Date()): number | null {
   const start = Date.parse(startedAt);
   const end = endedAt instanceof Date ? endedAt.getTime() : Date.parse(endedAt);
   if (!Number.isFinite(start) || !Number.isFinite(end)) return null;

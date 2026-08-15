@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:dabf6dd1113c58d71d04b6ebaa3b3792c605b6d37fb76b44cbe06813872b3bc5
+// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";
@@ -39,22 +39,28 @@ var SLIDE_OWNER_VIOLATION = /(?:\baddSlide\s*\(|\bnew\s+pptxgen\b|from\s+["']ppt
 function digest(value) {
   return createHash("sha256").update(value).digest("hex");
 }
+var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var rec = (value) => isObject(value) ? value : void 0;
+var asList = (value) => Array.isArray(value) ? value : [];
+var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
 function validateIndependentReviewFile(files, filePath, schema, findings) {
   let review;
   try {
-    review = JSON.parse(files[filePath] ?? "null");
+    review = JSON.parse(files[filePath] === void 0 ? "null" : textOf(files[filePath]));
   } catch {
     review = null;
   }
-  if (!review || review.schema !== schema || review.verdict !== "pass") {
+  const reviewRec = rec(review);
+  if (!review || reviewRec?.schema !== schema || reviewRec?.verdict !== "pass") {
     findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
     return;
   }
-  if (!["human", "independent-agent"].includes(review.reviewer?.kind) || typeof review.reviewer?.sessionId !== "string" || !review.reviewer.sessionId) {
+  const reviewer = rec(reviewRec?.reviewer);
+  if (!["human", "independent-agent"].includes(reviewer?.kind) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId) {
     findings.push(finding("REVIEWER_INVALID", filePath, "reviewer must declare kind and sessionId"));
     return;
   }
-  if (review.reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+  if (reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
     findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
   }
 }
@@ -70,7 +76,7 @@ function computePptxSubjectDigest(model) {
   return digest(records);
 }
 function releaseOutputPaths(model) {
-  return Object.keys(model?.files ?? {}).filter((filePath) => filePath === `dist/${model.artifactId}.pptx` || filePath === `dist/${model.artifactId}.pdf` || /^dist\/pages\/[0-9]{3}\.png$/u.test(filePath) || /^src\/slides\/.+\.[0-9a-f]{64}\.png$/u.test(filePath) || filePath === "evidence.structure.json" || filePath === "evidence.accessibility.json" || filePath === "review.pptx.json" || filePath === "release.manifest.json").sort();
+  return Object.keys(model?.files ?? {}).filter((filePath) => filePath === `dist/${model?.artifactId}.pptx` || filePath === `dist/${model?.artifactId}.pdf` || /^dist\/pages\/[0-9]{3}\.png$/u.test(filePath) || /^src\/slides\/.+\.[0-9a-f]{64}\.png$/u.test(filePath) || filePath === "evidence.structure.json" || filePath === "evidence.accessibility.json" || filePath === "review.pptx.json" || filePath === "release.manifest.json").sort();
 }
 function createPptxReceipt(model, stage = "release") {
   if (stage !== "release") throw new Error(`unsupported PPTX receipt stage: ${stage}`);
@@ -93,8 +99,9 @@ function validatePptxReceipt(model, stage = "release") {
   } catch {
     return false;
   }
-  const expected = createPptxReceipt(model, stage);
-  return receipt?.schemaVersion === expected.schemaVersion && receipt?.plugin === expected.plugin && receipt?.artifactId === expected.artifactId && receipt?.stage === expected.stage && receipt?.subjectDigest === expected.subjectDigest && JSON.stringify(receipt?.outputs) === JSON.stringify(expected.outputs);
+  const expected = createPptxReceipt(model ?? {}, stage);
+  if (!isObject(receipt)) return false;
+  return receipt.schemaVersion === expected.schemaVersion && receipt.plugin === expected.plugin && receipt.artifactId === expected.artifactId && receipt.stage === expected.stage && receipt.subjectDigest === expected.subjectDigest && JSON.stringify(receipt.outputs) === JSON.stringify(expected.outputs);
 }
 function finding(code, pathName, message) {
   return { code, path: pathName, message };
@@ -142,14 +149,15 @@ function validateArtifactGitignore(files, findings) {
   }
 }
 function validateSlideSource(files, entry, findings) {
-  const sourceName = entry?.source;
+  const item = rec(entry);
+  const sourceName = item?.source;
   const sourceMatch = typeof sourceName === "string" ? sourceName.match(SLIDE_SOURCE) : null;
   const sourcePath = sourceName ? path.join("src/slides", sourceName) : "src/slides/manifest.json";
   if (!sourceMatch) {
     findings.push(finding("SLIDE_NAME_INVALID", sourcePath, "slide source must use NNN-slug.ts"));
     return;
   }
-  if (Number(sourceMatch.groups.index) !== entry.index) {
+  if (Number(sourceMatch.groups?.index) !== item?.index) {
     findings.push(finding("SLIDE_INDEX_MISMATCH", sourcePath, "filename index must match manifest index"));
   }
   const source = files[sourcePath];
@@ -178,28 +186,30 @@ function validatePptxModel(model, { stage = "source" } = {}) {
   if (".pptx-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".pptx-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
   validateRequiredPaths(files, findings);
   validateArtifactGitignore(files, findings);
-  if (model?.project?.artifactId !== model?.artifactId) {
+  if (rec(model?.project)?.artifactId !== model?.artifactId) {
     findings.push(finding("ARTIFACT_ID_MISMATCH", "pptx.project.json", "project artifactId must match the directory id"));
   }
   const manifest = parseJson(files, "src/slides/manifest.json", findings);
-  const slides = Array.isArray(manifest?.slides) ? manifest.slides : [];
-  if (manifest && !Array.isArray(manifest.slides)) {
+  const manifestRec = rec(manifest);
+  const slides = asList(manifestRec?.slides);
+  if (manifest && !Array.isArray(manifestRec?.slides)) {
     findings.push(finding("MANIFEST_INVALID", "src/slides/manifest.json", "manifest slides must be an array"));
   }
   const indexes = /* @__PURE__ */ new Set();
   const ids = /* @__PURE__ */ new Set();
   slides.forEach((entry, offset) => {
-    if (entry?.index !== offset + 1 || indexes.has(entry?.index) || ids.has(entry?.id)) {
+    const item = rec(entry);
+    if (item?.index !== offset + 1 || indexes.has(item?.index) || ids.has(item?.id)) {
       findings.push(finding("SLIDE_SEQUENCE_INVALID", "src/slides/manifest.json", "slide indexes and ids must be unique and contiguous"));
     }
-    indexes.add(entry?.index);
-    ids.add(entry?.id);
+    indexes.add(item?.index);
+    ids.add(item?.id);
     validateSlideSource(files, entry, findings);
   });
   if (stage === "release") {
     for (const filePath of [
-      `dist/${model.artifactId}.pptx`,
-      `dist/${model.artifactId}.pdf`,
+      `dist/${model?.artifactId}.pptx`,
+      `dist/${model?.artifactId}.pdf`,
       "evidence.structure.json",
       "evidence.accessibility.json",
       "review.pptx.json",
@@ -286,7 +296,7 @@ async function findPptxProjects(cwd, { maxProjects = 32 } = {}) {
   try {
     entries = await readdir(carrierRoot, { withFileTypes: true });
   } catch (error) {
-    if (error?.code === "ENOENT") return [];
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return [];
     throw error;
   }
   const roots = [];
@@ -297,7 +307,7 @@ async function findPptxProjects(cwd, { maxProjects = 32 } = {}) {
       const metadata = await lstat(join(root, "plan.contract.json"));
       if (metadata.isFile()) roots.push(root);
     } catch (error) {
-      if (error?.code !== "ENOENT") throw error;
+      if (!(typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT")) throw error;
     }
     if (roots.length > maxProjects) throw new Error("PROJECT_COUNT_LIMIT_EXCEEDED");
   }

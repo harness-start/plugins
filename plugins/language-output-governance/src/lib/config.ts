@@ -4,14 +4,31 @@ import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { isProfileId } from "./profiles.js";
+import { isRecord } from "@harness/core/hook-event";
+
+import { isProfileId, type ProfileId } from "./profiles.js";
 
 const CONFIG_NAME = ".language-output-governance.mjs";
 const USER_CONFIG_RELATIVE_PATH = "harness-start/language-output-governance.json";
 const TOP_LEVEL_KEYS = new Set(["defaultProfile", "toolFeedback", "stop", "detection"]);
 const DETECTION_KEYS = new Set(["minScriptCharacters", "minLetterRatio"]);
 
-export const DEFAULT_CONFIG = Object.freeze({
+export type ToolFeedbackMode = "report" | "off";
+export type StopMode = "block" | "off";
+
+export type DetectionConfig = {
+  minScriptCharacters: number;
+  minLetterRatio: number;
+};
+
+export type LanguageConfig = {
+  defaultProfile: ProfileId;
+  toolFeedback: ToolFeedbackMode;
+  stop: StopMode;
+  detection: DetectionConfig;
+};
+
+export const DEFAULT_CONFIG: Readonly<LanguageConfig> = Object.freeze({
   defaultProfile: "zh-CN",
   toolFeedback: "report",
   stop: "block",
@@ -21,12 +38,20 @@ export const DEFAULT_CONFIG = Object.freeze({
   }),
 });
 
-function strictDefault() {
+function strictDefault(): LanguageConfig {
   return { ...DEFAULT_CONFIG, detection: { ...DEFAULT_CONFIG.detection } };
 }
 
-export function resolveConfig(source) {
-  if (!source || typeof source !== "object" || Array.isArray(source)) {
+function isToolFeedbackMode(value: unknown): value is ToolFeedbackMode {
+  return value === "report" || value === "off";
+}
+
+function isStopMode(value: unknown): value is StopMode {
+  return value === "block" || value === "off";
+}
+
+export function resolveConfig(source: unknown): LanguageConfig {
+  if (!isRecord(source)) {
     throw new Error("default export must be an object");
   }
   if (Object.keys(source).some((key) => !TOP_LEVEL_KEYS.has(key))) {
@@ -35,14 +60,14 @@ export function resolveConfig(source) {
   if (source.defaultProfile !== undefined && !isProfileId(source.defaultProfile)) {
     throw new Error("defaultProfile must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
   }
-  if (source.toolFeedback !== undefined && !["report", "off"].includes(source.toolFeedback)) {
+  if (source.toolFeedback !== undefined && !isToolFeedbackMode(source.toolFeedback)) {
     throw new Error("toolFeedback must be report or off");
   }
-  if (source.stop !== undefined && !["block", "off"].includes(source.stop)) {
+  if (source.stop !== undefined && !isStopMode(source.stop)) {
     throw new Error("stop must be block or off");
   }
   const detection = source.detection ?? {};
-  if (!detection || typeof detection !== "object" || Array.isArray(detection)) {
+  if (!isRecord(detection)) {
     throw new Error("detection must be an object");
   }
   if (Object.keys(detection).some((key) => !DETECTION_KEYS.has(key))) {
@@ -50,21 +75,21 @@ export function resolveConfig(source) {
   }
   const minScriptCharacters = detection.minScriptCharacters ?? DEFAULT_CONFIG.detection.minScriptCharacters;
   const minLetterRatio = detection.minLetterRatio ?? DEFAULT_CONFIG.detection.minLetterRatio;
-  if (!Number.isInteger(minScriptCharacters) || minScriptCharacters < 1 || minScriptCharacters > 100) {
+  if (typeof minScriptCharacters !== "number" || !Number.isInteger(minScriptCharacters) || minScriptCharacters < 1 || minScriptCharacters > 100) {
     throw new Error("minScriptCharacters must be an integer from 1 to 100");
   }
   if (typeof minLetterRatio !== "number" || minLetterRatio < 0.01 || minLetterRatio > 1) {
     throw new Error("minLetterRatio must be a number from 0.01 to 1");
   }
   return {
-    defaultProfile: source.defaultProfile ?? DEFAULT_CONFIG.defaultProfile,
-    toolFeedback: source.toolFeedback ?? DEFAULT_CONFIG.toolFeedback,
-    stop: source.stop ?? DEFAULT_CONFIG.stop,
+    defaultProfile: isProfileId(source.defaultProfile) ? source.defaultProfile : DEFAULT_CONFIG.defaultProfile,
+    toolFeedback: isToolFeedbackMode(source.toolFeedback) ? source.toolFeedback : DEFAULT_CONFIG.toolFeedback,
+    stop: isStopMode(source.stop) ? source.stop : DEFAULT_CONFIG.stop,
     detection: { minScriptCharacters, minLetterRatio },
   };
 }
 
-function repoRoot(cwd) {
+function repoRoot(cwd: string): string {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -77,7 +102,7 @@ function repoRoot(cwd) {
   }
 }
 
-export function userConfigPath(env = process.env) {
+export function userConfigPath(env: NodeJS.ProcessEnv = process.env): string | null {
   if (env.HARNESS_HOST === "claude") {
     return join(env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), USER_CONFIG_RELATIVE_PATH);
   }
@@ -87,12 +112,15 @@ export function userConfigPath(env = process.env) {
   return null;
 }
 
-function loadUserConfig(path) {
+function loadUserConfig(path: string | null): unknown {
   if (!path || !existsSync(path)) return null;
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-export async function loadConfig(cwd, warn = () => {}) {
+export async function loadConfig(cwd: string, warn: (message: string) => void = () => {}): Promise<{
+  config: LanguageConfig;
+  path: string | null;
+}> {
   const root = repoRoot(isAbsolute(cwd) ? cwd : resolve(cwd));
   const path = join(root, CONFIG_NAME);
   const globalPath = userConfigPath();
