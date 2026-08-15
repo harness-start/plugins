@@ -135,6 +135,11 @@
       "name": "sdd-workflow",
       "source": "./plugins/sdd-workflow",
       "description": "Guides lightweight SDD and validates recognized spec, plan, and tasks writes with digest freshness."
+    },
+    {
+      "name": "ci-gated-delivery",
+      "source": "./plugins/ci-gated-delivery",
+      "description": "Guides code and configuration changes through branch, review, remote CI, merge, post-merge verification, and cleanup."
     }
   ]
 }
