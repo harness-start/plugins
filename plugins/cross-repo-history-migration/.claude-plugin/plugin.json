@@ -1,0 +1,9 @@
+{
+  "name": "cross-repo-history-migration",
+  "version": "0.1.0",
+  "description": "Plans and executes sealed, source-read-only Git history extraction into a new repository.",
+  "author": {
+    "name": "Harness Start"
+  },
+  "skills": "./skills/"
+}
