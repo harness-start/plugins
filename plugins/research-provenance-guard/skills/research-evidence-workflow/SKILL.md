@@ -17,12 +17,12 @@ Hard enforcement starts only after a durable project run exists under `.research
 RPG_PLUGIN_ROOT="${RESEARCH_PROVENANCE_GUARD_ROOT:-${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}"
 if [ -z "$RPG_PLUGIN_ROOT" ]; then
   for RPG_CANDIDATE in "${CODEX_HOME:-$HOME/.codex}"/plugins/cache/harness-start/research-provenance-guard/*; do
-    [ -f "$RPG_CANDIDATE/scripts/research-workflow.mjs" ] && RPG_PLUGIN_ROOT="$RPG_CANDIDATE"
+    [ -f "$RPG_CANDIDATE/dist/cli/research-workflow.mjs" ] && RPG_PLUGIN_ROOT="$RPG_CANDIDATE"
   done
 fi
-test -f "$RPG_PLUGIN_ROOT/scripts/research-workflow.mjs"
+test -f "$RPG_PLUGIN_ROOT/dist/cli/research-workflow.mjs"
 
-node "$RPG_PLUGIN_ROOT/scripts/research-workflow.mjs" run-open --cwd "$PWD"
+node "$RPG_PLUGIN_ROOT/dist/cli/research-workflow.mjs" run-open --cwd "$PWD"
 ```
 
 2. Write the brief (`brief-write` or edit `brief.md` and set phase via MCP begin).
@@ -78,7 +78,7 @@ Research is complete only when:
 **Only then** write outbound handoff:
 
 ```bash
-node "$RPG_PLUGIN_ROOT/scripts/research-workflow.mjs" handoff-outbound \
+node "$RPG_PLUGIN_ROOT/dist/cli/research-workflow.mjs" handoff-outbound \
   --cwd "$PWD" \
   --handoff-file /tmp/outbound-handoff.md \
   --prompt-file /tmp/outbound-prompt.md

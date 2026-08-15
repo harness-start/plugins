@@ -27,7 +27,7 @@ Review 阶段使用有界 Task Brief 和 Result Card。Reviewer 只接收目标�
 
 ```bash
 # cwd: marketplace 仓库根目录
-node --test plugins/ci-gated-delivery/tests/*.test.mjs
+npx tsx --test plugins/ci-gated-delivery/tests/*.test.ts
 bash scripts/ci/validate-plugins.sh
 ./scripts/acceptance/run.sh --plugin ci-gated-delivery
 ```

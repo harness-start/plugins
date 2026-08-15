@@ -81,7 +81,7 @@ Han 还会再做一层字形判断：`zh-CN` 会拦成段繁体专用字，`zh-T
 在 marketplace 根目录运行：
 
 ```bash
-node --test plugins/language-output-governance/tests/*.test.mjs
+npx tsx --test plugins/language-output-governance/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin language-output-governance
 ```
 

@@ -1,7 +1,7 @@
 ---
 name: protected-file-guard-config
 description: Change protected-file-guard protected path patterns and allow exceptions in .protected-file-guard.mjs.
-version: 0.1.0
+version: 0.2.0
 ---
 
 # protected-file-guard-config

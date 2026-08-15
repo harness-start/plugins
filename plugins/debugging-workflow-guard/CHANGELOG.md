@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0
+## 0.2.0
 
 - Add the focused `debug-workflow` Skill.
 - Activate hooks only through a valid Debug Work Order mutation.

@@ -341,7 +341,7 @@ Codex 要求插件包含 `.codex-plugin/plugin.json`。`skills/`、`SKILL.md`、
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/session-start.mjs\""
           }
         ]
       }
@@ -374,7 +374,7 @@ CLAUDE_PLUGIN_DATA
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/session-start.mjs\"",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-hooks:session-start\" node \"${PLUGIN_ROOT}/dist/hooks/session-start.mjs\"",
             "statusMessage": "Initializing company session"
           }
         ]
@@ -397,9 +397,9 @@ Codex 安装或启用插件不会自动信任其中的 hooks。用户必须审�
 
 ## 9. 创建双平台共享的插件内业务脚本
 
-创建 `plugins/session-hooks/scripts/session-start.mjs`：
+创建 `plugins/session-hooks/src/entries/hooks/session-start.ts`：
 
-```javascript
+```typescript
 let rawInput = "";
 
 for await (const chunk of process.stdin) {
@@ -427,7 +427,7 @@ process.stderr.write("[session-hooks] SessionStart hook completed\n");
 - 不写入插件安装目录；
 - 不输出凭据或完整事件内容。
 
-当一个事件包含多条检查时，Hook 配置仍只注册一个入口。入口按明确顺序调用 `scripts/checks/` 中的函数，并聚合 report 或执行 first-deny-wins；不要为每条规则启动一个 Hook 进程。平台输出差异留在入口或 `hook-io` 适配层，业务检查不读取 `CLAUDE_PLUGIN_ROOT`、`PLUGIN_ROOT` 等平台变量。
+当一个事件包含多条检查时，Hook 配置仍只注册一个入口。入口按明确顺序调用 `src/checks/` 中的函数，并聚合 report 或执行 first-deny-wins；不要为每条规则启动一个 Hook 进程。平台输出差异留在入口或 `hook-io` 适配层，业务检查不读取 `CLAUDE_PLUGIN_ROOT`、`PLUGIN_ROOT` 等平台变量。完成源码后从仓库根运行 `npm run build -- --plugin session-hooks`，并提交生成的 `dist/hooks/session-start.mjs`。
 
 如果需要持久化数据：
 
@@ -470,7 +470,9 @@ plugins/policy-checks/
 ├── .codex-plugin/plugin.json
 ├── hooks/claude.json
 ├── hooks/codex.json
-└── scripts/policy-check.mjs
+├── src/entries/hooks/policy-check.ts
+├── tests/policy-check.test.ts
+└── dist/hooks/policy-check.mjs
 ```
 
 这里复用的是目录和契约模式，不是跨插件运行时文件。每个插件独立维护：
@@ -499,12 +501,13 @@ while IFS= read -r -d '' file; do
 done
 ```
 
-检查 JavaScript：
+检查 TypeScript、bundle 语法和已提交产物的新鲜度：
 
 ```bash
-for file in plugins/*/scripts/*.mjs; do
-  node --check "$file"
-done
+npm run typecheck
+npm run lint
+npm run check:dist
+npm test
 ```
 
 检查两个 manifest 的版本是否一致：
@@ -773,7 +776,7 @@ claude plugin validate --strict .
 claude plugin validate --strict plugins/session-hooks
 
 node --check \
-  plugins/session-hooks/scripts/session-start.mjs
+  plugins/session-hooks/dist/hooks/session-start.mjs
 ```
 
 完成本地双平台安装和真实 hook 回归后，再提交并推送：
@@ -783,7 +786,9 @@ git add \
   plugins/session-hooks/.claude-plugin/plugin.json \
   plugins/session-hooks/.codex-plugin/plugin.json \
   plugins/session-hooks/hooks \
-  plugins/session-hooks/scripts \
+  plugins/session-hooks/src \
+  plugins/session-hooks/tests \
+  plugins/session-hooks/dist \
   plugins/session-hooks/CHANGELOG.md
 
 git commit -m "feat(session-hooks): release 0.2.0"

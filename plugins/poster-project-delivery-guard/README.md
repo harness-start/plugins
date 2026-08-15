@@ -56,8 +56,8 @@ artifacts/poster/launch-poster/
 在 marketplace 根目录运行；每条 writer 命令都应单独提交：
 
 ```bash
-node plugins/poster-project-delivery-guard/scripts/tools/project-lint.mjs artifacts/poster/launch-poster
-AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="poster-project-delivery-guard:manual-release" node plugins/poster-project-delivery-guard/scripts/tools/project-release.mjs artifacts/poster/launch-poster
+node plugins/poster-project-delivery-guard/dist/cli/project-lint.mjs artifacts/poster/launch-poster
+AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="poster-project-delivery-guard:manual-release" node plugins/poster-project-delivery-guard/dist/cli/project-release.mjs artifacts/poster/launch-poster
 ```
 
 lint 从 artifact 自己的依赖中加载 ESLint/parser，因此干净环境要先在 artifact root 按 lockfile 安装依赖。release 会先验证全部 layer proof、variant 输出和 evidence，再通过 `.poster-delivery-journal.json` 原子写入 `receipt.release.json`。任何非生成输入或交付字节变化都会使旧 receipt 失效。
@@ -77,7 +77,7 @@ Claude Code 注入 `CLAUDE_PLUGIN_ROOT` 并提供 `PostToolUseFailure`；Codex �
 在 marketplace 根目录运行离线测试：
 
 ```bash
-node --test plugins/poster-project-delivery-guard/tests/*.test.mjs
+npx tsx --test plugins/poster-project-delivery-guard/tests/*.test.ts
 ```
 
 `skill-deps.json` 声明的可选设计顾问只给只读建议，不能当 renderer、reviewer 或 release writer。

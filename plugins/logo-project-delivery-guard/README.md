@@ -53,7 +53,7 @@ Hook、receipt 和几何检查都不等于商标能注册、一定原创或一�
 ## 验证
 
 ```bash
-node --test plugins/logo-project-delivery-guard/tests/*.test.mjs
+npx tsx --test plugins/logo-project-delivery-guard/tests/*.test.ts
 ```
 
 Claude/Codex live 验收只允许在 `docker/host-acceptance` 容器内运行，见根目录 `AGENTS.md` 与 `docs/host-acceptance.md`。

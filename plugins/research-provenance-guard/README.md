@@ -77,7 +77,7 @@ seal 后使用 workflow CLI 的 `handoff-outbound`，记录 `handoffs/outbound/h
 ```bash
 RESEARCH_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}"
 test -n "${RESEARCH_PLUGIN_ROOT}" || { echo "research-provenance-guard plugin root is unavailable" >&2; exit 1; }
-RESEARCH_WORKFLOW="${RESEARCH_PLUGIN_ROOT}/scripts/research-workflow.mjs"
+RESEARCH_WORKFLOW="${RESEARCH_PLUGIN_ROOT}/dist/cli/research-workflow.mjs"
 
 node "${RESEARCH_WORKFLOW}" run-open --cwd "$PWD"
 node "${RESEARCH_WORKFLOW}" brief-write --cwd "$PWD" --question "研究问题" --scope "研究范围" --as-of "2026-08-13"
@@ -110,6 +110,6 @@ seal 前的普通 workspace 修改会增加 Hook revision。seal 后 canonical m
 ## 验证
 
 ```bash
-node --test plugins/research-provenance-guard/tests/*.test.mjs
+npx tsx --test plugins/research-provenance-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin research-provenance-guard
 ```

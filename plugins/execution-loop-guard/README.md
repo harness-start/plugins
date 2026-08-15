@@ -81,8 +81,8 @@ export default {
 ## 验证
 
 ```bash
-node --test plugins/execution-loop-guard/tests/*.test.mjs
+npx tsx --test plugins/execution-loop-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin execution-loop-guard
 ```
 
-版本：`0.1.3`
+版本：`0.2.0`

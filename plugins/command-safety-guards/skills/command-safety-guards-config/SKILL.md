@@ -179,7 +179,7 @@ console.log("ok", (cfg.rules ?? []).length, "rules");
 
 ## Anti-patterns
 
-- Editing plugin `scripts/lib/builtin-rules.mjs` for a single-repo exception.
+- Editing plugin `src/lib/builtin-rules.ts` for a single-repo exception.
 - Project-wide `allow` that neuters SQL/redis/sed guards.
 - String `match` values (`"rm -rf"`) instead of `RegExp`.
 - Turning off all engines to “make hooks quiet”.

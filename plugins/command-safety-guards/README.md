@@ -12,7 +12,7 @@
 
 ### 默认拦截清单（零配置）
 
-无项目配置时，下列 **deny** 会阻断命令执行（`permissionDecision: deny`）。来源列为规则 `id` 或引擎名；完整实现见 `scripts/lib/builtin-rules.mjs` 与 `scripts/engines/*`。
+无项目配置时，下列 **deny** 会阻断命令执行（`permissionDecision: deny`）。来源列为规则 `id` 或引擎名；完整实现见 `src/lib/builtin-rules.ts` 与 `src/engines/*`。
 
 | 来源 | 模式 | 拦截什么 | 典型触发 |
 | --- | --- | --- | --- |
@@ -122,24 +122,24 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 
 | 路径 | 作用 |
 | --- | --- |
-| `scripts/lib/builtin-rules.mjs` | 内置声明式规则的唯一来源 |
-| `scripts/lib/rule-engine.mjs` | 配置加载、合并、匹配与格式化 |
-| `scripts/lib/sanitize-command.mjs` | 匹配前剥离 commit/heredoc 字面量 |
-| `scripts/engines/dangerous-rm.mjs` | `dangerousRm` 引擎 |
-| `scripts/engines/mysql-preflight.mjs` | MySQL replication preflight 引擎 |
-| `scripts/engines/secret-read.mjs` | Read 敏感路径引擎 |
-| `scripts/engines/file-safety.mjs` | `PostToolUse` TLS/PII 内容扫描引擎 |
-| `scripts/lib/deny-state.mjs` | deny 升级状态 |
+| `src/lib/builtin-rules.ts` | 内置声明式规则的唯一来源 |
+| `src/lib/rule-engine.ts` | 配置加载、合并、匹配与格式化 |
+| `src/lib/sanitize-command.ts` | 匹配前剥离 commit/heredoc 字面量 |
+| `src/engines/dangerous-rm.ts` | `dangerousRm` 引擎 |
+| `src/engines/mysql-preflight.ts` | MySQL replication preflight 引擎 |
+| `src/engines/secret-read.ts` | Read 敏感路径引擎 |
+| `src/engines/file-safety.ts` | `PostToolUse` TLS/PII 内容扫描引擎 |
+| `src/lib/deny-state.ts` | deny 升级状态 |
 | `skills/command-safety-guards-config/` | 配置初始化、编辑与诊断 Skill |
 
 ## 迁移来源
 
 | 来源 | 目标 |
 | --- | --- |
-| `skills/command-safety-governance/src/hooks/dangerous-command-guard.ts` | `scripts/engines/dangerous-rm.mjs` |
-| `skills/command-safety-governance/src/hooks/sed-inplace-guard.ts` | `scripts/lib/builtin-rules.mjs` (`sed-inplace`) |
-| `skills/command-safety-governance/src/hooks/cat-write-guard.ts` | `scripts/lib/builtin-rules.mjs` (`cat-heredoc-*`) |
-| `core/hook-support/src/hook-bash-git-shell-utils.ts` | `scripts/lib/shell-parse.mjs` 中的最小 tokenizer |
+| `skills/command-safety-governance/src/hooks/dangerous-command-guard.ts` | `src/engines/dangerous-rm.ts` |
+| `skills/command-safety-governance/src/hooks/sed-inplace-guard.ts` | `src/lib/builtin-rules.ts` (`sed-inplace`) |
+| `skills/command-safety-governance/src/hooks/cat-write-guard.ts` | `src/lib/builtin-rules.ts` (`cat-heredoc-*`) |
+| `core/hook-support/src/hook-bash-git-shell-utils.ts` | `src/lib/shell-parse.ts` 中的最小 tokenizer |
 
 插件完全自包含，没有 `@harness/*` 运行时依赖。升级状态只统计本插件产生的拒绝，JSONL 写在当前工作目录的 `.command-safety-guards/.state/`，带 `*` 的 `.gitignore`，不会写入插件安装目录。
 
@@ -149,7 +149,7 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 
 ```bash
 find plugins/command-safety-guards/scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
-node --test plugins/command-safety-guards/tests/*.test.mjs
+npx tsx --test plugins/command-safety-guards/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin command-safety-guards
 ```
 

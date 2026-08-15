@@ -66,10 +66,10 @@ test -n "${PCG_PLUGIN_ROOT}"
 Use these transitions from the Git root:
 
 ```bash
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" start --root "${PWD}" --proposal <id>
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" defer --root "${PWD}" --proposal <id> --condition "<revisit condition>"
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" block --root "${PWD}" --proposal <id> --reason "<verified blocker>"
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" reopen --root "${PWD}" --proposal <id>
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" start --root "${PWD}" --proposal <id>
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" defer --root "${PWD}" --proposal <id> --condition "<revisit condition>"
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" block --root "${PWD}" --proposal <id> --reason "<verified blocker>"
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" reopen --root "${PWD}" --proposal <id>
 ```
 
 Delete the Markdown only after one of these terminal decisions:
@@ -79,7 +79,7 @@ Delete the Markdown only after one of these terminal decisions:
 - `duplicate`: merge its useful evidence into the retained application or existing project capability.
 
 ```bash
-node "${PCG_PLUGIN_ROOT}/scripts/project-capability-manage.mjs" delete --root "${PWD}" --proposal <id> --outcome <accepted|rejected|duplicate>
+node "${PCG_PLUGIN_ROOT}/dist/cli/project-capability-manage.mjs" delete --root "${PWD}" --proposal <id> --outcome <accepted|rejected|duplicate>
 ```
 
 On implementation failure, verification failure, cancellation, missing platform support, or missing authority, keep the application and record a blocker. Never create an archive, tombstone, decision ledger, or processed receipt.

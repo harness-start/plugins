@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0
+## 0.3.0
 
 - Move merge conflict marker ownership, PostToolUse behavior, and configuration to `git-delivery-guards`.
 - Keep backup artifact and obvious replacement-character checks as the complete source-sanity responsibility.

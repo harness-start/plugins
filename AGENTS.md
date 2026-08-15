@@ -10,6 +10,7 @@
 - Keep distributed plugin code, tests, skills, prompts, fixtures, and acceptance cases free of benchmark repository names, issue ids, task-specific inputs, and target answers. Model general behavior with synthetic isomorphic fixtures and prove it through outcome-level gates; never teach a benchmark solution through the plugin mount.
 - For substantial changes, follow contract → challenge or baseline → minimal change → targeted verification → complete verification → adversarial review → evidence report. Behavior-changing code requires an edited public-seam test and observed RED before production edits; refactors require a GREEN baseline.
 - Completion command evidence must follow the last mutation and run in the current user-prompt epoch. Missing workflow evidence permits only `blocked` or `needs_context`, not `done_with_concerns`.
+- Plugin runtime code lives in `plugins/<name>/src/` and is bundled to committed, self-contained `plugins/<name>/dist/` files. Run `npm run build` after source changes and include the refreshed `dist/` in every push; `npm run check:dist` must pass without modifying files.
 <!-- ai-experts:project-instructions:end -->
 
 ## Host acceptance (mandatory container policy)

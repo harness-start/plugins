@@ -21,20 +21,20 @@ composition.mjs -> 数学优化 -> 乐谱 + 指标 -> Tone.Offline -> 分轨 + �
 ```bash
 export PLUGIN_ROOT="$PWD/plugins/tonejs-music-production"
 
-node "$PLUGIN_ROOT/scripts/tools/project-init.mjs" demo-track \
+node "$PLUGIN_ROOT/dist/cli/project-init.mjs" demo-track \
   --workspace "$PWD" \
   --install-browser
 
-node "$PLUGIN_ROOT/scripts/tools/project-lint.mjs" \
+node "$PLUGIN_ROOT/dist/cli/project-lint.mjs" \
   "artifacts/music/demo-track"
 
-node "$PLUGIN_ROOT/scripts/tools/project-optimize.mjs" \
+node "$PLUGIN_ROOT/dist/cli/project-optimize.mjs" \
   "artifacts/music/demo-track"
 
-node "$PLUGIN_ROOT/scripts/tools/project-render.mjs" \
+node "$PLUGIN_ROOT/dist/cli/project-render.mjs" \
   "artifacts/music/demo-track"
 
-node "$PLUGIN_ROOT/scripts/tools/project-preview.mjs" \
+node "$PLUGIN_ROOT/dist/cli/project-preview.mjs" \
   "artifacts/music/demo-track"
 ```
 
@@ -88,7 +88,7 @@ findings: <具体听感、问题和处理结论>
 随后把 `plan.contract.json` 的 `targetStage` 改为 `release`，再执行：
 
 ```bash
-node "$PLUGIN_ROOT/scripts/tools/project-release.mjs" \
+node "$PLUGIN_ROOT/dist/cli/project-release.mjs" \
   "artifacts/music/demo-track"
 ```
 
@@ -105,6 +105,6 @@ node "$PLUGIN_ROOT/scripts/tools/project-release.mjs" \
 在插件仓库根目录运行单元测试；仓库级校验会同时检查插件结构和 Skill：
 
 ```bash
-node --test plugins/tonejs-music-production/tests/*.test.mjs
+npx tsx --test plugins/tonejs-music-production/tests/*.test.ts
 SKIP_HOST_INSTALL=1 bash scripts/ci/validate-plugins.sh
 ```

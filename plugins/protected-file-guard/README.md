@@ -78,10 +78,10 @@ Codex 安装后需先审查并信任 Hook。
 ## 验证
 
 ```bash
-node --test plugins/protected-file-guard/tests/*.test.mjs
+npx tsx --test plugins/protected-file-guard/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin protected-file-guard
 ```
 
 第二条命令需要 Docker 和仓库 `.env` 中的 DeepSeek 验收凭据。
 
-版本：`0.1.0`
+版本：`0.2.0`

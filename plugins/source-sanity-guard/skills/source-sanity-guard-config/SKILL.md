@@ -1,7 +1,7 @@
 ---
 name: source-sanity-guard-config
 description: Change source-sanity-guard modes and path overrides for backup artifacts and garbled text in .source-sanity-guard.mjs.
-version: 0.2.0
+version: 0.3.0
 ---
 
 # source-sanity-guard-config

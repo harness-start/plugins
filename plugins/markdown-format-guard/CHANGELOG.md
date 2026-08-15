@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0
+## 0.2.0
 
 - Initial release: PostToolUse Markdown format guard for Claude Code and Codex.
 - Built-in checks for heading increment/style/spacing/blank lines, tabs, trailing whitespace, multiple blank lines, final newline, fenced code closed/language, optional single H1.
