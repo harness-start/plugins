@@ -1,0 +1,4 @@
+id = "01-dirty-source-refused"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["skill", "git", "refusal"]
