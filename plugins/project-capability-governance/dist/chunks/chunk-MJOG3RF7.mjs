@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:5d6c090a028a305140162d3b93221a621ecb1f5e16803ae6ce4b1e6bfab51a37
+// harness-source-hash: sha256:5144022e720a1436cc94ff1ba394de3ed10ca6dad9d50619724476c05db2f9e5
 
 // plugins/project-capability-governance/src/lib/proposals.ts
 import { lstat, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";

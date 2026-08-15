@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8c07f501fa120caffcd9ee5bd800aca506b6ca251aa562026756c8b17ce01e9e
+// harness-source-hash: sha256:3f437eeefcb433232febda2e49046c49fc0a75b2953b76ed0b981ea8b05dbd56
 
 // plugins/intent-clarify-gate/src/entries/hooks/intent-clarify-gate.ts
 import { resolve } from "node:path";

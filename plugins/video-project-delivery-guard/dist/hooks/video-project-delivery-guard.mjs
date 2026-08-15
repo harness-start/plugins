@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:db6acf67eecce56c01c80da3a791b57505c2dce49e2dfa3fb4248a9969f97567
+// harness-source-hash: sha256:ab266d2f051b8be8a5488dd331bf6efacf12a101f36b81a6afe6e2f49f4de4de
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-JD55FKTP.mjs";
+} from "../chunks/chunk-47Y5Y6SY.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-EM577HQ5.mjs";
+} from "../chunks/chunk-ZS2FERKO.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/hooks/video-project-delivery-guard.ts
 import { relative, resolve as resolve3 } from "node:path";

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:02595068c90d146741494a1d7e3701df870fdf2e07ae36924de0998fb9f13936
+// harness-source-hash: sha256:5dd6e44bf9e31a59e88572c25eca20796881558ed08fb016a2769f0eb24fb7e7
 import {
   SEAL_PREFIX,
   isProtectedReportPath,
@@ -7,7 +7,7 @@ import {
   reportPath,
   sha256,
   verifyReport
-} from "../chunks/chunk-42B7SUE3.mjs";
+} from "../chunks/chunk-BKUUU55L.mjs";
 
 // plugins/work-report-insights/src/entries/hooks/work-report-insights-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";

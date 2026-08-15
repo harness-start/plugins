@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:63b437b3d715c9489bd318322f4f2da2459b303e5f14264b95eb50706ca1a20c
+// harness-source-hash: sha256:7800d43ec86bd60b3186ee4b6c6c1fa71b09c2562de540ac101c9e0931327d4c
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-NFCR6F3X.mjs";
+} from "../chunks/chunk-D53Y26S6.mjs";
 import {
   validateLogoModel
-} from "../chunks/chunk-5NGF5NE7.mjs";
+} from "../chunks/chunk-LHQ5PSUS.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";

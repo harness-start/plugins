@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:24f0a8d9334954e599ceef19b4ebf1ac278a96569d4312beb23913dd7d0b135a
+// harness-source-hash: sha256:d59942f5911d3fcb62dcd437277665c5c3fb210a4e213ae779c36fdae83cb679
 
 // plugins/execution-loop-guard/src/entries/hooks/execution-loop-guard.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";

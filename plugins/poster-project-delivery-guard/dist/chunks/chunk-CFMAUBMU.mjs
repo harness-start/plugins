@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:8b259f4d23ca85047ac747b5957a9c7177c75c52f26e6835eeaf6864daa260bb
+// harness-source-hash: sha256:ce1391e033b4614b0a6cb38d556dda14dccc49c8c48ad0139447594c66cc58ca
 
 // plugins/poster-project-delivery-guard/src/lib/contract.ts
 import { createHash } from "node:crypto";
