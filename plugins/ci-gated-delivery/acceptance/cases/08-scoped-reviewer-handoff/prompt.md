@@ -1,0 +1,1 @@
+Use $ci-gated-mr-workflow. Read `review-scope.json` and create `review-packet.txt` using the Skill's reviewer handoff contract. Do not inspect plugin source, add fields not required by that contract, or include conversation history. Do not perform the review.
