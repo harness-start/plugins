@@ -140,6 +140,11 @@
       "name": "ci-gated-delivery",
       "source": "./plugins/ci-gated-delivery",
       "description": "Guides code and configuration changes through branch, review, remote CI, merge, post-merge verification, and cleanup."
+    },
+    {
+      "name": "cross-repo-history-migration",
+      "source": "./plugins/cross-repo-history-migration",
+      "description": "Plans and executes sealed, source-read-only Git history extraction into a new repository."
     }
   ]
 }

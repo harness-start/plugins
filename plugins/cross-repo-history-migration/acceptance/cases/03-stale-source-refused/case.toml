@@ -1,0 +1,4 @@
+id = "03-stale-source-refused"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["skill", "git", "stale", "refusal"]

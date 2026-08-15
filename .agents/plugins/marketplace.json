@@ -285,6 +285,18 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "cross-repo-history-migration",
+      "source": {
+        "source": "local",
+        "path": "./plugins/cross-repo-history-migration"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
     }
   ]
 }

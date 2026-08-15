@@ -22,7 +22,7 @@ Do not activate it for read-only analysis, planning without implementation, a us
 3. **Branch** — update remote facts, confirm the base, preserve unrelated work, and create one traceable short-lived branch. Never overwrite another worktree or use destructive history repair to make the branch convenient.
 4. **Local loop** — implement the smallest scoped change and run directly relevant checks after the last mutation. Record the command, exit status, and concise result. Treat missing, skipped, stale, or inferred verification as unverified.
 5. **Commit and publish** — inspect the diff, stage explicit files, create focused commits, push the branch, and create or update the MR/PR with scope, acceptance, risks, and local evidence. Local Git command safety belongs to a dedicated Git guard plugin and is not reimplemented here.
-6. **Review** — inspect the final scoped diff and request an independent reviewer when risk justifies it. Give a reviewer only the requirement, base/head, scoped diff, and verification evidence. Validate each finding against the current tree; resolve or explicitly reject every blocking discussion before merge.
+6. **Review** — inspect the final scoped diff and request an independent reviewer when risk justifies it. Build the task and result packets from [`references/reviewer-handoff.md`](references/reviewer-handoff.md); never send the full conversation, private reasoning, unrelated files, or another reviewer's conclusions. Validate each finding against the current tree; resolve or explicitly reject every blocking discussion before merge.
 7. **Supervise CI** — query the provider through structured tool or API output bound to the current head SHA. Use bounded polling with a terminal-state set, maximum attempts or deadline, and an explicit query-failure branch. If CI fails, read the failed job log, make the smallest repair, rerun local checks, push, and resume supervision.
 8. **Gate merge** — require the expected head SHA, successful required jobs, satisfied approvals, resolved blocking discussions, and no unresolved merge conflict. Check for duplicate branch-push and MR pipelines for the same commit; report duplication instead of silently treating both as required evidence.
 9. **Post-merge decision** — capture the merge commit and default-branch state. Wait for the default-branch pipeline unless repository policy permits an equivalence decision and the final MR head, merge tree, required job set, and absence of default-branch-only effects are all evidenced. If one condition is unknown, wait rather than infer.
@@ -35,6 +35,14 @@ Do not activate it for read-only analysis, planning without implementation, a us
 - Empty output, authentication failure, permission denial, rate limiting, malformed JSON, and timeout are query failures, not pending CI.
 - A remote mutation needs a subsequent read from the same provider and subject before it can be reported as successful.
 - Never fabricate an MR URL, pipeline id, approval, discussion state, merge commit, or cleanup result.
+
+## Remote decision invariants
+
+- Select evidence by the current MR/PR head SHA first, then evaluate its status. A successful pipeline for any other SHA is stale evidence, even when it is newer by id or timestamp.
+- Required jobs, approvals, mergeability, and blocking discussions are independent gates. One green gate never cancels a red or unknown gate.
+- After a repair push, discard the earlier failure only for the merge decision; retain it in the evidence history and require a successful current-head pipeline.
+- A merge is not delivery completion when policy requires the default-branch pipeline. Bind that pipeline to the observed merge commit and honor its own terminal state.
+- Delete or update branches only after the provider read confirms the merge and the local commit is reachable from the updated default branch.
 
 ## Evidence report
 
