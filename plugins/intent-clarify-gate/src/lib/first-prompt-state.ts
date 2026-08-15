@@ -2,15 +2,28 @@ import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
+
 import { extractSessionId, platformDataRoot } from "./hook-io.js";
 
 const VERSION = 1;
 
-function digest(value) {
+export type FirstPromptClaim = {
+  claimed: boolean;
+  persisted: boolean;
+  path: string | null;
+  reason: string | null;
+};
+
+function digest(value: unknown): string {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-export function claimFirstPrompt(event, env = process.env, now = new Date()) {
+export function claimFirstPrompt(
+  event: HookEvent,
+  env: NodeJS.ProcessEnv = process.env,
+  now: Date = new Date(),
+): FirstPromptClaim {
   const sessionId = extractSessionId(event, env);
   const data = platformDataRoot(env);
   if (!sessionId || !data) {
@@ -34,15 +47,15 @@ export function claimFirstPrompt(event, env = process.env, now = new Date()) {
       flag: "wx",
     });
     return { claimed: true, persisted: true, path, reason: null };
-  } catch (error) {
-    if (error?.code === "EEXIST") {
+  } catch (error: unknown) {
+    if (isRecord(error) && error.code === "EEXIST") {
       return { claimed: false, persisted: true, path, reason: null };
     }
     return {
       claimed: true,
       persisted: false,
       path,
-      reason: `first-prompt state was not persisted: ${error?.message ?? String(error)}`,
+      reason: `first-prompt state was not persisted: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }

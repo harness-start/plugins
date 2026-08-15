@@ -1,6 +1,6 @@
 import ownerRule from "./local-rules/artifact-unit-owner.js";
 
-export function createPreset({ parser }) {
+export function createPreset({ parser }: { parser: unknown }) {
   return [{
     files: ["src/variants/*/layers/*.tsx"],
     languageOptions: { parser, parserOptions: { ecmaFeatures: { jsx: true }, ecmaVersion: "latest", sourceType: "module" } },

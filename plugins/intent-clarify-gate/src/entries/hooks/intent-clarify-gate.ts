@@ -3,6 +3,8 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { HookEvent } from "@harness/core/hook-event";
+
 import {
   additionalContextOutput,
   readStdinJson,
@@ -10,7 +12,7 @@ import {
 } from "../../lib/hook-io.js";
 import { claimFirstPrompt } from "../../lib/first-prompt-state.js";
 
-function warn(message) {
+function warn(message: string) {
   process.stderr.write(`[intent-clarify-gate] ${message}\n`);
 }
 
@@ -23,7 +25,7 @@ export function firstTurnContext() {
   ].join("\n");
 }
 
-export function runPrompt(event, env = process.env) {
+export function runPrompt(event: HookEvent, env: NodeJS.ProcessEnv = process.env) {
   const claim = claimFirstPrompt(event, env);
   if (!claim.claimed) return;
   if (!claim.persisted && claim.reason) warn(claim.reason);
@@ -43,5 +45,5 @@ const isMain = process.argv[1]
   && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 
 if (isMain) {
-  main().catch((error) => warn(error?.message ?? String(error)));
+  main().catch((error: unknown) => warn(error instanceof Error ? error.message : String(error)));
 }

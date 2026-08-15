@@ -5,7 +5,9 @@ import { consumeWriterCapability, processWriterArgv } from "../../lib/capability
 import { loadVideoProject } from "../../lib/project.js";
 import { assertVideoProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 
-function beforeManifestFindings(model) {
+import type { VideoModel } from "../../lib/contract.js";
+
+function beforeManifestFindings(model: VideoModel) {
   const allowed = new Set(["RELEASE_MANIFEST_INVALID", "RECEIPT_INVALID", "RELEASE_PATH_MISSING", "MUTATION_JOURNAL_OPEN"]);
   return validateVideoModel(model, { stage: "release" }).filter(({ code, path }) => !allowed.has(code) || (code === "RELEASE_PATH_MISSING" && !["release.manifest.json", "receipt.release.json"].includes(path)));
 }
@@ -29,4 +31,8 @@ async function main() {
   }, grant);
 }
 
-main().catch((error) => { process.stderr.write(`[video-project-release] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => {
+  const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+  process.stderr.write(`[video-project-release] ${message}\n`);
+  process.exitCode = 2;
+});

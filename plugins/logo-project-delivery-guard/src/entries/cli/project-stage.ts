@@ -6,6 +6,12 @@ import { basename, join, resolve } from "node:path";
 import { PLAN_SCHEMA, validateLogoModel } from "../../lib/contract.js";
 import { assertLogoProjectRoot, loadLogoProject } from "../../lib/project.js";
 
+function planField(plan: unknown, key: string): unknown {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan)
+    ? (plan as Record<string, unknown>)[key]
+    : undefined;
+}
+
 const root = resolve(process.argv[2] ?? "");
 const targetStage = process.argv[3] ?? "";
 const planPath = join(root, "plan.contract.json");
@@ -16,7 +22,7 @@ async function main() {
   await assertLogoProjectRoot(root);
   if (targetStage !== "release") throw new Error("only the monotonic source to release transition is supported");
   const model = await loadLogoProject(root);
-  if (model.plan?.schema !== PLAN_SCHEMA || model.plan?.artifactId !== model.artifactId || model.plan?.targetStage !== "source") throw new Error("PLAN_TRANSITION_INVALID: current plan must be a bound source plan");
+  if (planField(model.plan, "schema") !== PLAN_SCHEMA || planField(model.plan, "artifactId") !== model.artifactId || planField(model.plan, "targetStage") !== "source") throw new Error("PLAN_TRANSITION_INVALID: current plan must be a bound source plan");
   const findings = validateLogoModel(model, { stage: "source" });
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
   const next = { schema: PLAN_SCHEMA, artifactId: model.artifactId, targetStage: "release" };
@@ -25,4 +31,4 @@ async function main() {
   process.stdout.write(`[logo-project-stage] advanced ${model.artifactId} to release\n`);
 }
 
-main().catch((error) => { process.stderr.write(`[logo-project-stage] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => { process.stderr.write(`[logo-project-stage] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

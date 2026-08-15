@@ -11,34 +11,89 @@ import {
 } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
 
-function run(command, args, options = {}) {
+import { isRecord } from "@harness/core/hook-event";
+
+export type MigrationOptions = {
+  source: string;
+  target: string;
+  includePaths: readonly string[];
+  ref?: string;
+  targetBranch?: string;
+  gitFilterRepo?: string;
+  expectedSourceHead?: string;
+  expectedPlanDigest?: string;
+};
+
+type NormalizedInputs = {
+  source: string;
+  target: string;
+  parent: string;
+  ref: string;
+  targetBranch: string;
+  includePaths: string[];
+};
+
+type MigrationPlan = {
+  source: string;
+  target: string;
+  ref: string;
+  targetBranch: string;
+  includePaths: string[];
+  sourceHead: string;
+  filterRepoVersion: string;
+};
+
+export type PreflightResult = MigrationPlan & {
+  ok: true;
+  commitCount: number;
+  planDigest: string;
+};
+
+export type ExecuteResult = {
+  ok: true;
+  source: string;
+  sourceHead: string;
+  target: string;
+  targetHead: string;
+  targetBranch: string;
+  includePaths: string[];
+  commitCount: number;
+  planDigest: string;
+};
+
+type RunOptions = {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+};
+
+function run(command: string, args: readonly string[], options: RunOptions = {}): string {
   try {
-    return execFileSync(command, args, {
-      cwd: options.cwd,
+    return execFileSync(command, [...args], {
       encoding: "utf8",
       env: options.env ?? process.env,
       stdio: ["ignore", "pipe", "pipe"],
+      ...(options.cwd !== undefined ? { cwd: options.cwd } : {}),
     }).trim();
-  } catch (error) {
-    const stderr = typeof error.stderr === "string" ? error.stderr.trim() : "";
-    const stdout = typeof error.stdout === "string" ? error.stdout.trim() : "";
-    const detail = stderr || stdout || error.message;
+  } catch (error: unknown) {
+    const stderr = isRecord(error) && typeof error.stderr === "string" ? error.stderr.trim() : "";
+    const stdout = isRecord(error) && typeof error.stdout === "string" ? error.stdout.trim() : "";
+    const detail = stderr || stdout || (error instanceof Error ? error.message : String(error));
     throw new Error(`${command} ${args.join(" ")} failed: ${detail}`, { cause: error });
   }
 }
 
-function git(cwd, ...args) {
+function git(cwd: string, ...args: string[]): string {
   return run("git", ["-C", cwd, ...args]);
 }
 
-function assertText(value, name) {
+function assertText(value: unknown, name: string): string {
   if (typeof value !== "string" || value.trim() === "") {
     throw new TypeError(`${name} must be a non-empty string`);
   }
   return value.trim();
 }
 
-export function validateIncludePath(input) {
+export function validateIncludePath(input: unknown): string {
   const value = assertText(input, "include path");
   const parts = value.split("/");
   if (
@@ -51,7 +106,7 @@ export function validateIncludePath(input) {
   return value;
 }
 
-function normalizeInputs(options) {
+function normalizeInputs(options: MigrationOptions): NormalizedInputs {
   const sourceInput = assertText(options.source, "source");
   const targetInput = assertText(options.target, "target");
   const ref = options.ref === undefined ? "HEAD" : assertText(options.ref, "ref");
@@ -86,22 +141,22 @@ function normalizeInputs(options) {
   return { source, target, parent, ref, targetBranch, includePaths };
 }
 
-function planDigest(plan) {
+function planDigest(plan: MigrationPlan): string {
   return createHash("sha256").update(JSON.stringify(plan)).digest("hex");
 }
 
-function assertSourceClean(source) {
+function assertSourceClean(source: string): void {
   const status = git(source, "status", "--porcelain=v1", "--untracked-files=all");
   if (status !== "") {
     throw new Error("source repository is dirty; commit, stash, or remove source changes before migration");
   }
 }
 
-function assertFilterRepo(executable) {
+function assertFilterRepo(executable: string): string {
   return run(executable, ["--version"]);
 }
 
-export function preflightMigration(options) {
+export function preflightMigration(options: MigrationOptions): PreflightResult {
   const input = normalizeInputs(options);
   const filterRepo = options.gitFilterRepo ?? "git-filter-repo";
   assertSourceClean(input.source);
@@ -123,7 +178,7 @@ export function preflightMigration(options) {
     "--",
     ...input.includePaths,
   ));
-  const plan = {
+  const plan: MigrationPlan = {
     source: input.source,
     target: input.target,
     ref: input.ref,
@@ -141,12 +196,12 @@ export function preflightMigration(options) {
   };
 }
 
-function removeTags(repository) {
+function removeTags(repository: string): void {
   const tags = git(repository, "tag", "--list").split("\n").filter(Boolean);
   if (tags.length > 0) git(repository, "tag", "--delete", ...tags);
 }
 
-function removeOtherLocalBranches(repository, targetBranch) {
+function removeOtherLocalBranches(repository: string, targetBranch: string): void {
   const targetRef = `refs/heads/${targetBranch}`;
   const refs = git(
     repository,
@@ -159,7 +214,7 @@ function removeOtherLocalBranches(repository, targetBranch) {
   }
 }
 
-export function executeMigration(options) {
+export function executeMigration(options: MigrationOptions): ExecuteResult {
   const expectedSourceHead = assertText(options.expectedSourceHead, "expectedSourceHead");
   const expectedPlanDigest = assertText(options.expectedPlanDigest, "expectedPlanDigest");
   const filterRepo = options.gitFilterRepo ?? "git-filter-repo";

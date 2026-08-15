@@ -15,13 +15,15 @@ import {
   pauseLedger,
   resumeLedger,
   statusLedger,
+  type WriterResult,
 } from "../../lib/writer.js";
 
-function parseArgs(argv) {
-  const options = {};
-  const positionals = [];
+function parseArgs(argv: string[]): { options: Record<string, string | boolean>; positionals: string[] } {
+  const options: Record<string, string | boolean> = {};
+  const positionals: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === undefined) continue;
     if (!value.startsWith("--")) {
       positionals.push(value);
       continue;
@@ -37,26 +39,27 @@ function parseArgs(argv) {
   return { options, positionals };
 }
 
-function output(value) {
+function output(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-function fail(error) {
-  output({ ok: false, error: String(error?.message ?? error) });
+function fail(error: unknown): void {
+  const message = error instanceof Error ? error.message : error;
+  output({ ok: false, error: String(message ?? error) });
   process.exitCode = 1;
 }
 
-function list(value) {
+function list(value: unknown): unknown[] | string[] {
   if (Array.isArray(value)) return value;
   return String(value ?? "").split(",").map((item) => item.trim()).filter(Boolean);
 }
 
-export async function main(argv = process.argv.slice(2)) {
+export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const { options, positionals } = parseArgs(argv);
   const action = positionals[0];
   const cwd = options.cwd ? resolve(String(options.cwd)) : process.cwd();
   const base = { cwd, id: options.id, slug: options.slug };
-  let result;
+  let result: WriterResult;
   try {
     if (action === "init" || action === "open") {
       result = initLedger({
@@ -129,7 +132,7 @@ export async function main(argv = process.argv.slice(2)) {
     } else {
       result = { ok: false, error: `unknown action: ${action ?? "(missing)"}. Use init|activate|claim|affect|add-bug|pause|close|abort|resume|status` };
     }
-  } catch (error) {
+  } catch (error: unknown) {
     fail(error);
     return;
   }

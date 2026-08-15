@@ -4,6 +4,9 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { eventCwd, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
+import { stopBlock, writeJson } from "@harness/core/hook-output";
+
 import {
   capOutput,
   findExecutable,
@@ -18,18 +21,21 @@ import {
   runCommand,
   writeState,
 } from "../../lib/code-quality-core.js";
-import { eventCwd, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
-import { stopBlock, writeJson } from "@harness/core/hook-output";
 
-function warn(message) {
+type StopFinding = {
+  mode: string;
+  message: string;
+};
+
+function warn(message: string): void {
   process.stderr.write(`[code-quality-guard] ${message}\n`);
 }
 
-function outputReport(message) {
+function outputReport(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
-async function main() {
+async function main(): Promise<void> {
   const event = await readStdinJson();
   if (event.__parseError || isStopHookActive(event)) return;
   const cwd = resolve(eventCwd(event));
@@ -68,7 +74,7 @@ async function main() {
     { mode: "block", files: selected.filter(({ path }) => modeFor("phpstan", path, config) === "block") },
     { mode: "report", files: selected.filter(({ path }) => modeFor("phpstan", path, config) === "report") },
   ];
-  const findings = [];
+  const findings: StopFinding[] = [];
   for (const group of groups) {
     if (group.files.length === 0) continue;
     const result = await runCommand(
@@ -105,8 +111,8 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+  main().catch((error: unknown) => {
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

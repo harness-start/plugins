@@ -1,7 +1,15 @@
 import { isAbsolute } from "node:path";
+import { isRecord } from "@harness/core/hook-event";
 import { loadExecutableConfig } from "@harness/core/project-config";
 
-export const DEFAULT_CONFIG = Object.freeze({
+export type FileAccessConfig = {
+  enabled: boolean;
+  auditRoot: string;
+};
+
+type WarnFn = (message: string) => void;
+
+export const DEFAULT_CONFIG: Readonly<FileAccessConfig> = Object.freeze({
   enabled: true,
   auditRoot: ".file-access-audit",
 });
@@ -31,12 +39,12 @@ const RESERVED_ROOTS = new Set([
   "tests",
 ]);
 
-export function resolveConfig(raw, warn = () => {}) {
-  const config = {
+export function resolveConfig(raw: unknown, warn: WarnFn = () => {}): FileAccessConfig {
+  const config: FileAccessConfig = {
     enabled: DEFAULT_CONFIG.enabled,
     auditRoot: DEFAULT_CONFIG.auditRoot,
   };
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+  if (!isRecord(raw)) {
     if (raw != null) warn("config must be an object; using defaults");
     return config;
   }
@@ -64,7 +72,10 @@ export function resolveConfig(raw, warn = () => {}) {
   return config;
 }
 
-export async function loadProjectConfig(repoRoot, warn = () => {}) {
+export async function loadProjectConfig(
+  repoRoot: string | null,
+  warn: WarnFn = () => {},
+): Promise<FileAccessConfig> {
   return loadExecutableConfig({
     repoRoot,
     names: CONFIG_NAMES,

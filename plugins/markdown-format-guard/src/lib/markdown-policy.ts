@@ -1,3 +1,5 @@
+import { isRecord } from "@harness/core/hook-event";
+
 export const CHECK_NAMES = [
   "headingIncrement",
   "headingStyle",
@@ -11,9 +13,27 @@ export const CHECK_NAMES = [
   "fencedCodeClosed",
   "fencedCodeLanguage",
   "singleH1",
-];
+] as const;
 
-export const DEFAULT_CHECKS = Object.freeze({
+export type MarkdownCheckName = (typeof CHECK_NAMES)[number];
+export type MarkdownCheckMode = "block" | "report" | "off";
+export type MarkdownChecks = Record<MarkdownCheckName, MarkdownCheckMode>;
+export type MarkdownOverride = {
+  match: RegExp;
+  checks: Partial<MarkdownChecks>;
+};
+export type MarkdownConfig = {
+  checks: MarkdownChecks;
+  overrides: MarkdownOverride[];
+};
+export type MarkdownFinding = {
+  check: MarkdownCheckName;
+  line: number;
+  message: string;
+  mode: MarkdownCheckMode;
+};
+
+export const DEFAULT_CHECKS: Readonly<MarkdownChecks> = Object.freeze({
   headingIncrement: "block",
   headingStyle: "block",
   headingSpace: "block",
@@ -28,7 +48,9 @@ export const DEFAULT_CHECKS = Object.freeze({
   singleH1: "off",
 });
 
-const VALID_MODES = new Set(["block", "report", "off"]);
+function isCheckMode(value: unknown): value is MarkdownCheckMode {
+  return value === "block" || value === "report" || value === "off";
+}
 
 export const MARKDOWN_EXTENSION =
   /\.(?:md|markdown|mdown|mkd)$/iu;
@@ -40,30 +62,40 @@ const ATX_HEADING = /^( {0,3})(#{1,6})(.*)$/u;
 const SETEXT_UNDERLINE = /^( {0,3})(=+|-+)[ \t]*$/u;
 const FENCE_OPEN = /^( {0,3})(`{3,}|~{3,})(.*)$/u;
 
-function warnDefault(message) {
+function warnDefault(message: string): void {
   process.stderr.write(`[markdown-format-guard] ${message}\n`);
 }
 
-function normalizeMode(value, fallback, label, warn) {
+function normalizeMode<T extends MarkdownCheckMode | null>(
+  value: unknown,
+  fallback: T,
+  label: string,
+  warn: (message: string) => void,
+): MarkdownCheckMode | T {
   if (value === undefined) return fallback;
-  if (VALID_MODES.has(value)) return value;
+  if (isCheckMode(value)) return value;
   warn(`${label} must be "block", "report", or "off"; using ${fallback}`);
   return fallback;
 }
 
-export function resolveConfig(userConfig, warn = warnDefault) {
-  const checks = { ...DEFAULT_CHECKS };
+export function resolveConfig(
+  userConfig: unknown,
+  warn: (message: string) => void = warnDefault,
+): MarkdownConfig {
+  const record = isRecord(userConfig) ? userConfig : undefined;
+  const checks: MarkdownChecks = { ...DEFAULT_CHECKS };
   if (
-    userConfig?.checks !== undefined &&
-    (!userConfig.checks ||
-      typeof userConfig.checks !== "object" ||
-      Array.isArray(userConfig.checks))
+    record?.checks !== undefined &&
+    (!record.checks ||
+      typeof record.checks !== "object" ||
+      Array.isArray(record.checks))
   ) {
     warn('config "checks" must be an object; using defaults');
   } else {
+    const checksSource = isRecord(record?.checks) ? record.checks : undefined;
     for (const name of CHECK_NAMES) {
       checks[name] = normalizeMode(
-        userConfig?.checks?.[name],
+        checksSource?.[name],
         checks[name],
         `checks.${name}`,
         warn,
@@ -71,15 +103,16 @@ export function resolveConfig(userConfig, warn = warnDefault) {
     }
   }
 
-  const overrides = [];
+  const overrides: MarkdownOverride[] = [];
   if (
-    userConfig?.overrides !== undefined &&
-    !Array.isArray(userConfig.overrides)
+    record?.overrides !== undefined &&
+    !Array.isArray(record.overrides)
   ) {
     warn('config "overrides" must be an array; ignoring overrides');
   } else {
-    for (const [index, override] of (userConfig?.overrides ?? []).entries()) {
-      if (!override || !(override.match instanceof RegExp)) {
+    const rawOverrides = Array.isArray(record?.overrides) ? record.overrides : [];
+    for (const [index, override] of rawOverrides.entries()) {
+      if (!isRecord(override) || !(override.match instanceof RegExp)) {
         warn(`override[${index}].match must be a RegExp; skipping`);
         continue;
       }
@@ -91,11 +124,12 @@ export function resolveConfig(userConfig, warn = warnDefault) {
         warn(`override[${index}].checks must be an object; skipping`);
         continue;
       }
-      const normalizedChecks = {};
+      const overrideChecks = isRecord(override.checks) ? override.checks : {};
+      const normalizedChecks: Partial<MarkdownChecks> = {};
       for (const name of CHECK_NAMES) {
-        if (override.checks[name] === undefined) continue;
+        if (overrideChecks[name] === undefined) continue;
         const mode = normalizeMode(
-          override.checks[name],
+          overrideChecks[name],
           null,
           `override[${index}].checks.${name}`,
           warn,
@@ -112,7 +146,7 @@ export function resolveConfig(userConfig, warn = warnDefault) {
   return { checks, overrides };
 }
 
-function regexMatches(pattern, value) {
+function regexMatches(pattern: RegExp, value: string): boolean {
   try {
     return new RegExp(pattern.source, pattern.flags).test(value);
   } catch {
@@ -120,7 +154,7 @@ function regexMatches(pattern, value) {
   }
 }
 
-export function modeFor(checkName, relativePath, config) {
+export function modeFor(checkName: MarkdownCheckName, relativePath: string, config: MarkdownConfig): MarkdownCheckMode {
   for (const override of config.overrides) {
     if (
       override.checks[checkName] !== undefined &&
@@ -132,11 +166,11 @@ export function modeFor(checkName, relativePath, config) {
   return config.checks[checkName] ?? "off";
 }
 
-export function isMarkdownPath(relativePath) {
+export function isMarkdownPath(relativePath: string): boolean {
   return MARKDOWN_EXTENSION.test(relativePath) && !SKIP_PATH.test(relativePath);
 }
 
-function splitLines(text) {
+function splitLines(text: string): string[] {
   // Keep line bodies without trailing \n; track whether file ends with newline separately.
   if (text.length === 0) return [];
   const parts = text.split("\n");
@@ -144,11 +178,13 @@ function splitLines(text) {
   return parts;
 }
 
-function detectFrontMatterEnd(lines) {
+function detectFrontMatterEnd(lines: readonly string[]): number {
   if (lines.length === 0) return 0;
-  if (lines[0].trim() !== "---") return 0;
+  const first = lines[0];
+  if (first === undefined || first.trim() !== "---") return 0;
   for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i].trim() === "---" || lines[i].trim() === "...") {
+    const line = lines[i];
+    if (line !== undefined && (line.trim() === "---" || line.trim() === "...")) {
       return i + 1;
     }
   }
@@ -156,14 +192,24 @@ function detectFrontMatterEnd(lines) {
   return 0;
 }
 
-function parseFenceMarker(line) {
+type FenceMarker = {
+  char: string;
+  length: number;
+  info: string;
+  rawInfo: string;
+};
+
+function parseFenceMarker(line: string): FenceMarker | null {
   const match = line.match(FENCE_OPEN);
   if (!match) return null;
   const marker = match[2];
+  if (!marker) return null;
   const info = match[3] ?? "";
+  const char = marker[0];
+  if (char === undefined) return null;
   // Closing fences cannot have non-whitespace info string content after marker.
   return {
-    char: marker[0],
+    char,
     length: marker.length,
     info: info.trim(),
     rawInfo: info,
@@ -173,12 +219,48 @@ function parseFenceMarker(line) {
 /**
  * Build a line-oriented view: inFence, headings, blank flags.
  */
-export function buildDocumentModel(text) {
+type FenceOpen = {
+  char: string;
+  length: number;
+  openLine: number;
+  info: string;
+};
+
+type LineState = {
+  line: number;
+  content: string;
+  inFence: boolean;
+  isBlank: boolean;
+  isFrontMatter: boolean;
+  fenceOpen?: FenceOpen;
+};
+
+type Heading = {
+  line: number;
+  level: number;
+  style: "atx" | "setext";
+  hashes: string;
+  rest: string;
+  text: string;
+  index: number;
+  underlineLine?: number;
+};
+
+export type DocumentModel = {
+  lines: string[];
+  lineStates: LineState[];
+  headings: Heading[];
+  bodyStart: number;
+  endsWithNewline: boolean;
+  unclosedFence: FenceOpen | null;
+};
+
+export function buildDocumentModel(text: string): DocumentModel {
   const lines = splitLines(text);
   const endsWithNewline = text.length === 0 || text.endsWith("\n");
   const bodyStart = detectFrontMatterEnd(lines);
 
-  const lineStates = lines.map((content, index) => ({
+  const lineStates: LineState[] = lines.map((content, index) => ({
     line: index + 1,
     content,
     inFence: false,
@@ -186,11 +268,13 @@ export function buildDocumentModel(text) {
     isFrontMatter: index < bodyStart,
   }));
 
-  let fence = null;
+  let fence: FenceOpen | null = null;
   for (let i = bodyStart; i < lines.length; i += 1) {
     const content = lines[i];
+    const state = lineStates[i];
+    if (content === undefined || !state) continue;
     if (fence) {
-      lineStates[i].inFence = true;
+      state.inFence = true;
       const close = parseFenceMarker(content);
       if (
         close &&
@@ -205,23 +289,27 @@ export function buildDocumentModel(text) {
 
     const open = parseFenceMarker(content);
     if (open) {
-      lineStates[i].inFence = true;
+      state.inFence = true;
       fence = { char: open.char, length: open.length, openLine: i + 1, info: open.info };
-      lineStates[i].fenceOpen = fence;
+      state.fenceOpen = fence;
       continue;
     }
   }
 
-  const headings = [];
+  const headings: Heading[] = [];
   for (let i = bodyStart; i < lines.length; i += 1) {
-    if (lineStates[i].inFence && !lineStates[i].fenceOpen) continue;
+    const state = lineStates[i];
+    if (!state) continue;
+    if (state.inFence && !state.fenceOpen) continue;
     // Opening fence line is not a heading.
-    if (lineStates[i].fenceOpen) continue;
+    if (state.fenceOpen) continue;
 
     const content = lines[i];
+    if (content === undefined) continue;
     const atx = content.match(ATX_HEADING);
     if (atx) {
       const hashes = atx[2];
+      if (!hashes) continue;
       const rest = atx[3] ?? "";
       headings.push({
         line: i + 1,
@@ -236,8 +324,10 @@ export function buildDocumentModel(text) {
     }
 
     // Setext: current non-blank line + next underline, not in fence.
-    if (i + 1 < lines.length && !lineStates[i + 1].inFence) {
-      const underline = lines[i + 1].match(SETEXT_UNDERLINE);
+    const nextState = lineStates[i + 1];
+    const nextLine = lines[i + 1];
+    if (i + 1 < lines.length && nextState && !nextState.inFence && nextLine !== undefined) {
+      const underline = nextLine.match(SETEXT_UNDERLINE);
       if (
         underline &&
         content.trim() !== "" &&
@@ -245,6 +335,7 @@ export function buildDocumentModel(text) {
         !parseFenceMarker(content)
       ) {
         const marker = underline[2];
+        if (!marker) continue;
         headings.push({
           line: i + 1,
           level: marker.startsWith("=") ? 1 : 2,
@@ -270,15 +361,15 @@ export function buildDocumentModel(text) {
   };
 }
 
-function finding(check, line, message) {
+function finding(check: MarkdownCheckName, line: number, message: string): Omit<MarkdownFinding, "mode"> {
   return { check, line, message };
 }
 
-export function runChecks(text, relativePath, config) {
+export function runChecks(text: string, relativePath: string, config: MarkdownConfig): MarkdownFinding[] {
   const model = buildDocumentModel(text);
-  const findings = [];
+  const findings: MarkdownFinding[] = [];
 
-  const enabled = (name) => {
+  const enabled = (name: MarkdownCheckName): MarkdownCheckMode | null => {
     const mode = modeFor(name, relativePath, config);
     return mode === "off" ? null : mode;
   };
@@ -308,7 +399,7 @@ export function runChecks(text, relativePath, config) {
         const match = state.content.match(/^(.*?)([ \t]+)$/u);
         if (!match) continue;
         const trail = match[2];
-        if (trail === "  ") continue;
+        if (trail === undefined || trail === "  ") continue;
         if (trail.includes("\t")) {
           findings.push({
             mode,
@@ -523,7 +614,7 @@ export function runChecks(text, relativePath, config) {
   }
 
   if (headingMode.headingIncrement) {
-    let lastLevel = null;
+    let lastLevel: number | null = null;
     for (const heading of model.headings) {
       if (lastLevel !== null && heading.level > lastLevel + 1) {
         findings.push({
@@ -558,7 +649,11 @@ export function runChecks(text, relativePath, config) {
   return findings;
 }
 
-export function analyzeMarkdown(text, relativePath, config) {
+export function analyzeMarkdown(
+  text: string,
+  relativePath: string,
+  config: MarkdownConfig,
+): { block: MarkdownFinding[]; report: MarkdownFinding[] } {
   const findings = runChecks(text, relativePath, config);
   return {
     block: findings.filter((f) => f.mode === "block"),

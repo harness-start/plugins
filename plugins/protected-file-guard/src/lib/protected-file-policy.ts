@@ -1,3 +1,5 @@
+import { isRecord } from "@harness/core/hook-event";
+
 const LOCKFILE_GROUPS = [
   {
     id: "javascript-lockfiles",
@@ -55,22 +57,32 @@ const LOCKFILE_GROUPS = [
   },
 ];
 
-function escapeRegExp(value) {
+export type ProtectionMode = "block" | "allow";
+
+export type ProtectionRule = {
+  id: string;
+  match: RegExp;
+  mode: ProtectionMode;
+  reason?: string;
+  recovery?: string;
+};
+
+function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
-function fileNamePattern(names) {
+function fileNamePattern(names: readonly string[]): RegExp {
   return new RegExp(
     `(?:^|/)(?:${names.map(escapeRegExp).join("|")})$`,
     "iu",
   );
 }
 
-export const BUILTIN_RULES = [
+export const BUILTIN_RULES: ProtectionRule[] = [
   ...LOCKFILE_GROUPS.map((group) => ({
     id: group.id,
     match: fileNamePattern(group.names),
-    mode: "block",
+    mode: "block" as const,
     reason: group.reason,
     recovery: group.recovery,
   })),
@@ -99,12 +111,16 @@ export const BUILTIN_RULES = [
   },
 ];
 
-function warnDefault(message) {
+function warnDefault(message: string): void {
   process.stderr.write(`[protected-file-guard] ${message}\n`);
 }
 
-export function normalizeUserRule(rule, index, warn = warnDefault) {
-  if (!rule || !(rule.match instanceof RegExp)) {
+export function normalizeUserRule(
+  rule: unknown,
+  index: number,
+  warn: (message: string) => void = warnDefault,
+): ProtectionRule | null {
+  if (!isRecord(rule) || !(rule.match instanceof RegExp)) {
     warn(`rule[${index}]: "match" must be a RegExp, skipping`);
     return null;
   }
@@ -113,31 +129,39 @@ export function normalizeUserRule(rule, index, warn = warnDefault) {
     warn(`rule[${index}]: "mode" must be "block" or "allow", skipping`);
     return null;
   }
-  for (const field of ["id", "reason", "recovery"]) {
+  for (const field of ["id", "reason", "recovery"] as const) {
     if (rule[field] !== undefined && typeof rule[field] !== "string") {
       warn(`rule[${index}]: "${field}" must be a string, skipping`);
       return null;
     }
   }
-  return {
-    ...rule,
-    id: rule.id?.trim() || `user-rule-${index + 1}`,
+  const id = typeof rule.id === "string" && rule.id.trim() ? rule.id.trim() : `user-rule-${index + 1}`;
+  const normalized: ProtectionRule = {
+    id,
+    match: rule.match,
     mode,
   };
+  if (typeof rule.reason === "string") normalized.reason = rule.reason;
+  if (typeof rule.recovery === "string") normalized.recovery = rule.recovery;
+  return normalized;
 }
 
-export function resolveRules(userConfig, warn = warnDefault) {
-  if (userConfig?.rules !== undefined && !Array.isArray(userConfig.rules)) {
+export function resolveRules(
+  userConfig: unknown,
+  warn: (message: string) => void = warnDefault,
+): ProtectionRule[] {
+  if (!isRecord(userConfig)) return [...BUILTIN_RULES];
+  if (userConfig.rules !== undefined && !Array.isArray(userConfig.rules)) {
     warn('config "rules" must be an array; using built-in rules');
     return [...BUILTIN_RULES];
   }
-  const userRules = (userConfig?.rules ?? [])
+  const userRules = (Array.isArray(userConfig.rules) ? userConfig.rules : [])
     .map((rule, index) => normalizeUserRule(rule, index, warn))
-    .filter(Boolean);
+    .filter((rule): rule is ProtectionRule => rule !== null);
   return [...userRules, ...BUILTIN_RULES];
 }
 
-function regexMatches(pattern, value) {
+function regexMatches(pattern: RegExp, value: string): boolean {
   try {
     return new RegExp(pattern.source, pattern.flags).test(value);
   } catch {
@@ -145,7 +169,7 @@ function regexMatches(pattern, value) {
   }
 }
 
-export function matchRule(matchPaths, rules) {
+export function matchRule(matchPaths: readonly string[], rules: readonly ProtectionRule[]): ProtectionRule | null {
   for (const rule of rules) {
     if (matchPaths.some((path) => regexMatches(rule.match, path))) return rule;
   }

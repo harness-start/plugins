@@ -12,11 +12,33 @@ const COMMIT = new RegExp(`^(?:${TYPES.join("|")})(?:\\([^)]+\\))?!?:\\s.+`, "u"
 const GENERIC = /^(?:fix|update|move|迁移|修复|优化|调整|兼容|补充|完善|修改|cleanup|clean up|refactor|misc|stuff)$/iu;
 const GARBLED = /\uFFFD|[\x00-\x08\x0E-\x1F\x7F]|[\uE000-\uF8FF]|\u00C3[\u0080-\u00BF]/u;
 
-function finding(action, id, reason, command, recovery) {
+export type DeliveryAction = "deny" | "report";
+
+export type DeliveryFinding = {
+  action: DeliveryAction;
+  id: string;
+  reason: string;
+  command?: string | undefined;
+  recovery: string;
+};
+
+export type GitInvocation = {
+  cwd: string;
+  subcommand: string;
+  args: string[];
+};
+
+function finding(
+  action: DeliveryAction,
+  id: string,
+  reason: string,
+  command: string,
+  recovery: string,
+): DeliveryFinding {
   return { action, id, reason, command, recovery };
 }
 
-export function gitInvocations(command, initialCwd) {
+export function gitInvocations(command: unknown, initialCwd: string): GitInvocation[] {
   if (typeof command !== "string" || !command.trim()) return [];
   return shellCommandInvocations(command).flatMap((invocation) => {
     if (invocation.executable !== "git" || invocation.stdinDriven) return [];
@@ -25,16 +47,17 @@ export function gitInvocations(command, initialCwd) {
     let cwd = resolve(initialCwd);
     while (cursor < rawArgs.length) {
       const token = rawArgs[cursor];
-      if (token === "-C" && rawArgs[cursor + 1]) {
-        cwd = resolve(cwd, rawArgs[cursor + 1]);
+      const next = rawArgs[cursor + 1];
+      if (token === "-C" && next) {
+        cwd = resolve(cwd, next);
         cursor += 2;
         continue;
       }
-      if (["-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(token)) {
+      if (token !== undefined && ["-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(token)) {
         cursor += 2;
         continue;
       }
-      if (/^--(?:git-dir|work-tree|namespace|config-env)=/u.test(token)) {
+      if (token !== undefined && /^--(?:git-dir|work-tree|namespace|config-env)=/u.test(token)) {
         cursor += 1;
         continue;
       }
@@ -44,7 +67,7 @@ export function gitInvocations(command, initialCwd) {
   });
 }
 
-function gitAdd(invocation, command) {
+function gitAdd(invocation: GitInvocation, command: string): DeliveryFinding | null {
   if (invocation.subcommand !== "add") return null;
   const args = invocation.args;
   if (args.some((token) => [".", "./", "*", "./*"].includes(token) || token.startsWith("--pathspec-from-file"))) {
@@ -56,9 +79,10 @@ function gitAdd(invocation, command) {
   const hasBulk = args.some((token) =>
     ["-A", "--all", "-u", "--update"].includes(token) || /^-[^-]*[Au]/u.test(token),
   );
-  const explicit = args.some((token, index) =>
-    !token.startsWith("-") && !["--chmod", "--intent-to-add"].includes(args[index - 1]),
-  );
+  const explicit = args.some((token, index) => {
+    const previous = index > 0 ? args[index - 1] : undefined;
+    return !token.startsWith("-") && (previous === undefined || !["--chmod", "--intent-to-add"].includes(previous));
+  });
   if (hasBulk && !explicit) {
     return finding(
       "deny", "Git Add Guard", "-A/--all/-u without a specific path stages changes in bulk", command,
@@ -68,7 +92,7 @@ function gitAdd(invocation, command) {
   return null;
 }
 
-function destructiveGit(invocation, command) {
+function destructiveGit(invocation: GitInvocation, command: string): DeliveryFinding | null {
   const subcommand = invocation.subcommand;
   const args = invocation.args;
   if (subcommand === "update-ref" && args.includes("-d") && args.some((arg) => arg.startsWith("refs/original/"))) {
@@ -117,7 +141,8 @@ function destructiveGit(invocation, command) {
   }
   if (subcommand === "stash" && args[0] === "drop") {
     const approved = /(?:^|[;&|]\s*)AI_EXPERTS_ALLOW_GIT_STASH_DROP=1\s+git(?:\s+-\S+)*\s+stash\s+drop\s+['"]?stash@\{\d+\}['"]?(?:\s|$)/u.test(command);
-    if (!approved || args.length !== 2 || !/^stash@\{\d+\}$/u.test(args[1])) {
+    const stashRef = args[1];
+    if (!approved || args.length !== 2 || stashRef === undefined || !/^stash@\{\d+\}$/u.test(stashRef)) {
       return finding(
         "deny", "Dangerous Git Command", "git stash drop requires an inline approval sentinel and an explicit stash@{N}", command,
         "use AI_EXPERTS_ALLOW_GIT_STASH_DROP=1 git stash drop 'stash@{N}'",
@@ -142,7 +167,7 @@ function destructiveGit(invocation, command) {
   return null;
 }
 
-function branchName(invocation, command) {
+function branchName(invocation: GitInvocation, command: string): DeliveryFinding | null {
   if (!["checkout", "switch"].includes(invocation.subcommand)) return null;
   const args = invocation.args;
   const flagIndex = args.findIndex((arg) => ["-b", "-B", "-c", "-C", "--create", "--force-create"].includes(arg));
@@ -154,7 +179,7 @@ function branchName(invocation, command) {
   );
 }
 
-function conflictChoice(invocation, command) {
+function conflictChoice(invocation: GitInvocation, command: string): DeliveryFinding | null {
   if (!["checkout", "restore"].includes(invocation.subcommand)) return null;
   const args = invocation.args;
   if (!args.includes("--ours") && !args.includes("--theirs")) return null;
@@ -179,7 +204,7 @@ function conflictChoice(invocation, command) {
     : null;
 }
 
-function commitMessage(invocation, command) {
+function commitMessage(invocation: GitInvocation, command: string): DeliveryFinding | null {
   if (invocation.subcommand !== "commit") return null;
   const args = invocation.args;
   if (args.some((arg) => /^(?:--amend|--fixup|--squash)(?:=|$)/u.test(arg))) return null;
@@ -189,17 +214,21 @@ function commitMessage(invocation, command) {
       "use one or more git commit -m strings",
     );
   }
-  const paragraphs = [];
+  const paragraphs: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
-    if (["-m", "--message"].includes(token) && args[index + 1]) {
-      paragraphs.push(args[index += 1]);
+    if (token === undefined) continue;
+    const next = args[index + 1];
+    if (["-m", "--message"].includes(token) && next) {
+      index += 1;
+      paragraphs.push(next);
     } else if (token.startsWith("--message=")) {
       paragraphs.push(token.slice(10));
     } else if (/^-m.+/u.test(token)) {
       paragraphs.push(token.slice(2));
-    } else if (["-F", "--file"].includes(token) && args[index + 1]) {
-      const path = args[index += 1];
+    } else if (["-F", "--file"].includes(token) && next) {
+      index += 1;
+      const path = next;
       try { paragraphs.push(readFileSync(resolve(invocation.cwd, path), "utf8")); } catch {}
     } else if (token.startsWith("--file=")) {
       try { paragraphs.push(readFileSync(resolve(invocation.cwd, token.slice(7)), "utf8")); } catch {}
@@ -224,8 +253,8 @@ function commitMessage(invocation, command) {
     : null;
 }
 
-export function classifyDeliveryCommand(command, cwd) {
-  const findings = [];
+export function classifyDeliveryCommand(command: string, cwd: string): DeliveryFinding[] {
+  const findings: DeliveryFinding[] = [];
   for (const invocation of gitInvocations(command, cwd)) {
     for (const result of [
       gitAdd(invocation, command), destructiveGit(invocation, command),
@@ -238,7 +267,7 @@ export function classifyDeliveryCommand(command, cwd) {
   return findings;
 }
 
-export function formatDeliveryFinding(value) {
+export function formatDeliveryFinding(value: DeliveryFinding): string {
   return [
     `[${value.id}] ${value.action === "deny" ? "Blocked" : "Risk notice"}`,
     "",

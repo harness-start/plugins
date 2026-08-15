@@ -4,6 +4,9 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { HookEvent } from "@harness/core/hook-event";
+import { isRecord } from "@harness/core/hook-event";
+
 import {
   contextOutput,
   cwdOf,
@@ -19,6 +22,7 @@ import {
   targetOperation,
   toolUseIdOf,
   writeJson,
+  type CommandOutcome,
 } from "../../lib/hook-io.js";
 import {
   findCorrespondingTests,
@@ -38,45 +42,70 @@ import {
   extractTestEvidence,
   resolveLanguageContext,
   sourceAuthorizedByTest,
+  type ClassifiedPath,
+  type Language,
+  type LanguageContext,
+  type SourceLike,
 } from "../../lib/patterns.js";
-import { digest, readState, writeState } from "../../lib/state-store.js";
+import { digest, readState, writeState, type GuardState } from "../../lib/state-store.js";
 
-function warn(message) { process.stderr.write(`[tdd-guard] ${message}\n`); }
-function readText(path) { try { return readFileSync(path, "utf8"); } catch { return ""; } }
-function hashPath(path) { return existsSync(path) ? digest(readText(path)) : "missing"; }
+type ClassifiedTarget = {
+  absolutePath: string;
+  path: string;
+} & ClassifiedPath;
 
-function targetsFor(event, root) {
+type ActiveTarget = ClassifiedTarget & {
+  kind: "test" | "source";
+  language: Language;
+};
+
+function warn(message: string): void { process.stderr.write(`[tdd-guard] ${message}\n`); }
+function readText(path: string): string { try { return readFileSync(path, "utf8"); } catch { return ""; } }
+function hashPath(path: string): string { return existsSync(path) ? digest(readText(path)) : "missing"; }
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+
+function isActiveTarget(target: ClassifiedTarget): target is ActiveTarget {
+  return target.kind !== "ignored" && target.language !== null;
+}
+
+function targetsFor(event: HookEvent, root: string): ActiveTarget[] {
   return extractTargets(event).map((absolutePath) => {
     const path = relativePath(root, absolutePath);
     return { absolutePath, path, ...classifyPath(path) };
-  }).filter((target) => target.kind !== "ignored");
+  }).filter(isActiveTarget);
 }
 
-function mixedWriteFinding() {
+function mixedWriteFinding(): string {
   return "[TDD Guard] A single tool call cannot mix test and implementation files. Use separate tool calls: write the test first, let the hook record it, then write implementation files.";
 }
 
-function testCommand(command) {
+function testCommand(command: string | null | undefined): boolean {
   return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(String(command ?? ""));
 }
 
 const TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|test_[^/\s"']+\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
 
-function namedTestPaths(command, root) {
+function namedTestPaths(command: string, root: string): string[] {
   const normalized = String(command ?? "").replaceAll("\\", "/");
-  const found = [];
+  const found: string[] = [];
   for (const match of normalized.matchAll(TEST_FILE_IN_COMMAND)) {
-    const relative = relativePath(root, resolve(root, match[1].replace(/^\.\//u, "")));
+    const captured = match[1] ?? "";
+    const relative = relativePath(root, resolve(root, captured.replace(/^\.\//u, "")));
     if (classifyPath(relative).kind === "test") found.push(relative);
   }
   return [...new Set(found)];
 }
 
-function coveredOutcomePaths(command, root, state, outcome) {
+function coveredOutcomePaths(command: string, root: string, state: GuardState, outcome: CommandOutcome): string[] {
   const named = namedTestPaths(command, root);
   if (named.length > 0) {
     if (outcome === "success" && state.needsGreen?.testPaths?.length) {
-      return named.filter((path) => state.needsGreen.testPaths.includes(path));
+      return named.filter((path) => state.needsGreen?.testPaths.includes(path));
     }
     return named;
   }
@@ -85,7 +114,7 @@ function coveredOutcomePaths(command, root, state, outcome) {
   return [];
 }
 
-function correspondingTests(root, source, context) {
+function correspondingTests(root: string, source: SourceLike, context: LanguageContext): string[] {
   const found = new Set(findCorrespondingTests(root, source, context));
   if (!hasGitHead(root)) return [...found];
   for (const path of listHeadPaths(root)) {
@@ -102,22 +131,22 @@ function correspondingTests(root, source, context) {
   return [...found];
 }
 
-function headCorrespondingTests(root, source, state, context, corresponding) {
+function headCorrespondingTests(root: string, source: SourceLike, state: GuardState, context: LanguageContext, corresponding: string[]): string[] {
   if (hasGitHead(root)) return corresponding.filter((path) => gitPathState(root, path).tracked);
   // No HEAD: keep pre-session disk tests as historical so extra new tests cannot rename the deny.
   return historicalCorrespondingTests(root, source, state, context);
 }
 
-function liveObservedRed(state, root, path) {
+function liveObservedRed(state: GuardState, root: string, path: string): boolean {
   const absolutePath = resolve(root, path);
   if (!existsSync(absolutePath)) return false;
   return (state.observedRed ?? {})[path] === hashPath(absolutePath);
 }
 
-function remainingCorrespondingTests(root, changed, testPaths) {
+function remainingCorrespondingTests(root: string, changed: string[], testPaths: string[] | undefined): string[] {
   const existing = (testPaths ?? []).filter((path) => existsSync(resolve(root, path)));
   if (existing.length > 0) return existing;
-  const found = new Set();
+  const found = new Set<string>();
   for (const path of changed) {
     const classified = classifyPath(path);
     if (classified.kind !== "source" || !classified.language) continue;
@@ -131,7 +160,7 @@ function remainingCorrespondingTests(root, changed, testPaths) {
   return [...found];
 }
 
-async function runPre(event) {
+async function runPre(event: HookEvent): Promise<void> {
   const root = cwdOf(event);
   const sessionId = sessionIdOf(event);
   const targets = targetsFor(event, root);
@@ -169,7 +198,7 @@ async function runPre(event) {
       return;
     }
 
-    const authorizingTests = new Set();
+    const authorizingTests = new Set<string>();
     for (const target of targets) {
       const current = readText(target.absolutePath);
       const source = { ...target, content: proposedContent(event, target.absolutePath, current) };
@@ -221,7 +250,7 @@ async function runPre(event) {
   if (!writeState(sessionId, root, state)) warn("test write snapshot could not be persisted; later implementation writes will remain blocked");
 }
 
-async function runPost(event, platform, forceFailure = false) {
+async function runPost(event: HookEvent, platform: string, forceFailure = false): Promise<void> {
   const root = cwdOf(event);
   const sessionId = sessionIdOf(event);
   const state = readState(sessionId, root);
@@ -240,7 +269,7 @@ async function runPost(event, platform, forceFailure = false) {
         const record = (state.tests ?? []).find((item) => item.path === path);
         if (record) record.redHash = hash;
       }
-      state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter(Boolean) };
+      state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter((value): value is string => Boolean(value)) };
     } else if (outcome === "success" && state.needsGreen) {
       const covered = coveredOutcomePaths(command, root, state, outcome);
       if (covered.length === 0) return;
@@ -277,19 +306,20 @@ async function runPost(event, platform, forceFailure = false) {
     if (!writeState(sessionId, root, state)) warn("implementation outcome could not be persisted; GREEN completion will fail closed");
     return;
   }
-  const recorded = [];
+  const recorded: string[] = [];
   for (const target of state.pending.targets ?? []) {
     const absolutePath = resolve(root, target.path);
     const afterHash = hashPath(absolutePath);
     state.tests = (state.tests ?? []).filter((record) => record.path !== target.path);
     if (afterHash === "missing" || afterHash === target.beforeHash) continue;
-    const context = resolveLanguageContext(root, target.path, target.language);
-    const evidence = extractTestEvidence(target.language, readText(absolutePath), target.path, context);
+    const language = target.language ?? "";
+    const context = resolveLanguageContext(root, target.path, language);
+    const evidence = extractTestEvidence(language, readText(absolutePath), target.path, context);
     if (!evidence.valid) continue;
     state.sequence = (state.sequence ?? 0) + 1;
     state.tests.push({
       path: target.path,
-      language: target.language,
+      language,
       hash: afterHash,
       sequence: state.sequence,
       created: target.beforeHash === "missing",
@@ -307,14 +337,14 @@ async function runPost(event, platform, forceFailure = false) {
   }
 }
 
-async function runStop(event) {
+async function runStop(event: HookEvent): Promise<void> {
   const root = cwdOf(event);
   const state = readState(sessionIdOf(event), root);
   if (!state.needsGreen) return;
   writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
 }
 
-async function main() {
+async function main(): Promise<void> {
   const event = await readStdinJson();
   const mode = process.argv[2];
   const platform = process.argv[3] ?? "unknown";
@@ -331,9 +361,9 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
+  main().catch((error: unknown) => {
     const mode = process.argv[2];
-    warn(`hook validation failed: ${error?.message ?? error}`);
+    warn(`hook validation failed: ${errorMessage(error)}`);
     if (mode === "pre") {
       writeJson(preToolDeny("[TDD Guard] The hook could not validate this write safely, so it was blocked. Fix the hook input or state error, then retry."));
     }

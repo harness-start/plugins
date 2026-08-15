@@ -10,7 +10,11 @@ const TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
 const WRITERS = new Set(["project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
 const READ_ONLY = new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 
-export function parseShellWords(command) {
+export type VideoShellDecision =
+  | { decision: "allow"; writer?: string; projectRoot?: string; argv?: string[] }
+  | { decision: "deny"; code: string; message: string };
+
+export function parseShellWords(command: unknown): string[] | null {
   const words = [];
   let current = "";
   let quote = null;
@@ -37,20 +41,24 @@ export function parseShellWords(command) {
   return words;
 }
 
-function wrapperInvocation(words, cwd, workspaceRoot) {
+function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: string) {
   if (!words || words.length < 3) return null;
-  if (!["node", basename(process.execPath), process.execPath].includes(words[0])) return null;
-  if (words[1].startsWith("-")) return null;
-  const script = isAbsolute(words[1]) ? resolve(words[1]) : resolve(cwd, words[1]);
+  const first = words[0];
+  const second = words[1];
+  const third = words[2];
+  if (first === undefined || second === undefined || third === undefined) return null;
+  if (!["node", basename(process.execPath), process.execPath].includes(first)) return null;
+  if (second.startsWith("-")) return null;
+  const script = isAbsolute(second) ? resolve(second) : resolve(cwd, second);
   const name = basename(script);
   if (dirname(resolve(script)) !== resolve(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute(words[2]) ? resolve(words[2]) : resolve(cwd, words[2]);
+  const projectRoot = isAbsolute(third) ? resolve(third) : resolve(cwd, third);
   const expectedParent = resolve(workspaceRoot, "artifacts", "video");
   if (dirname(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 
-function expandKnownPluginRoot(command) {
+function expandKnownPluginRoot(command: unknown) {
   let expanded = String(command ?? "");
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
@@ -60,9 +68,11 @@ function expandKnownPluginRoot(command) {
   return expanded;
 }
 
-function readOnlyCommand(words) {
+function readOnlyCommand(words: string[] | null) {
   if (!words || words.length === 0) return false;
-  const command = basename(words[0]);
+  const first = words[0];
+  if (first === undefined) return false;
+  const command = basename(first);
   if (!READ_ONLY.has(command)) return false;
   if (command === "git" && !["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
   if (command === "sed" && words.some((word) => /^-.*i/u.test(word))) return false;
@@ -70,14 +80,18 @@ function readOnlyCommand(words) {
   return true;
 }
 
-export function commandTouchesVideoScope(command, cwd, workspaceRoot) {
+export function commandTouchesVideoScope(command: unknown, cwd: string, workspaceRoot: string) {
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
   const normalizedCwd = resolve(cwd).replaceAll("\\", "/");
   const normalizedRoot = resolve(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/video/`) || /(?:^|[\s"'=])\.?\/?artifacts\/video(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/video/`);
 }
 
-export function evaluateVideoShell({ command, cwd, workspaceRoot }) {
+export function evaluateVideoShell({ command, cwd, workspaceRoot }: {
+  command: unknown;
+  cwd: string;
+  workspaceRoot: string;
+}): VideoShellDecision {
   if (!commandTouchesVideoScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);

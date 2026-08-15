@@ -3,8 +3,10 @@
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { validateSealedArtifacts, parseTrailer } from "../../lib/seal-validator.js";
-import { appendStateEvent, readState } from "../../lib/state-store.js";
+import type { HookEvent } from "@harness/core/hook-event";
+
+import { validateSealedArtifacts, parseTrailer, type ResearchTrailer } from "../../lib/seal-validator.js";
+import { appendStateEvent, readState, type ResearchHookState } from "../../lib/state-store.js";
 import {
   classifyResearchPath,
   extractResearchRelativePaths,
@@ -25,28 +27,49 @@ const SESSION_CONTEXT = [
   "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence.",
 ].join("\n");
 
-function mcpMethod(event) {
+type McpResponsePayload = {
+  isError?: unknown;
+  event_id?: unknown;
+  run_id?: unknown;
+  seal?: unknown;
+};
+
+export type StopEvaluation = {
+  allow: boolean;
+  findings: string[];
+  state: ResearchHookState;
+  trailer: ResearchTrailer | null;
+};
+
+function objectLike(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function mcpMethod(event: HookEvent): string | null {
   return String(toolName(event)).match(MCP_TOOL)?.[1] ?? null;
 }
 
-function responsePayload(event) {
+function responsePayload(event: HookEvent): McpResponsePayload | null {
   const response = toolResponse(event);
-  if (response?.structuredContent && typeof response.structuredContent === "object") return response.structuredContent;
-  if (response?.content && Array.isArray(response.content)) {
-    const text = response.content.find((item) => item?.type === "text")?.text;
+  if (objectLike(response) && objectLike(response.structuredContent)) return response.structuredContent;
+  if (objectLike(response) && Array.isArray(response.content)) {
+    const textItem = response.content.find((item) => objectLike(item) && item.type === "text");
+    const text = objectLike(textItem) && typeof textItem.text === "string" ? textItem.text : undefined;
     try {
-      return JSON.parse(text);
+      const parsed: unknown = JSON.parse(String(text));
+      return objectLike(parsed) ? parsed : null;
     } catch {}
   }
   if (typeof response === "string") {
     try {
-      return JSON.parse(response);
+      const parsed: unknown = JSON.parse(response);
+      return objectLike(parsed) ? parsed : null;
     } catch {}
   }
   return null;
 }
 
-function writeTargetClasses(event) {
+function writeTargetClasses(event: HookEvent): string[] {
   const command = shellCommand(event) ?? "";
   const serialized = JSON.stringify(toolInput(event)) + command;
   if (!pathLooksLikeResearchWrite(serialized)) return [];
@@ -55,13 +78,13 @@ function writeTargetClasses(event) {
   return [...new Set(paths.map((path) => classifyResearchPath(path)))];
 }
 
-function callsFirecrawlCli(command) {
+function callsFirecrawlCli(command: string | null): boolean {
   return String(command ?? "")
     .split(/(?:&&|\|\||[;|\n])/u)
     .some((segment) => /^(?:(?:command|sudo)(?:\s+--?[^\s]+)*\s+)*(?:env(?:\s+[A-Za-z_][A-Za-z0-9_]*=[^\s]+)*\s+)?(?:npx(?:\s+--?[^\s]+)*\s+)?["']?(?:[^\s"']*\/)?firecrawl["']?(?:\s|$)/iu.test(segment.trim()));
 }
 
-function shellCommandIsReadOnly(command) {
+function shellCommandIsReadOnly(command: string | null): boolean {
   const value = String(command ?? "").trim();
   if (!value || /[\n;&|><`]|\$\(/u.test(value)) return false;
   return /^(?:cat|pwd|ls|rg|grep|head|tail|jq|wc|stat|file)\b/iu.test(value)
@@ -71,7 +94,7 @@ function shellCommandIsReadOnly(command) {
     || /^node\s+--check\b/iu.test(value);
 }
 
-function trustedWorkflowCommand(command, subcommand) {
+function trustedWorkflowCommand(command: string | null, subcommand: string): boolean {
   const pluginRoot = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT;
   if (!pluginRoot) return false;
   const script = join(resolve(pluginRoot), "scripts", "research-workflow.mjs");
@@ -88,12 +111,12 @@ function trustedWorkflowCommand(command, subcommand) {
   return exact;
 }
 
-function destructiveResearchCommand(command) {
+function destructiveResearchCommand(command: string | null): boolean {
   const value = String(command ?? "");
   return /(?:^|[\s;&|])(?:rm|mv|truncate)(?:\s|$)|\bfind\b[^\n]*(?:-delete|-exec\s+rm|-execdir\s+rm)\b/iu.test(value);
 }
 
-function preDecision(event, state) {
+function preDecision(event: HookEvent, state: ResearchHookState): string | null {
   const method = mcpMethod(event);
   if (method === "research_begin") {
     if (!appendStateEvent(event, "receipt", { tool: "research_begin_preflight", promptEpoch: state.promptEpoch })) {
@@ -140,12 +163,14 @@ function preDecision(event, state) {
   return null;
 }
 
-function post(event) {
+function post(event: HookEvent): ResearchHookState | null {
   const state = readState(event);
   const method = mcpMethod(event);
   if (method) {
     const payload = responsePayload(event);
-    if (!payload || payload.isError === true || toolResponse(event)?.isError === true) return null;
+    const rawResponse = toolResponse(event);
+    const responseIsError = objectLike(rawResponse) && rawResponse.isError === true;
+    if (!payload || payload.isError === true || responseIsError) return null;
     appendStateEvent(event, "receipt", {
       tool: method,
       eventId: payload.event_id ?? null,
@@ -168,12 +193,12 @@ function post(event) {
   return mutated ? readState(event) : null;
 }
 
-export async function evaluateStop(event) {
+export async function evaluateStop(event: HookEvent): Promise<StopEvaluation> {
   const state = readState(event);
-  if (!state.active || state.aborted) return { allow: true, state };
+  if (!state.active || state.aborted) return { allow: true, findings: [], state, trailer: null };
   // After handed_off or sealed with trailer, still require seal integrity until complete/abort
   const trailer = parseTrailer(assistantMessage(event));
-  const findings = [];
+  const findings: string[] = [];
   if (!trailer) findings.push("final response is missing the exact research-evidence/v1 trailer");
   if (!state.seal?.seal) findings.push("no successful research_seal MCP receipt was observed in this session");
   if (state.seal?.runId && state.runId && state.seal.runId !== state.runId) findings.push("research seal belongs to a different research run");
@@ -195,7 +220,7 @@ export async function evaluateStop(event) {
   return { allow: findings.length === 0, findings: [...new Set(findings)], state, trailer };
 }
 
-async function main(mode = process.argv[2]) {
+async function main(mode: string | undefined = process.argv[2]): Promise<void> {
   const event = await readStdinJson();
   if (event.__parseError) return;
   if (mode === "session") {
@@ -254,7 +279,7 @@ async function main(mode = process.argv[2]) {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
+  main().catch((error: unknown) => {
     process.stderr.write(`[research-provenance-guard] failed closed: ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;
   });

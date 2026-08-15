@@ -3,12 +3,15 @@
  * Box-blur then threshold; require a single dominant connected component.
  */
 
-function luminance(r, g, b) {
+function luminance(r: number, g: number, b: number): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function extractCell(rgba, width, height, bbox) {
-  const [x0, y0, w, h] = bbox;
+function extractCell(rgba: ArrayLike<number>, width: number, height: number, bbox: number[]): { w: number; h: number; lum: Float32Array } {
+  const x0 = bbox[0] ?? 0;
+  const y0 = bbox[1] ?? 0;
+  const w = bbox[2] ?? 0;
+  const h = bbox[3] ?? 0;
   if (w <= 0 || h <= 0 || x0 < 0 || y0 < 0 || x0 + w > width || y0 + h > height) {
     throw new Error(`SQUINT_BBOX_OOB:${bbox.join(",")}`);
   }
@@ -16,8 +19,8 @@ function extractCell(rgba, width, height, bbox) {
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
       const i = ((y0 + y) * width + (x0 + x)) * 4;
-      const a = rgba[i + 3] / 255;
-      const lum = luminance(rgba[i], rgba[i + 1], rgba[i + 2]);
+      const a = (rgba[i + 3] ?? 0) / 255;
+      const lum = luminance(rgba[i] ?? 0, rgba[i + 1] ?? 0, rgba[i + 2] ?? 0);
       // Composite on mid-gray so reverse (white-on-dark) still has contrast.
       const bg = 128;
       out[y * w + x] = lum * a + bg * (1 - a);
@@ -26,7 +29,7 @@ function extractCell(rgba, width, height, bbox) {
   return { w, h, lum: out };
 }
 
-function boxBlur(lum, w, h, radius = 2) {
+function boxBlur(lum: Float32Array, w: number, h: number, radius = 2): Float32Array {
   const tmp = new Float32Array(w * h);
   const out = new Float32Array(w * h);
   const r = Math.max(1, radius);
@@ -38,7 +41,7 @@ function boxBlur(lum, w, h, radius = 2) {
       for (let k = -r; k <= r; k += 1) {
         const xx = x + k;
         if (xx < 0 || xx >= w) continue;
-        sum += lum[y * w + xx];
+        sum += lum[y * w + xx] ?? 0;
         n += 1;
       }
       tmp[y * w + x] = sum / n;
@@ -52,7 +55,7 @@ function boxBlur(lum, w, h, radius = 2) {
       for (let k = -r; k <= r; k += 1) {
         const yy = y + k;
         if (yy < 0 || yy >= h) continue;
-        sum += tmp[yy * w + x];
+        sum += tmp[yy * w + x] ?? 0;
         n += 1;
       }
       out[y * w + x] = sum / n;
@@ -61,32 +64,33 @@ function boxBlur(lum, w, h, radius = 2) {
   return out;
 }
 
-function thresholdMask(lum, w, h) {
+function thresholdMask(lum: Float32Array, w: number, h: number): Uint8Array {
   let min = Infinity;
   let max = -Infinity;
   for (let i = 0; i < lum.length; i += 1) {
-    if (lum[i] < min) min = lum[i];
-    if (lum[i] > max) max = lum[i];
+    const value = lum[i] ?? 0;
+    if (value < min) min = value;
+    if (value > max) max = value;
   }
   const mid = (min + max) / 2;
   // Ink is the side with smaller area near extremes — use distance from mid.
   const mask = new Uint8Array(w * h);
   let darkCount = 0;
   for (let i = 0; i < lum.length; i += 1) {
-    if (lum[i] < mid) darkCount += 1;
+    if ((lum[i] ?? 0) < mid) darkCount += 1;
   }
   const inkIsDark = darkCount <= lum.length / 2;
   for (let i = 0; i < lum.length; i += 1) {
-    const isDark = lum[i] < mid;
+    const isDark = (lum[i] ?? 0) < mid;
     mask[i] = (inkIsDark ? isDark : !isDark) ? 1 : 0;
   }
   return mask;
 }
 
-function connectedComponents(mask, w, h) {
+function connectedComponents(mask: Uint8Array, w: number, h: number): { size: number; minX: number; minY: number; maxX: number; maxY: number }[] {
   const seen = new Uint8Array(mask.length);
-  const components = [];
-  const stack = [];
+  const components: { size: number; minX: number; minY: number; maxX: number; maxY: number }[] = [];
+  const stack: number[] = [];
   for (let i = 0; i < mask.length; i += 1) {
     if (!mask[i] || seen[i]) continue;
     let size = 0;
@@ -98,6 +102,7 @@ function connectedComponents(mask, w, h) {
     seen[i] = 1;
     while (stack.length) {
       const idx = stack.pop();
+      if (idx === undefined) break;
       size += 1;
       const x = idx % w;
       const y = (idx - x) / w;
@@ -105,9 +110,9 @@ function connectedComponents(mask, w, h) {
       if (y < minY) minY = y;
       if (x > maxX) maxX = x;
       if (y > maxY) maxY = y;
-      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const nx = x + dx;
-        const ny = y + dy;
+      for (const pair of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nx = x + pair[0];
+        const ny = y + pair[1];
         if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
         const ni = ny * w + nx;
         if (!mask[ni] || seen[ni]) continue;
@@ -124,7 +129,13 @@ function connectedComponents(mask, w, h) {
 /**
  * Analyze one cell. Returns metrics + pass boolean.
  */
-export function analyzeSquintCell(rgba, width, height, bbox, { blurRadius = 2 } = {}) {
+export function analyzeSquintCell(
+  rgba: ArrayLike<number>,
+  width: number,
+  height: number,
+  bbox: number[],
+  { blurRadius = 2 }: { blurRadius?: number } = {},
+): { silhouetteIntact: boolean; density: number; componentCount: number; primaryShare: number; bbox: number[] } {
   const { w, h, lum } = extractCell(rgba, width, height, bbox);
   const blurred = boxBlur(lum, w, h, blurRadius);
   const mask = thresholdMask(blurred, w, h);
@@ -155,8 +166,36 @@ export function analyzeSquintCell(rgba, width, height, bbox, { blurRadius = 2 } 
 /**
  * Build squint evidence from strip PNG + logo-preview-strip style samples.
  */
-export function buildSquintEvidence({ rgba, width, height, samples, masterDigest, stripDigest }) {
-  const cells = [];
+export function buildSquintEvidence({
+  rgba,
+  width,
+  height,
+  samples,
+  masterDigest,
+  stripDigest,
+}: {
+  rgba: ArrayLike<number>;
+  width: number;
+  height: number;
+  samples: Array<{
+    id?: string;
+    row?: string;
+    size?: number;
+    locator?: { bbox?: number[]; region?: string };
+  }>;
+  masterDigest: string;
+  stripDigest: string;
+}): {
+  schemaVersion: number;
+  masterDigest: string;
+  stripDigest: string;
+  method: string;
+  blurRadius: number;
+  pass: boolean;
+  observation: string;
+  cells: Array<Record<string, unknown>>;
+} {
+  const cells: Array<Record<string, unknown>> = [];
   let allPass = true;
   for (const sample of samples) {
     const bbox = sample?.locator?.bbox;
@@ -168,8 +207,7 @@ export function buildSquintEvidence({ rgba, width, height, samples, masterDigest
       id: sample.id,
       row: sample.row,
       size: sample.size,
-      region: sample.locator.region ?? sample.id,
-      bbox: bbox.map(Number),
+      region: sample.locator?.region ?? sample.id,
       ...metrics,
     });
     if (!metrics.silhouetteIntact) allPass = false;

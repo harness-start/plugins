@@ -7,9 +7,9 @@ import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { basename, join, relative, resolve } from "node:path";
 
-import { validateLogoModel } from "../../lib/contract.js";
+import { validateLogoModel, type BytesMap, type DigestMap, type FileMap } from "../../lib/contract.js";
 
-async function collect(root, directory, files, digests, bytes) {
+async function collect(root: string, directory: string, files: FileMap, digests: DigestMap, bytes: BytesMap): Promise<void> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
     if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
@@ -38,15 +38,15 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const files = {};
-  const digests = {};
-  const bytes = {};
+  const files: FileMap = {};
+  const digests: DigestMap = {};
+  const bytes: BytesMap = {};
   await collect(root, root, files, digests, bytes);
-  let plan = null;
-  let project = null;
-  try { plan = JSON.parse(files["plan.contract.json"] ?? "null"); } catch { /* ignore */ }
-  try { project = JSON.parse(files["logo.project.json"] ?? "null"); } catch { /* ignore */ }
-  const stage = stageArg ?? plan?.targetStage ?? "source";
+  let plan: unknown = null;
+  let project: unknown = null;
+  try { plan = JSON.parse(String(files["plan.contract.json"] ?? "null")); } catch { /* ignore */ }
+  try { project = JSON.parse(String(files["logo.project.json"] ?? "null")); } catch { /* ignore */ }
+  const stage = stageArg ?? (typeof plan === "object" && plan !== null && !Array.isArray(plan) ? (plan as Record<string, unknown>).targetStage : undefined) ?? "source";
   const model = { artifactId: basename(root), files, bytes, digests, plan, project };
   const findings = validateLogoModel(model, { stage });
   if (asJson) {
@@ -60,7 +60,7 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`[logo-project-validate] ${error.message}\n`);
+main().catch((error: unknown) => {
+  process.stderr.write(`[logo-project-validate] ${error instanceof Error ? error.message : String(error)}\n`);
   process.exitCode = 2;
 });

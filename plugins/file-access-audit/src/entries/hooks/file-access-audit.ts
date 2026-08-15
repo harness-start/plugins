@@ -3,6 +3,7 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { loadProjectConfig } from "../../lib/config.js";
 import {
   extractSessionId,
@@ -21,24 +22,30 @@ import {
 import { inferHost, resolveRepoRoot, toDisplayPath } from "../../lib/paths.js";
 import { protectDecision } from "../../lib/protect.js";
 
-function warn(message) {
+function warn(message: string): void {
   process.stderr.write(`[file-access-audit] ${message}\n`);
 }
 
-function modeFromArgv() {
+function errorText(error: unknown): string {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+
+function modeFromArgv(): "pre" | "post" {
   const mode = process.argv[2] ?? "post";
   if (mode === "pre" || mode === "post") return mode;
   return "post";
 }
 
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+function extractCwd(event: HookEvent): string {
+  const value = event.cwd ?? event.working_directory ?? event.workingDirectory;
+  return typeof value === "string" ? value : process.cwd();
 }
 
-async function main() {
+async function main(): Promise<void> {
   const mode = modeFromArgv();
   const event = await readStdinJson();
-  if (event?.__parseError) return;
+  if (event.__parseError) return;
 
   const cwd = resolve(extractCwd(event));
   const repoRoot = resolveRepoRoot(cwd) ?? cwd;
@@ -74,17 +81,17 @@ async function main() {
       host: inferHost(event),
     };
     appendRecord(paths.sessionPath, record);
-  } catch (error) {
-    warn(`failed to record file access: ${error?.message ?? error}`);
+  } catch (error: unknown) {
+    warn(`failed to record file access: ${errorText(error)}`);
   }
 }
 
-const isMain = process.argv[1]
-  && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+const entryPath = process.argv[1];
+const isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve(entryPath ?? "");
 
 if (isMain) {
-  main().catch((error) => {
-    warn(error?.message ?? String(error));
+  main().catch((error: unknown) => {
+    warn(errorText(error));
     process.exitCode = 0;
   });
 }

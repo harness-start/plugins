@@ -8,7 +8,26 @@
  */
 
 import { createHash } from "node:crypto";
-import { shellCommandInvocations, tokenizeShell } from "./shell-parse.js";
+import { shellCommandInvocations, tokenizeShell, type ShellInvocation } from "./shell-parse.js";
+
+export type RuleMode = "deny" | "report" | "allow";
+
+export type CommandMatcher = RegExp | { test: (command: string) => boolean };
+
+export type SafetyRule = {
+  id: string;
+  title?: string | undefined;
+  mode: RuleMode;
+  match: CommandMatcher;
+  reason?: string | undefined;
+  resolveReason?: ((command: string) => string) | undefined;
+  recovery?: string | undefined;
+  observedFacts?: string | undefined;
+  harm?: string | undefined;
+  unblockWhen?: string | undefined;
+  formatMessage?: ((command: string) => string) | undefined;
+  sensitive?: boolean | undefined;
+};
 
 const SQL_CLIENTS = new Set([
   "mysql",
@@ -32,17 +51,17 @@ const SQL_CLIENTS = new Set([
   "mongo",
 ]);
 
-function programInvocations(command, programs) {
+function programInvocations(command: string, programs: ReadonlySet<string>): ShellInvocation[] {
   return shellCommandInvocations(command).filter((invocation) =>
     programs.has(invocation.executable.toLowerCase()),
   );
 }
 
-function digest(command) {
+function digest(command: string): string {
   return createHash("sha256").update(command).digest("hex").slice(0, 16);
 }
 
-function cleanedSql(command) {
+function cleanedSql(command: string): string {
   return tokenizeShell(command)
     .join(" ")
     .replace(/--(?=\s|$)[^\n]*/gu, "")
@@ -52,7 +71,7 @@ function cleanedSql(command) {
 // ── temporary paths (shared by sed / cat) ─────────────────────
 
 /** Absolute temp file tokens only — relative paths never count as temp. */
-function isTempPathOperand(token) {
+function isTempPathOperand(token: string): boolean {
   const value = String(token ?? "");
   return /^(?:\/tmp\/|\/private\/tmp\/|\$\{?TMPDIR\}?\/)/u.test(value);
 }
@@ -61,8 +80,8 @@ function isTempPathOperand(token) {
  * File operands for `sed [options] script [file...]` after inplace flags.
  * Skips options and the script expression so `s/a/b/` is not treated as a path.
  */
-function sedFileOperands(args) {
-  const files = [];
+function sedFileOperands(args: readonly string[]): string[] {
+  const files: string[] = [];
   let sawExpression = false;
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index] ?? "";
@@ -91,7 +110,7 @@ function sedFileOperands(args) {
   return files;
 }
 
-function sedHasUnbackedInplace(args) {
+function sedHasUnbackedInplace(args: readonly string[]): boolean {
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index] ?? "";
     if (argument === "--in-place") return true;
@@ -108,7 +127,7 @@ function sedHasUnbackedInplace(args) {
 
 // ── sed -i (no backup) ───────────────────────────────────────
 
-function sedInplaceReason(command) {
+function sedInplaceReason(command: string): string | null {
   const invocations = programInvocations(command, new Set(["sed"]));
   for (const { args } of invocations) {
     if (!sedHasUnbackedInplace(args)) continue;
@@ -128,15 +147,15 @@ function sedInplaceReason(command) {
 const CAT_HEREDOC_WRITE_RE =
   /\bcat\s*(?:>|>>)\s*\S+[^|]*<<|cat\s*<<-?\s*['"]?\w+['"]?\s*(?:>|>>)\s*\S+/;
 
-function isCatHeredocWrite(command) {
+function isCatHeredocWrite(command: string): boolean {
   return CAT_HEREDOC_WRITE_RE.test(command);
 }
 
-function isCatPipeInput(command) {
+function isCatPipeInput(command: string): boolean {
   return /<<-?\s*['"]?\w+['"]?\s*\|/.test(command);
 }
 
-function isCatTmpRedirect(command) {
+function isCatTmpRedirect(command: string): boolean {
   return /(?:>|>>)\s*(?:\/tmp\/\S+|\/private\/tmp\/\S+|\$TMPDIR\/\S+)/.test(
     command,
   );
@@ -144,21 +163,22 @@ function isCatTmpRedirect(command) {
 
 // ── redis ────────────────────────────────────────────────────
 
-function redisOperation(command) {
+function redisOperation(command: string): string | null {
   const invocations = programInvocations(command, new Set(["redis-cli"]));
   for (const { args } of invocations) {
     const match = args.join(" ").match(
       /\b(?:KEYS|MONITOR|FLUSHALL|FLUSHDB|DEL|RANDOMKEY|SETBIT|BGSAVE|BGREWRITEAOF)\b/iu,
     );
-    if (match) return match[0].toUpperCase();
+    const operation = match?.[0];
+    if (operation) return operation.toUpperCase();
   }
   return null;
 }
 
 // ── sql ──────────────────────────────────────────────────────
 
-function sqlDestructiveReason(command) {
-  const blocks = [
+function sqlDestructiveReason(command: string): string | null {
+  const blocks: Array<readonly [RegExp, string]> = [
     [/\bDROP\s+(?:DATABASE|TABLE|SCHEMA|INDEX|VIEW)\b/iu, "DROP permanently deletes a database object"],
     [/\bTRUNCATE\s+(?:TABLE\s+)?\w/iu, "TRUNCATE removes all table data"],
     [/\bALTER\s+TABLE\b[^;]*\bDROP\s+COLUMN\b/iu, "DROP COLUMN permanently deletes column data"],
@@ -174,7 +194,7 @@ function sqlDestructiveReason(command) {
   return null;
 }
 
-function sqlPrivilegeHit(command) {
+function sqlPrivilegeHit(command: string): boolean {
   return programInvocations(command, SQL_CLIENTS).some(({ args }) =>
     /\b(?:GRANT|REVOKE)\b/iu.test(cleanedSql(args.join(" "))),
   );
@@ -182,7 +202,7 @@ function sqlPrivilegeHit(command) {
 
 // ── active security test ─────────────────────────────────────
 
-function activeTestReason(command) {
+function activeTestReason(command: string): string | null {
   for (const { executable, args } of shellCommandInvocations(command)) {
     const program = executable.toLowerCase();
     const subject = args.join(" ");
@@ -194,8 +214,9 @@ function activeTestReason(command) {
     }
     if (program === "nmap") {
       const cidr = subject.match(/\S+\/(\d{1,2})\b/u);
-      if (cidr && Number(cidr[1]) <= 20) {
-        return `target range /${cidr[1]} exceeds the /21 limit`;
+      const cidrBits = cidr?.[1];
+      if (cidrBits !== undefined && Number(cidrBits) <= 20) {
+        return `target range /${cidrBits} exceeds the /21 limit`;
       }
       if (
         /(?:^|\s)-p-(?:\s|$)/u.test(subject) &&
@@ -216,11 +237,11 @@ function activeTestReason(command) {
 
 // ── secret leak ──────────────────────────────────────────────
 
-function secretLeakHit(command) {
+function secretLeakHit(command: string): boolean {
   return shellCommandInvocations(command).some(secretLeakInvocationHit);
 }
 
-function secretLeakInvocationHit({ executable, args }) {
+function secretLeakInvocationHit({ executable, args }: ShellInvocation): boolean {
   const program = executable.toLowerCase();
   const subject = args.join(" ");
   if (["cat", "head", "tail", "less", "more", "bat"].includes(program)) {
@@ -245,24 +266,7 @@ function secretLeakInvocationHit({ executable, args }) {
   return false;
 }
 
-/**
- * @typedef {object} BuiltinRule
- * @property {string} id
- * @property {string} title
- * @property {"deny"|"report"|"allow"} mode
- * @property {RegExp|{test:(command:string)=>boolean}} match
- * @property {string} [reason]
- * @property {(command:string)=>string} [resolveReason]
- * @property {string} [recovery]
- * @property {string} [observedFacts]
- * @property {string} [harm]
- * @property {string} [unblockWhen]
- * @property {(command:string)=>string} [formatMessage]  full custom message
- * @property {boolean} [sensitive]
- */
-
-/** @type {BuiltinRule[]} */
-export const BUILTIN_RULES = [
+export const BUILTIN_RULES: SafetyRule[] = [
   {
     id: "sed-inplace",
     title: "sed -i Guard",

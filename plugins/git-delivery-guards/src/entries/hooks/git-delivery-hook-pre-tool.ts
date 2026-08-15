@@ -27,7 +27,8 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(`[git-delivery-guards] pre hook failed open: ${error?.message ?? error}\n`);
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`[git-delivery-guards] pre hook failed open: ${message}\n`);
   process.exit(0);
 });

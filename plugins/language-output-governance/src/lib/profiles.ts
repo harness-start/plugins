@@ -1,3 +1,15 @@
+export type ProfileId = "zh-CN" | "zh-TW" | "en-US" | "ja-JP" | "ko-KR" | "th-TH";
+export type AllowedScript = "han" | "hangul" | "kana" | "thai";
+
+export type LanguageProfile = {
+  id: ProfileId;
+  label: string;
+  allowedScripts: readonly AllowedScript[];
+  aliases: RegExp;
+  sessionInstruction: string;
+  rewriteInstruction: string;
+};
+
 export const PROFILE_IDS = Object.freeze([
   "zh-CN",
   "zh-TW",
@@ -5,9 +17,11 @@ export const PROFILE_IDS = Object.freeze([
   "ja-JP",
   "ko-KR",
   "th-TH",
-]);
+] as const satisfies readonly ProfileId[]);
 
-const PROFILE_DEFINITIONS = {
+type ProfileDefinition = Omit<LanguageProfile, "id">;
+
+const PROFILE_DEFINITIONS: Record<ProfileId, ProfileDefinition> = {
   "zh-CN": {
     label: "Simplified Chinese",
     allowedScripts: ["han"],
@@ -52,19 +66,27 @@ const PROFILE_DEFINITIONS = {
   },
 };
 
-export const PROFILES = Object.freeze(
-  Object.fromEntries(
-    Object.entries(PROFILE_DEFINITIONS).map(([id, profile]) => [
-      id,
-      Object.freeze({ id, ...profile, allowedScripts: Object.freeze(profile.allowedScripts) }),
-    ]),
-  ),
-);
-
-export function isProfileId(value) {
-  return typeof value === "string" && Object.hasOwn(PROFILES, value);
+function freezeProfile(id: ProfileId, profile: ProfileDefinition): LanguageProfile {
+  return Object.freeze({
+    id,
+    ...profile,
+    allowedScripts: Object.freeze(profile.allowedScripts),
+  });
 }
 
-export function profileFor(value) {
+export const PROFILES: Readonly<Record<ProfileId, LanguageProfile>> = Object.freeze({
+  "zh-CN": freezeProfile("zh-CN", PROFILE_DEFINITIONS["zh-CN"]),
+  "zh-TW": freezeProfile("zh-TW", PROFILE_DEFINITIONS["zh-TW"]),
+  "en-US": freezeProfile("en-US", PROFILE_DEFINITIONS["en-US"]),
+  "ja-JP": freezeProfile("ja-JP", PROFILE_DEFINITIONS["ja-JP"]),
+  "ko-KR": freezeProfile("ko-KR", PROFILE_DEFINITIONS["ko-KR"]),
+  "th-TH": freezeProfile("th-TH", PROFILE_DEFINITIONS["th-TH"]),
+});
+
+export function isProfileId(value: unknown): value is ProfileId {
+  return typeof value === "string" && (PROFILE_IDS as readonly string[]).includes(value);
+}
+
+export function profileFor(value: unknown): LanguageProfile {
   return PROFILES[isProfileId(value) ? value : "zh-CN"];
 }

@@ -3,21 +3,87 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { join, resolve } from "node:path";
 
 import { appendRecord } from "@harness/core/jsonl-trail";
+import { isRecord } from "@harness/core/hook-event";
 
-import { DEFAULT_CONFIG } from "./config.js";
-import { findLedgerDir, foldWorkOrder, loadIntentFile, loadLedger, readEventLog, scanLedgers } from "./ledger.js";
+import { DEFAULT_CONFIG, type PluginConfig } from "./config.js";
+import { findLedgerDir, foldWorkOrder, loadIntentFile, loadLedger, readEventLog, scanLedgers, type LedgerLoadValid } from "./ledger.js";
+import type { WorkOrder } from "./work-order.js";
 
-function gitRoot(cwd) {
+export type WriterInput = {
+  cwd?: string | undefined;
+  id?: unknown;
+  slug?: unknown;
+  summary?: unknown;
+  expected?: unknown;
+  actual?: unknown;
+  reproduction?: unknown;
+  environment?: unknown;
+  h1?: unknown;
+  h1Falsifier?: unknown;
+  h2?: unknown;
+  h2Falsifier?: unknown;
+  goal?: unknown;
+  mode?: unknown;
+  bugId?: unknown;
+  priority?: unknown;
+  config?: PluginConfig | undefined;
+  now?: number | undefined;
+  event?: Record<string, unknown> | undefined;
+  hypothesisId?: unknown;
+  status?: unknown;
+  receiptIds?: unknown;
+  receiptId?: unknown;
+  statement?: unknown;
+  causalChain?: unknown;
+  chain?: unknown;
+  affectedBugIds?: unknown;
+  bugs?: unknown;
+  bug?: Record<string, unknown> | undefined;
+  nextAction?: unknown;
+  nextBugId?: unknown;
+  recoveryCommands?: unknown;
+  recovery?: unknown;
+  architectureReview?: unknown;
+  bugStatus?: unknown;
+};
+
+export type WriterResult = {
+  ok: boolean;
+  error?: string | undefined;
+  id?: string | undefined;
+  path?: string | undefined;
+  workOrder?: WorkOrder | null | undefined;
+  slug?: string | undefined;
+  intent?: Record<string, unknown> | undefined;
+  events?: unknown;
+  config?: PluginConfig | undefined;
+  cwd?: string | undefined;
+  repoRoot?: string | undefined;
+  now?: number | undefined;
+};
+
+type WriterContext = {
+  config: PluginConfig;
+  cwd: string;
+  repoRoot: string;
+  now: number;
+};
+
+type ResolveExisting =
+  | (WriterContext & { ok: true; dir: string; loaded: LedgerLoadValid })
+  | (WriterContext & { ok: false; error: string; path?: string });
+
+function gitRoot(cwd: string): string {
   try { return execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim(); }
   catch { return resolve(cwd); }
 }
 
-function sanitizeSlug(value) {
+function sanitizeSlug(value: unknown): string {
   const slug = String(value ?? "").trim().toLowerCase().replace(/[^a-z0-9._-]+/gu, "-").replace(/^-+|-+$/gu, "").slice(0, 48);
   return slug || "debug";
 }
 
-function yyyymmdd(now) {
+function yyyymmdd(now: number): string {
   const date = new Date(now);
   const year = date.getUTCFullYear();
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -25,7 +91,7 @@ function yyyymmdd(now) {
   return `${year}${month}${day}`;
 }
 
-function ensureExclude(root, config) {
+function ensureExclude(root: string, config: PluginConfig): void {
   if (config.ledger.persistence !== "local") return;
   try {
     const path = execFileSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5000 }).trim();
@@ -38,7 +104,7 @@ function ensureExclude(root, config) {
   } catch {}
 }
 
-function defaultHypotheses(input) {
+function defaultHypotheses(input: WriterInput): Array<{ id: string; statement: string; falsifier: string }> {
   return [
     {
       id: "H1",
@@ -53,30 +119,30 @@ function defaultHypotheses(input) {
   ];
 }
 
-function context(input) {
+function context(input: WriterInput): WriterContext {
   const config = input.config ?? DEFAULT_CONFIG;
   const cwd = resolve(input.cwd || process.cwd());
   return { config, cwd, repoRoot: gitRoot(cwd), now: input.now ?? Date.now() };
 }
 
-function resultOf(loaded, extra = {}) {
+function resultOf(loaded: LedgerLoadValid, extra: Record<string, unknown> = {}): WriterResult {
   return {
     ok: true,
-    id: loaded.workOrder.id,
+    id: String(loaded.workOrder.id ?? ""),
     path: loaded.path,
     workOrder: loaded.workOrder,
     ...extra,
   };
 }
 
-function defaultOpenDir(repoRoot, config) {
+function defaultOpenDir(repoRoot: string, config: PluginConfig): string | null {
   const items = scanLedgers(repoRoot, config).filter((item) => item.store === "events");
   const open = items.filter((item) => item.workOrder.status === "open");
-  if (open.length === 1) return open[0].path;
-  return items.length === 1 ? items[0].path : null;
+  if (open.length === 1) return open[0]?.path ?? null;
+  return items.length === 1 ? items[0]?.path ?? null : null;
 }
 
-function resolveExisting(input) {
+function resolveExisting(input: WriterInput): ResolveExisting {
   const ctx = context(input);
   const id = String(input.id ?? "").trim();
   const dir = id ? findLedgerDir(ctx.repoRoot, ctx.config, id) : defaultOpenDir(ctx.repoRoot, ctx.config);
@@ -86,15 +152,15 @@ function resolveExisting(input) {
   return { ...ctx, ok: true, dir, loaded };
 }
 
-function appendEvent(dir, event) {
+function appendEvent(dir: string, event: Record<string, unknown>): void {
   appendRecord(join(dir, "events.jsonl"), event);
 }
 
-function reload(dir, config) {
+function reload(dir: string, config: PluginConfig) {
   return loadLedger(dir, config);
 }
 
-export function initLedger(input) {
+export function initLedger(input: WriterInput): WriterResult {
   const ctx = context(input);
   const slug = sanitizeSlug(input.slug || input.summary);
   const id = String(input.id ?? "").trim() || `DWO-${yyyymmdd(ctx.now)}-${slug}`;
@@ -138,7 +204,7 @@ export function initLedger(input) {
   return resultOf(loaded, { slug, intent, events: loaded.events });
 }
 
-export function appendLedgerEvent(input) {
+export function appendLedgerEvent(input: WriterInput): WriterResult {
   const existing = resolveExisting(input);
   if (!existing.ok) return existing;
   appendEvent(existing.dir, { v: 1, at: existing.now, ...input.event });
@@ -146,13 +212,13 @@ export function appendLedgerEvent(input) {
   return loaded.valid ? resultOf(loaded) : { ok: false, error: (loaded.findings ?? []).join("; "), path: existing.dir };
 }
 
-export function activateBug(input) {
+export function activateBug(input: WriterInput): WriterResult {
   const bugId = String(input.bugId ?? "").trim();
   if (!bugId) return { ok: false, error: "bugId is required" };
   return appendLedgerEvent({ ...input, event: { t: "activate", bugId } });
 }
 
-export function claimHypothesis(input) {
+export function claimHypothesis(input: WriterInput): WriterResult {
   return appendLedgerEvent({
     ...input,
     event: {
@@ -166,7 +232,7 @@ export function claimHypothesis(input) {
   });
 }
 
-export function claimRootCause(input) {
+export function claimRootCause(input: WriterInput): WriterResult {
   const chain = Array.isArray(input.causalChain)
     ? input.causalChain
     : String(input.chain ?? "").split("|").map((item) => item.trim()).filter(Boolean);
@@ -183,7 +249,7 @@ export function claimRootCause(input) {
   });
 }
 
-export function affectBugs(input) {
+export function affectBugs(input: WriterInput): WriterResult {
   const affectedBugIds = Array.isArray(input.affectedBugIds)
     ? input.affectedBugIds
     : String(input.bugs ?? "").split(",").map((item) => item.trim()).filter(Boolean);
@@ -191,7 +257,7 @@ export function affectBugs(input) {
   return appendLedgerEvent({ ...input, event: { t: "affect", bugId: input.bugId, affectedBugIds } });
 }
 
-export function addBug(input) {
+export function addBug(input: WriterInput): WriterResult {
   const bug = input.bug ?? {
     id: input.bugId,
     summary: input.summary,
@@ -208,13 +274,14 @@ export function addBug(input) {
     },
     hypotheses: defaultHypotheses(input),
   };
-  if (!bug.id || !bug.summary || !bug.symptom?.actual || !bug.symptom?.reproduction) {
+  const symptom = isRecord(bug.symptom) ? bug.symptom : undefined;
+  if (!bug.id || !bug.summary || !symptom?.actual || !symptom?.reproduction) {
     return { ok: false, error: "add-bug requires id, summary, actual, and reproduction" };
   }
   return appendLedgerEvent({ ...input, event: { t: "queued-bug", bug } });
 }
 
-export function pauseLedger(input) {
+export function pauseLedger(input: WriterInput): WriterResult {
   const nextAction = String(input.nextAction ?? "").trim();
   if (!nextAction) return { ok: false, error: "nextAction is required" };
   return appendLedgerEvent({
@@ -230,32 +297,39 @@ export function pauseLedger(input) {
   });
 }
 
-export function closeLedger(input) {
+export function closeLedger(input: WriterInput): WriterResult {
   return appendLedgerEvent({ ...input, event: { t: "close" } });
 }
 
-export function abortLedger(input) {
+export function abortLedger(input: WriterInput): WriterResult {
   return appendLedgerEvent({ ...input, event: { t: "abort" } });
 }
 
-export function resumeLedger(input) {
+export function resumeLedger(input: WriterInput): WriterResult {
   const existing = resolveExisting(input);
   if (!existing.ok) return existing;
-  const epoch = existing.loaded.workOrder.run.epoch + 1;
+  const epoch = Number(existing.loaded.workOrder.run?.epoch) + 1;
   return appendLedgerEvent({
     ...input,
     event: { t: "resume", epoch, bugId: input.bugId || existing.loaded.workOrder.resume?.nextBugId },
   });
 }
 
-export function statusLedger(input) {
+export function statusLedger(input: WriterInput): WriterResult {
   const existing = resolveExisting(input);
   if (!existing.ok) return existing;
   return resultOf(existing.loaded);
 }
 
-export function inspectIntent(input) {
+export function inspectIntent(input: WriterInput): WriterResult & { intent?: unknown } {
   const existing = resolveExisting(input);
   if (!existing.ok) return existing;
-  return { ok: true, intent: loadIntentFile(existing.dir).value, events: readEventLog(existing.dir), workOrder: foldWorkOrder({ intent: loadIntentFile(existing.dir).value, events: readEventLog(existing.dir) }) };
+  const events = readEventLog(existing.dir);
+  const intent = loadIntentFile(existing.dir).value;
+  return {
+    ok: true,
+    intent,
+    events,
+    workOrder: foldWorkOrder({ intent, events: Array.isArray(events) ? events : [] }) ?? undefined,
+  };
 }

@@ -9,7 +9,7 @@ import {
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&", "{", "}"]);
 const SHELL_COMMANDS = new Set(["bash", "dash", "sh", "zsh"]);
 
-function recursiveRmTarget(args, cwd, stdinDriven) {
+function recursiveRmTarget(args: readonly string[], cwd: string, stdinDriven: boolean): string | null {
   const recursive = args.some(
     (argument) =>
       argument === "--recursive" ||
@@ -51,7 +51,7 @@ function recursiveRmTarget(args, cwd, stdinDriven) {
   return null;
 }
 
-function expandPathToken(argument, cwd) {
+function expandPathToken(argument: string, cwd: string): string {
   return argument
     .replace(/^\$\{HOME\}(?=\/|$)/u, homedir())
     .replace(/^\$HOME(?=\/|$)/u, homedir())
@@ -61,7 +61,7 @@ function expandPathToken(argument, cwd) {
     .replace(/^\$\(pwd\)(?=\/|$)/u, cwd);
 }
 
-function broadDeleteReason(argument, cwd, verb) {
+function broadDeleteReason(argument: string, cwd: string, verb: string): string | null {
   const homeReference = /^(?:~|\$HOME|\$\{HOME\})(?=\/|$)/u.test(argument);
   const expanded = expandPathToken(argument, cwd);
   const absolute = resolve(cwd, expanded);
@@ -78,9 +78,9 @@ function broadDeleteReason(argument, cwd, verb) {
   return null;
 }
 
-function findDeleteReason(args, cwd) {
+function findDeleteReason(args: readonly string[], cwd: string): string | null {
   if (!args.some((argument) => argument === "-delete")) return null;
-  const paths = [];
+  const paths: string[] = [];
   let optionsEnded = false;
   for (const argument of args) {
     if (argument === "--") {
@@ -100,7 +100,7 @@ function findDeleteReason(args, cwd) {
   return null;
 }
 
-function dangerousCommandReason(command, cwd, depth = 0) {
+function dangerousCommandReason(command: string, cwd: string, depth = 0): string | null {
   if (depth < 4) {
     for (const nestedCommand of nestedCommandSubstitutions(command)) {
       const reason = dangerousCommandReason(nestedCommand, cwd, depth + 1);
@@ -111,7 +111,7 @@ function dangerousCommandReason(command, cwd, depth = 0) {
   }
   for (const logicalLine of splitShellLogicalLines(command)) {
     const tokens = tokenizeShell(logicalLine);
-    let segment = [];
+    let segment: string[] = [];
     for (let index = 0; index <= tokens.length; index += 1) {
       const token = tokens[index];
       if (token !== undefined && !COMMAND_SEPARATORS.has(token)) {
@@ -145,7 +145,7 @@ function dangerousCommandReason(command, cwd, depth = 0) {
         const commandIndex = invocation.args.findIndex((argument) =>
           /^-[^-]*c/u.test(argument),
         );
-        const nestedCommand = invocation.args[commandIndex + 1];
+        const nestedCommand = commandIndex >= 0 ? invocation.args[commandIndex + 1] : undefined;
         if (commandIndex >= 0 && nestedCommand) {
           if (depth >= 4) {
             return "nested shell -c commands are too deep to prove the deletion scope safe";
@@ -160,13 +160,13 @@ function dangerousCommandReason(command, cwd, depth = 0) {
   return null;
 }
 
-function hasCommandSubstitution(command) {
+function hasCommandSubstitution(command: string): boolean {
   return /\$\(|`/u.test(command);
 }
 
-function nestedCommandSubstitutions(command) {
-  const nested = [];
-  let quote = null;
+function nestedCommandSubstitutions(command: string): string[] {
+  const nested: string[] = [];
+  let quote: string | null = null;
   for (let index = 0; index < command.length; index += 1) {
     const char = command[index];
     if (char === "\\") {
@@ -189,11 +189,13 @@ function nestedCommandSubstitutions(command) {
       let end = index + 1;
       let body = "";
       for (; end < command.length; end += 1) {
-        if (command[end] === "\\" && end + 1 < command.length) {
-          body += command[end + 1];
+        const escaped = command[end];
+        const escapedNext = command[end + 1];
+        if (escaped === "\\" && escapedNext !== undefined) {
+          body += escapedNext;
           end += 1;
-        } else if (command[end] === "`") break;
-        else body += command[end];
+        } else if (escaped === "`") break;
+        else if (escaped !== undefined) body += escaped;
       }
       if (end < command.length) {
         nested.push(body);
@@ -204,12 +206,14 @@ function nestedCommandSubstitutions(command) {
     if (char !== "$" || command[index + 1] !== "(") continue;
     let depth = 1;
     let body = "";
-    let nestedQuote = null;
+    let nestedQuote: string | null = null;
     let end = index + 2;
     for (; end < command.length && depth > 0; end += 1) {
       const current = command[end];
+      if (current === undefined) continue;
       if (current === "\\") {
-        if (end + 1 < command.length) body += `${current}${command[end + 1]}`;
+        const nextChar = command[end + 1];
+        if (nextChar !== undefined) body += `${current}${nextChar}`;
         end += 1;
         continue;
       }
@@ -235,13 +239,13 @@ function nestedCommandSubstitutions(command) {
   return nested;
 }
 
-export function dangerousCommandHits(command, cwd = process.cwd()) {
+export function dangerousCommandHits(command: unknown, cwd = process.cwd()): string[] {
   if (typeof command !== "string" || !command) return [];
   const reason = dangerousCommandReason(command, cwd);
   return reason ? [reason] : [];
 }
 
-export function dangerousCommandDenyMessage(hits, command = "") {
+export function dangerousCommandDenyMessage(hits: unknown, command = ""): string {
   const reasons = Array.isArray(hits) ? hits : [];
   return [
     "[Dangerous Command] High-risk command blocked",

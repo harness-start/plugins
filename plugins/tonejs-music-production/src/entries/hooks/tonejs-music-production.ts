@@ -10,7 +10,7 @@ import { eventCwd, eventToolName, isStopHookActive, readStdinJson } from "@harne
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
-import { evaluateMusicWrite, validateMusicModel } from "../../lib/contract.js";
+import { evaluateMusicWrite, validateMusicModel, type MusicFinding, type MusicProjectConfig } from "../../lib/contract.js";
 
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIRECTORY = resolve(
@@ -18,30 +18,43 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
 
-function deny(reason) {
+function deny(reason: string) {
   return preToolDeny(`[Tone.js Music Production] ${reason}`);
 }
 
-async function findingsFor(cwd) {
-  const findings = [];
+type HookFinding = MusicFinding & { artifactId: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function findingsFor(cwd: string) {
+  const findings: HookFinding[] = [];
   const { roots } = await findCarrierProjects(cwd, "music");
   for (const root of roots) {
     const collected = await collectProjectFiles(root, { maxFiles: 4096, maxFileBytes: 512 * 1024 * 1024 });
     if (!("plan.contract.json" in collected.files)) continue;
-    const parse = (filePath) => {
-      try { return JSON.parse(collected.files[filePath] ?? ""); } catch { return null; }
+    const parse = (filePath: string): unknown => {
+      try { return JSON.parse(collected.files[filePath] ?? "") as unknown; } catch { return null; }
     };
     const plan = parse("plan.contract.json");
     const project = parse("music.project.json");
-    const model = { artifactId: basename(root), files: collected.files, digests: collected.digests, plan, project };
-    for (const item of validateMusicModel(model, { stage: plan?.targetStage ?? "source" })) {
+    const model = {
+      artifactId: basename(root),
+      files: collected.files,
+      digests: collected.digests,
+      plan,
+      project: isRecord(project) ? project as MusicProjectConfig : null,
+    };
+    const stage = isRecord(plan) && typeof plan.targetStage === "string" ? plan.targetStage : "source";
+    for (const item of validateMusicModel(model, { stage })) {
       findings.push({ artifactId: model.artifactId, ...item });
     }
   }
   return findings;
 }
 
-function format(findings) {
+function format(findings: HookFinding[]) {
   return [
     "[Tone.js Music Production] Project contract violations",
     ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`),
@@ -98,8 +111,9 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
-    process.stderr.write(`[Tone.js Music Production] ${error.message}\n`);
+  main().catch((error: unknown) => {
+    const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
+    process.stderr.write(`[Tone.js Music Production] ${message}\n`);
     process.exitCode = 2;
   });
 }

@@ -9,10 +9,20 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
-import { isProfileId } from "./profiles.js";
+import type { LanguageIntent } from "./intent.js";
+import { isProfileId, type ProfileId } from "./profiles.js";
+
+export type LanguageState = {
+  version: number;
+  preferredProfile: ProfileId;
+  authorizedProfiles: ProfileId[];
+  toolFeedbackDelivered: boolean;
+  updatedAt: number;
+};
 
 const VERSION = 1;
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -22,21 +32,25 @@ const LOCK_WAIT_MS = 10;
 const WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 export const STATE_DIR_RELATIVE = ".language-output-governance/state";
 
-function digest(value) {
+function digest(value: string): string {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 
-function ensureStateDir(directory) {
+function errorCode(error: unknown): unknown {
+  return isRecord(error) ? error.code : undefined;
+}
+
+function ensureStateDir(directory: string): void {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   ensurePluginWorkdirGitignore(dirname(directory));
 }
 
-function statePath(event) {
+function statePath(event: HookEvent): string {
   const session = extractSessionId(event) ?? "default";
   return join(resolve(extractCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 
-export function emptyState(defaultProfile = "zh-CN") {
+export function emptyState(defaultProfile = "zh-CN"): LanguageState {
   return {
     version: VERSION,
     preferredProfile: isProfileId(defaultProfile) ? defaultProfile : "zh-CN",
@@ -46,8 +60,8 @@ export function emptyState(defaultProfile = "zh-CN") {
   };
 }
 
-function sanitize(value, defaultProfile) {
-  if (!value || typeof value !== "object" || value.version !== VERSION) {
+function sanitize(value: unknown, defaultProfile: string): LanguageState {
+  if (!isRecord(value) || value.version !== VERSION) {
     return emptyState(defaultProfile);
   }
   if (Date.now() - Number(value.updatedAt || 0) > TTL_MS) {
@@ -57,7 +71,7 @@ function sanitize(value, defaultProfile) {
     version: VERSION,
     preferredProfile: isProfileId(value.preferredProfile)
       ? value.preferredProfile
-      : defaultProfile,
+      : isProfileId(defaultProfile) ? defaultProfile : "zh-CN",
     authorizedProfiles: Array.isArray(value.authorizedProfiles)
       ? [...new Set(value.authorizedProfiles.filter(isProfileId))]
       : [],
@@ -66,7 +80,7 @@ function sanitize(value, defaultProfile) {
   };
 }
 
-function read(path, defaultProfile) {
+function read(path: string, defaultProfile: string): LanguageState {
   if (!path) return emptyState(defaultProfile);
   try {
     return sanitize(JSON.parse(readFileSync(path, "utf8")), defaultProfile);
@@ -75,7 +89,7 @@ function read(path, defaultProfile) {
   }
 }
 
-function write(path, state) {
+function write(path: string, state: LanguageState): boolean {
   if (!path) return false;
   const directory = dirname(path);
   const temporary = join(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
@@ -94,7 +108,7 @@ function write(path, state) {
   }
 }
 
-function withLock(path, operation) {
+function withLock<T>(path: string, operation: () => T): T {
   if (!path) return operation();
   const lock = `${path}.lock`;
   ensureStateDir(dirname(path));
@@ -107,14 +121,14 @@ function withLock(path, operation) {
         rmSync(lock, { recursive: true, force: true });
       }
     } catch (error) {
-      if (error?.code !== "EEXIST") throw error;
+      if (errorCode(error) !== "EEXIST") throw error;
       try {
         if (Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS) {
           rmSync(lock, { recursive: true, force: true });
           continue;
         }
       } catch (cause) {
-        if (cause?.code !== "ENOENT") throw cause;
+        if (errorCode(cause) !== "ENOENT") throw cause;
         continue;
       }
       Atomics.wait(WAIT_BUFFER, 0, 0, LOCK_WAIT_MS);
@@ -123,11 +137,15 @@ function withLock(path, operation) {
   throw new Error("timed out waiting for language-output state lock");
 }
 
-export function readState(event, defaultProfile = "zh-CN") {
+export function readState(event: HookEvent, defaultProfile = "zh-CN"): LanguageState {
   return read(statePath(event), defaultProfile);
 }
 
-export function updateState(event, defaultProfile, updater) {
+export function updateState<T>(
+  event: HookEvent,
+  defaultProfile: string,
+  updater: (state: LanguageState) => T,
+): { state: LanguageState; result: T | null; persisted: boolean } {
   const path = statePath(event);
   if (!path) return { state: emptyState(defaultProfile), result: null, persisted: false };
   return withLock(path, () => {
@@ -138,7 +156,7 @@ export function updateState(event, defaultProfile, updater) {
   });
 }
 
-export function initializeState(event, defaultProfile, reset = false) {
+export function initializeState(event: HookEvent, defaultProfile: string, reset = false): LanguageState {
   return updateState(event, defaultProfile, (state) => {
     if (!reset) return false;
     Object.assign(state, emptyState(defaultProfile));
@@ -146,7 +164,7 @@ export function initializeState(event, defaultProfile, reset = false) {
   }).state;
 }
 
-export function recordLanguageIntent(event, defaultProfile, intent) {
+export function recordLanguageIntent(event: HookEvent, defaultProfile: string, intent: LanguageIntent): LanguageState {
   return updateState(event, defaultProfile, (state) => {
     if (isProfileId(intent.preferredProfile)) {
       state.preferredProfile = intent.preferredProfile;
@@ -161,7 +179,7 @@ export function recordLanguageIntent(event, defaultProfile, intent) {
   }).state;
 }
 
-export function claimToolFeedback(event, defaultProfile) {
+export function claimToolFeedback(event: HookEvent, defaultProfile: string): boolean {
   return updateState(event, defaultProfile, (state) => {
     if (state.toolFeedbackDelivered) return false;
     state.toolFeedbackDelivered = true;

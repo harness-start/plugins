@@ -5,7 +5,7 @@ const CHILD_SOURCE = `import { pathToFileURL } from "node:url";
 const loaded = await import(pathToFileURL(process.argv[1]).href);
 process.stdout.write(JSON.stringify(loaded.default));`;
 
-function loadOnce(root) {
+function loadOnce(root: string): Promise<{ raw: string; value: unknown }> {
   return new Promise((resolvePromise, reject) => {
     const compositionPath = join(root, "src", "composition.mjs");
     const child = spawn(process.execPath, [
@@ -41,9 +41,10 @@ function loadOnce(root) {
   });
 }
 
-export async function loadCompositionDeterministic(inputRoot) {
+export async function loadCompositionDeterministic(inputRoot: string): Promise<unknown> {
   const root = resolve(inputRoot);
   const [first, second] = await Promise.all([loadOnce(root), loadOnce(root)]);
+  if (!first || !second) throw new Error("COMPOSITION_LOAD_FAILED");
   if (first.raw !== second.raw) throw new Error("COMPOSITION_NONDETERMINISTIC");
   return first.value;
 }

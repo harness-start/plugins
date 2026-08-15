@@ -1,8 +1,19 @@
-import { spawnSync } from "node:child_process";
+import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 
-function sameDirectory(left, right) {
+export type GitPathState = {
+  tracked: boolean;
+  present: boolean;
+  dirty: boolean;
+};
+
+export type HeadRestoreInput = {
+  missing?: boolean;
+  content?: string;
+};
+
+function sameDirectory(left: string, right: string): boolean {
   try {
     return realpathSync(left) === realpathSync(right);
   } catch {
@@ -10,7 +21,7 @@ function sameDirectory(left, right) {
   }
 }
 
-function gitEnv() {
+function gitEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
   delete env.GIT_DIR;
   delete env.GIT_WORK_TREE;
@@ -21,7 +32,7 @@ function gitEnv() {
   return env;
 }
 
-function runGit(root, args) {
+function runGit(root: string, args: string[]): Pick<SpawnSyncReturns<string>, "status" | "stdout" | "stderr"> {
   try {
     return spawnSync("git", ["-c", "safe.directory=*", "-c", "core.hooksPath=/dev/null", ...args], {
       cwd: root,
@@ -35,7 +46,7 @@ function runGit(root, args) {
   }
 }
 
-export function hasGitHead(root) {
+export function hasGitHead(root: string): boolean {
   if (!root) return false;
   const inside = runGit(root, ["rev-parse", "--is-inside-work-tree"]);
   if (inside.status !== 0 || inside.stdout.trim() !== "true") return false;
@@ -45,7 +56,7 @@ export function hasGitHead(root) {
   return head.status === 0 && Boolean(head.stdout.trim());
 }
 
-export function gitShowHead(root, relativePath) {
+export function gitShowHead(root: string, relativePath: string): string | null {
   const path = String(relativePath ?? "").replaceAll("\\", "/");
   if (!root || !path || path === ".") return null;
   const shown = runGit(root, ["show", `HEAD:${path}`]);
@@ -53,7 +64,7 @@ export function gitShowHead(root, relativePath) {
   return shown.stdout;
 }
 
-export function gitPathState(root, relativePath) {
+export function gitPathState(root: string, relativePath: string): GitPathState {
   try {
     const head = gitShowHead(root, relativePath);
     const tracked = head !== null;
@@ -74,18 +85,18 @@ export function gitPathState(root, relativePath) {
   }
 }
 
-export function listHeadPaths(root) {
+export function listHeadPaths(root: string): string[] {
   const listed = runGit(root, ["ls-tree", "-r", "--name-only", "HEAD"]);
   if (listed.status !== 0) return [];
   return listed.stdout.split("\n").map((path) => path.trim()).filter(Boolean);
 }
 
-export function isHeadContent(root, relativePath, content) {
+export function isHeadContent(root: string, relativePath: string, content: string): boolean {
   const head = gitShowHead(root, relativePath);
   return head !== null && head === String(content ?? "");
 }
 
-export function restoresHeadState(root, relativePath, { missing = false, content = "" } = {}) {
+export function restoresHeadState(root: string, relativePath: string, { missing = false, content = "" }: HeadRestoreInput = {}): boolean {
   const head = gitShowHead(root, relativePath);
   if (head === null) return missing === true;
   if (missing) return false;

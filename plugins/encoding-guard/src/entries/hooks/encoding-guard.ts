@@ -4,8 +4,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { analyzeEncoding } from "../../lib/encoding-policy.js";
-import { eventCwd, eventToolInput, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { analyzeEncoding, type EncodingIssue } from "../../lib/encoding-policy.js";
+import { eventCwd, eventToolInput, eventToolName, isRecord, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -15,7 +15,12 @@ const CONFIG_FILE_NAMES = [
   ".encoding-guard.js",
 ];
 
-export const BUILTIN_RULES = [
+export type EncodingRule = {
+  match: RegExp;
+  mode: "block" | "skip";
+};
+
+export const BUILTIN_RULES: EncodingRule[] = [
   {
     match:
       /(^|\/)(?:node_modules|vendor|dist|build|coverage|target|\.next|\.nuxt|generated|__generated__)\//u,
@@ -43,12 +48,16 @@ export const BUILTIN_RULES = [
   { match: /(^|\/)\.env\.[^/]+$/iu, mode: "block" },
 ];
 
-function warnConfig(message) {
+function warnConfig(message: string) {
   process.stderr.write(`[encoding-guard] ${message}\n`);
 }
 
-export function normalizeUserRule(rule, index, warn = warnConfig) {
-  if (!rule || !(rule.match instanceof RegExp)) {
+export function normalizeUserRule(
+  rule: unknown,
+  index: number,
+  warn: (message: string) => void = warnConfig,
+): EncodingRule | null {
+  if (!isRecord(rule) || !(rule.match instanceof RegExp)) {
     warn(`rule[${index}]: "match" must be a RegExp, skipping`);
     return null;
   }
@@ -57,21 +66,25 @@ export function normalizeUserRule(rule, index, warn = warnConfig) {
     warn(`rule[${index}]: "mode" must be "block" or "skip", skipping`);
     return null;
   }
-  return { ...rule, mode };
+  return { match: rule.match, mode };
 }
 
-export function resolveRules(userConfig, warn = warnConfig) {
-  if (userConfig?.rules !== undefined && !Array.isArray(userConfig.rules)) {
+export function resolveRules(
+  userConfig: unknown,
+  warn: (message: string) => void = warnConfig,
+): EncodingRule[] {
+  const record = isRecord(userConfig) ? userConfig : undefined;
+  if (record?.rules !== undefined && !Array.isArray(record.rules)) {
     warn('config "rules" must be an array; using built-in rules');
     return [...BUILTIN_RULES];
   }
-  const userRules = (userConfig?.rules ?? [])
+  const userRules = (Array.isArray(record?.rules) ? record.rules : [])
     .map((rule, index) => normalizeUserRule(rule, index, warn))
-    .filter(Boolean);
+    .filter((rule): rule is EncodingRule => rule !== null);
   return [...userRules, ...BUILTIN_RULES];
 }
 
-export function matchRule(relativePath, rules) {
+export function matchRule(relativePath: string, rules: readonly EncodingRule[]): EncodingRule | null {
   for (const rule of rules) {
     try {
       if (new RegExp(rule.match.source, rule.match.flags).test(relativePath)) {
@@ -84,7 +97,7 @@ export function matchRule(relativePath, rules) {
   return null;
 }
 
-export async function loadUserConfig(repoRoot) {
+export async function loadUserConfig(repoRoot: string): Promise<unknown> {
   for (const name of CONFIG_FILE_NAMES) {
     const configPath = join(repoRoot, name);
     if (!existsSync(configPath)) continue;
@@ -92,14 +105,14 @@ export async function loadUserConfig(repoRoot) {
       const loaded = await import(pathToFileURL(configPath).href);
       return loaded.default ?? loaded;
     } catch (error) {
-      warnConfig(`failed to load ${name}: ${error.message}`);
+      warnConfig(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
   return null;
 }
 
-export function extractFilePaths(event) {
+export function extractFilePaths(event: HookEvent): string[] {
   const cwd = eventCwd(event);
   const paths = extractFileTargets(event, {
     tools: eventToolName(event) ? "mutation" : "any",
@@ -113,7 +126,7 @@ export function extractFilePaths(event) {
   return [...new Set(paths)];
 }
 
-function resolveRepoRoot(filePath) {
+function resolveRepoRoot(filePath: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd: dirname(filePath),
@@ -126,13 +139,13 @@ function resolveRepoRoot(filePath) {
   }
 }
 
-function relativeMatchPath(filePath, repoRoot, cwd) {
+function relativeMatchPath(filePath: string, repoRoot: string | null, cwd: string): string {
   if (repoRoot) return relative(repoRoot, filePath).replaceAll("\\", "/");
   const fromCwd = relative(cwd, filePath).replaceAll("\\", "/");
   return fromCwd.startsWith("../") ? filePath.replaceAll("\\", "/") : fromCwd;
 }
 
-function readFileCapped(filePath) {
+function readFileCapped(filePath: string): Buffer | null {
   try {
     if (statSync(filePath).size > MAX_FILE_BYTES) return null;
     return readFileSync(filePath);
@@ -141,14 +154,14 @@ function readFileCapped(filePath) {
   }
 }
 
-function formatIssue(issue) {
+function formatIssue(issue: EncodingIssue): string {
   if (issue.kind === "bom") {
     return `Detected ${issue.name} (${issue.bytes})`;
   }
   return "Detected an invalid UTF-8 byte sequence";
 }
 
-function block(findings) {
+function block(findings: Array<{ path: string; issue: EncodingIssue }>): never {
   const details = findings.flatMap(({ path, issue }) => [
     `- ${path}`,
     `  ${formatIssue(issue)}`,
@@ -176,10 +189,12 @@ async function main() {
   const candidates = extractFilePaths(event).filter(existsSync);
   if (candidates.length === 0) return;
 
-  const repoRoot = resolveRepoRoot(candidates[0]);
+  const firstCandidate = candidates[0];
+  if (!firstCandidate) return;
+  const repoRoot = resolveRepoRoot(firstCandidate);
   const userConfig = repoRoot ? await loadUserConfig(repoRoot) : null;
   const rules = resolveRules(userConfig);
-  const findings = [];
+  const findings: Array<{ path: string; issue: EncodingIssue }> = [];
 
   for (const filePath of candidates) {
     const matchPath = relativeMatchPath(filePath, repoRoot, cwd);

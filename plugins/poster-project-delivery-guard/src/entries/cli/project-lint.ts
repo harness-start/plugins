@@ -16,4 +16,4 @@ async function main() {
   if (failed) process.exitCode = 2;
 }
 
-main().catch((error) => { process.stderr.write(`[poster-project-lint] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => { process.stderr.write(`[poster-project-lint] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

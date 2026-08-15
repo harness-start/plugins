@@ -5,6 +5,8 @@ import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRecord } from "@harness/core/hook-event";
+
 import {
   appendSkillTrace,
   defaultWorkflow,
@@ -16,13 +18,17 @@ import {
   SEALED_OR_LATER,
   writeWorkflow,
   workflowPath,
+  type ResearchWorkflow,
 } from "../../lib/workflow-fs.js";
 
-function parseArgs(argv) {
-  const options = {};
-  const positionals = [];
+type CliOptions = Record<string, string | boolean>;
+
+function parseArgs(argv: string[]): { options: CliOptions; positionals: string[] } {
+  const options: CliOptions = {};
+  const positionals: string[] = [];
   for (let index = 0; index < argv.length; index += 1) {
     const value = argv[index];
+    if (value === undefined) continue;
     if (!value.startsWith("--")) {
       positionals.push(value);
       continue;
@@ -38,24 +44,24 @@ function parseArgs(argv) {
   return { options, positionals };
 }
 
-function output(value) {
+function output(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
-function loadWorkflow(cwd, runId) {
+function loadWorkflow(cwd: string, runId: string): ResearchWorkflow {
   const path = workflowPath(cwd, runId);
   const workflow = readWorkflowFile(path);
   if (!workflow) throw new Error(`workflow not found: ${path}`);
   return workflow;
 }
 
-function requirePreSeal(workflow, command) {
+function requirePreSeal(workflow: ResearchWorkflow, command: string): void {
   if (workflow.completeness?.sealed === true || SEALED_OR_LATER.has(workflow.phase) || workflow.phase === "aborted") {
     throw new Error(`${command} requires an open, unsealed research run`);
   }
 }
 
-function saveBrief(cwd, runId, workflow) {
+function saveBrief(cwd: string, runId: string, workflow: ResearchWorkflow): void {
   const path = join(cwd, ".research", "runs", runId, "brief.md");
   const body = [
     `# Research brief: ${workflow.question || "(untitled)"}`,
@@ -77,7 +83,7 @@ function saveBrief(cwd, runId, workflow) {
   writeFileSync(path, body, "utf8");
 }
 
-function cmdRunOpen(cwd, options) {
+function cmdRunOpen(cwd: string, options: CliOptions): void {
   const existing = findActiveWorkflow(cwd);
   if (existing) throw new Error(`run ${existing.run_id} is already open (phase=${existing.phase})`);
   const runId = String(options["run-id"] ?? "").trim() || generateRunId();
@@ -94,7 +100,7 @@ function cmdRunOpen(cwd, options) {
   output({ ok: true, run_id: runId, phase: workflow.phase, path: workflowPath(cwd, runId) });
 }
 
-function cmdBriefWrite(cwd, options) {
+function cmdBriefWrite(cwd: string, options: CliOptions): void {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   const workflow = loadWorkflow(cwd, runId);
@@ -113,25 +119,25 @@ function cmdBriefWrite(cwd, options) {
   output({ ok: true, run_id: runId, phase: workflow.phase });
 }
 
-function cmdClaimsDraft(cwd, options) {
+function cmdClaimsDraft(cwd: string, options: CliOptions): void {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   if (!options.file) throw new Error("--file is required");
   const workflow = loadWorkflow(cwd, runId);
   requirePreSeal(workflow, "claims-draft");
   const source = resolve(cwd, String(options.file));
-  const claims = JSON.parse(readFileSync(source, "utf8"));
+  const claims: unknown = JSON.parse(readFileSync(source, "utf8"));
   if (!Array.isArray(claims) || claims.length === 0) throw new Error("claims must be a non-empty array");
   const dest = join(cwd, ".research", "runs", runId, "claims.draft.json");
   writeFileSync(dest, `${JSON.stringify(claims, null, 2)}\n`, "utf8");
   workflow.phase = "claims_drafted";
-  workflow.completeness.all_claims_classified = claims.every((claim) => claim && typeof claim.status === "string");
+  workflow.completeness.all_claims_classified = claims.every((claim) => isRecord(claim) && typeof claim.status === "string");
   writeWorkflow(cwd, workflow);
   appendSkillTrace(cwd, runId, { phase: "claims_drafted", skill: "research-evidence-workflow", mode: "invoke", artifact_paths: ["claims.draft.json"] });
   output({ ok: true, run_id: runId, phase: workflow.phase, claim_count: claims.length });
 }
 
-function cmdCompleteness(cwd, options) {
+function cmdCompleteness(cwd: string, options: CliOptions): void {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   const workflow = loadWorkflow(cwd, runId);
@@ -148,7 +154,7 @@ function cmdCompleteness(cwd, options) {
   });
 }
 
-function cmdHandoffOutbound(cwd, options) {
+function cmdHandoffOutbound(cwd: string, options: CliOptions): void {
   const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   const workflow = loadWorkflow(cwd, runId);
@@ -184,7 +190,7 @@ function cmdHandoffOutbound(cwd, options) {
   output({ ok: true, run_id: runId, phase: workflow.phase, handoff_path: handoffRel, prompt_path: promptRel });
 }
 
-function cmdStatus(cwd, options) {
+function cmdStatus(cwd: string, options: CliOptions): void {
   if (options["run-id"]) {
     output(loadWorkflow(cwd, String(options["run-id"])));
     return;
@@ -193,7 +199,7 @@ function cmdStatus(cwd, options) {
   output({ active, runs: listWorkflows(cwd).map((item) => ({ run_id: item.run_id, phase: item.phase })) });
 }
 
-async function main() {
+async function main(): Promise<void> {
   const { options, positionals } = parseArgs(process.argv.slice(2));
   const command = positionals[0];
   const cwd = resolve(String(options.cwd ?? process.cwd()));
@@ -211,7 +217,7 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
+  main().catch((error: unknown) => {
     process.stderr.write(`[research-workflow] ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 1;
   });

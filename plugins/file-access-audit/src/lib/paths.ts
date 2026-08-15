@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { isAbsolute, relative, resolve } from "node:path";
+import type { HookEvent } from "@harness/core/hook-event";
 
-export function resolveRepoRoot(cwd) {
+export function resolveRepoRoot(cwd: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -14,7 +15,7 @@ export function resolveRepoRoot(cwd) {
   }
 }
 
-export function toDisplayPath(filePath, base) {
+export function toDisplayPath(filePath: string, base: string | null | undefined): string {
   const abs = resolve(filePath);
   if (!base) return abs.replaceAll("\\", "/");
   const candidate = relative(base, abs).replaceAll("\\", "/");
@@ -29,7 +30,7 @@ export function toDisplayPath(filePath, base) {
   return abs.replaceAll("\\", "/");
 }
 
-export function inferHost(event) {
+export function inferHost(event?: HookEvent | null): "codex" | "claude" | "unknown" {
   if (process.env.PLUGIN_ROOT && !process.env.CLAUDE_PLUGIN_ROOT) return "codex";
   if (process.env.CLAUDE_PLUGIN_ROOT) return "claude";
   if (event?.hook_event_name || event?.hookEventName) {

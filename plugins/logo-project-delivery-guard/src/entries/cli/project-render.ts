@@ -7,13 +7,19 @@ import { basename, join, resolve } from "node:path";
 import { validateLogoModel } from "../../lib/contract.js";
 import { assertLogoProjectRoot, loadLogoProject } from "../../lib/project.js";
 
+function planField(plan: unknown, key: string): unknown {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan)
+    ? (plan as Record<string, unknown>)[key]
+    : undefined;
+}
+
 const root = resolve(process.argv[2] ?? "");
 const stage = process.argv[3] ?? "";
 const journalPath = join(root, ".logo-delivery-journal.json");
 
 function runRenderer() {
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  return new Promise((resolvePromise, reject) => {
+  return new Promise<void>((resolvePromise, reject) => {
     const child = spawn(npm, ["run", "--silent", "logo:render", "--", "--stage", stage], {
       cwd: root,
       env: { ...process.env, LOGO_GUARD_STAGE: stage, LOGO_GUARD_PROJECT_ROOT: root },
@@ -29,7 +35,7 @@ async function main() {
   await assertLogoProjectRoot(root);
   if (!["source", "release"].includes(stage)) throw new Error("stage must be source or release");
   const before = await loadLogoProject(root);
-  if (before.plan?.targetStage !== stage) throw new Error("RENDER_STAGE_MISMATCH: plan targetStage must match requested stage");
+  if (planField(before.plan, "targetStage") !== stage) throw new Error("RENDER_STAGE_MISMATCH: plan targetStage must match requested stage");
   const handle = await open(journalPath, "wx");
   await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, plugin: "logo-project-delivery-guard", operation: "render", artifactId: basename(root), stage, sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown" })}\n`);
   await handle.sync();
@@ -47,4 +53,4 @@ async function main() {
   }
 }
 
-main().catch((error) => { process.stderr.write(`[logo-project-render] ${error.message}\n`); process.exitCode = 2; });
+main().catch((error: unknown) => { process.stderr.write(`[logo-project-render] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

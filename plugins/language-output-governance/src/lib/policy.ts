@@ -1,10 +1,10 @@
-import { SCRIPT_LABELS } from "./language-drift.js";
+import { SCRIPT_LABELS, type DriftFinding } from "./language-drift.js";
 import { profileFor } from "./profiles.js";
 
 const STRUCTURED_CONTENT = "All agent-authored natural-language values, including values inside JSON, YAML, TOML, XML, Markdown machine blocks, tables, and generated files, must use the session language profile.";
 const TECHNICAL_EXCEPTION = "Schema names, keys, enum literals, IDs, identifiers, variables, code, commands, paths, flags, APIs, and types remain unchanged. Verbatim quotations and explicitly requested translation content may retain their source or target language. A natural-language value is not exempt merely because it appears inside structured data or a code fence.";
 
-export function sessionContext(profileId) {
+export function sessionContext(profileId: unknown): string {
   const profile = profileFor(profileId);
   return [
     `[language-output-governance] profile=${profile.id}`,
@@ -15,7 +15,7 @@ export function sessionContext(profileId) {
   ].join("\n");
 }
 
-export function toolFeedback(profileId, finding, targets = []) {
+export function toolFeedback(profileId: unknown, finding: DriftFinding, targets: readonly string[] = []): string {
   const profile = profileFor(profileId);
   const repair = targets.length > 0
     ? `Review and correct the generated natural-language text in: ${targets.join(", ")}.`
@@ -30,7 +30,7 @@ export function toolFeedback(profileId, finding, targets = []) {
   ].join("\n");
 }
 
-export function driftBlockReason(profileId, finding) {
+export function driftBlockReason(profileId: unknown, finding: DriftFinding): string {
   const profile = profileFor(profileId);
   return [
     "[Language Output Gate] unauthorized language drift detected",

@@ -1,18 +1,21 @@
 const textEncoder = new TextEncoder();
 
-function writeAscii(view, offset, value) {
+function writeAscii(view: DataView, offset: number, value: string) {
   new Uint8Array(view.buffer, view.byteOffset + offset, value.length).set(textEncoder.encode(value));
 }
 
-function ascii(bytes, offset, length) {
+function ascii(bytes: Uint8Array, offset: number, length: number) {
   return String.fromCharCode(...bytes.subarray(offset, offset + length));
 }
 
-export function encodePcm16Wav({ channels, sampleRate }) {
+export function encodePcm16Wav({ channels, sampleRate }: {
+  channels: Array<ArrayLike<number>>;
+  sampleRate: number;
+}) {
   if (!Array.isArray(channels) || channels.length === 0 || channels.length > 8) throw new Error("WAV_CHANNELS_INVALID");
   if (!Number.isInteger(sampleRate) || sampleRate < 8000 || sampleRate > 192000) throw new Error("WAV_SAMPLE_RATE_INVALID");
   const frames = channels[0]?.length;
-  if (!Number.isInteger(frames) || channels.some((channel) => channel.length !== frames)) throw new Error("WAV_FRAME_COUNT_INVALID");
+  if (!Number.isInteger(frames) || frames === undefined || channels.some((channel) => channel.length !== frames)) throw new Error("WAV_FRAME_COUNT_INVALID");
   const dataBytes = frames * channels.length * 2;
   const bytes = new Uint8Array(44 + dataBytes);
   const view = new DataView(bytes.buffer);
@@ -40,7 +43,21 @@ export function encodePcm16Wav({ channels, sampleRate }) {
   return bytes;
 }
 
-export function analyzePcm16Wav(input) {
+export type WavAnalysis = {
+  format: "pcm16";
+  sampleRate: number;
+  channels: number;
+  bitsPerSample: number;
+  frames: number;
+  durationSeconds: number;
+  peakDbfs: number;
+  rmsDbfs: number;
+  dcOffset: number;
+  clippedSamples: number;
+  nonSilentRatio: number;
+};
+
+export function analyzePcm16Wav(input: Uint8Array | ArrayBuffer): WavAnalysis {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   if (bytes.byteLength < 44 || ascii(bytes, 0, 4) !== "RIFF" || ascii(bytes, 8, 4) !== "WAVE") throw new Error("WAV_HEADER_INVALID");
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);

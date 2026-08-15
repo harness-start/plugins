@@ -11,15 +11,40 @@ import {
 import { homedir } from "node:os";
 import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
+import { isRecord } from "@harness/core/hook-event";
+
 import { SEAL_PREFIX, sealReport, verifyReport } from "./report-integrity.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const WEEK = /^\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])$/u;
 
-function requireDate(value, label) {
+export type ReportPathOptions = {
+  kind: string;
+  home?: string | undefined;
+  date?: string | undefined;
+  week?: string | undefined;
+  from?: string | undefined;
+  to?: string | undefined;
+};
+
+export type SaveReportOptions = ReportPathOptions & {
+  input: string;
+};
+
+export type AppendReportOptions = {
+  report?: string | undefined;
+  input: string;
+  home?: string | undefined;
+  now?: string | number | Date | undefined;
+};
+
+function requireDate(value: unknown, label: string): string {
   const text = String(value ?? "");
   if (!DATE.test(text)) throw new Error(`${label} expects YYYY-MM-DD`);
   const [year, month, day] = text.split("-").map(Number);
+  if (year === undefined || month === undefined || day === undefined) {
+    throw new Error(`${label} expects YYYY-MM-DD`);
+  }
   const parsed = new Date(year, month - 1, day);
   if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day) {
     throw new Error(`${label} is not a valid date`);
@@ -27,11 +52,19 @@ function requireDate(value, label) {
   return text;
 }
 
-function reportsHome(home) {
+function reportsHome(home?: string | undefined): string {
   return resolve(home ?? process.env.HOME ?? homedir(), ".ai-experts");
 }
 
-export function reportPath(options) {
+function errorCode(error: unknown): unknown {
+  return isRecord(error) ? error.code : undefined;
+}
+
+function errorMessage(error: unknown): string {
+  return isRecord(error) && error.message != null ? String(error.message) : String(error);
+}
+
+export function reportPath(options: ReportPathOptions): string {
   const home = options.home ?? process.env.HOME ?? homedir();
   if (options.kind === "daily") {
     const date = requireDate(options.date, "--date");
@@ -51,25 +84,27 @@ export function reportPath(options) {
   throw new Error(`unknown report kind: ${String(options.kind)}`);
 }
 
-export function isProtectedReportPath(candidate, home) {
+export function isProtectedReportPath(candidate: string, home?: string | undefined): boolean {
   const root = reportsHome(home);
   const absolute = resolve(candidate);
   const rel = relative(root, absolute);
   if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || resolve(root, rel) !== absolute) return false;
   const parts = rel.split(sep);
-  return parts.length === 2 && parts[0].endsWith("-reports") && Boolean(parts[1]);
+  const folder = parts[0];
+  const file = parts[1];
+  return parts.length === 2 && Boolean(folder?.endsWith("-reports")) && Boolean(file);
 }
 
-async function rejectSymlink(path) {
+async function rejectSymlink(path: string): Promise<void> {
   try {
     const stats = await lstat(path);
     if (stats.isSymbolicLink()) throw new Error(`refusing symbolic-link report path: ${path}`);
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
 }
 
-async function prepareReportDirectory(path) {
+async function prepareReportDirectory(path: string): Promise<void> {
   const reportDirectory = dirname(path);
   const expertsDirectory = dirname(reportDirectory);
   await rejectSymlink(expertsDirectory);
@@ -79,7 +114,7 @@ async function prepareReportDirectory(path) {
   await rejectSymlink(reportDirectory);
 }
 
-async function atomicWrite(path, content) {
+async function atomicWrite(path: string, content: string): Promise<void> {
   await prepareReportDirectory(path);
   await rejectSymlink(path);
   const temporary = join(dirname(path), `.${basename(path)}.${process.pid}.${randomBytes(6).toString("hex")}.tmp`);
@@ -93,15 +128,19 @@ async function atomicWrite(path, content) {
   }
 }
 
-async function readUtf8(path, label) {
+async function readUtf8(path: string, label: string): Promise<string> {
   try {
     return await readFile(resolve(path), "utf8");
   } catch (error) {
-    throw new Error(`${label} cannot be read: ${error?.message ?? String(error)}`);
+    throw new Error(`${label} cannot be read: ${errorMessage(error)}`);
   }
 }
 
-export async function saveReport(options) {
+export async function saveReport(options: SaveReportOptions): Promise<{
+  path: string;
+  digest: string | undefined;
+  bytes: number;
+}> {
   const target = reportPath(options);
   const body = await readUtf8(options.input, "report input");
   if (!body.trim()) throw new Error("report body is empty");
@@ -114,15 +153,20 @@ export async function saveReport(options) {
     if (checked.ok) throw new Error(`report is already sealed: ${target}`);
     if (checked.kind !== "unsealed") throw new Error(`existing report integrity is invalid: ${checked.reason}`);
   } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
+    if (errorCode(error) !== "ENOENT") throw error;
   }
 
   const sealed = sealReport(normalized);
   await atomicWrite(target, sealed);
-  return { path: target, digest: verifyReport(sealed).digest, bytes: Buffer.byteLength(sealed) };
+  const verified = verifyReport(sealed);
+  return { path: target, digest: verified.ok ? verified.digest : undefined, bytes: Buffer.byteLength(sealed) };
 }
 
-export async function appendReport(options) {
+export async function appendReport(options: AppendReportOptions): Promise<{
+  path: string;
+  digest: string;
+  appendedBytes: number;
+}> {
   const target = resolve(options.report ?? "");
   if (!isProtectedReportPath(target, options.home)) throw new Error("--report must target ~/.ai-experts/*-reports/*");
   await rejectSymlink(target);

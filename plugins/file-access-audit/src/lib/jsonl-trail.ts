@@ -18,6 +18,6 @@ Write policy:
 
 export { appendRecord, rewriteTip, sanitizeSessionKey, trailPaths };
 
-export function prepareTrail(repoRoot, auditRoot, sessionKey) {
+export function prepareTrail(repoRoot: string, auditRoot: string, sessionKey: string) {
   return prepareCoreTrail(repoRoot, auditRoot, sessionKey, { readme: README_TEXT });
 }

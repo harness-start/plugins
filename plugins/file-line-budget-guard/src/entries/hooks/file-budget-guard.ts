@@ -18,14 +18,38 @@ import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { classifyBudgetState } from "../../lib/budget-policy.js";
-import { eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { eventToolName, isRecord, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { extractFileTargets } from "@harness/core/hook-targets";
+
+export type BudgetMode = "block" | "report" | "skip";
+
+export type BudgetRule = {
+  match: RegExp;
+  mode: BudgetMode;
+  budget?: number;
+};
+
+export type BudgetSettings = {
+  nearBudgetWarnRatio: number;
+  warnCooldownMinutes: number;
+  oversizeSoftGrowthLimit: number;
+};
+
+type SettingsKey = keyof BudgetSettings;
+
+function isBudgetMode(value: unknown): value is BudgetMode {
+  return value === "block" || value === "report" || value === "skip";
+}
+
+function isSettingsKey(key: string): key is SettingsKey {
+  return key === "nearBudgetWarnRatio" || key === "warnCooldownMinutes" || key === "oversizeSoftGrowthLimit";
+}
 
 // ── Built-in rules ───────────────────────────────────────────
 // These are the default rules when no user config is present.
 // Each rule has: match (RegExp), mode ("block"|"report"|"skip"), budget (number, except skip).
 
-export const BUILTIN_RULES = [
+export const BUILTIN_RULES: BudgetRule[] = [
   // ── skip: tests, fixtures, generated paths ──
   { match: /(^|\/)tests?\//,                            mode: "skip" },
   { match: /(^|\/)spec\//,                              mode: "skip" },
@@ -108,7 +132,7 @@ export const BUILTIN_RULES = [
 
 // ── Default settings ─────────────────────────────────────────
 
-const DEFAULT_SETTINGS = {
+const DEFAULT_SETTINGS: BudgetSettings = {
   nearBudgetWarnRatio: 0.8,
   warnCooldownMinutes: 30,
   // A bounded maintenance change in a legacy oversized file should remain
@@ -133,7 +157,7 @@ const CONFIG_FILE_NAMES = [
  * Try to load user config from project root.
  * Returns the imported module's default export, or null.
  */
-async function loadUserConfig(repoRoot) {
+async function loadUserConfig(repoRoot: string): Promise<unknown> {
   for (const name of CONFIG_FILE_NAMES) {
     const p = join(repoRoot, name);
     if (!existsSync(p)) continue;
@@ -141,7 +165,7 @@ async function loadUserConfig(repoRoot) {
       const mod = await import(pathToFileURL(p).href);
       return mod.default ?? mod;
     } catch (e) {
-      process.stderr.write(`[file-line-budget-guard] Failed to load ${name}: ${e.message}\n`);
+      process.stderr.write(`[file-line-budget-guard] Failed to load ${name}: ${e instanceof Error ? e.message : String(e)}\n`);
       return null;
     }
   }
@@ -151,8 +175,8 @@ async function loadUserConfig(repoRoot) {
 /**
  * Validate a single rule. Returns true if the rule is usable.
  */
-function validateRule(rule, i) {
-  if (!rule || typeof rule !== "object" || Array.isArray(rule)) {
+function validateRule(rule: unknown, i: number): rule is BudgetRule {
+  if (!isRecord(rule) || Array.isArray(rule)) {
     process.stderr.write(`[file-line-budget-guard] rule[${i}]: must be an object, skipping\n`);
     return false;
   }
@@ -161,7 +185,7 @@ function validateRule(rule, i) {
     return false;
   }
   const mode = rule.mode ?? "block";
-  if (!["block", "report", "skip"].includes(mode)) {
+  if (!isBudgetMode(mode)) {
     process.stderr.write(`[file-line-budget-guard] rule[${i}]: "mode" must be block|report|skip, skipping\n`);
     return false;
   }
@@ -174,14 +198,14 @@ function validateRule(rule, i) {
   return true;
 }
 
-function resolveSettings(rawSettings) {
+function resolveSettings(rawSettings: unknown): BudgetSettings {
   if (rawSettings === undefined) return { ...DEFAULT_SETTINGS };
-  if (!rawSettings || typeof rawSettings !== "object" || Array.isArray(rawSettings)) {
+  if (!isRecord(rawSettings) || Array.isArray(rawSettings)) {
     process.stderr.write('[file-line-budget-guard] config "settings" must be an object, using defaults\n');
     return { ...DEFAULT_SETTINGS };
   }
 
-  const validators = {
+  const validators: Record<SettingsKey, (value: unknown) => boolean> = {
     nearBudgetWarnRatio: (value) =>
       typeof value === "number" && Number.isFinite(value) && value > 0 && value <= 1,
     warnCooldownMinutes: (value) =>
@@ -189,14 +213,14 @@ function resolveSettings(rawSettings) {
     oversizeSoftGrowthLimit: (value) =>
       typeof value === "number" && Number.isFinite(value) && value >= 0,
   };
-  const settings = { ...DEFAULT_SETTINGS };
+  const settings: BudgetSettings = { ...DEFAULT_SETTINGS };
   for (const [key, value] of Object.entries(rawSettings)) {
-    const validate = validators[key];
-    if (!validate) {
+    if (!isSettingsKey(key)) {
       process.stderr.write(`[file-line-budget-guard] settings.${key}: unknown setting, ignoring\n`);
       continue;
     }
-    if (!validate(value)) {
+    const validate = validators[key];
+    if (!validate(value) || typeof value !== "number") {
       process.stderr.write(`[file-line-budget-guard] settings.${key}: invalid value, using default\n`);
       continue;
     }
@@ -209,17 +233,18 @@ function resolveSettings(rawSettings) {
  * Merge user config rules (prepended) with built-in rules.
  * Returns { rules, settings }.
  */
-export function resolveRules(userConfig) {
-  const rawRules = Array.isArray(userConfig?.rules) ? userConfig.rules : [];
-  if (userConfig?.rules !== undefined && !Array.isArray(userConfig.rules)) {
+export function resolveRules(userConfig: unknown): { rules: BudgetRule[]; settings: BudgetSettings } {
+  const record = isRecord(userConfig) ? userConfig : undefined;
+  const rawRules = Array.isArray(record?.rules) ? record.rules : [];
+  if (record?.rules !== undefined && !Array.isArray(record.rules)) {
     process.stderr.write('[file-line-budget-guard] config "rules" must be an array, using built-ins\n');
   }
   const userRules = rawRules
     .map((rule, i) => ({ rule, i }))
     .filter(({ rule, i }) => validateRule(rule, i))
-    .map(({ rule }) => rule.mode == null ? { ...rule, mode: "block" } : rule);
+    .map(({ rule }) => (rule.mode == null ? { ...rule, mode: "block" } : rule));
   const rules = [...userRules, ...BUILTIN_RULES];
-  const settings = resolveSettings(userConfig?.settings);
+  const settings = resolveSettings(record?.settings);
   return { rules, settings };
 }
 
@@ -227,7 +252,7 @@ export function resolveRules(userConfig) {
  * Find the first rule whose match.test(relPath) succeeds.
  * Returns the rule object or null if no match.
  */
-export function matchRule(relPath, rules) {
+export function matchRule(relPath: string, rules: readonly BudgetRule[]): BudgetRule | null {
   for (const rule of rules) {
     try {
       const match = new RegExp(rule.match.source, rule.match.flags);
@@ -242,7 +267,7 @@ export function matchRule(relPath, rules) {
 
 // ── Helpers ───────────────────────────────────────────────────
 
-export function countLines(text) {
+export function countLines(text: string): number {
   if (!text) return 0;
   const lines = text.split(/\r?\n/);
   if (lines.at(-1) === "") lines.pop();
@@ -250,7 +275,8 @@ export function countLines(text) {
 }
 
 /** Read git HEAD content for the given file path; returns null on failure. */
-function readGitHeadContent(filePath, repoRoot) {
+function readGitHeadContent(filePath: string, repoRoot: string | null): string | null {
+  if (!repoRoot) return null;
   try {
     const relPath = relative(repoRoot, filePath).replaceAll("\\", "/");
     if (relPath === ".." || relPath.startsWith("../")) return null;
@@ -265,7 +291,7 @@ function readGitHeadContent(filePath, repoRoot) {
   }
 }
 
-function readTextFileCapped(filePath, maxBytes = 8 * 1024 * 1024) {
+function readTextFileCapped(filePath: string, maxBytes = 8 * 1024 * 1024): string | null {
   try {
     if (statSync(filePath).size > maxBytes) return null;
     return readFileSync(filePath, "utf-8");
@@ -274,12 +300,12 @@ function readTextFileCapped(filePath, maxBytes = 8 * 1024 * 1024) {
   }
 }
 
-function warnMarkerPath(filePath) {
+function warnMarkerPath(filePath: string): string {
   const safeName = filePath.replace(/[^a-zA-Z0-9._-]/g, "_");
   return `${WARN_MARKER_DIR}/${safeName}`;
 }
 
-function hasRecentWarnMarker(filePath, cooldownMs) {
+function hasRecentWarnMarker(filePath: string, cooldownMs: number): boolean {
   try {
     const st = statSync(warnMarkerPath(filePath));
     return Date.now() - st.mtimeMs < cooldownMs;
@@ -288,7 +314,7 @@ function hasRecentWarnMarker(filePath, cooldownMs) {
   }
 }
 
-function writeWarnMarker(filePath) {
+function writeWarnMarker(filePath: string): void {
   try {
     if (!existsSync(WARN_MARKER_DIR)) mkdirSync(WARN_MARKER_DIR, { recursive: true });
     writeFileSync(warnMarkerPath(filePath), "", "utf-8");
@@ -297,19 +323,19 @@ function writeWarnMarker(filePath) {
   }
 }
 
-export function extractFilePaths(event) {
+export function extractFilePaths(event: HookEvent): string[] {
   return extractFileTargets(event, {
     tools: eventToolName(event) ? "mutation" : "any",
     includeShellWrites: true,
   });
 }
 
-function block(message) {
+function block(message: string): never {
   process.stderr.write(`${message}\n`);
   process.exit(2);
 }
 
-function warn(message) {
+function warn(message: string): never {
   process.stderr.write(`${message}\n`);
   process.exit(0);
 }
@@ -321,18 +347,19 @@ async function main() {
   if (event.__parseError) process.exit(0);
 
   const filePaths = extractFilePaths(event).filter((p) => existsSync(p));
-  if (filePaths.length === 0) {
+  const firstPath = filePaths[0];
+  if (!firstPath) {
     process.exit(0);
   }
 
   // ── Locate repo root and load config ──
-  let repoRoot;
+  let repoRoot: string | null;
   try {
     repoRoot = execFileSync("git", ["rev-parse", "--show-toplevel"], {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000,
-      cwd: dirname(filePaths[0]),
+      cwd: dirname(firstPath),
     }).trim();
   } catch {
     try {
@@ -351,8 +378,8 @@ async function main() {
   const { rules, settings } = resolveRules(userConfig);
 
   // Evaluate every written path; first violation wins (fail-closed).
-  let filePath = null;
-  let rule = null;
+  let filePath: string | null = null;
+  let rule: BudgetRule | null = null;
   let currentLines = 0;
   let budget = 0;
   for (const candidate of filePaths) {
@@ -367,7 +394,7 @@ async function main() {
     const content = readTextFileCapped(candidate);
     if (content === null) continue;
     const lines = countLines(content);
-    if (matched.mode === "report" || matched.mode === "block") {
+    if ((matched.mode === "report" || matched.mode === "block") && typeof matched.budget === "number") {
       filePath = candidate;
       rule = matched;
       currentLines = lines;

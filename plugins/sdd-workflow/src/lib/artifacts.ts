@@ -3,6 +3,8 @@ import { lstatSync, readFileSync } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve } from "node:path";
 import { TextDecoder } from "node:util";
 
+import { isRecord } from "@harness/core/hook-event";
+
 export const MAX_ARTIFACT_BYTES = 256 * 1024;
 const CHANGE_NAME = /^\d{3}-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const REQUIREMENT_ID = /^REQ-\d{3}$/u;
@@ -10,16 +12,79 @@ const TASK_ID = /^TASK-\d{3}$/u;
 const REQUIRED_SPEC_SECTIONS = ["Intent", "Requirements", "Non-goals"];
 const REQUIRED_PLAN_SECTIONS = ["Approach", "Change Surface", "Risks", "Validation"];
 
-function finding(code, message, artifact = null) {
+export type ArtifactName = "spec.md" | "plan.md" | "tasks.md";
+
+export type ArtifactFinding = {
+  code: string;
+  message: string;
+  artifact: string | null;
+};
+
+export type SpecRequirement = {
+  id: string;
+  title: string;
+};
+
+export type SpecResult = {
+  kind: "spec";
+  text: string;
+  digest: string;
+  requirements: SpecRequirement[];
+  findings: ArtifactFinding[];
+};
+
+export type PlanResult = {
+  kind: "plan";
+  text: string;
+  digest: string;
+  specDigest: string | null;
+  findings: ArtifactFinding[];
+};
+
+export type TaskRecord = {
+  id: string;
+  requirements: string[];
+  depends: string[];
+  files: string[];
+};
+
+export type TasksResult = {
+  kind: "tasks";
+  text: string;
+  digest: string;
+  specDigest: string | null;
+  planDigest: string | null;
+  tasks: TaskRecord[];
+  findings: ArtifactFinding[];
+};
+
+export type ChangeInspection = {
+  changeDir: string;
+  spec: SpecResult | null;
+  plan: PlanResult | null;
+  tasks: TasksResult | null;
+  findings: ArtifactFinding[];
+};
+
+type FenceState = {
+  character: string;
+  length: number;
+};
+
+function finding(code: string, message: string, artifact: string | null = null): ArtifactFinding {
   return { code, message, artifact };
 }
 
-function maskRange(text) {
+function isErrno(error: unknown): error is NodeJS.ErrnoException {
+  return isRecord(error) && typeof error.code === "string";
+}
+
+function maskRange(text: string): string {
   return text.replace(/[^\n]/gu, " ");
 }
 
-function maskFencedBlocks(text) {
-  let fence = null;
+function maskFencedBlocks(text: string): string {
+  let fence: FenceState | null = null;
   let visible = "";
   for (const line of text.match(/.*(?:\n|$)/gu) ?? []) {
     if (!line) continue;
@@ -32,23 +97,25 @@ function maskFencedBlocks(text) {
     }
     const open = body.match(/^ {0,3}(`{3,}|~{3,})/u)?.[1];
     if (open) {
-      fence = { character: open[0], length: open.length };
+      fence = { character: open[0] ?? "", length: open.length };
       visible += maskRange(line);
     } else visible += line;
   }
   return visible;
 }
 
-function maskCodeSpans(text) {
+function maskCodeSpans(text: string): string {
   let visible = "";
   let cursor = 0;
   const runs = [...text.matchAll(/`+/gu)];
   for (let index = 0; index < runs.length; index += 1) {
     const open = runs[index];
+    if (!open || open.index === undefined) continue;
     let closeIndex = index + 1;
-    while (closeIndex < runs.length && runs[closeIndex][0].length !== open[0].length) closeIndex += 1;
+    while (closeIndex < runs.length && runs[closeIndex]?.[0].length !== open[0].length) closeIndex += 1;
     if (closeIndex >= runs.length) continue;
     const close = runs[closeIndex];
+    if (!close || close.index === undefined) continue;
     visible += text.slice(cursor, open.index);
     visible += maskRange(text.slice(open.index, close.index + close[0].length));
     cursor = close.index + close[0].length;
@@ -57,7 +124,7 @@ function maskCodeSpans(text) {
   return visible + text.slice(cursor);
 }
 
-function maskHtmlComments(text) {
+function maskHtmlComments(text: string): string {
   let visible = "";
   let cursor = 0;
   while (cursor < text.length) {
@@ -72,31 +139,33 @@ function maskHtmlComments(text) {
   return visible;
 }
 
-function syntaxText(input) {
+function syntaxText(input: string): string {
   return maskHtmlComments(maskCodeSpans(maskFencedBlocks(canonicalText(input))));
 }
 
-function hasRawHtmlBlock(text) {
+function hasRawHtmlBlock(text: string): boolean {
   return /^ {0,3}(?:<\?|<!\[CDATA\[|<![A-Z]|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s|\/?>))/mu.test(text);
 }
 
-export function canonicalText(input) {
+export function canonicalText(input: unknown): string {
   const text = String(input ?? "").replace(/^\uFEFF/u, "").replace(/\r\n?/gu, "\n");
   return `${text.replace(/\n+$/u, "")}\n`;
 }
 
-export function digestText(input) {
+export function digestText(input: unknown): string {
   return createHash("sha256").update(canonicalText(input), "utf8").digest("hex");
 }
 
-function sections(text, level = 2) {
+function sections(text: string, level = 2): Map<string, string[]> {
   const hashes = "#".repeat(level);
   const expression = new RegExp(`^${hashes}\\s+(.+?)\\s*$`, "gmu");
   const matches = [...text.matchAll(expression)];
-  const result = new Map();
+  const result = new Map<string, string[]>();
   for (let index = 0; index < matches.length; index += 1) {
-    const name = matches[index][1].trim();
-    const start = matches[index].index + matches[index][0].length;
+    const current = matches[index];
+    if (!current?.[1] || current.index === undefined) continue;
+    const name = current[1].trim();
+    const start = current.index + current[0].length;
     const end = matches[index + 1]?.index ?? text.length;
     const values = result.get(name.toLowerCase()) ?? [];
     values.push(text.slice(start, end).trim());
@@ -105,7 +174,12 @@ function sections(text, level = 2) {
   return result;
 }
 
-function requireUniqueSections(sectionMap, required, artifact, findings) {
+function requireUniqueSections(
+  sectionMap: Map<string, string[]>,
+  required: readonly string[],
+  artifact: string,
+  findings: ArtifactFinding[],
+): void {
   for (const name of required) {
     const values = sectionMap.get(name.toLowerCase()) ?? [];
     if (values.length === 0) findings.push(finding("missing-section", `${artifact} requires exactly one ## ${name} section.`, artifact));
@@ -114,26 +188,28 @@ function requireUniqueSections(sectionMap, required, artifact, findings) {
   }
 }
 
-function unresolved(text) {
+function unresolved(text: string): boolean {
   return /(?:\bTODO\b|\bTBD\b|NEEDS[ _-]?CLARIFICATION|\[\s*\?\s*\])/iu.test(text);
 }
 
-export function validateSpecText(input) {
+export function validateSpecText(input: unknown): SpecResult {
   const text = canonicalText(input);
   const syntax = syntaxText(text);
-  const findings = [];
+  const findings: ArtifactFinding[] = [];
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "spec.md does not allow raw HTML blocks.", "spec.md"));
   const sectionMap = sections(syntax);
   requireUniqueSections(sectionMap, REQUIRED_SPEC_SECTIONS, "spec.md", findings);
   if (unresolved(syntax)) findings.push(finding("unresolved-marker", "spec.md contains an unresolved marker.", "spec.md"));
 
-  const requirementBody = (sectionMap.get("requirements") ?? [""])[0];
+  const requirementBody = (sectionMap.get("requirements") ?? [""])[0] ?? "";
   const headings = [...requirementBody.matchAll(/^###\s+(REQ-\d{3}):\s*(\S.*?)\s*$/gmu)];
-  const requirements = [];
-  const seen = new Set();
+  const requirements: SpecRequirement[] = [];
+  const seen = new Set<string>();
   for (let index = 0; index < headings.length; index += 1) {
-    const id = headings[index][1];
-    const start = headings[index].index + headings[index][0].length;
+    const heading = headings[index];
+    if (!heading?.[1] || heading[2] === undefined || heading.index === undefined) continue;
+    const id = heading[1];
+    const start = heading.index + heading[0].length;
     const end = headings[index + 1]?.index ?? requirementBody.length;
     const body = requirementBody.slice(start, end);
     if (seen.has(id)) findings.push(finding("duplicate-requirement", `Duplicate requirement ${id}.`, "spec.md"));
@@ -142,21 +218,21 @@ export function validateSpecText(input) {
     if (scenarios.length === 0 || !/^-\s+Given\b\s*\S/imu.test(body) || !/^-\s+When\b\s*\S/imu.test(body) || !/^-\s+Then\b\s*\S/imu.test(body)) {
       findings.push(finding("invalid-scenario", `${id} requires a Scenario with non-empty Given, When, and Then bullets.`, "spec.md"));
     }
-    requirements.push({ id, title: headings[index][2].trim() });
+    requirements.push({ id, title: heading[2].trim() });
   }
   if (requirements.length === 0) findings.push(finding("missing-requirement", "spec.md requires at least one ### REQ-NNN requirement.", "spec.md"));
   return { kind: "spec", text, digest: digestText(text), requirements, findings };
 }
 
-function digestField(text, name) {
+function digestField(text: string, name: string): string | null {
   const matches = [...text.matchAll(new RegExp(`^${name}:\\s*sha256:([0-9a-f]{64})\\s*$`, "gmu"))];
-  return matches.length === 1 ? matches[0][1] : null;
+  return matches.length === 1 ? matches[0]?.[1] ?? null : null;
 }
 
-export function validatePlanText(input, specResult) {
+export function validatePlanText(input: unknown, specResult: SpecResult | null): PlanResult {
   const text = canonicalText(input);
   const syntax = syntaxText(text);
-  const findings = [];
+  const findings: ArtifactFinding[] = [];
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "plan.md does not allow raw HTML blocks.", "plan.md"));
   if (!specResult || specResult.findings.length > 0) findings.push(finding("invalid-upstream-spec", "plan.md requires a valid spec.md.", "plan.md"));
   const sectionMap = sections(syntax);
@@ -172,27 +248,27 @@ export function validatePlanText(input, specResult) {
   return { kind: "plan", text, digest: digestText(text), specDigest, findings };
 }
 
-function splitValues(raw) {
+function splitValues(raw: unknown): string[] {
   return String(raw ?? "").split(",").map((value) => value.trim().replace(/^`|`$/gu, "")).filter(Boolean);
 }
 
-function fieldOf(body, label) {
+function fieldOf(body: string, label: string): { count: number; value: string } {
   const matches = [...body.matchAll(new RegExp(`^-\\s+${label}:\\s*(.*?)\\s*$`, "gimu"))];
   return { count: matches.length, value: matches[0]?.[1]?.trim() ?? "" };
 }
 
-function isSafeRepoPath(path, repoRoot = null) {
+function isSafeRepoPath(path: string, repoRoot: string | null = null): boolean {
   if (!path || isAbsolute(path) || path.includes("\\") || /[\u0000-\u001f*?{}[\]]/u.test(path)) return false;
   const parts = path.split("/");
   if (!parts.every((part) => part && part !== "." && part !== "..")) return false;
   return !repoRoot || !hasSymlink(resolve(repoRoot, path), repoRoot);
 }
 
-function pathOverlaps(left, right) {
+function pathOverlaps(left: string, right: string): boolean {
   return left === right || left.startsWith(`${right}/`) || right.startsWith(`${left}/`);
 }
 
-function reachable(tasks, start, target, visited = new Set()) {
+function reachable(tasks: Map<string, TaskRecord>, start: string, target: string, visited = new Set<string>()): boolean {
   if (start === target) return true;
   if (visited.has(start)) return false;
   visited.add(start);
@@ -200,10 +276,15 @@ function reachable(tasks, start, target, visited = new Set()) {
   return task ? task.depends.some((dependency) => reachable(tasks, dependency, target, visited)) : false;
 }
 
-export function validateTasksText(input, specResult, planResult, repoRoot = null) {
+export function validateTasksText(
+  input: unknown,
+  specResult: SpecResult | null,
+  planResult: PlanResult | null,
+  repoRoot: string | null = null,
+): TasksResult {
   const text = canonicalText(input);
   const syntax = syntaxText(text);
-  const findings = [];
+  const findings: ArtifactFinding[] = [];
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "tasks.md does not allow raw HTML blocks.", "tasks.md"));
   if (!specResult || specResult.findings.length > 0) findings.push(finding("invalid-upstream-spec", "tasks.md requires a valid spec.md.", "tasks.md"));
   if (!planResult || planResult.findings.length > 0) findings.push(finding("invalid-upstream-plan", "tasks.md requires a valid current plan.md.", "tasks.md"));
@@ -215,10 +296,12 @@ export function validateTasksText(input, specResult, planResult, repoRoot = null
   else if (planResult && planDigest !== planResult.digest) findings.push(finding("stale-plan-digest", "tasks.md Plan-Digest does not match plan.md.", "tasks.md"));
 
   const headings = [...syntax.matchAll(/^##\s+(TASK-\d{3}):\s*(\S.*?)\s*$/gmu)];
-  const tasks = new Map();
+  const tasks = new Map<string, TaskRecord>();
   for (let index = 0; index < headings.length; index += 1) {
-    const id = headings[index][1];
-    const start = headings[index].index + headings[index][0].length;
+    const heading = headings[index];
+    if (!heading?.[1] || heading.index === undefined) continue;
+    const id = heading[1];
+    const start = heading.index + heading[0].length;
     const end = headings[index + 1]?.index ?? syntax.length;
     const body = syntax.slice(start, end);
     if (tasks.has(id)) findings.push(finding("duplicate-task", `Duplicate task ${id}.`, "tasks.md"));
@@ -226,7 +309,13 @@ export function validateTasksText(input, specResult, planResult, repoRoot = null
     const dependsField = fieldOf(body, "Depends");
     const filesField = fieldOf(body, "Files");
     const verifyField = fieldOf(body, "Verify");
-    for (const [name, field] of [["Requirement", requirementField], ["Depends", dependsField], ["Files", filesField], ["Verify", verifyField]]) {
+    const fields: Array<[string, { count: number; value: string }]> = [
+      ["Requirement", requirementField],
+      ["Depends", dependsField],
+      ["Files", filesField],
+      ["Verify", verifyField],
+    ];
+    for (const [name, field] of fields) {
       if (field.count !== 1 || !field.value) findings.push(finding("invalid-task-field", `${id} requires exactly one non-empty ${name} field.`, "tasks.md"));
     }
     const requirements = splitValues(requirementField.value);
@@ -252,10 +341,10 @@ export function validateTasksText(input, specResult, planResult, repoRoot = null
     if (![...tasks.values()].some((task) => task.requirements.includes(requirement))) findings.push(finding("uncovered-requirement", `tasks.md does not assign ${requirement}.`, "tasks.md"));
   }
 
-  const visiting = new Set();
-  const visited = new Set();
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
   let hasCycle = false;
-  const visit = (id) => {
+  const visit = (id: string): void => {
     if (visiting.has(id)) { hasCycle = true; return; }
     if (visited.has(id)) return;
     visiting.add(id);
@@ -271,6 +360,7 @@ export function validateTasksText(input, specResult, planResult, repoRoot = null
     for (let rightIndex = leftIndex + 1; rightIndex < taskList.length; rightIndex += 1) {
       const left = taskList[leftIndex];
       const right = taskList[rightIndex];
+      if (!left || !right) continue;
       if (reachable(tasks, left.id, right.id) || reachable(tasks, right.id, left.id)) continue;
       for (const leftFile of left.files) for (const rightFile of right.files) {
         if (pathOverlaps(leftFile, rightFile)) findings.push(finding("parallel-file-overlap", `${left.id} and ${right.id} may run in parallel but overlap at ${leftFile} / ${rightFile}.`, "tasks.md"));
@@ -281,7 +371,7 @@ export function validateTasksText(input, specResult, planResult, repoRoot = null
   return { kind: "tasks", text, digest: digestText(text), specDigest, planDigest, tasks: taskList, findings };
 }
 
-function decodeArtifact(path) {
+function decodeArtifact(path: string): { text: string } | { error: ArtifactFinding } {
   const bytes = readFileSync(path);
   if (bytes.length > MAX_ARTIFACT_BYTES) return { error: finding("artifact-too-large", `${basename(path)} exceeds 256 KiB.`, basename(path)) };
   try {
@@ -293,12 +383,12 @@ function decodeArtifact(path) {
   }
 }
 
-function isWithin(parent, child) {
+function isWithin(parent: string, child: string): boolean {
   const value = relative(resolve(parent), resolve(child));
   return value === "" || (!value.startsWith("..") && !isAbsolute(value));
 }
 
-function hasSymlink(path, stop) {
+function hasSymlink(path: string, stop: string): boolean {
   let current = resolve(path);
   const boundary = resolve(stop);
   while (isWithin(boundary, current)) {
@@ -309,23 +399,23 @@ function hasSymlink(path, stop) {
   return false;
 }
 
-export function inspectChange(changeDir) {
+export function inspectChange(changeDir: string): ChangeInspection {
   const absolute = resolve(changeDir);
-  const findings = [];
+  const findings: ArtifactFinding[] = [];
   if (!CHANGE_NAME.test(basename(absolute))) findings.push(finding("invalid-change-name", "Change directory must match NNN-lowercase-slug.", basename(absolute)));
   if (basename(dirname(absolute)) !== ".specs") findings.push(finding("invalid-spec-root", "Change directory must be directly under .specs/.", basename(absolute)));
   if (hasSymlink(absolute, dirname(absolute))) findings.push(finding("symlink-artifact", "Change directory or artifact path contains a symlink.", basename(absolute)));
 
-  const values = {};
-  for (const name of ["spec.md", "plan.md", "tasks.md"]) {
+  const values: Partial<Record<ArtifactName, string>> = {};
+  for (const name of ["spec.md", "plan.md", "tasks.md"] as const) {
     const path = resolve(absolute, name);
     try {
       if (lstatSync(path).isSymbolicLink()) { findings.push(finding("symlink-artifact", `${name} must not be a symlink.`, name)); continue; }
       const decoded = decodeArtifact(path);
-      if (decoded.error) findings.push(decoded.error);
+      if ("error" in decoded) findings.push(decoded.error);
       else values[name] = decoded.text;
-    } catch (error) {
-      if (error?.code !== "ENOENT") findings.push(finding("artifact-read-error", `Cannot read ${name}.`, name));
+    } catch (error: unknown) {
+      if (!isErrno(error) || error.code !== "ENOENT") findings.push(finding("artifact-read-error", `Cannot read ${name}.`, name));
     }
   }
   const spec = values["spec.md"] === undefined ? null : validateSpecText(values["spec.md"]);
@@ -335,6 +425,6 @@ export function inspectChange(changeDir) {
   return { changeDir: absolute, spec, plan, tasks, findings };
 }
 
-export function formatFindings(findings) {
+export function formatFindings(findings: ArtifactFinding[]): string {
   return findings.map(({ code, message }) => `${code}: ${message}`).join(" ");
 }

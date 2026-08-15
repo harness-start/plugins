@@ -18,8 +18,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   matchRule,
   resolveRules,
+  type ProtectionRule,
 } from "../../lib/protected-file-policy.js";
-import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import {
+  eventCwd,
+  eventToolName,
+  readStdinJson,
+  type HookEvent,
+} from "@harness/core/hook-event";
 import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 import { tokenizeShell } from "@harness/core/shell-parse";
 
@@ -32,9 +38,9 @@ const CONFIG_FILE_NAMES = [
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
 const SIMPLE_WRAPPERS = new Set(["busybox", "command", "exec", "nohup", "time"]);
 
-function splitSimpleCommands(tokens) {
-  const commands = [];
-  let current = [];
+function splitSimpleCommands(tokens: string[]): string[][] {
+  const commands: string[][] = [];
+  let current: string[] = [];
   for (const token of tokens) {
     if (COMMAND_SEPARATORS.has(token)) {
       if (current.length) commands.push(current);
@@ -47,14 +53,15 @@ function splitSimpleCommands(tokens) {
   return commands;
 }
 
-function tokenBasename(token) {
+function tokenBasename(token: unknown): string {
   return String(token ?? "").replaceAll("\\", "/").split("/").at(-1) ?? "";
 }
 
-function unwrapCommand(tokens) {
+function unwrapCommand(tokens: string[]): string[] {
   let index = 0;
   while (index < tokens.length) {
     const token = tokens[index];
+    if (token === undefined) break;
     if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
       index += 1;
       continue;
@@ -62,7 +69,9 @@ function unwrapCommand(tokens) {
     const name = tokenBasename(token);
     if (SIMPLE_WRAPPERS.has(name)) {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-") && tokens[index] !== "--") {
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === undefined || !option.startsWith("-") || option === "--") break;
         index += 1;
       }
       if (tokens[index] === "--") index += 1;
@@ -70,8 +79,9 @@ function unwrapCommand(tokens) {
     }
     if (name === "sudo") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
         index += 1;
         if (["-C", "-g", "-u", "--group", "--user"].includes(option)) index += 1;
       }
@@ -79,22 +89,32 @@ function unwrapCommand(tokens) {
     }
     if (name === "env") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     if (name === "timeout") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) {
+      while (index < tokens.length) {
         const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
         index += 1;
         if (["-k", "-s", "--kill-after", "--signal"].includes(option)) index += 1;
       }
-      if (index < tokens.length && !tokens[index].startsWith("-")) index += 1;
+      const duration = tokens[index];
+      if (duration !== undefined && !duration.startsWith("-")) index += 1;
       continue;
     }
     if (name === "nice" || name === "stdbuf") {
       index += 1;
-      while (index < tokens.length && tokens[index].startsWith("-")) index += 1;
+      while (index < tokens.length) {
+        const option = tokens[index];
+        if (option === undefined || !option.startsWith("-")) break;
+        index += 1;
+      }
       continue;
     }
     break;
@@ -102,11 +122,12 @@ function unwrapCommand(tokens) {
   return tokens.slice(index);
 }
 
-function nonFlagOperands(args) {
-  const operands = [];
+function nonFlagOperands(args: string[]): string[] {
+  const operands: string[] = [];
   let skipNext = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -124,9 +145,10 @@ function nonFlagOperands(args) {
   return operands;
 }
 
-function targetDirectory(args) {
+function targetDirectory(args: string[]): string {
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) continue;
     if (arg === "-t" || arg === "--target-directory") {
       return args[index + 1] ?? "";
     }
@@ -137,33 +159,35 @@ function targetDirectory(args) {
   return "";
 }
 
-function copyDestTargets(args) {
+function copyDestTargets(args: string[]): string[] {
   const dest = targetDirectory(args);
   if (dest) return [dest];
   const operands = nonFlagOperands(args);
-  return operands.length ? [operands.at(-1)] : [];
+  const last = operands.at(-1);
+  return last === undefined ? [] : [last];
 }
 
-function moveWriteTargets(args) {
+function moveWriteTargets(args: string[]): string[] {
   const dest = targetDirectory(args);
   const operands = nonFlagOperands(args);
   return dest ? [dest, ...operands] : operands;
 }
 
-function looksLikeSedScript(token) {
+function looksLikeSedScript(token: string): boolean {
   return /(?:^|[0-9,${}]*[!]*s)[/#@|]./u.test(token);
 }
 
-function sedWriteTargets(args) {
+function sedWriteTargets(args: string[]): string[] {
   const inplace = args.some(
     (arg) => arg === "--in-place" || arg.startsWith("--in-place=") || /^-[A-Za-z]*i/u.test(arg),
   );
   if (!inplace) return [];
-  const files = [];
+  const files: string[] = [];
   let skipNext = false;
   let skippedScript = false;
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
+    if (arg === undefined) continue;
     if (skipNext) {
       skipNext = false;
       continue;
@@ -187,13 +211,13 @@ function sedWriteTargets(args) {
   return files;
 }
 
-function ddWriteTargets(args) {
+function ddWriteTargets(args: string[]): string[] {
   return args
     .filter((arg) => arg.startsWith("of="))
     .map((arg) => arg.slice(3));
 }
 
-function commandWriteTargets(tokens) {
+function commandWriteTargets(tokens: string[]): string[] {
   const invocation = unwrapCommand(tokens);
   if (!invocation.length) return [];
   const name = tokenBasename(invocation[0]);
@@ -207,10 +231,10 @@ function commandWriteTargets(tokens) {
   return [];
 }
 
-export function extractShellWriteTargets(command) {
+export function extractShellWriteTargets(command: unknown): string[] {
   const text = String(command ?? "");
-  const paths = [];
-  const push = (raw) => {
+  const paths: string[] = [];
+  const push = (raw: unknown) => {
     const value = String(raw ?? "").trim().replace(/^['"]|['"]$/gu, "");
     if (value && !value.startsWith("-")) paths.push(value);
   };
@@ -232,13 +256,13 @@ export function extractShellWriteTargets(command) {
   return [...new Set(paths)];
 }
 
-function warn(message) {
+function warn(message: string) {
   process.stderr.write(`[protected-file-guard] ${message}\n`);
 }
 
 export { extractPatchPaths as extractPatchTargets } from "@harness/core/hook-targets";
 
-export function extractFileTargets(event) {
+export function extractFileTargets(event: HookEvent): string[] {
   if (isShellTool(eventToolName(event))) {
     const cwd = eventCwd(event);
     return [...new Set(
@@ -251,7 +275,7 @@ export function extractFileTargets(event) {
   return extractCoreFileTargets(event);
 }
 
-export function resolveRepoRoot(cwd) {
+export function resolveRepoRoot(cwd: string): string | null {
   try {
     return execFileSync("git", ["rev-parse", "--show-toplevel"], {
       cwd,
@@ -264,7 +288,7 @@ export function resolveRepoRoot(cwd) {
   }
 }
 
-function relativeOrAbsolute(filePath, base) {
+function relativeOrAbsolute(filePath: string, base: string): string {
   const candidate = relative(base, filePath);
   if (
     candidate &&
@@ -277,7 +301,7 @@ function relativeOrAbsolute(filePath, base) {
   return filePath.replaceAll("\\", "/");
 }
 
-export function resolvePhysicalTarget(filePath) {
+export function resolvePhysicalTarget(filePath: string): string | null {
   let cursor = filePath;
   const suffix = [];
   while (!existsSync(cursor)) {
@@ -293,7 +317,7 @@ export function resolvePhysicalTarget(filePath) {
   }
 }
 
-export function matchPathsForTarget(filePath, repoRoot, cwd) {
+export function matchPathsForTarget(filePath: string, repoRoot: string | null, cwd: string): string[] {
   const base = repoRoot ?? cwd;
   const paths = [relativeOrAbsolute(filePath, base)];
   const physical = resolvePhysicalTarget(filePath);
@@ -301,7 +325,7 @@ export function matchPathsForTarget(filePath, repoRoot, cwd) {
   return [...new Set(paths)];
 }
 
-export async function loadUserConfig(repoRoot) {
+export async function loadUserConfig(repoRoot: string | null): Promise<unknown> {
   if (!repoRoot) return null;
   for (const name of CONFIG_FILE_NAMES) {
     const configPath = join(repoRoot, name);
@@ -310,18 +334,18 @@ export async function loadUserConfig(repoRoot) {
       const loaded = await import(pathToFileURL(configPath).href);
       return loaded.default ?? loaded;
     } catch (error) {
-      warn(`failed to load ${name}: ${error.message}`);
+      warn(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
   return null;
 }
 
-function displayPath(filePath, repoRoot, cwd) {
+function displayPath(filePath: string, repoRoot: string | null, cwd: string): string {
   return relativeOrAbsolute(filePath, repoRoot ?? cwd);
 }
 
-export function formatDeny(findings) {
+export function formatDeny(findings: Array<{ path: string; rule: ProtectionRule }>) {
   const shown = findings.slice(0, 10);
   const details = shown.flatMap((finding) => [
     `- ${finding.path}`,
@@ -353,7 +377,7 @@ export function formatDeny(findings) {
   ].join("\n");
 }
 
-function denyOutput(reason) {
+function denyOutput(reason: string) {
   return {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
@@ -373,7 +397,7 @@ async function main() {
   const repoRoot = resolveRepoRoot(cwd);
   const userConfig = await loadUserConfig(repoRoot);
   const rules = resolveRules(userConfig);
-  const findings = [];
+  const findings: Array<{ path: string; rule: ProtectionRule }> = [];
 
   for (const target of targets) {
     const rule = matchRule(matchPathsForTarget(target, repoRoot, cwd), rules);
@@ -389,7 +413,7 @@ if (
   fileURLToPath(import.meta.url) === resolve(process.argv[1])
 ) {
   main().catch((error) => {
-    warn(`hook failed open: ${error.message}`);
+    warn(`hook failed open: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(0);
   });
 }

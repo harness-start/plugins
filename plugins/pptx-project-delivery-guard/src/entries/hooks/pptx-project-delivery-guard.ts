@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { findCarrierProjects } from "@harness/core/artifact-scan";
 import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
 import { evaluateRegisteredWriter } from "@harness/core/artifact-shell";
-import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { eventCwd, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
@@ -15,6 +15,7 @@ import {
   findPptxProjects,
   loadPptxProject,
   validatePptxModel,
+  type ContractFinding,
 } from "../../lib/contract.js";
 
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
@@ -23,11 +24,11 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
 
-function deny(reason) {
+function deny(reason: string) {
   return preToolDeny(`[PPTX Project Delivery Guard] ${reason}`);
 }
 
-async function runPre(event) {
+async function runPre(event: HookEvent) {
   const cwd = eventCwd(event);
   const name = eventToolName(event);
   for (const target of extractFileTargets(event, { tools: "any" })) {
@@ -61,24 +62,32 @@ async function runPre(event) {
   return undefined;
 }
 
-async function projectFindings(cwd, forceStage) {
-  const findings = [];
+type ProjectFinding = ContractFinding & { artifactId: string };
+
+function planTargetStage(plan: unknown): unknown {
+  return typeof plan === "object" && plan !== null && !Array.isArray(plan)
+    ? (plan as Record<string, unknown>).targetStage
+    : undefined;
+}
+
+async function projectFindings(cwd: string, forceStage?: unknown): Promise<ProjectFinding[]> {
+  const findings: ProjectFinding[] = [];
   const roots = typeof findPptxProjects === "function" ? await findPptxProjects(cwd) : (await findCarrierProjects(cwd, "pptx")).roots;
   for (const root of roots) {
     try {
       const model = await loadPptxProject(root);
-      const stage = forceStage ?? model.plan?.targetStage ?? "source";
+      const stage = forceStage ?? planTargetStage(model.plan) ?? "source";
       for (const item of validatePptxModel(model, { stage })) {
-        findings.push({ artifactId: model.artifactId, ...item });
+        findings.push({ artifactId: model.artifactId ?? relative(cwd, root), ...item });
       }
-    } catch (error) {
-      findings.push({ artifactId: relative(cwd, root), code: "PROJECT_READ_FAILED", path: ".", message: error.message });
+    } catch (error: unknown) {
+      findings.push({ artifactId: relative(cwd, root), code: "PROJECT_READ_FAILED", path: ".", message: error instanceof Error ? error.message : String(error) });
     }
   }
   return findings;
 }
 
-function formatFindings(findings) {
+function formatFindings(findings: ProjectFinding[]): string {
   return [
     "[PPTX Project Delivery Guard] Project contract violations",
     ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`),
@@ -113,8 +122,8 @@ async function main() {
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
-  main().catch((error) => {
-    process.stderr.write(`[PPTX Project Delivery Guard] ${error.message}\n`);
+  main().catch((error: unknown) => {
+    process.stderr.write(`[PPTX Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}\n`);
     process.exitCode = 2;
   });
 }

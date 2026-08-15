@@ -3,13 +3,14 @@
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import {
   durationMs,
   inferCommandStatus,
   redactCommand,
   sameToolUseId,
 } from "../../lib/command-policy.js";
-import { loadProjectConfig } from "../../lib/config.js";
+import { loadProjectConfig, type CommandExecConfig } from "../../lib/config.js";
 import {
   extractCwd,
   extractSessionId,
@@ -32,17 +33,29 @@ import {
 import { inferHost, resolveRepoRoot } from "../../lib/paths.js";
 import { protectDecision } from "../../lib/protect.js";
 
-function warn(message) {
+type HookMode = "pre" | "post" | "failure";
+
+function warn(message: string): void {
   process.stderr.write(`[command-exec-audit] ${message}\n`);
 }
 
-function modeFromArgv() {
+function errorText(error: unknown): string {
+  if (isRecord(error) && error.message != null) return String(error.message);
+  return String(error);
+}
+
+function stringField(record: Record<string, unknown> | null | undefined, key: string): string | undefined {
+  const value = record?.[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function modeFromArgv(): HookMode {
   const mode = process.argv[2] ?? "post";
   if (mode === "pre" || mode === "post" || mode === "failure") return mode;
   return "post";
 }
 
-function buildPendingRecord(event, command, config, now = new Date()) {
+function buildPendingRecord(event: HookEvent, command: string, config: CommandExecConfig, now = new Date()) {
   const started = now.toISOString();
   return {
     schema: "command-exec/v1",
@@ -61,38 +74,45 @@ function buildPendingRecord(event, command, config, now = new Date()) {
   };
 }
 
-function finalizeRecord(base, event, forceFailure, config, now = new Date()) {
+function finalizeRecord(
+  base: Record<string, unknown> | null | undefined,
+  event: HookEvent,
+  forceFailure: boolean,
+  config: CommandExecConfig,
+  now = new Date(),
+) {
   const ended = now.toISOString();
   const { status, exit_code } = inferCommandStatus(event, forceFailure);
-  const startedAt = base?.started_at ?? base?.ts ?? ended;
-  const command = base?.command
+  const startedAt = stringField(base, "started_at") ?? stringField(base, "ts") ?? ended;
+  const command = stringField(base, "command")
     ?? redactCommand(extractShellCommand(event) ?? "", config);
   return {
     schema: "command-exec/v1",
     ts: ended,
-    session_id: base?.session_id ?? extractSessionId(event),
-    cwd: base?.cwd ?? resolve(extractCwd(event)),
-    tool_name: base?.tool_name ?? extractToolName(event),
-    tool_use_id: base?.tool_use_id ?? extractToolUseId(event),
+    session_id: stringField(base, "session_id") ?? extractSessionId(event),
+    cwd: stringField(base, "cwd") ?? resolve(extractCwd(event)),
+    tool_name: stringField(base, "tool_name") ?? extractToolName(event),
+    tool_use_id: stringField(base, "tool_use_id") ?? extractToolUseId(event),
     command,
     status,
     started_at: startedAt,
     ended_at: ended,
     duration_ms: durationMs(startedAt, ended),
     exit_code,
-    host: base?.host ?? inferHost(),
+    host: stringField(base, "host") ?? inferHost(),
   };
 }
 
-function matchingPendingTip(sessionPath, toolUseId) {
+function matchingPendingTip(sessionPath: string, toolUseId: unknown): Record<string, unknown> | null {
   const id = String(toolUseId ?? "").trim();
   if (!id) return null;
   const tip = readLastNonEmptyLine(sessionPath);
   if (!tip) return null;
   try {
-    const parsed = JSON.parse(tip.line);
+    const parsed: unknown = JSON.parse(tip.line);
     if (
-      parsed?.schema === "command-exec/v1"
+      isRecord(parsed)
+      && parsed.schema === "command-exec/v1"
       && parsed.status === "pending"
       && sameToolUseId(parsed.tool_use_id, id)
     ) {
@@ -104,10 +124,10 @@ function matchingPendingTip(sessionPath, toolUseId) {
   return null;
 }
 
-async function main() {
+async function main(): Promise<void> {
   const mode = modeFromArgv();
   const event = await readStdinJson();
-  if (event?.__parseError) return;
+  if (event.__parseError) return;
 
   const cwd = resolve(extractCwd(event));
   const repoRoot = resolveRepoRoot(cwd) ?? cwd;
@@ -130,8 +150,8 @@ async function main() {
       const sessionKey = sanitizeSessionKey(extractSessionId(event), cwd);
       const paths = prepareTrail(repoRoot, config.auditRoot, sessionKey);
       appendRecord(paths.sessionPath, buildPendingRecord(event, command, config));
-    } catch (error) {
-      warn(`failed to record command start: ${error?.message ?? error}`);
+    } catch (error: unknown) {
+      warn(`failed to record command start: ${errorText(error)}`);
     }
     return;
   }
@@ -151,7 +171,8 @@ async function main() {
       const result = rewriteTip(
         paths.sessionPath,
         (parsed) =>
-          parsed?.schema === "command-exec/v1"
+          isRecord(parsed)
+          && parsed.schema === "command-exec/v1"
           && parsed.status === "pending"
           && sameToolUseId(parsed.tool_use_id, tipBase.tool_use_id),
         finalRecord,
@@ -163,17 +184,17 @@ async function main() {
     const scanned = findPendingByToolUseId(paths.sessionPath, toolUseId);
     const finalRecord = finalizeRecord(scanned, event, forceFailure, config);
     appendRecord(paths.sessionPath, finalRecord);
-  } catch (error) {
-    warn(`failed to record command finish: ${error?.message ?? error}`);
+  } catch (error: unknown) {
+    warn(`failed to record command finish: ${errorText(error)}`);
   }
 }
 
-const isMain = process.argv[1]
-  && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
+const entryPath = process.argv[1];
+const isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve(entryPath ?? "");
 
 if (isMain) {
-  main().catch((error) => {
-    warn(error?.message ?? String(error));
+  main().catch((error: unknown) => {
+    warn(errorText(error));
     process.exitCode = 0;
   });
 }
