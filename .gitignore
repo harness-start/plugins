@@ -5,7 +5,10 @@ node_modules/
 *.log
 
 # Local plugin/cache state
-.codex/
+.codex/*
+!.codex/hooks.json
+!.codex/hooks/
+!.codex/hooks/**
 .claude/settings.local.json
 
 # Generated artifacts

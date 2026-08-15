@@ -11,7 +11,7 @@
     "build": "tsx scripts/build-plugins.ts",
     "check:dist": "tsx scripts/build-plugins.ts --check",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --no-error-on-unmatched-pattern core/src core/tests plugins/*/src plugins/*/tests scripts/*.ts",
+    "lint": "eslint --no-error-on-unmatched-pattern core/src core/hooks core/tests .claude/hooks .codex/hooks plugins/*/src plugins/*/tests scripts/*.ts",
     "test": "tsx --test core/tests/**/*.test.ts plugins/*/tests/*.test.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:dist && npm test"
   },
