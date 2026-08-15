@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fb81e425a483b4db1bc2dd922973fe66fa76fb67ed28267897d54577a31862fe
+// harness-source-hash: sha256:5fc2b7f6b152344ef886388e8231f348ffd73d9b3f911d37ef9b85bca25b8b58
 import {
   additionalContextOutput,
   commandInvocation,
@@ -18,7 +18,7 @@ import {
   splitShellLogicalLines,
   tokenizeShell,
   writeJson
-} from "../chunks/chunk-QMTVST3Y.mjs";
+} from "../chunks/chunk-6LB4PBHG.mjs";
 
 // plugins/command-safety-guards/src/lib/matchers.ts
 var SHELL_TOOLS = /^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i;
@@ -122,24 +122,48 @@ Read content may enter the agent context; read only fields required by the task 
 
 // plugins/command-safety-guards/src/lib/deny-state.ts
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { appendFileSync, mkdirSync as mkdirSync2, readFileSync as readFileSync2 } from "node:fs";
+import { join as join2, resolve } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
+
+// plugins/command-safety-guards/src/lib/deny-state.ts
 var DEFAULT_WINDOW_MS = 10 * 60 * 1e3;
 var DEFAULT_THRESHOLD = 3;
 var STATE_DIR_RELATIVE = ".command-safety-guards/.state";
 function stateFile(cwd) {
-  return join(resolve(cwd), STATE_DIR_RELATIVE, "denies.jsonl");
+  return join2(resolve(cwd), STATE_DIR_RELATIVE, "denies.jsonl");
 }
 function ensureStateFile(event) {
   const cwd = event?.cwd || process.cwd();
   const path = stateFile(cwd);
   try {
-    const directory = join(resolve(cwd), STATE_DIR_RELATIVE);
-    mkdirSync(directory, { recursive: true, mode: 448 });
-    const ignore = join(directory, ".gitignore");
-    if (!existsSync(ignore)) {
-      writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 384 });
-    }
+    const directory = join2(resolve(cwd), STATE_DIR_RELATIVE);
+    mkdirSync2(directory, { recursive: true, mode: 448 });
+    ensurePluginWorkdirGitignore(join2(resolve(cwd), ".command-safety-guards"));
     return path;
   } catch {
     return null;
@@ -169,7 +193,7 @@ function entries(event) {
   const path = stateFile(event?.cwd || process.cwd());
   if (!path) return [];
   try {
-    return readFileSync(path, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
+    return readFileSync2(path, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line));
   } catch {
     return [];
   }

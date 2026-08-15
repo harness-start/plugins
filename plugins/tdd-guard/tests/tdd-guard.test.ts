@@ -943,7 +943,7 @@ test("state uses the visible directory and stores hashes instead of raw test sou
     }
     assert.equal(stateFiles.length, 1);
     assert.equal(existsSync(join(fx.root, ".tdd-guard", ".state")), false);
-    assert.equal(readFileSync(join(fx.root, ".tdd-guard", ".gitignore"), "utf8"), "state/\n");
+    assert.equal(readFileSync(join(fx.root, ".tdd-guard", ".gitignore"), "utf8"), "*\n");
     assert.equal(readFileSync(join(fx.root, ".gitignore"), "utf8"), "vendor/\n");
     assert.equal((await import("node:fs")).existsSync(join(fx.data, "tdd-guard")), false);
     const stored = readFileSync(stateFiles[0], "utf8");

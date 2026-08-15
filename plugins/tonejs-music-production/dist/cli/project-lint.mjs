@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:2e06468278cd853b202d164627aec70cd7bf251a27eb226740a171c4796ca45d
+// harness-source-hash: sha256:e0f6fc4e3c04b0fb623a8f33f43d3fea1e43b13c1907459289458fcd4c538788
 import {
   loadCompositionDeterministic,
   optimizeComposition
-} from "../chunks/chunk-B6KKJ7O5.mjs";
+} from "../chunks/chunk-XSWK24KL.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-6OXVPNI5.mjs";
-import "../chunks/chunk-PUICJHET.mjs";
+} from "../chunks/chunk-ROIBNBVZ.mjs";
+import "../chunks/chunk-CU3JXZWU.mjs";
 import {
   validateMusicModel
-} from "../chunks/chunk-35CEFHQA.mjs";
+} from "../chunks/chunk-GR7SWMK5.mjs";
 
 // plugins/tonejs-music-production/src/entries/cli/project-lint.ts
 import { createRequire } from "node:module";

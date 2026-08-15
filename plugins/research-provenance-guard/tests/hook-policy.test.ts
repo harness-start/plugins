@@ -307,7 +307,7 @@ test("research_begin preflight uses state and creates only the research-local gi
   assert.equal(result.stdout.trim(), "");
   assert.equal(existsSync(join(root, ".research", "state")), true);
   assert.equal(existsSync(join(root, ".research", ".state")), false);
-  assert.equal(await readFile(join(root, ".research", ".gitignore"), "utf8"), "state/\n");
+  assert.equal(await readFile(join(root, ".research", ".gitignore"), "utf8"), "*\n");
   assert.equal(await readFile(join(root, ".gitignore"), "utf8"), "vendor/\n");
 });
 

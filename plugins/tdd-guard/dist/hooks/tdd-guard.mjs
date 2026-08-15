@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8543ef28426e9d39c702a8f49db95b086b2dd107e37b7952ee2342b136c8e9fd
+// harness-source-hash: sha256:9ebbe1f6c61dfcd71dfb4ed8767b270724bcb8ac48006b8f371c332c7718c4d3
 
 // plugins/tdd-guard/src/entries/hooks/tdd-guard.ts
-import { existsSync as existsSync5, readFileSync as readFileSync5 } from "node:fs";
+import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
 import { resolve as resolve6 } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -961,13 +961,38 @@ function restoresHeadState(root, relativePath2, { missing = false, content = "" 
 }
 
 // plugins/tdd-guard/src/lib/state-store.ts
-import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync4, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname3, join as join3, resolve as resolve5 } from "node:path";
+import { mkdirSync as mkdirSync3, readFileSync as readFileSync5 } from "node:fs";
+import { dirname as dirname3, join as join4, resolve as resolve5 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync as readFileSync4, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync4(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
 
 // core/src/state-file.ts
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync as existsSync3, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname as dirname2, join as join2 } from "node:path";
+import { existsSync as existsSync3, mkdirSync as mkdirSync2, renameSync, rmSync, statSync, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname2, join as join3 } from "node:path";
 var DIRECTORY_MODE = 448;
 var FILE_MODE = 384;
 var STALE_LOCK_MS = 3e4;
@@ -977,10 +1002,10 @@ function digestKey(value) {
 }
 function atomicWriteJson(path, value) {
   const directory = dirname2(path);
-  const temporary = join2(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const temporary = join3(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
-    writeFileSync(temporary, `${JSON.stringify(value)}
+    mkdirSync2(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync2(temporary, `${JSON.stringify(value)}
 `, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
     renameSync(temporary, path);
     return true;
@@ -994,11 +1019,11 @@ function atomicWriteJson(path, value) {
 }
 function withPathLock(path, operation) {
   const lockPath = `${path}.lock`;
-  mkdirSync(dirname2(path), { recursive: true, mode: DIRECTORY_MODE });
+  mkdirSync2(dirname2(path), { recursive: true, mode: DIRECTORY_MODE });
   const deadline = Date.now() + 5e3;
   while (true) {
     try {
-      mkdirSync(lockPath, { mode: DIRECTORY_MODE });
+      mkdirSync2(lockPath, { mode: DIRECTORY_MODE });
       try {
         return operation();
       } finally {
@@ -1027,21 +1052,18 @@ function digest(value) {
   return digestKey(value);
 }
 function ensureStateDir(directory) {
-  mkdirSync2(directory, { recursive: true, mode: 448 });
-  const ignore = join3(dirname3(directory), ".gitignore");
-  if (!existsSync4(ignore)) {
-    writeFileSync2(ignore, "state/\n", { encoding: "utf8", mode: 384 });
-  }
+  mkdirSync3(directory, { recursive: true, mode: 448 });
+  ensurePluginWorkdirGitignore(dirname3(directory));
 }
 function statePath(sessionId, root) {
   const session = sessionId || "default";
-  return join3(resolve5(root), STATE_DIR_RELATIVE, `${digest(session)}.json`);
+  return join4(resolve5(root), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 function readState(sessionId, root) {
   const path = statePath(sessionId, root);
   if (!path) return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
   try {
-    const value = JSON.parse(readFileSync4(path, "utf8"));
+    const value = JSON.parse(readFileSync5(path, "utf8"));
     if (value?.version !== VERSION) throw new Error("version mismatch");
     return { observedRed: {}, ...value };
   } catch {
@@ -1062,13 +1084,13 @@ function warn(message) {
 }
 function readText(path) {
   try {
-    return readFileSync5(path, "utf8");
+    return readFileSync6(path, "utf8");
   } catch {
     return "";
   }
 }
 function hashPath(path) {
-  return existsSync5(path) ? digest(readText(path)) : "missing";
+  return existsSync4(path) ? digest(readText(path)) : "missing";
 }
 function targetsFor(event, root) {
   return extractTargets(event).map((absolutePath) => {
@@ -1126,18 +1148,18 @@ function headCorrespondingTests(root, source, state, context, corresponding) {
 }
 function liveObservedRed(state, root, path) {
   const absolutePath = resolve6(root, path);
-  if (!existsSync5(absolutePath)) return false;
+  if (!existsSync4(absolutePath)) return false;
   return (state.observedRed ?? {})[path] === hashPath(absolutePath);
 }
 function remainingCorrespondingTests(root, changed, testPaths) {
-  const existing = (testPaths ?? []).filter((path) => existsSync5(resolve6(root, path)));
+  const existing = (testPaths ?? []).filter((path) => existsSync4(resolve6(root, path)));
   if (existing.length > 0) return existing;
   const found = /* @__PURE__ */ new Set();
   for (const path of changed) {
     const classified = classifyPath(path);
     if (classified.kind !== "source" || !classified.language) continue;
     const absolutePath = resolve6(root, path);
-    const content = existsSync5(absolutePath) ? readText(absolutePath) : gitShowHead(root, path) ?? "";
+    const content = existsSync4(absolutePath) ? readText(absolutePath) : gitShowHead(root, path) ?? "";
     const context = resolveLanguageContext(root, path, classified.language);
     for (const testPath of findCorrespondingTests(root, { path, language: classified.language, content }, context)) {
       found.add(testPath);
@@ -1190,7 +1212,7 @@ async function runPre(event) {
       const headCorresponding = headCorrespondingTests(root, source, state, context, corresponding);
       const redPool = headCorresponding.length > 0 ? headCorresponding : corresponding;
       const redOk = redPool.some((path) => liveObservedRed(state, root, path));
-      const headGone = headCorresponding.length > 0 && headCorresponding.every((path) => !existsSync5(resolve6(root, path)));
+      const headGone = headCorresponding.length > 0 && headCorresponding.every((path) => !existsSync4(resolve6(root, path)));
       const headDirty = headCorresponding.some((path) => gitPathState(root, path).dirty);
       const isDelete = targetOperation(event, target.absolutePath) === "delete";
       if (redOk) {
@@ -1242,7 +1264,7 @@ async function runPost(event, platform, forceFailure = false) {
       state.observedRed = { ...state.observedRed ?? {} };
       for (const path of covered) {
         const absolutePath = resolve6(root, path);
-        if (!existsSync5(absolutePath)) continue;
+        if (!existsSync4(absolutePath)) continue;
         const hash = hashPath(absolutePath);
         state.observedRed[path] = hash;
         const record = (state.tests ?? []).find((item) => item.path === path);
@@ -1266,7 +1288,7 @@ async function runPost(event, platform, forceFailure = false) {
     state.pending = null;
     if (kind === "revert") {
       const restored = pendingTargets.every((target) => {
-        const missing = !existsSync5(resolve6(root, target.path));
+        const missing = !existsSync4(resolve6(root, target.path));
         return restoresHeadState(root, target.path, {
           missing,
           content: missing ? "" : readText(resolve6(root, target.path))
@@ -1275,7 +1297,7 @@ async function runPost(event, platform, forceFailure = false) {
       if (restored) state.needsGreen = null;
     } else if (changed.length > 0) {
       const remaining = remainingCorrespondingTests(root, changed, testPaths);
-      const allDeleted = changed.every((path) => !existsSync5(resolve6(root, path)));
+      const allDeleted = changed.every((path) => !existsSync4(resolve6(root, path)));
       if (!(allDeleted && remaining.length === 0)) {
         state.needsGreen = { paths: changed, testPaths };
         state.observedRed = {};

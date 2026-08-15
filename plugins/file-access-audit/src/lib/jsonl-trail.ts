@@ -16,10 +16,8 @@ Write policy:
 - Earlier lines must not be modified by agents or humans' automation tools.
 `;
 
-const GITIGNORE_TEXT = "sessions/\n";
-
 export { appendRecord, rewriteTip, sanitizeSessionKey, trailPaths };
 
 export function prepareTrail(repoRoot, auditRoot, sessionKey) {
-  return prepareCoreTrail(repoRoot, auditRoot, sessionKey, { gitignore: GITIGNORE_TEXT, readme: README_TEXT });
+  return prepareCoreTrail(repoRoot, auditRoot, sessionKey, { readme: README_TEXT });
 }

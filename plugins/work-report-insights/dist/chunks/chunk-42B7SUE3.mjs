@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:042186fef6086fdec344292c98f4c0990944353bd53ef08a794823d5039a251e
+// harness-source-hash: sha256:02595068c90d146741494a1d7e3701df870fdf2e07ae36924de0998fb9f13936
 
 // plugins/work-report-insights/src/lib/report-integrity.ts
 import { createHash } from "node:crypto";

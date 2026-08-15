@@ -2,6 +2,8 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
+
 import { cwd, sessionId } from "./hook-io.js";
 import { findActiveWorkflow, isActivePhase, readWorkflowFile, workflowPath } from "./workflow-fs.js";
 
@@ -15,12 +17,7 @@ export const STATE_DIR_RELATIVE = ".research/state";
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(dirname(directory), ".gitignore");
-  try {
-    readFileSync(ignore, "utf8");
-  } catch {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
-  }
+  ensurePluginWorkdirGitignore(dirname(directory));
 }
 
 function directory(event) {

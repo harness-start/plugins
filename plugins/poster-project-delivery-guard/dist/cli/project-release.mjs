@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:be7a15ea39520d27c2bb2386c62b7ab975f445783cb760993783e3f16ed76e54
+// harness-source-hash: sha256:8b259f4d23ca85047ac747b5957a9c7177c75c52f26e6835eeaf6864daa260bb
 import {
   createPosterReceipt,
   validatePosterModel,
   validatePosterReceipt
-} from "../chunks/chunk-QYRYTXR3.mjs";
+} from "../chunks/chunk-HDFICX4R.mjs";
 
 // plugins/poster-project-delivery-guard/src/entries/cli/project-release.ts
 import { createHash } from "node:crypto";

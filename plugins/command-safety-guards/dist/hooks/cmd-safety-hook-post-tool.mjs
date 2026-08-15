@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fb81e425a483b4db1bc2dd922973fe66fa76fb67ed28267897d54577a31862fe
+// harness-source-hash: sha256:5fc2b7f6b152344ef886388e8231f348ffd73d9b3f911d37ef9b85bca25b8b58
 import {
   additionalContextOutput,
   extractCwd,
@@ -10,7 +10,7 @@ import {
   resolveRepoRoot,
   resolveRules,
   writeJson
-} from "../chunks/chunk-QMTVST3Y.mjs";
+} from "../chunks/chunk-6LB4PBHG.mjs";
 
 // plugins/command-safety-guards/src/entries/hooks/cmd-safety-hook-post-tool.ts
 import { existsSync } from "node:fs";

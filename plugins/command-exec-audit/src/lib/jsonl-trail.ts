@@ -19,8 +19,6 @@ Write policy:
 - Earlier lines must not be modified by agents or automation tools.
 `;
 
-const GITIGNORE_TEXT = "sessions/\n";
-
 export { appendRecord, readLastNonEmptyLine, rewriteTip, sanitizeSessionKey, trailPaths };
 
 export function findPendingByToolUseId(sessionPath, toolUseId) {
@@ -43,5 +41,5 @@ export function findPendingByToolUseId(sessionPath, toolUseId) {
 }
 
 export function prepareTrail(repoRoot, auditRoot, sessionKey) {
-  return prepareCoreTrail(repoRoot, auditRoot, sessionKey, { gitignore: GITIGNORE_TEXT, readme: README_TEXT });
+  return prepareCoreTrail(repoRoot, auditRoot, sessionKey, { readme: README_TEXT });
 }

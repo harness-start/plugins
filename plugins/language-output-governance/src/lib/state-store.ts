@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
-  existsSync,
   mkdirSync,
   readFileSync,
   renameSync,
@@ -9,6 +8,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
 import { isProfileId } from "./profiles.js";
@@ -27,10 +28,7 @@ function digest(value) {
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(dirname(directory), ".gitignore");
-  if (!existsSync(ignore)) {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
-  }
+  ensurePluginWorkdirGitignore(dirname(directory));
 }
 
 function statePath(event) {

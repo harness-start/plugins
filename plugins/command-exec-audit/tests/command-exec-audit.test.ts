@@ -184,7 +184,7 @@ test("pre and post create a local gitignore without modifying the project gitign
     assert.equal("stdout" in lines[0], false);
     assert.equal("stderr" in lines[0], false);
 
-    assert.equal(readFileSync(join(root, ".command-exec-audit", ".gitignore"), "utf8"), "sessions/\n");
+    assert.equal(readFileSync(join(root, ".command-exec-audit", ".gitignore"), "utf8"), "*\n");
     assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });

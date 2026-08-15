@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:aee75e3e297d0b57f56cb5f135c05ddc522ce1ad4d7307a5429514eecc06503a
+// harness-source-hash: sha256:acd8d96ea4591b1c7cadc51352e1500df1c0d0ef0d1dce43bd449d3c8748a09b
 
 // plugins/code-quality-guard/src/lib/code-quality-core.ts
 import { spawn, spawnSync } from "node:child_process";
@@ -7,14 +7,41 @@ import {
   accessSync,
   constants,
   existsSync,
-  mkdirSync,
-  readFileSync,
+  mkdirSync as mkdirSync2,
+  readFileSync as readFileSync2,
   renameSync,
   statSync,
-  writeFileSync
+  writeFileSync as writeFileSync2
 } from "node:fs";
-import { delimiter, dirname, join, relative, resolve } from "node:path";
+import { delimiter, dirname, join as join2, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
+
+// plugins/code-quality-guard/src/lib/code-quality-core.ts
 var CHECK_NAMES = [
   "javascriptSyntax",
   "typescriptSyntax",
@@ -205,7 +232,7 @@ function repoRelativePath(filePath, repoRoot, cwd) {
 }
 async function loadUserConfig(repoRoot, warn = warnDefault) {
   if (!repoRoot) return null;
-  const configPath = join(repoRoot, CONFIG_FILE_NAME);
+  const configPath = join2(repoRoot, CONFIG_FILE_NAME);
   if (!existsSync(configPath)) return null;
   try {
     const loaded = await import(pathToFileURL(configPath).href);
@@ -239,7 +266,7 @@ function findExecutable(name, repoRoot, localRelativePaths = [], env = process.e
   }
   for (const directory of String(env.PATH ?? "").split(delimiter).filter(Boolean)) {
     for (const candidateName of executableNames(name)) {
-      const candidate = executableCandidate(join(directory, candidateName));
+      const candidate = executableCandidate(join2(directory, candidateName));
       if (candidate) return candidate;
     }
   }
@@ -259,10 +286,10 @@ function hasEslintConfig(repoRoot) {
     ".eslintrc.yaml",
     ".eslintrc.yml"
   ]) {
-    if (existsSync(join(repoRoot, name))) return true;
+    if (existsSync(join2(repoRoot, name))) return true;
   }
   try {
-    const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
+    const pkg = JSON.parse(readFileSync2(join2(repoRoot, "package.json"), "utf8"));
     return pkg.eslintConfig !== void 0;
   } catch {
     return false;
@@ -271,7 +298,7 @@ function hasEslintConfig(repoRoot) {
 function hasPhpstanConfig(repoRoot) {
   if (!repoRoot) return false;
   return ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"].some(
-    (name) => existsSync(join(repoRoot, name))
+    (name) => existsSync(join2(repoRoot, name))
   );
 }
 function runCommand(command, args, { cwd, timeoutMs, maxBytes = 128 * 1024 }) {
@@ -327,13 +354,13 @@ var STATE_DIR_RELATIVE = ".code-quality-guard/state";
 function stateFile(event, repoRoot) {
   const root = resolve(repoRoot ?? process.cwd());
   const key = createHash("sha256").update(extractSessionId(event)).digest("hex").slice(0, 24);
-  return join(root, STATE_DIR_RELATIVE, `${key}.json`);
+  return join2(root, STATE_DIR_RELATIVE, `${key}.json`);
 }
 function readState(event, repoRoot) {
   const path = stateFile(event, repoRoot);
   if (!path) return { path: null, missing: [], phpFiles: [] };
   try {
-    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    const parsed = JSON.parse(readFileSync2(path, "utf8"));
     return {
       path,
       missing: Array.isArray(parsed.missing) ? parsed.missing.filter((item) => typeof item === "string") : [],
@@ -347,13 +374,10 @@ function writeState(state) {
   if (!state.path) return false;
   try {
     const stateDir = dirname(state.path);
-    mkdirSync(stateDir, { recursive: true, mode: 448 });
-    const ignore = join(dirname(stateDir), ".gitignore");
-    if (!existsSync(ignore)) {
-      writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 384 });
-    }
+    mkdirSync2(stateDir, { recursive: true, mode: 448 });
+    ensurePluginWorkdirGitignore(dirname(stateDir));
     const temporary = `${state.path}.${process.pid}.tmp`;
-    writeFileSync(temporary, `${JSON.stringify({
+    writeFileSync2(temporary, `${JSON.stringify({
       missing: [...new Set(state.missing)].sort(),
       phpFiles: [...new Set(state.phpFiles)].sort()
     })}

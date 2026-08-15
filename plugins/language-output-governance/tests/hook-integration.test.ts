@@ -78,7 +78,7 @@ test("SessionStart uses state and creates only the governance-local gitignore", 
 
   assert.equal(existsSync(join(cwd, ".language-output-governance", "state")), true);
   assert.equal(existsSync(join(cwd, ".language-output-governance", ".state")), false);
-  assert.equal(readFileSync(join(cwd, ".language-output-governance", ".gitignore"), "utf8"), "state/\n");
+  assert.equal(readFileSync(join(cwd, ".language-output-governance", ".gitignore"), "utf8"), "*\n");
   assert.equal(readFileSync(join(cwd, ".gitignore"), "utf8"), "vendor/\n");
 });
 

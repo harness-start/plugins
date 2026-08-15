@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c8a3c4972f6387ff2bf0aca0a6e52960e840e51244502162251119dc3b07f67a
+// harness-source-hash: sha256:b26a59c9058c4edd5330bc8e07cb43c10abad00650d5354441f68fac7ad5cd59
 
 // plugins/source-sanity-guard/src/entries/hooks/source-sanity-guard.ts
 import { execFileSync } from "node:child_process";

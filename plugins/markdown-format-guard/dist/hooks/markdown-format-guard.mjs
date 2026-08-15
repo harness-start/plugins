@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:602baa5083db91adad7becbacab88efa8d46b0feeca08afe20d1d3b3edce133c
+// harness-source-hash: sha256:7aec1f8937ac04cdd3f91d0c84bd20784192681c9bbaae34ff8c157fa838f0f9
 
 // plugins/markdown-format-guard/src/entries/hooks/markdown-format-guard.ts
 import { execFileSync } from "node:child_process";

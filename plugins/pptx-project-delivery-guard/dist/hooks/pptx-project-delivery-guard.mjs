@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4b07704e5a489e9e988aca70386b04dc9ec1f705e9a013e103386aecd23eb895
+// harness-source-hash: sha256:3422f99fc97f36ba94fd32ae1007511045c28d6aa6235660c13db0da475cf0f0
 import {
   evaluatePptxWrite,
   findPptxProjects,
@@ -7,7 +7,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-3BFFF26Q.mjs";
+} from "../chunks/chunk-H4AQWWDR.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/hooks/pptx-project-delivery-guard.ts
 import { dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:5aa7dd7b9b2ec85ef20f453537ce1876a1c089d0805041e6d9d4d9a8d0d1c2d4
+// harness-source-hash: sha256:b83e188d06912c83de2fac3551a6806bff8e3da1a620013df68136dc230a8f7a
 
 // plugins/language-output-governance/src/lib/config.ts
 import { execFileSync } from "node:child_process";
@@ -467,15 +467,41 @@ function warn(message) {
 // plugins/language-output-governance/src/lib/state-store.ts
 import { createHash, randomBytes } from "node:crypto";
 import {
-  existsSync as existsSync2,
-  mkdirSync,
-  readFileSync as readFileSync2,
+  mkdirSync as mkdirSync2,
+  readFileSync as readFileSync3,
   renameSync,
   rmSync,
   statSync,
-  writeFileSync
+  writeFileSync as writeFileSync2
 } from "node:fs";
-import { dirname, join as join2, resolve as resolve3 } from "node:path";
+import { dirname, join as join3, resolve as resolve3 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync2(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
+
+// plugins/language-output-governance/src/lib/state-store.ts
 var VERSION = 1;
 var TTL_MS = 24 * 60 * 60 * 1e3;
 var LOCK_STALE_MS = 3e4;
@@ -487,15 +513,12 @@ function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
 function ensureStateDir(directory) {
-  mkdirSync(directory, { recursive: true, mode: 448 });
-  const ignore = join2(dirname(directory), ".gitignore");
-  if (!existsSync2(ignore)) {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 384 });
-  }
+  mkdirSync2(directory, { recursive: true, mode: 448 });
+  ensurePluginWorkdirGitignore(dirname(directory));
 }
 function statePath(event) {
   const session = extractSessionId(event) ?? "default";
-  return join2(resolve3(extractCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
+  return join3(resolve3(extractCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 function emptyState(defaultProfile = "zh-CN") {
   return {
@@ -524,7 +547,7 @@ function sanitize(value, defaultProfile) {
 function read(path, defaultProfile) {
   if (!path) return emptyState(defaultProfile);
   try {
-    return sanitize(JSON.parse(readFileSync2(path, "utf8")), defaultProfile);
+    return sanitize(JSON.parse(readFileSync3(path, "utf8")), defaultProfile);
   } catch {
     return emptyState(defaultProfile);
   }
@@ -532,10 +555,10 @@ function read(path, defaultProfile) {
 function write(path, state) {
   if (!path) return false;
   const directory = dirname(path);
-  const temporary = join2(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const temporary = join3(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
     ensureStateDir(directory);
-    writeFileSync(temporary, `${JSON.stringify(state)}
+    writeFileSync2(temporary, `${JSON.stringify(state)}
 `, {
       encoding: "utf8",
       mode: 384,
@@ -554,7 +577,7 @@ function withLock(path, operation) {
   ensureStateDir(dirname(path));
   for (let attempt = 0; attempt < LOCK_ATTEMPTS; attempt += 1) {
     try {
-      mkdirSync(lock, { mode: 448 });
+      mkdirSync2(lock, { mode: 448 });
       try {
         return operation();
       } finally {

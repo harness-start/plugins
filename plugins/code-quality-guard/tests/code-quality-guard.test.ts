@@ -118,10 +118,24 @@ test("state writes a root gitignore and uses the visible state directory", () =>
     state.missing.push("eslint");
 
     assert.equal(writeState(state), true);
-    assert.equal(readFileSync(join(root, ".code-quality-guard", ".gitignore"), "utf8"), "state/\n");
+    assert.equal(readFileSync(join(root, ".code-quality-guard", ".gitignore"), "utf8"), "*\n");
     assert.equal(existsSync(join(root, ".code-quality-guard", "state")), true);
     assert.equal(readdirSync(join(root, ".code-quality-guard", "state")).length, 1);
     assert.equal(existsSync(join(root, ".code-quality-guard", ".state")), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("state upgrades a stale subdirectory gitignore to ignore the whole workdir", () => {
+  const root = gitRoot("quality-state-stale-ignore-");
+  try {
+    mkdirSync(join(root, ".code-quality-guard"), { recursive: true });
+    writeFileSync(join(root, ".code-quality-guard", ".gitignore"), "state/\n", "utf8");
+    const state = readState({ session_id: "stale" }, root);
+    state.missing.push("eslint");
+    assert.equal(writeState(state), true);
+    assert.equal(readFileSync(join(root, ".code-quality-guard", ".gitignore"), "utf8"), "*\n");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

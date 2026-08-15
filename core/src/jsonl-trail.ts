@@ -14,6 +14,8 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import { ensurePluginWorkdirGitignore } from "./plugin-workdir.js";
+
 const LOCK_STALE_MS = 10_000;
 const LOCK_RETRIES = 40;
 const LOCK_WAIT_MS = 25;
@@ -142,11 +144,11 @@ export function prepareTrail(
   repoRoot: string,
   auditRoot: string,
   sessionKey: string,
-  layout: { gitignore: string; readme: string },
+  layout: { readme: string; gitignore?: string },
 ) {
   const paths = trailPaths(repoRoot, auditRoot, sessionKey);
   mkdirSync(paths.sessionsDir, { recursive: true, mode: 0o700 });
-  if (!existsSync(paths.gitignorePath)) writeFileSync(paths.gitignorePath, layout.gitignore, { encoding: "utf8", mode: 0o600 });
+  ensurePluginWorkdirGitignore(paths.root);
   if (!existsSync(paths.readmePath)) writeFileSync(paths.readmePath, layout.readme, { encoding: "utf8", mode: 0o600 });
   return paths;
 }

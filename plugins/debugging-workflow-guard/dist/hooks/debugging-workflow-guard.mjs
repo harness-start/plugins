@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1ffaa0bf3ba4c32a852c6833647fd20f19c17f0595e653797d172e81b1d4e7cc
+// harness-source-hash: sha256:114ce998494b0ac701f6443fb7459aab377a414ce1d41330c544872dc79292f8
 
 // plugins/debugging-workflow-guard/src/entries/hooks/debugging-workflow-guard.ts
-import { appendFileSync, existsSync as existsSync4, readFileSync as readFileSync3 } from "node:fs";
+import { appendFileSync, existsSync as existsSync3, readFileSync as readFileSync4 } from "node:fs";
 import { execFileSync as execFileSync2 } from "node:child_process";
 import { relative as relative3, resolve as resolve6 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -443,20 +443,54 @@ function stopDeny(reason) {
 
 // plugins/debugging-workflow-guard/src/lib/state-store.ts
 import { createHash, randomBytes } from "node:crypto";
-import { closeSync, existsSync as existsSync2, mkdirSync, openSync, readFileSync, renameSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join as join2, resolve as resolve3 } from "node:path";
+import { closeSync, mkdirSync as mkdirSync2, openSync, readFileSync as readFileSync2, renameSync, rmSync, rmdirSync, statSync, writeFileSync as writeFileSync2 } from "node:fs";
+import { basename, dirname, join as join3, resolve as resolve3 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text2) {
+  return String(text2 ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text2) {
+  const value = normalizeGitignore(text2);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
+
+// plugins/debugging-workflow-guard/src/lib/state-store.ts
 var VERSION = 1;
 var TTL_MS = 24 * 60 * 60 * 1e3;
 var STATE_DIR_RELATIVE = ".debug-workflow/.state";
 function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
 }
-function ensureStateDir(directory) {
-  mkdirSync(directory, { recursive: true, mode: 448 });
-  const ignore = join2(directory, ".gitignore");
-  if (!existsSync2(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 384 });
+function debugWorkdir(from) {
+  let cursor = resolve3(from);
+  while (basename(cursor) !== ".debug-workflow") {
+    const parent = dirname(cursor);
+    if (parent === cursor) return null;
+    cursor = parent;
   }
+  return cursor;
+}
+function ensureStateDir(directory) {
+  mkdirSync2(directory, { recursive: true, mode: 448 });
+  const workdir = debugWorkdir(directory);
+  if (workdir) ensurePluginWorkdirGitignore(workdir);
 }
 function emptyState() {
   return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, invalid: false, updatedAt: 0 };
@@ -472,15 +506,15 @@ function sanitize(value) {
 }
 function statePath(sessionId, cwd) {
   const session = sessionId || "default";
-  return join2(resolve3(cwd), STATE_DIR_RELATIVE, "sessions", `${digest(session)}.json`);
+  return join3(resolve3(cwd), STATE_DIR_RELATIVE, "sessions", `${digest(session)}.json`);
 }
 function atomicWrite(path, value) {
   if (!path) return false;
   const directory = dirname(path);
-  const temp = join2(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const temp = join3(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
     ensureStateDir(directory);
-    writeFileSync(temp, `${JSON.stringify(value)}
+    writeFileSync2(temp, `${JSON.stringify(value)}
 `, { encoding: "utf8", mode: 384, flag: "wx" });
     renameSync(temp, path);
     return true;
@@ -494,7 +528,7 @@ function atomicWrite(path, value) {
 }
 function read(path, fallback = null) {
   try {
-    return JSON.parse(readFileSync(path, "utf8"));
+    return JSON.parse(readFileSync2(path, "utf8"));
   } catch {
     return fallback;
   }
@@ -507,15 +541,15 @@ function writeState(sessionId, cwd, state) {
   return atomicWrite(statePath(sessionId, cwd), state);
 }
 function registryPath(repoRoot2, workOrderId) {
-  return join2(resolve3(repoRoot2), STATE_DIR_RELATIVE, "leases", `${digest(workOrderId)}.json`);
+  return join3(resolve3(repoRoot2), STATE_DIR_RELATIVE, "leases", `${digest(workOrderId)}.json`);
 }
 function acquireLease({ repoRoot: repoRoot2, workOrderId, epoch, sessionId, leaseMinutes, now = Date.now() }) {
   const path = registryPath(repoRoot2, workOrderId);
   if (!path) return { ok: true, persisted: false };
   const lock = `${path}.lock`;
   const createLock = () => {
-    mkdirSync(dirname(path), { recursive: true, mode: 448 });
-    mkdirSync(lock, { mode: 448 });
+    mkdirSync2(dirname(path), { recursive: true, mode: 448 });
+    mkdirSync2(lock, { mode: 448 });
   };
   try {
     createLock();
@@ -557,8 +591,8 @@ import { execFileSync } from "node:child_process";
 import { relative as relative2, resolve as resolve5 } from "node:path";
 
 // plugins/debugging-workflow-guard/src/lib/work-order.ts
-import { existsSync as existsSync3, lstatSync, readdirSync, readFileSync as readFileSync2 } from "node:fs";
-import { join as join3, relative, resolve as resolve4 } from "node:path";
+import { existsSync as existsSync2, lstatSync, readdirSync, readFileSync as readFileSync3 } from "node:fs";
+import { join as join4, relative, resolve as resolve4 } from "node:path";
 var SCHEMA = "debug-work-order/v1";
 var WORK_STATUSES = /* @__PURE__ */ new Set(["open", "paused", "closed", "aborted"]);
 var RUN_STATES = /* @__PURE__ */ new Set(["active", "paused", "closed"]);
@@ -740,11 +774,11 @@ function loadWorkOrder(path, config) {
     const info = lstatSync(path);
     if (!info.isFile() || info.isSymbolicLink()) return { present: true, valid: false, findings: ["work order must be a regular non-symlink file"], path };
     if (info.size > config.ledger.maxBytes) return { present: true, valid: false, findings: [`work order exceeds ${config.ledger.maxBytes} bytes`], path };
-    const extracted = extractWorkOrder(readFileSync2(path, "utf8"));
+    const extracted = extractWorkOrder(readFileSync3(path, "utf8"));
     if (!extracted.ok) return { present: true, valid: false, findings: [extracted.error], path };
     return { present: true, path, ...validateWorkOrder(extracted.value, config) };
   } catch (error) {
-    return { present: existsSync3(path), valid: false, findings: [`cannot read work order: ${error?.message ?? error}`], path };
+    return { present: existsSync2(path), valid: false, findings: [`cannot read work order: ${error?.message ?? error}`], path };
   }
 }
 function isWorkOrderPath(path, repoRoot2, config) {
@@ -752,14 +786,14 @@ function isWorkOrderPath(path, repoRoot2, config) {
   return !rel.startsWith("../") && rel.startsWith(`${config.ledger.root}/`) && rel.endsWith(".md");
 }
 function scanWorkOrders(repoRoot2, config) {
-  const root = join3(repoRoot2, config.ledger.root);
+  const root = join4(repoRoot2, config.ledger.root);
   let names = [];
   try {
     names = readdirSync(root).filter((name) => name.endsWith(".md")).sort().slice(0, config.ledger.maxFiles);
   } catch {
     return [];
   }
-  return names.map((name) => loadWorkOrder(join3(root, name), config)).filter((item) => item.valid && ["open", "paused"].includes(item.workOrder.status));
+  return names.map((name) => loadWorkOrder(join4(root, name), config)).filter((item) => item.valid && ["open", "paused"].includes(item.workOrder.status));
 }
 
 // plugins/debugging-workflow-guard/src/lib/workflow.ts
@@ -1009,7 +1043,7 @@ function ensureLocalExclude(root, config) {
     const path = execFileSync2("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5e3 }).trim();
     const absolute = resolve6(root, path);
     const entry = `/${config.ledger.root}/`;
-    const existing = existsSync4(absolute) ? readFileSync3(absolute, "utf8") : "";
+    const existing = existsSync3(absolute) ? readFileSync4(absolute, "utf8") : "";
     if (!existing.split(/\r?\n/u).includes(entry)) appendFileSync(absolute, `${existing && !existing.endsWith("\n") ? "\n" : ""}${entry}
 `, "utf8");
   } catch (error) {
@@ -1051,7 +1085,7 @@ async function runPost(event, forceFailure = false) {
   const workOrderTouches = paths.filter((path) => isWorkOrderPath(path, root, config));
   if (workOrderTouches.length > 0) {
     const before = readState(sessionId, root);
-    if (forceFailure && !before.bound && workOrderTouches.every((path) => !existsSync4(path))) {
+    if (forceFailure && !before.bound && workOrderTouches.every((path) => !existsSync3(path))) {
       writeJson(contextOutput(postEvent, "[Debugging Workflow Guard] Work Order write failed before a file existed; workflow was not activated. Create the ledger directory if needed and retry the same file write."));
       return;
     }

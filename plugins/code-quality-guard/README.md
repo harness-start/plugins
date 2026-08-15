@@ -15,7 +15,7 @@
 
 检查器优先从项目依赖、虚拟环境或 `vendor/bin` 发现，再查找 PATH。插件不会安装依赖、访问网络或执行配置提供的命令。工具、配置或运行环境不可用时，每个会话和工作区只报告一次。
 
-PHPStan 使用 Git 根目录的 `.code-quality-guard/state/` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。`.code-quality-guard/.gitignore` 会忽略 `state/`，状态文件不会进入版本控制。
+PHPStan 使用 Git 根目录的 `.code-quality-guard/state/` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。`.code-quality-guard/.gitignore` 会忽略该工作目录的全部内容，状态文件不会进入版本控制。
 
 ## 项目配置
 

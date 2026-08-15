@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:aee75e3e297d0b57f56cb5f135c05ddc522ce1ad4d7307a5429514eecc06503a
+// harness-source-hash: sha256:acd8d96ea4591b1c7cadc51352e1500df1c0d0ef0d1dce43bd449d3c8748a09b
 import {
   capOutput,
   eventCwd,
@@ -16,7 +16,7 @@ import {
   resolveRepoRoot,
   runCommand,
   writeState
-} from "../chunks/chunk-QOJO27JD.mjs";
+} from "../chunks/chunk-FTHJWBLS.mjs";
 
 // plugins/code-quality-guard/src/entries/hooks/code-quality-stop.ts
 import { existsSync } from "node:fs";

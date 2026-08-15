@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c94c232532285c6440b0131c47865311ea3b845cdb7f425c70568b18f455bd34
+// harness-source-hash: sha256:24f0a8d9334954e599ceef19b4ebf1ac278a96569d4312beb23913dd7d0b135a
 
 // plugins/execution-loop-guard/src/entries/hooks/execution-loop-guard.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";
@@ -638,13 +638,38 @@ function countRemotePolls(command) {
 }
 
 // plugins/execution-loop-guard/src/lib/state-store.ts
-import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname2, join as join3, resolve as resolve3 } from "node:path";
+import { mkdirSync as mkdirSync3, readFileSync as readFileSync3 } from "node:fs";
+import { dirname as dirname2, join as join4, resolve as resolve3 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync2(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
 
 // core/src/state-file.ts
 import { createHash as createHash2, randomBytes } from "node:crypto";
-import { existsSync as existsSync3, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join as join2 } from "node:path";
+import { existsSync as existsSync3, mkdirSync as mkdirSync2, renameSync, rmSync, statSync, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname, join as join3 } from "node:path";
 var DIRECTORY_MODE = 448;
 var FILE_MODE = 384;
 var STALE_LOCK_MS = 3e4;
@@ -654,10 +679,10 @@ function digestKey(value) {
 }
 function atomicWriteJson(path, value) {
   const directory = dirname(path);
-  const temporary = join2(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const temporary = join3(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
   try {
-    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
-    writeFileSync(temporary, `${JSON.stringify(value)}
+    mkdirSync2(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync2(temporary, `${JSON.stringify(value)}
 `, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
     renameSync(temporary, path);
     return true;
@@ -671,11 +696,11 @@ function atomicWriteJson(path, value) {
 }
 function withPathLock(path, operation) {
   const lockPath = `${path}.lock`;
-  mkdirSync(dirname(path), { recursive: true, mode: DIRECTORY_MODE });
+  mkdirSync2(dirname(path), { recursive: true, mode: DIRECTORY_MODE });
   const deadline = Date.now() + 5e3;
   while (true) {
     try {
-      mkdirSync(lockPath, { mode: DIRECTORY_MODE });
+      mkdirSync2(lockPath, { mode: DIRECTORY_MODE });
       try {
         return operation();
       } finally {
@@ -704,16 +729,13 @@ function digest(value) {
   return digestKey(value);
 }
 function ensureStateDir(directory) {
-  mkdirSync2(directory, { recursive: true, mode: 448 });
-  const ignore = join3(dirname2(directory), ".gitignore");
-  if (!existsSync4(ignore)) {
-    writeFileSync2(ignore, "state/\n", { encoding: "utf8", mode: 384 });
-  }
+  mkdirSync3(directory, { recursive: true, mode: 448 });
+  ensurePluginWorkdirGitignore(dirname2(directory));
 }
 function statePath(event) {
   const cwd = resolve3(extractCwd(event));
   const session = extractSessionId(event) ?? "default";
-  return join3(cwd, STATE_DIR_RELATIVE, `${digest(session)}.json`);
+  return join4(cwd, STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 function emptyState() {
   return { version: VERSION, updatedAt: 0, edits: {}, command: null, polling: null };
@@ -721,7 +743,7 @@ function emptyState() {
 function readState(path) {
   if (!path) return emptyState();
   try {
-    const parsed = JSON.parse(readFileSync2(path, "utf8"));
+    const parsed = JSON.parse(readFileSync3(path, "utf8"));
     if (!parsed || parsed.version !== VERSION || typeof parsed !== "object") return emptyState();
     return {
       version: VERSION,

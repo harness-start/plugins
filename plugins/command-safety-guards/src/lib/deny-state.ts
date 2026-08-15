@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
+
 import { tokenizeShell } from "./shell-parse.js";
 
 const DEFAULT_WINDOW_MS = 10 * 60 * 1000;
@@ -17,10 +19,7 @@ function ensureStateFile(event) {
   try {
     const directory = join(resolve(cwd), STATE_DIR_RELATIVE);
     mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const ignore = join(directory, ".gitignore");
-    if (!existsSync(ignore)) {
-      writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
-    }
+    ensurePluginWorkdirGitignore(join(resolve(cwd), ".command-safety-guards"));
     return path;
   } catch {
     return null;

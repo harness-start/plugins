@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:170103e246facf41602640aa23d26f73b9996e59f2d659ac2f3334755cf00e06
+// harness-source-hash: sha256:db6acf67eecce56c01c80da3a791b57505c2dce49e2dfa3fb4248a9969f97567
 
 // plugins/video-project-delivery-guard/src/lib/media.ts
 import { spawn } from "node:child_process";

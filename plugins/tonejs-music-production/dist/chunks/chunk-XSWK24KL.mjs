@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:2e06468278cd853b202d164627aec70cd7bf251a27eb226740a171c4796ca45d
+// harness-source-hash: sha256:e0f6fc4e3c04b0fb623a8f33f43d3fea1e43b13c1907459289458fcd4c538788
 import {
   MUSIC_ENGINE
-} from "./chunk-35CEFHQA.mjs";
+} from "./chunk-GR7SWMK5.mjs";
 
 // plugins/tonejs-music-production/src/lib/composition-loader.ts
 import { spawn } from "node:child_process";

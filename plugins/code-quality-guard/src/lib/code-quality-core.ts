@@ -13,6 +13,8 @@ import {
 import { delimiter, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
+
 export const CHECK_NAMES = [
   "javascriptSyntax",
   "typescriptSyntax",
@@ -380,10 +382,7 @@ export function writeState(state) {
   try {
     const stateDir = dirname(state.path);
     mkdirSync(stateDir, { recursive: true, mode: 0o700 });
-    const ignore = join(dirname(stateDir), ".gitignore");
-    if (!existsSync(ignore)) {
-      writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
-    }
+    ensurePluginWorkdirGitignore(dirname(stateDir));
     const temporary = `${state.path}.${process.pid}.tmp`;
     writeFileSync(temporary, `${JSON.stringify({
       missing: [...new Set(state.missing)].sort(),

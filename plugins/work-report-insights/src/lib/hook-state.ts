@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
 
@@ -49,10 +50,10 @@ export async function readState(event, env = process.env) {
 export async function writeState(event, state, env = process.env) {
   const path = statePath(event, env);
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-  const ignore = join(dirname(path), ".gitignore");
-  if (!existsSync(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
-  }
+  const storageRoot = env.WORK_REPORT_INSIGHTS_DATA
+    ? resolve(env.WORK_REPORT_INSIGHTS_DATA)
+    : join(resolve(extractCwd(event)), ".work-report-insights");
+  ensurePluginWorkdirGitignore(storageRoot);
   const temporary = `${path}.${process.pid}.${randomBytes(5).toString("hex")}.tmp`;
   const next = { ...emptyState(), ...state, version: VERSION, updatedAt: Date.now() };
   try {

@@ -307,7 +307,7 @@ test("state persistence uses state and creates only the guard-local gitignore", 
 
   assert.equal(existsSync(join(root, ".execution-loop-guard", "state")), true);
   assert.equal(existsSync(join(root, ".execution-loop-guard", ".state")), false);
-  assert.equal(readFileSync(join(root, ".execution-loop-guard", ".gitignore"), "utf8"), "state/\n");
+  assert.equal(readFileSync(join(root, ".execution-loop-guard", ".gitignore"), "utf8"), "*\n");
   assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
 });
 

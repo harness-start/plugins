@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { closeSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, rmdirSync, statSync, writeFileSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 const VERSION = 1;
 const TTL_MS = 24 * 60 * 60 * 1000;
@@ -8,12 +10,20 @@ export const STATE_DIR_RELATIVE = ".debug-workflow/.state";
 
 export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
 
+function debugWorkdir(from) {
+  let cursor = resolve(from);
+  while (basename(cursor) !== ".debug-workflow") {
+    const parent = dirname(cursor);
+    if (parent === cursor) return null;
+    cursor = parent;
+  }
+  return cursor;
+}
+
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(directory, ".gitignore");
-  if (!existsSync(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 0o600 });
-  }
+  const workdir = debugWorkdir(directory);
+  if (workdir) ensurePluginWorkdirGitignore(workdir);
 }
 
 export function emptyState() {

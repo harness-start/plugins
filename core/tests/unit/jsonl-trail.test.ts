@@ -9,9 +9,9 @@ import { appendRecord, prepareTrail, rewriteTip, sanitizeSessionKey } from "@har
 test("prepareTrail and rewriteTip only rewrite the last line", () => {
   const root = mkdtempSync(join(tmpdir(), "jsonl-trail-"));
   const paths = prepareTrail(root, ".audit", sanitizeSessionKey("s1", root), {
-    gitignore: "sessions/\n",
     readme: "audit\n",
   });
+  assert.equal(readFileSync(join(root, ".audit", ".gitignore"), "utf8"), "*\n");
   appendRecord(paths.sessionPath, { id: 1, status: "done" });
   appendRecord(paths.sessionPath, { id: 2, status: "pending" });
   assert.equal(rewriteTip(paths.sessionPath, (parsed) => {

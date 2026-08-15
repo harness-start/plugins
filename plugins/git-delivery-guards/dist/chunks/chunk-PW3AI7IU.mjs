@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:b033b97c6805825337b5c4b034fedd814fe97df4423b6ae836df9771f060c6c4
+// harness-source-hash: sha256:2094f32963a51e82ea42fd0c4d3b56cab7efe4a3092befe0518b492d605752c9
 
 // core/src/hook-event.ts
 function isRecord(value) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:042186fef6086fdec344292c98f4c0990944353bd53ef08a794823d5039a251e
+// harness-source-hash: sha256:02595068c90d146741494a1d7e3701df870fdf2e07ae36924de0998fb9f13936
 import {
   SEAL_PREFIX,
   isProtectedReportPath,
@@ -7,7 +7,7 @@ import {
   reportPath,
   sha256,
   verifyReport
-} from "../chunks/chunk-QJRQ6UZN.mjs";
+} from "../chunks/chunk-42B7SUE3.mjs";
 
 // plugins/work-report-insights/src/entries/hooks/work-report-insights-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";
@@ -435,9 +435,35 @@ async function protectionDecision(event, options = {}) {
 
 // plugins/work-report-insights/src/lib/hook-state.ts
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync, writeFileSync } from "node:fs";
 import { mkdir, readFile as readFile2, rename, rm, writeFile } from "node:fs/promises";
-import { dirname as dirname2, join as join2, resolve as resolve3 } from "node:path";
+import { dirname as dirname2, join as join3, resolve as resolve3 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
+
+// plugins/work-report-insights/src/lib/hook-state.ts
 var VERSION = 1;
 var STATE_DIR_RELATIVE = ".work-report-insights/.state";
 function digest(value) {
@@ -458,11 +484,11 @@ function emptyState() {
 }
 function dataRoot(event, env = process.env) {
   if (env.WORK_REPORT_INSIGHTS_DATA) return resolve3(env.WORK_REPORT_INSIGHTS_DATA);
-  return join2(resolve3(extractCwd(event)), STATE_DIR_RELATIVE);
+  return join3(resolve3(extractCwd(event)), STATE_DIR_RELATIVE);
 }
 function statePath(event, env = process.env) {
   const session = extractSessionId(event) || "default";
-  return join2(dataRoot(event, env), `${digest(session)}.json`);
+  return join3(dataRoot(event, env), `${digest(session)}.json`);
 }
 async function readState(event, env = process.env) {
   try {
@@ -476,10 +502,8 @@ async function readState(event, env = process.env) {
 async function writeState(event, state, env = process.env) {
   const path = statePath(event, env);
   await mkdir(dirname2(path), { recursive: true, mode: 448 });
-  const ignore = join2(dirname2(path), ".gitignore");
-  if (!existsSync(ignore)) {
-    writeFileSync(ignore, "*\n", { encoding: "utf8", mode: 384 });
-  }
+  const storageRoot = env.WORK_REPORT_INSIGHTS_DATA ? resolve3(env.WORK_REPORT_INSIGHTS_DATA) : join3(resolve3(extractCwd(event)), ".work-report-insights");
+  ensurePluginWorkdirGitignore(storageRoot);
   const temporary = `${path}.${process.pid}.${randomBytes(5).toString("hex")}.tmp`;
   const next = { ...emptyState(), ...state, version: VERSION, updatedAt: Date.now() };
   try {

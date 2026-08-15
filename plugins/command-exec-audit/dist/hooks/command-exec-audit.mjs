@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:54c35d5dcee4adb3a98c413fae652823958ad89e6b3346a8ddfe7878440a80f8
+// harness-source-hash: sha256:f7903b9f6d421b63b8217636c3dcfe0e35779be983621c0564af578aef97e6fa
 
 // plugins/command-exec-audit/src/entries/hooks/command-exec-audit.ts
 import { resolve as resolve4 } from "node:path";
@@ -435,7 +435,7 @@ async function loadProjectConfig(repoRoot, warn2 = () => {
 }
 
 // plugins/command-exec-audit/src/lib/jsonl-trail.ts
-import { existsSync as existsSync3, readFileSync as readFileSync2 } from "node:fs";
+import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
 
 // core/src/jsonl-trail.ts
 import { createHash, randomBytes } from "node:crypto";
@@ -443,16 +443,43 @@ import {
   appendFileSync,
   closeSync,
   existsSync as existsSync2,
-  mkdirSync,
+  mkdirSync as mkdirSync2,
   openSync,
-  readFileSync,
+  readFileSync as readFileSync2,
   renameSync,
   rmSync,
   unlinkSync,
-  writeFileSync,
+  writeFileSync as writeFileSync2,
   writeSync
 } from "node:fs";
-import { dirname, join as join2, resolve as resolve2 } from "node:path";
+import { dirname, join as join3, resolve as resolve2 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
+
+// core/src/jsonl-trail.ts
 var LOCK_STALE_MS = 1e4;
 var LOCK_RETRIES = 40;
 var LOCK_WAIT_MS = 25;
@@ -464,13 +491,13 @@ function sanitizeSessionKey(sessionId, cwd) {
   return `cwd-${createHash("sha256").update(String(cwd ?? "")).digest("hex").slice(0, 16)}`;
 }
 function trailPaths(repoRoot, auditRoot, sessionKey) {
-  const root = join2(resolve2(repoRoot), auditRoot);
+  const root = join3(resolve2(repoRoot), auditRoot);
   return {
     root,
-    sessionsDir: join2(root, "sessions"),
-    gitignorePath: join2(root, ".gitignore"),
-    readmePath: join2(root, "README.md"),
-    sessionPath: join2(root, "sessions", `${sessionKey}.jsonl`)
+    sessionsDir: join3(root, "sessions"),
+    gitignorePath: join3(root, ".gitignore"),
+    readmePath: join3(root, "README.md"),
+    sessionPath: join3(root, "sessions", `${sessionKey}.jsonl`)
   };
 }
 function sleepMs(ms) {
@@ -480,7 +507,7 @@ function sleepMs(ms) {
 }
 function acquireLock(sessionPath) {
   const lockPath = `${sessionPath}.lock`;
-  mkdirSync(dirname(sessionPath), { recursive: true, mode: 448 });
+  mkdirSync2(dirname(sessionPath), { recursive: true, mode: 448 });
   for (let attempt = 0; attempt < LOCK_RETRIES; attempt += 1) {
     try {
       const fd = openSync(lockPath, "wx", 384);
@@ -491,7 +518,7 @@ ${Date.now()}
     } catch (error) {
       if (error.code !== "EEXIST") throw error;
       try {
-        const raw = readFileSync(lockPath, "utf8");
+        const raw = readFileSync2(lockPath, "utf8");
         const ts = Number(raw.split("\n")[1] ?? 0);
         if (Number.isFinite(ts) && Date.now() - ts > LOCK_STALE_MS) {
           unlinkSync(lockPath);
@@ -516,7 +543,7 @@ function releaseLock(lock) {
   }
 }
 function appendRecord(sessionPath, record) {
-  mkdirSync(dirname(sessionPath), { recursive: true, mode: 448 });
+  mkdirSync2(dirname(sessionPath), { recursive: true, mode: 448 });
   const line = `${JSON.stringify(record)}
 `;
   const lock = acquireLock(sessionPath);
@@ -534,7 +561,7 @@ function appendRecord(sessionPath, record) {
 }
 function readLastNonEmptyLine(sessionPath) {
   if (!existsSync2(sessionPath)) return null;
-  const content = readFileSync(sessionPath, "utf8");
+  const content = readFileSync2(sessionPath, "utf8");
   const lines = content.split("\n");
   for (let i = lines.length - 1; i >= 0; i -= 1) {
     const line = lines[i];
@@ -561,7 +588,7 @@ function rewriteTip(sessionPath, predicate, nextRecord) {
     while (nextLines.length > 0 && nextLines[nextLines.length - 1] === "") nextLines.pop();
     const recheck = readLastNonEmptyLine(sessionPath);
     if (!recheck || recheck.line !== tip.line || recheck.index !== tip.index) return "miss";
-    writeFileSync(temporary, `${nextLines.join("\n")}
+    writeFileSync2(temporary, `${nextLines.join("\n")}
 `, { encoding: "utf8", mode: 384, flag: "wx" });
     renameSync(temporary, sessionPath);
     return "rewritten";
@@ -577,9 +604,9 @@ function rewriteTip(sessionPath, predicate, nextRecord) {
 }
 function prepareTrail(repoRoot, auditRoot, sessionKey, layout) {
   const paths = trailPaths(repoRoot, auditRoot, sessionKey);
-  mkdirSync(paths.sessionsDir, { recursive: true, mode: 448 });
-  if (!existsSync2(paths.gitignorePath)) writeFileSync(paths.gitignorePath, layout.gitignore, { encoding: "utf8", mode: 384 });
-  if (!existsSync2(paths.readmePath)) writeFileSync(paths.readmePath, layout.readme, { encoding: "utf8", mode: 384 });
+  mkdirSync2(paths.sessionsDir, { recursive: true, mode: 448 });
+  ensurePluginWorkdirGitignore(paths.root);
+  if (!existsSync2(paths.readmePath)) writeFileSync2(paths.readmePath, layout.readme, { encoding: "utf8", mode: 384 });
   return paths;
 }
 
@@ -593,11 +620,10 @@ Write policy:
 - The audit plugin may rewrite only the last line (pending \u2192 terminal).
 - Earlier lines must not be modified by agents or automation tools.
 `;
-var GITIGNORE_TEXT = "sessions/\n";
 function findPendingByToolUseId(sessionPath, toolUseId) {
   const id = String(toolUseId ?? "").trim();
   if (!id || !existsSync3(sessionPath)) return null;
-  const content = readFileSync2(sessionPath, "utf8");
+  const content = readFileSync3(sessionPath, "utf8");
   let found = null;
   for (const line of content.split("\n")) {
     if (!line.trim()) continue;
@@ -612,7 +638,7 @@ function findPendingByToolUseId(sessionPath, toolUseId) {
   return found;
 }
 function prepareTrail2(repoRoot, auditRoot, sessionKey) {
-  return prepareTrail(repoRoot, auditRoot, sessionKey, { gitignore: GITIGNORE_TEXT, readme: README_TEXT });
+  return prepareTrail(repoRoot, auditRoot, sessionKey, { readme: README_TEXT });
 }
 
 // plugins/command-exec-audit/src/lib/paths.ts

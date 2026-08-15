@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:65b29c425749ac6210b125683ed1556addc4b86d9f8b200c0f112d08e9202a84
+// harness-source-hash: sha256:1878222af03888ea87debc6809009ac6a59db1fa4ab9c74b751221fe3f44b42c
 import {
   preflightMigration,
   runCli
-} from "../chunks/chunk-OC2GV46V.mjs";
+} from "../chunks/chunk-RRMJU7AL.mjs";
 
 // plugins/cross-repo-history-migration/src/entries/cli/git-history-migration-preflight.ts
 runCli("git-history-migration-preflight", preflightMigration, process.argv.slice(2));

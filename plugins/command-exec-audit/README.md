@@ -11,7 +11,7 @@
   sessions/<session_id>.jsonl
 ```
 
-一个宿主会话对应一个 JSONL 文件。插件会在审计目录内创建 `.gitignore`，只忽略 `sessions/`；不会创建或修改项目根目录的 `.gitignore`。如果审计目录内已经有 `.gitignore`，插件也不会覆盖。
+一个宿主会话对应一个 JSONL 文件。插件会在审计目录内创建 `.gitignore`，忽略该目录的全部内容；不会创建或修改项目根目录的 `.gitignore`。旧的 `sessions/` 模板会升级为 `*`；自定义内容不会覆盖。
 
 ## 生命周期
 

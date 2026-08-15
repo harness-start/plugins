@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:b491616b87b99ed99c6fae96038c09981543da281a7be2f550d5b04af8ca4487
+// harness-source-hash: sha256:324e9dbe29a9a18cb8813669157bd335b72615d689d422225b4c5b2c78bade53
 
 // plugins/sdd-workflow/src/lib/artifacts.ts
 import { createHash } from "node:crypto";

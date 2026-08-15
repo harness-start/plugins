@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f2198695d91a047e2248a874b904a6e23c34f503d792e3b4f684aa3d31d8eac6
+// harness-source-hash: sha256:5f626794201e0b9fa03c639125c9730b35c7d5c93e55888415b92bf53baf0f13
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-FVBORMDT.mjs";
+} from "../chunks/chunk-NUGT2GAE.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -15,10 +15,10 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-V3CIUWJJ.mjs";
+} from "../chunks/chunk-B2DRTZOW.mjs";
 
 // plugins/research-provenance-guard/src/entries/hooks/research-provenance-guard.ts
-import { join as join3, resolve as resolve3 } from "node:path";
+import { join as join4, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // plugins/research-provenance-guard/src/lib/seal-validator.ts
@@ -61,8 +61,33 @@ async function validateSealedArtifacts({ workspaceRoot, runId, seal, promptEpoch
 
 // plugins/research-provenance-guard/src/lib/state-store.ts
 import { createHash, randomBytes } from "node:crypto";
-import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
-import { dirname, join as join2, resolve as resolve2 } from "node:path";
+import { mkdirSync as mkdirSync2, readFileSync as readFileSync2, readdirSync, unlinkSync, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname, join as join3, resolve as resolve2 } from "node:path";
+
+// core/src/plugin-workdir.ts
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join as join2 } from "node:path";
+var PLUGIN_WORKDIR_GITIGNORE = "*\n";
+function normalizeGitignore(text) {
+  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
+}
+function isStalePluginWorkdirGitignore(text) {
+  const value = normalizeGitignore(text);
+  return value === "" || value === "state/" || value === "sessions/";
+}
+function ensurePluginWorkdirGitignore(pluginRoot) {
+  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join2(pluginRoot, ".gitignore");
+  let current = null;
+  try {
+    current = readFileSync(ignore, "utf8");
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
+  if (current !== null && normalizeGitignore(current) === "*") return;
+  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
+  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
+}
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -193,27 +218,22 @@ function hash(value) {
 }
 var STATE_DIR_RELATIVE = ".research/state";
 function ensureStateDir(directory2) {
-  mkdirSync(directory2, { recursive: true, mode: 448 });
-  const ignore = join2(dirname(directory2), ".gitignore");
-  try {
-    readFileSync(ignore, "utf8");
-  } catch {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 384 });
-  }
+  mkdirSync2(directory2, { recursive: true, mode: 448 });
+  ensurePluginWorkdirGitignore(dirname(directory2));
 }
 function directory(event) {
   const session = sessionId(event) || "default";
-  const target = join2(resolve2(cwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
+  const target = join3(resolve2(cwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
   return target;
 }
 function appendStateEvent(event, type, payload = {}) {
   const target = directory(event);
   if (!target) return false;
   try {
-    ensureStateDir(join2(resolve2(cwd(event)), STATE_DIR_RELATIVE));
-    mkdirSync(target, { recursive: true, mode: 448 });
+    ensureStateDir(join3(resolve2(cwd(event)), STATE_DIR_RELATIVE));
+    mkdirSync2(target, { recursive: true, mode: 448 });
     const stamp = `${String(Date.now()).padStart(13, "0")}-${process.hrtime.bigint()}-${process.pid}-${randomBytes(5).toString("hex")}`;
-    writeFileSync(join2(target, `${stamp}.json`), `${JSON.stringify({ version: 1, type, at: Date.now(), payload })}
+    writeFileSync2(join3(target, `${stamp}.json`), `${JSON.stringify({ version: 1, type, at: Date.now(), payload })}
 `, { encoding: "utf8", mode: 384, flag: "wx" });
     return true;
   } catch {
@@ -248,13 +268,13 @@ function readState(event) {
     for (const file of files) {
       let item;
       try {
-        item = JSON.parse(readFileSync(join2(target, file), "utf8"));
+        item = JSON.parse(readFileSync2(join3(target, file), "utf8"));
       } catch {
         continue;
       }
       if (Date.now() - Number(item.at ?? 0) > TTL_MS) {
         try {
-          unlinkSync(join2(target, file));
+          unlinkSync(join3(target, file));
         } catch {
         }
         continue;
@@ -361,7 +381,7 @@ function shellCommandIsReadOnly(command) {
 function trustedWorkflowCommand(command, subcommand) {
   const pluginRoot = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT;
   if (!pluginRoot) return false;
-  const script = join3(resolve3(pluginRoot), "scripts", "research-workflow.mjs");
+  const script = join4(resolve3(pluginRoot), "scripts", "research-workflow.mjs");
   const value = String(command ?? "").trim();
   if (/[\n;&|><`]|\$\(/u.test(value)) return false;
   const exact = [

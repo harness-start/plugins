@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
+import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 import { atomicWriteJson, digestKey, withPathLock } from "@harness/core/state-file";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
@@ -14,10 +15,7 @@ export function digest(value) {
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const ignore = join(dirname(directory), ".gitignore");
-  if (!existsSync(ignore)) {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 0o600 });
-  }
+  ensurePluginWorkdirGitignore(dirname(directory));
 }
 
 function statePath(event) {

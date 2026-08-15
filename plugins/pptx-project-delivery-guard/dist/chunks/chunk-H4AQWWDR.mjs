@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:4b07704e5a489e9e988aca70386b04dc9ec1f705e9a013e103386aecd23eb895
+// harness-source-hash: sha256:3422f99fc97f36ba94fd32ae1007511045c28d6aa6235660c13db0da475cf0f0
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";

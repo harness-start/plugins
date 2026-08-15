@@ -173,7 +173,7 @@ test("post records edit with a local gitignore without modifying the project git
     assert.equal(readSessionLines(root, "sess-beta").length, 1);
     assert.equal(readSessionLines(root, "sess-alpha").length, 1);
 
-    assert.equal(readFileSync(join(root, ".file-access-audit", ".gitignore"), "utf8"), "sessions/\n");
+    assert.equal(readFileSync(join(root, ".file-access-audit", ".gitignore"), "utf8"), "*\n");
     assert.equal(readFileSync(join(root, ".gitignore"), "utf8"), "vendor/\n");
   } finally {
     rmSync(root, { recursive: true, force: true });
