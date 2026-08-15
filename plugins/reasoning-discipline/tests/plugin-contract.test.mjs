@@ -76,6 +76,7 @@ test("both marketplaces replace the two legacy plugin ids with the merged plugin
     assert.equal(names.includes("reasoning-discipline"), true, path);
     assert.equal(names.includes("reasoning-discipline-guard"), false, path);
     assert.equal(names.includes("first-principles-gate"), false, path);
-    assert.equal(names.length, 25, path);
+    assert.equal(names.filter((name) => name === "reasoning-discipline").length, 1, path);
+    assert.equal(new Set(names).size, names.length, `${path}: duplicate plugin id`);
   }
 });

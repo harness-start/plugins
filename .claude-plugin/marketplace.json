@@ -130,6 +130,11 @@
       "name": "project-capability-governance",
       "source": "./plugins/project-capability-governance",
       "description": "Captures schema-validated project capability proposals and guides human-confirmed project-local adoption without blocking ordinary work."
+    },
+    {
+      "name": "sdd-workflow",
+      "source": "./plugins/sdd-workflow",
+      "description": "Guides lightweight SDD and validates recognized spec, plan, and tasks writes with digest freshness."
     }
   ]
 }
