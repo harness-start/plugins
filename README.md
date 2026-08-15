@@ -94,6 +94,8 @@ codex plugin add <name>@harness-start --json
 
 每个插件都必须自包含。源码可以通过 `@harness/core/*` 复用根级逻辑，但 esbuild 会把它内联进插件自己的 `dist/`；运行时不得引用自身目录外的文件，因为 Claude Code 会将单个插件目录复制到缓存。仓库不是 npm workspace，也不使用 monorepo 包链接。
 
+本仓库还提交了仅对当前项目生效的 Claude Code 与 Codex `PreToolUse` Hook。它们会拒绝文件工具、补丁或显式 shell 命令直接写入 `plugins/<name>/dist/`；应修改 `src/` 后执行 `npm run build`。Codex 首次加载项目 Hook 时仍需按宿主提示审查并信任配置。
+
 `GUIDE.md` 中的 `session-hooks`、`policy-checks` 等名称只用于示例。真实插件位于 `plugins/`，并同时登记在两个 marketplace 索引中。
 
 ## 插件列表

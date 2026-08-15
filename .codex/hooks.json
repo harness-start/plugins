@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "ApplyPatch|apply_patch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|write_stdin",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-project-dist-write-guard}\" AI_EXPERTS_TRIGGER_FROM=\"project-dist-write-guard:pre-tool-use\" node \"$(git rev-parse --show-toplevel)/.codex/hooks/project-dist-write-guard.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
