@@ -1,0 +1,4 @@
+id = "01-ordinary-bypass"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["control", "bypass", "single-agent"]
