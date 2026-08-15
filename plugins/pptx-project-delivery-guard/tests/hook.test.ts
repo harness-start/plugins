@@ -104,9 +104,11 @@ test("stop hook blocks an incomplete project that targets release", async () => 
 
     const result = await runHook("stop", { cwd: root });
 
-    assert.equal(result.code, 2);
-    assert.match(result.stderr, /PPTX Project Delivery Guard/u);
-    assert.match(result.stderr, /REQUIRED_PATH_MISSING/u);
+    assert.equal(result.code, 0);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /PPTX Project Delivery Guard/u);
+    assert.match(output.reason, /REQUIRED_PATH_MISSING/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

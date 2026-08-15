@@ -8,12 +8,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function firstString(event: HookEvent, ...keys: string[]): string {
-  for (const key of keys) {
-    const value = event[key];
+function firstString(...values: unknown[]): string {
+  for (const value of values) {
     if (typeof value === "string" && value.length > 0) return value;
   }
   return "";
+}
+
+function nestedRecord(event: HookEvent, key: string): Record<string, unknown> | null {
+  const value = event[key];
+  return isRecord(value) ? value : null;
 }
 
 export async function readStdinJson(
@@ -21,8 +25,9 @@ export async function readStdinJson(
 ): Promise<HookEvent> {
   let raw = "";
   for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
   try {
-    const parsed: unknown = JSON.parse(raw || "{}");
+    const parsed: unknown = JSON.parse(raw);
     return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
@@ -30,18 +35,70 @@ export async function readStdinJson(
 }
 
 export function eventSessionId(event: HookEvent): string {
-  return firstString(event, "session_id", "sessionId", "conversation_id", "conversationId");
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id,
+  );
 }
 
 export function eventCwd(event: HookEvent): string {
-  return firstString(event, "cwd", "working_directory", "workingDirectory");
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
 
 export function eventToolName(event: HookEvent): string {
-  return firstString(event, "tool_name", "toolName");
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
 }
 
 export function eventToolInput(event: HookEvent): HookToolInput {
-  const value = event.tool_input ?? event.toolInput;
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
+}
+
+export function eventToolResponse(event: HookEvent): unknown {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response
+    ?? event.toolResponse
+    ?? event.tool_result
+    ?? event.toolResult
+    ?? event.response
+    ?? tool?.response
+    ?? null;
+}
+
+export function eventToolUseId(event: HookEvent): string {
+  const tool = nestedRecord(event, "tool");
+  const toolUse = nestedRecord(event, "tool_use");
+  return firstString(
+    event.tool_use_id,
+    event.toolUseId,
+    event.tool_call_id,
+    event.toolCallId,
+    toolUse?.id,
+    tool?.id,
+  );
+}
+
+export function eventPrompt(event: HookEvent): string {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
+}
+
+export function eventAssistantMessage(event: HookEvent): string {
+  return firstString(
+    event.last_assistant_message,
+    event.lastAssistantMessage,
+    event.assistant_message,
+    event.assistant_text,
+    event.assistantText,
+  );
+}
+
+export function isStopHookActive(event: HookEvent): boolean {
+  return event.stop_hook_active === true || event.stopHookActive === true;
 }

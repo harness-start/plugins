@@ -5,44 +5,25 @@ import { readdir, readFile } from "node:fs/promises";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 import { evaluatePosterWrite, validatePosterModel } from "../../lib/contract.js";
 import { evaluatePosterShell } from "../../lib/shell-policy.js";
 
-async function readEvent() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  try { return raw.trim() ? JSON.parse(raw) : {}; } catch { return { __parseError: true }; }
-}
-
-const inputOf = (event) => event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-const nameOf = (event) => event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-const cwdOf = (event) => resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
-
-function objectTargets(input) {
-  if (!input || typeof input !== "object") return [];
-  const targets = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "outputFile", "notebook_path", "notebookPath"]) {
-    if (typeof input[key] === "string" && input[key]) targets.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) for (const edit of input.edits) targets.push(...objectTargets(edit));
-  return targets;
-}
+const nameOf = (event) => eventToolName(event);
+const cwdOf = (event) => resolve(eventCwd(event));
 
 function targetsOf(event) {
-  const input = inputOf(event);
-  const targets = objectTargets(input);
-  for (const value of [input?.patch, input?.input]) if (typeof value === "string") {
-    for (const match of value.matchAll(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/gmu)) targets.push(match[1].trim());
-  }
-  return [...new Set(targets)];
+  return extractFileTargets(event, { tools: "any" });
 }
 
 function deny(reason) {
-  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: `[Poster Project Delivery Guard] ${reason}` } };
+  return preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
 }
 
 function context(eventName, message) {
-  return { hookSpecificOutput: { hookEventName: eventName, additionalContext: message } };
+  return additionalContext(eventName, message);
 }
 
 function resolveWorkspaceRoot(cwd) {
@@ -111,7 +92,7 @@ function format(findings) {
 
 async function main() {
   const mode = process.argv[2] ?? "session";
-  const event = await readEvent();
+  const event = await readStdinJson();
   if (event.__parseError) return;
   const cwd = cwdOf(event);
   if (mode === "pre") {
@@ -123,8 +104,7 @@ async function main() {
       });
       if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
     }
-    const input = inputOf(event);
-    const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
+    const command = extractShellCommand(event) ?? "";
     if (command) {
       const result = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
       if (result.decision === "deny") {
@@ -139,8 +119,7 @@ async function main() {
   } else if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);
   } else if (mode === "stop" && findings.length > 0) {
-    process.stderr.write(`${format(findings)}\n`);
-    process.exitCode = 2;
+    writeJson(stopBlock(format(findings)));
   }
 }
 

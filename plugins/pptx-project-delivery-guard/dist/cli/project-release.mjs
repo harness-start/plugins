@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:219059477b7e084f1f8b50f88b6872d4685cce2116824f4a86b5c521b3143d14
+// harness-source-hash: sha256:4b07704e5a489e9e988aca70386b04dc9ec1f705e9a013e103386aecd23eb895
 import {
   createPptxReceipt,
   loadPptxProject,
   validatePptxModel,
   validatePptxReceipt
-} from "../chunks/chunk-PK7ECZQT.mjs";
+} from "../chunks/chunk-3BFFF26Q.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/cli/project-release.ts
 import { open, rename, unlink, writeFile } from "node:fs/promises";

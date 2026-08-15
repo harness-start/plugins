@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5e11ef3f596992bbddc4b948501a82c2fe522745f083c8da9bc70e6343ff14b3
+// harness-source-hash: sha256:170103e246facf41602640aa23d26f73b9996e59f2d659ac2f3334755cf00e06
 import {
   mediaToolVersion,
   probeMedia,
   validateMeasuredMedia
-} from "../chunks/chunk-VOVXBSNB.mjs";
+} from "../chunks/chunk-DWD6HJWN.mjs";
 import {
   AUDIO_EVIDENCE_SCHEMA,
   PROBE_SCHEMA,
@@ -13,14 +13,14 @@ import {
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-XLWX7UV3.mjs";
+} from "../chunks/chunk-W2X4WYE7.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-EWUCZHBK.mjs";
+} from "../chunks/chunk-PGE673ZW.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/cli/project-probe.ts
 function prerequisiteFindings(model) {

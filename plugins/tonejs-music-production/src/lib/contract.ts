@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { projectInside } from "@harness/core/artifact-paths";
 
 const GENERATED_PATH = /^(?:build\/|proofs\/|dist\/|evidence\.audio\.json$|release\.manifest\.json$|receipt\.release\.json$)/u;
 const SUBJECT_EXCLUDED_PATH = /^(?:plan\.contract\.json$|build\/|proofs\/|dist\/|evidence\.audio\.json$|release\.manifest\.json$|receipt\.release\.json$|review\/|\.music-delivery-journal\.json$)/u;
@@ -180,15 +181,14 @@ export function validateMusicModel(model, { stage = "source" } = {}) {
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
 
-export function evaluateMusicWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
-  const normalized = relativePath.replaceAll("\\", "/");
-  const match = normalized.match(/(?:^|\/)artifacts\/music\/[^/]+\/(?<inside>.+)$/u);
-  if (!match) return { decision: "allow" };
-  if (GENERATED_PATH.test(match.groups.inside) && !writer.startsWith("tonejs-music-")) {
+export function evaluateMusicWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
+  const inside = projectInside(relativePath, cwd, "music");
+  if (!inside) return { decision: "allow" };
+  if (GENERATED_PATH.test(inside) && !writer.startsWith("tonejs-music-")) {
     return {
       decision: "deny",
       code: "PROTECTED_WRITER_REQUIRED",
-      message: `${match.groups.inside} must be written by a registered music tool, not ${toolName || "an unregistered tool"}`,
+      message: `${inside} must be written by a registered music tool, not ${toolName || "an unregistered tool"}`,
     };
   }
   return { decision: "allow" };

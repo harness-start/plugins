@@ -91,6 +91,13 @@ test("shell parsing finds wrapped and compound Git but ignores Git text argument
   assert.equal(classifyDeliveryCommand("echo 'git add .'", process.cwd()).length, 0);
 });
 
+test("classifies git behind /usr/bin/sudo and timeout", () => {
+  const sudo = classifyDeliveryCommand("/usr/bin/sudo git reset --hard", process.cwd());
+  assert.match(sudo[0]?.id ?? "", /Dangerous Git/u);
+  const timeout = classifyDeliveryCommand("timeout 5 git push --force origin main", process.cwd());
+  assert.match(timeout[0]?.id ?? "", /Dangerous Git/u);
+});
+
 test("pre entry emits a complete blocking contract", async () => {
   const result = await runEntry(PRE, {
     cwd: process.cwd(),

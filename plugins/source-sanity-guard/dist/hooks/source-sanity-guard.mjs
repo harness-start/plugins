@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e607617bb7f9328be1f6867e312c5914f9bb2f51fe0298e252bf655d38b6b473
+// harness-source-hash: sha256:c8a3c4972f6387ff2bf0aca0a6e52960e840e51244502162251119dc3b07f67a
 
 // plugins/source-sanity-guard/src/entries/hooks/source-sanity-guard.ts
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { isAbsolute as isAbsolute2, join, relative, resolve as resolve2 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // plugins/source-sanity-guard/src/lib/source-sanity-policy.ts
@@ -111,9 +111,47 @@ function analyzeGarbledText(text) {
   return null;
 }
 
-// plugins/source-sanity-guard/src/entries/hooks/source-sanity-guard.ts
-var CONFIG_FILE_NAME = ".source-sanity-guard.mjs";
-var FILE_TOOLS = /* @__PURE__ */ new Set([
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
   "edit",
@@ -122,6 +160,7 @@ var FILE_TOOLS = /* @__PURE__ */ new Set([
   "searchreplace",
   "write"
 ]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
 var SHELL_TOOLS = /* @__PURE__ */ new Set([
   "bash",
   "exec",
@@ -130,67 +169,251 @@ var SHELL_TOOLS = /* @__PURE__ */ new Set([
   "shell",
   "shellcommand"
 ]);
-var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
-var SIMPLE_WRAPPERS = /* @__PURE__ */ new Set(["busybox", "command", "exec", "nohup", "time"]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
+  if (!input || typeof input !== "object") return [];
+  const record = input;
+  const paths = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
+  }
+  return paths;
+}
+function extractPatchPaths(payload) {
+  return patchPaths(payload);
+}
+function patchPaths(payload) {
+  const paths = [];
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
+  return paths;
+}
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
+// core/src/shell-parse.ts
+function decodeAnsiCQuoteEscape(command, slashIndex) {
+  const marker = command[slashIndex + 1] ?? "";
+  const simple = /* @__PURE__ */ new Map([
+    ["a", "\x07"],
+    ["b", "\b"],
+    ["e", "\x1B"],
+    ["E", "\x1B"],
+    ["f", "\f"],
+    ["n", "\n"],
+    ["r", "\r"],
+    ["t", "	"],
+    ["v", "\v"],
+    ["\\", "\\"],
+    ["'", "'"],
+    ['"', '"']
+  ]);
+  if (simple.has(marker)) {
+    return { value: simple.get(marker) ?? "", endIndex: slashIndex + 1 };
+  }
+  const numeric = marker === "x" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,2}/iu) : marker === "u" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,4}/iu) : marker === "U" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,8}/iu) : command.slice(slashIndex + 1).match(/^[0-7]{1,3}/u);
+  if (numeric?.[0]) {
+    const radix = marker === "x" || marker === "u" || marker === "U" ? 16 : 8;
+    const codePoint = Number.parseInt(numeric[0], radix);
+    if (codePoint <= 1114111) {
+      const offset = marker === "x" || marker === "u" || marker === "U" ? 2 : 1;
+      return {
+        value: String.fromCodePoint(codePoint),
+        endIndex: slashIndex + offset + numeric[0].length - 1
+      };
+    }
+  }
+  if (marker === "\n") return { value: "", endIndex: slashIndex + 1 };
+  return { value: `\\${marker}`, endIndex: slashIndex + 1 };
+}
 function tokenizeShell(command) {
   const tokens = [];
   let current = "";
+  let tokenStarted = false;
   let quote = null;
+  let ansiCQuote = false;
   let escaped = false;
-  const text = String(command ?? "");
-  const flush = () => {
-    if (current) {
+  const pushCurrent = () => {
+    if (tokenStarted) {
       tokens.push(current);
       current = "";
+      tokenStarted = false;
     }
   };
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index] ?? "";
+    const next = command[index + 1];
     if (escaped) {
       current += char;
+      tokenStarted = true;
       escaped = false;
       continue;
     }
-    if (char === "\\" && quote !== "'") {
-      escaped = true;
-      continue;
-    }
     if (quote) {
+      if (ansiCQuote && char === "\\") {
+        const decoded = decodeAnsiCQuoteEscape(command, index);
+        current += decoded.value;
+        tokenStarted = true;
+        index = decoded.endIndex;
+        continue;
+      }
+      if (quote === '"' && char === "\\") {
+        escaped = true;
+        continue;
+      }
       if (char === quote) {
         quote = null;
+        ansiCQuote = false;
         continue;
       }
       current += char;
+      tokenStarted = true;
       continue;
     }
-    if (char === "'" || char === '"') {
+    if (char === "$" && (next === '"' || next === "'")) {
+      quote = next;
+      ansiCQuote = next === "'";
+      tokenStarted = true;
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
       quote = char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      tokenStarted = true;
       continue;
     }
     if (/\s/u.test(char)) {
-      flush();
+      pushCurrent();
       continue;
     }
-    if (char === ";") {
-      flush();
-      tokens.push(";");
+    if (char === "#" && !tokenStarted) break;
+    if (char === "&" && next === "&") {
+      pushCurrent();
+      tokens.push("&&");
+      index += 1;
       continue;
     }
-    if (char === "|" || char === "&") {
-      flush();
-      if (text[index + 1] === char) {
-        tokens.push(char + char);
-        index += 1;
-      } else {
-        tokens.push(char);
-      }
+    if (char === "&") {
+      pushCurrent();
+      tokens.push("&");
+      continue;
+    }
+    if (char === "|" && next === "|") {
+      pushCurrent();
+      tokens.push("||");
+      index += 1;
+      continue;
+    }
+    if (char === ";" || char === "|") {
+      pushCurrent();
+      tokens.push(char);
       continue;
     }
     current += char;
+    tokenStarted = true;
   }
-  flush();
+  pushCurrent();
   return tokens;
 }
+
+// plugins/source-sanity-guard/src/entries/hooks/source-sanity-guard.ts
+var CONFIG_FILE_NAME = ".source-sanity-guard.mjs";
+var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
+var SIMPLE_WRAPPERS = /* @__PURE__ */ new Set(["busybox", "command", "exec", "nohup", "time"]);
 function splitSimpleCommands(tokens) {
   const commands = [];
   let current = [];
@@ -376,90 +599,22 @@ function warn(message) {
   process.stderr.write(`[source-sanity-guard] ${message}
 `);
 }
-async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
+var extractPatchTargets = extractPatchPaths;
+function extractFileTargets2(event) {
+  if (isShellTool(eventToolName(event))) {
+    const cwd = eventCwd(event);
+    return [...new Set(
+      extractShellWriteTargets(extractShellCommand(event) ?? "").filter(Boolean).map((path) => isAbsolute2(path) ? resolve2(path) : resolve2(cwd, path.replace(/^\.\//u, "")))
+    )];
   }
-}
-function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-}
-function canonicalToolName(value) {
-  return String(value ?? "").replaceAll("_", "").toLowerCase();
-}
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-}
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
-}
-function stripMatchingQuotes(value) {
-  const text = String(value ?? "").trim();
-  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
-    return text.slice(1, -1);
-  }
-  return text;
-}
-function extractPatchTargets(payload) {
-  if (typeof payload !== "string") return [];
-  const targets = [];
-  for (const line of payload.split("\n")) {
-    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) targets.push(stripMatchingQuotes(file[1]));
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (move) targets.push(stripMatchingQuotes(move[1]));
-  }
-  return targets;
-}
-function objectPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "output_file",
-    "outputFile",
-    "notebook_path",
-    "notebookPath"
-  ]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) {
-    for (const edit of input.edits) paths.push(...objectPaths(edit));
-  }
-  return paths;
-}
-function extractFileTargets(event) {
-  const toolName = canonicalToolName(extractToolName(event));
-  const input = extractToolInput(event);
-  const cwd = extractCwd(event);
-  if (SHELL_TOOLS.has(toolName)) {
-    const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
-    return [...new Set(extractShellWriteTargets(command).map(stripMatchingQuotes).filter(Boolean).map(
-      (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-    ))];
-  }
-  if (!FILE_TOOLS.has(toolName)) return [];
-  const targets = objectPaths(input);
-  const patch = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  targets.push(...extractPatchTargets(patch));
-  return [...new Set(targets.map(stripMatchingQuotes).filter(Boolean).map(
-    (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-  ))];
+  if (!isFileMutationTool(eventToolName(event))) return [];
+  return extractFileTargets(event);
 }
 function extractInsertedText(event) {
-  const toolName = canonicalToolName(extractToolName(event));
-  const input = extractToolInput(event);
+  const input = event.tool_input ?? event.toolInput ?? event.tool?.input ?? event.input ?? {};
   const texts = [];
-  if (SHELL_TOOLS.has(toolName)) {
-    const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
+  if (isShellTool(eventToolName(event))) {
+    const command = extractShellCommand(event);
     if (command) texts.push(command);
   }
   const visit = (value) => {
@@ -537,7 +692,7 @@ function formatPreFindings(findings) {
   ].join("\n");
 }
 async function runPre(event, config, repoRoot, cwd) {
-  const targets = extractFileTargets(event);
+  const targets = extractFileTargets2(event);
   if (targets.length === 0) return;
   const insertedText = extractInsertedText(event);
   const garbled = analyzeGarbledText(insertedText);
@@ -568,19 +723,19 @@ async function runPre(event, config, repoRoot, cwd) {
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const cwd = resolve(extractCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const repoRoot = resolveRepoRoot(cwd);
   const config = resolveConfig(await loadUserConfig(repoRoot));
   await runPre(event, config, repoRoot, cwd);
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve2(process.argv[1])) {
   main().catch((error) => {
     warn(`hook failed open: ${error.message}`);
     process.exit(0);
   });
 }
 export {
-  extractFileTargets,
+  extractFileTargets2 as extractFileTargets,
   extractInsertedText,
   extractPatchTargets,
   extractShellWriteTargets,

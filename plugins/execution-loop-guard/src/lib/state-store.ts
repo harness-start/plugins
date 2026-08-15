@@ -1,6 +1,7 @@
-import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+
+import { atomicWriteJson, digestKey, withPathLock } from "@harness/core/state-file";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
 
@@ -8,7 +9,7 @@ const VERSION = 1;
 export const STATE_DIR_RELATIVE = ".execution-loop-guard/state";
 
 export function digest(value) {
-  return createHash("sha256").update(String(value)).digest("hex");
+  return digestKey(value);
 }
 
 function ensureStateDir(directory) {
@@ -48,17 +49,8 @@ function readState(path) {
 
 function writeState(path, state) {
   if (!path) return false;
-  const directory = dirname(path);
-  const temporary = join(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    ensureStateDir(directory);
-    writeFileSync(temporary, `${JSON.stringify(state)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try { rmSync(temporary, { force: true }); } catch {}
-    return false;
-  }
+  ensureStateDir(dirname(path));
+  return withPathLock(path, () => atomicWriteJson(path, state));
 }
 
 export function updateState(event, updater) {

@@ -1,53 +1,52 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0c9b59266df9aeac4a946c1c444158ac110d1f46e6f5c56be2e5dafb4fdb0776
+// harness-source-hash: sha256:aee75e3e297d0b57f56cb5f135c05ddc522ce1ad4d7307a5429514eecc06503a
 import {
   capOutput,
+  eventCwd,
   findExecutable,
   hasPhpstanConfig,
+  isStopHookActive,
   loadUserConfig,
   markMissingOnce,
   modeFor,
   readState,
+  readStdinJson,
   repoRelativePath,
   resolveConfig,
   resolveRepoRoot,
   runCommand,
   writeState
-} from "../chunks/chunk-3P4ZFOA2.mjs";
+} from "../chunks/chunk-QOJO27JD.mjs";
 
 // plugins/code-quality-guard/src/entries/hooks/code-quality-stop.ts
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// core/src/hook-output.ts
+function stopBlock(reason) {
+  return { decision: "block", reason };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// plugins/code-quality-guard/src/entries/hooks/code-quality-stop.ts
 function warn(message) {
   process.stderr.write(`[code-quality-guard] ${message}
 `);
-}
-async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
 }
 function outputReport(message) {
   process.stderr.write(`${message}
 `);
 }
-function stopBlock(message) {
-  process.stdout.write(`${JSON.stringify({ decision: "block", reason: message })}
-`);
-}
 async function main() {
   const event = await readStdinJson();
-  if (event.__parseError || event?.stop_hook_active === true || event?.stopHookActive === true) return;
-  const cwd = resolve(extractCwd(event));
+  if (event.__parseError || isStopHookActive(event)) return;
+  const cwd = resolve(eventCwd(event));
   const discoveredRoot = resolveRepoRoot(cwd);
   const repoRoot = discoveredRoot ?? cwd;
   const config = resolveConfig(await loadUserConfig(discoveredRoot));
@@ -110,7 +109,7 @@ async function main() {
     ...findings.flatMap((item) => [`- [${item.mode}] PHPStan`, ...item.message.split("\n").map((line) => `  ${line}`)]),
     ...omitted > 0 ? [`- [report] ${omitted} additional PHP file(s) were not checked because of the batch limit`] : []
   ].join("\n");
-  if (findings.some((item) => item.mode === "block")) stopBlock(message);
+  if (findings.some((item) => item.mode === "block")) writeJson(stopBlock(message));
   else outputReport(message);
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

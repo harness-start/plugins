@@ -1,21 +1,29 @@
 import { isAbsolute, resolve } from "node:path";
 
-const SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
-const FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace)$/iu;
+import {
+  eventAssistantMessage,
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  eventToolResponse,
+  readStdinJson,
+} from "@harness/core/hook-event";
+import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import {
+  extractFileTargets as extractCoreFileTargets,
+  extractShellCommand,
+  isFileMutationTool,
+} from "@harness/core/hook-targets";
 
-export async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try { return JSON.parse(raw); } catch { return { __parseError: true }; }
-}
+export { readStdinJson, extractShellCommand, preToolDeny, writeJson };
 
 export function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.sessionID ?? event?.context?.session_id ?? process.env.AI_EXPERTS_SESSION_ID ?? null;
+  return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || null;
 }
 
 export function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  return eventCwd(event);
 }
 
 export function extractAgentId(event) {
@@ -28,32 +36,26 @@ export function extractAgentPrompt(event) {
 }
 
 export function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? event?.name ?? "";
+  return eventToolName(event);
 }
 
 export function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+  return eventToolInput(event);
 }
 
 export function extractToolResponse(event) {
-  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.tool?.response ?? event?.error ?? null;
+  return eventToolResponse(event) ?? event?.error ?? null;
 }
 
 export function extractAssistantMessage(event) {
-  const value = event?.last_assistant_message ?? event?.lastAssistantMessage ?? event?.assistant_text ?? event?.assistantText ?? "";
-  return typeof value === "string" ? value : "";
-}
-
-export function extractShellCommand(event) {
-  if (!SHELL_TOOLS.test(String(extractToolName(event)))) return null;
-  const input = extractToolInput(event);
-  const command = input?.command ?? input?.cmd ?? input?.script;
-  return typeof command === "string" ? command : null;
+  return eventAssistantMessage(event);
 }
 
 function stripMatchingQuotes(value) {
   const text = String(value ?? "").trim();
-  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) return text.slice(1, -1);
+  if (text.length >= 2 && ((text.startsWith("\"") && text.endsWith("\"")) || (text.startsWith("'") && text.endsWith("'")))) {
+    return text.slice(1, -1);
+  }
   return text;
 }
 
@@ -68,24 +70,16 @@ function objectPaths(input) {
   return paths;
 }
 
-function patchPaths(payload) {
-  if (typeof payload !== "string") return [];
-  const paths = [];
-  for (const line of payload.split("\n")) {
-    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (file) paths.push(stripMatchingQuotes(file[1]));
-    if (move) paths.push(stripMatchingQuotes(move[1]));
-  }
-  return paths;
-}
-
 function responsePaths(response) {
   const paths = [];
   if (response && typeof response === "object") {
-    if (response.changes && typeof response.changes === "object" && !Array.isArray(response.changes)) paths.push(...Object.keys(response.changes));
+    if (response.changes && typeof response.changes === "object" && !Array.isArray(response.changes)) {
+      paths.push(...Object.keys(response.changes));
+    }
     paths.push(...objectPaths(response));
-    for (const key of ["output", "stdout", "text"]) if (typeof response[key] === "string") paths.push(...responsePaths(response[key]));
+    for (const key of ["output", "stdout", "text"]) {
+      if (typeof response[key] === "string") paths.push(...responsePaths(response[key]));
+    }
     return paths;
   }
   if (typeof response !== "string") return paths;
@@ -99,20 +93,16 @@ function responsePaths(response) {
 }
 
 export function extractFileTargets(event) {
-  const name = String(extractToolName(event));
-  if (!FILE_TOOLS.test(name) && !/applypatch/iu.test(name.replaceAll("_", ""))) return [];
   const cwd = resolve(extractCwd(event));
-  const input = extractToolInput(event);
-  const targets = objectPaths(input);
-  const patch = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  targets.push(...patchPaths(patch));
-  targets.push(...responsePaths(extractToolResponse(event)));
-  return [...new Set(targets.map(stripMatchingQuotes).filter(Boolean).map((value) => isAbsolute(value) ? resolve(value) : resolve(cwd, value.replace(/^\.\//u, ""))))];
+  const core = extractCoreFileTargets(event);
+  const extras = responsePaths(extractToolResponse(event)).map((value) => (
+    isAbsolute(value) ? resolve(value) : resolve(cwd, stripMatchingQuotes(value).replace(/^\.\//u, ""))
+  ));
+  return [...new Set([...core, ...extras])];
 }
 
 export function isMutationTool(event) {
-  const name = String(extractToolName(event)).replaceAll("_", "").toLowerCase();
-  return /^(?:applypatch|edit|multiedit|notebookedit|write|createfile|searchreplace)$/u.test(name);
+  return isFileMutationTool(extractToolName(event));
 }
 
 function responseText(response) {
@@ -154,12 +144,9 @@ export function contextOutput(eventName, text) {
     process.exitCode = 2;
     return null;
   }
-  return { hookSpecificOutput: { hookEventName: eventName, additionalContext: text } };
+  return additionalContext(eventName, text);
 }
 
-export function preToolDeny(reason) {
-  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
+export function stopDeny(reason) {
+  return stopBlock(reason);
 }
-
-export function stopDeny(reason) { return { decision: "block", reason }; }
-export function writeJson(value) { if (value) process.stdout.write(`${JSON.stringify(value)}\n`); }

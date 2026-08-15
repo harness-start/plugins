@@ -1,82 +1,22 @@
-import { isAbsolute, relative, resolve } from "node:path";
+import { relative } from "node:path";
 
-import {
-  extractFileTargets,
-  extractShellCommand,
-  extractToolName,
-  isFileTool,
-  isShellTool,
-} from "./hook-io.js";
-
-function underAuditRoot(filePath, auditRootAbs) {
-  const abs = resolve(filePath);
-  const root = resolve(auditRootAbs);
-  const rel = relative(root, abs).replaceAll("\\", "/");
-  return rel === "" || (!rel.startsWith("../") && !isAbsolute(rel));
-}
+import { extractFileTargets, extractShellCommand, extractToolName, isFileTool, isShellTool } from "./hook-io.js";
+import { commandMentionsRoot, isGenericMutationCommand, pathUnderRoot } from "@harness/core/path-protect";
 
 export function targetsHitAuditRoot(event, auditRootAbs) {
-  const hits = [];
-  for (const target of extractFileTargets(event)) {
-    if (underAuditRoot(target, auditRootAbs)) hits.push(target);
-  }
-  return hits;
-}
-
-function escapeRegExp(value) {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
-
-function auditRootMarkers(auditRootRel, auditRootAbs) {
-  const normalized = String(auditRootRel ?? "")
-    .replace(/^\.\//u, "")
-    .replace(/\/+$/u, "");
-  return [
-    auditRootRel,
-    normalized,
-    auditRootAbs,
-    normalized ? `${normalized}/` : null,
-    normalized ? `./${normalized}` : null,
-    normalized ? `./${normalized}/` : null,
-  ].filter(Boolean);
+  return extractFileTargets(event).filter((target) => pathUnderRoot(target, auditRootAbs));
 }
 
 export function commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  for (const marker of auditRootMarkers(auditRootRel, auditRootAbs)) {
-    const escaped = escapeRegExp(marker);
-    const re = new RegExp(
-      `(?:^|[\\s;|&\`"'(){}\\[\\]])${escaped}(?:$|[\\s;|&\`"'(){}\\[\\]//])`,
-      "u",
-    );
-    if (re.test(text)) return true;
-  }
-  return false;
+  return commandMentionsRoot(command, auditRootRel, auditRootAbs);
 }
 
 export function isAuditMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (
-    /(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu
-      .test(text)
-  ) {
-    return true;
-  }
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
+  return isGenericMutationCommand(command);
 }
 
 export function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs) {
-  if (!commandMentionsAuditRoot(command, auditRootRel, auditRootAbs)) return false;
-  return isAuditMutationCommand(command);
+  return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
 }
 
 export function protectDecision(event, auditRootRel, auditRootAbs) {

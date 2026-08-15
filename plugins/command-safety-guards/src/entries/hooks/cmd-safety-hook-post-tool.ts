@@ -6,7 +6,6 @@ import {
   additionalContextOutput,
   extractCwd,
   extractToolInput,
-  extractToolName,
   extractWriteTargets,
   readStdinJson,
   writeJson,
@@ -29,7 +28,7 @@ async function main() {
   if (settings.engines.fileSafety === false) return;
 
   const input = extractToolInput(event);
-  const reports = extractWriteTargets(extractToolName(event), input)
+  const reports = extractWriteTargets(event)
     .map((path) => (isAbsolute(path) ? path : resolve(cwd, path)))
     .filter(existsSync)
     .flatMap((path) => fileSafetyReports(path, input));

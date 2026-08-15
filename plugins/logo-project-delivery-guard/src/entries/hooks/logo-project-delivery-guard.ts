@@ -4,51 +4,32 @@ import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { eventCwd, eventToolInput, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
+import { additionalContext, preToolDeny, stopBlock } from "@harness/core/hook-output";
+import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 import { evaluateLogoWrite, validateLogoModel } from "../../lib/contract.js";
 import { findLogoProjects, loadLogoProject, resolveWorkspaceRoot } from "../../lib/project.js";
 import { evaluateLogoShell } from "../../lib/shell-policy.js";
 
-async function readEvent() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  try { return raw.trim() ? JSON.parse(raw) : {}; } catch { return { __parseError: true }; }
-}
-
-const inputOf = (event) => event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-const nameOf = (event) => event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-const cwdOf = (event) => resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
-
-function objectTargets(input) {
-  if (!input || typeof input !== "object") return [];
-  const targets = [];
-  for (const key of [
-    "file_path", "filePath", "path", "target_file", "output_file", "outputFile", "notebook_path", "notebookPath",
-    "source_path", "sourcePath", "destination_path", "destinationPath", "old_path", "oldPath", "new_path", "newPath",
-  ]) if (typeof input[key] === "string") targets.push(input[key]);
-  if (Array.isArray(input.edits)) for (const edit of input.edits) targets.push(...objectTargets(edit));
-  return targets;
-}
+const inputOf = (event) => eventToolInput(event);
+const nameOf = (event) => eventToolName(event);
+const cwdOf = (event) => resolve(eventCwd(event));
 
 function targetsOf(event) {
   const input = inputOf(event);
-  const targets = objectTargets(input);
-  for (const value of [input?.patch, input?.input, typeof input === "string" ? input : null]) if (typeof value === "string") {
-    for (const match of value.matchAll(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/gmu)) targets.push(match[1].trim());
-    for (const match of value.matchAll(/^\*\*\*\s+Move to:\s+(.+)$/gmu)) targets.push(match[1].trim());
+  const extras = [];
+  for (const key of ["source_path", "sourcePath", "destination_path", "destinationPath", "old_path", "oldPath", "new_path", "newPath"]) {
+    if (typeof input[key] === "string") extras.push(input[key]);
   }
-  return [...new Set(targets)];
+  return [...new Set([...extractFileTargets(event, { tools: "any" }), ...extras.map((path) => resolve(cwdOf(event), path))])];
 }
 
 function deny(reason) {
-  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: `[Logo Project Delivery Guard] ${reason}` } };
+  return preToolDeny(`[Logo Project Delivery Guard] ${reason}`);
 }
 
 function context(eventName, message) {
-  return { hookSpecificOutput: { hookEventName: eventName, additionalContext: message } };
-}
-
-function stopBlock(reason) {
-  return { decision: "block", reason };
+  return additionalContext(eventName, message);
 }
 
 async function existingPlanTarget(cwd, target) {
@@ -75,9 +56,9 @@ function format(findings) {
 
 async function main() {
   const mode = process.argv[2] ?? "session";
-  const event = await readEvent();
+  const event = await readStdinJson();
   if (event.__parseError) { process.stderr.write("[Logo Project Delivery Guard] invalid hook JSON\n"); process.exitCode = 2; return; }
-  if (mode === "stop" && (event?.stop_hook_active === true || event?.stopHookActive === true)) return;
+  if (mode === "stop" && isStopHookActive(event)) return;
   const cwd = cwdOf(event);
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   if (mode === "pre") {
@@ -86,8 +67,7 @@ async function main() {
       const result = evaluateLogoWrite({ relativePath: resolve(cwd, target), toolName: nameOf(event) });
       if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
     }
-    const input = inputOf(event);
-    const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
+    const command = extractShellCommand(event) ?? "";
     if (command) {
       const { roots } = await findLogoProjects(cwd);
       const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });

@@ -1,29 +1,237 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5e11ef3f596992bbddc4b948501a82c2fe522745f083c8da9bc70e6343ff14b3
+// harness-source-hash: sha256:170103e246facf41602640aa23d26f73b9996e59f2d659ac2f3334755cf00e06
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-XLWX7UV3.mjs";
+} from "../chunks/chunk-W2X4WYE7.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-EWUCZHBK.mjs";
+} from "../chunks/chunk-PGE673ZW.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/hooks/video-project-delivery-guard.ts
-import { relative, resolve as resolve2 } from "node:path";
+import { relative, resolve as resolve3 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context2 = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context2?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+
+// core/src/hook-output.ts
+function preToolDeny(reason) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    }
+  };
+}
+function additionalContext(hookEventName, context2, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context2}
+`);
+  if (options.suppressJson) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext: context2
+    }
+  };
+}
+function stopBlock(reason) {
+  return { decision: "block", reason };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
+  if (!input || typeof input !== "object") return [];
+  const record = input;
+  const paths = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
+  }
+  return paths;
+}
+function patchPaths(payload) {
+  const paths = [];
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
+  return paths;
+}
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
 // plugins/video-project-delivery-guard/src/lib/shell-policy.ts
-import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve(
+var PLUGIN_DIRECTORY = resolve2(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
-var TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
+var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 function parseShellWords(command) {
@@ -72,11 +280,11 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!words || words.length < 3) return null;
   if (!["node", basename(process.execPath), process.execPath].includes(words[0])) return null;
   if (words[1].startsWith("-")) return null;
-  const script = isAbsolute(words[1]) ? resolve(words[1]) : resolve(cwd, words[1]);
+  const script = isAbsolute2(words[1]) ? resolve2(words[1]) : resolve2(cwd, words[1]);
   const name = basename(script);
-  if (dirname(resolve(script)) !== resolve(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute(words[2]) ? resolve(words[2]) : resolve(cwd, words[2]);
-  const expectedParent = resolve(workspaceRoot, "artifacts", "video");
+  if (dirname(resolve2(script)) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(words[2]) ? resolve2(words[2]) : resolve2(cwd, words[2]);
+  const expectedParent = resolve2(workspaceRoot, "artifacts", "video");
   if (dirname(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
@@ -85,7 +293,7 @@ function expandKnownPluginRoot(command) {
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
     if (!value) continue;
-    expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve(value)}/dist/cli/`);
+    expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve2(value)}/dist/cli/`);
   }
   return expanded;
 }
@@ -100,8 +308,8 @@ function readOnlyCommand(words) {
 }
 function commandTouchesVideoScope(command, cwd, workspaceRoot) {
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
-  const normalizedCwd = resolve(cwd).replaceAll("\\", "/");
-  const normalizedRoot = resolve(workspaceRoot).replaceAll("\\", "/");
+  const normalizedCwd = resolve2(cwd).replaceAll("\\", "/");
+  const normalizedRoot = resolve2(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/video/`) || /(?:^|[\s"'=])\.?\/?artifacts\/video(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/video/`);
 }
 function evaluateVideoShell({ command, cwd, workspaceRoot }) {
@@ -119,42 +327,17 @@ function evaluateVideoShell({ command, cwd, workspaceRoot }) {
 }
 
 // plugins/video-project-delivery-guard/src/entries/hooks/video-project-delivery-guard.ts
-async function readEvent() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  try {
-    return raw.trim() ? JSON.parse(raw) : {};
-  } catch {
-    return { __parseError: true };
-  }
-}
-var inputOf = (event) => event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-var nameOf = (event) => event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-var cwdOf = (event) => resolve2(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
-var sessionOf = (event) => event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? process.env.AI_EXPERTS_SESSION_ID ?? "unknown";
-function objectTargets(input) {
-  if (!input || typeof input !== "object") return [];
-  const targets = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "outputFile", "notebook_path", "notebookPath"]) {
-    if (typeof input[key] === "string") targets.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) for (const edit of input.edits) targets.push(...objectTargets(edit));
-  return targets;
-}
+var nameOf = (event) => eventToolName(event);
+var cwdOf = (event) => resolve3(eventCwd(event));
+var sessionOf = (event) => eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
 function targetsOf(event) {
-  const input = inputOf(event);
-  const targets = objectTargets(input);
-  for (const value of [input?.patch, input?.input, typeof input === "string" ? input : null]) if (typeof value === "string") {
-    for (const match of value.matchAll(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/gmu)) targets.push(match[1].trim());
-    for (const match of value.matchAll(/^\*\*\*\s+Move to:\s+(.+)$/gmu)) targets.push(match[1].trim());
-  }
-  return [...new Set(targets)];
+  return extractFileTargets(event, { tools: "any" });
 }
 function deny(reason) {
-  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: `[Video Project Delivery Guard] ${reason}` } };
+  return preToolDeny(`[Video Project Delivery Guard] ${reason}`);
 }
 function context(eventName, message) {
-  return { hookSpecificOutput: { hookEventName: eventName, additionalContext: message } };
+  return additionalContext(eventName, message);
 }
 async function findingsFor(cwd) {
   const findings = [];
@@ -175,7 +358,7 @@ function format(findings) {
 }
 async function main() {
   const mode = process.argv[2] ?? "session";
-  const event = await readEvent();
+  const event = await readStdinJson();
   if (event.__parseError) {
     process.stderr.write("[Video Project Delivery Guard] invalid hook JSON\n");
     process.exitCode = 2;
@@ -185,7 +368,7 @@ async function main() {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   if (mode === "pre") {
     for (const target of targetsOf(event)) {
-      const absolutePath = resolve2(cwd, target);
+      const absolutePath = resolve3(cwd, target);
       const result = evaluateVideoWrite({ relativePath: absolutePath, toolName: nameOf(event) });
       if (result.decision === "deny") {
         process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
@@ -193,8 +376,7 @@ async function main() {
         return;
       }
     }
-    const input = inputOf(event);
-    const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
+    const command = extractShellCommand(event) ?? "";
     if (command) {
       const result = evaluateVideoShell({ command, cwd, workspaceRoot });
       if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
@@ -222,12 +404,10 @@ async function main() {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}
 `);
   } else if (mode === "stop" && findings.length > 0) {
-    process.stderr.write(`${format(findings)}
-`);
-    process.exitCode = 2;
+    writeJson(stopBlock(format(findings)));
   }
 }
-if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve2(process.argv[1])) main().catch((error) => {
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {
   process.stderr.write(`[Video Project Delivery Guard] ${error.message}
 `);
   process.exitCode = 2;

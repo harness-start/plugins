@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:365857310e834149df95196ac7e040f83521b5c0e6ffc6bc25069911ae9a8f80
+// harness-source-hash: sha256:2e06468278cd853b202d164627aec70cd7bf251a27eb226740a171c4796ca45d
 import {
   createToneBrowserRenderer,
   renderProject
-} from "../chunks/chunk-SQ2ESXKQ.mjs";
-import "../chunks/chunk-ZEIB74IQ.mjs";
-import "../chunks/chunk-4EU6XMSF.mjs";
+} from "../chunks/chunk-H76SYOQC.mjs";
+import "../chunks/chunk-PUICJHET.mjs";
+import "../chunks/chunk-35CEFHQA.mjs";
 
 // plugins/tonejs-music-production/src/entries/cli/project-preview.ts
 import { createServer } from "node:http";

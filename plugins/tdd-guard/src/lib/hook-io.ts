@@ -1,26 +1,28 @@
 import { isAbsolute, relative, resolve } from "node:path";
 
-const FILE_TOOLS = new Set(["applypatch", "edit", "multiedit", "notebookedit", "write", "createfile", "searchreplace"]);
-const SHELL_TOOLS = new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
+import {
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  eventToolUseId,
+  readStdinJson,
+} from "@harness/core/hook-event";
+import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import { canonicalToolName, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 
-export async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try { return JSON.parse(raw); } catch { return { __parseError: true }; }
-}
+export { readStdinJson, preToolDeny, writeJson };
 
-export function cwdOf(event) { return resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd()); }
-export function sessionIdOf(event) { return String(event?.session_id ?? event?.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? "unknown"); }
-export function toolUseIdOf(event) { return String(event?.tool_use_id ?? event?.toolUseId ?? event?.id ?? "pending"); }
-export function toolNameOf(event) { return String(event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "").replaceAll("_", "").toLowerCase(); }
-export function toolInputOf(event) { return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {}; }
-export function shellCommandOf(event) {
-  if (!SHELL_TOOLS.has(toolNameOf(event))) return null;
-  const input = toolInputOf(event);
-  const command = input?.command ?? input?.cmd ?? input?.script;
-  return typeof command === "string" ? command : null;
+export function cwdOf(event) {
+  const raw = event?.cwd ?? event?.working_directory ?? event?.workingDirectory;
+  if (raw !== undefined && raw !== null && typeof raw !== "string") return resolve(raw);
+  return resolve(eventCwd(event));
 }
+export function sessionIdOf(event) { return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"; }
+export function toolUseIdOf(event) { return eventToolUseId(event) || String(event?.id ?? "pending"); }
+export function toolNameOf(event) { return canonicalToolName(eventToolName(event)); }
+export function toolInputOf(event) { return eventToolInput(event); }
+export function shellCommandOf(event) { return extractShellCommand(event); }
 
 function responseOf(event) {
   return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? null;
@@ -176,7 +178,7 @@ function resolvedEquals(cwd, rawPath, absolutePath) {
 export function extractTargets(event) {
   const name = toolNameOf(event);
   const input = toolInputOf(event);
-  const raw = FILE_TOOLS.has(name) ? [...nestedPaths(input), ...patchPaths(input)] : SHELL_TOOLS.has(name) ? shellPaths(input) : [];
+  const raw = isFileMutationTool(name) ? [...nestedPaths(input), ...patchPaths(input)] : isShellTool(name) ? shellPaths(input) : [];
   const cwd = cwdOf(event);
   return [...new Set(raw.map(stripQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
 }
@@ -212,7 +214,5 @@ export function proposedContent(event, target, currentText = "") {
 }
 
 export function relativePath(root, path) { return relative(root, resolve(path)).replaceAll("\\", "/") || "."; }
-export function preToolDeny(reason) { return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } }; }
-export function contextOutput(eventName, text) { return { hookSpecificOutput: { hookEventName: eventName, additionalContext: text } }; }
-export function stopDeny(reason) { return { decision: "block", reason }; }
-export function writeJson(value) { if (value) process.stdout.write(`${JSON.stringify(value)}\n`); }
+export function contextOutput(eventName, text) { return additionalContext(eventName, text); }
+export function stopDeny(reason) { return stopBlock(reason); }

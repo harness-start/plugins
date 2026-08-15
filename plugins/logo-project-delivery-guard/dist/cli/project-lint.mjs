@@ -1,13 +1,40 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1ecafbd0352621e15e0b605402136b0ea866ca961edf865301c35a5fa8c3b975
+// harness-source-hash: sha256:fd95f1c50268b3bb0a6c3356df28e0a91064bac9751f5f2c76a44cae30c46690
 import {
   assertLogoProjectRoot
-} from "../chunks/chunk-QPTNINUP.mjs";
+} from "../chunks/chunk-EXGNXS6X.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-lint.ts
+import { resolve as resolve2 } from "node:path";
+
+// core/src/eslint-local-runner.ts
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+async function runLocalEslint(options) {
+  const root = resolve(options.root);
+  const projectRequire = createRequire(join(root, "package.json"));
+  let eslintEntry;
+  let parserEntry;
+  try {
+    eslintEntry = projectRequire.resolve("eslint");
+    parserEntry = projectRequire.resolve("@typescript-eslint/parser");
+  } catch {
+    throw new Error(`TOOLCHAIN_MISSING:${root}: run npm ci in the artifact root`);
+  }
+  const eslintModule = await import(pathToFileURL(eslintEntry).href);
+  const parserModule = await import(pathToFileURL(parserEntry).href);
+  const ESLint = eslintModule.ESLint ?? eslintModule.default?.ESLint;
+  if (typeof ESLint !== "function") throw new Error("UNSUPPORTED_TOOLCHAIN: ESLint API unavailable");
+  const preset = typeof options.preset === "function" ? options.preset({ parser: parserModule.default ?? parserModule }) : options.preset;
+  const eslint = new ESLint({ cwd: root, ignore: false, overrideConfigFile: true, overrideConfig: preset });
+  const files = (options.extraFiles?.length ?? 0) > 0 ? options.extraFiles ?? [] : options.defaultFiles;
+  const results = await eslint.lintFiles(files);
+  const formatter = await eslint.loadFormatter("stylish");
+  const output = formatter.format(results);
+  const failed = results.some(({ errorCount, fatalErrorCount }) => errorCount > 0 || fatalErrorCount > 0);
+  return { output, failed };
+}
 
 // plugins/logo-project-delivery-guard/src/lib/eslint/local-rules/artifact-unit-owner.ts
 var jsxName = (node) => node?.name?.name ?? node?.name;
@@ -49,26 +76,16 @@ function createPreset({ parser }) {
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-lint.ts
 async function main() {
-  const root = resolve(process.argv[2] ?? "");
+  const root = resolve2(process.argv[2] ?? "");
   await assertLogoProjectRoot(root);
-  const projectRequire = createRequire(join(root, "package.json"));
-  let eslintEntry;
-  let parserEntry;
-  try {
-    eslintEntry = projectRequire.resolve("eslint");
-    parserEntry = projectRequire.resolve("@typescript-eslint/parser");
-  } catch {
-    throw new Error(`TOOLCHAIN_MISSING:${root}: run npm ci in the artifact root`);
-  }
-  const eslintModule = await import(pathToFileURL(eslintEntry));
-  const parserModule = await import(pathToFileURL(parserEntry));
-  const ESLint = eslintModule.ESLint ?? eslintModule.default?.ESLint;
-  if (typeof ESLint !== "function") throw new Error("UNSUPPORTED_TOOLCHAIN: ESLint API unavailable");
-  const eslint = new ESLint({ cwd: root, ignore: false, overrideConfigFile: true, overrideConfig: createPreset({ parser: parserModule.default ?? parserModule }) });
-  const results = await eslint.lintFiles(process.argv.slice(3).length > 0 ? process.argv.slice(3) : ["src/master/*.logo.tsx"]);
-  const output = (await eslint.loadFormatter("stylish")).format(results);
+  const { output, failed } = await runLocalEslint({
+    root,
+    preset: createPreset,
+    defaultFiles: ["src/master/*.logo.tsx"],
+    extraFiles: process.argv.slice(3)
+  });
   if (output) process.stdout.write(output);
-  if (results.some(({ errorCount, fatalErrorCount }) => errorCount > 0 || fatalErrorCount > 0)) process.exitCode = 2;
+  if (failed) process.exitCode = 2;
 }
 main().catch((error) => {
   process.stderr.write(`[logo-project-lint] ${error.message}

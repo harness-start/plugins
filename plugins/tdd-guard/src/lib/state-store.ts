@@ -1,11 +1,12 @@
-import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+
+import { atomicWriteJson, digestKey, withPathLock } from "@harness/core/state-file";
 
 const VERSION = 3;
 export const STATE_DIR_RELATIVE = ".tdd-guard/state";
 
-export function digest(value) { return createHash("sha256").update(String(value)).digest("hex"); }
+export function digest(value) { return digestKey(value); }
 
 function ensureStateDir(directory) {
   mkdirSync(directory, { recursive: true, mode: 0o700 });
@@ -35,15 +36,6 @@ export function readState(sessionId, root) {
 export function writeState(sessionId, root, state) {
   const path = statePath(sessionId, root);
   if (!path) return false;
-  const directory = dirname(path);
-  const temporary = join(directory, `.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    ensureStateDir(directory);
-    writeFileSync(temporary, `${JSON.stringify({ ...state, version: VERSION })}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try { rmSync(temporary, { force: true }); } catch {}
-    return false;
-  }
+  ensureStateDir(dirname(path));
+  return withPathLock(path, () => atomicWriteJson(path, { ...state, version: VERSION }));
 }

@@ -157,8 +157,10 @@ test("stop still validates when cwd is inside the poster project", async () => {
     mkdirSync(project, { recursive: true });
     writeFileSync(join(project, "plan.contract.json"), JSON.stringify({ artifactId: "launch", targetStage: "release" }));
     const result = await runMode("stop", { cwd: project });
-    assert.equal(result.code, 2);
-    assert.match(result.stderr, /REQUIRED_PATH_MISSING|Project contract violations/u);
+    assert.equal(result.code, 0);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /REQUIRED_PATH_MISSING|Project contract violations/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

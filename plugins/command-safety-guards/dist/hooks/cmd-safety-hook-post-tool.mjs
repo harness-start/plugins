@@ -1,17 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:39b4337cbcdab5383bad679a39524650c16992dc11d8bfa5f99e8d24ab4a85a8
+// harness-source-hash: sha256:fb81e425a483b4db1bc2dd922973fe66fa76fb67ed28267897d54577a31862fe
 import {
   additionalContextOutput,
   extractCwd,
   extractToolInput,
-  extractToolName,
   extractWriteTargets,
   loadUserConfig,
   readStdinJson,
   resolveRepoRoot,
   resolveRules,
   writeJson
-} from "../chunks/chunk-KBKLHSBA.mjs";
+} from "../chunks/chunk-QMTVST3Y.mjs";
 
 // plugins/command-safety-guards/src/entries/hooks/cmd-safety-hook-post-tool.ts
 import { existsSync } from "node:fs";
@@ -67,7 +66,7 @@ async function main() {
   const { settings } = resolveRules(userConfig);
   if (settings.engines.fileSafety === false) return;
   const input = extractToolInput(event);
-  const reports = extractWriteTargets(extractToolName(event), input).map((path) => isAbsolute(path) ? path : resolve(cwd, path)).filter(existsSync).flatMap((path) => fileSafetyReports(path, input));
+  const reports = extractWriteTargets(event).map((path) => isAbsolute(path) ? path : resolve(cwd, path)).filter(existsSync).flatMap((path) => fileSafetyReports(path, input));
   if (reports.length) {
     writeJson(additionalContextOutput("PostToolUse", reports.join("\n\n")));
   }

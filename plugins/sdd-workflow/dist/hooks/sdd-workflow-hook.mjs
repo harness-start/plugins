@@ -1,90 +1,214 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8e3b6cbf6e71c64f442000ef3064fdc50861517e78f5ef9b8a7ebf4dc78879d
+// harness-source-hash: sha256:b491616b87b99ed99c6fae96038c09981543da281a7be2f550d5b04af8ca4487
 import {
   formatFindings,
   inspectChange
-} from "../chunks/chunk-XZYMORRN.mjs";
+} from "../chunks/chunk-UOC7I6V5.mjs";
 
 // plugins/sdd-workflow/src/entries/hooks/sdd-workflow-hook.ts
 import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, resolve } from "node:path";
+import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
-var FILE_TOOLS = /* @__PURE__ */ new Set(["applypatch", "edit", "multiedit", "notebookedit", "write", "createfile", "searchreplace"]);
-var SHELL_TOOLS = /* @__PURE__ */ new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
-var ARTIFACTS = /* @__PURE__ */ new Set(["spec.md", "plan.md", "tasks.md"]);
-var TARGET_PATH_CODES = /* @__PURE__ */ new Set(["invalid-change-name", "invalid-spec-root", "symlink-artifact", "artifact-read-error"]);
-function toolName(event) {
-  return String(event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "").replaceAll("_", "").toLowerCase();
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
-function toolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
 }
-function nestedPaths(input) {
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
   if (!input || typeof input !== "object") return [];
+  const record = input;
   const paths = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "notebook_path"]) if (typeof input[key] === "string") paths.push(input[key]);
-  if (Array.isArray(input.edits)) for (const edit of input.edits) paths.push(...nestedPaths(edit));
-  return paths;
-}
-function patchPaths(input) {
-  const text = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  const paths = [];
-  for (const line of text.split("\n")) {
-    const match = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u) ?? line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (match) paths.push(match[1].trim().replace(/^['"]|['"]$/gu, ""));
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
   }
   return paths;
 }
-function shellPaths(command) {
+function patchPaths(payload) {
   const paths = [];
-  const push = (value) => {
-    const clean = String(value ?? "").trim().replace(/^['"]|['"]$/gu, "");
-    if (clean && !clean.startsWith("-")) paths.push(clean);
-  };
-  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\b(?:cp|mv|install)\b(?:\s+-[^\s]+)*\s+[^\s;&|]+\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
   return paths;
 }
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
+// plugins/sdd-workflow/src/entries/hooks/sdd-workflow-hook.ts
+var ARTIFACTS = /* @__PURE__ */ new Set(["spec.md", "plan.md", "tasks.md"]);
+var TARGET_PATH_CODES = /* @__PURE__ */ new Set(["invalid-change-name", "invalid-spec-root", "symlink-artifact", "artifact-read-error"]);
 function targets(event) {
-  const name = toolName(event);
-  const input = toolInput(event);
-  const cwd = resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
-  let raw = [];
-  if (FILE_TOOLS.has(name)) raw = [...nestedPaths(input), ...patchPaths(input)];
-  else if (SHELL_TOOLS.has(name)) raw = shellPaths(String(input?.command ?? input?.cmd ?? input?.script ?? ""));
-  return [...new Set(raw.map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
+  const core = extractFileTargets(event, { includeShellWrites: true });
+  if (!isShellTool(eventToolName(event))) return core;
+  const cwd = resolve2(eventCwd(event));
+  const extras = [];
+  const command = extractShellCommand(event) ?? "";
+  for (const match of command.matchAll(/\b(?:cp|mv|install)\b(?:\s+-[^\s]+)*\s+[^\s;&|]+\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    const raw = String(match[1] ?? "").trim().replace(/^['"]|['"]$/gu, "");
+    if (raw && !raw.startsWith("-")) extras.push(isAbsolute2(raw) ? resolve2(raw) : resolve2(cwd, raw.replace(/^\.\//u, "")));
+  }
+  return [.../* @__PURE__ */ new Set([...core, ...extras])];
 }
 function directArtifactTarget(path, workspaceRoot) {
-  const absolute = resolve(path);
+  const absolute = resolve2(path);
   const changeDir = dirname(absolute);
-  if (dirname(changeDir) !== resolve(workspaceRoot, ".specs")) return null;
+  if (dirname(changeDir) !== resolve2(workspaceRoot, ".specs")) return null;
   const artifact = absolute.split("/").at(-1);
   if (!ARTIFACTS.has(artifact)) return null;
   return { artifact, changeDir };
 }
 function canonicalPath(path) {
-  let cursor = resolve(path);
+  let cursor = resolve2(path);
   const suffix = [];
   while (true) {
     try {
-      return resolve(realpathSync(cursor), ...suffix);
+      return resolve2(realpathSync(cursor), ...suffix);
     } catch (error) {
-      if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") return resolve(path);
+      if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") return resolve2(path);
     }
     const parent = dirname(cursor);
-    if (parent === cursor) return resolve(path);
+    if (parent === cursor) return resolve2(path);
     suffix.unshift(basename(cursor));
     cursor = parent;
   }
 }
 function repositoryRoot(start) {
-  let cursor = resolve(start);
+  let cursor = resolve2(start);
   while (true) {
-    if (existsSync(resolve(cursor, ".git"))) return cursor;
+    if (existsSync(resolve2(cursor, ".git"))) return cursor;
     const parent = dirname(cursor);
-    if (parent === cursor) return resolve(start);
+    if (parent === cursor) return resolve2(start);
     cursor = parent;
   }
 }
@@ -120,7 +244,7 @@ function evaluateHook(mode, event) {
   const artifacts = resolvedTargets.map((path) => artifactTarget(path, workspaceRoot)).filter(Boolean);
   if (artifacts.length === 0) return null;
   if (mode === "pre") {
-    const command = SHELL_TOOLS.has(toolName(event)) ? String(toolInput(event)?.command ?? toolInput(event)?.cmd ?? "") : "";
+    const command = isShellTool(eventToolName(event)) ? String(extractShellCommand(event) ?? "") : "";
     if (command && /(?:&&|\|\||;|\n)/u.test(command)) return deny("Compound shell writes that target .specs artifacts are not safe; write one artifact per tool call.");
     for (const target of artifacts) {
       const sameChange = artifacts.filter((candidate) => candidate.changeDir === target.changeDir).map(({ artifact }) => artifact);
@@ -158,7 +282,7 @@ async function main() {
   if (result) process.stdout.write(`${JSON.stringify(result)}
 `);
 }
-var isEntry = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
+var isEntry = process.argv[1] && resolve2(process.argv[1]) === resolve2(fileURLToPath(import.meta.url));
 if (isEntry) await main();
 export {
   evaluateHook

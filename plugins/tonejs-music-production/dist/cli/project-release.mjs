@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:365857310e834149df95196ac7e040f83521b5c0e6ffc6bc25069911ae9a8f80
+// harness-source-hash: sha256:2e06468278cd853b202d164627aec70cd7bf251a27eb226740a171c4796ca45d
 import {
   releaseProject
-} from "../chunks/chunk-MKQ6OVG5.mjs";
-import "../chunks/chunk-ZEIB74IQ.mjs";
-import "../chunks/chunk-4EU6XMSF.mjs";
+} from "../chunks/chunk-6OXVPNI5.mjs";
+import "../chunks/chunk-PUICJHET.mjs";
+import "../chunks/chunk-35CEFHQA.mjs";
 
 // plugins/tonejs-music-production/src/entries/cli/project-release.ts
 import { resolve } from "node:path";

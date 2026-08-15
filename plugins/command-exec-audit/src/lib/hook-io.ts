@@ -1,152 +1,55 @@
-import { isAbsolute, resolve } from "node:path";
+import {
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  eventToolResponse,
+  eventToolUseId,
+  readStdinJson,
+} from "@harness/core/hook-event";
+import { preToolDeny, writeJson } from "@harness/core/hook-output";
+import {
+  extractFileTargets as extractCoreFileTargets,
+  extractShellCommand,
+  isFileMutationTool,
+  isReadTool,
+  isShellTool as isCoreShellTool,
+} from "@harness/core/hook-targets";
 
-const SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
-const FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|Read)$/iu;
-
-export async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
+export { readStdinJson, extractShellCommand, preToolDeny, writeJson };
 
 export function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? null;
+  return eventSessionId(event) || null;
 }
 
 export function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  return eventCwd(event);
 }
 
 export function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
+  return eventToolName(event);
 }
 
 export function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+  return eventToolInput(event);
 }
 
 export function extractToolResponse(event) {
-  return (
-    event?.tool_response ??
-    event?.toolResponse ??
-    event?.tool_result ??
-    event?.toolResult ??
-    event?.response ??
-    event?.tool?.response ??
-    null
-  );
+  return eventToolResponse(event);
 }
 
 export function extractToolUseId(event) {
-  return (
-    event?.tool_use_id ??
-    event?.toolUseId ??
-    event?.tool_call_id ??
-    event?.toolCallId ??
-    event?.tool_use?.id ??
-    event?.tool?.id ??
-    null
-  );
-}
-
-export function extractShellCommand(event) {
-  const name = String(extractToolName(event));
-  if (!SHELL_TOOLS.test(name)) return null;
-  const input = extractToolInput(event);
-  const command = input?.command ?? input?.cmd ?? input?.script;
-  return typeof command === "string" ? command : null;
-}
-
-function stripMatchingQuotes(value) {
-  const text = String(value ?? "").trim();
-  if (
-    text.length >= 2 &&
-    ((text.startsWith('"') && text.endsWith('"')) ||
-      (text.startsWith("'") && text.endsWith("'")))
-  ) {
-    return text.slice(1, -1);
-  }
-  return text;
-}
-
-function objectPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "notebook_path",
-    "notebookPath",
-  ]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) {
-    for (const edit of input.edits) paths.push(...objectPaths(edit));
-  }
-  return paths;
-}
-
-function patchPaths(payload) {
-  if (typeof payload !== "string") return [];
-  const paths = [];
-  for (const line of payload.split("\n")) {
-    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (file) paths.push(stripMatchingQuotes(file[1]));
-    if (move) paths.push(stripMatchingQuotes(move[1]));
-  }
-  return paths;
+  return eventToolUseId(event) || null;
 }
 
 export function extractFileTargets(event) {
-  const toolName = String(extractToolName(event));
-  if (!FILE_TOOLS.test(toolName)) return [];
-  const input = extractToolInput(event);
-  const cwd = resolve(extractCwd(event));
-  const targets = objectPaths(input);
-  const patch = typeof input === "string"
-    ? input
-    : [input?.patch, input?.input, input?.command]
-        .filter((value) => typeof value === "string")
-        .join("\n");
-  targets.push(...patchPaths(patch));
-  return [
-    ...new Set(
-      targets
-        .map(stripMatchingQuotes)
-        .filter(Boolean)
-        .map((path) =>
-          isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")),
-        ),
-    ),
-  ];
+  return extractCoreFileTargets(event, { tools: "read-or-mutation" });
 }
 
 export function isShellTool(toolName) {
-  return SHELL_TOOLS.test(String(toolName ?? ""));
+  return isCoreShellTool(toolName);
 }
 
 export function isFileTool(toolName) {
-  return FILE_TOOLS.test(String(toolName ?? ""));
-}
-
-export function preToolDeny(reason) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: reason,
-    },
-  };
-}
-
-export function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}\n`);
+  return isFileMutationTool(toolName) || isReadTool(toolName);
 }

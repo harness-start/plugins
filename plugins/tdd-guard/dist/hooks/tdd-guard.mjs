@@ -1,45 +1,160 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:a6b411ed65dd0a5bc8fe414060fd48ea546c489eb339a6a23245b053dda3c18a
+// harness-source-hash: sha256:8543ef28426e9d39c702a8f49db95b086b2dd107e37b7952ee2342b136c8e9fd
 
 // plugins/tdd-guard/src/entries/hooks/tdd-guard.ts
-import { existsSync as existsSync4, readFileSync as readFileSync5 } from "node:fs";
+import { existsSync as existsSync5, readFileSync as readFileSync5 } from "node:fs";
 import { resolve as resolve6 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // plugins/tdd-guard/src/lib/hook-io.ts
 import { isAbsolute, relative, resolve } from "node:path";
-var FILE_TOOLS = /* @__PURE__ */ new Set(["applypatch", "edit", "multiedit", "notebookedit", "write", "createfile", "searchreplace"]);
-var SHELL_TOOLS = /* @__PURE__ */ new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
-async function readStdinJson() {
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
   let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
+  for await (const chunk of input) raw += chunk.toString();
   if (!raw.trim()) return {};
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
   }
 }
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventToolUseId(event) {
+  const tool = nestedRecord(event, "tool");
+  const toolUse = nestedRecord(event, "tool_use");
+  return firstString(
+    event.tool_use_id,
+    event.toolUseId,
+    event.tool_call_id,
+    event.toolCallId,
+    toolUse?.id,
+    tool?.id
+  );
+}
+
+// core/src/hook-output.ts
+function preToolDeny(reason) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    }
+  };
+}
+function additionalContext(hookEventName, context, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context}
+`);
+  if (options.suppressJson) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext: context
+    }
+  };
+}
+function stopBlock(reason) {
+  return { decision: "block", reason };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// core/src/hook-targets.ts
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+
+// plugins/tdd-guard/src/lib/hook-io.ts
 function cwdOf(event) {
-  return resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
+  const raw = event?.cwd ?? event?.working_directory ?? event?.workingDirectory;
+  if (raw !== void 0 && raw !== null && typeof raw !== "string") return resolve(raw);
+  return resolve(eventCwd(event));
 }
 function sessionIdOf(event) {
-  return String(event?.session_id ?? event?.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? "unknown");
+  return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
 }
 function toolUseIdOf(event) {
-  return String(event?.tool_use_id ?? event?.toolUseId ?? event?.id ?? "pending");
+  return eventToolUseId(event) || String(event?.id ?? "pending");
 }
 function toolNameOf(event) {
-  return String(event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "").replaceAll("_", "").toLowerCase();
+  return canonicalToolName(eventToolName(event));
 }
 function toolInputOf(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+  return eventToolInput(event);
 }
 function shellCommandOf(event) {
-  if (!SHELL_TOOLS.has(toolNameOf(event))) return null;
-  const input = toolInputOf(event);
-  const command = input?.command ?? input?.cmd ?? input?.script;
-  return typeof command === "string" ? command : null;
+  return extractShellCommand(event);
 }
 function responseOf(event) {
   return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? null;
@@ -182,7 +297,7 @@ function resolvedEquals(cwd, rawPath, absolutePath) {
 function extractTargets(event) {
   const name = toolNameOf(event);
   const input = toolInputOf(event);
-  const raw = FILE_TOOLS.has(name) ? [...nestedPaths(input), ...patchPaths(input)] : SHELL_TOOLS.has(name) ? shellPaths(input) : [];
+  const raw = isFileMutationTool(name) ? [...nestedPaths(input), ...patchPaths(input)] : isShellTool(name) ? shellPaths(input) : [];
   const cwd = cwdOf(event);
   return [...new Set(raw.map(stripQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
 }
@@ -217,18 +332,11 @@ function proposedContent(event, target, currentText = "") {
 function relativePath(root, path) {
   return relative(root, resolve(path)).replaceAll("\\", "/") || ".";
 }
-function preToolDeny(reason) {
-  return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
-}
 function contextOutput(eventName, text) {
-  return { hookSpecificOutput: { hookEventName: eventName, additionalContext: text } };
+  return additionalContext(eventName, text);
 }
 function stopDeny(reason) {
-  return { decision: "block", reason };
-}
-function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}
-`);
+  return stopBlock(reason);
 }
 
 // plugins/tdd-guard/src/lib/existing-tests.ts
@@ -853,24 +961,81 @@ function restoresHeadState(root, relativePath2, { missing = false, content = "" 
 }
 
 // plugins/tdd-guard/src/lib/state-store.ts
+import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync4, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname3, join as join3, resolve as resolve5 } from "node:path";
+
+// core/src/state-file.ts
 import { createHash, randomBytes } from "node:crypto";
-import { existsSync as existsSync3, mkdirSync, readFileSync as readFileSync4, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname as dirname2, join as join2, resolve as resolve5 } from "node:path";
+import { existsSync as existsSync3, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname as dirname2, join as join2 } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var STALE_LOCK_MS = 3e4;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname2(path);
+  const temporary = join2(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+function withPathLock(path, operation) {
+  const lockPath = `${path}.lock`;
+  mkdirSync(dirname2(path), { recursive: true, mode: DIRECTORY_MODE });
+  const deadline = Date.now() + 5e3;
+  while (true) {
+    try {
+      mkdirSync(lockPath, { mode: DIRECTORY_MODE });
+      try {
+        return operation();
+      } finally {
+        rmSync(lockPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - statSync(lockPath).mtimeMs > STALE_LOCK_MS) {
+          rmSync(lockPath, { recursive: true, force: true });
+          continue;
+        }
+      } catch {
+        if (!existsSync3(lockPath)) continue;
+      }
+      if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock: ${lockPath}`);
+      Atomics.wait(WAIT_BUFFER, 0, 0, 10);
+    }
+  }
+}
+
+// plugins/tdd-guard/src/lib/state-store.ts
 var VERSION = 3;
 var STATE_DIR_RELATIVE = ".tdd-guard/state";
 function digest(value) {
-  return createHash("sha256").update(String(value)).digest("hex");
+  return digestKey(value);
 }
 function ensureStateDir(directory) {
-  mkdirSync(directory, { recursive: true, mode: 448 });
-  const ignore = join2(dirname2(directory), ".gitignore");
-  if (!existsSync3(ignore)) {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 384 });
+  mkdirSync2(directory, { recursive: true, mode: 448 });
+  const ignore = join3(dirname3(directory), ".gitignore");
+  if (!existsSync4(ignore)) {
+    writeFileSync2(ignore, "state/\n", { encoding: "utf8", mode: 384 });
   }
 }
 function statePath(sessionId, root) {
   const session = sessionId || "default";
-  return join2(resolve5(root), STATE_DIR_RELATIVE, `${digest(session)}.json`);
+  return join3(resolve5(root), STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 function readState(sessionId, root) {
   const path = statePath(sessionId, root);
@@ -886,21 +1051,8 @@ function readState(sessionId, root) {
 function writeState(sessionId, root, state) {
   const path = statePath(sessionId, root);
   if (!path) return false;
-  const directory = dirname2(path);
-  const temporary = join2(directory, `.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    ensureStateDir(directory);
-    writeFileSync(temporary, `${JSON.stringify({ ...state, version: VERSION })}
-`, { encoding: "utf8", mode: 384, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try {
-      rmSync(temporary, { force: true });
-    } catch {
-    }
-    return false;
-  }
+  ensureStateDir(dirname3(path));
+  return withPathLock(path, () => atomicWriteJson(path, { ...state, version: VERSION }));
 }
 
 // plugins/tdd-guard/src/entries/hooks/tdd-guard.ts
@@ -916,7 +1068,7 @@ function readText(path) {
   }
 }
 function hashPath(path) {
-  return existsSync4(path) ? digest(readText(path)) : "missing";
+  return existsSync5(path) ? digest(readText(path)) : "missing";
 }
 function targetsFor(event, root) {
   return extractTargets(event).map((absolutePath) => {
@@ -974,18 +1126,18 @@ function headCorrespondingTests(root, source, state, context, corresponding) {
 }
 function liveObservedRed(state, root, path) {
   const absolutePath = resolve6(root, path);
-  if (!existsSync4(absolutePath)) return false;
+  if (!existsSync5(absolutePath)) return false;
   return (state.observedRed ?? {})[path] === hashPath(absolutePath);
 }
 function remainingCorrespondingTests(root, changed, testPaths) {
-  const existing = (testPaths ?? []).filter((path) => existsSync4(resolve6(root, path)));
+  const existing = (testPaths ?? []).filter((path) => existsSync5(resolve6(root, path)));
   if (existing.length > 0) return existing;
   const found = /* @__PURE__ */ new Set();
   for (const path of changed) {
     const classified = classifyPath(path);
     if (classified.kind !== "source" || !classified.language) continue;
     const absolutePath = resolve6(root, path);
-    const content = existsSync4(absolutePath) ? readText(absolutePath) : gitShowHead(root, path) ?? "";
+    const content = existsSync5(absolutePath) ? readText(absolutePath) : gitShowHead(root, path) ?? "";
     const context = resolveLanguageContext(root, path, classified.language);
     for (const testPath of findCorrespondingTests(root, { path, language: classified.language, content }, context)) {
       found.add(testPath);
@@ -1038,7 +1190,7 @@ async function runPre(event) {
       const headCorresponding = headCorrespondingTests(root, source, state, context, corresponding);
       const redPool = headCorresponding.length > 0 ? headCorresponding : corresponding;
       const redOk = redPool.some((path) => liveObservedRed(state, root, path));
-      const headGone = headCorresponding.length > 0 && headCorresponding.every((path) => !existsSync4(resolve6(root, path)));
+      const headGone = headCorresponding.length > 0 && headCorresponding.every((path) => !existsSync5(resolve6(root, path)));
       const headDirty = headCorresponding.some((path) => gitPathState(root, path).dirty);
       const isDelete = targetOperation(event, target.absolutePath) === "delete";
       if (redOk) {
@@ -1090,7 +1242,7 @@ async function runPost(event, platform, forceFailure = false) {
       state.observedRed = { ...state.observedRed ?? {} };
       for (const path of covered) {
         const absolutePath = resolve6(root, path);
-        if (!existsSync4(absolutePath)) continue;
+        if (!existsSync5(absolutePath)) continue;
         const hash = hashPath(absolutePath);
         state.observedRed[path] = hash;
         const record = (state.tests ?? []).find((item) => item.path === path);
@@ -1114,7 +1266,7 @@ async function runPost(event, platform, forceFailure = false) {
     state.pending = null;
     if (kind === "revert") {
       const restored = pendingTargets.every((target) => {
-        const missing = !existsSync4(resolve6(root, target.path));
+        const missing = !existsSync5(resolve6(root, target.path));
         return restoresHeadState(root, target.path, {
           missing,
           content: missing ? "" : readText(resolve6(root, target.path))
@@ -1123,7 +1275,7 @@ async function runPost(event, platform, forceFailure = false) {
       if (restored) state.needsGreen = null;
     } else if (changed.length > 0) {
       const remaining = remainingCorrespondingTests(root, changed, testPaths);
-      const allDeleted = changed.every((path) => !existsSync4(resolve6(root, path)));
+      const allDeleted = changed.every((path) => !existsSync5(resolve6(root, path)));
       if (!(allDeleted && remaining.length === 0)) {
         state.needsGreen = { paths: changed, testPaths };
         state.observedRed = {};

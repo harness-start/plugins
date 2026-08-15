@@ -80,8 +80,10 @@ test("stop fails closed when an artifact directory is missing plan.contract.json
     mkdirSync(join(root, "artifacts", "video", "launch"), { recursive: true });
     const result = await runHook("stop", { cwd: root });
 
-    assert.equal(result.code, 2);
-    assert.match(result.stderr, /PLAN_CONTRACT_MISSING/u);
+    assert.equal(result.code, 0);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /PLAN_CONTRACT_MISSING/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:365857310e834149df95196ac7e040f83521b5c0e6ffc6bc25069911ae9a8f80
+// harness-source-hash: sha256:2e06468278cd853b202d164627aec70cd7bf251a27eb226740a171c4796ca45d
 import {
   loadCompositionDeterministic,
   optimizeComposition
-} from "../chunks/chunk-BKOTXJEN.mjs";
+} from "../chunks/chunk-B6KKJ7O5.mjs";
 import {
   computeMusicSubjectDigest
-} from "../chunks/chunk-4EU6XMSF.mjs";
+} from "../chunks/chunk-35CEFHQA.mjs";
 
 // plugins/tonejs-music-production/src/entries/cli/project-optimize.ts
 import { open, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";

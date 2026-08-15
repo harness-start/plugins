@@ -20,9 +20,8 @@ import {
   resolveRepoRoot,
   runCommand,
 } from "../../lib/code-quality-core.js";
-
-const FILE_TOOLS = new Set(["applypatch", "edit", "multiedit", "notebookedit", "write"]);
-const SHELL_TOOLS = new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
+import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 
 function extractShellWriteTargets(command) {
   const text = String(command ?? "");
@@ -43,86 +42,17 @@ function warn(message) {
   process.stderr.write(`[code-quality-guard] ${message}\n`);
 }
 
-async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
-
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
-}
-
-function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-}
-
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-}
-
-function stripMatchingQuotes(value) {
-  const text = String(value ?? "").trim();
-  if (
-    text.length >= 2 &&
-    ((text.startsWith('"') && text.endsWith('"')) ||
-      (text.startsWith("'") && text.endsWith("'")))
-  ) return text.slice(1, -1);
-  return text;
-}
-
-function nestedPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "output_file",
-    "outputFile",
-    "notebook_path",
-    "notebookPath",
-  ]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) input.edits.forEach((edit) => paths.push(...nestedPaths(edit)));
-  return paths;
-}
-
 export function extractFileTargets(event) {
-  const toolName = String(extractToolName(event)).replaceAll("_", "").toLowerCase();
-  const input = extractToolInput(event);
-  const cwd = extractCwd(event);
-  if (SHELL_TOOLS.has(toolName)) {
-    const command = typeof input?.command === "string"
-      ? input.command
-      : typeof input?.cmd === "string" ? input.cmd : "";
-    return [...new Set(extractShellWriteTargets(command).map(stripMatchingQuotes).filter(Boolean).map((path) =>
-      isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")),
-    ))];
+  if (isShellTool(eventToolName(event))) {
+    const cwd = eventCwd(event);
+    return [...new Set(
+      extractShellWriteTargets(extractShellCommand(event) ?? "")
+        .filter(Boolean)
+        .map((path) => (isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))),
+    )];
   }
-  if (!FILE_TOOLS.has(toolName)) return [];
-  const paths = nestedPaths(input);
-  const patch = typeof input === "string"
-    ? input
-    : [input?.patch, input?.input, input?.command]
-        .filter((value) => typeof value === "string")
-        .join("\n");
-  for (const line of patch.split("\n")) {
-    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) paths.push(stripMatchingQuotes(file[1]));
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (move) paths.push(stripMatchingQuotes(move[1]));
-  }
-  return [...new Set(paths.map(stripMatchingQuotes).filter(Boolean).map((path) =>
-    isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")),
-  ))];
+  if (!isFileMutationTool(eventToolName(event))) return [];
+  return extractCoreFileTargets(event);
 }
 
 function combinedOutput(result) {
@@ -191,7 +121,7 @@ function formatFindings(findings, omittedFiles) {
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const cwd = resolve(extractCwd(event));
+  const cwd = resolve(eventCwd(event));
   const discoveredRoot = resolveRepoRoot(cwd);
   const repoRoot = discoveredRoot ?? cwd;
   const config = resolveConfig(await loadUserConfig(discoveredRoot));

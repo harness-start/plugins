@@ -2,13 +2,15 @@
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   analyzeMarkdown,
   isMarkdownPath,
   resolveConfig,
 } from "../../lib/markdown-policy.js";
+import { eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { extractFileTargets } from "@harness/core/hook-targets";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
 const MAX_FINDINGS = 20;
@@ -37,80 +39,11 @@ export async function loadUserConfig(repoRoot) {
   return null;
 }
 
-function extractToolInput(event) {
-  return (
-    event?.tool_input ??
-    event?.toolInput ??
-    event?.tool?.input ??
-    event?.input ??
-    {}
-  );
-}
-
-function stripMatchingQuotes(value) {
-  if (
-    value.length >= 2 &&
-    ((value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'")))
-  ) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
-
 export function extractFilePaths(event) {
-  const toolInput = extractToolInput(event);
-  const cwd =
-    event?.cwd ??
-    event?.working_directory ??
-    event?.workingDirectory ??
-    process.cwd();
-  const paths = [];
-
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "output_file",
-    "outputFile",
-  ]) {
-    if (typeof toolInput?.[key] === "string" && toolInput[key]) {
-      paths.push(toolInput[key]);
-    }
-  }
-
-  const patchPayload = [toolInput?.patch, toolInput?.input, toolInput?.command]
-    .filter((value) => typeof value === "string")
-    .join("\n");
-  for (const line of patchPayload.split("\n")) {
-    const match = line.match(
-      /^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u,
-    );
-    if (match) paths.push(match[1].trim());
-  }
-
-  const command =
-    (typeof toolInput?.command === "string" && toolInput.command) ||
-    (typeof toolInput?.cmd === "string" && toolInput.cmd) ||
-    "";
-  for (const match of command.matchAll(
-    /(?:^|[\s;])(?:\d*>>?|&>)\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu,
-  )) {
-    paths.push(stripMatchingQuotes(match[1]));
-  }
-
-  return [
-    ...new Set(
-      paths
-        .filter(Boolean)
-        .map((path) =>
-          isAbsolute(path)
-            ? resolve(path)
-            : resolve(cwd, path.replace(/^\.\//u, "")),
-        ),
-    ),
-  ];
+  return extractFileTargets(event, {
+    tools: eventToolName(event) ? "mutation" : "any",
+    includeShellWrites: true,
+  });
 }
 
 function resolveRepoRoot(filePath) {
@@ -220,15 +153,8 @@ export async function evaluateEvent(event) {
 }
 
 async function main() {
-  let rawInput = "";
-  for await (const chunk of process.stdin) rawInput += chunk;
-
-  let event;
-  try {
-    event = JSON.parse(rawInput || "{}");
-  } catch {
-    return;
-  }
+  const event = await readStdinJson();
+  if (event.__parseError) return;
 
   const { block: blockFindings, report: reportFindings } =
     await evaluateEvent(event);

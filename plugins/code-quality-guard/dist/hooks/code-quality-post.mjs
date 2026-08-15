@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0c9b59266df9aeac4a946c1c444158ac110d1f46e6f5c56be2e5dafb4fdb0776
+// harness-source-hash: sha256:aee75e3e297d0b57f56cb5f135c05ddc522ce1ad4d7307a5429514eecc06503a
 import {
   capOutput,
+  eventCwd,
+  eventToolInput,
+  eventToolName,
   findExecutable,
   hasEslintConfig,
   isSkippedPath,
@@ -10,19 +13,148 @@ import {
   markMissingOnce,
   modeFor,
   readState,
+  readStdinJson,
   recordPhpFiles,
   repoRelativePath,
   resolveConfig,
   resolveRepoRoot,
   runCommand
-} from "../chunks/chunk-3P4ZFOA2.mjs";
+} from "../chunks/chunk-QOJO27JD.mjs";
 
 // plugins/code-quality-guard/src/entries/hooks/code-quality-post.ts
 import { existsSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
-var FILE_TOOLS = /* @__PURE__ */ new Set(["applypatch", "edit", "multiedit", "notebookedit", "write"]);
-var SHELL_TOOLS = /* @__PURE__ */ new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
+  if (!input || typeof input !== "object") return [];
+  const record = input;
+  const paths = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
+  }
+  return paths;
+}
+function patchPaths(payload) {
+  const paths = [];
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
+  return paths;
+}
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
+// plugins/code-quality-guard/src/entries/hooks/code-quality-post.ts
 function extractShellWriteTargets(command) {
   const text = String(command ?? "");
   const paths = [];
@@ -41,70 +173,15 @@ function warn(message) {
   process.stderr.write(`[code-quality-guard] ${message}
 `);
 }
-async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
+function extractFileTargets2(event) {
+  if (isShellTool(eventToolName(event))) {
+    const cwd = eventCwd(event);
+    return [...new Set(
+      extractShellWriteTargets(extractShellCommand(event) ?? "").filter(Boolean).map((path) => isAbsolute2(path) ? resolve2(path) : resolve2(cwd, path.replace(/^\.\//u, "")))
+    )];
   }
-}
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
-}
-function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-}
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-}
-function stripMatchingQuotes(value) {
-  const text = String(value ?? "").trim();
-  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) return text.slice(1, -1);
-  return text;
-}
-function nestedPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "output_file",
-    "outputFile",
-    "notebook_path",
-    "notebookPath"
-  ]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) input.edits.forEach((edit) => paths.push(...nestedPaths(edit)));
-  return paths;
-}
-function extractFileTargets(event) {
-  const toolName = String(extractToolName(event)).replaceAll("_", "").toLowerCase();
-  const input = extractToolInput(event);
-  const cwd = extractCwd(event);
-  if (SHELL_TOOLS.has(toolName)) {
-    const command = typeof input?.command === "string" ? input.command : typeof input?.cmd === "string" ? input.cmd : "";
-    return [...new Set(extractShellWriteTargets(command).map(stripMatchingQuotes).filter(Boolean).map(
-      (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-    ))];
-  }
-  if (!FILE_TOOLS.has(toolName)) return [];
-  const paths = nestedPaths(input);
-  const patch = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  for (const line of patch.split("\n")) {
-    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    if (file) paths.push(stripMatchingQuotes(file[1]));
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (move) paths.push(stripMatchingQuotes(move[1]));
-  }
-  return [...new Set(paths.map(stripMatchingQuotes).filter(Boolean).map(
-    (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-  ))];
+  if (!isFileMutationTool(eventToolName(event))) return [];
+  return extractFileTargets(event);
 }
 function combinedOutput(result) {
   return [result.stdout, result.stderr].filter((value) => value?.trim()).join("\n").trim();
@@ -169,11 +246,11 @@ function formatFindings(findings, omittedFiles) {
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const cwd = resolve(extractCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const discoveredRoot = resolveRepoRoot(cwd);
   const repoRoot = discoveredRoot ?? cwd;
   const config = resolveConfig(await loadUserConfig(discoveredRoot));
-  const allTargets = extractFileTargets(event).filter(existsSync).filter(isSourceFileWithinLimit).map((filePath) => ({
+  const allTargets = extractFileTargets2(event).filter(existsSync).filter(isSourceFileWithinLimit).map((filePath) => ({
     filePath,
     path: repoRelativePath(filePath, repoRoot, cwd)
   })).filter(({ path }) => !isSkippedPath(path));
@@ -320,12 +397,12 @@ async function main() {
     reportOutput(message);
   }
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve2(process.argv[1])) {
   main().catch((error) => {
     warn(`hook failed open: ${error.message}`);
     process.exit(0);
   });
 }
 export {
-  extractFileTargets
+  extractFileTargets2 as extractFileTargets
 };

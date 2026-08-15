@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bd3d4316ce6487f962121d181f846434aefeeb207cc82c5c3ed29ec0efabbdb3
+// harness-source-hash: sha256:b033b97c6805825337b5c4b034fedd814fe97df4423b6ae836df9771f060c6c4
 import {
   additionalContextOutput,
   extractCwd,
   extractWriteTargets,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-2Z63OBKD.mjs";
+} from "../chunks/chunk-HIUWF73R.mjs";
 
 // plugins/git-delivery-guards/src/entries/hooks/git-delivery-hook-post-tool.ts
 import { resolve } from "node:path";

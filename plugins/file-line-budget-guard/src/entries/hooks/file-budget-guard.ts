@@ -18,6 +18,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { classifyBudgetState } from "../../lib/budget-policy.js";
+import { eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { extractFileTargets } from "@harness/core/hook-targets";
 
 // ── Built-in rules ───────────────────────────────────────────
 // These are the default rules when no user config is present.
@@ -296,60 +298,10 @@ function writeWarnMarker(filePath) {
 }
 
 export function extractFilePaths(event) {
-  const toolInput =
-    event?.tool_input ??
-    event?.toolInput ??
-    event?.tool?.input ??
-    event?.input ??
-    {};
-  const cwd =
-    event?.cwd ??
-    event?.working_directory ??
-    event?.workingDirectory ??
-    process.cwd();
-  const paths = [];
-  for (const key of ["file_path", "filePath", "path", "target_file"]) {
-    if (typeof toolInput?.[key] === "string" && toolInput[key]) {
-      paths.push(toolInput[key]);
-    }
-  }
-  // Codex apply_patch: paths live inside the freeform patch payload.
-  const patchBlob = [toolInput?.patch, toolInput?.input, toolInput?.command]
-    .filter((v) => typeof v === "string")
-    .join("\n");
-  if (patchBlob) {
-    for (const line of patchBlob.split("\n")) {
-      const m = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/);
-      if (m) paths.push(m[1].trim().replace(/\\n$/, ""));
-    }
-  }
-  // Codex/Claude shell tools: extract redirect targets (`> file`, `>> file`).
-  const command =
-    (typeof toolInput?.command === "string" && toolInput.command) ||
-    (typeof toolInput?.cmd === "string" && toolInput.cmd) ||
-    "";
-  if (command) {
-    for (const m of command.matchAll(/(?:>|>>)\s*([^\s;&|'"]+)/g)) {
-      paths.push(m[1]);
-    }
-    // Also catch paths that appear after heredoc terminators: `EOF\n} > path`
-    for (const m of command.matchAll(
-      /(?:^|[\s;|&])((?:\.\/)?src\/[^\s;&|'"]+\.(?:php|js|ts|tsx|jsx|py|go|rs|java|kt|vue|svelte))\b/g,
-    )) {
-      // Only keep when the command also has a redirect near the path.
-      if (command.includes(`> ${m[1]}`) || command.includes(`>${m[1]}`)) {
-        paths.push(m[1]);
-      }
-    }
-  }
-  // Resolve relative paths against event cwd so PostToolUse can stat the file.
-  return [
-    ...new Set(
-      paths
-        .filter(Boolean)
-        .map((p) => (p.startsWith("/") ? p : join(cwd, p.replace(/^\.\//, "")))),
-    ),
-  ];
+  return extractFileTargets(event, {
+    tools: eventToolName(event) ? "mutation" : "any",
+    includeShellWrites: true,
+  });
 }
 
 function block(message) {
@@ -365,18 +317,8 @@ function warn(message) {
 // ── Main ──────────────────────────────────────────────────────
 
 async function main() {
-  let rawInput = "";
-  for await (const chunk of process.stdin) {
-    rawInput += chunk;
-  }
-
-  let event;
-  try {
-    event = JSON.parse(rawInput || "{}");
-  } catch {
-    // Invalid input → pass (fail-open)
-    process.exit(0);
-  }
+  const event = await readStdinJson();
+  if (event.__parseError) process.exit(0);
 
   const filePaths = extractFilePaths(event).filter((p) => existsSync(p));
   if (filePaths.length === 0) {

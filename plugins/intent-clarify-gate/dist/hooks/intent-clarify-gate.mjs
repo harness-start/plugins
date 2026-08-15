@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6ad6a4126a8d182e4d36a4a00bc077724c54db8bed36943c5ff87082a47cdd1b
+// harness-source-hash: sha256:48f033c1492b5549edde38de8b7a773d38418565f80acaadd3812a01310f97fd
 
 // plugins/intent-clarify-gate/src/entries/hooks/intent-clarify-gate.ts
 import { resolve } from "node:path";
@@ -9,19 +9,44 @@ import { fileURLToPath } from "node:url";
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
 async function readStdinJson(input = process.stdin) {
   let raw = "";
   for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
   try {
-    const parsed = JSON.parse(raw || "{}");
+    const parsed = JSON.parse(raw);
     return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
   }
 }
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
 
 // core/src/hook-output.ts
-function additionalContext(hookEventName, context) {
+function additionalContext(hookEventName, context, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context}
+`);
+  if (options.suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,
@@ -29,11 +54,17 @@ function additionalContext(hookEventName, context) {
     }
   };
 }
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
 
 // plugins/intent-clarify-gate/src/lib/hook-io.ts
 var readStdinJson2 = readStdinJson;
 function extractSessionId(event, env = process.env) {
-  const value = event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? env.AI_EXPERTS_SESSION_ID;
+  const value = eventSessionId(event) || env.AI_EXPERTS_SESSION_ID;
   if (typeof value !== "string" || !value.trim() || value === "hook") return null;
   return value.trim();
 }
@@ -48,12 +79,6 @@ function platformDataRoot(env = process.env) {
 }
 function additionalContextOutput(hookEventName, text) {
   return additionalContext(hookEventName, text);
-}
-function writeJson(value) {
-  if (value !== null && value !== void 0) {
-    process.stdout.write(`${JSON.stringify(value)}
-`);
-  }
 }
 
 // plugins/intent-clarify-gate/src/lib/first-prompt-state.ts

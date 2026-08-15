@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:623af6d5b436a8439604afe9d013ebc52a09fe0bd2f6eb00bc98b56cd5c5995c
+// harness-source-hash: sha256:c94c232532285c6440b0131c47865311ea3b845cdb7f425c70568b18f455bd34
 
 // plugins/execution-loop-guard/src/entries/hooks/execution-loop-guard.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";
@@ -234,41 +234,230 @@ async function loadProjectConfig(cwd, warn2 = defaultWarn) {
   return { config: resolveConfig(null, warn2), repoRoot };
 }
 
-// plugins/execution-loop-guard/src/lib/hook-io.ts
-import { isAbsolute, resolve } from "node:path";
-var SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
-var FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write)$/iu;
-async function readStdinJson() {
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
   let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
+  for await (const chunk of input) raw += chunk.toString();
   if (!raw.trim()) return {};
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
   }
 }
-function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? null;
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
 }
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
-function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
 }
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
 }
-function extractToolResponse(event) {
-  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.tool?.response ?? null;
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+
+// core/src/hook-output.ts
+function preToolDeny(reason) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    }
+  };
+}
+function additionalContext(hookEventName, context, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context}
+`);
+  if (options.suppressJson) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext: context
+    }
+  };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
 }
 function extractShellCommand(event) {
-  const name = String(extractToolName(event));
-  if (!SHELL_TOOLS.test(name)) return null;
-  const input = extractToolInput(event);
-  const command = input?.command ?? input?.cmd ?? input?.script;
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
   return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
+  if (!input || typeof input !== "object") return [];
+  const record = input;
+  const paths = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
+  }
+  return paths;
+}
+function patchPaths(payload) {
+  const paths = [];
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
+  return paths;
+}
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
+// plugins/execution-loop-guard/src/lib/hook-io.ts
+function extractSessionId(event) {
+  return eventSessionId(event) || null;
+}
+function extractCwd(event) {
+  return eventCwd(event);
+}
+function extractToolName(event) {
+  return eventToolName(event);
+}
+function extractToolInput(event) {
+  return eventToolInput(event);
+}
+function extractToolResponse(event) {
+  return eventToolResponse(event);
 }
 function extractToolWait(event) {
   const fullName = String(extractToolName(event));
@@ -285,69 +474,14 @@ function extractToolWait(event) {
   }
   return null;
 }
-function stripMatchingQuotes(value) {
-  const text = String(value ?? "").trim();
-  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) return text.slice(1, -1);
-  return text;
-}
-function objectPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "notebook_path", "notebookPath"]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) {
-    for (const edit of input.edits) paths.push(...objectPaths(edit));
-  }
-  return paths;
-}
-function patchPaths(payload) {
-  if (typeof payload !== "string") return [];
-  const paths = [];
-  for (const line of payload.split("\n")) {
-    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (file) paths.push(stripMatchingQuotes(file[1]));
-    if (move) paths.push(stripMatchingQuotes(move[1]));
-  }
-  return paths;
-}
-function extractFileTargets(event) {
-  if (!FILE_TOOLS.test(String(extractToolName(event)))) return [];
-  const input = extractToolInput(event);
-  const cwd = resolve(extractCwd(event));
-  const targets = objectPaths(input);
-  const patch = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  targets.push(...patchPaths(patch));
-  return [...new Set(targets.map(stripMatchingQuotes).filter(Boolean).map(
-    (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-  ))];
-}
-function preToolDeny(reason) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: reason
-    }
-  };
+function extractFileTargets2(event) {
+  return extractFileTargets(event);
 }
 function contextOutput(eventName, text) {
-  if (process.env.PLUGIN_ROOT && eventName === "PostToolUse") {
-    process.stderr.write(`${text}
-`);
-    return null;
-  }
-  return {
-    hookSpecificOutput: {
-      hookEventName: eventName,
-      additionalContext: text
-    }
-  };
-}
-function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}
-`);
+  return additionalContext(eventName, text, {
+    echoStderr: Boolean(process.env.PLUGIN_ROOT) && eventName === "PostToolUse",
+    suppressJson: Boolean(process.env.PLUGIN_ROOT) && eventName === "PostToolUse"
+  });
 }
 
 // plugins/execution-loop-guard/src/lib/execution-loop-policy.ts
@@ -504,25 +638,82 @@ function countRemotePolls(command) {
 }
 
 // plugins/execution-loop-guard/src/lib/state-store.ts
+import { existsSync as existsSync4, mkdirSync as mkdirSync2, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname2, join as join3, resolve as resolve3 } from "node:path";
+
+// core/src/state-file.ts
 import { createHash as createHash2, randomBytes } from "node:crypto";
-import { existsSync as existsSync3, mkdirSync, readFileSync as readFileSync2, renameSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join as join2, resolve as resolve3 } from "node:path";
+import { existsSync as existsSync3, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join as join2 } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var STALE_LOCK_MS = 3e4;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash2("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join2(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+function withPathLock(path, operation) {
+  const lockPath = `${path}.lock`;
+  mkdirSync(dirname(path), { recursive: true, mode: DIRECTORY_MODE });
+  const deadline = Date.now() + 5e3;
+  while (true) {
+    try {
+      mkdirSync(lockPath, { mode: DIRECTORY_MODE });
+      try {
+        return operation();
+      } finally {
+        rmSync(lockPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - statSync(lockPath).mtimeMs > STALE_LOCK_MS) {
+          rmSync(lockPath, { recursive: true, force: true });
+          continue;
+        }
+      } catch {
+        if (!existsSync3(lockPath)) continue;
+      }
+      if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock: ${lockPath}`);
+      Atomics.wait(WAIT_BUFFER, 0, 0, 10);
+    }
+  }
+}
+
+// plugins/execution-loop-guard/src/lib/state-store.ts
 var VERSION = 1;
 var STATE_DIR_RELATIVE = ".execution-loop-guard/state";
 function digest(value) {
-  return createHash2("sha256").update(String(value)).digest("hex");
+  return digestKey(value);
 }
 function ensureStateDir(directory) {
-  mkdirSync(directory, { recursive: true, mode: 448 });
-  const ignore = join2(dirname(directory), ".gitignore");
-  if (!existsSync3(ignore)) {
-    writeFileSync(ignore, "state/\n", { encoding: "utf8", mode: 384 });
+  mkdirSync2(directory, { recursive: true, mode: 448 });
+  const ignore = join3(dirname2(directory), ".gitignore");
+  if (!existsSync4(ignore)) {
+    writeFileSync2(ignore, "state/\n", { encoding: "utf8", mode: 384 });
   }
 }
 function statePath(event) {
   const cwd = resolve3(extractCwd(event));
   const session = extractSessionId(event) ?? "default";
-  return join2(cwd, STATE_DIR_RELATIVE, `${digest(session)}.json`);
+  return join3(cwd, STATE_DIR_RELATIVE, `${digest(session)}.json`);
 }
 function emptyState() {
   return { version: VERSION, updatedAt: 0, edits: {}, command: null, polling: null };
@@ -545,21 +736,8 @@ function readState(path) {
 }
 function writeState(path, state) {
   if (!path) return false;
-  const directory = dirname(path);
-  const temporary = join2(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    ensureStateDir(directory);
-    writeFileSync(temporary, `${JSON.stringify(state)}
-`, { encoding: "utf8", mode: 384, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try {
-      rmSync(temporary, { force: true });
-    } catch {
-    }
-    return false;
-  }
+  ensureStateDir(dirname2(path));
+  return withPathLock(path, () => atomicWriteJson(path, state));
 }
 function updateState(event, updater) {
   const path = statePath(event);
@@ -760,7 +938,7 @@ function editMessage(action, findings, settings) {
   return lines.join("\n");
 }
 function recordEdits(event, config, repoRoot, cwd) {
-  const targets = extractFileTargets(event);
+  const targets = extractFileTargets2(event);
   if (targets.length === 0 || config.checks.editLoop === "off") return;
   const now = Date.now();
   const result = updateState(event, (state) => {

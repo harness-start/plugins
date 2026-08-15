@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { posix as path } from "node:path";
 import { basename, join, relative, resolve } from "node:path";
+import { projectInside, resolveWorkspaceRoot } from "@harness/core/artifact-paths";
 
 const SLIDE_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.ts$/u;
 const GENERATED_PATH = /^(?:dist\/|evidence\.[^/]+\.json$|review\.[^/]+\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
@@ -226,11 +227,9 @@ export function validatePptxModel(model, { stage = "source" } = {}) {
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
 
-export function evaluatePptxWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
-  const normalized = relativePath.replaceAll("\\", "/");
-  const match = normalized.match(/(?:^|\/)artifacts\/pptx\/[^/]+\/(?<inside>.+)$/u);
-  if (!match) return { decision: "allow" };
-  const inside = match.groups.inside;
+export function evaluatePptxWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
+  const inside = projectInside(relativePath, cwd, "pptx");
+  if (!inside) return { decision: "allow" };
   const isSlidePreview = inside.startsWith("src/slides/") && inside.endsWith(".png");
   const isGenerated = inside === ".pptx-delivery-journal.json" || GENERATED_PATH.test(inside) || isSlidePreview;
   const approvedWriter = typeof writer === "string" && writer.startsWith("pptx-");
@@ -298,7 +297,7 @@ export async function loadPptxProject(projectRoot, limits = {}) {
 }
 
 export async function findPptxProjects(cwd, { maxProjects = 32 } = {}) {
-  const carrierRoot = join(resolve(cwd), "artifacts", "pptx");
+  const carrierRoot = join(resolveWorkspaceRoot(cwd, "pptx"), "artifacts", "pptx");
   let entries;
   try {
     entries = await readdir(carrierRoot, { withFileTypes: true });

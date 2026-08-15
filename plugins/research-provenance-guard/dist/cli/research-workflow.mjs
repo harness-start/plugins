@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:2aff1d064d6b7d23103f1a68f7475ebcbee3145b1fa48dc93f13d01953380e8b
+// harness-source-hash: sha256:f2198695d91a047e2248a874b904a6e23c34f503d792e3b4f684aa3d31d8eac6
 import {
   SEALED_OR_LATER,
   appendSkillTrace,
@@ -11,7 +11,7 @@ import {
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-EHHD26IL.mjs";
+} from "../chunks/chunk-V3CIUWJJ.mjs";
 
 // plugins/research-provenance-guard/src/entries/cli/research-workflow.ts
 import { createHash } from "node:crypto";

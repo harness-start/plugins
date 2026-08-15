@@ -1,21 +1,25 @@
-export async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
+import {
+  eventAssistantMessage,
+  eventCwd,
+  eventPrompt,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  isStopHookActive,
+  readStdinJson,
+} from "@harness/core/hook-event";
+import { additionalContext, stopBlock, writeJson } from "@harness/core/hook-output";
+import { canonicalToolName, extractFileTargets as extractCoreFileTargets } from "@harness/core/hook-targets";
+
+export { readStdinJson, writeJson, isStopHookActive, stopBlock };
 
 export function extractSessionId(event) {
-  const value = event?.session_id ?? event?.sessionId;
-  return typeof value === "string" && value ? value : null;
+  const value = eventSessionId(event);
+  return value || null;
 }
 
 export function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  return eventCwd(event);
 }
 
 export function extractSource(event) {
@@ -23,28 +27,19 @@ export function extractSource(event) {
 }
 
 export function extractPrompt(event) {
-  return typeof event?.prompt === "string" ? event.prompt : "";
+  return eventPrompt(event);
 }
 
 export function extractAssistantMessage(event) {
-  const message = event?.last_assistant_message ?? event?.lastAssistantMessage ?? "";
-  return typeof message === "string" ? message : "";
-}
-
-export function isStopHookActive(event) {
-  return event?.stop_hook_active === true || event?.stopHookActive === true;
+  return eventAssistantMessage(event);
 }
 
 export function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
+  return eventToolName(event);
 }
 
 export function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-}
-
-function canonicalToolName(value) {
-  return String(value ?? "").replaceAll("_", "").toLowerCase();
+  return eventToolInput(event);
 }
 
 function patchAddedText(command) {
@@ -76,9 +71,11 @@ export function generatedToolText(event) {
     return quoted ? `${command}\n${quoted}` : command;
   }
   if (tool === "write") return typeof input.content === "string" ? input.content : "";
-  if (tool === "edit") return typeof (input.new_string ?? input.newString) === "string"
-    ? input.new_string ?? input.newString
-    : "";
+  if (tool === "edit") {
+    return typeof (input.new_string ?? input.newString) === "string"
+      ? input.new_string ?? input.newString
+      : "";
+  }
   if (tool === "multiedit") {
     return Array.isArray(input.edits)
       ? input.edits.map((edit) => edit?.new_string ?? edit?.newString ?? "").filter(Boolean).join("\n")
@@ -95,25 +92,11 @@ export function generatedToolText(event) {
 }
 
 export function extractFileTargets(event) {
-  const input = extractToolInput(event);
-  const values = [input.file_path, input.filePath, input.path]
-    .filter((value) => typeof value === "string" && value);
-  if (Array.isArray(input.edits)) {
-    for (const edit of input.edits) {
-      const value = edit?.file_path ?? edit?.filePath;
-      if (typeof value === "string" && value) values.push(value);
-    }
-  }
-  return [...new Set(values)];
-}
-
-export function writeJson(value) {
-  if (value === null) return;
-  process.stdout.write(`${JSON.stringify(value)}\n`);
+  return extractCoreFileTargets(event, { tools: "any" });
 }
 
 export function additionalContextOutput(hookEventName, text) {
-  return { hookSpecificOutput: { hookEventName, additionalContext: text } };
+  return additionalContext(hookEventName, text);
 }
 
 export function supportsPostToolFeedback() {
@@ -122,10 +105,6 @@ export function supportsPostToolFeedback() {
 
 export function postToolFeedbackOutput(text) {
   return additionalContextOutput("PostToolUse", text);
-}
-
-export function stopBlock(reason) {
-  return { decision: "block", reason };
 }
 
 export function warn(message) {

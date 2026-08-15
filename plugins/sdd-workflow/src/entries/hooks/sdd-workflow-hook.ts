@@ -4,59 +4,23 @@ import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { formatFindings, inspectChange } from "../../lib/artifacts.js";
+import { eventCwd, eventToolName } from "@harness/core/hook-event";
+import { extractFileTargets, extractShellCommand, isShellTool } from "@harness/core/hook-targets";
 
-const FILE_TOOLS = new Set(["applypatch", "edit", "multiedit", "notebookedit", "write", "createfile", "searchreplace"]);
-const SHELL_TOOLS = new Set(["bash", "exec", "execcommand", "localshell", "shell", "shellcommand"]);
 const ARTIFACTS = new Set(["spec.md", "plan.md", "tasks.md"]);
 const TARGET_PATH_CODES = new Set(["invalid-change-name", "invalid-spec-root", "symlink-artifact", "artifact-read-error"]);
 
-function toolName(event) {
-  return String(event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "").replaceAll("_", "").toLowerCase();
-}
-
-function toolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-}
-
-function nestedPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of ["file_path", "filePath", "path", "target_file", "output_file", "notebook_path"]) if (typeof input[key] === "string") paths.push(input[key]);
-  if (Array.isArray(input.edits)) for (const edit of input.edits) paths.push(...nestedPaths(edit));
-  return paths;
-}
-
-function patchPaths(input) {
-  const text = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  const paths = [];
-  for (const line of text.split("\n")) {
-    const match = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u) ?? line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (match) paths.push(match[1].trim().replace(/^['"]|['"]$/gu, ""));
-  }
-  return paths;
-}
-
-function shellPaths(command) {
-  const paths = [];
-  const push = (value) => {
-    const clean = String(value ?? "").trim().replace(/^['"]|['"]$/gu, "");
-    if (clean && !clean.startsWith("-")) paths.push(clean);
-  };
-  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\b(?:cp|mv|install)\b(?:\s+-[^\s]+)*\s+[^\s;&|]+\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  return paths;
-}
-
 function targets(event) {
-  const name = toolName(event);
-  const input = toolInput(event);
-  const cwd = resolve(event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd());
-  let raw = [];
-  if (FILE_TOOLS.has(name)) raw = [...nestedPaths(input), ...patchPaths(input)];
-  else if (SHELL_TOOLS.has(name)) raw = shellPaths(String(input?.command ?? input?.cmd ?? input?.script ?? ""));
-  return [...new Set(raw.map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
+  const core = extractFileTargets(event, { includeShellWrites: true });
+  if (!isShellTool(eventToolName(event))) return core;
+  const cwd = resolve(eventCwd(event));
+  const extras = [];
+  const command = extractShellCommand(event) ?? "";
+  for (const match of command.matchAll(/\b(?:cp|mv|install)\b(?:\s+-[^\s]+)*\s+[^\s;&|]+\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    const raw = String(match[1] ?? "").trim().replace(/^['"]|['"]$/gu, "");
+    if (raw && !raw.startsWith("-")) extras.push(isAbsolute(raw) ? resolve(raw) : resolve(cwd, raw.replace(/^\.\//u, "")));
+  }
+  return [...new Set([...core, ...extras])];
 }
 
 function directArtifactTarget(path, workspaceRoot) {
@@ -132,7 +96,7 @@ export function evaluateHook(mode, event) {
   if (artifacts.length === 0) return null;
 
   if (mode === "pre") {
-    const command = SHELL_TOOLS.has(toolName(event)) ? String(toolInput(event)?.command ?? toolInput(event)?.cmd ?? "") : "";
+    const command = isShellTool(eventToolName(event)) ? String(extractShellCommand(event) ?? "") : "";
     if (command && /(?:&&|\|\||;|\n)/u.test(command)) return deny("Compound shell writes that target .specs artifacts are not safe; write one artifact per tool call.");
     for (const target of artifacts) {
       const sameChange = artifacts.filter((candidate) => candidate.changeDir === target.changeDir).map(({ artifact }) => artifact);

@@ -18,38 +18,21 @@ import {
   runCommand,
   writeState,
 } from "../../lib/code-quality-core.js";
+import { eventCwd, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
+import { stopBlock, writeJson } from "@harness/core/hook-output";
 
 function warn(message) {
   process.stderr.write(`[code-quality-guard] ${message}\n`);
-}
-
-async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
-
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
 }
 
 function outputReport(message) {
   process.stderr.write(`${message}\n`);
 }
 
-function stopBlock(message) {
-  process.stdout.write(`${JSON.stringify({ decision: "block", reason: message })}\n`);
-}
-
 async function main() {
   const event = await readStdinJson();
-  if (event.__parseError || event?.stop_hook_active === true || event?.stopHookActive === true) return;
-  const cwd = resolve(extractCwd(event));
+  if (event.__parseError || isStopHookActive(event)) return;
+  const cwd = resolve(eventCwd(event));
   const discoveredRoot = resolveRepoRoot(cwd);
   const repoRoot = discoveredRoot ?? cwd;
   const config = resolveConfig(await loadUserConfig(discoveredRoot));
@@ -117,7 +100,7 @@ async function main() {
     ...findings.flatMap((item) => [`- [${item.mode}] PHPStan`, ...item.message.split("\n").map((line) => `  ${line}`)]),
     ...(omitted > 0 ? [`- [report] ${omitted} additional PHP file(s) were not checked because of the batch limit`] : []),
   ].join("\n");
-  if (findings.some((item) => item.mode === "block")) stopBlock(message);
+  if (findings.some((item) => item.mode === "block")) writeJson(stopBlock(message));
   else outputReport(message);
 }
 

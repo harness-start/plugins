@@ -19,6 +19,9 @@ import {
   matchRule,
   resolveRules,
 } from "../../lib/protected-file-policy.js";
+import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
+import { tokenizeShell } from "@harness/core/shell-parse";
 
 const CONFIG_FILE_NAMES = [
   ".protected-file-guard.mjs",
@@ -26,87 +29,8 @@ const CONFIG_FILE_NAMES = [
   ".protected-file-guard.js",
 ];
 
-const FILE_TOOL_NAMES = new Set([
-  "applypatch",
-  "createfile",
-  "edit",
-  "multiedit",
-  "notebookedit",
-  "searchreplace",
-  "write",
-]);
-
-const SHELL_TOOL_NAMES = new Set([
-  "bash",
-  "exec",
-  "execcommand",
-  "localshell",
-  "shell",
-  "shellcommand",
-]);
-
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
 const SIMPLE_WRAPPERS = new Set(["busybox", "command", "exec", "nohup", "time"]);
-
-function tokenizeShell(command) {
-  const tokens = [];
-  let current = "";
-  let quote = null;
-  let escaped = false;
-  const text = String(command ?? "");
-  const flush = () => {
-    if (current) {
-      tokens.push(current);
-      current = "";
-    }
-  };
-  for (let index = 0; index < text.length; index += 1) {
-    const char = text[index];
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-    if (char === "\\" && quote !== "'") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (char === quote) {
-        quote = null;
-        continue;
-      }
-      current += char;
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      continue;
-    }
-    if (/\s/u.test(char)) {
-      flush();
-      continue;
-    }
-    if (char === ";") {
-      flush();
-      tokens.push(";");
-      continue;
-    }
-    if (char === "|" || char === "&") {
-      flush();
-      if (text[index + 1] === char) {
-        tokens.push(char + char);
-        index += 1;
-      } else {
-        tokens.push(char);
-      }
-      continue;
-    }
-    current += char;
-  }
-  flush();
-  return tokens;
-}
 
 function splitSimpleCommands(tokens) {
   const commands = [];
@@ -312,135 +236,19 @@ function warn(message) {
   process.stderr.write(`[protected-file-guard] ${message}\n`);
 }
 
-async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
-
-function extractToolName(event) {
-  return (
-    event?.tool_name ??
-    event?.toolName ??
-    event?.tool?.name ??
-    ""
-  );
-}
-
-function canonicalToolName(value) {
-  return String(value ?? "").replaceAll("_", "").toLowerCase();
-}
-
-function extractToolInput(event) {
-  return (
-    event?.tool_input ??
-    event?.toolInput ??
-    event?.tool?.input ??
-    event?.input ??
-    {}
-  );
-}
-
-function extractCwd(event) {
-  return (
-    event?.cwd ??
-    event?.working_directory ??
-    event?.workingDirectory ??
-    process.cwd()
-  );
-}
-
-function stripMatchingQuotes(value) {
-  const text = String(value ?? "").trim();
-  if (
-    text.length >= 2 &&
-    ((text.startsWith('"') && text.endsWith('"')) ||
-      (text.startsWith("'") && text.endsWith("'")))
-  ) {
-    return text.slice(1, -1);
-  }
-  return text;
-}
-
-export function extractPatchTargets(payload) {
-  if (typeof payload !== "string") return [];
-  const targets = [];
-  for (const line of payload.split("\n")) {
-    const file = line.match(
-      /^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u,
-    );
-    if (file) targets.push(stripMatchingQuotes(file[1]));
-    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (move) targets.push(stripMatchingQuotes(move[1]));
-  }
-  return targets;
-}
-
-function objectPaths(input) {
-  if (!input || typeof input !== "object") return [];
-  const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "output_file",
-    "outputFile",
-    "notebook_path",
-    "notebookPath",
-  ]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
-  }
-  if (Array.isArray(input.edits)) {
-    for (const edit of input.edits) paths.push(...objectPaths(edit));
-  }
-  return paths;
-}
+export { extractPatchPaths as extractPatchTargets } from "@harness/core/hook-targets";
 
 export function extractFileTargets(event) {
-  const toolName = canonicalToolName(extractToolName(event));
-  const input = extractToolInput(event);
-  const cwd = extractCwd(event);
-  if (SHELL_TOOL_NAMES.has(toolName)) {
-    const command = typeof input?.command === "string"
-      ? input.command
-      : typeof input?.cmd === "string" ? input.cmd : "";
-    return [
-      ...new Set(
-        extractShellWriteTargets(command)
-          .map(stripMatchingQuotes)
-          .filter(Boolean)
-          .map((path) =>
-            isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")),
-          ),
-      ),
-    ];
-  }
-  if (!FILE_TOOL_NAMES.has(toolName)) return [];
-
-  const targets = objectPaths(input);
-  const patchPayload = typeof input === "string"
-    ? input
-    : [input?.patch, input?.input, input?.command]
-        .filter((value) => typeof value === "string")
-        .join("\n");
-  targets.push(...extractPatchTargets(patchPayload));
-
-  return [
-    ...new Set(
-      targets
-        .map(stripMatchingQuotes)
+  if (isShellTool(eventToolName(event))) {
+    const cwd = eventCwd(event);
+    return [...new Set(
+      extractShellWriteTargets(extractShellCommand(event) ?? "")
         .filter(Boolean)
-        .map((path) =>
-          isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-        ),
-    ),
-  ];
+        .map((path) => (isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))),
+    )];
+  }
+  if (!isFileMutationTool(eventToolName(event))) return [];
+  return extractCoreFileTargets(event);
 }
 
 export function resolveRepoRoot(cwd) {
@@ -558,7 +366,7 @@ function denyOutput(reason) {
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const cwd = resolve(extractCwd(event));
+  const cwd = resolve(eventCwd(event));
   const targets = extractFileTargets(event);
   if (targets.length === 0) return;
 

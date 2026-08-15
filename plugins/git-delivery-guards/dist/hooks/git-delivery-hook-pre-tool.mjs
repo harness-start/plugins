@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bd3d4316ce6487f962121d181f846434aefeeb207cc82c5c3ed29ec0efabbdb3
+// harness-source-hash: sha256:b033b97c6805825337b5c4b034fedd814fe97df4423b6ae836df9771f060c6c4
 import {
   additionalContextOutput,
   extractCwd,
@@ -9,13 +9,13 @@ import {
   preToolDeny,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-2Z63OBKD.mjs";
+} from "../chunks/chunk-HIUWF73R.mjs";
 
 // plugins/git-delivery-guards/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-// plugins/git-delivery-guards/src/lib/shell-parse.ts
+// core/src/shell-parse.ts
 function decodeAnsiCQuoteEscape(command, slashIndex) {
   const marker = command[slashIndex + 1] ?? "";
   const simple = /* @__PURE__ */ new Map([
@@ -51,7 +51,7 @@ function decodeAnsiCQuoteEscape(command, slashIndex) {
   return { value: `\\${marker}`, endIndex: slashIndex + 1 };
 }
 var EMPTY_OPTIONS = /* @__PURE__ */ new Set();
-var SIMPLE_COMMAND_WRAPPERS = /* @__PURE__ */ new Set(["command", "exec", "nohup"]);
+var SIMPLE_COMMAND_WRAPPERS = /* @__PURE__ */ new Set(["command", "exec", "nohup", "busybox", "time"]);
 var SUDO_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
   "-C",
   "-D",
@@ -96,6 +96,29 @@ var XARGS_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
   "--max-procs",
   "--replace"
 ]);
+var TIMEOUT_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-s",
+  "--signal",
+  "-k",
+  "--kill-after"
+]);
+var NICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set(["-n", "--adjustment"]);
+var STDBUF_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-i",
+  "--input",
+  "-o",
+  "--output",
+  "-e",
+  "--error"
+]);
+var IONICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-c",
+  "--class",
+  "-n",
+  "--classdata",
+  "-p",
+  "--pid"
+]);
 var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
 function skipWrapperOptions(tokens, start, optionsWithValue) {
   let index = start;
@@ -107,6 +130,9 @@ function skipWrapperOptions(tokens, start, optionsWithValue) {
   }
   return index;
 }
+function tokenBasename(token) {
+  return token.split("/").at(-1) ?? "";
+}
 function commandInvocation(tokens) {
   let index = 0;
   let stdinDriven = false;
@@ -117,25 +143,45 @@ function commandInvocation(tokens) {
       index += 1;
       continue;
     }
-    if (SIMPLE_COMMAND_WRAPPERS.has(token)) {
+    const name = tokenBasename(token);
+    if (SIMPLE_COMMAND_WRAPPERS.has(name)) {
       index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
       continue;
     }
-    if (token === "sudo") {
+    if (name === "sudo") {
       index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
       continue;
     }
-    if (token === "env") {
+    if (name === "env") {
       index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
       continue;
     }
-    if (token === "xargs") {
+    if (name === "xargs") {
       stdinDriven = true;
       index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
       continue;
     }
+    if (name === "timeout") {
+      index = skipWrapperOptions(tokens, index + 1, TIMEOUT_OPTIONS_WITH_VALUE);
+      if (index < tokens.length && tokens[index] && !COMMAND_SEPARATORS.has(tokens[index] ?? "")) {
+        index += 1;
+      }
+      continue;
+    }
+    if (name === "nice") {
+      index = skipWrapperOptions(tokens, index + 1, NICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "stdbuf") {
+      index = skipWrapperOptions(tokens, index + 1, STDBUF_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "ionice") {
+      index = skipWrapperOptions(tokens, index + 1, IONICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
     return {
-      executable: token.split(/[\\/]/u).at(-1) ?? token,
+      executable: name || token,
       args: tokens.slice(index + 1),
       stdinDriven
     };
@@ -150,9 +196,11 @@ function tokenizeShell(command) {
   let ansiCQuote = false;
   let escaped = false;
   const pushCurrent = () => {
-    if (tokenStarted) tokens.push(current);
-    current = "";
-    tokenStarted = false;
+    if (tokenStarted) {
+      tokens.push(current);
+      current = "";
+      tokenStarted = false;
+    }
   };
   for (let index = 0; index < command.length; index += 1) {
     const char = command[index] ?? "";

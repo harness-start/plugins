@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:2aff1d064d6b7d23103f1a68f7475ebcbee3145b1fa48dc93f13d01953380e8b
+// harness-source-hash: sha256:f2198695d91a047e2248a874b904a6e23c34f503d792e3b4f684aa3d31d8eac6
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-NXSTRNUW.mjs";
+} from "../chunks/chunk-FVBORMDT.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -15,7 +15,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-EHHD26IL.mjs";
+} from "../chunks/chunk-V3CIUWJJ.mjs";
 
 // plugins/research-provenance-guard/src/entries/hooks/research-provenance-guard.ts
 import { join as join3, resolve as resolve3 } from "node:path";
@@ -64,37 +64,126 @@ import { createHash, randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join as join2, resolve as resolve2 } from "node:path";
 
-// plugins/research-provenance-guard/src/lib/hook-io.ts
-var FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace)$/iu;
-var SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
-async function readStdinJson() {
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
   let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
+  for await (const chunk of input) raw += chunk.toString();
   if (!raw.trim()) return {};
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
   }
 }
-var sessionId = (event) => event?.session_id ?? event?.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? null;
-var cwd = (event) => event?.cwd ?? event?.working_directory ?? process.cwd();
-var prompt = (event) => typeof (event?.prompt ?? event?.user_prompt) === "string" ? event.prompt ?? event.user_prompt : "";
-var assistantMessage = (event) => typeof (event?.last_assistant_message ?? event?.assistant_text) === "string" ? event.last_assistant_message ?? event.assistant_text : "";
-var toolName = (event) => event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
-var toolInput = (event) => event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? {};
-var toolResponse = (event) => event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? null;
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
+}
+function eventAssistantMessage(event) {
+  return firstString(
+    event.last_assistant_message,
+    event.lastAssistantMessage,
+    event.assistant_message,
+    event.assistant_text,
+    event.assistantText
+  );
+}
+
+// core/src/hook-output.ts
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// core/src/hook-targets.ts
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+
+// plugins/research-provenance-guard/src/lib/hook-io.ts
+var sessionId = (event) => eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || null;
+var cwd = (event) => eventCwd(event);
+var prompt = (event) => eventPrompt(event);
+var assistantMessage = (event) => eventAssistantMessage(event);
+var toolName = (event) => eventToolName(event);
+var toolInput = (event) => eventToolInput(event);
+var toolResponse = (event) => eventToolResponse(event);
 function shellCommand(event) {
-  if (!SHELL_TOOLS.test(String(toolName(event)))) return null;
-  const input = toolInput(event);
-  return typeof (input?.command ?? input?.cmd) === "string" ? input.command ?? input.cmd : null;
+  return extractShellCommand(event);
 }
 function fileMutation(event) {
-  return FILE_TOOLS.test(String(toolName(event)));
-}
-function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}
-`);
+  return isFileMutationTool(toolName(event));
 }
 
 // plugins/research-provenance-guard/src/lib/state-store.ts

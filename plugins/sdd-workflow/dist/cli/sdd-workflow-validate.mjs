@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8e3b6cbf6e71c64f442000ef3064fdc50861517e78f5ef9b8a7ebf4dc78879d
+// harness-source-hash: sha256:b491616b87b99ed99c6fae96038c09981543da281a7be2f550d5b04af8ca4487
 import {
   digestText,
   inspectChange
-} from "../chunks/chunk-XZYMORRN.mjs";
+} from "../chunks/chunk-UOC7I6V5.mjs";
 
 // plugins/sdd-workflow/src/entries/cli/sdd-workflow-validate.ts
 import { readFileSync } from "node:fs";

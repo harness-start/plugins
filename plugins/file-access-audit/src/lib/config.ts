@@ -1,6 +1,5 @@
-import { existsSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { isAbsolute } from "node:path";
+import { loadExecutableConfig } from "@harness/core/project-config";
 
 export const DEFAULT_CONFIG = Object.freeze({
   enabled: true,
@@ -66,17 +65,10 @@ export function resolveConfig(raw, warn = () => {}) {
 }
 
 export async function loadProjectConfig(repoRoot, warn = () => {}) {
-  if (!repoRoot) return resolveConfig(null, warn);
-  for (const name of CONFIG_NAMES) {
-    const path = join(repoRoot, name);
-    if (!existsSync(path)) continue;
-    try {
-      const loaded = await import(pathToFileURL(path).href);
-      return resolveConfig(loaded.default ?? loaded, warn);
-    } catch (error) {
-      warn(`failed to load ${name}: ${error?.message ?? error}`);
-      return resolveConfig(null, warn);
-    }
-  }
-  return resolveConfig(null, warn);
+  return loadExecutableConfig({
+    repoRoot,
+    names: CONFIG_NAMES,
+    resolve: resolveConfig,
+    warn,
+  });
 }

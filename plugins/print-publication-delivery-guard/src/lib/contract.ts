@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { projectInside } from "@harness/core/artifact-paths";
 
 const SECTION_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.section\.tsx$/u;
 const GENERATED_PATH = /^(?:build\/html\/|dist\/|evidence(?:\/|\.[^/]+\.json$)|evidence\.accessibility\.json$|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
@@ -143,11 +144,9 @@ export function validatePrintModel(model, { stage = "source" } = {}) {
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
 
-export function evaluatePrintWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
-  const normalized = relativePath.replaceAll("\\", "/");
-  const match = normalized.match(/(?:^|\/)artifacts\/print\/[^/]+\/(?<inside>.+)$/u);
-  if (!match) return { decision: "allow" };
-  const inside = match.groups.inside;
+export function evaluatePrintWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
+  const inside = projectInside(relativePath, cwd, "print");
+  if (!inside) return { decision: "allow" };
   if (GENERATED_PATH.test(inside) && !writer.startsWith("print-")) return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a print guard tool, not ${toolName || "an unregistered tool"}` };
   return { decision: "allow" };
 }

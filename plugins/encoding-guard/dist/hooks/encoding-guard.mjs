@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4a391c1b38c7dd3563e434bb4053384da63b150884e33ea0cb0f4b9f8379cd11
+// harness-source-hash: sha256:2cb20c6bbd4721b2bcbc6bbfd9bfc21a46b0a6b5ee77cf53a00a8291ce241f17
 
 // plugins/encoding-guard/src/entries/hooks/encoding-guard.ts
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute as isAbsolute2, join, relative, resolve as resolve2 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // plugins/encoding-guard/src/lib/encoding-policy.ts
@@ -34,6 +34,172 @@ function analyzeEncoding(buffer) {
     return { kind: "invalid-utf8" };
   }
   return null;
+}
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
+}
+function extractShellCommand(event) {
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
+  if (!input || typeof input !== "object") return [];
+  const record = input;
+  const paths = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
+  }
+  return paths;
+}
+function patchPaths(payload) {
+  const paths = [];
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
+  return paths;
+}
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
 }
 
 // plugins/encoding-guard/src/entries/hooks/encoding-guard.ts
@@ -116,54 +282,18 @@ async function loadUserConfig(repoRoot) {
   }
   return null;
 }
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
-}
-function stripMatchingQuotes(value) {
-  if (value.length >= 2 && (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1);
-  }
-  return value;
-}
 function extractFilePaths(event) {
-  const toolInput = extractToolInput(event);
-  const cwd = event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
-  const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "output_file",
-    "outputFile"
-  ]) {
-    if (typeof toolInput?.[key] === "string" && toolInput[key]) {
-      paths.push(toolInput[key]);
-    }
-  }
-  const patchPayload = [toolInput?.patch, toolInput?.input, toolInput?.command].filter((value) => typeof value === "string").join("\n");
-  for (const line of patchPayload.split("\n")) {
-    const match = line.match(
-      /^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u
-    );
-    if (match) paths.push(match[1].trim());
-  }
-  const command = typeof toolInput?.command === "string" && toolInput.command || typeof toolInput?.cmd === "string" && toolInput.cmd || "";
-  for (const match of command.matchAll(
-    /(?:^|[\s;])(?:\d*>>?|&>)\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu
-  )) {
-    paths.push(stripMatchingQuotes(match[1]));
-  }
+  const cwd = eventCwd(event);
+  const paths = extractFileTargets(event, {
+    tools: eventToolName(event) ? "mutation" : "any",
+    includeShellWrites: true
+  });
+  const command = extractShellCommand({ ...event, tool_name: eventToolName(event) || "Bash", tool_input: eventToolInput(event) }) ?? "";
   for (const match of command.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) {
-    paths.push(stripMatchingQuotes(match[1]));
+    const raw = match[1];
+    if (raw) paths.push(isAbsolute2(raw) ? resolve2(raw) : resolve2(cwd, raw.replace(/^\.\//u, "")));
   }
-  return [
-    ...new Set(
-      paths.filter(Boolean).map(
-        (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-      )
-    )
-  ];
+  return [...new Set(paths)];
 }
 function resolveRepoRoot(filePath) {
   try {
@@ -217,15 +347,9 @@ function block(findings) {
   process.exit(2);
 }
 async function main() {
-  let rawInput = "";
-  for await (const chunk of process.stdin) rawInput += chunk;
-  let event;
-  try {
-    event = JSON.parse(rawInput || "{}");
-  } catch {
-    return;
-  }
-  const cwd = event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  const event = await readStdinJson();
+  if (event.__parseError) return;
+  const cwd = eventCwd(event);
   const candidates = extractFilePaths(event).filter(existsSync);
   if (candidates.length === 0) return;
   const repoRoot = resolveRepoRoot(candidates[0]);
@@ -244,7 +368,7 @@ async function main() {
   }
   if (findings.length > 0) block(findings);
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve2(process.argv[1])) {
   main().catch(() => process.exit(0));
 }
 export {

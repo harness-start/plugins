@@ -1,39 +1,44 @@
-export async function readStdinJson() {
-  let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
-  if (!raw.trim()) return {};
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return { __parseError: true };
-  }
-}
+import { isAbsolute, resolve } from "node:path";
+
+import {
+  eventCwd,
+  eventSessionId,
+  eventToolInput,
+  eventToolName,
+  readStdinJson,
+} from "@harness/core/hook-event";
+import { additionalContext, preToolDeny, writeJson } from "@harness/core/hook-output";
+import {
+  extractFileTargets as extractCoreFileTargets,
+  extractShellCommand as extractCoreShellCommand,
+  isFileMutationTool,
+  isShellTool as isCoreShellTool,
+} from "@harness/core/hook-targets";
+
+export { readStdinJson, preToolDeny, writeJson };
 
 export function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+  return eventCwd(event);
 }
 
 export function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? "unknown";
+  return eventSessionId(event) || "unknown";
 }
 
 export function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
+  return eventToolName(event);
 }
 
 export function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+  return eventToolInput(event);
 }
 
 export function extractShellCommand(event) {
-  if (!SHELL_TOOLS.test(String(extractToolName(event)))) return null;
-  const input = extractToolInput(event);
-  const value = input?.command ?? input?.cmd ?? input?.script ?? "";
-  return typeof value === "string" ? value : "";
+  return extractCoreShellCommand(event) ?? "";
 }
 
 export function extractShellWorkingDirectory(event) {
-  if (!SHELL_TOOLS.test(String(extractToolName(event)))) return null;
+  if (!isCoreShellTool(extractToolName(event))) return null;
   const input = extractToolInput(event);
   const value = input?.workdir ?? input?.cwd ?? input?.working_directory ?? input?.workingDirectory;
   if (typeof value !== "string" || !value.trim()) return null;
@@ -41,23 +46,7 @@ export function extractShellWorkingDirectory(event) {
 }
 
 export function extractFileTargets(event) {
-  if (!FILE_TOOLS.test(String(extractToolName(event)))) return [];
-  const input = extractToolInput(event);
-  const cwd = resolve(extractCwd(event));
-  const values = [];
-  for (const key of ["file_path", "filePath", "path", "target_file"]) {
-    if (typeof input?.[key] === "string") values.push(input[key]);
-  }
-  const patch = typeof input === "string" ? input : input?.patch ?? input?.input ?? "";
-  if (typeof patch === "string") {
-    for (const line of patch.split("\n")) {
-      const match = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-      if (match) values.push(match[1].trim());
-    }
-  }
-  return [...new Set(values.map((value) =>
-    isAbsolute(value) ? resolve(value) : resolve(cwd, value.replace(/^\.\//u, "")),
-  ))];
+  return extractCoreFileTargets(event);
 }
 
 export function extractWriteContent(event) {
@@ -80,40 +69,17 @@ export function extractWriteContent(event) {
 }
 
 export function isFileTool(event) {
-  return FILE_TOOLS.test(String(extractToolName(event)));
+  return isFileMutationTool(extractToolName(event));
 }
 
 export function isShellTool(event) {
-  return SHELL_TOOLS.test(String(extractToolName(event)));
-}
-
-export function preToolDeny(reason) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: reason,
-    },
-  };
+  return isCoreShellTool(extractToolName(event));
 }
 
 export function contextOutput(eventName, text) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: eventName,
-      additionalContext: text,
-    },
-  };
+  return additionalContext(eventName, text);
 }
 
 export function systemMessageOutput(text) {
   return { systemMessage: text };
 }
-
-export function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}\n`);
-}
-import { isAbsolute, resolve } from "node:path";
-
-const FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace)$/iu;
-const SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:437209d67414c0908999ebefbf65719a54e285d15368743107f446da7d52fa89
+// harness-source-hash: sha256:099daba4d6c8b64ebec1b922bd71c31539bf915f6b5737f75b09a831d969deff
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
@@ -7,69 +7,247 @@ import {
   proposalLocation,
   renderHumanNotice,
   validateProposalDocument
-} from "../chunks/chunk-SJU66EKJ.mjs";
+} from "../chunks/chunk-K3NQP75V.mjs";
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 import { execFileSync } from "node:child_process";
 import { appendFile, lstat } from "node:fs/promises";
-import { resolve as resolve2 } from "node:path";
+import { resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // plugins/project-capability-governance/src/lib/hook-io.ts
-import { isAbsolute, resolve } from "node:path";
-async function readStdinJson() {
+import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
   let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
+  for await (const chunk of input) raw += chunk.toString();
   if (!raw.trim()) return {};
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
   }
 }
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
 }
-function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? "unknown";
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
-function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
 }
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+
+// core/src/hook-output.ts
+function preToolDeny(reason) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    }
+  };
+}
+function additionalContext(hookEventName, context, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context}
+`);
+  if (options.suppressJson) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext: context
+    }
+  };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
 }
 function extractShellCommand(event) {
-  if (!SHELL_TOOLS.test(String(extractToolName(event)))) return null;
-  const input = extractToolInput(event);
-  const value = input?.command ?? input?.cmd ?? input?.script ?? "";
-  return typeof value === "string" ? value : "";
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
+  return typeof command === "string" ? command : null;
+}
+function stripMatchingQuotes(value) {
+  const text = String(value ?? "").trim();
+  if (text.length >= 2 && (text.startsWith('"') && text.endsWith('"') || text.startsWith("'") && text.endsWith("'"))) {
+    return text.slice(1, -1);
+  }
+  return text;
+}
+function objectPaths(input) {
+  if (!input || typeof input !== "object") return [];
+  const record = input;
+  const paths = [];
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
+  }
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
+  }
+  return paths;
+}
+function patchPaths(payload) {
+  const paths = [];
+  for (const line of payload.split("\n")) {
+    const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
+    const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+  }
+  return paths;
+}
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
+}
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
+// plugins/project-capability-governance/src/lib/hook-io.ts
+function extractCwd(event) {
+  return eventCwd(event);
+}
+function extractSessionId(event) {
+  return eventSessionId(event) || "unknown";
+}
+function extractToolName(event) {
+  return eventToolName(event);
+}
+function extractToolInput(event) {
+  return eventToolInput(event);
+}
+function extractShellCommand2(event) {
+  return extractShellCommand(event) ?? "";
 }
 function extractShellWorkingDirectory(event) {
-  if (!SHELL_TOOLS.test(String(extractToolName(event)))) return null;
+  if (!isShellTool(extractToolName(event))) return null;
   const input = extractToolInput(event);
   const value = input?.workdir ?? input?.cwd ?? input?.working_directory ?? input?.workingDirectory;
   if (typeof value !== "string" || !value.trim()) return null;
-  return isAbsolute(value) ? resolve(value) : resolve(extractCwd(event), value);
+  return isAbsolute2(value) ? resolve2(value) : resolve2(extractCwd(event), value);
 }
-function extractFileTargets(event) {
-  if (!FILE_TOOLS.test(String(extractToolName(event)))) return [];
-  const input = extractToolInput(event);
-  const cwd = resolve(extractCwd(event));
-  const values = [];
-  for (const key of ["file_path", "filePath", "path", "target_file"]) {
-    if (typeof input?.[key] === "string") values.push(input[key]);
-  }
-  const patch = typeof input === "string" ? input : input?.patch ?? input?.input ?? "";
-  if (typeof patch === "string") {
-    for (const line of patch.split("\n")) {
-      const match = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
-      if (match) values.push(match[1].trim());
-    }
-  }
-  return [...new Set(values.map(
-    (value) => isAbsolute(value) ? resolve(value) : resolve(cwd, value.replace(/^\.\//u, ""))
-  ))];
+function extractFileTargets2(event) {
+  return extractFileTargets(event);
 }
 function extractWriteContent(event) {
   const input = extractToolInput(event);
@@ -88,37 +266,17 @@ function extractWriteContent(event) {
   return body.map((line) => line.slice(1)).join("\n");
 }
 function isFileTool(event) {
-  return FILE_TOOLS.test(String(extractToolName(event)));
+  return isFileMutationTool(extractToolName(event));
 }
-function isShellTool(event) {
-  return SHELL_TOOLS.test(String(extractToolName(event)));
-}
-function preToolDeny(reason) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: reason
-    }
-  };
+function isShellTool2(event) {
+  return isShellTool(extractToolName(event));
 }
 function contextOutput(eventName, text) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: eventName,
-      additionalContext: text
-    }
-  };
+  return additionalContext(eventName, text);
 }
 function systemMessageOutput(text) {
   return { systemMessage: text };
 }
-function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}
-`);
-}
-var FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace)$/iu;
-var SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 function shellSingleQuote(value) {
@@ -165,7 +323,7 @@ function resolveProjectRoot(cwd) {
       stdio: ["ignore", "pipe", "ignore"]
     }).trim();
   } catch {
-    return resolve2(cwd);
+    return resolve3(cwd);
   }
 }
 async function runStop(event) {
@@ -213,7 +371,7 @@ async function handleProposalWrite(event, projectRoot, locations) {
 async function runPre(event) {
   const projectRoot = resolveProjectRoot(extractCwd(event));
   if (isFileTool(event)) {
-    const targets = extractFileTargets(event);
+    const targets = extractFileTargets2(event);
     const locations = targets.map((target) => proposalLocation(projectRoot, target));
     if (targets.some((target) => isProposalInboxTarget(projectRoot, target)) && locations.every((location) => !location)) {
       writeJson(preToolDeny("[Project Capability Governance] non-canonical mutation under the proposal inbox is forbidden"));
@@ -221,8 +379,8 @@ async function runPre(event) {
     }
     if (await handleProposalWrite(event, projectRoot, locations)) return;
   }
-  if (isShellTool(event)) {
-    const command = extractShellCommand(event) ?? "";
+  if (isShellTool2(event)) {
+    const command = extractShellCommand2(event) ?? "";
     const commandNamesInbox = /\.project-capabilities[\\/]inbox/iu.test(command);
     const workingDirectory = extractShellWorkingDirectory(event);
     const targetsInbox = commandNamesInbox || workingDirectory && isProposalInboxTarget(projectRoot, workingDirectory);
@@ -244,7 +402,7 @@ async function main() {
 `);
   }
 }
-var isMain = process.argv[1] && resolve2(process.argv[1]) === fileURLToPath(import.meta.url);
+var isMain = process.argv[1] && resolve3(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) await main();
 export {
   resolveProjectRoot,

@@ -1,47 +1,138 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f65147a7fa6ddc46862f512f667aa1915212dd3040d1e06af6f45ac2fb24813f
+// harness-source-hash: sha256:54c35d5dcee4adb3a98c413fae652823958ad89e6b3346a8ddfe7878440a80f8
 
 // plugins/command-exec-audit/src/entries/hooks/command-exec-audit.ts
 import { resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// plugins/command-exec-audit/src/lib/hook-io.ts
-import { isAbsolute, resolve } from "node:path";
-var SHELL_TOOLS = /^(?:Bash|bash|Shell|shell|shell_command|exec_command|exec|local_shell)$/iu;
-var FILE_TOOLS = /^(?:apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|Read)$/iu;
-async function readStdinJson() {
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
   let raw = "";
-  for await (const chunk of process.stdin) raw += chunk;
+  for await (const chunk of input) raw += chunk.toString();
   if (!raw.trim()) return {};
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
   } catch {
     return { __parseError: true };
   }
 }
-function extractSessionId(event) {
-  return event?.session_id ?? event?.sessionId ?? event?.context?.session_id ?? null;
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
 }
-function extractCwd(event) {
-  return event?.cwd ?? event?.working_directory ?? event?.workingDirectory ?? process.cwd();
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
-function extractToolName(event) {
-  return event?.tool_name ?? event?.toolName ?? event?.tool?.name ?? "";
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
 }
-function extractToolInput(event) {
-  return event?.tool_input ?? event?.toolInput ?? event?.tool?.input ?? event?.input ?? {};
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
 }
-function extractToolResponse(event) {
-  return event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.tool?.response ?? null;
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
 }
-function extractToolUseId(event) {
-  return event?.tool_use_id ?? event?.toolUseId ?? event?.tool_call_id ?? event?.toolCallId ?? event?.tool_use?.id ?? event?.tool?.id ?? null;
+function eventToolUseId(event) {
+  const tool = nestedRecord(event, "tool");
+  const toolUse = nestedRecord(event, "tool_use");
+  return firstString(
+    event.tool_use_id,
+    event.toolUseId,
+    event.tool_call_id,
+    event.toolCallId,
+    toolUse?.id,
+    tool?.id
+  );
+}
+
+// core/src/hook-output.ts
+function preToolDeny(reason) {
+  return {
+    hookSpecificOutput: {
+      hookEventName: "PreToolUse",
+      permissionDecision: "deny",
+      permissionDecisionReason: reason
+    }
+  };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// core/src/hook-targets.ts
+import { isAbsolute, resolve } from "node:path";
+var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
+  "applypatch",
+  "createfile",
+  "edit",
+  "multiedit",
+  "notebookedit",
+  "searchreplace",
+  "write"
+]);
+var READ_TOOLS = /* @__PURE__ */ new Set(["read"]);
+var SHELL_TOOLS = /* @__PURE__ */ new Set([
+  "bash",
+  "exec",
+  "execcommand",
+  "localshell",
+  "shell",
+  "shellcommand"
+]);
+var PATH_KEYS = [
+  "file_path",
+  "filePath",
+  "path",
+  "target_file",
+  "output_file",
+  "outputFile",
+  "notebook_path",
+  "notebookPath"
+];
+function canonicalToolName(name) {
+  return String(name ?? "").replaceAll("_", "").toLowerCase();
+}
+function isFileMutationTool(name) {
+  return FILE_MUTATION_TOOLS.has(canonicalToolName(name));
+}
+function isReadTool(name) {
+  return READ_TOOLS.has(canonicalToolName(name));
+}
+function isShellTool(name) {
+  return SHELL_TOOLS.has(canonicalToolName(name));
 }
 function extractShellCommand(event) {
-  const name = String(extractToolName(event));
-  if (!SHELL_TOOLS.test(name)) return null;
-  const input = extractToolInput(event);
-  const command = input?.command ?? input?.cmd ?? input?.script;
+  if (!isShellTool(eventToolName(event))) return null;
+  const input = eventToolInput(event);
+  const command = input.command ?? input.cmd ?? input.script;
   return typeof command === "string" ? command : null;
 }
 function stripMatchingQuotes(value) {
@@ -53,67 +144,101 @@ function stripMatchingQuotes(value) {
 }
 function objectPaths(input) {
   if (!input || typeof input !== "object") return [];
+  const record = input;
   const paths = [];
-  for (const key of [
-    "file_path",
-    "filePath",
-    "path",
-    "target_file",
-    "notebook_path",
-    "notebookPath"
-  ]) {
-    if (typeof input[key] === "string" && input[key]) paths.push(input[key]);
+  for (const key of PATH_KEYS) {
+    const value = record[key];
+    if (typeof value === "string" && value) paths.push(value);
   }
-  if (Array.isArray(input.edits)) {
-    for (const edit of input.edits) paths.push(...objectPaths(edit));
+  if (Array.isArray(record.edits)) {
+    for (const edit of record.edits) paths.push(...objectPaths(edit));
   }
   return paths;
 }
 function patchPaths(payload) {
-  if (typeof payload !== "string") return [];
   const paths = [];
   for (const line of payload.split("\n")) {
     const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
     const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (file) paths.push(stripMatchingQuotes(file[1]));
-    if (move) paths.push(stripMatchingQuotes(move[1]));
+    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
   }
   return paths;
 }
-function extractFileTargets(event) {
-  const toolName = String(extractToolName(event));
-  if (!FILE_TOOLS.test(toolName)) return [];
-  const input = extractToolInput(event);
-  const cwd = resolve(extractCwd(event));
-  const targets = objectPaths(input);
-  const patch = typeof input === "string" ? input : [input?.patch, input?.input, input?.command].filter((value) => typeof value === "string").join("\n");
-  targets.push(...patchPaths(patch));
-  return [
-    ...new Set(
-      targets.map(stripMatchingQuotes).filter(Boolean).map(
-        (path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))
-      )
-    )
-  ];
+function patchPayload(input) {
+  if (typeof input === "string") return input;
+  return [input.patch, input.input, input.command].filter((value) => typeof value === "string").join("\n");
 }
-function isShellTool(toolName) {
-  return SHELL_TOOLS.test(String(toolName ?? ""));
+function resolveTargets(raw, cwd) {
+  return [...new Set(
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+  )];
+}
+function shellWritePaths(command) {
+  const paths = [];
+  const push = (raw) => {
+    const value = stripMatchingQuotes(String(raw ?? ""));
+    if (value && !value.startsWith("-")) paths.push(value);
+  };
+  for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
+    push(match[1]);
+  }
+  return paths;
+}
+function acceptsTool(name, tools) {
+  if (tools === "any") return true;
+  if (isFileMutationTool(name)) return true;
+  if (tools === "read-or-mutation" && isReadTool(name)) return true;
+  return false;
+}
+function extractFileTargets(event, options = {}) {
+  const tools = options.tools ?? "mutation";
+  const name = eventToolName(event);
+  const cwd = resolve(eventCwd(event));
+  const input = eventToolInput(event);
+  const raw = [];
+  if (acceptsTool(name, tools)) {
+    raw.push(...objectPaths(input));
+    raw.push(...patchPaths(patchPayload(typeof event.tool_input === "string" ? event.tool_input : input)));
+    if (typeof event.tool_input === "string") raw.push(...objectPaths(input));
+  }
+  if (options.includeShellWrites) {
+    const command = extractShellCommand(event) ?? (typeof input.command === "string" ? input.command : null) ?? (typeof input.cmd === "string" ? input.cmd : null) ?? (typeof input.script === "string" ? input.script : null);
+    if (command) raw.push(...shellWritePaths(command));
+  }
+  return resolveTargets(raw, cwd);
+}
+
+// plugins/command-exec-audit/src/lib/hook-io.ts
+function extractSessionId(event) {
+  return eventSessionId(event) || null;
+}
+function extractCwd(event) {
+  return eventCwd(event);
+}
+function extractToolName(event) {
+  return eventToolName(event);
+}
+function extractToolResponse(event) {
+  return eventToolResponse(event);
+}
+function extractToolUseId(event) {
+  return eventToolUseId(event) || null;
+}
+function extractFileTargets2(event) {
+  return extractFileTargets(event, { tools: "read-or-mutation" });
+}
+function isShellTool2(toolName) {
+  return isShellTool(toolName);
 }
 function isFileTool(toolName) {
-  return FILE_TOOLS.test(String(toolName ?? ""));
-}
-function preToolDeny(reason) {
-  return {
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      permissionDecision: "deny",
-      permissionDecisionReason: reason
-    }
-  };
-}
-function writeJson(value) {
-  if (value) process.stdout.write(`${JSON.stringify(value)}
-`);
+  return isFileMutationTool(toolName) || isReadTool(toolName);
 }
 
 // plugins/command-exec-audit/src/lib/command-policy.ts
@@ -209,9 +334,31 @@ function durationMs(startedAt, endedAt = /* @__PURE__ */ new Date()) {
 }
 
 // plugins/command-exec-audit/src/lib/config.ts
+import { isAbsolute as isAbsolute2 } from "node:path";
+
+// core/src/project-config.ts
 import { existsSync } from "node:fs";
-import { isAbsolute as isAbsolute2, join } from "node:path";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+async function loadExecutableConfig(options) {
+  const warn2 = options.warn ?? (() => {
+  });
+  if (!options.repoRoot) return options.resolve(null, warn2);
+  for (const name of options.names) {
+    const path = join(options.repoRoot, name);
+    if (!existsSync(path)) continue;
+    try {
+      const loaded = await import(pathToFileURL(path).href);
+      return options.resolve(loaded.default ?? loaded, warn2);
+    } catch (error) {
+      warn2(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
+      return options.resolve(null, warn2);
+    }
+  }
+  return options.resolve(null, warn2);
+}
+
+// plugins/command-exec-audit/src/lib/config.ts
 var DEFAULT_CONFIG = Object.freeze({
   enabled: true,
   auditRoot: ".command-exec-audit",
@@ -279,22 +426,18 @@ function resolveConfig(raw, warn2 = () => {
 }
 async function loadProjectConfig(repoRoot, warn2 = () => {
 }) {
-  if (!repoRoot) return resolveConfig(null, warn2);
-  for (const name of CONFIG_NAMES) {
-    const path = join(repoRoot, name);
-    if (!existsSync(path)) continue;
-    try {
-      const loaded = await import(pathToFileURL(path).href);
-      return resolveConfig(loaded.default ?? loaded, warn2);
-    } catch (error) {
-      warn2(`failed to load ${name}: ${error?.message ?? error}`);
-      return resolveConfig(null, warn2);
-    }
-  }
-  return resolveConfig(null, warn2);
+  return loadExecutableConfig({
+    repoRoot,
+    names: CONFIG_NAMES,
+    resolve: resolveConfig,
+    warn: warn2
+  });
 }
 
 // plugins/command-exec-audit/src/lib/jsonl-trail.ts
+import { existsSync as existsSync3, readFileSync as readFileSync2 } from "node:fs";
+
+// core/src/jsonl-trail.ts
 import { createHash, randomBytes } from "node:crypto";
 import {
   appendFileSync,
@@ -310,16 +453,6 @@ import {
   writeSync
 } from "node:fs";
 import { dirname, join as join2, resolve as resolve2 } from "node:path";
-var README_TEXT = `# Command exec audit
-
-Append-only JSONL trail of agent shell commands (status + duration only; one file per session).
-
-Write policy:
-- The audit plugin may append new lines.
-- The audit plugin may rewrite only the last line (pending \u2192 terminal).
-- Earlier lines must not be modified by agents or automation tools.
-`;
-var GITIGNORE_TEXT = "sessions/\n";
 var LOCK_STALE_MS = 1e4;
 var LOCK_RETRIES = 40;
 var LOCK_WAIT_MS = 25;
@@ -328,8 +461,7 @@ function sanitizeSessionKey(sessionId, cwd) {
   if (raw) {
     return raw.replace(/[^A-Za-z0-9._-]+/gu, "_").replace(/^_+|_+$/gu, "").slice(0, 120) || "session";
   }
-  const digest = createHash("sha256").update(String(cwd ?? "")).digest("hex").slice(0, 16);
-  return `cwd-${digest}`;
+  return `cwd-${createHash("sha256").update(String(cwd ?? "")).digest("hex").slice(0, 16)}`;
 }
 function trailPaths(repoRoot, auditRoot, sessionKey) {
   const root = join2(resolve2(repoRoot), auditRoot);
@@ -340,15 +472,6 @@ function trailPaths(repoRoot, auditRoot, sessionKey) {
     readmePath: join2(root, "README.md"),
     sessionPath: join2(root, "sessions", `${sessionKey}.jsonl`)
   };
-}
-function ensureLayout(paths) {
-  mkdirSync(paths.sessionsDir, { recursive: true, mode: 448 });
-  if (!existsSync2(paths.gitignorePath)) {
-    writeFileSync(paths.gitignorePath, GITIGNORE_TEXT, { encoding: "utf8", mode: 384 });
-  }
-  if (!existsSync2(paths.readmePath)) {
-    writeFileSync(paths.readmePath, README_TEXT, { encoding: "utf8", mode: 384 });
-  }
 }
 function sleepMs(ms) {
   const end = Date.now() + ms;
@@ -366,7 +489,7 @@ ${Date.now()}
 `);
       return { fd, lockPath };
     } catch (error) {
-      if (error?.code !== "EEXIST") throw error;
+      if (error.code !== "EEXIST") throw error;
       try {
         const raw = readFileSync(lockPath, "utf8");
         const ts = Number(raw.split("\n")[1] ?? 0);
@@ -393,8 +516,7 @@ function releaseLock(lock) {
   }
 }
 function appendRecord(sessionPath, record) {
-  const directory = dirname(sessionPath);
-  mkdirSync(directory, { recursive: true, mode: 448 });
+  mkdirSync(dirname(sessionPath), { recursive: true, mode: 448 });
   const line = `${JSON.stringify(record)}
 `;
   const lock = acquireLock(sessionPath);
@@ -420,23 +542,6 @@ function readLastNonEmptyLine(sessionPath) {
   }
   return null;
 }
-function findPendingByToolUseId(sessionPath, toolUseId) {
-  const id = String(toolUseId ?? "").trim();
-  if (!id || !existsSync2(sessionPath)) return null;
-  const content = readFileSync(sessionPath, "utf8");
-  let found = null;
-  for (const line of content.split("\n")) {
-    if (!line.trim()) continue;
-    try {
-      const parsed = JSON.parse(line);
-      if (parsed?.schema === "command-exec/v1" && parsed.status === "pending" && String(parsed.tool_use_id ?? "") === id) {
-        found = parsed;
-      }
-    } catch {
-    }
-  }
-  return found;
-}
 function rewriteTip(sessionPath, predicate, nextRecord) {
   const lock = acquireLock(sessionPath);
   if (!lock) return "busy";
@@ -451,19 +556,13 @@ function rewriteTip(sessionPath, predicate, nextRecord) {
       return "miss";
     }
     if (!predicate(parsed)) return "miss";
-    const nextLine = JSON.stringify(nextRecord);
     const nextLines = tip.lines.slice();
-    nextLines[tip.index] = nextLine;
-    while (nextLines.length > 0 && nextLines[nextLines.length - 1] === "") {
-      nextLines.pop();
-    }
-    const body = `${nextLines.join("\n")}
-`;
+    nextLines[tip.index] = JSON.stringify(nextRecord);
+    while (nextLines.length > 0 && nextLines[nextLines.length - 1] === "") nextLines.pop();
     const recheck = readLastNonEmptyLine(sessionPath);
-    if (!recheck || recheck.line !== tip.line || recheck.index !== tip.index) {
-      return "miss";
-    }
-    writeFileSync(temporary, body, { encoding: "utf8", mode: 384, flag: "wx" });
+    if (!recheck || recheck.line !== tip.line || recheck.index !== tip.index) return "miss";
+    writeFileSync(temporary, `${nextLines.join("\n")}
+`, { encoding: "utf8", mode: 384, flag: "wx" });
     renameSync(temporary, sessionPath);
     return "rewritten";
   } catch {
@@ -476,10 +575,44 @@ function rewriteTip(sessionPath, predicate, nextRecord) {
     releaseLock(lock);
   }
 }
-function prepareTrail(repoRoot, auditRoot, sessionKey) {
+function prepareTrail(repoRoot, auditRoot, sessionKey, layout) {
   const paths = trailPaths(repoRoot, auditRoot, sessionKey);
-  ensureLayout(paths);
+  mkdirSync(paths.sessionsDir, { recursive: true, mode: 448 });
+  if (!existsSync2(paths.gitignorePath)) writeFileSync(paths.gitignorePath, layout.gitignore, { encoding: "utf8", mode: 384 });
+  if (!existsSync2(paths.readmePath)) writeFileSync(paths.readmePath, layout.readme, { encoding: "utf8", mode: 384 });
   return paths;
+}
+
+// plugins/command-exec-audit/src/lib/jsonl-trail.ts
+var README_TEXT = `# Command exec audit
+
+Append-only JSONL trail of agent shell commands (status + duration only; one file per session).
+
+Write policy:
+- The audit plugin may append new lines.
+- The audit plugin may rewrite only the last line (pending \u2192 terminal).
+- Earlier lines must not be modified by agents or automation tools.
+`;
+var GITIGNORE_TEXT = "sessions/\n";
+function findPendingByToolUseId(sessionPath, toolUseId) {
+  const id = String(toolUseId ?? "").trim();
+  if (!id || !existsSync3(sessionPath)) return null;
+  const content = readFileSync2(sessionPath, "utf8");
+  let found = null;
+  for (const line of content.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const parsed = JSON.parse(line);
+      if (parsed?.schema === "command-exec/v1" && parsed.status === "pending" && String(parsed.tool_use_id ?? "") === id) {
+        found = parsed;
+      }
+    } catch {
+    }
+  }
+  return found;
+}
+function prepareTrail2(repoRoot, auditRoot, sessionKey) {
+  return prepareTrail(repoRoot, auditRoot, sessionKey, { gitignore: GITIGNORE_TEXT, readme: README_TEXT });
 }
 
 // plugins/command-exec-audit/src/lib/paths.ts
@@ -502,56 +635,31 @@ function inferHost() {
   return "unknown";
 }
 
-// plugins/command-exec-audit/src/lib/protect.ts
+// core/src/path-protect.ts
 import { isAbsolute as isAbsolute3, relative, resolve as resolve3 } from "node:path";
-function underAuditRoot(filePath, auditRootAbs) {
-  const abs = resolve3(filePath);
-  const root = resolve3(auditRootAbs);
-  const rel = relative(root, abs).replaceAll("\\", "/");
+function pathUnderRoot(filePath, rootAbs) {
+  const rel = relative(resolve3(rootAbs), resolve3(filePath)).replaceAll("\\", "/");
   return rel === "" || !rel.startsWith("../") && !isAbsolute3(rel);
-}
-function targetsHitAuditRoot(event, auditRootAbs) {
-  const hits = [];
-  for (const target of extractFileTargets(event)) {
-    if (underAuditRoot(target, auditRootAbs)) hits.push(target);
-  }
-  return hits;
 }
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
-function auditRootMarkers(auditRootRel, auditRootAbs) {
-  const normalized = String(auditRootRel ?? "").replace(/^\.\//u, "").replace(/\/+$/u, "");
-  return [
-    auditRootRel,
-    normalized,
-    auditRootAbs,
-    normalized ? `${normalized}/` : null,
-    normalized ? `./${normalized}` : null,
-    normalized ? `./${normalized}/` : null
-  ].filter(Boolean);
-}
-function commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) {
+function commandMentionsRoot(command, rootRel, rootAbs) {
   const text = String(command ?? "");
   if (!text.trim()) return false;
-  for (const marker of auditRootMarkers(auditRootRel, auditRootAbs)) {
-    const escaped = escapeRegExp(marker);
-    const re = new RegExp(
-      `(?:^|[\\s;|&\`"'(){}\\[\\]])${escaped}(?:$|[\\s;|&\`"'(){}\\[\\]//])`,
-      "u"
-    );
-    if (re.test(text)) return true;
-  }
-  return false;
+  const normalized = String(rootRel ?? "").replace(/^\.\//u, "").replace(/\/+$/u, "");
+  const markers = [rootRel, normalized, rootAbs, normalized ? `${normalized}/` : null, normalized ? `./${normalized}` : null, normalized ? `./${normalized}/` : null].filter(Boolean);
+  return markers.some((marker) => new RegExp(
+    `(?:^|[\\s;|&\`"'(){}\\[\\]])${escapeRegExp(marker)}(?:$|[\\s;|&\`"'(){}\\[\\]//])`,
+    "u"
+  ).test(text));
 }
-function isAuditMutationCommand(command) {
+function isGenericMutationCommand(command) {
   const text = String(command ?? "");
   if (!text.trim()) return false;
   if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
   if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) {
-    return true;
-  }
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
@@ -559,9 +667,19 @@ function isAuditMutationCommand(command) {
   if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
   return false;
 }
+
+// plugins/command-exec-audit/src/lib/protect.ts
+function targetsHitAuditRoot(event, auditRootAbs) {
+  return extractFileTargets2(event).filter((target) => pathUnderRoot(target, auditRootAbs));
+}
+function commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) {
+  return commandMentionsRoot(command, auditRootRel, auditRootAbs);
+}
+function isAuditMutationCommand(command) {
+  return isGenericMutationCommand(command);
+}
 function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs) {
-  if (!commandMentionsAuditRoot(command, auditRootRel, auditRootAbs)) return false;
-  return isAuditMutationCommand(command);
+  return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
 }
 function protectDecision(event, auditRootRel, auditRootAbs) {
   const toolName = extractToolName(event);
@@ -582,7 +700,7 @@ function protectDecision(event, auditRootRel, auditRootAbs) {
       };
     }
   }
-  if (isShellTool(toolName)) {
+  if (isShellTool2(toolName)) {
     const command = extractShellCommand(event);
     if (command && shellMutatesAuditRoot(command, auditRootRel, auditRootAbs)) {
       return {
@@ -679,23 +797,23 @@ async function main() {
       writeJson(preToolDeny(decision.reason));
       return;
     }
-    if (!isShellTool(toolName)) return;
+    if (!isShellTool2(toolName)) return;
     const command = extractShellCommand(event);
     if (!command) return;
     try {
       const sessionKey = sanitizeSessionKey(extractSessionId(event), cwd);
-      const paths = prepareTrail(repoRoot, config.auditRoot, sessionKey);
+      const paths = prepareTrail2(repoRoot, config.auditRoot, sessionKey);
       appendRecord(paths.sessionPath, buildPendingRecord(event, command, config));
     } catch (error) {
       warn(`failed to record command start: ${error?.message ?? error}`);
     }
     return;
   }
-  if (!isShellTool(toolName)) return;
+  if (!isShellTool2(toolName)) return;
   const forceFailure = mode === "failure";
   try {
     const sessionKey = sanitizeSessionKey(extractSessionId(event), cwd);
-    const paths = prepareTrail(repoRoot, config.auditRoot, sessionKey);
+    const paths = prepareTrail2(repoRoot, config.auditRoot, sessionKey);
     const toolUseId = extractToolUseId(event);
     const tipBase = matchingPendingTip(paths.sessionPath, toolUseId);
     if (tipBase) {

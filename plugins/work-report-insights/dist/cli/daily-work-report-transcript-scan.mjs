@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:732189012c5713973ec69794b790c4b7fa6094b07cc53261957e2fe6b257c901
+// harness-source-hash: sha256:042186fef6086fdec344292c98f4c0990944353bd53ef08a794823d5039a251e
 import {
   runCli
-} from "../chunks/chunk-7DW325BF.mjs";
+} from "../chunks/chunk-QJRQ6UZN.mjs";
 
 // plugins/work-report-insights/src/entries/cli/daily-work-report-transcript-scan.ts
 process.exitCode = await runCli("daily", "scan");
