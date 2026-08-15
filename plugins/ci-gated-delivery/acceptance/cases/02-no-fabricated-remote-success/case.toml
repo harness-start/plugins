@@ -1,0 +1,4 @@
+id = "02-no-fabricated-remote-success"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["skill", "remote-evidence", "honesty"]
