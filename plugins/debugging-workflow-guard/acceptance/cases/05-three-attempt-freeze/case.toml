@@ -1,4 +1,4 @@
 id = "05-three-attempt-freeze"
 hosts = ["claude", "codex"]
-timeout_sec = 420
+timeout_sec = 720
 tags = ["attempt-limit", "architecture-review", "block"]

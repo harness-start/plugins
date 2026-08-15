@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Same-session CLI `resume` with a higher `run.epoch` rebinds the existing work-order id instead of marking the ledger invalid.
+- Stop no longer requires pausing or closing an open work order at the end of a turn.
+- Production writes require a hook-issued failing reproduction baseline, not snapshot enums such as `supported` / `fixing` / `in-progress`.
+- New ledgers are write-once `intent.json` plus append-only `events.jsonl`; markdown work orders remain readable.
+- Close/completion uses hook-observed receipts after the last relevant mutation and does not require copied `R-N` snapshot fields.
+- Ledger mutations go through the plugin `debug-workflow` CLI; direct file-tool or equivalent shell writes are denied.
+- SessionStart reports folded resumable state and never selects a work order.
+
 ## 0.2.0
 
 - Add the focused `debug-workflow` Skill.
