@@ -18,6 +18,8 @@ async function main() {
   let model = await loadVideoProject(root);
   const findings = beforeManifestFindings(model);
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
+  const review = JSON.parse(model.files?.["review.video.json"] ?? "null") as unknown;
+  if (typeof review === "object" && review !== null && "sessionId" in review && review.sessionId === grant.sessionId) throw new Error("REVIEW_RELEASE_SESSION_COLLISION");
   await withWriterJournal(root, "video-release", async () => {
     await atomicWriteJson(root, "release.manifest.json", createVideoReleaseManifest(model));
     model = await loadVideoProject(root);

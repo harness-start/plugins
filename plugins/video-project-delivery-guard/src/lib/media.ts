@@ -9,7 +9,7 @@ type RunOptions = {
   timeoutMs?: number | undefined;
 };
 
-function run(binary: string, args: readonly string[], { cwd, maxBytes = 16 * 1024 * 1024, timeoutMs = 30_000 }: RunOptions = {}): Promise<Buffer> {
+function runCaptured(binary: string, args: readonly string[], { cwd, maxBytes = 16 * 1024 * 1024, timeoutMs = 30_000 }: RunOptions = {}): Promise<{ stdout: Buffer; stderr: Buffer }> {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     const stdout: Buffer[] = [];
@@ -42,9 +42,13 @@ function run(binary: string, args: readonly string[], { cwd, maxBytes = 16 * 102
       settled = true;
       if (stdoutBytes > maxBytes) { reject(new Error(`MEDIA_TOOL_OUTPUT_LIMIT:${binary}`)); return; }
       if (code !== 0) { reject(new Error(`MEDIA_TOOL_FAILED:${binary}:${Buffer.concat(stderr).toString("utf8").trim()}`)); return; }
-      resolve(Buffer.concat(stdout));
+      resolve({ stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
     });
   });
+}
+
+async function run(binary: string, args: readonly string[], options: RunOptions = {}): Promise<Buffer> {
+  return (await runCaptured(binary, args, options)).stdout;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -121,4 +125,40 @@ export async function extractFrameDigest(filePath: string, frame: number, fps: n
   const bytes = await run(ffmpeg, ["-v", "error", "-ss", timestamp.toFixed(6), "-i", filePath, "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"], { cwd, maxBytes: 32 * 1024 * 1024 });
   if (bytes.byteLength === 0) throw new Error(`FRAME_EXTRACTION_EMPTY:${frame}`);
   return { frame, timestampSeconds: timestamp, sha256: createHash("sha256").update(bytes).digest("hex") };
+}
+
+export async function measureAudioLoudness(filePath: string, { ffmpeg = "ffmpeg", cwd }: {
+  ffmpeg?: string | undefined;
+  cwd?: string | undefined;
+} = {}) {
+  const { stderr } = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", filePath, "-filter_complex", "ebur128=peak=true", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 120_000 });
+  const output = stderr.toString("utf8");
+  const integrated = [...output.matchAll(/\bI:\s*(-?[0-9]+(?:\.[0-9]+)?)\s+LUFS/gu)].at(-1)?.[1];
+  const peak = [...output.matchAll(/\bPeak:\s*(-?[0-9]+(?:\.[0-9]+)?)\s+dBFS/gu)].at(-1)?.[1];
+  if (integrated === undefined || peak === undefined) throw new Error("AUDIO_LOUDNESS_PARSE_FAILED");
+  return { integratedLufs: Number(integrated), truePeakDb: Number(peak) };
+}
+
+export async function compareVideoSimilarity(referencePath: string, candidatePath: string, { ffmpeg = "ffmpeg", cwd }: {
+  ffmpeg?: string | undefined;
+  cwd?: string | undefined;
+} = {}) {
+  const ssimRun = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", referencePath, "-i", candidatePath, "-lavfi", "ssim", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 15 * 60_000 });
+  const ssimMatch = [...ssimRun.stderr.toString("utf8").matchAll(/\bAll:([0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  if (ssimMatch === undefined) throw new Error("VIDEO_SSIM_PARSE_FAILED");
+  const psnrRun = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", referencePath, "-i", candidatePath, "-lavfi", "psnr", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 15 * 60_000 });
+  const psnrMatch = [...psnrRun.stderr.toString("utf8").matchAll(/\baverage:(inf|[0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  if (psnrMatch === undefined) throw new Error("VIDEO_PSNR_PARSE_FAILED");
+  return { ssim: Number(ssimMatch), psnr: psnrMatch === "inf" ? Number.POSITIVE_INFINITY : Number(psnrMatch) };
+}
+
+export async function renderContactSheet(filePath: string, frames: readonly number[], outputPath: string, { ffmpeg = "ffmpeg", cwd }: {
+  ffmpeg?: string | undefined;
+  cwd?: string | undefined;
+} = {}) {
+  if (frames.length === 0 || frames.some((frame) => !Number.isInteger(frame) || frame < 0)) throw new Error("CONTACT_SHEET_FRAMES_INVALID");
+  const columns = Math.min(4, frames.length);
+  const rows = Math.ceil(frames.length / columns);
+  const select = frames.map((frame) => `eq(n\\,${frame})`).join("+");
+  await runCaptured(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", filePath, "-vf", `select=${select},scale=320:-1,tile=${columns}x${rows}`, "-frames:v", "1", "-y", outputPath], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 120_000 });
 }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
 import {
   assertVideoProjectRoot
-} from "../chunks/chunk-X2VNCGIS.mjs";
+} from "../chunks/chunk-JEPGOY6Q.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";

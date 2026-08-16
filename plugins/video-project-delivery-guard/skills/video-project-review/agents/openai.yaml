@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Project Review"
+  short_description: "Independently review a rendered video and its evidence."
+  default_prompt: "Use $video-project-review to inspect the current final video and submit an independent digest-bound review."

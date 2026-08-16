@@ -33,3 +33,25 @@ test("rejects compounds even when they contain an exact writer path", () => {
 
   assert.equal(result.decision, "deny");
 });
+
+test("allows the exact project initializer with one profile and execution mode", () => {
+  const result = evaluateVideoShell({
+    command: `node "${PLUGIN_ROOT}/dist/cli/project-init.mjs" artifacts/video/demo --profile short-form --mode guided`,
+    cwd: "/workspace",
+    workspaceRoot: "/workspace",
+  });
+
+  assert.equal(result.decision, "allow");
+  assert.equal(result.writer, "video-init");
+});
+
+test("allows admission only through the exact wrapper command", () => {
+  const result = evaluateVideoShell({
+    command: `node "${PLUGIN_ROOT}/dist/cli/project-admit.mjs" artifacts/video/demo /tmp/video-run.json`,
+    cwd: "/workspace",
+    workspaceRoot: "/workspace",
+  });
+
+  assert.equal(result.decision, "allow");
+  assert.equal(result.writer, "video-admit");
+});

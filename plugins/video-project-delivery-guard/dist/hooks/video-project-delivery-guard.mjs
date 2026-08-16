@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-MQOGMMXB.mjs";
+} from "../chunks/chunk-SLRENGEQ.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-X2VNCGIS.mjs";
+} from "../chunks/chunk-JEPGOY6Q.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/hooks/video-project-delivery-guard.ts
 import { relative, resolve as resolve3 } from "node:path";
@@ -232,7 +232,8 @@ var PLUGIN_DIRECTORY = resolve2(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
 var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
-var WRITERS = /* @__PURE__ */ new Set(["project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
+var WRITERS = /* @__PURE__ */ new Set(["project-admit.mjs", "project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
+var PROFILES = /* @__PURE__ */ new Set(["motion-explainer", "product-promo", "short-form", "talking-head", "reference-led", "micro-drama"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 function parseShellWords(command) {
   const words = [];
@@ -290,6 +291,11 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
   const expectedParent = resolve2(workspaceRoot, "artifacts", "video");
   if (dirname(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
+  if (name === "project-init.mjs" && (words.length !== 7 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? "") || words[5] !== "--mode" || !["guided", "autonomous"].includes(words[6] ?? ""))) return null;
+  if (name === "project-admit.mjs" && words.length !== 4) return null;
+  if (name === "project-review.mjs" && words.length !== 4) return null;
+  if (["project-lint.mjs", "project-probe.mjs", "project-release.mjs"].includes(name) && words.length !== 3) return null;
+  if (name === "project-render.mjs" && ![4, 5].includes(words.length)) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 function expandKnownPluginRoot(command) {

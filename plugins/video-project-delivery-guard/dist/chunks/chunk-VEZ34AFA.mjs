@@ -1,9 +1,9 @@
-// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
 
 // plugins/video-project-delivery-guard/src/lib/media.ts
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-function run(binary, args, { cwd, maxBytes = 16 * 1024 * 1024, timeoutMs = 3e4 } = {}) {
+function runCaptured(binary, args, { cwd, maxBytes = 16 * 1024 * 1024, timeoutMs = 3e4 } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(binary, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     const stdout = [];
@@ -42,9 +42,12 @@ function run(binary, args, { cwd, maxBytes = 16 * 1024 * 1024, timeoutMs = 3e4 }
         reject(new Error(`MEDIA_TOOL_FAILED:${binary}:${Buffer.concat(stderr).toString("utf8").trim()}`));
         return;
       }
-      resolve(Buffer.concat(stdout));
+      resolve({ stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
     });
   });
+}
+async function run(binary, args, options = {}) {
+  return (await runCaptured(binary, args, options)).stdout;
 }
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -109,10 +112,37 @@ async function extractFrameDigest(filePath, frame, fps, { ffmpeg = "ffmpeg", cwd
   if (bytes.byteLength === 0) throw new Error(`FRAME_EXTRACTION_EMPTY:${frame}`);
   return { frame, timestampSeconds: timestamp, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
+async function measureAudioLoudness(filePath, { ffmpeg = "ffmpeg", cwd } = {}) {
+  const { stderr } = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", filePath, "-filter_complex", "ebur128=peak=true", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 12e4 });
+  const output = stderr.toString("utf8");
+  const integrated = [...output.matchAll(/\bI:\s*(-?[0-9]+(?:\.[0-9]+)?)\s+LUFS/gu)].at(-1)?.[1];
+  const peak = [...output.matchAll(/\bPeak:\s*(-?[0-9]+(?:\.[0-9]+)?)\s+dBFS/gu)].at(-1)?.[1];
+  if (integrated === void 0 || peak === void 0) throw new Error("AUDIO_LOUDNESS_PARSE_FAILED");
+  return { integratedLufs: Number(integrated), truePeakDb: Number(peak) };
+}
+async function compareVideoSimilarity(referencePath, candidatePath, { ffmpeg = "ffmpeg", cwd } = {}) {
+  const ssimRun = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", referencePath, "-i", candidatePath, "-lavfi", "ssim", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 15 * 6e4 });
+  const ssimMatch = [...ssimRun.stderr.toString("utf8").matchAll(/\bAll:([0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  if (ssimMatch === void 0) throw new Error("VIDEO_SSIM_PARSE_FAILED");
+  const psnrRun = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", referencePath, "-i", candidatePath, "-lavfi", "psnr", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 15 * 6e4 });
+  const psnrMatch = [...psnrRun.stderr.toString("utf8").matchAll(/\baverage:(inf|[0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  if (psnrMatch === void 0) throw new Error("VIDEO_PSNR_PARSE_FAILED");
+  return { ssim: Number(ssimMatch), psnr: psnrMatch === "inf" ? Number.POSITIVE_INFINITY : Number(psnrMatch) };
+}
+async function renderContactSheet(filePath, frames, outputPath, { ffmpeg = "ffmpeg", cwd } = {}) {
+  if (frames.length === 0 || frames.some((frame) => !Number.isInteger(frame) || frame < 0)) throw new Error("CONTACT_SHEET_FRAMES_INVALID");
+  const columns = Math.min(4, frames.length);
+  const rows = Math.ceil(frames.length / columns);
+  const select = frames.map((frame) => `eq(n\\,${frame})`).join("+");
+  await runCaptured(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", filePath, "-vf", `select=${select},scale=320:-1,tile=${columns}x${rows}`, "-frames:v", "1", "-y", outputPath], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 12e4 });
+}
 
 export {
   mediaToolVersion,
   probeMedia,
   validateMeasuredMedia,
-  extractFrameDigest
+  extractFrameDigest,
+  measureAudioLoudness,
+  compareVideoSimilarity,
+  renderContactSheet
 };

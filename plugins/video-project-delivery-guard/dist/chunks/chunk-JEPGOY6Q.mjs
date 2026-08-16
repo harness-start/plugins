@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
 
 // plugins/video-project-delivery-guard/src/lib/project.ts
 import { createHash } from "node:crypto";
@@ -174,6 +174,7 @@ async function withWriterJournal(root, capability, callback, grant = {}) {
 export {
   resolveWorkspaceRoot,
   findVideoProjects,
+  hashFile,
   loadVideoProject,
   assertVideoProjectRoot,
   sessionMetadata,

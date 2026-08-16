@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
 import {
   consumeWriterCapability,
   createVideoReceipt,
@@ -7,14 +7,14 @@ import {
   processWriterArgv,
   validateVideoModel,
   validateVideoReceipt
-} from "../chunks/chunk-MQOGMMXB.mjs";
+} from "../chunks/chunk-SLRENGEQ.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-X2VNCGIS.mjs";
+} from "../chunks/chunk-JEPGOY6Q.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/cli/project-release.ts
 function beforeManifestFindings(model) {
@@ -27,6 +27,8 @@ async function main() {
   let model = await loadVideoProject(root);
   const findings = beforeManifestFindings(model);
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
+  const review = JSON.parse(model.files?.["review.video.json"] ?? "null");
+  if (typeof review === "object" && review !== null && "sessionId" in review && review.sessionId === grant.sessionId) throw new Error("REVIEW_RELEASE_SESSION_COLLISION");
   await withWriterJournal(root, "video-release", async () => {
     await atomicWriteJson(root, "release.manifest.json", createVideoReleaseManifest(model));
     model = await loadVideoProject(root);

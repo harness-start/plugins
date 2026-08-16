@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Project Authoring"
+  short_description: "Orchestrate an evidence-bound Remotion video delivery."
+  default_prompt: "Use $video-project-authoring to create or continue a staged video project through controlled media admission, independent review, and release."

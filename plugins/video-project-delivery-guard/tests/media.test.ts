@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { mediaToolVersion, probeMedia, validateMeasuredMedia } from "../src/lib/media.js";
+import { compareVideoSimilarity, measureAudioLoudness, mediaToolVersion, probeMedia, validateMeasuredMedia } from "../src/lib/media.js";
 
 function run(binary, args) {
   return new Promise((resolve, reject) => {
@@ -31,6 +31,12 @@ test("real ffmpeg outputs satisfy measured visual, audio, and final contracts", 
     validateMeasuredMedia(visualFacts, { kind: "visual", project, expectedFrames: 10 });
     validateMeasuredMedia(audioFacts, { kind: "audio", project, expectedFrames: 10 });
     validateMeasuredMedia(finalFacts, { kind: "final", project, expectedFrames: 10 });
+    const loudness = await measureAudioLoudness(final);
+    assert.ok(Number.isFinite(loudness.integratedLufs));
+    assert.ok(Number.isFinite(loudness.truePeakDb));
+    const similarity = await compareVideoSimilarity(final, final);
+    assert.ok(similarity.ssim >= 0.9999);
+    assert.equal(similarity.psnr, Number.POSITIVE_INFINITY);
     assert.match(await mediaToolVersion("ffprobe"), /^ffprobe/u);
   } finally {
     rmSync(sandbox, { recursive: true, force: true });

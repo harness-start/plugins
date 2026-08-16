@@ -1,36 +1,116 @@
-import { createHash } from "node:crypto";
-import { posix as path } from "node:path";
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
+import {
+  assertVideoProjectRoot
+} from "./chunk-JEPGOY6Q.mjs";
 
-export const RENDER_PROOF_SCHEMA = "video-project-delivery-guard/render-proof/v1";
-export const PROBE_SCHEMA = "video-project-delivery-guard/probe-evidence/v1";
-export const AUDIO_EVIDENCE_SCHEMA = "video-project-delivery-guard/audio-evidence/v1";
-export const MOTION_EVIDENCE_SCHEMA = "video-project-delivery-guard/motion-evidence/v1";
-export const CAPTION_EVIDENCE_SCHEMA = "video-project-delivery-guard/caption-evidence/v1";
-export const REFERENCE_EVIDENCE_SCHEMA = "video-project-delivery-guard/reference-evidence/v1";
-export const FRAME_EVIDENCE_SCHEMA = "video-project-delivery-guard/frame-evidence/v1";
-export const ACCESSIBILITY_EVIDENCE_SCHEMA = "video-project-delivery-guard/accessibility-evidence/v1";
-export const VIDEO_REVIEW_SCHEMA = "video-project-delivery-guard/video-review/v2";
-export const REVIEW_INPUT_SCHEMA = "video-project-delivery-guard/review-input/v2";
-export const RELEASE_MANIFEST_SCHEMA = "video-project-delivery-guard/release-manifest/v2";
-export const PLAN_SCHEMA = "video-project-delivery-guard/plan/v2";
-export const DIRECTION_SCHEMA = "video-project-delivery-guard/direction/v1";
-export const SCRIPT_SCHEMA = "video-project-delivery-guard/script/v1";
-export const STORYBOARD_SCHEMA = "video-project-delivery-guard/storyboard/v2";
-export const SKILL_COMPOSITION_SCHEMA = "video-project-delivery-guard/skill-composition/v1";
-export const ASSET_MANIFEST_SCHEMA = "video-project-delivery-guard/assets/v2";
-export const APPROVALS_SCHEMA = "video-project-delivery-guard/approvals/v1";
-export const REFERENCES_SCHEMA = "video-project-delivery-guard/references/v1";
-export const DESIGN_SYSTEM_SCHEMA = "video-project-delivery-guard/design-system/v1";
-export const PROJECT_SCHEMA = "video-project-delivery-guard/project/v2";
-export const VIDEO_PROFILES = [
+// plugins/video-project-delivery-guard/src/lib/capability.ts
+import { createHash, randomUUID } from "node:crypto";
+import { chmod, lstat, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+var TTL_MS = 3e4;
+var grantPath = (root, capability) => join(root, ".tmp", "video-guard", `capability.${capability}.json`);
+var argvDigest = (argv) => createHash("sha256").update(JSON.stringify(argv)).digest("hex");
+function errorCode(error) {
+  return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
+}
+function errorMessage(error) {
+  return typeof error === "object" && error !== null && "message" in error ? String(error.message) : void 0;
+}
+async function issueWriterCapability({ root: rawRoot, capability, argv, sessionId, triggerFrom }) {
+  const root = assertVideoProjectRoot(rawRoot);
+  if (!/^video-(?:init|admit|render|probe|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+  if (typeof sessionId !== "string" || !sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
+  const directory = join(root, ".tmp", "video-guard");
+  const target = grantPath(root, capability);
+  await mkdir(directory, { recursive: true });
+  try {
+    const existing = JSON.parse(await readFile(target, "utf8"));
+    const expiresAt = typeof existing === "object" && existing !== null && "expiresAt" in existing ? Number(existing.expiresAt) : Number.NaN;
+    if (expiresAt >= Date.now()) throw new Error("WRITER_CAPABILITY_BUSY");
+    await unlink(target);
+  } catch (error) {
+    if (errorCode(error) !== "ENOENT" && errorMessage(error) !== "WRITER_CAPABILITY_BUSY" && !(error instanceof SyntaxError)) throw error;
+    if (errorMessage(error) === "WRITER_CAPABILITY_BUSY") throw error;
+    if (error instanceof SyntaxError) await unlink(target).catch(() => {
+    });
+  }
+  const grant = {
+    schema: "video-project-delivery-guard/writer-capability/v1",
+    id: randomUUID(),
+    capability,
+    root,
+    argvSha256: argvDigest(argv),
+    sessionId,
+    triggerFrom: triggerFrom || "PreToolUse",
+    issuedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    expiresAt: Date.now() + TTL_MS
+  };
+  await writeFile(target, `${JSON.stringify(grant)}
+`, { flag: "wx", mode: 384 });
+  await chmod(target, 384);
+  return grant;
+}
+async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
+  const root = assertVideoProjectRoot(rawRoot);
+  const target = grantPath(root, capability);
+  let bytes;
+  try {
+    const metadata = await lstat(target);
+    if (!metadata.isFile() || metadata.isSymbolicLink()) throw new Error("WRITER_CAPABILITY_INVALID");
+    bytes = await readFile(target);
+    await unlink(target);
+  } catch (error) {
+    if (errorCode(error) === "ENOENT") throw new Error("WRITER_CAPABILITY_MISSING");
+    throw error;
+  }
+  let grant;
+  try {
+    grant = JSON.parse(bytes.toString("utf8"));
+  } catch {
+    throw new Error("WRITER_CAPABILITY_INVALID");
+  }
+  if (typeof grant !== "object" || grant === null) throw new Error("WRITER_CAPABILITY_INVALID");
+  const record = grant;
+  if (record.schema !== "video-project-delivery-guard/writer-capability/v1" || record.capability !== capability || record.root !== root || record.argvSha256 !== argvDigest(argv) || !Number.isFinite(record.expiresAt) || record.expiresAt < Date.now() || typeof record.sessionId !== "string" || !record.sessionId || record.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
+  return record;
+}
+function processWriterArgv() {
+  return [resolve(process.argv[1] ?? ""), ...process.argv.slice(2)];
+}
+
+// plugins/video-project-delivery-guard/src/lib/contract.ts
+import { createHash as createHash2 } from "node:crypto";
+import { posix as path } from "node:path";
+var RENDER_PROOF_SCHEMA = "video-project-delivery-guard/render-proof/v1";
+var PROBE_SCHEMA = "video-project-delivery-guard/probe-evidence/v1";
+var AUDIO_EVIDENCE_SCHEMA = "video-project-delivery-guard/audio-evidence/v1";
+var MOTION_EVIDENCE_SCHEMA = "video-project-delivery-guard/motion-evidence/v1";
+var CAPTION_EVIDENCE_SCHEMA = "video-project-delivery-guard/caption-evidence/v1";
+var REFERENCE_EVIDENCE_SCHEMA = "video-project-delivery-guard/reference-evidence/v1";
+var FRAME_EVIDENCE_SCHEMA = "video-project-delivery-guard/frame-evidence/v1";
+var ACCESSIBILITY_EVIDENCE_SCHEMA = "video-project-delivery-guard/accessibility-evidence/v1";
+var VIDEO_REVIEW_SCHEMA = "video-project-delivery-guard/video-review/v2";
+var REVIEW_INPUT_SCHEMA = "video-project-delivery-guard/review-input/v2";
+var RELEASE_MANIFEST_SCHEMA = "video-project-delivery-guard/release-manifest/v2";
+var PLAN_SCHEMA = "video-project-delivery-guard/plan/v2";
+var DIRECTION_SCHEMA = "video-project-delivery-guard/direction/v1";
+var SCRIPT_SCHEMA = "video-project-delivery-guard/script/v1";
+var STORYBOARD_SCHEMA = "video-project-delivery-guard/storyboard/v2";
+var SKILL_COMPOSITION_SCHEMA = "video-project-delivery-guard/skill-composition/v1";
+var ASSET_MANIFEST_SCHEMA = "video-project-delivery-guard/assets/v2";
+var APPROVALS_SCHEMA = "video-project-delivery-guard/approvals/v1";
+var REFERENCES_SCHEMA = "video-project-delivery-guard/references/v1";
+var DESIGN_SYSTEM_SCHEMA = "video-project-delivery-guard/design-system/v1";
+var PROJECT_SCHEMA = "video-project-delivery-guard/project/v2";
+var VIDEO_PROFILES = [
   "motion-explainer",
   "product-promo",
   "short-form",
   "talking-head",
   "reference-led",
-  "micro-drama",
-] as const;
-export const VIDEO_STAGES = [
+  "micro-drama"
+];
+var VIDEO_STAGES = [
   "source",
   "direction",
   "storyboard",
@@ -39,95 +119,46 @@ export const VIDEO_STAGES = [
   "render",
   "probe",
   "review",
-  "release",
-] as const;
-
-export type VideoProfile = typeof VIDEO_PROFILES[number];
-export type VideoStage = typeof VIDEO_STAGES[number];
-
-export type VideoFinding = {
-  code: string;
-  path: string;
-  message: string;
-};
-
-export type VideoFileMap = Record<string, string | null | undefined>;
-
-export type VideoProjectConfig = {
-  schema?: string;
-  artifactId?: string;
-  profile?: VideoProfile;
-  durationInFrames?: number;
-  fps?: number;
-  width?: number;
-  height?: number;
-  compositionId?: string;
-};
-
-export type VideoModel = {
-  artifactId?: string;
-  root?: string;
-  files?: VideoFileMap;
-  digests?: Record<string, string>;
-  sizes?: Record<string, number>;
-  plan?: unknown;
-  project?: VideoProjectConfig | null;
-};
-
-export type VideoMeasuredMedia = {
-  format: string;
-  durationSeconds?: number;
-  durationInFrames: number;
-  fps: number;
-  hasVideo: boolean;
-  hasAudio: boolean;
-  width: number;
-  height: number;
-  videoCodec?: string | null;
-  audioCodec?: string | null;
-  sampleRate?: number;
-  channels?: number;
-};
-
-export type VideoRenderKind = "visual" | "audio" | "final";
-
-export type VideoWriteDecision =
-  | { decision: "allow"; capability?: string }
-  | { decision: "deny"; code: string; message: string };
-
-export type VideoRenderProofInput = {
-  kind: string;
-  sourcePath?: string | null;
-  outputPath: string;
-  media: VideoMeasuredMedia;
-  script: string;
-};
-
-type VideoManifestUnit = Record<string, unknown>;
-type SourceClosure = { path: string; source: string };
-
-const PLUGIN = "video-project-delivery-guard";
-const STAGES = new Set<string>(VIDEO_STAGES);
-const STAGE_RANK: Record<VideoStage, number> = Object.fromEntries(VIDEO_STAGES.map((stage, index) => [stage, index])) as Record<VideoStage, number>;
-const PROFILES = new Set<string>(VIDEO_PROFILES);
-const VISUAL_SOURCE = /^v(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.tsx$/u;
-const AUDIO_SOURCE = /^a(?<index>[0-9]{3})-(?<role>music|voice|sfx|ambience)-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.audio\.json$/u;
-const CAPTION_SOURCE = /^c(?<index>[0-9]{3})-(?<role>dialogue|narration|label)-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.caption\.json$/u;
-const GENERATED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.video\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.video-delivery-journal\.json$)/u;
-const ADMITTED_ASSET_PATH = /^public\/admitted\//u;
-const PROOF_MEDIA_PATH = /^src\/(?:visual\/.+\.mp4|audio\/.+\.wav)$/u;
-const PROOF_RECORD_PATH = /^src\/(?:visual\/.+\.mp4\.proof\.json|audio\/.+\.wav\.proof\.json)$/u;
-const CAPABILITY_PATH = /^\.tmp\/video-guard\/capability\.video-(?:init|admit|render|probe|review|release)\.json$/u;
-const VISUAL_OWNER = /(?:<\s*(?:Audio|Composition|Sequence|Series|TransitionSeries)\b|from\s+["']@remotion\/renderer["']|import\s*\(\s*["']@remotion\/renderer["']\s*\)|require\s*\(\s*["'](?:node:fs|node:child_process|@remotion\/renderer)["']\s*\)|\b(?:fetch|setTimeout|setInterval|XMLHttpRequest|WebSocket)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|animation\s*:|https?:\/\/)/u;
-const REQUIRED_PROJECT_PATHS = [
-  ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.storyboard.json",
-  "plan.direction.json", "plan.script.json", "plan.skill-composition.json", "plan.assets.json",
-  "plan.approvals.json", "plan.references.json", "design.system.json",
-  "video.project.json", "src/index.ts", "src/Root.tsx", "src/Video.tsx",
-  "src/timelines/VisualTimeline.tsx", "src/timelines/AudioTimeline.tsx", "src/timelines/CaptionTimeline.tsx",
-  "src/visual/manifest.json", "src/audio/manifest.json", "src/captions/manifest.json",
+  "release"
 ];
-const REQUIRED_ADVISORS = new Map([
+var PLUGIN = "video-project-delivery-guard";
+var STAGES = new Set(VIDEO_STAGES);
+var STAGE_RANK = Object.fromEntries(VIDEO_STAGES.map((stage, index) => [stage, index]));
+var PROFILES = new Set(VIDEO_PROFILES);
+var VISUAL_SOURCE = /^v(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.tsx$/u;
+var AUDIO_SOURCE = /^a(?<index>[0-9]{3})-(?<role>music|voice|sfx|ambience)-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.audio\.json$/u;
+var CAPTION_SOURCE = /^c(?<index>[0-9]{3})-(?<role>dialogue|narration|label)-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.f(?<start>[0-9]{6})-f(?<end>[0-9]{6})\.caption\.json$/u;
+var GENERATED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.video\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.video-delivery-journal\.json$)/u;
+var ADMITTED_ASSET_PATH = /^public\/admitted\//u;
+var PROOF_MEDIA_PATH = /^src\/(?:visual\/.+\.mp4|audio\/.+\.wav)$/u;
+var PROOF_RECORD_PATH = /^src\/(?:visual\/.+\.mp4\.proof\.json|audio\/.+\.wav\.proof\.json)$/u;
+var CAPABILITY_PATH = /^\.tmp\/video-guard\/capability\.video-(?:init|admit|render|probe|review|release)\.json$/u;
+var VISUAL_OWNER = /(?:<\s*(?:Audio|Composition|Sequence|Series|TransitionSeries)\b|from\s+["']@remotion\/renderer["']|import\s*\(\s*["']@remotion\/renderer["']\s*\)|require\s*\(\s*["'](?:node:fs|node:child_process|@remotion\/renderer)["']\s*\)|\b(?:fetch|setTimeout|setInterval|XMLHttpRequest|WebSocket)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|animation\s*:|https?:\/\/)/u;
+var REQUIRED_PROJECT_PATHS = [
+  ".gitignore",
+  "package.json",
+  "package-lock.json",
+  "plan.contract.json",
+  "plan.storyboard.json",
+  "plan.direction.json",
+  "plan.script.json",
+  "plan.skill-composition.json",
+  "plan.assets.json",
+  "plan.approvals.json",
+  "plan.references.json",
+  "design.system.json",
+  "video.project.json",
+  "src/index.ts",
+  "src/Root.tsx",
+  "src/Video.tsx",
+  "src/timelines/VisualTimeline.tsx",
+  "src/timelines/AudioTimeline.tsx",
+  "src/timelines/CaptionTimeline.tsx",
+  "src/visual/manifest.json",
+  "src/audio/manifest.json",
+  "src/captions/manifest.json"
+];
+var REQUIRED_ADVISORS = /* @__PURE__ */ new Map([
   ["motion-art-direction", "3c129f769d90a1328c209c386492333c9ac62312"],
   ["animation-principles", "3c129f769d90a1328c209c386492333c9ac62312"],
   ["beat-sync-editing", "3c129f769d90a1328c209c386492333c9ac62312"],
@@ -143,59 +174,59 @@ const REQUIRED_ADVISORS = new Map([
   ["model-selector", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d"],
   ["prompt-translator", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d"],
   ["seedance-storyboard", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d"],
-  ["impeccable", "5a149f3fdb1b5793f10567233b1dcab98fc305fd"],
+  ["impeccable", "5a149f3fdb1b5793f10567233b1dcab98fc305fd"]
 ]);
-const BASE_REVIEW_CHECKS = [
-  "narrative", "pacing", "motionContinuity", "shotComposition", "typography", "color",
-  "captions", "audio", "sourceIntegrity", "assetRights", "profileFidelity",
-] as const;
-
-export const sha256 = (value: string | NodeJS.ArrayBufferView) => createHash("sha256").update(value).digest("hex");
-const finding = (code: string, filePath: string, message: string): VideoFinding => ({ code, path: filePath, message });
-const hasFile = (model: VideoModel, filePath: string) => Object.prototype.hasOwnProperty.call(model.files ?? {}, filePath);
-const fileDigest = (model: VideoModel, filePath: string) => model.digests?.[filePath] ?? sha256(model.files?.[filePath] ?? "");
-const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
-const sixDigitHash = (value: unknown) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
-const stageAtLeast = (stage: string | undefined, expected: VideoStage) => typeof stage === "string" && STAGES.has(stage) && STAGE_RANK[stage as VideoStage] >= STAGE_RANK[expected];
-
-function isGeneratedSubjectPath(filePath: string) {
+var BASE_REVIEW_CHECKS = [
+  "narrative",
+  "pacing",
+  "motionContinuity",
+  "shotComposition",
+  "typography",
+  "color",
+  "captions",
+  "audio",
+  "sourceIntegrity",
+  "assetRights",
+  "profileFidelity"
+];
+var sha256 = (value) => createHash2("sha256").update(value).digest("hex");
+var finding = (code, filePath, message) => ({ code, path: filePath, message });
+var hasFile = (model, filePath) => Object.prototype.hasOwnProperty.call(model.files ?? {}, filePath);
+var fileDigest = (model, filePath) => model.digests?.[filePath] ?? sha256(model.files?.[filePath] ?? "");
+var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var sixDigitHash = (value) => typeof value === "string" && /^[a-f0-9]{64}$/u.test(value);
+var stageAtLeast = (stage, expected) => typeof stage === "string" && STAGES.has(stage) && STAGE_RANK[stage] >= STAGE_RANK[expected];
+function isGeneratedSubjectPath(filePath) {
   return GENERATED_PATH.test(filePath) || PROOF_MEDIA_PATH.test(filePath) || PROOF_RECORD_PATH.test(filePath);
 }
-
-export function computeVideoSubjectDigest(model: VideoModel) {
-  const records = Object.keys(model.digests ?? model.files ?? {})
-    .filter((filePath) => !isGeneratedSubjectPath(filePath))
-    .sort((left, right) => left.localeCompare(right))
-    .map((filePath) => `${filePath}\0${fileDigest(model, filePath)}\n`)
-    .join("");
+function computeVideoSubjectDigest(model) {
+  const records = Object.keys(model.digests ?? model.files ?? {}).filter((filePath) => !isGeneratedSubjectPath(filePath)).sort((left, right) => left.localeCompare(right)).map((filePath) => `${filePath}\0${fileDigest(model, filePath)}
+`).join("");
   return sha256(records);
 }
-
-export function visualProofPaths(sourcePath: string, source: string) {
+function visualProofPaths(sourcePath, source) {
   const mediaPath = `${sourcePath.slice(0, -4)}.${sha256(source)}.mp4`;
   return { mediaPath, proofPath: `${mediaPath}.proof.json` };
 }
-
-export function audioProofPaths(sourcePath: string, source: string) {
+function audioProofPaths(sourcePath, source) {
   const mediaPath = `${sourcePath.slice(0, -11)}.${sha256(source)}.wav`;
   return { mediaPath, proofPath: `${mediaPath}.proof.json` };
 }
-
-export function finalRenderPaths(model: VideoModel) {
+function finalRenderPaths(model) {
   const mediaPath = `dist/${model.artifactId}.mp4`;
   return { mediaPath, proofPath: `${mediaPath}.proof.json` };
 }
-
-function manifestUnits(model: VideoModel, kind: string): unknown[] {
+function manifestUnits(model, kind) {
   try {
-    const parsed: unknown = JSON.parse(model.files?.[`src/${kind}/manifest.json`] ?? "");
+    const parsed = JSON.parse(model.files?.[`src/${kind}/manifest.json`] ?? "");
     if (!isObject(parsed) || !Array.isArray(parsed.units)) return [];
     return parsed.units;
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
-
-export function releaseArtifactPaths(model: VideoModel) {
-  const paths: string[] = [];
+function releaseArtifactPaths(model) {
+  const paths = [];
   for (const entry of manifestUnits(model, "visual")) {
     const sourceName = isObject(entry) ? `${entry.source ?? ""}` : "";
     const sourcePath = `src/visual/${sourceName}`;
@@ -219,38 +250,32 @@ export function releaseArtifactPaths(model: VideoModel) {
     "evidence/contact-sheet.png",
     "evidence.accessibility.json",
     "review.video.json",
-    "release.manifest.json",
+    "release.manifest.json"
   );
   paths.push(...Object.keys(model.files ?? {}).filter((filePath) => /^evidence\/admissions\/[^/]+\.json$/u.test(filePath)));
   return [...new Set(paths)];
 }
-
-export function createVideoReceipt(model: VideoModel) {
+function createVideoReceipt(model) {
   return {
     schemaVersion: 3,
     plugin: PLUGIN,
     artifactId: model.artifactId,
     stage: "release",
     subjectDigest: computeVideoSubjectDigest(model),
-    outputs: Object.fromEntries(releaseArtifactPaths(model).map((filePath) => [filePath, fileDigest(model, filePath)])),
+    outputs: Object.fromEntries(releaseArtifactPaths(model).map((filePath) => [filePath, fileDigest(model, filePath)]))
   };
 }
-
-export function validateVideoReceipt(model: VideoModel) {
+function validateVideoReceipt(model) {
   try {
-    const actual: unknown = JSON.parse(model.files?.["receipt.release.json"] ?? "");
+    const actual = JSON.parse(model.files?.["receipt.release.json"] ?? "");
     const expected = createVideoReceipt(model);
     if (!isObject(actual)) return false;
-    return actual.schemaVersion === expected.schemaVersion
-      && actual.plugin === expected.plugin
-      && actual.artifactId === expected.artifactId
-      && actual.stage === expected.stage
-      && actual.subjectDigest === expected.subjectDigest
-      && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
-  } catch { return false; }
+    return actual.schemaVersion === expected.schemaVersion && actual.plugin === expected.plugin && actual.artifactId === expected.artifactId && actual.stage === expected.stage && actual.subjectDigest === expected.subjectDigest && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
+  } catch {
+    return false;
+  }
 }
-
-export function createVideoRenderProof(model: VideoModel, { kind, sourcePath = null, outputPath, media, script }: VideoRenderProofInput) {
+function createVideoRenderProof(model, { kind, sourcePath = null, outputPath, media, script }) {
   return {
     schema: RENDER_PROOF_SCHEMA,
     plugin: PLUGIN,
@@ -260,40 +285,38 @@ export function createVideoRenderProof(model: VideoModel, { kind, sourcePath = n
     source: sourcePath ? { path: sourcePath, sha256: fileDigest(model, sourcePath) } : null,
     output: { path: outputPath, sha256: fileDigest(model, outputPath) },
     media,
-    writer: { capability: "video-render", script },
+    writer: { capability: "video-render", script }
   };
 }
-
-export function createVideoReleaseManifest(model: VideoModel) {
+function createVideoReleaseManifest(model) {
   const outputs = releaseArtifactPaths(model).filter((filePath) => filePath !== "release.manifest.json");
   return {
     schema: RELEASE_MANIFEST_SCHEMA,
     plugin: PLUGIN,
     artifactId: model.artifactId,
     subjectDigest: computeVideoSubjectDigest(model),
-    outputs: Object.fromEntries(outputs.map((filePath) => [filePath, fileDigest(model, filePath)])),
+    outputs: Object.fromEntries(outputs.map((filePath) => [filePath, fileDigest(model, filePath)]))
   };
 }
-
-function parseJson(files: VideoFileMap | undefined, filePath: string, findings: VideoFinding[], code = "JSON_INVALID"): unknown {
+function parseJson(files, filePath, findings, code = "JSON_INVALID") {
   const text = files?.[filePath];
   if (typeof text !== "string") {
     findings.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
     return null;
   }
-  try { return JSON.parse(text) as unknown; } catch {
+  try {
+    return JSON.parse(text);
+  } catch {
     findings.push(finding(code, filePath, `${filePath} must contain valid JSON`));
     return null;
   }
 }
-
-function validateRequired(files: VideoFileMap, findings: VideoFinding[]) {
+function validateRequired(files, findings) {
   for (const filePath of REQUIRED_PROJECT_PATHS) {
     if (!(filePath in files)) findings.push(finding(filePath === "plan.contract.json" ? "PLAN_CONTRACT_MISSING" : "REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
   }
 }
-
-function validateArtifactGitignore(files: VideoFileMap, findings: VideoFinding[]) {
+function validateArtifactGitignore(files, findings) {
   const text = files[".gitignore"];
   if (typeof text !== "string") return;
   text.split(/\r?\n/u).forEach((raw, offset) => {
@@ -302,8 +325,7 @@ function validateArtifactGitignore(files: VideoFileMap, findings: VideoFinding[]
     if (line && !line.startsWith("#") && !line.startsWith("!") && (/^(?:dist|build|evidence)(?:\/|$)/u.test(normalized) || /^(?:receipt|review|release)(?:\.|\/|$)/u.test(normalized) || /^(?:\*\*\/)?\*\.(?:png|svg|pdf|pptx|mp4|wav)$/u.test(normalized))) findings.push(finding("DELIVERY_PATH_IGNORED", `.gitignore:${offset + 1}`, `artifact delivery path must not be ignored: ${line}`));
   });
 }
-
-function validatePlan(model: VideoModel, stage: string | undefined, findings: VideoFinding[]) {
+function validatePlan(model, stage, findings) {
   const plan = parseJson(model.files, "plan.contract.json", findings, "PLAN_CONTRACT_INVALID");
   if (!isObject(plan) || plan.schema !== PLAN_SCHEMA) {
     findings.push(finding("PLAN_SCHEMA_UNSUPPORTED", "plan.contract.json", `plan schema must be ${PLAN_SCHEMA}`));
@@ -316,18 +338,13 @@ function validatePlan(model: VideoModel, stage: string | undefined, findings: Vi
   }
   if (typeof stage !== "string" || !STAGES.has(stage)) findings.push(finding("STAGE_INVALID", "plan.contract.json", `closure stage must be one of ${VIDEO_STAGES.join("|")}`));
 }
-
-function planningDigest(model: VideoModel, stage: "direction" | "storyboard" | "assets") {
-  const paths = stage === "direction"
-    ? ["plan.direction.json"]
-    : stage === "storyboard"
-      ? ["plan.script.json", "plan.storyboard.json"]
-      : ["plan.assets.json"];
+function planningDigest(model, stage) {
+  const paths = stage === "direction" ? ["plan.direction.json"] : stage === "storyboard" ? ["plan.script.json", "plan.storyboard.json"] : ["plan.assets.json"];
   if (paths.length === 1) return fileDigest(model, paths[0] ?? "");
-  return sha256(paths.map((filePath) => `${filePath}\0${fileDigest(model, filePath)}\n`).join(""));
+  return sha256(paths.map((filePath) => `${filePath}\0${fileDigest(model, filePath)}
+`).join(""));
 }
-
-function validateApproval(model: VideoModel, stage: string | undefined, findings: VideoFinding[]) {
+function validateApproval(model, stage, findings) {
   if (!stageAtLeast(stage, "direction")) return;
   const plan = isObject(model.plan) ? model.plan : {};
   const approvals = parseJson(model.files, "plan.approvals.json", findings, "APPROVALS_INVALID");
@@ -335,7 +352,7 @@ function validateApproval(model: VideoModel, stage: string | undefined, findings
     findings.push(finding("APPROVALS_INVALID", "plan.approvals.json", "approval registry must match the project mode"));
     return;
   }
-  for (const gateStage of ["direction", "storyboard", "assets"] as const) {
+  for (const gateStage of ["direction", "storyboard", "assets"]) {
     if (!stageAtLeast(stage, gateStage)) continue;
     const gate = approvals.gates.find((entry) => isObject(entry) && entry.stage === gateStage);
     const expectedDigest = planningDigest(model, gateStage);
@@ -344,8 +361,7 @@ function validateApproval(model: VideoModel, stage: string | undefined, findings
     if (!approved && !waived) findings.push(finding("APPROVAL_REQUIRED", "plan.approvals.json", `${gateStage} requires a current ${plan.mode === "autonomous" ? "approval or reasoned waiver" : "approval"}`));
   }
 }
-
-function validateDirection(model: VideoModel, stage: string | undefined, findings: VideoFinding[]) {
+function validateDirection(model, stage, findings) {
   if (!stageAtLeast(stage, "direction")) return;
   const direction = parseJson(model.files, "plan.direction.json", findings, "DIRECTION_INVALID");
   const design = parseJson(model.files, "design.system.json", findings, "DESIGN_SYSTEM_INVALID");
@@ -368,8 +384,7 @@ function validateDirection(model: VideoModel, stage: string | undefined, finding
     findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "every pinned companion must declare its exact revision, mode, and truthful status"));
   }
 }
-
-function validateStoryboard(model: VideoModel, stage: string | undefined, findings: VideoFinding[]) {
+function validateStoryboard(model, stage, findings) {
   if (!stageAtLeast(stage, "storyboard")) return;
   const script = parseJson(model.files, "plan.script.json", findings, "SCRIPT_INVALID");
   const storyboard = parseJson(model.files, "plan.storyboard.json", findings, "STORYBOARD_INVALID");
@@ -393,13 +408,12 @@ function validateStoryboard(model: VideoModel, stage: string | undefined, findin
     if (meaningful / beats.length < 0.8) findings.push(finding("ANTI_PPT_MOTION_INSUFFICIENT", "plan.storyboard.json", "at least 80% of explainer beats need a meaningful visible state change"));
   }
 }
-
-function validateAssets(model: VideoModel, stage: string | undefined, findings: VideoFinding[]) {
+function validateAssets(model, stage, findings) {
   if (!stageAtLeast(stage, "assets")) return;
   const manifest = parseJson(model.files, "plan.assets.json", findings, "ASSET_MANIFEST_INVALID");
   const references = parseJson(model.files, "plan.references.json", findings, "REFERENCES_INVALID");
   const assets = isObject(manifest) && Array.isArray(manifest.assets) ? manifest.assets : [];
-  const ids = new Set<string>();
+  const ids = /* @__PURE__ */ new Set();
   for (const asset of assets) {
     if (!isObject(asset) || typeof asset.id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(asset.id) || ids.has(asset.id) || !["image", "audio", "video", "subtitle", "font"].includes(String(asset.kind)) || !["user", "licensed", "public-domain", "generated", "external-run"].includes(String(asset.source)) || typeof asset.path !== "string" || !asset.path.startsWith("public/") || asset.path.includes("..") || typeof asset.rights !== "string" || !asset.rights.trim()) findings.push(finding("ASSET_ENTRY_INVALID", "plan.assets.json", "assets need unique ids, allowed kinds/sources, normalized public paths, and declared rights"));
     else {
@@ -418,30 +432,28 @@ function validateAssets(model: VideoModel, stage: string | undefined, findings: 
   const referenceList = isObject(references) && Array.isArray(references.references) ? references.references : [];
   if (!isObject(references) || references.schema !== REFERENCES_SCHEMA || !referenceList.every((reference) => isObject(reference) && ["inspiration", "structural", "frame-aligned"].includes(String(reference.fidelity)) && (reference.fidelity !== "frame-aligned" || ["owned", "authorized"].includes(String(reference.rights))))) findings.push(finding("REFERENCES_INVALID", "plan.references.json", "references need a fidelity tier; frame-aligned references require owned or authorized rights"));
 }
-
-function validateProjectConfig(model: VideoModel, findings: VideoFinding[]) {
+function validateProjectConfig(model, findings) {
   const project = parseJson(model.files, "video.project.json", findings);
   if (!isObject(project)) return;
   if (project.schema !== PROJECT_SCHEMA || project.artifactId !== model.artifactId || !PROFILES.has(String(project.profile))) findings.push(finding("VIDEO_PROJECT_INVALID", "video.project.json", "project must bind the v2 schema, artifact id, and production profile"));
   const plan = isObject(model.plan) ? model.plan : {};
   if (project.profile !== plan.profile) findings.push(finding("VIDEO_PROFILE_MISMATCH", "video.project.json", "project profile must match plan.contract.json"));
-  for (const key of ["durationInFrames", "fps", "width", "height"] as const) {
+  for (const key of ["durationInFrames", "fps", "width", "height"]) {
     const value = project[key];
     if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) findings.push(finding("VIDEO_PROJECT_INVALID", "video.project.json", `${key} must be a positive integer`));
   }
   if (typeof project.compositionId !== "string" || !project.compositionId.trim()) findings.push(finding("VIDEO_PROJECT_INVALID", "video.project.json", "compositionId must be a non-empty string"));
 }
-
-function validateToolchain(files: VideoFileMap, findings: VideoFinding[]) {
+function validateToolchain(files, findings) {
   const pkg = parseJson(files, "package.json", findings);
   const lock = parseJson(files, "package-lock.json", findings);
   const requiredDependencies = ["remotion", "@remotion/cli", "react", "react-dom"];
   if (isObject(pkg)) {
     const listed = isObject(pkg.dependencies) ? pkg.dependencies : {};
     const devListed = isObject(pkg.devDependencies) ? pkg.devDependencies : {};
-    const dependencies: Record<string, unknown> = { ...listed, ...devListed };
+    const dependencies = { ...listed, ...devListed };
     for (const name of requiredDependencies) if (typeof dependencies[name] !== "string") findings.push(finding("REMOTION_TOOLCHAIN_INVALID", "package.json", `${name} must be pinned by the artifact package`));
-    const scripts = isObject(pkg.scripts) ? pkg.scripts : undefined;
+    const scripts = isObject(pkg.scripts) ? pkg.scripts : void 0;
     for (const script of ["video:render:visual", "video:render:audio", "video:render:final"]) {
       const value = scripts?.[script];
       if (typeof value !== "string" || !value.trim()) findings.push(finding("RENDER_SCRIPT_MISSING", "package.json", `${script} is required`));
@@ -451,12 +463,11 @@ function validateToolchain(files: VideoFileMap, findings: VideoFinding[]) {
   if (isObject(lock) && (!Number.isInteger(lock.lockfileVersion) || !packages)) findings.push(finding("PACKAGE_LOCK_INVALID", "package-lock.json", "npm lockfileVersion and packages map are required"));
   else if (isObject(lock) && packages) for (const name of requiredDependencies) {
     const entry = packages[`node_modules/${name}`];
-    if (typeof (isObject(entry) ? entry.version : undefined) !== "string") findings.push(finding("PACKAGE_LOCK_DEPENDENCY_MISSING", "package-lock.json", `${name} must be present in the lockfile packages map`));
+    if (typeof (isObject(entry) ? entry.version : void 0) !== "string") findings.push(finding("PACKAGE_LOCK_DEPENDENCY_MISSING", "package-lock.json", `${name} must be present in the lockfile packages map`));
   }
 }
-
-function validateEntrypoints(files: VideoFileMap, findings: VideoFinding[]) {
-  const checks: Array<[string, RegExp, string]> = [
+function validateEntrypoints(files, findings) {
+  const checks = [
     ["src/index.ts", /registerRoot\s*\(/u, "registerRoot"],
     ["src/Root.tsx", /<\s*Composition\b/u, "Composition"],
     ["src/Video.tsx", /<\s*VisualTimeline\b/u, "VisualTimeline"],
@@ -464,30 +475,28 @@ function validateEntrypoints(files: VideoFileMap, findings: VideoFinding[]) {
     ["src/Video.tsx", /<\s*CaptionTimeline\b/u, "CaptionTimeline"],
     ["src/timelines/VisualTimeline.tsx", /visual\/manifest\.json/u, "visual manifest"],
     ["src/timelines/AudioTimeline.tsx", /audio\/manifest\.json/u, "audio manifest"],
-    ["src/timelines/CaptionTimeline.tsx", /captions\/manifest\.json/u, "caption manifest"],
+    ["src/timelines/CaptionTimeline.tsx", /captions\/manifest\.json/u, "caption manifest"]
   ];
   for (const [filePath, pattern, label] of checks) {
     const text = files[filePath];
     if (typeof text === "string" && !pattern.test(text)) findings.push(finding("REMOTION_ENTRYPOINT_INVALID", filePath, `${filePath} must wire ${label}`));
   }
 }
-
-function interval(match: RegExpMatchArray, entry: VideoManifestUnit, duration: unknown, sourcePath: string, findings: VideoFinding[]) {
+function interval(match, entry, duration, sourcePath, findings) {
   const start = Number(match.groups?.start);
   const end = Number(match.groups?.end);
   if (start !== entry.startFrame || end !== entry.endFrame) findings.push(finding("FRAME_PROJECTION_MISMATCH", sourcePath, "filename and manifest frame intervals must match"));
-  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start >= end || end > (duration as number)) findings.push(finding("FRAME_INTERVAL_INVALID", sourcePath, "frame interval must be a bounded half-open range"));
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start >= end || end > duration) findings.push(finding("FRAME_INTERVAL_INVALID", sourcePath, "frame interval must be a bounded half-open range"));
 }
-
-function relativeDependencies(files: VideoFileMap, sourcePath: string, visited = new Set<string>()): SourceClosure[] {
+function relativeDependencies(files, sourcePath, visited = /* @__PURE__ */ new Set()) {
   if (visited.has(sourcePath)) return [];
   visited.add(sourcePath);
   const source = files[sourcePath];
   if (typeof source !== "string") return [];
-  const closure: SourceClosure[] = [{ path: sourcePath, source }];
+  const closure = [{ path: sourcePath, source }];
   for (const match of source.matchAll(/(?:from\s+|import\s*\()\s*["'](?<specifier>\.[^"']+)["']/gu)) {
     const specifier = match.groups?.specifier;
-    if (specifier === undefined) continue;
+    if (specifier === void 0) continue;
     const candidate = path.normalize(path.join(path.dirname(sourcePath), specifier));
     const paths = [candidate, `${candidate}.ts`, `${candidate}.tsx`, path.join(candidate, "index.ts"), path.join(candidate, "index.tsx")];
     const resolved = paths.find((filePath) => typeof files[filePath] === "string");
@@ -495,87 +504,71 @@ function relativeDependencies(files: VideoFileMap, sourcePath: string, visited =
   }
   return closure;
 }
-
-function ownerViolation(files: VideoFileMap, sourcePath: string) {
-  const forbidden = new Set(["Audio", "Composition", "Sequence", "Series", "TransitionSeries"]);
+function ownerViolation(files, sourcePath) {
+  const forbidden = /* @__PURE__ */ new Set(["Audio", "Composition", "Sequence", "Series", "TransitionSeries"]);
   for (const { source } of relativeDependencies(files, sourcePath)) {
     if (VISUAL_OWNER.test(source)) return true;
     for (const match of source.matchAll(/import\s*\{(?<imports>[^}]+)\}\s*from\s*["']remotion["']/gu)) {
       const imported = match.groups?.imports ?? "";
       const names = imported.split(",").map((part) => part.trim().split(/\s+as\s+/u)[0]);
-      if (names.some((name) => name !== undefined && forbidden.has(name))) return true;
+      if (names.some((name) => name !== void 0 && forbidden.has(name))) return true;
     }
     if (/import\s+\*\s+as\s+\w+\s+from\s*["']remotion["']/u.test(source)) return true;
   }
   return false;
 }
-
-function validRenderProof(model: VideoModel, { proofPath, kind, sourcePath, outputPath, startFrame, endFrame }: {
-  proofPath: string;
-  kind: string;
-  sourcePath: string | null;
-  outputPath: string;
-  startFrame: unknown;
-  endFrame: unknown;
-}) {
-  let proof: unknown;
-  try { proof = JSON.parse(model.files?.[proofPath] ?? ""); } catch { return false; }
+function validRenderProof(model, { proofPath, kind, sourcePath, outputPath, startFrame, endFrame }) {
+  let proof;
+  try {
+    proof = JSON.parse(model.files?.[proofPath] ?? "");
+  } catch {
+    return false;
+  }
   if (!isObject(proof)) return false;
   const media = proof.media;
-  const output = isObject(proof.output) ? proof.output : undefined;
+  const output = isObject(proof.output) ? proof.output : void 0;
   const source = proof.source;
-  const writer = isObject(proof.writer) ? proof.writer : undefined;
-  const expectedFrames = (endFrame as number) - (startFrame as number);
+  const writer = isObject(proof.writer) ? proof.writer : void 0;
+  const expectedFrames = endFrame - startFrame;
   const outputOk = output?.path === outputPath && output?.sha256 === fileDigest(model, outputPath);
   const sourceOk = sourcePath === null ? source === null : isObject(source) && source.path === sourcePath && source.sha256 === fileDigest(model, sourcePath);
-  const mediaRecord = isObject(media) ? media : undefined;
+  const mediaRecord = isObject(media) ? media : void 0;
   const format = String(mediaRecord?.format ?? "");
   const videoFacts = mediaRecord?.hasVideo === true && /(?:mp4|mov)/u.test(format) && mediaRecord.width === model.project?.width && mediaRecord.height === model.project?.height;
-  const kindFacts = kind === "audio"
-    ? mediaRecord?.hasVideo === false && mediaRecord?.hasAudio === true && /wav/u.test(format) && Number.isInteger(mediaRecord?.sampleRate) && (mediaRecord?.sampleRate as number) > 0 && Number.isInteger(mediaRecord?.channels) && (mediaRecord?.channels as number) > 0
-    : videoFacts && (kind === "visual" ? mediaRecord?.hasAudio === false : mediaRecord?.hasAudio === true);
-  return proof.schema === RENDER_PROOF_SCHEMA
-    && proof.plugin === PLUGIN
-    && proof.artifactId === model.artifactId
-    && proof.kind === kind
-    && proof.subjectDigest === computeVideoSubjectDigest(model)
-    && sourceOk && outputOk
-    && writer?.capability === "video-render"
-    && writer?.script === `video:render:${kind === "final" ? "final" : kind}`
-    && typeof proof.createdAt === "string"
-    && typeof proof.sessionId === "string"
-    && proof.sessionId !== "unknown"
-    && typeof proof.triggerFrom === "string"
-    && isObject(media)
-    && media.durationInFrames === expectedFrames
-    && media.fps === model.project?.fps
-    && kindFacts;
+  const kindFacts = kind === "audio" ? mediaRecord?.hasVideo === false && mediaRecord?.hasAudio === true && /wav/u.test(format) && Number.isInteger(mediaRecord?.sampleRate) && mediaRecord?.sampleRate > 0 && Number.isInteger(mediaRecord?.channels) && mediaRecord?.channels > 0 : videoFacts && (kind === "visual" ? mediaRecord?.hasAudio === false : mediaRecord?.hasAudio === true);
+  return proof.schema === RENDER_PROOF_SCHEMA && proof.plugin === PLUGIN && proof.artifactId === model.artifactId && proof.kind === kind && proof.subjectDigest === computeVideoSubjectDigest(model) && sourceOk && outputOk && writer?.capability === "video-render" && writer?.script === `video:render:${kind === "final" ? "final" : kind}` && typeof proof.createdAt === "string" && typeof proof.sessionId === "string" && proof.sessionId !== "unknown" && typeof proof.triggerFrom === "string" && isObject(media) && media.durationInFrames === expectedFrames && media.fps === model.project?.fps && kindFacts;
 }
-
-function asUnit(entry: unknown): VideoManifestUnit {
+function asUnit(entry) {
   return isObject(entry) ? entry : {};
 }
-
-function validateVisual(model: VideoModel, entry: unknown, findings: VideoFinding[], requireProof: boolean) {
+function validateVisual(model, entry, findings, requireProof) {
   const unit = asUnit(entry);
   const match = typeof unit.source === "string" ? unit.source.match(VISUAL_SOURCE) : null;
   const sourcePath = `src/visual/${unit.source ?? "manifest.json"}`;
-  if (!match) { findings.push(finding("VISUAL_NAME_INVALID", sourcePath, "visual source must encode a six-digit frame interval")); return; }
+  if (!match) {
+    findings.push(finding("VISUAL_NAME_INVALID", sourcePath, "visual source must encode a six-digit frame interval"));
+    return;
+  }
   if (Number(match.groups?.index) !== unit.index) findings.push(finding("VISUAL_INDEX_MISMATCH", sourcePath, "visual filename index must match manifest"));
   interval(match, unit, model.project?.durationInFrames, sourcePath, findings);
   const source = model.files?.[sourcePath];
-  if (typeof source !== "string") { findings.push(finding("VISUAL_SOURCE_MISSING", sourcePath, "visual source is missing")); return; }
+  if (typeof source !== "string") {
+    findings.push(finding("VISUAL_SOURCE_MISSING", sourcePath, "visual source is missing"));
+    return;
+  }
   const { mediaPath, proofPath } = visualProofPaths(sourcePath, source);
   if (requireProof && !hasFile(model, mediaPath)) findings.push(finding("VISUAL_PROOF_MISSING", mediaPath, "current source-hash muted MP4 proof is required"));
   if (requireProof && (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "visual", sourcePath, outputPath: mediaPath, startFrame: unit.startFrame, endFrame: unit.endFrame }))) findings.push(finding("VISUAL_RENDER_PROOF_INVALID", proofPath, "visual proof must carry a current structured render receipt"));
   if (ownerViolation(model.files ?? {}, sourcePath)) findings.push(finding("VISUAL_OWNER_VIOLATION", sourcePath, "visual unit closure may not own audio, composition, global scheduling, I/O, network, or wall-clock randomness"));
 }
-
-function validateAudio(model: VideoModel, entry: unknown, findings: VideoFinding[], requireProof: boolean) {
+function validateAudio(model, entry, findings, requireProof) {
   const unit = asUnit(entry);
   const match = typeof unit.source === "string" ? unit.source.match(AUDIO_SOURCE) : null;
   const sourcePath = `src/audio/${unit.source ?? "manifest.json"}`;
-  if (!match) { findings.push(finding("AUDIO_NAME_INVALID", sourcePath, "audio binding must encode role and six-digit frame interval")); return; }
+  if (!match) {
+    findings.push(finding("AUDIO_NAME_INVALID", sourcePath, "audio binding must encode role and six-digit frame interval"));
+    return;
+  }
   if (Number(match.groups?.index) !== unit.index || match.groups?.role !== unit.role) findings.push(finding("AUDIO_MANIFEST_MISMATCH", sourcePath, "audio filename must match index and role"));
   interval(match, unit, model.project?.durationInFrames, sourcePath, findings);
   const binding = parseJson(model.files, sourcePath, findings);
@@ -590,54 +583,63 @@ function validateAudio(model: VideoModel, entry: unknown, findings: VideoFinding
   if (requireProof && !hasFile(model, mediaPath)) findings.push(finding("AUDIO_PROOF_MISSING", mediaPath, "current source-hash WAV proof is required"));
   if (requireProof && (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "audio", sourcePath, outputPath: mediaPath, startFrame: unit.startFrame, endFrame: unit.endFrame }))) findings.push(finding("AUDIO_RENDER_PROOF_INVALID", proofPath, "audio proof must carry a current structured render receipt"));
 }
-
-function validateCaption(model: VideoModel, entry: unknown, findings: VideoFinding[]) {
+function validateCaption(model, entry, findings) {
   const unit = asUnit(entry);
   const match = typeof unit.source === "string" ? unit.source.match(CAPTION_SOURCE) : null;
   const sourcePath = `src/captions/${unit.source ?? "manifest.json"}`;
-  if (!match) { findings.push(finding("CAPTION_NAME_INVALID", sourcePath, "caption binding must encode role and a six-digit frame interval")); return; }
+  if (!match) {
+    findings.push(finding("CAPTION_NAME_INVALID", sourcePath, "caption binding must encode role and a six-digit frame interval"));
+    return;
+  }
   if (Number(match.groups?.index) !== unit.index || match.groups?.role !== unit.role) findings.push(finding("CAPTION_MANIFEST_MISMATCH", sourcePath, "caption filename must match index and role"));
   interval(match, unit, model.project?.durationInFrames, sourcePath, findings);
   const binding = parseJson(model.files, sourcePath, findings);
   const record = isObject(binding) ? binding : {};
   if (record.startFrame !== unit.startFrame || record.endFrame !== unit.endFrame || record.role !== unit.role || typeof record.text !== "string" || !record.text.trim()) findings.push(finding("CAPTION_PROJECTION_MISMATCH", sourcePath, "caption text, role, and frame interval must match its manifest"));
-  const design = (() => { try { return JSON.parse(model.files?.["design.system.json"] ?? "") as unknown; } catch { return null; } })();
+  const design = (() => {
+    try {
+      return JSON.parse(model.files?.["design.system.json"] ?? "");
+    } catch {
+      return null;
+    }
+  })();
   const captions = isObject(design) && isObject(design.captions) ? design.captions : {};
   const seconds = (Number(unit.endFrame) - Number(unit.startFrame)) / Number(model.project?.fps);
   if (seconds > 0 && typeof record.text === "string" && record.text.length / seconds > Number(captions.maxCharsPerSecond ?? 20)) findings.push(finding("CAPTION_READING_SPEED_EXCEEDED", sourcePath, "caption exceeds the design-system reading-speed limit"));
 }
-
-function validateManifest(entries: unknown, kind: string, findings: VideoFinding[]) {
+function validateManifest(entries, kind, findings) {
   if (!Array.isArray(entries) || entries.length === 0) {
     findings.push(finding(`${kind.toUpperCase()}_MANIFEST_INVALID`, `src/${kind}/manifest.json`, `${kind} manifest units must be a non-empty array`));
     return;
   }
-  const ids = new Set<unknown>();
-  const sources = new Set<unknown>();
+  const ids = /* @__PURE__ */ new Set();
+  const sources = /* @__PURE__ */ new Set();
   entries.forEach((entry, offset) => {
     const unit = asUnit(entry);
     if (unit.index !== offset + 1 || typeof unit.id !== "string" || !unit.id || ids.has(unit.id) || sources.has(unit.source)) findings.push(finding(`${kind.toUpperCase()}_SEQUENCE_INVALID`, `src/${kind}/manifest.json`, `${kind} indexes, ids, and sources must be unique and contiguous`));
-    ids.add(unit.id); sources.add(unit.source);
+    ids.add(unit.id);
+    sources.add(unit.source);
   });
 }
-
-function evidenceObject(model: VideoModel, filePath: string): Record<string, unknown> | null {
-  try { const value: unknown = JSON.parse(model.files?.[filePath] ?? ""); return isObject(value) ? value : null; } catch { return null; }
+function evidenceObject(model, filePath) {
+  try {
+    const value = JSON.parse(model.files?.[filePath] ?? "");
+    return isObject(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
-
-function validEvidenceBase(model: VideoModel, value: Record<string, unknown> | null, schema: string) {
+function validEvidenceBase(model, value, schema) {
   const finalPath = finalRenderPaths(model).mediaPath;
   const expectedCapability = [PROBE_SCHEMA, AUDIO_EVIDENCE_SCHEMA, MOTION_EVIDENCE_SCHEMA, CAPTION_EVIDENCE_SCHEMA, REFERENCE_EVIDENCE_SCHEMA].includes(schema) ? "video-probe" : "video-review";
-  const output = isObject(value?.output) ? value.output : undefined;
+  const output = isObject(value?.output) ? value.output : void 0;
   return value?.schema === schema && value?.plugin === PLUGIN && value?.artifactId === model.artifactId && value?.subjectDigest === computeVideoSubjectDigest(model) && output?.path === finalPath && output?.sha256 === fileDigest(model, finalPath) && value?.capability === expectedCapability && typeof value?.createdAt === "string" && typeof value?.sessionId === "string" && value.sessionId !== "unknown" && typeof value?.triggerFrom === "string";
 }
-
-function nestedRecord(value: Record<string, unknown> | null, key: string): Record<string, unknown> | undefined {
+function nestedRecord(value, key) {
   const nested = value?.[key];
-  return isObject(nested) ? nested : undefined;
+  return isObject(nested) ? nested : void 0;
 }
-
-function validateProbeEvidence(model: VideoModel, findings: VideoFinding[]) {
+function validateProbeEvidence(model, findings) {
   const probe = evidenceObject(model, "evidence.probe.json");
   const probeVideo = nestedRecord(probe, "video");
   if (!validEvidenceBase(model, probe, PROBE_SCHEMA) || !probeVideo || probeVideo.durationInFrames !== model.project?.durationInFrames || probeVideo.fps !== model.project?.fps || probeVideo.width !== model.project?.width || probeVideo.height !== model.project?.height || probeVideo.hasVideo !== true || probeVideo.hasAudio !== true || !/(?:mp4|mov)/u.test(String(probeVideo.format ?? ""))) findings.push(finding("PROBE_EVIDENCE_INVALID", "evidence.probe.json", "probe evidence must bind measured final-video facts"));
@@ -649,7 +651,7 @@ function validateProbeEvidence(model: VideoModel, findings: VideoFinding[]) {
   const measuredPeak = Number(loudness?.truePeakDb);
   const targetLufs = Number(audioTarget?.integratedLufs);
   const targetPeak = Number(audioTarget?.truePeakDb);
-  if (!validEvidenceBase(model, audio, AUDIO_EVIDENCE_SCHEMA) || audioFacts?.present !== true || !Number.isInteger(audioFacts?.sampleRate) || (audioFacts?.sampleRate as number) <= 0 || !Number.isInteger(audioFacts?.channels) || (audioFacts?.channels as number) <= 0 || audioFacts?.durationInFrames !== model.project?.durationInFrames || !Number.isFinite(measuredLufs) || !Number.isFinite(measuredPeak) || !Number.isFinite(targetLufs) || !Number.isFinite(targetPeak) || Math.abs(measuredLufs - targetLufs) > 2 || measuredPeak > targetPeak + 0.1) findings.push(finding("AUDIO_EVIDENCE_INVALID", "evidence.audio.json", "audio evidence must bind a measured stream within the declared loudness and true-peak targets"));
+  if (!validEvidenceBase(model, audio, AUDIO_EVIDENCE_SCHEMA) || audioFacts?.present !== true || !Number.isInteger(audioFacts?.sampleRate) || audioFacts?.sampleRate <= 0 || !Number.isInteger(audioFacts?.channels) || audioFacts?.channels <= 0 || audioFacts?.durationInFrames !== model.project?.durationInFrames || !Number.isFinite(measuredLufs) || !Number.isFinite(measuredPeak) || !Number.isFinite(targetLufs) || !Number.isFinite(targetPeak) || Math.abs(measuredLufs - targetLufs) > 2 || measuredPeak > targetPeak + 0.1) findings.push(finding("AUDIO_EVIDENCE_INVALID", "evidence.audio.json", "audio evidence must bind a measured stream within the declared loudness and true-peak targets"));
   const motion = evidenceObject(model, "evidence.motion.json");
   const motionBeats = Array.isArray(motion?.beats) ? motion.beats : [];
   if (!validEvidenceBase(model, motion, MOTION_EVIDENCE_SCHEMA) || motion?.verdict !== "pass" || motionBeats.length === 0 || !motionBeats.every((beat) => isObject(beat) && typeof beat.id === "string" && Array.isArray(beat.samples) && beat.samples.length >= 1 && beat.samples.every((sample) => isObject(sample) && Number.isInteger(sample.frame) && sixDigitHash(sample.sha256)))) findings.push(finding("MOTION_EVIDENCE_INVALID", "evidence.motion.json", "motion evidence must bind decoded samples for every storyboard beat"));
@@ -659,32 +661,37 @@ function validateProbeEvidence(model: VideoModel, findings: VideoFinding[]) {
   if (!validEvidenceBase(model, captions, CAPTION_EVIDENCE_SCHEMA) || captions?.verdict !== "pass" || captions?.overlap !== false || captions?.count !== declaredCaptions.length || captionItems.length !== declaredCaptions.length || !captionItems.every((item, index) => isObject(item) && isObject(declaredCaptions[index]) && item.id === declaredCaptions[index].id && item.startFrame === declaredCaptions[index].startFrame && item.endFrame === declaredCaptions[index].endFrame && typeof item.charsPerSecond === "number" && Number.isFinite(item.charsPerSecond))) findings.push(finding("CAPTION_EVIDENCE_INVALID", "evidence.captions.json", "caption evidence must bind every declared caption's timing and reading-speed measurement"));
   const references = evidenceObject(model, "evidence.reference.json");
   const comparisons = Array.isArray(references?.comparisons) ? references.comparisons : [];
-  const declaredReferences = (() => { try { const value: unknown = JSON.parse(model.files?.["plan.references.json"] ?? ""); return isObject(value) && Array.isArray(value.references) ? value.references : []; } catch { return []; } })();
+  const declaredReferences = (() => {
+    try {
+      const value = JSON.parse(model.files?.["plan.references.json"] ?? "");
+      return isObject(value) && Array.isArray(value.references) ? value.references : [];
+    } catch {
+      return [];
+    }
+  })();
   if (!validEvidenceBase(model, references, REFERENCE_EVIDENCE_SCHEMA) || references?.verdict !== "pass" || comparisons.length !== declaredReferences.length || !declaredReferences.every((reference) => isObject(reference) && comparisons.some((comparison) => isObject(comparison) && comparison.id === reference.id && comparison.fidelity === reference.fidelity && (reference.fidelity !== "frame-aligned" ? comparison.verdict === "review" : comparison.verdict === "pass" && typeof comparison.ssim === "number" && (typeof comparison.psnr === "number" || comparison.psnr === "infinity"))))) findings.push(finding("REFERENCE_EVIDENCE_INVALID", "evidence.reference.json", "reference evidence must bind every declared fidelity comparison"));
   const sheetDigest = motion?.contactSheetSha256;
   if (!hasFile(model, "evidence/contact-sheet.png") || !sixDigitHash(sheetDigest) || sheetDigest !== fileDigest(model, "evidence/contact-sheet.png")) findings.push(finding("CONTACT_SHEET_INVALID", "evidence/contact-sheet.png", "contact sheet bytes must match motion evidence"));
 }
-
-function requiredReviewChecks(model: VideoModel) {
+function requiredReviewChecks(model) {
   const plan = isObject(model.plan) ? model.plan : {};
   return [
     ...BASE_REVIEW_CHECKS,
-    ...(plan.profile === "reference-led" ? ["referenceFidelity"] : []),
-    ...(plan.profile === "micro-drama" ? ["characterContinuity"] : []),
+    ...plan.profile === "reference-led" ? ["referenceFidelity"] : [],
+    ...plan.profile === "micro-drama" ? ["characterContinuity"] : []
   ];
 }
-
-function validateReviewEvidence(model: VideoModel, findings: VideoFinding[]) {
+function validateReviewEvidence(model, findings) {
   const { proofPath } = finalRenderPaths(model);
   const frames = evidenceObject(model, "evidence.frames.json");
   const frameList = Array.isArray(frames?.frames) ? frames.frames : [];
-  const frameIndexes = frameList.map((item) => isObject(item) ? item.frame : undefined);
+  const frameIndexes = frameList.map((item) => isObject(item) ? item.frame : void 0);
   const framesTool = nestedRecord(frames, "tool");
   const duration = model.project?.durationInFrames;
   if (!validEvidenceBase(model, frames, FRAME_EVIDENCE_SCHEMA) || framesTool?.name !== "ffmpeg" || typeof framesTool?.version !== "string" || !framesTool.version || frameList.length < 3 || !frameList.every((item) => {
-    const record = isObject(item) ? item : undefined;
-    return Number.isInteger(record?.frame) && (record?.frame as number) >= 0 && (record?.frame as number) < (duration as number) && sixDigitHash(record?.sha256);
-  }) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes((duration as number) - 1)) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, and final extracted frame hashes"));
+    const record = isObject(item) ? item : void 0;
+    return Number.isInteger(record?.frame) && record?.frame >= 0 && record?.frame < duration && sixDigitHash(record?.sha256);
+  }) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes(duration - 1)) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, and final extracted frame hashes"));
   const accessibility = evidenceObject(model, "evidence.accessibility.json");
   const accessibilityChecks = nestedRecord(accessibility, "checks");
   if (!validEvidenceBase(model, accessibility, ACCESSIBILITY_EVIDENCE_SCHEMA) || accessibility?.verdict !== "pass" || !sixDigitHash(accessibility?.reviewInputSha256) || !["captionsReviewed", "flashingReviewed", "contrastReviewed"].every((key) => accessibilityChecks?.[key] === true)) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", "evidence.accessibility.json", "accessibility evidence requires explicit passing checks"));
@@ -695,8 +702,7 @@ function validateReviewEvidence(model: VideoModel, findings: VideoFinding[]) {
   const reviewerKind = reviewer?.kind;
   if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind)) || typeof reviewer?.id !== "string" || typeof reviewer?.sessionId !== "string" || reviewer?.sessionId !== review?.sessionId || reviewer?.sessionId === finalProof?.sessionId || !requiredReviewChecks(model).every((key) => checks?.[key] === "pass") || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json")) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be independent, profile-complete, passing, and bound to frame and accessibility evidence"));
 }
-
-function validateReleaseEvidence(model: VideoModel, findings: VideoFinding[]) {
+function validateReleaseEvidence(model, findings) {
   const { mediaPath, proofPath } = finalRenderPaths(model);
   if (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "final", sourcePath: null, outputPath: mediaPath, startFrame: 0, endFrame: model.project?.durationInFrames })) findings.push(finding("FINAL_RENDER_PROOF_INVALID", proofPath, "final MP4 requires a current structured render proof"));
   validateProbeEvidence(model, findings);
@@ -705,9 +711,8 @@ function validateReleaseEvidence(model: VideoModel, findings: VideoFinding[]) {
   const expectedManifest = createVideoReleaseManifest(model);
   if (JSON.stringify(manifest) !== JSON.stringify(expectedManifest)) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind the current subject and every delivery output"));
 }
-
-export function validateVideoModel(model: VideoModel, { stage }: { stage?: string } = {}): VideoFinding[] {
-  const findings: VideoFinding[] = [];
+function validateVideoModel(model, { stage } = {}) {
+  const findings = [];
   const files = model.files ?? {};
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(model.artifactId ?? "")) findings.push(finding("ARTIFACT_DIRECTORY_INVALID", ".", "video artifact directory must use a kebab-case id"));
   if (hasFile(model, ".video-delivery-journal.json")) findings.push(finding("MUTATION_JOURNAL_OPEN", ".video-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
@@ -731,7 +736,7 @@ export function validateVideoModel(model: VideoModel, { stage }: { stage?: strin
     validateManifest(visual, "visual", findings);
     validateManifest(audio, "audio", findings);
     if (!isObject(captionManifest) || !Array.isArray(captionManifest.units)) findings.push(finding("CAPTION_MANIFEST_INVALID", "src/captions/manifest.json", "caption manifest units must be an array"));
-    const profile = isObject(model.plan) ? model.plan.profile : undefined;
+    const profile = isObject(model.plan) ? model.plan.profile : void 0;
     if (["short-form", "talking-head"].includes(String(profile)) && captions.length === 0) findings.push(finding("CAPTION_MANIFEST_EMPTY", "src/captions/manifest.json", `${profile} requires timed captions`));
     visual.forEach((entry) => validateVisual(model, entry, findings, stageAtLeast(stage, "render")));
     audio.forEach((entry) => validateAudio(model, entry, findings, stageAtLeast(stage, "render")));
@@ -753,28 +758,58 @@ export function validateVideoModel(model: VideoModel, { stage }: { stage?: strin
   }
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
-
-const WRITER_PATHS: Record<string, RegExp> = {
+var WRITER_PATHS = {
   "video-admit": /^(?:public\/admitted\/[^/]+|evidence\/admissions\/[^/]+\.json|\.video-delivery-journal\.json)$/u,
   "video-render": /^(?:src\/visual\/.*\.mp4(?:\.proof\.json)?|src\/audio\/.*\.wav(?:\.proof\.json)?|dist\/[^/]+\.mp4(?:\.proof\.json)?)$/u,
   "video-probe": /^(?:evidence\.(?:probe|audio|motion|captions|reference)\.json|evidence\/contact-sheet\.png|\.video-delivery-journal\.json)$/u,
   "video-review": /^(?:evidence\.(?:frames|accessibility)\.json|review\.video\.json)$/u,
-  "video-release": /^(?:release\.manifest\.json|receipt\.release\.json|\.video-delivery-journal\.json)$/u,
+  "video-release": /^(?:release\.manifest\.json|receipt\.release\.json|\.video-delivery-journal\.json)$/u
 };
-
-export function evaluateVideoWrite({ relativePath = "", toolName = "", writer = "" }: {
-  relativePath?: string;
-  toolName?: string;
-  writer?: string;
-} = {}): VideoWriteDecision {
+function evaluateVideoWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
   const normalized = String(relativePath).replaceAll("\\", "/");
   const match = normalized.match(/(?:^|\/)artifacts\/video\/[^/]+\/(?<inside>.+)$/u);
   if (!match) return { decision: "allow" };
   const inside = match.groups?.inside;
-  if (inside === undefined) return { decision: "allow" };
+  if (inside === void 0) return { decision: "allow" };
   const protectedPath = GENERATED_PATH.test(inside) || ADMITTED_ASSET_PATH.test(inside) || PROOF_MEDIA_PATH.test(inside) || PROOF_RECORD_PATH.test(inside) || CAPABILITY_PATH.test(inside);
   if (!protectedPath) return { decision: "allow" };
   const writerPattern = WRITER_PATHS[writer];
   if (writerPattern?.test(inside)) return { decision: "allow", capability: writer };
   return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} requires its exact video writer capability, not ${toolName || "an unregistered tool"}` };
 }
+
+export {
+  issueWriterCapability,
+  consumeWriterCapability,
+  processWriterArgv,
+  PROBE_SCHEMA,
+  AUDIO_EVIDENCE_SCHEMA,
+  MOTION_EVIDENCE_SCHEMA,
+  CAPTION_EVIDENCE_SCHEMA,
+  REFERENCE_EVIDENCE_SCHEMA,
+  FRAME_EVIDENCE_SCHEMA,
+  ACCESSIBILITY_EVIDENCE_SCHEMA,
+  VIDEO_REVIEW_SCHEMA,
+  REVIEW_INPUT_SCHEMA,
+  PLAN_SCHEMA,
+  DIRECTION_SCHEMA,
+  SCRIPT_SCHEMA,
+  STORYBOARD_SCHEMA,
+  SKILL_COMPOSITION_SCHEMA,
+  ASSET_MANIFEST_SCHEMA,
+  APPROVALS_SCHEMA,
+  REFERENCES_SCHEMA,
+  DESIGN_SYSTEM_SCHEMA,
+  PROJECT_SCHEMA,
+  VIDEO_PROFILES,
+  computeVideoSubjectDigest,
+  visualProofPaths,
+  audioProofPaths,
+  finalRenderPaths,
+  createVideoReceipt,
+  validateVideoReceipt,
+  createVideoRenderProof,
+  createVideoReleaseManifest,
+  validateVideoModel,
+  evaluateVideoWrite
+};

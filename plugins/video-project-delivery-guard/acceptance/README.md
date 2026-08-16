@@ -8,6 +8,7 @@ The suite starts real Claude Code and Codex sessions in the Docker host-acceptan
 - `dd` shell mutation denial;
 - `node -e` writer-path substring spoof denial;
 - missing `plan.contract.json` fail-closed Stop behavior.
+- direct `public/admitted/` write denial; only the admission writer may cross that boundary.
 
 Run both hosts:
 

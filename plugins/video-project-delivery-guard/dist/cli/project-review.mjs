@@ -1,26 +1,27 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d28a7dcb6a47adf9d7ab4831024e6c5c282fa6ce764dd9fdb8bb78dd725f42e3
+// harness-source-hash: sha256:1deb377332db5d9c89b57dce5ad89b6ccfcf0897b36cf63af3c00bbe3bcf6642
 import {
   extractFrameDigest,
   mediaToolVersion
-} from "../chunks/chunk-ZUMZRTFP.mjs";
+} from "../chunks/chunk-VEZ34AFA.mjs";
 import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   FRAME_EVIDENCE_SCHEMA,
+  REVIEW_INPUT_SCHEMA,
   VIDEO_REVIEW_SCHEMA,
   computeVideoSubjectDigest,
   consumeWriterCapability,
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-MQOGMMXB.mjs";
+} from "../chunks/chunk-SLRENGEQ.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-X2VNCGIS.mjs";
+} from "../chunks/chunk-JEPGOY6Q.mjs";
 
 // plugins/video-project-delivery-guard/src/entries/cli/project-review.ts
 import { readFile } from "node:fs/promises";
@@ -30,15 +31,15 @@ function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 function prerequisiteFindings(model) {
-  const allowed = /* @__PURE__ */ new Set(["ACCESSIBILITY_EVIDENCE_INVALID", "FRAME_EVIDENCE_INVALID", "VIDEO_REVIEW_INVALID", "RELEASE_MANIFEST_INVALID", "RECEIPT_INVALID", "RELEASE_PATH_MISSING", "MUTATION_JOURNAL_OPEN"]);
-  return validateVideoModel(model, { stage: "release" }).filter(({ code }) => !allowed.has(code));
+  return validateVideoModel(model, { stage: "probe" }).filter(({ code }) => code !== "MUTATION_JOURNAL_OPEN");
 }
 function validateInput(input, model, currentSession) {
   const record = isRecord(input) ? input : {};
   const reviewer = isRecord(record.reviewer) ? record.reviewer : void 0;
   const checks = isRecord(record.checks) ? record.checks : void 0;
+  const accessibility = isRecord(record.accessibility) ? record.accessibility : void 0;
   const { mediaPath } = finalRenderPaths(model);
-  if (record.schema !== "video-project-delivery-guard/review-input/v1" || record.artifactId !== model.artifactId || record.outputSha256 !== model.digests?.[mediaPath] || record.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
+  if (record.schema !== REVIEW_INPUT_SCHEMA || record.artifactId !== model.artifactId || record.outputSha256 !== model.digests?.[mediaPath] || record.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
   const reviewerKind = reviewer?.kind;
   if (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind) || typeof reviewer?.id !== "string" || !reviewer.id || typeof reviewer.sessionId !== "string" || !reviewer.sessionId) throw new Error("REVIEWER_INVALID");
   if (currentSession === "unknown") throw new Error("REVIEW_SESSION_UNAVAILABLE");
@@ -51,7 +52,10 @@ function validateInput(input, model, currentSession) {
   }).filter((proof) => isRecord(proof) && proof.schema === "video-project-delivery-guard/render-proof/v1").map((proof) => isRecord(proof) ? proof.sessionId : void 0);
   if (renderSessions.includes(currentSession)) throw new Error("SELF_REVIEW_DENIED");
   if (reviewer.sessionId !== currentSession) throw new Error("REVIEW_SESSION_MISMATCH");
-  if (!["captionsReviewed", "flashingReviewed", "contrastReviewed"].every((key) => checks?.[key] === true)) throw new Error("ACCESSIBILITY_REVIEW_INCOMPLETE");
+  const profile = isRecord(model.plan) ? model.plan.profile : void 0;
+  const requiredChecks = ["narrative", "pacing", "motionContinuity", "shotComposition", "typography", "color", "captions", "audio", "sourceIntegrity", "assetRights", "profileFidelity", ...profile === "reference-led" ? ["referenceFidelity"] : [], ...profile === "micro-drama" ? ["characterContinuity"] : []];
+  if (!requiredChecks.every((key) => checks?.[key] === "pass")) throw new Error("PROFILE_REVIEW_INCOMPLETE");
+  if (!["captionsReviewed", "flashingReviewed", "contrastReviewed"].every((key) => accessibility?.[key] === true)) throw new Error("ACCESSIBILITY_REVIEW_INCOMPLETE");
   const frames = Array.isArray(record.frames) ? [...new Set(record.frames)] : [];
   const duration = model.project?.durationInFrames ?? Number.NaN;
   if (frames.length < 3 || !frames.every((frame) => Number.isInteger(frame) && frame >= 0 && frame < duration) || !frames.includes(0) || !frames.includes(duration - 1)) throw new Error("FRAME_REVIEW_INCOMPLETE");
@@ -85,9 +89,9 @@ async function main() {
   const base = { plugin: "video-project-delivery-guard", artifactId: model.artifactId, subjectDigest: computeVideoSubjectDigest(model), output: { path: mediaPath, sha256: model.digests?.[mediaPath] }, ...sessionMetadata("video-review", grant) };
   await withWriterJournal(root, "video-review", async () => {
     await atomicWriteJson(root, "evidence.frames.json", { schema: FRAME_EVIDENCE_SCHEMA, ...base, tool, frames: frameEvidence });
-    await atomicWriteJson(root, "evidence.accessibility.json", { schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, verdict: "pass", checks: inputRecord.checks, reviewer: inputRecord.reviewer, reviewInputSha256, notes: inputRecord.notes ?? "" });
+    await atomicWriteJson(root, "evidence.accessibility.json", { schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, verdict: "pass", checks: inputRecord.accessibility, reviewer: inputRecord.reviewer, reviewInputSha256, notes: inputRecord.notes ?? "" });
     model = await loadVideoProject(root);
-    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], notes: inputRecord.notes ?? "" });
+    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], notes: inputRecord.notes ?? "" });
   }, grant);
   process.stdout.write(`${JSON.stringify({ verdict: "pass", reviewer: inputRecord.reviewer })}
 `);
