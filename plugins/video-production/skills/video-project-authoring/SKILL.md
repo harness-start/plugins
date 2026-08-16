@@ -22,7 +22,7 @@ Read all of these before authoring:
 
 1. Select one profile, `guided` or `autonomous` mode, and a kebab-case artifact id. Run `project-init.mjs <root> --profile <profile> --mode <mode>`.
 2. Replace scaffold assumptions and freeze the direction, script, storyboard, design system, Skill composition, references, budget, and approval records before composition work.
-3. Treat advisors as read-only. Record their exact revision and `used`, `skipped`, or `unavailable` status. Integrate advice into project-owned JSON and TypeScript yourself.
+3. Treat advisors as read-only. Record each current-source worker's `used`, `skipped`, or `unavailable` status. Integrate advice into project-owned JSON and TypeScript yourself.
 4. Run external media generators or editors only outside the artifact root. Never expose credentials in commands or project files. Admit declared outputs with `project-admit.mjs <root> <external-run-manifest>`.
 5. Implement visual units and audio/caption bindings whose half-open frame ranges project exactly from the storyboard. Keep each visual unit free of global scheduling, audio ownership, I/O, network, and wall-clock randomness.
 6. Run `project-lint.mjs`, render every visual and audio unit, then render final. After a source, asset, direction, script, design, or timing change, restart at lint.

@@ -1,20 +1,20 @@
 {
   "skills": [
-    { "name": "motion-art-direction", "source": "https://github.com/iart-ai/motion-design-skills", "revision": "3c129f769d90a1328c209c386492333c9ac62312", "mode": "advisor" },
-    { "name": "animation-principles", "source": "https://github.com/iart-ai/motion-design-skills", "revision": "3c129f769d90a1328c209c386492333c9ac62312", "mode": "advisor" },
-    { "name": "beat-sync-editing", "source": "https://github.com/iart-ai/motion-design-skills", "revision": "3c129f769d90a1328c209c386492333c9ac62312", "mode": "advisor" },
-    { "name": "color-motion", "source": "https://github.com/iart-ai/motion-design-skills", "revision": "3c129f769d90a1328c209c386492333c9ac62312", "mode": "advisor" },
-    { "name": "shot-composition", "source": "https://github.com/iart-ai/motion-design-skills", "revision": "3c129f769d90a1328c209c386492333c9ac62312", "mode": "advisor" },
-    { "name": "explainer-video", "source": "https://github.com/iart-ai/explainer-video-skills", "revision": "3e2d411b725d9a72939cf8e5eb81579e751373e7", "mode": "advisor" },
-    { "name": "short-form-video", "source": "https://github.com/iart-ai/tiktok-video-skills", "revision": "2a775336b5a638cbf8a61dbd785f9a1b649be016", "mode": "advisor" },
-    { "name": "caption-animation", "source": "https://github.com/iart-ai/tiktok-video-skills", "revision": "2a775336b5a638cbf8a61dbd785f9a1b649be016", "mode": "advisor" },
-    { "name": "product-launch-video", "source": "https://github.com/memex-lab/product-launch-video-skill", "revision": "9de027d1947ce8f8b60ccf70aa89e482bf80ecea", "mode": "advisor" },
-    { "name": "gemini-tts", "source": "https://github.com/memex-lab/product-launch-video-skill", "revision": "9de027d1947ce8f8b60ccf70aa89e482bf80ecea", "mode": "external-runner", "allowFiles": ["SKILL.md"] },
-    { "name": "chengfeng-cut", "source": "https://github.com/Agentchengfeng/chengfeng-videocut-skills", "revision": "2e51611965af6e6b8baea3bfc82995b5c9e8f5ef", "mode": "external-runner", "allowFiles": ["SKILL.md"] },
-    { "name": "chengfeng-subtitle", "source": "https://github.com/Agentchengfeng/chengfeng-videocut-skills", "revision": "2e51611965af6e6b8baea3bfc82995b5c9e8f5ef", "mode": "external-runner", "allowFiles": ["SKILL.md"] },
-    { "name": "model-selector", "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit", "revision": "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d", "mode": "advisor" },
-    { "name": "prompt-translator", "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit", "revision": "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d", "mode": "advisor" },
-    { "name": "seedance-storyboard", "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit", "revision": "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d", "mode": "advisor" },
-    { "name": "impeccable", "source": "https://github.com/pbakaus/impeccable", "revision": "5a149f3fdb1b5793f10567233b1dcab98fc305fd", "mode": "advisor" }
+    { "name": "motion-art-direction", "source": "https://github.com/iart-ai/motion-design-skills", "mode": "advisor" },
+    { "name": "animation-principles", "source": "https://github.com/iart-ai/motion-design-skills", "mode": "advisor" },
+    { "name": "beat-sync-editing", "source": "https://github.com/iart-ai/motion-design-skills", "mode": "advisor" },
+    { "name": "color-motion", "source": "https://github.com/iart-ai/motion-design-skills", "mode": "advisor" },
+    { "name": "shot-composition", "source": "https://github.com/iart-ai/motion-design-skills", "mode": "advisor" },
+    { "name": "explainer-video", "source": "https://github.com/iart-ai/explainer-video-skills", "mode": "advisor" },
+    { "name": "short-form-video", "source": "https://github.com/iart-ai/tiktok-video-skills", "mode": "advisor" },
+    { "name": "caption-animation", "source": "https://github.com/iart-ai/tiktok-video-skills", "mode": "advisor" },
+    { "name": "product-launch-video", "source": "https://github.com/memex-lab/product-launch-video-skill", "mode": "advisor" },
+    { "name": "gemini-tts", "source": "https://github.com/memex-lab/product-launch-video-skill", "mode": "external-runner", "allowFiles": ["SKILL.md"] },
+    { "name": "chengfeng-cut", "source": "https://github.com/Agentchengfeng/chengfeng-videocut-skills", "mode": "external-runner", "allowFiles": ["SKILL.md"] },
+    { "name": "chengfeng-subtitle", "source": "https://github.com/Agentchengfeng/chengfeng-videocut-skills", "mode": "external-runner", "allowFiles": ["SKILL.md"] },
+    { "name": "model-selector", "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit", "mode": "advisor" },
+    { "name": "prompt-translator", "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit", "mode": "advisor" },
+    { "name": "seedance-storyboard", "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit", "mode": "advisor" },
+    { "name": "impeccable", "source": "https://github.com/pbakaus/impeccable", "mode": "advisor" }
   ]
 }
