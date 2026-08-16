@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:61aead647a73b4924d0c50ee010f2a8901072f6c04fcbc0b45eb35e24e582045
+// harness-source-hash: sha256:1668757b8a7e596efb29be29c078ad66efa78f7cad8852de2cfd88407153d2d7
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -6433,12 +6433,7 @@ var SUBJECT_EXCLUDED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.poster\.json$|
 var SOURCE_PROOF = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
 var SOURCE_PROOF_PATH = /^src\/variants\/.+\.(?:png|svg)$/u;
 var REQUIRED_SOURCE_FILES = [".gitignore", "package.json", "package-lock.json", "src/render.ts", "src/compose.ts", "src/theme.ts"];
-var REQUIRED_ADVISORS = /* @__PURE__ */ new Map([
-  ["regional-culture-poster", "e8f37639833b341c0d2f0b30c89b07faf5e2f458"],
-  ["qiaomu-mondo-poster-design", "e82e411c403ca5a0327a85682c658ad155cd9cbb"],
-  ["cvpr-2026-poster", "63892ddcd10e88ab9081eea8d25adb797cf18946"],
-  ["impeccable", "5a149f3fdb1b5793f10567233b1dcab98fc305fd"]
-]);
+var REQUIRED_ADVISORS = /* @__PURE__ */ new Set(["regional-culture-poster", "qiaomu-mondo-poster-design", "cvpr-2026-poster", "impeccable"]);
 var REVIEW_CHECKS = ["hierarchy", "typography", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
@@ -6640,7 +6635,7 @@ function validateBase(model, findings) {
   const skills = record(parseJson(files, "plan.skill-composition.json", findings));
   const workers = list(skills.workers).map(record);
   const workerMap = new Map(workers.map((worker) => [String(worker.name), worker]));
-  if (skills.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== REQUIRED_ADVISORS.size || [...REQUIRED_ADVISORS].some(([name, revision]) => workerMap.get(name)?.revision !== revision || !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "the four exact pinned advisors with truthful statuses are required"));
+  if (skills.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== REQUIRED_ADVISORS.size || workers.some((worker) => Object.hasOwn(worker, "revision")) || [...REQUIRED_ADVISORS].some((name) => !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "the four current-source advisors with truthful statuses are required"));
   const assets = record(parseJson(files, "plan.assets.json", findings));
   const entries = list(assets.assets).map(record);
   if (assets.schema !== ASSET_MANIFEST_SCHEMA || entries.some((asset) => typeof asset.path !== "string" || typeof asset.role !== "string" || !asset.role.trim() || !/^[a-f0-9]{64}$/u.test(String(asset.sha256)) || !["project", "user", "generated", "licensed", "public-domain"].includes(String(asset.sourceType)) || !(String(asset.path) in files) || digestOf(model, String(asset.path)) !== asset.sha256 || asset.sourceType === "generated" && (!asset.tool || !asset.model || !/^[a-f0-9]{64}$/u.test(String(asset.promptDigest))) || ["licensed", "public-domain"].includes(String(asset.sourceType)) && (!/^https?:\/\//u.test(String(asset.sourceUrl)) || typeof asset.rightsStatus !== "string" || !asset.rightsStatus.trim()))) findings.push(finding("ASSET_MANIFEST_INVALID", "plan.assets.json", "assets must be local, digest-bound, role-bound, and provenance-complete"));
