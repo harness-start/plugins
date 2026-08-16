@@ -54,7 +54,6 @@ export type TlVerificationV2 = {
 
 export type AdvisorRunV2 = {
   skill: string;
-  revision: string;
   stage: string;
   inputDigest: string;
   outputDigest: string;
@@ -170,7 +169,7 @@ export function validateWorkReportContract(contract: WorkReportContractV2, evide
     }
   }
   for (const advisor of contract.advisorRuns) {
-    if (!/^[a-f0-9]{40}$/u.test(advisor.revision) || !/^[a-f0-9]{64}$/u.test(advisor.inputDigest) || !/^[a-f0-9]{64}$/u.test(advisor.outputDigest)) {
+    if (Object.hasOwn(advisor, "revision") || !/^[a-f0-9]{64}$/u.test(advisor.inputDigest) || !/^[a-f0-9]{64}$/u.test(advisor.outputDigest)) {
       errors.push(`advisor ${advisor.skill} provenance is malformed`);
     }
   }
@@ -243,7 +242,7 @@ export function renderWorkReport(contract: WorkReportContractV2, evidence: Evide
     "",
     "## Advisor provenance",
     "",
-    ...(contract.advisorRuns.length > 0 ? contract.advisorRuns.map((run) => `- ${cell(run.skill)}@${run.revision} · ${cell(run.stage)} · ${run.decision} · input:${run.inputDigest} · output:${run.outputDigest}`) : ["- No external advisor was used; the plugin-internal workflow was applied."]),
+    ...(contract.advisorRuns.length > 0 ? contract.advisorRuns.map((run) => `- ${cell(run.skill)} · ${cell(run.stage)} · ${run.decision} · input:${run.inputDigest} · output:${run.outputDigest}`) : ["- No external advisor was used; the plugin-internal workflow was applied."]),
     "",
   ];
   return lines.join("\n");
