@@ -4,7 +4,7 @@ import test from "node:test";
 
 const pluginFile = (relativePath) => new URL(`../${relativePath}`, import.meta.url);
 
-test("skill dependency manifest pins the audited arxiv-search release", async () => {
+test("skill dependency manifest follows the current arxiv-search source", async () => {
   const dependencies = JSON.parse(await readFile(pluginFile("skill-deps.json"), "utf8"));
   const arxiv = dependencies.skills.find(({ name }) => name === "arxiv-search");
 
@@ -13,8 +13,8 @@ test("skill dependency manifest pins the audited arxiv-search release", async ()
     arxiv.source,
     "https://github.com/langchain-ai/deepagents",
   );
-  assert.equal(arxiv.revision, "a6c06b029710d34035af6ae1faded093cc8f3073");
-  assert.equal(arxiv.subpath, "libs/cli/examples/skills/arxiv-search");
+  assert.equal(Object.hasOwn(arxiv, "revision"), false);
+  assert.equal(Object.hasOwn(arxiv, "subpath"), false);
   assert.match(arxiv.description, /candidate discovery only/iu);
 });
 
