@@ -116,10 +116,10 @@ const FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 const PHI = 1.618033988749895;
 const AESTHETIC_CRITERIA = ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"];
 export const EXTERNAL_SKILLS = [
-  { name: "brand-identity", revision: "4a0a8b5b7a0f64bf0fc551978a18a591670a5223", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
-  { name: "logo-design", revision: "75865a5d037a4cdaa7f409a4ec14ab9b0292920b", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
-  { name: "color-expert", revision: "6aa1d1315dddd93be74a9481d62712291059253e", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
-  { name: "logo-generator", revision: "bf4e9ac4d4428bda261afcfe981871ceb92d94e6", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] },
+  { name: "brand-identity", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
+  { name: "logo-design", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
+  { name: "color-expert", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
+  { name: "logo-generator", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] },
 ] as const;
 
 export const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");
@@ -347,22 +347,22 @@ function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFi
   for (const expected of EXTERNAL_SKILLS) {
     const worker = byName.get(expected.name);
     const status = String(worker?.status ?? "");
-    if (!worker || worker.revision !== expected.revision || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
+    if (!worker || Object.hasOwn(worker, "revision") || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
       || !["used", "skipped", "unavailable"].includes(status) || typeof worker.reason !== "string" || !worker.reason.trim()
       || worker.advicePath !== `evidence/skills/${expected.name}.json`) valid = false;
     if (status === "used" && worker) {
       const advicePath = String(worker.advicePath);
       let advice: JsonRecord | undefined;
       try { advice = rec(JSON.parse(textOf(model.files?.[advicePath]))); } catch { advice = undefined; }
-      if (!advice || advice.schema !== SKILL_ADVICE_SCHEMA || advice.plugin !== PLUGIN || advice.artifactId !== model.artifactId
-        || advice.skillName !== expected.name || advice.revision !== expected.revision || advice.ecosystem !== expected.ecosystem || advice.mode !== expected.mode
+      if (!advice || Object.hasOwn(advice, "revision") || advice.schema !== SKILL_ADVICE_SCHEMA || advice.plugin !== PLUGIN || advice.artifactId !== model.artifactId
+        || advice.skillName !== expected.name || advice.ecosystem !== expected.ecosystem || advice.mode !== expected.mode
         || !expected.phases.includes(advice.phase as never) || advice.subjectDigest !== computeLogoSubjectDigest(model)
         || !Array.isArray(advice.recommendations) || !Array.isArray(advice.adopted) || !Array.isArray(advice.rejected)) {
         findings.push(finding("SKILL_ADVICE_INVALID", advicePath, `used worker ${expected.name} requires current admitted advice evidence`));
       }
     }
   }
-  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the exact pinned bilingual pool with truthful statuses, reasons, modes, and advice paths"));
+  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the current bilingual pool with truthful statuses, reasons, modes, and advice paths"));
   const used = workers.filter((worker) => worker.status === "used");
   if (used.length > 3) findings.push(finding("SKILL_COMPOSITION_ACTIVE_LIMIT", "plan.skill-composition.json", "at most three external workers may be used"));
   if (new Set(used.map((worker) => worker.advicePath)).size !== used.length) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "used workers require distinct advice artifacts"));

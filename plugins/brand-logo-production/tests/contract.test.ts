@@ -37,7 +37,7 @@ test("limits active advisers to three and requires digest-bound advice evidence"
   composition.workers[3].status = "skipped";
   model.files["plan.skill-composition.json"] = JSON.stringify(composition);
   const used = composition.workers[0];
-  model.files[used.advicePath] = JSON.stringify({ schema: SKILL_ADVICE_SCHEMA, skillName: used.name, revision: used.revision, subjectDigest: "0".repeat(64) });
+  model.files[used.advicePath] = JSON.stringify({ schema: SKILL_ADVICE_SCHEMA, skillName: used.name, subjectDigest: "0".repeat(64) });
   assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "SKILL_ADVICE_INVALID"));
 });
 
