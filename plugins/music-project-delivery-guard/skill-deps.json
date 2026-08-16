@@ -1,0 +1,48 @@
+{
+  "skills": [
+    {
+      "name": "music-composition",
+      "source": "https://github.com/SJY051/music-composition",
+      "revision": "07cecf9c8fd15249ea3da311dc9a7c7893ff801f",
+      "ecosystem": "en",
+      "license": "CC-BY-4.0",
+      "mode": "adviser",
+      "allowFiles": ["SKILL.md"],
+      "phases": ["brief", "direction", "composition", "arrangement"],
+      "description": "English composition, harmony, melody, form, and orchestration adviser; no writer, review, or release authority."
+    },
+    {
+      "name": "miaoxiang-music",
+      "source": "https://github.com/all666666all/miaoxiang-music.skill",
+      "revision": "1447ff68be4a544a61354377592f345a9216ff1f",
+      "ecosystem": "zh",
+      "license": "MIT",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md", "references/genres.md"],
+      "phases": ["brief", "direction", "arrangement"],
+      "description": "Chinese genre, ambience, guofeng, and short-form BGM reference; platform and generation instructions are out of scope."
+    },
+    {
+      "name": "workflow-audio-production",
+      "source": "https://github.com/damionrashford/media-os",
+      "revision": "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e",
+      "ecosystem": "en",
+      "license": "MIT",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md"],
+      "phases": ["arrangement", "render", "preview"],
+      "description": "English production, balance, dynamics, and spatial-mix reference; commands and scripts are forbidden."
+    },
+    {
+      "name": "workflow-analysis-quality",
+      "source": "https://github.com/damionrashford/media-os",
+      "revision": "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e",
+      "ecosystem": "en",
+      "license": "MIT",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md"],
+      "phases": ["preview", "review"],
+      "description": "Independent audio QC reference; it may advise review but cannot stamp approval or publish."
+    }
+  ]
+}

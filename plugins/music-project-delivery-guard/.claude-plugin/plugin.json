@@ -1,0 +1,11 @@
+{
+  "name": "music-project-delivery-guard",
+  "version": "0.3.0",
+  "description": "Guards a code-managed music workflow from brief and composition through independent review and digest-bound release.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

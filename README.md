@@ -124,7 +124,7 @@ codex plugin add <name>@harness-start --json
 | `pptx-project-delivery-guard` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
 | `print-publication-delivery-guard` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
 | `video-project-delivery-guard` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
-| `tonejs-music-production` | 用确定性数学模型生成并优化 Tone.js 乐谱，离线渲染 WAV，并绑定听审、音频指标与 release receipt |
+| `music-project-delivery-guard` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
 | `work-report-insights` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
 
 ## 插件分类与设计
@@ -137,7 +137,7 @@ codex plugin add <name>@harness-start --json
 | 纯 Skill 方法 | `reasoning-discipline` | 根据问题选用第一性原理、精确、因果、决策或事实核验结构；用反例和外部证据提高结论质量，不持久化私有思考过程 |
 | Hook + Skill 工作流 | `intent-clarify-gate`、`debugging-workflow-guard`、`research-provenance-guard` | 首轮方法注入，或显式工作流的磁盘状态机与证据链；开放式判断留给 Skill，机械生命周期留给 Hook |
 | 审计 / 日志 | `file-access-audit`、`command-exec-audit` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
-| 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`tonejs-music-production` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
+| 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`music-project-delivery-guard` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
 | 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 提案格式与采用流程、会话语言、报告封印与追加 |
 
 ### Subagent 原则
