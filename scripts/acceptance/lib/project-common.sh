@@ -213,12 +213,12 @@ assert_project_install_ready() {
     return 1
   fi
   # Community skills from catalog skill-deps must land under isolated HOME.
-  # grill-me is declared by work-reporting and is a stable canary.
+  # grilling is declared by work-reporting and is a stable canary.
   # skills CLI may install to ~/.agents/skills (universal) and/or ~/.claude/skills
   # depending on -a agents (claude-only often copies into ~/.claude/skills only).
-  if [ ! -f "${dest_home}/.agents/skills/grill-me/SKILL.md" ] \
-    && [ ! -f "${dest_home}/.claude/skills/grill-me/SKILL.md" ]; then
-    printf 'project-accept: skill-deps canary grill-me missing under %s (.agents or .claude skills)\n' \
+  if [ ! -f "${dest_home}/.agents/skills/grilling/SKILL.md" ] \
+    && [ ! -f "${dest_home}/.claude/skills/grilling/SKILL.md" ]; then
+    printf 'project-accept: skill-deps canary grilling missing under %s (.agents or .claude skills)\n' \
       "${dest_home}" >&2
     return 1
   fi

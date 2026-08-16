@@ -38,12 +38,12 @@ if [ -s "${HOME}/install-all.log" ] && grep -Eq 'brand-logo-production' "${HOME}
 else
   bad "install-all did not install brand-logo-production"
 fi
-if [ -f "${HOME}/.agents/skills/grill-me/SKILL.md" ] \
-  || [ -f "${HOME}/.claude/skills/grill-me/SKILL.md" ]; then
-  ok "skill-deps canary grill-me present"
+if [ -f "${HOME}/.agents/skills/grilling/SKILL.md" ] \
+  || [ -f "${HOME}/.claude/skills/grilling/SKILL.md" ]; then
+  ok "skill-deps canary grilling present"
   score=$((score + 1))
 else
-  bad "community skill-deps not installed (grill-me missing under .agents or .claude skills)"
+  bad "community skill-deps not installed (grilling missing under .agents or .claude skills)"
 fi
 
 # --- logo artifacts ----------------------------------------------------------

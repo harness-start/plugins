@@ -17,7 +17,7 @@ Run this workflow only after the human explicitly invokes this Skill. A Stop not
 
 ## Interview
 
-Apply the grill-me protocol directly; do not ask the human to invoke another Skill.
+Apply the grilling protocol directly; do not ask the human to invoke another Skill.
 
 - Ask one question per turn.
 - Ask only questions whose answers can change accept, reject, defer, mechanism, platform scope, or verification.

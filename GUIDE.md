@@ -1069,7 +1069,7 @@ mkdir -p plugins/audit-hooks/acceptance/cases
 
 ### 16.1 社区 skill 依赖（skill-deps.json）
 
-插件若依赖社区公开 skill（例如 `grill-me`），在插件根目录声明：
+插件若依赖社区公开 skill（例如 `grilling`），在插件根目录声明：
 
 ```text
 plugins/<name>/skill-deps.json
@@ -1079,7 +1079,7 @@ plugins/<name>/skill-deps.json
 {
   "skills": [
     {
-      "name": "grill-me",
+      "name": "grilling",
       "source": "https://github.com/mattpocock/skills",
       "description": "optional"
     }

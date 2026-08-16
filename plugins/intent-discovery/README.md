@@ -48,7 +48,7 @@ worker 只返回带 `Evidence`、`Assumptions` 和 `Gaps` 的 Result Card。父 
 
 ## 从 0.1.x 迁移
 
-2.0.0 删除了 `/grill-me`、`/grilling`、三选一输入、`done`/abort、业务写屏障、项目配置文件和外部 `skill-deps.json`。已有 `.grill-ledgers/` 与 `.intent-discovery.*` 是用户历史数据，升级不会删除；它们不再被插件读取。
+2.0.0 删除了 `/grilling`、三选一输入、`done`/abort、业务写屏障、项目配置文件和外部 `skill-deps.json`。已有 `.grill-ledgers/` 与 `.intent-discovery.*` 是用户历史数据，升级不会删除；它们不再被插件读取。
 
 ## 验证
 

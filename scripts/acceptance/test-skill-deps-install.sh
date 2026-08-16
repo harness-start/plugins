@@ -57,19 +57,19 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "${tmp}"' EXIT
 
 # --- parse: valid -------------------------------------------------------------
-valid_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
+valid_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
 got="$(parse_skill_deps_json "${valid_json}" "valid.json")"
-assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
+assert_eq "parse valid name/source" "${got}" $'grilling\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
 
-pinned_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
+pinned_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
 got="$(parse_skill_deps_json "${pinned_json}" "pinned.json")"
-assert_eq "parse pinned revision" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
+assert_eq "parse pinned revision" "${got}" $'grilling\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
 
 nested_json='{"skills":[{"name":"musical-dna","source":"https://github.com/jwynia/agent-skills","revision":"e02ec7e226a6e4f8419fd3b88a1d8e472d421b32","subpath":"skills/creative/music/musical-dna"}]}'
 got="$(parse_skill_deps_json "${nested_json}" "nested.json")"
 assert_eq "parse pinned nested skill" "${got}" $'musical-dna\thttps://github.com/jwynia/agent-skills\te02ec7e226a6e4f8419fd3b88a1d8e472d421b32\tskills/creative/music/musical-dna'
 
-invalid_revision_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":""}]}'
+invalid_revision_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":""}]}'
 assert_fail "reject empty pinned revision" parse_skill_deps_json "${invalid_revision_json}" "invalid-revision.json"
 assert_fail "reject missing pinned revision" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo"}]}' "missing-revision.json"
 assert_fail "reject unapproved executable" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","revision":"0123456789012345678901234567890123456789","mode":"audited-executable","execution":{"approved":false,"paths":[{"path":"scripts/x.py","sha256":"0123456789012345678901234567890123456789012345678901234567890123"}]}}]}' "unapproved-executable.json"
@@ -106,10 +106,10 @@ assert_eq "missing skill-deps is empty" "${got}" ""
 # --- list: real marketplace plugin with deps ---------------------------------
 if [ -f "${REPO_ROOT}/plugins/work-reporting/skill-deps.json" ]; then
   got="$(list_plugin_skill_deps "${REPO_ROOT}/plugins/work-reporting")"
-  if printf '%s\n' "${got}" | grep -q $'^grill-me\t'; then
-    pass "list work-reporting includes grill-me"
+  if printf '%s\n' "${got}" | grep -q $'^grilling\t'; then
+    pass "list work-reporting includes grilling"
   else
-    fail "list work-reporting missing grill-me (got=${got})"
+    fail "list work-reporting missing grilling (got=${got})"
   fi
 else
   fail "work-reporting skill-deps.json missing from repo"
@@ -174,23 +174,24 @@ if [ "${ACCEPT_TEST_NETWORK:-0}" = "1" ]; then
 {
   "skills": [
     {
-      "name": "grill-me",
-      "source": "https://github.com/mattpocock/skills"
+      "name": "grilling",
+      "source": "https://github.com/mattpocock/skills",
+      "revision": "068b6e0c62393147daf03530149cdce209c93da8"
     }
   ]
 }
 EOF
   if install_plugin_skill_deps "${net_plugin}" "${net_home}" "${net_cache}" "both"; then
-    if [ -f "${net_home}/.agents/skills/grill-me/SKILL.md" ]; then
-      pass "network install seeds grill-me into isolated HOME"
+    if [ -f "${net_home}/.agents/skills/grilling/SKILL.md" ]; then
+      pass "network install seeds grilling into isolated HOME"
     else
-      fail "network install did not produce grill-me SKILL.md"
+      fail "network install did not produce grilling SKILL.md"
     fi
     # Second call should hit cache (fingerprint match) and still seed.
     net_home2="${tmp}/net-home-2"
     mkdir -p "${net_home2}"
     if install_plugin_skill_deps "${net_plugin}" "${net_home2}" "${net_cache}" "both" \
-      && [ -f "${net_home2}/.agents/skills/grill-me/SKILL.md" ]; then
+      && [ -f "${net_home2}/.agents/skills/grilling/SKILL.md" ]; then
       pass "cached skill-deps re-seed works"
     else
       fail "cached skill-deps re-seed failed"

@@ -227,7 +227,7 @@ codex plugin add <plugin-name>@harness-start --json
 
 ## 社区 Skill 依赖
 
-部分插件依赖公开 Agent Skill，例如 `work-reporting` → `grill-me`。在插件目录声明：
+部分插件依赖公开 Agent Skill，例如 `work-reporting` → `grilling`。在插件目录声明：
 
 ```text
 plugins/<name>/skill-deps.json
@@ -237,7 +237,7 @@ plugins/<name>/skill-deps.json
 {
   "skills": [
     {
-      "name": "grill-me",
+      "name": "grilling",
       "source": "https://github.com/mattpocock/skills",
       "description": "可选说明"
     }

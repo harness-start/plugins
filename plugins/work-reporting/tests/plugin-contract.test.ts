@@ -40,7 +40,7 @@ test("plugin exposes one orchestrator, one review skill, and pinned optional adv
   const skillNames = readdirSync(join(ROOT, "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   assert.deepEqual(skillNames, ["work-report-authoring", "work-report-review"]);
   const dependencies = json("skill-deps.json").skills;
-  assert.deepEqual(dependencies.map((skill) => skill.name).sort(), ["brag-sheet", "grill-me", "growth-log", "performance-review-writer"]);
+  assert.deepEqual(dependencies.map((skill) => skill.name).sort(), ["brag-sheet", "grilling", "growth-log", "performance-review-writer"]);
   for (const dependency of dependencies) {
     assert.equal(dependency.required, false);
     assert.match(dependency.revision, /^[a-f0-9]{40}$/u);
