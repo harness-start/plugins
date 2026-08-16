@@ -311,6 +311,18 @@ check_skill_deps() {
       exit 1
     fi
 
+    if ! jq -e '
+      .skills
+      | all(
+          (has("revision") | not)
+          or (.revision | type == "string" and length > 0 and test("^[A-Za-z0-9._/-]+$") and (startswith("-") | not) and (contains("..") | not))
+        )
+    ' "${deps_file}" >/dev/null; then
+      printf 'skills[].revision must be a safe non-empty Git revision when present: %s\n' \
+        "${deps_file}" >&2
+      exit 1
+    fi
+
     printf '%s: %s skill-dep(s)\n' "${name}" "${count}"
     jq -r '.skills[] | "  - \(.name) <= \(.source)"' "${deps_file}"
   done

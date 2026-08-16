@@ -259,6 +259,7 @@ parse_skill_deps_json() {
           or ((.value.name // "") | length == 0)
           or ((.value.source // "") | type != "string")
           or ((.value.source // "") | length == 0)
+          or ((.value | has("revision")) and (((.value.revision // "") | type != "string") or ((.value.revision // "") | length == 0)))
         )
       | "\(.key)"
     '
@@ -271,7 +272,7 @@ parse_skill_deps_json() {
     .skills[]?
     | select((.name | type == "string") and (.name | length > 0)
              and (.source | type == "string") and (.source | length > 0))
-    | "\(.name)\t\(.source)"
+    | "\(.name)\t\(.source)\t\(.revision // "")"
   '
   return 0
 }
@@ -310,8 +311,11 @@ install_skill_into_home() {
   local name="$1"
   local source="$2"
   local host="${3:-both}"
+  local revision="${4:-}"
   local agent
   local -a agent_args=()
+  local install_source="${source}"
+  local checkout_root=""
 
   if ! command -v npx >/dev/null 2>&1; then
     printf 'npx is required to install skill-deps (missing on PATH)\n' >&2
@@ -327,15 +331,32 @@ install_skill_into_home() {
     agent_args=(-a claude-code -a codex)
   fi
 
-  printf 'skill-deps: install %s from %s (HOME=%s agents=%s)\n' \
-    "${name}" "${source}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
+  if [ -n "${revision}" ]; then
+    case "${revision}" in
+      -*|*..*|*[^A-Za-z0-9._/-]*) printf 'skill-deps: unsafe revision for %s: %s\n' "${name}" "${revision}" >&2; return 1 ;;
+    esac
+    checkout_root="$(mktemp -d)"
+    if ! git clone --filter=blob:none --no-checkout "${source}" "${checkout_root}/repo" >&2 \
+      || ! git -C "${checkout_root}/repo" fetch --depth 1 origin "${revision}" >&2 \
+      || ! git -C "${checkout_root}/repo" checkout --detach FETCH_HEAD >&2; then
+      rm -rf "${checkout_root}"
+      printf 'skill-deps: failed to resolve %s at %s\n' "${source}" "${revision}" >&2
+      return 1
+    fi
+    install_source="${checkout_root}/repo"
+  fi
+
+  printf 'skill-deps: install %s from %s%s (HOME=%s agents=%s)\n' \
+    "${name}" "${source}" "${revision:+ at ${revision}}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
 
   # Always re-run add so cache rebuilds and prior partial installs are overwritten.
   # Route CLI noise to stderr: callers capture stdout for the cache path only.
-  if ! npx --yes skills add "${source}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
+  if ! npx --yes skills add "${install_source}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
+    [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
     printf 'skill-deps: failed to install %s from %s\n' "${name}" "${source}" >&2
     return 1
   fi
+  [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
 
   if [ ! -f "${HOME}/.agents/skills/${name}/SKILL.md" ]; then
     printf 'skill-deps: install reported success but SKILL.md missing for %s under %s\n' \
@@ -350,7 +371,7 @@ populate_skill_deps_cache_home() {
   local plugin_dir="$1"
   local cache_home="$2"
   local host="${3:-both}"
-  local deps_file line name source
+  local deps_file line name source revision remainder
   local -a deps=()
 
   deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
@@ -385,12 +406,15 @@ populate_skill_deps_cache_home() {
     for line in "${deps[@]}"; do
       [ -n "${line}" ] || continue
       name="${line%%$'\t'*}"
-      source="${line#*$'\t'}"
+      remainder="${line#*$'\t'}"
+      source="${remainder%%$'\t'*}"
+      revision="${remainder#*$'\t'}"
+      [ "${revision}" = "${remainder}" ] && revision=""
       if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
         printf 'skill-deps: malformed line in %s: %s\n' "${deps_file}" "${line}" >&2
         exit 1
       fi
-      install_skill_into_home "${name}" "${source}" "${host}" || exit 1
+      install_skill_into_home "${name}" "${source}" "${host}" "${revision}" || exit 1
     done
   )
 }

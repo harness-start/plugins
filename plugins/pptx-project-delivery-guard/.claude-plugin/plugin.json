@@ -1,10 +1,11 @@
 {
   "name": "pptx-project-delivery-guard",
-  "version": "0.2.0",
-  "description": "Enforces a source-bound, one-slide-per-module PptxGenJS project and fresh delivery evidence.",
+  "version": "0.3.0",
+  "description": "Orchestrates and enforces editable PPTX source, rendering, probes, independent review, and release evidence.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "skills": "./skills/",
   "hooks": "./hooks/claude.json"
 }

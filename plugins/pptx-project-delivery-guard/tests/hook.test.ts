@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { releaseModel, writeModel } from "./fixture.js";
+
 const ENTRY = fileURLToPath(new URL("../dist/hooks/pptx-project-delivery-guard.mjs", import.meta.url));
+const RENDER_ENTRY = fileURLToPath(new URL("../dist/cli/project-render.mjs", import.meta.url));
 
 function runHook(mode, event) {
   return new Promise((resolve, reject) => {
@@ -92,6 +95,30 @@ test("pre hook rejects a registered wrapper chained with a second writer", async
   }
 });
 
+test("pre hook issues an argv- and session-bound capability for the exact render wrapper", async () => {
+  const root = workspace();
+  try {
+    const projectRoot = join(root, "artifacts", "pptx", "deck");
+    mkdirSync(projectRoot, { recursive: true });
+    writeModel(projectRoot, releaseModel());
+
+    const result = await runHook("pre", {
+      cwd: root,
+      session_id: "host-session",
+      tool_name: "exec_command",
+      tool_input: { cmd: `node ${RENDER_ENTRY} ${projectRoot}` },
+    });
+
+    assert.deepEqual(result, { code: 0, stdout: "", stderr: "" });
+    const grant = JSON.parse(readFileSync(join(projectRoot, ".tmp", "pptx-guard", "capability.pptx-render.json"), "utf8"));
+    assert.equal(grant.capability, "pptx-render");
+    assert.equal(grant.sessionId, "host-session");
+    assert.equal(grant.root, projectRoot);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("stop hook blocks an incomplete project that targets release", async () => {
   const root = workspace();
   try {
@@ -109,6 +136,27 @@ test("stop hook blocks an incomplete project that targets release", async () => 
     assert.equal(output.decision, "block");
     assert.match(output.reason, /PPTX Project Delivery Guard/u);
     assert.match(output.reason, /REQUIRED_PATH_MISSING/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("subagent stop closes at review while main stop still requires release", async () => {
+  const root = workspace();
+  try {
+    const projectRoot = join(root, "artifacts", "pptx", "deck");
+    mkdirSync(projectRoot, { recursive: true });
+    writeModel(projectRoot, releaseModel());
+    unlinkSync(join(projectRoot, "release.manifest.json"));
+    unlinkSync(join(projectRoot, "receipt.release.json"));
+
+    const reviewerStop = await runHook("subagent-stop", { cwd: root });
+    assert.deepEqual(reviewerStop, { code: 0, stdout: "", stderr: "" });
+
+    const mainStop = await runHook("stop", { cwd: root });
+    const output = JSON.parse(mainStop.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /RELEASE_MANIFEST_INVALID|RECEIPT_INVALID/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

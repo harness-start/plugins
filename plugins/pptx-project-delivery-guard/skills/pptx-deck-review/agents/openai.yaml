@@ -1,0 +1,4 @@
+interface:
+  display_name: "PPTX Deck Review"
+  short_description: "Independently review final PPTX page renders"
+  default_prompt: "Use $pptx-deck-review to independently review a rendered PPTX deck."

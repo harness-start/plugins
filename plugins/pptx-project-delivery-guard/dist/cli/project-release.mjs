@@ -1,63 +1,49 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
+// harness-source-hash: sha256:f32caf30ab637560ef6f821edf58f464e4eef28803ac6448be1eca19626110b2
 import {
+  consumeWriterCapability,
+  processWriterArgv
+} from "../chunks/chunk-XNV3MBXS.mjs";
+import {
+  assertPptxProjectRoot,
+  atomicWriteJson,
+  sessionMetadata,
+  withWriterJournal
+} from "../chunks/chunk-IQLIQEGH.mjs";
+import {
+  computePptxSubjectDigest,
   createPptxReceipt,
+  createPptxReleaseManifest,
   loadPptxProject,
   validatePptxModel,
   validatePptxReceipt
-} from "../chunks/chunk-5FDEPKIR.mjs";
+} from "../chunks/chunk-7ARR47VX.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/cli/project-release.ts
-import { open, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
-var root = resolve(process.argv[2] ?? "");
-var journalPath = join(root, ".pptx-delivery-journal.json");
-var receiptPath = join(root, "receipt.release.json");
-var temporaryPath = join(root, `.receipt.release.${process.pid}.tmp`);
-function fail(message) {
-  throw new Error(`[pptx-project-release] ${message}`);
-}
-async function createJournal() {
-  const handle = await open(journalPath, "wx");
-  await handle.writeFile(`${JSON.stringify({
-    schemaVersion: 1,
-    plugin: "pptx-project-delivery-guard",
-    operation: "release",
-    artifactId: basename(root),
-    sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown"
-  })}
-`);
-  await handle.sync();
-  await handle.close();
-}
 async function main() {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(root))) fail("project root must end in a kebab-case artifact id");
-  const model = await loadPptxProject(root);
-  const findings = validatePptxModel(model, { stage: "release" }).filter(({ code, path }) => code !== "RECEIPT_INVALID" && !(code === "RELEASE_PATH_MISSING" && path === "receipt.release.json"));
-  if (findings.length > 0) fail(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
-  await createJournal();
-  let complete = false;
-  try {
-    const receipt = {
-      ...createPptxReceipt(model, "release"),
-      createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-      sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown",
-      triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM ?? "unknown"
-    };
-    await writeFile(temporaryPath, `${JSON.stringify(receipt, null, 2)}
-`, { flag: "wx" });
-    await rename(temporaryPath, receiptPath);
-    const verified = await loadPptxProject(root);
-    if (!validatePptxReceipt(verified, "release")) fail("written receipt did not verify against current files");
-    complete = true;
+  const root = assertPptxProjectRoot(process.argv[2]);
+  const grant = await consumeWriterCapability({ root, capability: "pptx-release", argv: processWriterArgv() });
+  let model = await loadPptxProject(root);
+  if (grant.subjectDigest !== computePptxSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
+  const review = JSON.parse(String(model.files?.["review.pptx.json"] ?? "{}"));
+  if (review.reviewer?.sessionId === grant.sessionId) throw new Error("SELF_RELEASE_DENIED");
+  const before = validatePptxModel(model, { stage: "review" }).filter(({ code, path }) => !["RELEASE_MANIFEST_INVALID", "RECEIPT_INVALID"].includes(code) && !["release.manifest.json", "receipt.release.json"].includes(path));
+  if (before.length) throw new Error(before.map(({ code, path }) => `${code}:${path}`).join(", "));
+  await withWriterJournal(root, "pptx-release", async () => {
+    await atomicWriteJson(root, "release.manifest.json", createPptxReleaseManifest(model));
+    model = await loadPptxProject(root);
+    const manifestFindings = validatePptxModel(model, { stage: "release" }).filter(({ code, path }) => code !== "MUTATION_JOURNAL_OPEN" && code !== "RECEIPT_INVALID" && path !== "receipt.release.json");
+    if (manifestFindings.length) throw new Error(manifestFindings.map(({ code, path }) => `${code}:${path}`).join(", "));
+    const receipt = { ...createPptxReceipt(model), ...sessionMetadata("pptx-release", grant) };
+    await atomicWriteJson(root, "receipt.release.json", receipt);
+    model = await loadPptxProject(root);
+    if (!validatePptxReceipt(model)) throw new Error("WRITTEN_RECEIPT_INVALID");
     process.stdout.write(`${JSON.stringify(receipt)}
 `);
-  } finally {
-    if (complete) await unlink(journalPath);
-  }
+  }, grant);
 }
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}
+  process.stderr.write(`[pptx-project-release] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;
 });

@@ -917,19 +917,20 @@ parse_skill_deps_json() {
             or ((.value.name // "") | length == 0)
             or ((.value.source // "") | type != "string")
             or ((.value.source // "") | length == 0)
+            or ((.value | has("revision")) and (((.value.revision // "") | type != "string") or ((.value.revision // "") | length == 0)))
           )
         | "\(.key)"
       '
     )"
     if [ -n "${bad}" ]; then
-      err "${plugin_label}: each skills[] entry needs non-empty string name and source"
+      err "${plugin_label}: each skills[] entry needs non-empty string name/source and an optional non-empty string revision"
       return 1
     fi
     printf '%s' "${json}" | jq -r '
       .skills[]?
       | select((.name | type == "string") and (.name | length > 0)
                and (.source | type == "string") and (.source | length > 0))
-      | "\(.name)\t\(.source)"
+      | "\(.name)\t\(.source)\t\(.revision // "")"
     '
     return 0
   fi
@@ -959,13 +960,17 @@ for i, item in enumerate(skills):
         sys.exit(1)
     name = item.get("name")
     source = item.get("source")
+    revision = item.get("revision", "")
     if not isinstance(name, str) or not name.strip():
         print(f"error: {label}: skills[{i}].name must be a non-empty string", file=sys.stderr)
         sys.exit(1)
     if not isinstance(source, str) or not source.strip():
         print(f"error: {label}: skills[{i}].source must be a non-empty string", file=sys.stderr)
         sys.exit(1)
-    print(f"{name.strip()}\t{source.strip()}")
+    if not isinstance(revision, str) or ("revision" in item and not revision.strip()):
+        print(f"error: {label}: skills[{i}].revision must be a non-empty string when present", file=sys.stderr)
+        sys.exit(1)
+    print(f"{name.strip()}\t{source.strip()}\t{revision.strip()}")
 ' "${plugin_label}"
     return $?
   fi
@@ -1010,9 +1015,8 @@ load_skill_deps_for_plugin() {
 # Sets global SKILL_DEPS_PARSE_FAIL to non-zero when any manifest is invalid.
 collect_skill_deps() {
   local -a plugins=("$@")
-  local plugin lines line name source
+  local plugin lines line name source revision remainder identity
   local -A seen_names=()
-  local -A seen_pairs=()
   SKILL_DEPS_PARSE_FAIL=0
 
   for plugin in "${plugins[@]}"; do
@@ -1031,20 +1035,23 @@ collect_skill_deps() {
     while IFS= read -r line || [ -n "${line}" ]; do
       [ -n "${line}" ] || continue
       name="${line%%$'\t'*}"
-      source="${line#*$'\t'}"
+      remainder="${line#*$'\t'}"
+      source="${remainder%%$'\t'*}"
+      revision="${remainder#*$'\t'}"
+      [ "${revision}" = "${remainder}" ] && revision=""
       if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
         warn "Skipping malformed skill-deps line from ${plugin}: ${line}"
         continue
       fi
+      identity="${source}@${revision}"
       if [ -n "${seen_names[${name}]+x}" ]; then
-        if [ "${seen_names[${name}]}" != "${source}" ]; then
-          warn "Skill ${name} declared with different sources; keeping ${seen_names[${name}]} (ignoring ${source} from ${plugin})"
+        if [ "${seen_names[${name}]}" != "${identity}" ]; then
+          warn "Skill ${name} declared with different sources/revisions; keeping ${seen_names[${name}]} (ignoring ${identity} from ${plugin})"
         fi
         continue
       fi
-      seen_names["${name}"]="${source}"
-      seen_pairs["${name}"]="${source}"
-      printf '%s\t%s\n' "${name}" "${source}"
+      seen_names["${name}"]="${identity}"
+      printf '%s\t%s\t%s\n' "${name}" "${source}" "${revision}"
     done <<<"${lines}"
   done
   return 0
@@ -1070,22 +1077,42 @@ skill_install_agents() {
 install_global_skill() {
   local name="$1"
   local source="$2"
+  local revision="${3:-}"
   local -a agents=()
   local -a agent_args=()
   local agent
+  local install_source="${source}"
+  local checkout_root=""
 
   read_lines_into agents < <(skill_install_agents)
   for agent in "${agents[@]}"; do
     agent_args+=(-a "${agent}")
   done
 
-  log "Skills: install/update global ${name} from ${source} (agents: ${agents[*]})"
+  if [ -n "${revision}" ]; then
+    case "${revision}" in
+      -*|*..*|*[^A-Za-z0-9._/-]*) err "Unsafe skill revision for ${name}: ${revision}"; return 1 ;;
+    esac
+    checkout_root="$(mktemp -d)"
+    if ! run_cmd git clone --filter=blob:none --no-checkout "${source}" "${checkout_root}/repo" \
+      || ! run_cmd git -C "${checkout_root}/repo" fetch --depth 1 origin "${revision}" \
+      || ! run_cmd git -C "${checkout_root}/repo" checkout --detach FETCH_HEAD; then
+      rm -rf "${checkout_root}"
+      err "Failed to resolve ${source} at ${revision}"
+      return 1
+    fi
+    install_source="${checkout_root}/repo"
+  fi
+
+  log "Skills: install/update global ${name} from ${source}${revision:+ at ${revision}} (agents: ${agents[*]})"
   # Always re-run add: updates/overwrites existing global install; works even when
   # the skill was previously copied outside the skills CLI lockfile.
-  if ! run_cmd npx --yes skills add "${source}" --skill "${name}" --global --yes "${agent_args[@]}"; then
+  if ! run_cmd npx --yes skills add "${install_source}" --skill "${name}" --global --yes "${agent_args[@]}"; then
+    [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
     err "Failed to install global skill ${name} from ${source}"
     return 1
   fi
+  [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
   return 0
 }
 
@@ -1093,7 +1120,7 @@ install_global_skill() {
 sync_skill_deps() {
   local -a plugins=("$@")
   local failures=0
-  local deps_lines line name source
+  local deps_lines line name source revision remainder
   local -a dep_arr=()
 
   if [ "${SKIP_SKILL_DEPS}" = "1" ]; then
@@ -1141,9 +1168,12 @@ sync_skill_deps() {
 
   for line in "${dep_arr[@]}"; do
     name="${line%%$'\t'*}"
-    source="${line#*$'\t'}"
+    remainder="${line#*$'\t'}"
+    source="${remainder%%$'\t'*}"
+    revision="${remainder#*$'\t'}"
+    [ "${revision}" = "${remainder}" ] && revision=""
     set +e
-    install_global_skill "${name}" "${source}"
+    install_global_skill "${name}" "${source}" "${revision}"
     local rc=$?
     set -e
     if [ "${rc}" -ne 0 ]; then

@@ -1,52 +1,22 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { issueWriterCapability } from "../src/lib/capability.js";
+import { computePptxSubjectDigest, loadPptxProject } from "../src/lib/contract.js";
+import { releaseModel, sha256, writeModel } from "./fixture.js";
+
 const ENTRY = fileURLToPath(new URL("../dist/cli/project-release.mjs", import.meta.url));
-const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-function fixtureFiles() {
-  const slide = "export function renderSlide(slide, ctx) { slide.addText(ctx.copy.title); }\n";
-  const digest = sha256(slide);
-  return {
-    ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
-    "package.json": "{}\n",
-    "package-lock.json": "{}\n",
-    "plan.contract.json": JSON.stringify({ artifactId: "deck", targetStage: "release" }),
-    "plan.storyboard.json": "{}\n",
-    "pptx.project.json": JSON.stringify({ artifactId: "deck", entry: "src/deck.ts", slideManifest: "src/slides/manifest.json" }),
-    "src/deck.ts": "const deck = new pptxgen();\ndeck.addSlide();\n",
-    "src/theme.ts": "export const theme = {};\n",
-    "src/slides/manifest.json": JSON.stringify({ slides: [{ index: 1, id: "opening", source: "001-opening.ts" }] }),
-    "src/slides/001-opening.ts": slide,
-    [`src/slides/001-opening.${digest}.png`]: "PNG",
-    "dist/deck.pptx": "PPTX",
-    "dist/deck.pdf": "PDF",
-    "dist/pages/001.png": "PNG",
-    "evidence.structure.json": "{}\n",
-    "evidence.accessibility.json": "{}\n",
-    "review.pptx.json": `${JSON.stringify({ schema: "pptx-project-delivery-guard/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "pptx-review-session" } })}\n`,
-    "release.manifest.json": "{}\n",
-  };
-}
-
-function writeFixture(root) {
-  for (const [relativePath, content] of Object.entries(fixtureFiles())) {
-    const target = join(root, relativePath);
-    mkdirSync(dirname(target), { recursive: true });
-    writeFileSync(target, content);
-  }
-}
-
-function run(root) {
-  return new Promise((resolve, reject) => {
+function run(root: string) {
+  return new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
     const child = spawn(process.execPath, [ENTRY, root], {
-      env: { ...process.env, AI_EXPERTS_SESSION_ID: "test", AI_EXPERTS_TRIGGER_FROM: "test:release" },
+      env: { ...process.env, AI_EXPERTS_SESSION_ID: "release-session", AI_EXPERTS_TRIGGER_FROM: "test:release" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
@@ -58,12 +28,15 @@ function run(root) {
   });
 }
 
-test("release wrapper writes a source-and-output-bound receipt atomically", async () => {
-  const sandbox = mkdtempSync(join(tmpdir(), "pptx-release-"));
-  const root = join(sandbox, "deck");
+test("release wrapper consumes a one-time grant and writes a source-and-output-bound receipt", async () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pptx-release-"));
+  const root = join(workspace, "artifacts", "pptx", "deck");
   try {
-    mkdirSync(root);
-    writeFixture(root);
+    execFileSync("git", ["init", "-q"], { cwd: workspace });
+    mkdirSync(root, { recursive: true });
+    writeModel(root, releaseModel());
+    const model = await loadPptxProject(root);
+    await issueWriterCapability({ root, capability: "pptx-release", argv: [ENTRY, root], subjectDigest: computePptxSubjectDigest(model), sessionId: "release-session", triggerFrom: "test:release" });
 
     const result = await run(root);
 
@@ -72,9 +45,25 @@ test("release wrapper writes a source-and-output-bound receipt atomically", asyn
     assert.equal(receipt.plugin, "pptx-project-delivery-guard");
     assert.equal(receipt.artifactId, "deck");
     assert.match(receipt.subjectDigest, /^[a-f0-9]{64}$/u);
-    assert.equal(receipt.outputs["dist/deck.pptx"], sha256("PPTX"));
+    assert.equal(receipt.outputs["dist/deck.pptx"], sha256(readFileSync(join(root, "dist/deck.pptx"))));
     assert.equal(existsSync(join(root, ".pptx-delivery-journal.json")), false);
+    assert.equal(existsSync(join(root, ".tmp/pptx-guard/capability.pptx-release.json")), false);
   } finally {
-    rmSync(sandbox, { recursive: true, force: true });
+    rmSync(workspace, { recursive: true, force: true });
+  }
+});
+
+test("release wrapper fails closed without a one-time grant", async () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pptx-release-no-cap-"));
+  const root = join(workspace, "artifacts", "pptx", "deck");
+  try {
+    execFileSync("git", ["init", "-q"], { cwd: workspace });
+    mkdirSync(root, { recursive: true });
+    writeModel(root, releaseModel());
+    const result = await run(root);
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /WRITER_CAPABILITY_MISSING/u);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
   }
 });

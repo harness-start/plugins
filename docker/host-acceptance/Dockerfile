@@ -20,6 +20,15 @@ RUN apt-get update \
        unzip \
   && rm -rf /var/lib/apt/lists/*
 
+# Fixed-document acceptance toolchain for editable PPTX delivery plugins.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       fonts-noto-cjk \
+       fonts-noto-core \
+       libreoffice-impress \
+       poppler-utils \
+  && rm -rf /var/lib/apt/lists/*
+
 RUN npm install --global \
       "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" \
       "@openai/codex@${CODEX_VERSION}" \

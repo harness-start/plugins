@@ -59,7 +59,14 @@ trap 'rm -rf "${tmp}"' EXIT
 # --- parse: valid -------------------------------------------------------------
 valid_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills"}]}'
 got="$(parse_skill_deps_json "${valid_json}" "valid.json")"
-assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills'
+assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t'
+
+pinned_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"v1.0.0"}]}'
+got="$(parse_skill_deps_json "${pinned_json}" "pinned.json")"
+assert_eq "parse pinned revision" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\tv1.0.0'
+
+invalid_revision_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":""}]}'
+assert_fail "reject empty pinned revision" parse_skill_deps_json "${invalid_revision_json}" "invalid-revision.json"
 
 empty_json='{"skills":[]}'
 got="$(parse_skill_deps_json "${empty_json}" "empty.json" || true)"

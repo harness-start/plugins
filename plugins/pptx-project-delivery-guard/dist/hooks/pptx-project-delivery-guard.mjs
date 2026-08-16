@@ -1,23 +1,46 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
+// harness-source-hash: sha256:f32caf30ab637560ef6f821edf58f464e4eef28803ac6448be1eca19626110b2
 import {
+  issueWriterCapability
+} from "../chunks/chunk-XNV3MBXS.mjs";
+import "../chunks/chunk-IQLIQEGH.mjs";
+import {
+  computePptxSubjectDigest,
   evaluatePptxWrite,
   findPptxProjects,
-  isKebabArtifactId,
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-5FDEPKIR.mjs";
+} from "../chunks/chunk-7ARR47VX.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/hooks/pptx-project-delivery-guard.ts
-import { dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
-import { fileURLToPath } from "node:url";
+import { relative as relative2, resolve as resolve5 } from "node:path";
+import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/artifact-scan.ts
 import { readdir, readFile } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve as resolve2 } from "node:path";
+
+// core/src/artifact-paths.ts
+import { basename, dirname, resolve } from "node:path";
+var KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+function isKebabArtifactId(name) {
+  return KEBAB.test(name);
+}
+function resolveWorkspaceRoot2(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+
+// core/src/artifact-scan.ts
 async function findCarrierProjects(cwd, carrier, options = {}) {
-  const workspaceRoot = resolveWorkspaceRoot(cwd, carrier);
+  const workspaceRoot = resolveWorkspaceRoot2(cwd, carrier);
   const artifactRoot = join(workspaceRoot, "artifacts", carrier);
   try {
     const roots = (await readdir(artifactRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && (options.requireKebab === false || isKebabArtifactId(entry.name))).slice(0, 32).map((entry) => join(artifactRoot, entry.name));
@@ -26,72 +49,6 @@ async function findCarrierProjects(cwd, carrier, options = {}) {
     if (error.code === "ENOENT") return { workspaceRoot, roots: [] };
     throw error;
   }
-}
-
-// core/src/artifact-shell.ts
-import { basename, dirname, isAbsolute, resolve as resolve2 } from "node:path";
-function parseShellWords(command) {
-  const words = [];
-  let current = "";
-  let quote = null;
-  let escaped = false;
-  for (const char of String(command ?? "")) {
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-    if (char === "\\" && quote !== "'") {
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (char === quote) {
-        quote = null;
-        continue;
-      }
-      if (quote === '"' && (char === "$" || char === "`")) return null;
-      current += char;
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      continue;
-    }
-    if (/\s/u.test(char)) {
-      if (current) {
-        words.push(current);
-        current = "";
-      }
-      continue;
-    }
-    if (/[;&|><`$(){}\n\r]/u.test(char)) return null;
-    current += char;
-  }
-  if (escaped || quote) return null;
-  if (current) words.push(current);
-  return words;
-}
-function expandKnownPluginRoot(command, env = process.env) {
-  let expanded = String(command ?? "");
-  for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
-    if (env[name]) expanded = expanded.replaceAll(`\${${name}}`, resolve2(env[name] ?? ""));
-  }
-  return expanded;
-}
-function evaluateRegisteredWriter(options) {
-  const words = parseShellWords(expandKnownPluginRoot(options.command));
-  if (!words || words.length < 3) return { ok: false };
-  if (!["node", basename(process.execPath), process.execPath].includes(words[0] ?? "")) return { ok: false };
-  if (words[1]?.startsWith("-")) return { ok: false };
-  const script = isAbsolute(words[1] ?? "") ? resolve2(words[1] ?? "") : resolve2(options.cwd, words[1] ?? "");
-  const name = basename(script);
-  if (dirname(script) !== resolve2(options.toolDirectory) || !options.writers.includes(name)) return { ok: false };
-  const projectRoot = isAbsolute(words[2] ?? "") ? resolve2(words[2] ?? "") : resolve2(options.cwd, words[2] ?? "");
-  if (dirname(projectRoot) !== resolve2(options.workspaceRoot, "artifacts", options.carrier) || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) {
-    return { ok: false };
-  }
-  return { ok: true, writer: name, projectRoot };
 }
 
 // core/src/hook-event.ts
@@ -118,6 +75,17 @@ async function readStdinJson(input = process.stdin) {
   } catch {
     return { __parseError: true };
   }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
 }
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
@@ -164,7 +132,7 @@ function writeJson(value) {
 }
 
 // core/src/hook-targets.ts
-import { isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
+import { isAbsolute, resolve as resolve3 } from "node:path";
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -247,7 +215,7 @@ function patchPayload(input) {
 }
 function resolveTargets(raw, cwd) {
   return [...new Set(
-    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute2(path) ? resolve3(path) : resolve3(cwd, path.replace(/^\.\//u, "")))
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve3(path) : resolve3(cwd, path.replace(/^\.\//u, "")))
   )];
 }
 function shellWritePaths(command) {
@@ -291,43 +259,133 @@ function extractFileTargets(event, options = {}) {
   return resolveTargets(raw, cwd);
 }
 
-// plugins/pptx-project-delivery-guard/src/entries/hooks/pptx-project-delivery-guard.ts
+// plugins/pptx-project-delivery-guard/src/lib/shell-policy.ts
+import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve4 } from "node:path";
+import { fileURLToPath } from "node:url";
 var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve4(
-  process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
-  process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
-);
+var PLUGIN_DIRECTORY = resolve4(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
+var TOOL_DIRECTORY = resolve4(PLUGIN_DIRECTORY, "dist", "cli");
+var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
+var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
+function parseShellWords(command) {
+  const words = [];
+  let current = "";
+  let quote = null;
+  let escaped = false;
+  for (const char of String(command ?? "")) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+        continue;
+      }
+      if (quote === '"' && (char === "$" || char === "`")) return null;
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      if (current) {
+        words.push(current);
+        current = "";
+      }
+      continue;
+    }
+    if (/[;&|><`$(){}\n\r]/u.test(char)) return null;
+    current += char;
+  }
+  if (escaped || quote) return null;
+  if (current) words.push(current);
+  return words;
+}
+function expandKnownPluginRoot(command) {
+  let expanded = String(command ?? "");
+  for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
+    const value = process.env[name];
+    if (value) expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve4(value)}/dist/cli/`);
+  }
+  return expanded;
+}
+function wrapperInvocation(words, cwd, workspaceRoot) {
+  if (!words || words.length < 3) return null;
+  const [first, second, third] = words;
+  if (!first || !second || !third || !["node", basename2(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
+  const script = isAbsolute2(second) ? resolve4(second) : resolve4(cwd, second);
+  const name = basename2(script);
+  if (dirname2(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(third) ? resolve4(third) : resolve4(cwd, third);
+  if (dirname2(projectRoot) !== resolve4(workspaceRoot, "artifacts", "pptx") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
+  return { name, projectRoot, argv: [script, ...words.slice(2)] };
+}
+function readOnlyCommand(words) {
+  if (!words?.length) return false;
+  const command = basename2(words[0] ?? "");
+  if (!READ_ONLY.has(command)) return false;
+  if (command === "git" && !["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
+  if (command === "sed" && words.some((word) => /^-.*i/u.test(word))) return false;
+  if (command === "find" && words.some((word) => ["-delete", "-exec", "-execdir", "-ok", "-okdir"].includes(word))) return false;
+  return true;
+}
+function commandTouchesPptxScope(command, cwd, workspaceRoot) {
+  const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
+  const normalizedCwd = resolve4(cwd).replaceAll("\\", "/");
+  const normalizedRoot = resolve4(workspaceRoot).replaceAll("\\", "/");
+  return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/pptx/`) || /(?:^|[\s"'=])\.?\/?artifacts\/pptx(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/pptx/`);
+}
+function evaluatePptxShell({ command, cwd, workspaceRoot }) {
+  if (!commandTouchesPptxScope(command, cwd, workspaceRoot)) return { decision: "allow" };
+  const words = parseShellWords(expandKnownPluginRoot(command));
+  const invocation = wrapperInvocation(words, cwd, workspaceRoot);
+  if (invocation) return { decision: "allow", writer: `pptx-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
+  if (readOnlyCommand(words)) return { decision: "allow" };
+  return { decision: "deny", code: "UNKNOWN_MUTATION_SHELL", message: "PPTX scope permits only read-only commands or an exact registered writer invocation" };
+}
+
+// plugins/pptx-project-delivery-guard/src/entries/hooks/pptx-project-delivery-guard.ts
 function deny(reason) {
   return preToolDeny(`[PPTX Project Delivery Guard] ${reason}`);
 }
 async function runPre(event) {
-  const cwd = eventCwd(event);
+  const cwd = resolve5(eventCwd(event));
   const name = eventToolName(event);
   for (const target of extractFileTargets(event, { tools: "any" })) {
     const result = evaluatePptxWrite({
-      relativePath: relative2(cwd, resolve4(cwd, target)),
+      relativePath: relative2(cwd, resolve5(cwd, target)),
       toolName: name,
       cwd
     });
     if (result.decision === "deny") return deny(`${result.code}: ${result.message}`);
   }
-  const command = extractShellCommand(event) ?? "";
-  const workspaceRoot = resolveWorkspaceRoot(cwd, "pptx");
-  const cwdInScope = /(?:^|[\\/])artifacts[\\/]pptx[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-  const mutatesArtifact = (/artifacts[\\/]pptx[\\/]/u.test(command) || cwdInScope) && /(?:^|\s)(?:cp|mv|rm|touch|tee|install|python\d*|node|npm|npx)\b|[>]{1,2}/u.test(command);
-  const approved = evaluateRegisteredWriter({
-    command,
-    cwd,
-    workspaceRoot,
-    carrier: "pptx",
-    writers: ["project-lint.mjs", "project-release.mjs"],
-    toolDirectory: resolve4(PLUGIN_DIRECTORY, "dist", "cli")
-  });
-  if (mutatesArtifact && !approved.ok) {
-    return deny("UNKNOWN_MUTATION_SHELL: artifact mutations must use a registered PPTX wrapper");
-  }
-  if (/ui-ux-pro-max|--persist|design-system[\\/]MASTER\.md/u.test(command) && /artifacts[\\/]pptx[\\/]/u.test(command)) {
-    return deny("COMMUNITY_SKILL_EXECUTION_DENIED: ui-ux-pro-max is read-only advice in hard scope");
+  const command = extractShellCommand(event);
+  if (command) {
+    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+    if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
+    if (decision.writer && !["pptx-init", "pptx-lint"].includes(decision.writer) && decision.projectRoot && decision.argv) {
+      try {
+        const model = await loadPptxProject(decision.projectRoot);
+        await issueWriterCapability({
+          root: decision.projectRoot,
+          capability: decision.writer,
+          argv: decision.argv,
+          subjectDigest: computePptxSubjectDigest(model),
+          sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown",
+          triggerFrom: `pptx-project-delivery-guard:pre:${decision.writer}`
+        });
+      } catch (error) {
+        return deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
   }
   return void 0;
 }
@@ -360,7 +418,11 @@ function formatFindings(findings) {
 async function main() {
   const mode = process.argv[2] ?? "session";
   const event = await readStdinJson();
-  if (event.__parseError) return;
+  if (event.__parseError) {
+    process.stderr.write("[PPTX Project Delivery Guard] invalid hook JSON\n");
+    process.exitCode = 2;
+    return;
+  }
   const cwd = eventCwd(event);
   if (mode === "pre") {
     writeJson(await runPre(event));
@@ -368,7 +430,7 @@ async function main() {
   }
   if (mode === "session") {
     const roots = await findPptxProjects(cwd);
-    if (roots.length > 0) writeJson(additionalContext("SessionStart", `[PPTX Project Delivery Guard] discovered ${roots.length} project(s); generated outputs require registered writers.`));
+    if (roots.length > 0) writeJson(additionalContext("SessionStart", `[PPTX Project Delivery Guard] discovered ${roots.length} project(s). Follow the bundled pptx-deck-authoring orchestrator; generated outputs require registered init/lint/render/probe/review/release writers; host session id=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`));
     return;
   }
   if (mode === "post" || mode === "failure") {
@@ -376,12 +438,12 @@ async function main() {
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
-  if (mode === "stop") {
-    const findings = await projectFindings(cwd);
+  if (mode === "stop" || mode === "subagent-stop") {
+    const findings = await projectFindings(cwd, mode === "subagent-stop" ? "review" : void 0);
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve4(process.argv[1])) {
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve5(process.argv[1])) {
   main().catch((error) => {
     process.stderr.write(`[PPTX Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);

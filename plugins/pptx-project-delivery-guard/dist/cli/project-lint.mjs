@@ -1,5 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bd97b1008292baa15cf3636d316593976a1fa2659d75a9d5e3c50c3df4634ce9
+// harness-source-hash: sha256:f32caf30ab637560ef6f821edf58f464e4eef28803ac6448be1eca19626110b2
+import {
+  loadPptxProject,
+  validatePptxModel
+} from "../chunks/chunk-7ARR47VX.mjs";
 
 // plugins/pptx-project-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";
@@ -75,8 +79,17 @@ function createPreset({ parser }) {
 
 // plugins/pptx-project-delivery-guard/src/entries/cli/project-lint.ts
 async function main() {
+  const root = resolve2(process.argv[2] ?? "");
+  const model = await loadPptxProject(root);
+  const findings = validatePptxModel(model, { stage: "source" });
+  if (findings.length > 0) {
+    process.stderr.write(`${findings.map(({ code, path, message }) => `${code}:${path}:${message}`).join("\n")}
+`);
+    process.exitCode = 2;
+    return;
+  }
   const { output, failed } = await runLocalEslint({
-    root: resolve2(process.argv[2] ?? ""),
+    root,
     preset: createPreset,
     defaultFiles: ["src/slides/*.ts"],
     extraFiles: process.argv.slice(3)

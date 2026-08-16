@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/pptx-project-delivery-guard.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/pptx-project-delivery-guard.mjs\" subagent-stop",
             "statusMessage": "Validating PPTX artifact closure",
             "timeout": 10000
           }
