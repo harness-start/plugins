@@ -3,10 +3,6 @@ name: daily-work-report
 description: 员工要写日报、今日工作总结或下班复盘时使用；从 Claude/Codex 会话提取证据，通过逐题问答补齐非 AI 工作和执行不足，确认后写入带 SHA-256 封印的日报。
 ---
 
-# Daily Work Report
-
-保留这个 Skill ID，兼容原有 `$daily-work-report` 使用习惯。报告只使用本机 Claude/Codex transcript 和员工回答，不读取 Git，不自动发送。
-
 ## Workflow
 
 1. 运行 `daily-work-report-collect.mjs` 和 `daily-work-report-transcript-scan.mjs`。日期默认今天，也可传 `--date YYYY-MM-DD`；平台用 `--platform claude|codex|all`，默认 `all`。旧参数 `--skip-git` 可接受，但没有效果。
