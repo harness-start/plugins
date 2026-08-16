@@ -3,7 +3,6 @@
     {
       "name": "music-composition",
       "source": "https://github.com/SJY051/music-composition",
-      "revision": "07cecf9c8fd15249ea3da311dc9a7c7893ff801f",
       "ecosystem": "en",
       "license": "CC-BY-4.0",
       "mode": "adviser",
@@ -14,7 +13,6 @@
     {
       "name": "miaoxiang-music",
       "source": "https://github.com/all666666all/miaoxiang-music.skill",
-      "revision": "1447ff68be4a544a61354377592f345a9216ff1f",
       "ecosystem": "zh",
       "license": "MIT",
       "mode": "reference-only",
@@ -25,10 +23,8 @@
     {
       "name": "musical-dna",
       "source": "https://github.com/jwynia/agent-skills",
-      "revision": "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32",
-      "subpath": "skills/creative/music/musical-dna",
       "ecosystem": "en",
-      "license": "MIT (declared in SKILL.md; no repository-root license file at the pinned revision)",
+      "license": "MIT (declared in SKILL.md when this dependency was reviewed)",
       "mode": "reference-only",
       "allowFiles": ["SKILL.md"],
       "phases": ["brief", "reference-analysis", "direction", "arrangement"],
@@ -37,7 +33,6 @@
     {
       "name": "workflow-audio-production",
       "source": "https://github.com/damionrashford/media-os",
-      "revision": "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e",
       "ecosystem": "en",
       "license": "MIT",
       "mode": "reference-only",
@@ -48,7 +43,6 @@
     {
       "name": "workflow-analysis-quality",
       "source": "https://github.com/damionrashford/media-os",
-      "revision": "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e",
       "ecosystem": "en",
       "license": "MIT",
       "mode": "reference-only",

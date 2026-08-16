@@ -8,7 +8,7 @@
 
 ## External advisers
 
-Only dependencies pinned in `skill-deps.json` may be selected. At most three may be active in one phase. External skills have no project writer, review, or release authority. A used adviser needs a distinct controlled evidence artifact. General advice uses `evidence/skills/<name>.json` bound to the current subject digest. A source-analysis brief instead requires `musical-dna` and `evidence/reference-profile.<briefSha256>.json`, bound to a 3–5 item external source manifest without copying source identities into the project.
+Only current-source dependencies declared in `skill-deps.json` may be selected. At most three may be active in one phase. External skills have no project writer, review, or release authority. A used adviser needs a distinct controlled evidence artifact. General advice uses `evidence/skills/<name>.json` bound to the current subject digest. A source-analysis brief instead requires `musical-dna` and `evidence/reference-profile.<briefSha256>.json`, bound to a 3–5 item external source manifest without copying source identities into the project.
 
 ## Digest and writer chain
 

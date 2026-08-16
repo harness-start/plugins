@@ -13,7 +13,7 @@ brief → reference-analysis（按需）→ direction → composition → arrang
 - `$music-project-authoring` 负责 brief、创意方向、外部知识编排、作曲、配器、优化、渲染、预览、返工与 release。
 - `$music-project-review` 必须在没有生成当前 render 的独立 session 中运行。它只能听审当前 mix/stems 并通过受控 writer 提交 `approved` 或 `changes_requested`，不能修改作品或发布。
 
-外部顾问固定在 `skill-deps.json`：英文 `music-composition`、`musical-dna`、`workflow-audio-production`、`workflow-analysis-quality`，以及中文生态 `miaoxiang-music`。它们只有 adviser/reference 权限，禁止执行外部脚本、生成器、网络发布或直接写项目。`musical-dna` 固定到上游 commit；其 `SKILL.md` 声明 MIT，但该 revision 没有仓库根级许可证文件，因此本插件只声明依赖与来源，不 vendoring 上游内容。
+外部顾问通过 `skill-deps.json` 跟随上游当前版本：英文 `music-composition`、`musical-dna`、`workflow-audio-production`、`workflow-analysis-quality`，以及中文生态 `miaoxiang-music`。它们只有 adviser/reference 权限，禁止执行外部脚本、生成器、网络发布或直接写项目。`musical-dna` 的 `SKILL.md` 在审查时声明 MIT；本插件只声明依赖与来源，不 vendoring 上游内容。
 
 ## 快速开始
 
