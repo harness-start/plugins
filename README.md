@@ -112,8 +112,8 @@ codex plugin add <name>@harness-start --json
 | `command-safety` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
 | `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
 | `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；按复杂度并发只读 subagent，汇总后直接继续 |
-| `engineering-practice` | 编排固定版本的社区工程方法 Skill；依赖缺失时停止对应编排，不替代 Hook 证据 |
-| `professional-writing` | 按语言与文稿类型编排固定版本的社区写作 Skill；只执行经过路径与 SHA-256 审计的脚本 |
+| `engineering-practice` | 编排社区工程方法 Skill 的当前上游版本；依赖缺失时停止对应编排，不替代 Hook 证据 |
+| `professional-writing` | 按语言与文稿类型编排社区写作 Skill 的当前上游版本；只执行经过路径与 SHA-256 审计的脚本 |
 | `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
 | `software-debugging` | 通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
 | `agent-activity-audit` | 将文件读写与 shell 命令统一记录到 `.agent-activity-audit/sessions/<session>.jsonl`，记录以 `kind` 区分 |
@@ -125,18 +125,18 @@ codex plugin add <name>@harness-start --json
 | `music-production` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
 | `work-reporting` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
 | `project-capability-governance` | 记录 schema 校验的项目能力提案，并只在人工确认后采用项目级能力 |
-| `spec-driven-development` | 编排固定版本的社区 SDD 方法，并由 Hook 独立校验当前 spec、plan 与 tasks |
+| `spec-driven-development` | 编排社区 SDD 方法的当前上游版本，并由 Hook 独立校验当前 spec、plan 与 tasks |
 | `ci-gated-delivery` | 编排短生命周期分支、独立审查、远端 CI、合并与合并后验证 |
 | `repository-history-migration` | 在源仓只读、提交封存和目标验证约束下迁移 Git 历史 |
 
 ## 插件分类与设计
 
-26 个插件按职责分为六类。每个插件可独立安装，不声明或读取其他本项目插件；`skill-deps.json` 只允许固定到精确 commit 的外部社区 Skill。
+26 个插件按职责分为六类。每个插件可独立安装，不声明或读取其他本项目插件；`skill-deps.json` 只声明社区 Skill 名称与上游来源，安装时跟随上游当前版本。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
 | 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`dependency-file-custody`、`command-safety` | 对命令、写入、测试顺序与源码质量实施可机械验证的硬门禁 |
-| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development` | 内部 Skill 组织步骤；通用方法优先来自固定版本的社区 Skill，缺失时停止对应路线 |
+| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development` | 内部 Skill 组织步骤；通用方法优先来自社区 Skill 的当前上游版本，缺失时停止对应路线 |
 | 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
 | 领域生产 | `brand-logo-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
 | 项目与交付治理 | `project-capability-governance`、`ci-gated-delivery`、`repository-history-migration` | 管理能力采用、远端交付状态机和跨仓历史迁移 |

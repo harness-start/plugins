@@ -59,12 +59,12 @@
     {
       "name": "engineering-practice",
       "source": "./plugins/engineering-practice",
-      "description": "Orchestrates pinned community engineering methods."
+      "description": "Orchestrates current-source community engineering methods."
     },
     {
       "name": "professional-writing",
       "source": "./plugins/professional-writing",
-      "description": "Orchestrates pinned community Skills for professional prose."
+      "description": "Orchestrates current-source community Skills for professional prose."
     },
     {
       "name": "reasoning-methods",
@@ -109,7 +109,7 @@
     {
       "name": "music-production",
       "source": "./plugins/music-production",
-      "description": "Guards brief-to-release Tone.js music projects with pinned advisers, independent review, one-shot writers, and digest-bound WAV evidence."
+      "description": "Guards brief-to-release Tone.js music projects with current-source advisers, independent review, one-shot writers, and digest-bound WAV evidence."
     },
     {
       "name": "work-reporting",
