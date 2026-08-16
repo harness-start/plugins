@@ -40,13 +40,13 @@ test("video v2 contract publishes six production profiles and the staged deliver
   ]);
 });
 
-test("video skill dependencies pin every executable companion to an exact revision", () => {
+test("video skill dependencies follow current sources without revision pins", () => {
   const deps = readJson("../skill-deps.json") as { skills?: Array<Record<string, unknown>> };
 
   assert.ok(Array.isArray(deps.skills));
   assert.ok(deps.skills.length >= 10);
   for (const dependency of deps.skills) {
-    assert.match(String(dependency.revision), /^[a-f0-9]{40}$/u);
+    assert.equal(Object.hasOwn(dependency, "revision"), false);
     assert.ok(["advisor", "external-runner"].includes(String(dependency.mode)));
   }
 });

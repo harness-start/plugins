@@ -108,7 +108,7 @@ test("admission copies a declared external asset and records declared provenance
     write(candidate, "WAV-CANDIDATE");
     const digest = createHash("sha256").update("WAV-CANDIDATE").digest("hex");
     const manifest = join(sandbox, "tts-1.json");
-    const runManifest = { schema: "video-production/external-run/v1", artifactId: "demo", runId: "tts-1", skill: { name: "gemini-tts", revision: "9de027d1947ce8f8b60ccf70aa89e482bf80ecea", mode: "external-runner" }, provider: { name: "fixture", model: "voice-1" }, cost: { currency: "USD", amount: 5 }, outputs: [{ assetId: "voice", path: candidate, sha256: digest }] };
+    const runManifest = { schema: "video-production/external-run/v1", artifactId: "demo", runId: "tts-1", skill: { name: "gemini-tts", mode: "external-runner" }, provider: { name: "fixture", model: "voice-1" }, cost: { currency: "USD", amount: 5 }, outputs: [{ assetId: "voice", path: candidate, sha256: digest }] };
     write(manifest, JSON.stringify(runManifest));
     const args = [root, manifest];
     await authorize("project-admit.mjs", args, sandbox, "admission-session");

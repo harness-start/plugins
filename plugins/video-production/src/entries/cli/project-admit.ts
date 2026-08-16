@@ -39,7 +39,7 @@ async function main() {
   const provider = isRecord(run.provider) ? run.provider : {};
   const cost = isRecord(run.cost) ? run.cost : {};
   const outputs = Array.isArray(run.outputs) ? run.outputs : [];
-  if (run.schema !== RUN_SCHEMA || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(run.runId)) || typeof skill.name !== "string" || !/^[a-f0-9]{40}$/u.test(String(skill.revision)) || skill.mode !== "external-runner" || typeof provider.name !== "string" || typeof provider.model !== "string" || typeof cost.currency !== "string" || typeof cost.amount !== "number" || cost.amount < 0 || outputs.length === 0) throw new Error("ADMISSION_MANIFEST_INVALID");
+  if (run.schema !== RUN_SCHEMA || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(run.runId)) || typeof skill.name !== "string" || Object.hasOwn(skill, "revision") || skill.mode !== "external-runner" || typeof provider.name !== "string" || typeof provider.model !== "string" || typeof cost.currency !== "string" || typeof cost.amount !== "number" || cost.amount < 0 || outputs.length === 0) throw new Error("ADMISSION_MANIFEST_INVALID");
   let model = await loadVideoProject(root);
   const prerequisiteFindings = validateVideoModel(model, { stage: "assets" }).filter(({ code, path }) => ![
     "ASSET_FILE_MISSING", "ASSET_ADMISSION_MISSING", "MUTATION_JOURNAL_OPEN",
@@ -52,7 +52,7 @@ async function main() {
   const composition = JSON.parse(model.files?.["plan.skill-composition.json"] ?? "null") as unknown;
   const workers = isRecord(composition) && Array.isArray(composition.workers) ? composition.workers : [];
   const worker = workers.find((entry) => isRecord(entry) && entry.name === skill.name);
-  if (!isRecord(worker) || worker.revision !== skill.revision || worker.mode !== "external-runner" || worker.status !== "used") throw new Error("ADMISSION_WORKER_NOT_DECLARED");
+  if (!isRecord(worker) || worker.mode !== "external-runner" || worker.status !== "used") throw new Error("ADMISSION_WORKER_NOT_DECLARED");
   const assetManifest = JSON.parse(model.files?.["plan.assets.json"] ?? "null") as unknown;
   const assets = isRecord(assetManifest) && Array.isArray(assetManifest.assets) ? assetManifest.assets : [];
   const prepared: Array<{ assetId: string; kind: string; sourcePath: string; targetPath: string; digest: string; bytes: number; media: unknown }> = [];
