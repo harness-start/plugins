@@ -13,7 +13,7 @@ import { basename, dirname, join, relative, resolve, sep } from "node:path";
 
 import { isRecord } from "@harness/core/hook-event";
 
-import { SEAL_PREFIX, sealReport, verifyReport } from "./report-integrity.js";
+import { CHAIN_V2_PREFIX, SEAL_PREFIX, appendChainV2, sealReport, verifyReport } from "./report-integrity.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const WEEK = /^\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])$/u;
@@ -29,6 +29,11 @@ export type ReportPathOptions = {
 
 export type SaveReportOptions = ReportPathOptions & {
   input: string;
+};
+
+export type SaveReportContentOptions = ReportPathOptions & {
+  body: string;
+  ledger?: unknown | undefined;
 };
 
 export type AppendReportOptions = {
@@ -141,8 +146,18 @@ export async function saveReport(options: SaveReportOptions): Promise<{
   digest: string | undefined;
   bytes: number;
 }> {
-  const target = reportPath(options);
   const body = await readUtf8(options.input, "report input");
+  return saveReportContent({ ...options, body });
+}
+
+export async function saveReportContent(options: SaveReportContentOptions): Promise<{
+  path: string;
+  digest: string | undefined;
+  bytes: number;
+  ledgerPath?: string | undefined;
+}> {
+  const target = reportPath(options);
+  const body = options.body;
   if (!body.trim()) throw new Error("report body is empty");
   if (body.includes(SEAL_PREFIX)) throw new Error("report body contains a reserved seal marker");
   const normalized = body.endsWith("\n") ? body : `${body}\n`;
@@ -158,8 +173,13 @@ export async function saveReport(options: SaveReportOptions): Promise<{
 
   const sealed = sealReport(normalized);
   await atomicWrite(target, sealed);
+  let ledgerPath: string | undefined;
+  if (options.ledger !== undefined) {
+    ledgerPath = `${target}.ledger.json`;
+    await atomicWrite(ledgerPath, `${JSON.stringify(options.ledger, null, 2)}\n`);
+  }
   const verified = verifyReport(sealed);
-  return { path: target, digest: verified.ok ? verified.digest : undefined, bytes: Buffer.byteLength(sealed) };
+  return { path: target, digest: verified.ok ? verified.digest : undefined, bytes: Buffer.byteLength(sealed), ...(ledgerPath ? { ledgerPath } : {}) };
 }
 
 export async function appendReport(options: AppendReportOptions): Promise<{
@@ -175,9 +195,9 @@ export async function appendReport(options: AppendReportOptions): Promise<{
   if (!checked.ok) throw new Error(`report cannot be appended: ${checked.reason}`);
   const addition = await readUtf8(options.input, "addition input");
   if (!addition.trim()) throw new Error("addition is empty");
-  if (addition.includes(SEAL_PREFIX)) throw new Error("addition contains a reserved seal marker");
+  if (addition.includes(SEAL_PREFIX) || addition.includes(CHAIN_V2_PREFIX)) throw new Error("addition contains a reserved seal marker");
   const timestamp = new Date(options.now ?? Date.now()).toISOString();
   const block = `\n## Addition — ${timestamp}\n\n${addition.trimEnd()}\n`;
-  await atomicWrite(target, `${before}${block}`);
+  await atomicWrite(target, appendChainV2(before, block));
   return { path: target, digest: checked.digest, appendedBytes: Buffer.byteLength(block) };
 }

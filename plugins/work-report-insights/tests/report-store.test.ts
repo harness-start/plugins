@@ -36,7 +36,7 @@ test("saveReport seals a daily report and refuses to replace its confirmed body"
   }
 });
 
-test("appendReport preserves every sealed byte and adds confirmed content after the marker", async () => {
+test("appendReport preserves every sealed byte and adds a V2 chain-sealed addition", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-home-"));
   const input = join(home, "draft.md");
   const addition = join(home, "addition.md");
@@ -50,7 +50,9 @@ test("appendReport preserves every sealed byte and adds confirmed content after 
     const after = readFileSync(saved.path, "utf8");
     assert.equal(after.startsWith(before), true);
     assert.match(after.slice(before.length), /补充了线下沟通结果/u);
-    assert.equal(verifyReport(after).ok, true);
+    const checked = verifyReport(after);
+    assert.equal(checked.ok, true);
+    if (checked.ok) assert.equal(checked.additions, 1);
   } finally {
     rmSync(home, { recursive: true, force: true });
   }

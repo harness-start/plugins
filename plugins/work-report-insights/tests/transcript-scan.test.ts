@@ -67,15 +67,18 @@ test("scanTranscripts combines Claude and Codex sessions with line citations and
   }
 });
 
-test("collectTranscriptActivity returns session evidence without Git activity fields", async () => {
+test("collectTranscriptActivity returns EvidenceBundleV2 and honors Git opt-out", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-collect-"));
   try {
     const result = await collectTranscriptActivity({
       kind: "daily",
       date: "2026-08-10",
+      skipGit: true,
+      skipRemote: true,
       env: { HOME: home, CLAUDE_CONFIG_DIR: join(home, "missing"), CODEX_HOME: join(home, "missing-codex") },
     });
-    assert.equal(Object.hasOwn(result.overview, "commitCount"), false);
+    assert.equal(result.evidence.schema, "EvidenceBundleV2");
+    assert.equal(result.evidence.sources.git.status, "skipped");
     assert.equal(result.dataGaps.length > 0, true);
   } finally {
     rmSync(home, { recursive: true, force: true });

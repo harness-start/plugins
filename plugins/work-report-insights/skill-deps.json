@@ -3,7 +3,34 @@
     {
       "name": "grill-me",
       "source": "https://github.com/mattpocock/skills",
-      "description": "Runs a low-effort, one-question-at-a-time interview before a work report is confirmed."
+      "revision": "068b6e0c62393147daf03530149cdce209c93da8",
+      "required": false,
+      "stages": ["gap-interview"],
+      "description": "Optional advisor for bounded, one-question-at-a-time evidence-gap interviews."
+    },
+    {
+      "name": "brag-sheet",
+      "source": "https://github.com/github/awesome-copilot",
+      "revision": "a80885b76044550770f60f360f8a0e5ae3524a31",
+      "required": false,
+      "stages": ["work-item-normalization"],
+      "description": "Optional advisor for action-result-evidence normalization and evidence-strength review."
+    },
+    {
+      "name": "performance-review-writer",
+      "source": "https://github.com/github/awesome-copilot",
+      "revision": "a80885b76044550770f60f360f8a0e5ae3524a31",
+      "required": false,
+      "stages": ["tl-review"],
+      "description": "Optional advisor for observable STAR-style TL verification prompts."
+    },
+    {
+      "name": "growth-log",
+      "source": "https://github.com/affaan-m/ecc",
+      "revision": "50743cec75852e32d6517c9894a3339a2462a713",
+      "required": false,
+      "stages": ["improvement-analysis", "commitment-design"],
+      "description": "Optional advisor for root-cause, transferable-pattern, signal, and next-action analysis."
     }
   ]
 }

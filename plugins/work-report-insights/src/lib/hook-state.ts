@@ -7,7 +7,7 @@ import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { extractCwd, extractSessionId } from "./hook-io.js";
 
-const VERSION = 1;
+const VERSION = 2;
 export const STATE_DIR_RELATIVE = ".work-report-insights/.state";
 
 export type ReportHookState = {
@@ -19,6 +19,12 @@ export type ReportHookState = {
   reportSha256: string | null;
   target: string | null;
   operation: string | null;
+  evidencePath: string | null;
+  contractDigest: string | null;
+  evidenceDigest: string | null;
+  ackToken: string | null;
+  acknowledgementDigest: string | null;
+  lastError: string | null;
   updatedAt: number;
 };
 
@@ -36,6 +42,12 @@ export function emptyState(): ReportHookState {
     reportSha256: null,
     target: null,
     operation: null,
+    evidencePath: null,
+    contractDigest: null,
+    evidenceDigest: null,
+    ackToken: null,
+    acknowledgementDigest: null,
+    lastError: null,
     updatedAt: 0,
   };
 }

@@ -16,8 +16,11 @@ test("dual-host manifests expose the same plugin and platform-scoped hooks", () 
   assert.equal(claude.name, "work-report-insights");
   assert.equal(codex.name, claude.name);
   assert.equal(codex.version, claude.version);
+  assert.equal(claude.version, "0.3.0");
   assert.equal(claude.hooks, "./hooks/claude.json");
-  assert.equal(codex.hooks, undefined);
+  assert.equal(codex.hooks, "./hooks/codex.json");
+  assert.equal(claude.skills, "./skills/");
+  assert.equal(codex.skills, "./skills/");
   assert.equal(codex.interface.displayName, "Work Report Insights");
 
   const claudeHooks = readFileSync(join(ROOT, "hooks/claude.json"), "utf8");
@@ -26,16 +29,30 @@ test("dual-host manifests expose the same plugin and platform-scoped hooks", () 
   assert.match(codexHooks, /AI_EXPERTS_TRIGGER_FROM/u);
   assert.doesNotMatch(codexHooks, /CLAUDE_PLUGIN_ROOT/u);
   assert.doesNotMatch(claudeHooks, /\$\{PLUGIN_ROOT\}/u);
-  assert.doesNotMatch(claudeHooks, /UserPromptSubmit/u);
-  assert.doesNotMatch(codexHooks, /UserPromptSubmit/u);
+  for (const hooks of [claudeHooks, codexHooks]) {
+    assert.match(hooks, /UserPromptSubmit/u);
+    assert.match(hooks, /SessionStart/u);
+    assert.match(hooks, /PostToolUseFailure/u);
+  }
 });
 
-test("plugin keeps the daily skill id, adds weekly and summary skills, and declares grill-me", () => {
+test("plugin exposes one orchestrator, one review skill, compatibility adapters, and pinned optional advisors", () => {
   const skillNames = readdirSync(join(ROOT, "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.deepEqual(skillNames, ["daily-work-report", "weekly-work-report", "work-summary-report"]);
-  assert.equal(json("skill-deps.json").skills.some((skill) => skill.name === "grill-me"), true);
+  assert.deepEqual(skillNames, ["daily-work-report", "weekly-work-report", "work-report-authoring", "work-report-review", "work-summary-report"]);
+  const dependencies = json("skill-deps.json").skills;
+  assert.deepEqual(dependencies.map((skill) => skill.name).sort(), ["brag-sheet", "grill-me", "growth-log", "performance-review-writer"]);
+  for (const dependency of dependencies) {
+    assert.equal(dependency.required, false);
+    assert.match(dependency.revision, /^[a-f0-9]{40}$/u);
+    assert.equal(Array.isArray(dependency.stages), true);
+  }
   for (const skill of skillNames) {
     const content = readFileSync(join(ROOT, "skills", skill, "SKILL.md"), "utf8");
     assert.doesNotMatch(content, /--mode\b/u);
   }
+  const orchestrator = readFileSync(join(ROOT, "skills/work-report-authoring/SKILL.md"), "utf8");
+  assert.match(orchestrator, /EvidenceBundleV2/u);
+  assert.match(orchestrator, /WorkReportContractV2/u);
+  assert.match(orchestrator, /prepared.*acknowledged.*saved/su);
+  assert.match(orchestrator, /advisor.*optional/iu);
 });

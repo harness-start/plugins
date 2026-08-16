@@ -1,37 +1,58 @@
 # work-report-insights
 
-`work-report-insights` 从本机 Claude Code 和 Codex 的 transcript 生成日报、周报和指定日期范围的工作总结。员工按题回答；报告会写工作方法和执行上的缺口，正文要员工确认后才能落盘。
+`work-report-insights` 生成一份同时服务员工与 TL 的证据化工作报告：员工能看见可观察的不足、确认或质疑改进项并承诺下一步；TL 能看到工作明细、成果影响、证据强度、数据缺口和后续核验矩阵。插件不自动计算绩效分，也不发送或上传报告。
 
-## Skills
+## 统一入口
 
-- `$daily-work-report`：保留原 Skill 名，输出 `~/.ai-experts/daily-reports/YYYY-MM-DD.md`。
-- `$weekly-work-report`：输出 `~/.ai-experts/weekly-reports/YYYY-Www.md`。
-- `$work-summary-report`：输出 `~/.ai-experts/work-summary-reports/YYYY-MM-DD_to_YYYY-MM-DD.md`。
+- `$work-report-authoring`：daily / weekly / summary 的统一编排入口，可手动调用，也由 `UserPromptSubmit` 对明确的日报、周报、阶段总结意图自动提示。
+- `$work-report-review`：TL 的只读复核入口，校验报告/ledger、证据等级、承诺和待核事项。
+- `$daily-work-report`、`$weekly-work-report`、`$work-summary-report`：保留的兼容适配器，只选择时间窗后移交统一入口。
 
-三个流程都只读取 transcript，不调用 Git。`daily-work-report-collect` 兼容旧的 `--skip-git` 参数，但该参数是 no-op。
+外部 `$grill-me`、`$brag-sheet`、`$growth-log`、`$performance-review-writer` 均是固定 revision、阶段限定、`required:false` 的 advisor。插件忽略其工具调用和保存指令，只接纳经过本地证据复核的建议；依赖不可用时使用编排 Skill 内置方法继续。
 
-## Confirm and seal
+## 证据边界
 
-报告先在受保护目录之外形成草稿。`prepare` 记录候选正文摘要；确认正文后，`save` 才能写入最终路径。内容复杂时，skill 可以用自然语言请普通只读 subagent 检查遗漏，但父 agent 必须核对事实并决定是否修改；hook 不跟踪该 subagent。员工是否口头同意由 skill 约定，hook 不再读取用户下一句话。保存工具在确认正文末尾加入唯一标签：
+`collect` 先扫描 Claude/Codex transcript，再从时间窗内 session CWD 向上解析 Git root，并与重复的 `--repo PATH` 去重。只在仓库 `user.name`/`user.email` 与 commit 作者匹配时标为 attributed；其余 ownership 为 unverified。不会扫描整个 HOME。
 
-```html
-<!-- work-report-insights:sha256:<64-hex-digest> -->
+若仓库 origin 指向 GitHub/GitLab，只有在 `gh`/`glab` 已安装且已经认证时才查询该仓库的 PR/MR；插件从不触发登录，也不做账号级全量扫描。`--skip-git`、`--skip-remote` 是真实 opt-out；上限由 `--max-repos`、`--max-commits`、`--max-sessions` 控制。`collect`/`scan` 可用 `--output PATH` 写出受保护报告树之外的新 JSON 文件。
+
+## V2 合同与确认
+
+`EvidenceBundleV2` 为每条 transcript、Git、forge 证据记录稳定 ID、时间、脱敏 locator、digest、ownership、verification 和 data gap。`WorkReportContractV2` 将工作、改进、上期承诺、本期行动、员工 disposition、TL 验证和 advisor provenance 绑定到 evidence ID，再确定性渲染单一 Markdown。
+
+V2 官方命令使用：
+
+```bash
+node daily-work-report-prepare.mjs --date YYYY-MM-DD --contract contract.json --evidence evidence.json
+node weekly-work-report-prepare.mjs --week YYYY-Www --contract contract.json --evidence evidence.json
+node work-summary-report-prepare.mjs --from YYYY-MM-DD --to YYYY-MM-DD --contract contract.json --evidence evidence.json
+# 将 prepare 替换为 save，即为三个对应的保存命令。
 ```
 
-摘要覆盖标签之前的精确 UTF-8 字节。存在有效标签后，正文和标签均不可修改。后续补充必须经过 `addition-prepare`、再次确认和 `append`；append 保留文件的所有原有字节，只在末尾新增内容。摘要错误、标签畸形或重复标签都会停止写入。
+prepare 后 hook 给出一次性 token。员工必须严格回复：
 
-## Hook boundary
+```text
+# work-report-ack <token> | G1=accepted | G2=disputed:<reason> | commit=A1
+```
 
-`PreToolUse` 拒绝 Write、Edit、apply_patch 和 shell 对 `~/.ai-experts/*-reports/*` 的直接修改，同时检查真实路径、symlink 和递归父目录操作。只读检查不受影响。工作流由官方 `prepare` / `collect` 启动，不使用 `UserPromptSubmit`。`Stop` 仅在已经 prepare、却声称已经保存且没有封印回执时阻断；普通请求不建立状态，也不产生 hook 输出。会话 hook 状态写在当前工作目录的 `.work-report-insights/.state/`，`.work-report-insights/.gitignore` 忽略该工作目录的全部内容。
+token 绑定合同与证据 digest；任何变化都会失效。accepted finding 必须绑定 commitment；disputed/needs-context 必须有理由和 TL follow-up。weekly/summary 强制 1–3 个承诺。保存状态只能 `prepared → acknowledged → saved`。同源 `.ledger.json` 绑定 Markdown digest，用于下期承诺 carry-over，不是第二份用户报告。
 
-这个边界保护的是经过 Claude/Codex 工具调用的 AI 操作。用户在宿主之外直接修改文件不经过插件 hook；下次校验会把正文摘要不匹配视为损坏并拒绝继续追加。
+## 完整性与 Hook
 
-## Local verification
+旧 v0.2 报告仍可校验。旧的任意 suffix 会标为 `legacySuffixUnverified`；首次 V2 append 将旧文件全部字节纳入 previous-file digest。此后的每个 addition 都形成连续 SHA-256 链，任一旧字节或新增字节变化都会失败。
 
-在 marketplace 根目录运行：
+- `UserPromptSubmit`：对明确报告意图提供 `$work-report-authoring` 路由；“报告 bug”等近似文本静默绕过；只保存 acknowledgement 的结构化 digest，不保存原始回复。
+- `SessionStart`：只恢复未完成流程，普通会话静默。
+- `PreToolUse`：保护 report/ledger，验证官方命令、候选 digest、确认 token 和状态迁移。
+- `PostToolUse` / `PostToolUseFailure`：核验成功回执或保留失败恢复信息。
+- `Stop`：阻止未保存却声称完成，并避免递归阻断。
+
+## 本地验证
 
 ```bash
 npx tsx --test plugins/work-report-insights/tests/*.test.ts
-find plugins/work-report-insights/scripts -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
-SKIP_HOST_INSTALL=1 SKIP_CODEX_LOAD=1 bash scripts/ci/validate-plugins.sh
+npx tsx scripts/build-plugins.ts --check --plugin work-report-insights
+npm run check:dist
 ```
+
+Live acceptance 必须通过项目的 Docker host-acceptance 入口运行。

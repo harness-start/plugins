@@ -11,6 +11,7 @@ import type { ReportHookState } from "./hook-state.js";
 import { isProtectedReportPath, reportPath } from "./report-store.js";
 import { sha256 } from "./report-integrity.js";
 import { readFile } from "node:fs/promises";
+import { readReportCandidate } from "./report-candidate.js";
 
 export type OfficialCommandError = {
   kind: ReportKind;
@@ -168,12 +169,6 @@ async function shellTargetsReports(command: string, cwd: string, home: string): 
   return false;
 }
 
-async function candidateDigest(path: string): Promise<string> {
-  const body = await readFile(resolve(path), "utf8");
-  const normalized = body.endsWith("\n") ? body : `${body}\n`;
-  return sha256(normalized);
-}
-
 function denyReason(detail: string): string {
   return `[Work Report Insights] Protected report\n\n${detail}\nConfirmed report bytes are immutable. Use the plugin prepare/confirm/save or addition-prepare/confirm/append workflow.`;
 }
@@ -201,9 +196,11 @@ export async function protectionDecision(event: HookEvent, options: ProtectionOp
       return { deny: true, reason: denyReason("A reserved official command name was invoked from an untrusted script path.") };
     }
     if (official.action !== "save" && official.action !== "append") return { deny: false, official };
-    if (state.phase !== "prepared" || state.operation !== official.action) return { deny: true, reason: denyReason("The candidate has not been prepared.") };
-    const input = resolve(extractCwd(event), requiredArg(official.args.input, "--input"));
-    if (state.candidatePath !== input || state.candidateSha256 !== await candidateDigest(input)) return { deny: true, reason: denyReason("The candidate bytes changed after confirmation.") };
+    const requiredPhase = official.args.contract ? "acknowledged" : "prepared";
+    if (state.phase !== requiredPhase || state.operation !== official.action) return { deny: true, reason: denyReason(official.args.contract ? "The V2 candidate has not received a valid employee acknowledgement." : "The candidate has not been prepared.") };
+    const candidate = await readReportCandidate(official.args, extractCwd(event));
+    if (state.candidatePath !== candidate.candidatePath || state.candidateSha256 !== sha256(candidate.body)) return { deny: true, reason: denyReason("The candidate bytes changed after confirmation.") };
+    if (candidate.evidencePath !== state.evidencePath) return { deny: true, reason: denyReason("The evidence bundle changed after confirmation.") };
     const target = official.action === "save"
       ? reportPath({ kind: official.kind, ...official.args, home })
       : resolve(extractCwd(event), requiredArg(official.args.report, "--report"));

@@ -1,91 +1,80 @@
+// harness-source-hash: sha256:7b095d592e2ee57e5f2e483a35376e48f95eacc7a60fdead83983c27d9993707
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
+}
+function nestedRecord(event, key) {
+  const value = event[key];
+  return isRecord(value) ? value : null;
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
+function eventCwd(event) {
+  return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
+}
+function eventToolName(event) {
+  const tool = nestedRecord(event, "tool");
+  return firstString(event.tool_name, event.toolName, tool?.name);
+}
+function eventToolInput(event) {
+  const tool = nestedRecord(event, "tool");
+  const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
+  return isRecord(value) ? value : {};
+}
+function eventToolResponse(event) {
+  const tool = nestedRecord(event, "tool");
+  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
+}
+function eventAssistantMessage(event) {
+  return firstString(
+    event.last_assistant_message,
+    event.lastAssistantMessage,
+    event.assistant_message,
+    event.assistant_text,
+    event.assistantText
+  );
+}
+
+// plugins/work-report-insights/src/lib/transcript-scan.ts
 import { open, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-
-import { isRecord } from "@harness/core/hook-event";
-
-const DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
-const WEEK = /^(\d{4})-W(\d{2})$/u;
-const MAX_LINES_PER_FILE = 20_000;
-const MAX_FILE_BYTES = 8 * 1024 * 1024;
-const MAX_SNIPPET = 280;
-
-export type ReportWindow = {
-  label: string;
-  startMs: number;
-  endMs: number;
-};
-
-export type BuildWindowOptions = {
-  kind: string;
-  date?: string | undefined;
-  week?: string | undefined;
-  from?: string | undefined;
-  to?: string | undefined;
-};
-
-export type TranscriptEvidence = {
-  line: number;
-  role: unknown;
-  text: string;
-};
-
-export type TranscriptTool = {
-  line: number;
-  id: string;
-};
-
-export type TranscriptSession = {
-  platform: string;
-  sessionId: string;
-  project: string | null;
-  /** Runtime-only repository hint. Defined as non-enumerable so scan output does not leak absolute paths. */
-  cwd?: string | null | undefined;
-  firstEventAt: string;
-  lastEventAt: string;
-  evidence: TranscriptEvidence[];
-  tools: TranscriptTool[];
-  skillsUsed: string[];
-};
-
-export type TranscriptScanReport = {
-  window: { label: string; start: string; end: string };
-  requested: { platform: string; maxSessions: number };
-  overview: {
-    sessionCount: number;
-    claudeSessions: number;
-    codexSessions: number;
-    projectCount: number;
-  };
-  sessions: TranscriptSession[];
-  dataGaps: string[];
-};
-
-export type ScanTranscriptOptions = {
-  window: ReportWindow;
-  env?: NodeJS.ProcessEnv | undefined;
-  platform?: string | undefined;
-  maxSessions?: number | undefined;
-};
-
-export type CollectActivityOptions = BuildWindowOptions & {
-  env?: NodeJS.ProcessEnv | undefined;
-  platform?: string | undefined;
-  maxSessions?: number | undefined;
-  skipGit?: boolean | undefined;
-  skipRemote?: boolean | undefined;
-  repos?: string[] | undefined;
-  maxRepos?: number | undefined;
-  maxCommits?: number | undefined;
-};
-
-type TranscriptFile = {
-  path: string;
-  size: number;
-  mtimeMs: number;
-};
-
-function localDay(value: unknown, label: string): Date {
+var DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
+var WEEK = /^(\d{4})-W(\d{2})$/u;
+var MAX_LINES_PER_FILE = 2e4;
+var MAX_FILE_BYTES = 8 * 1024 * 1024;
+var MAX_SNIPPET = 280;
+function localDay(value, label) {
   const match = DATE.exec(String(value ?? ""));
   if (!match) throw new Error(`${label} expects YYYY-MM-DD`);
   const year = Number(match[1]);
@@ -97,12 +86,10 @@ function localDay(value: unknown, label: string): Date {
   }
   return date;
 }
-
-function endOfLocalDay(date: Date): number {
+function endOfLocalDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime() - 1;
 }
-
-function isoWeekStart(value: unknown): Date {
+function isoWeekStart(value) {
   const match = WEEK.exec(String(value ?? ""));
   if (!match) throw new Error("--week expects YYYY-Www");
   const year = Number(match[1]);
@@ -116,8 +103,7 @@ function isoWeekStart(value: unknown): Date {
   if (probe.getFullYear() !== year) throw new Error("--week is not valid for its ISO year");
   return monday;
 }
-
-export function buildReportWindow(options: BuildWindowOptions): ReportWindow {
+function buildReportWindow(options) {
   if (options.kind === "daily") {
     const start = localDay(options.date, "--date");
     return { label: String(options.date), startMs: start.getTime(), endMs: endOfLocalDay(start) };
@@ -135,26 +121,23 @@ export function buildReportWindow(options: BuildWindowOptions): ReportWindow {
   }
   throw new Error(`unknown report kind: ${String(options.kind)}`);
 }
-
-function escapeRegExp(value: unknown): string {
+function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
-
-export function sanitizeSnippet(value: unknown, home = homedir()): string {
+function sanitizeSnippet(value, home = homedir()) {
   let text = String(value ?? "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/gu, " ");
   text = text.replace(/\bAuthorization:\s*Bearer\s+[^\s,;]+/giu, "Authorization: Bearer [REDACTED]");
   text = text.replace(/\b(?:token|api[_-]?key|secret|password)\s*[=:]\s*[^\s,;]+/giu, (match) => `${match.split(/[=:]/u)[0]?.trim()}=[REDACTED]`);
   if (home) text = text.replace(new RegExp(`${escapeRegExp(home)}(?:[\\\\/]\\S*)?`, "gu"), "~/.ai-experts-path");
   text = text.replace(/\s+/gu, " ").trim();
-  return text.length > MAX_SNIPPET ? `${text.slice(0, MAX_SNIPPET - 1)}…` : text;
+  return text.length > MAX_SNIPPET ? `${text.slice(0, MAX_SNIPPET - 1)}\u2026` : text;
 }
-
-async function discover(root: string, matches: (name: string) => boolean): Promise<TranscriptFile[]> {
-  const files: TranscriptFile[] = [];
+async function discover(root, matches) {
+  const files = [];
   const stack = [root];
   while (stack.length > 0) {
     const current = stack.pop();
-    if (current === undefined) continue;
+    if (current === void 0) continue;
     let entries;
     try {
       entries = await readdir(current, { withFileTypes: true });
@@ -169,27 +152,22 @@ async function discover(root: string, matches: (name: string) => boolean): Promi
           const details = await stat(path);
           files.push({ path, size: details.size, mtimeMs: details.mtimeMs });
         } catch {
-          // The session may disappear while old transcripts are being pruned.
         }
       }
     }
   }
   return files;
 }
-
-function eventTimestamp(value: unknown): number | null {
+function eventTimestamp(value) {
   if (!isRecord(value)) return null;
-  const payload = isRecord(value.payload) ? value.payload : undefined;
+  const payload = isRecord(value.payload) ? value.payload : void 0;
   for (const candidate of [value.timestamp, value.created_at, value.createdAt, value.time, payload?.timestamp]) {
-    const millis = typeof candidate === "number"
-      ? (candidate < 1_000_000_000_000 ? candidate * 1000 : candidate)
-      : Date.parse(typeof candidate === "string" ? candidate : String(candidate ?? ""));
+    const millis = typeof candidate === "number" ? candidate < 1e12 ? candidate * 1e3 : candidate : Date.parse(typeof candidate === "string" ? candidate : String(candidate ?? ""));
     if (Number.isFinite(millis)) return millis;
   }
   return null;
 }
-
-function collectText(value: unknown, out: string[] = [], depth = 0): string[] {
+function collectText(value, out = [], depth = 0) {
   if (depth > 7 || value == null) return out;
   if (typeof value === "string") {
     out.push(value);
@@ -207,8 +185,7 @@ function collectText(value: unknown, out: string[] = [], depth = 0): string[] {
   }
   return out;
 }
-
-function collectTools(value: unknown, out: string[] = [], depth = 0): string[] {
+function collectTools(value, out = [], depth = 0) {
   if (depth > 7 || value == null) return out;
   if (Array.isArray(value)) {
     for (const item of value) collectTools(item, out, depth + 1);
@@ -216,7 +193,7 @@ function collectTools(value: unknown, out: string[] = [], depth = 0): string[] {
   }
   if (!isRecord(value)) return out;
   const type = String(value.type ?? "");
-  const fn = isRecord(value.function) ? value.function : undefined;
+  const fn = isRecord(value.function) ? value.function : void 0;
   const name = value.name ?? value.tool_name ?? fn?.name;
   if (typeof name === "string" && /tool|function_call/iu.test(type)) out.push(name);
   for (const child of Object.values(value)) {
@@ -224,26 +201,18 @@ function collectTools(value: unknown, out: string[] = [], depth = 0): string[] {
   }
   return out;
 }
-
-function inferRole(value: unknown): unknown {
+function inferRole(value) {
   if (!isRecord(value)) return null;
-  const message = isRecord(value.message) ? value.message : undefined;
-  const payload = isRecord(value.payload) ? value.payload : undefined;
+  const message = isRecord(value.message) ? value.message : void 0;
+  const payload = isRecord(value.payload) ? value.payload : void 0;
   return value.role ?? message?.role ?? payload?.role ?? null;
 }
-
-function sessionId(value: unknown, fallback: string): string {
+function sessionId(value, fallback) {
   if (!isRecord(value)) return String(fallback);
-  const session = isRecord(value.session) ? value.session : undefined;
+  const session = isRecord(value.session) ? value.session : void 0;
   return String(value.sessionId ?? value.session_id ?? session?.id ?? fallback);
 }
-
-async function scanFile(
-  candidate: TranscriptFile,
-  platform: string,
-  window: ReportWindow,
-  home: string,
-): Promise<{ session: TranscriptSession | null; malformed: number; unreadable: boolean; truncated: boolean }> {
+async function scanFile(candidate, platform, window, home) {
   let raw;
   let byteTruncated = false;
   try {
@@ -262,20 +231,19 @@ async function scanFile(
   }
   const lines = raw.split(/\r?\n/u);
   const limited = lines.slice(0, MAX_LINES_PER_FILE);
-  const evidence: TranscriptEvidence[] = [];
-  const tools: TranscriptTool[] = [];
-  const skills = new Set<string>();
+  const evidence = [];
+  const tools = [];
+  const skills = /* @__PURE__ */ new Set();
   let malformed = 0;
-  let firstAt: number | null = null;
-  let lastAt: number | null = null;
+  let firstAt = null;
+  let lastAt = null;
   let id = basename(candidate.path, ".jsonl");
-  let project: string | null = null;
-  let sessionCwd: string | null = null;
-
+  let project = null;
+  let sessionCwd = null;
   for (let index = 0; index < limited.length; index += 1) {
     const line = limited[index];
-    if (line === undefined || !line.trim()) continue;
-    let event: unknown;
+    if (line === void 0 || !line.trim()) continue;
+    let event;
     try {
       event = JSON.parse(line);
     } catch {
@@ -285,8 +253,8 @@ async function scanFile(
     const timestamp = eventTimestamp(event);
     if (timestamp === null || timestamp < window.startMs || timestamp > window.endMs) continue;
     id = sessionId(event, id);
-    const record = isRecord(event) ? event : undefined;
-    const payload = record && isRecord(record.payload) ? record.payload : undefined;
+    const record = isRecord(event) ? event : void 0;
+    const payload = record && isRecord(record.payload) ? record.payload : void 0;
     const cwd = record?.cwd ?? record?.working_directory ?? payload?.cwd;
     if (typeof cwd === "string" && cwd) {
       project = basename(cwd);
@@ -304,40 +272,37 @@ async function scanFile(
     }
     for (const name of collectTools(event)) tools.push({ line: index + 1, id: sanitizeSnippet(name, home) });
   }
-
   if (firstAt === null || lastAt === null) return { session: null, malformed, unreadable: false, truncated: byteTruncated || lines.length > limited.length };
-  const session: TranscriptSession = {
-      platform,
-      sessionId: id,
-      project,
-      firstEventAt: new Date(firstAt).toISOString(),
-      lastEventAt: new Date(lastAt).toISOString(),
-      evidence: evidence.slice(0, 40),
-      tools: tools.slice(0, 40),
-      skillsUsed: [...skills].sort(),
+  const session = {
+    platform,
+    sessionId: id,
+    project,
+    firstEventAt: new Date(firstAt).toISOString(),
+    lastEventAt: new Date(lastAt).toISOString(),
+    evidence: evidence.slice(0, 40),
+    tools: tools.slice(0, 40),
+    skillsUsed: [...skills].sort()
   };
   Object.defineProperty(session, "cwd", { value: sessionCwd, enumerable: false, configurable: false });
   return {
     session,
     malformed,
     unreadable: false,
-    truncated: byteTruncated || lines.length > limited.length,
+    truncated: byteTruncated || lines.length > limited.length
   };
 }
-
-export async function scanTranscripts(options: ScanTranscriptOptions): Promise<TranscriptScanReport> {
+async function scanTranscripts(options) {
   const env = options.env ?? process.env;
   const home = env.HOME || homedir();
   const platform = options.platform ?? "all";
   if (platform !== "all" && platform !== "claude" && platform !== "codex") throw new Error("--platform expects claude, codex, or all");
   const maxSessions = options.maxSessions ?? 20;
   if (!Number.isInteger(maxSessions) || maxSessions < 1 || maxSessions > 200) throw new Error("--max-sessions expects an integer from 1 to 200");
-  const roots: Array<{ platform: "claude" | "codex"; path: string; matches: (name: string) => boolean }> = [];
+  const roots = [];
   if (platform === "all" || platform === "claude") roots.push({ platform: "claude", path: join(env.CLAUDE_CONFIG_DIR || join(home, ".claude"), "projects"), matches: (name) => name.endsWith(".jsonl") });
   if (platform === "all" || platform === "codex") roots.push({ platform: "codex", path: join(env.CODEX_HOME || join(home, ".codex"), "sessions"), matches: (name) => name.endsWith(".jsonl") });
-
-  const dataGaps: string[] = [];
-  const candidates: Array<TranscriptFile & { platform: "claude" | "codex" }> = [];
+  const dataGaps = [];
+  const candidates = [];
   for (const root of roots) {
     const discovered = await discover(root.path, root.matches);
     if (discovered.length === 0) dataGaps.push(`platform ${root.platform} has no readable transcript files`);
@@ -346,8 +311,7 @@ export async function scanTranscripts(options: ScanTranscriptOptions): Promise<T
   candidates.sort((left, right) => right.mtimeMs - left.mtimeMs || right.size - left.size);
   const selected = candidates.slice(0, maxSessions);
   if (candidates.length > selected.length) dataGaps.push(`candidate transcripts ${candidates.length} exceed --max-sessions=${maxSessions}`);
-
-  const sessions: TranscriptSession[] = [];
+  const sessions = [];
   let malformed = 0;
   let unreadable = 0;
   let truncated = 0;
@@ -370,26 +334,16 @@ export async function scanTranscripts(options: ScanTranscriptOptions): Promise<T
       sessionCount: sessions.length,
       claudeSessions: sessions.filter((session) => session.platform === "claude").length,
       codexSessions: sessions.filter((session) => session.platform === "codex").length,
-      projectCount: new Set(sessions.map((session) => session.project).filter(Boolean)).size,
+      projectCount: new Set(sessions.map((session) => session.project).filter(Boolean)).size
     },
     sessions,
-    dataGaps,
+    dataGaps
   };
 }
-
-export async function collectTranscriptActivity(options: CollectActivityOptions): Promise<{
-  kind: string;
-  label: string;
-  window: TranscriptScanReport["window"];
-  overview: TranscriptScanReport["overview"];
-  skillsUsed: string[];
-  toolsUsed: string[];
-  dataGaps: string[];
-  evidence: import("./work-evidence.js").EvidenceBundleV2;
-}> {
+async function collectTranscriptActivity(options) {
   const window = buildReportWindow(options);
   const scanned = await scanTranscripts({ ...options, window });
-  const { collectEvidenceBundle } = await import("./work-evidence.js");
+  const { collectEvidenceBundle } = await import("./work-evidence-EXGRMI6D.mjs");
   const evidence = await collectEvidenceBundle({
     window,
     sessions: scanned.sessions,
@@ -398,7 +352,7 @@ export async function collectTranscriptActivity(options: CollectActivityOptions)
     skipRemote: options.skipRemote,
     maxRepos: options.maxRepos,
     maxCommits: options.maxCommits,
-    home: options.env?.HOME,
+    home: options.env?.HOME
   });
   return {
     kind: options.kind,
@@ -407,7 +361,23 @@ export async function collectTranscriptActivity(options: CollectActivityOptions)
     overview: scanned.overview,
     skillsUsed: [...new Set(scanned.sessions.flatMap((session) => session.skillsUsed))].sort(),
     toolsUsed: [...new Set(scanned.sessions.flatMap((session) => session.tools.map((tool) => tool.id)))].sort(),
-    dataGaps: [...new Set([...scanned.dataGaps, ...evidence.dataGaps])],
-    evidence,
+    dataGaps: [.../* @__PURE__ */ new Set([...scanned.dataGaps, ...evidence.dataGaps])],
+    evidence
   };
 }
+
+export {
+  isRecord,
+  readStdinJson,
+  eventSessionId,
+  eventCwd,
+  eventToolName,
+  eventToolInput,
+  eventToolResponse,
+  eventPrompt,
+  eventAssistantMessage,
+  buildReportWindow,
+  sanitizeSnippet,
+  scanTranscripts,
+  collectTranscriptActivity
+};

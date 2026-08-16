@@ -1,11 +1,12 @@
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
 import { isRecord } from "@harness/core/hook-event";
 
 import { SEAL_PREFIX, sha256, verifyReport } from "./report-integrity.js";
-import { appendReport, reportPath, saveReport } from "./report-store.js";
+import { appendReport, isProtectedReportPath, reportPath, saveReport, saveReportContent } from "./report-store.js";
+import { readReportCandidate } from "./report-candidate.js";
 import {
   buildReportWindow,
   collectTranscriptActivity,
@@ -30,6 +31,10 @@ export type ReportArgs = {
   maxSessions: number;
   format: ReportFormat;
   skipGit: boolean;
+  skipRemote: boolean;
+  repos: string[];
+  maxRepos: number;
+  maxCommits: number;
   help: boolean;
   date?: string | undefined;
   week?: string | undefined;
@@ -37,6 +42,9 @@ export type ReportArgs = {
   to?: string | undefined;
   input?: string | undefined;
   report?: string | undefined;
+  contract?: string | undefined;
+  evidence?: string | undefined;
+  output?: string | undefined;
 };
 
 export type ReportCommandInput = {
@@ -52,6 +60,10 @@ type ParsedArgs = {
   maxSessions: number;
   format: string;
   skipGit: boolean;
+  skipRemote: boolean;
+  repos: string[];
+  maxRepos: number;
+  maxCommits: number;
   help: boolean;
   date?: string | undefined;
   week?: string | undefined;
@@ -59,9 +71,12 @@ type ParsedArgs = {
   to?: string | undefined;
   input?: string | undefined;
   report?: string | undefined;
+  contract?: string | undefined;
+  evidence?: string | undefined;
+  output?: string | undefined;
 };
 
-type StringFlag = "date" | "week" | "from" | "to" | "input" | "report" | "platform" | "format";
+type StringFlag = "date" | "week" | "from" | "to" | "input" | "report" | "contract" | "evidence" | "output" | "platform" | "format";
 
 const ACTIONS = new Set<string>(["collect", "scan", "prepare", "save", "addition-prepare", "append", "verify"]);
 
@@ -82,10 +97,13 @@ function requiredArg(value: string | undefined, flag: string): string {
 
 export function parseReportArgs(kind: string, action: string, argv: string[]): ReportArgs {
   if (!isReportAction(action)) throw new Error(`unknown report action: ${action}`);
-  const result: ParsedArgs = { platform: "all", maxSessions: 20, format: "json", skipGit: false, help: false };
+  const result: ParsedArgs = {
+    platform: "all", maxSessions: 20, format: "json", skipGit: false, skipRemote: false,
+    repos: [], maxRepos: 12, maxCommits: 100, help: false,
+  };
   const stringFlags = new Map<string, StringFlag>([
     ["--date", "date"], ["--week", "week"], ["--from", "from"], ["--to", "to"],
-    ["--input", "input"], ["--report", "report"], ["--platform", "platform"], ["--format", "format"],
+    ["--input", "input"], ["--report", "report"], ["--contract", "contract"], ["--evidence", "evidence"], ["--output", "output"], ["--platform", "platform"], ["--format", "format"],
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -101,8 +119,24 @@ export function parseReportArgs(kind: string, action: string, argv: string[]): R
       result.skipGit = true;
       continue;
     }
+    if (arg === "--skip-remote") {
+      result.skipRemote = true;
+      continue;
+    }
+    if (arg === "--repo") {
+      result.repos.push(valueAfter(argv, index, arg));
+      index += 1;
+      continue;
+    }
     if (arg === "--max-sessions") {
       result.maxSessions = Number.parseInt(valueAfter(argv, index, arg), 10);
+      index += 1;
+      continue;
+    }
+    if (arg === "--max-repos" || arg === "--max-commits") {
+      const value = Number.parseInt(valueAfter(argv, index, arg), 10);
+      if (arg === "--max-repos") result.maxRepos = value;
+      else result.maxCommits = value;
       index += 1;
       continue;
     }
@@ -121,10 +155,16 @@ export function parseReportArgs(kind: string, action: string, argv: string[]): R
     throw new Error("--format expects json or markdown");
   }
   if (!Number.isInteger(result.maxSessions) || result.maxSessions < 1 || result.maxSessions > 200) throw new Error("--max-sessions expects an integer from 1 to 200");
+  if (!Number.isInteger(result.maxRepos) || result.maxRepos < 1 || result.maxRepos > 50) throw new Error("--max-repos expects an integer from 1 to 50");
+  if (!Number.isInteger(result.maxCommits) || result.maxCommits < 1 || result.maxCommits > 500) throw new Error("--max-commits expects an integer from 1 to 500");
   if (kind === "summary" && (!result.from || !result.to)) throw new Error("--from and --to are required");
-  if ((action === "prepare" || action === "save" || action === "addition-prepare" || action === "append") && !result.input) {
+  if ((action === "prepare" || action === "save") && !result.input && !result.contract) {
+    throw new Error("--input or --contract is required");
+  }
+  if ((action === "addition-prepare" || action === "append") && !result.input) {
     throw new Error("--input is required");
   }
+  if (result.contract && !result.evidence) throw new Error("--evidence is required with --contract");
   if ((action === "addition-prepare" || action === "append" || action === "verify") && !result.report) {
     throw new Error("--report is required");
   }
@@ -137,6 +177,14 @@ export function parseReportArgs(kind: string, action: string, argv: string[]): R
 
 function periodOptions(kind: string, args: ReportArgs, home: string) {
   return { kind, date: args.date, week: args.week, from: args.from, to: args.to, home };
+}
+
+function assertCandidatePeriod(kind: ReportKind, candidate: Awaited<ReturnType<typeof readReportCandidate>>, period: ReturnType<typeof periodOptions>): void {
+  if (!candidate.contract) return;
+  const window = buildReportWindow(period);
+  if (candidate.contract.period.kind !== kind || candidate.contract.period.label !== window.label) {
+    throw new Error("WorkReportContractV2 period does not match the official command period");
+  }
 }
 
 function localDateLabel(now: number): string {
@@ -195,17 +243,31 @@ export async function executeReportCommand({
   if (args.help) return { help: true, kind, action };
   const home = env.HOME || homedir();
   const period = periodOptions(kind, args, home);
-  if (action === "collect") return collectTranscriptActivity({ ...period, env, platform: args.platform, maxSessions: args.maxSessions });
+  if (action === "collect") return collectTranscriptActivity({
+    ...period,
+    env,
+    platform: args.platform,
+    maxSessions: args.maxSessions,
+    skipGit: args.skipGit,
+    skipRemote: args.skipRemote,
+    repos: args.repos,
+    maxRepos: args.maxRepos,
+    maxCommits: args.maxCommits,
+  });
   if (action === "scan") {
     const window = buildReportWindow(period);
     return scanTranscripts({ window, env, platform: args.platform, maxSessions: args.maxSessions });
   }
   if (action === "prepare") {
-    const body = await readCandidate(requiredArg(args.input, "--input"));
-    return { kind, action, target: reportPath(period), candidateSha256: sha256(body), bytes: Buffer.byteLength(body) };
+    const candidate = await readReportCandidate(args);
+    assertCandidatePeriod(kind, candidate, period);
+    return { kind, action, schema: candidate.schema, target: reportPath(period), candidateSha256: sha256(candidate.body), bytes: Buffer.byteLength(candidate.body) };
   }
   if (action === "save") {
-    return { kind, action, ...await saveReport({ ...period, input: requiredArg(args.input, "--input") }) };
+    if (!args.contract) return { kind, action, ...await saveReport({ ...period, input: requiredArg(args.input, "--input") }) };
+    const candidate = await readReportCandidate(args);
+    assertCandidatePeriod(kind, candidate, period);
+    return { kind, action, schema: candidate.schema, ...await saveReportContent({ ...period, body: candidate.body, ledger: candidate.ledger }) };
   }
   if (action === "verify") {
     const report = requiredArg(args.report, "--report");
@@ -259,6 +321,15 @@ export async function runCli(
     const result = await executeReportCommand({ kind, action, argv, env });
     if (result.help === true) {
       process.stdout.write(`${usage(kind, action)}\n`);
+      return 0;
+    }
+    const parsed = parseReportArgs(kind, action, argv);
+    if (parsed.output) {
+      if (action !== "collect" && action !== "scan") throw new Error("--output is supported only by collect and scan");
+      const target = resolve(parsed.output);
+      if (isProtectedReportPath(target, env.HOME)) throw new Error("--output cannot target the protected report tree");
+      await writeFile(target, `${JSON.stringify(result, null, 2)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
+      process.stdout.write(`${JSON.stringify({ action, output: target, bytes: Buffer.byteLength(JSON.stringify(result)) })}\n`);
       return 0;
     }
     const formatIndex = argv.indexOf("--format");

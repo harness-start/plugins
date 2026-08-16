@@ -1,21 +1,27 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fabd61f22320e6f936be9aacdac06071e458f80c365b67d265d0bbf037d61138
+// harness-source-hash: sha256:7b095d592e2ee57e5f2e483a35376e48f95eacc7a60fdead83983c27d9993707
 import {
-  SEAL_PREFIX,
+  createAcknowledgement,
+  isProtectedReportPath,
+  parseAcknowledgement,
+  parseReportArgs,
+  readReportCandidate,
+  reportPath,
+  sha256,
+  validateAcknowledgement,
+  verifyReport
+} from "../chunks/chunk-GNPSY2UQ.mjs";
+import {
   eventAssistantMessage,
   eventCwd,
+  eventPrompt,
   eventSessionId,
   eventToolInput,
   eventToolName,
   eventToolResponse,
-  isProtectedReportPath,
   isRecord,
-  parseReportArgs,
-  readStdinJson,
-  reportPath,
-  sha256,
-  verifyReport
-} from "../chunks/chunk-XYSV3YZG.mjs";
+  readStdinJson
+} from "../chunks/chunk-NILNUBWW.mjs";
 
 // plugins/work-report-insights/src/entries/hooks/work-report-insights-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";
@@ -329,12 +335,6 @@ async function shellTargetsReports(command, cwd, home2) {
   }
   return false;
 }
-async function candidateDigest(path) {
-  const body = await readFile(resolve2(path), "utf8");
-  const normalized = body.endsWith("\n") ? body : `${body}
-`;
-  return sha256(normalized);
-}
 function denyReason(detail) {
   return `[Work Report Insights] Protected report
 
@@ -363,9 +363,11 @@ async function protectionDecision(event, options = {}) {
       return { deny: true, reason: denyReason("A reserved official command name was invoked from an untrusted script path.") };
     }
     if (official.action !== "save" && official.action !== "append") return { deny: false, official };
-    if (state.phase !== "prepared" || state.operation !== official.action) return { deny: true, reason: denyReason("The candidate has not been prepared.") };
-    const input = resolve2(eventCwd(event), requiredArg(official.args.input, "--input"));
-    if (state.candidatePath !== input || state.candidateSha256 !== await candidateDigest(input)) return { deny: true, reason: denyReason("The candidate bytes changed after confirmation.") };
+    const requiredPhase = official.args.contract ? "acknowledged" : "prepared";
+    if (state.phase !== requiredPhase || state.operation !== official.action) return { deny: true, reason: denyReason(official.args.contract ? "The V2 candidate has not received a valid employee acknowledgement." : "The candidate has not been prepared.") };
+    const candidate = await readReportCandidate(official.args, eventCwd(event));
+    if (state.candidatePath !== candidate.candidatePath || state.candidateSha256 !== sha256(candidate.body)) return { deny: true, reason: denyReason("The candidate bytes changed after confirmation.") };
+    if (candidate.evidencePath !== state.evidencePath) return { deny: true, reason: denyReason("The evidence bundle changed after confirmation.") };
     const target = official.action === "save" ? reportPath({ kind: official.kind, ...official.args, home: home2 }) : resolve2(eventCwd(event), requiredArg(official.args.report, "--report"));
     if (state.target !== target) return { deny: true, reason: denyReason("The confirmed target does not match this command.") };
     if (official.action === "append" && state.reportSha256 !== sha256(await readFile(target))) {
@@ -410,7 +412,7 @@ function ensurePluginWorkdirGitignore(pluginRoot) {
 }
 
 // plugins/work-report-insights/src/lib/hook-state.ts
-var VERSION = 1;
+var VERSION = 2;
 var STATE_DIR_RELATIVE = ".work-report-insights/.state";
 function digest(value) {
   return createHash("sha256").update(String(value)).digest("hex");
@@ -425,6 +427,12 @@ function emptyState() {
     reportSha256: null,
     target: null,
     operation: null,
+    evidencePath: null,
+    contractDigest: null,
+    evidenceDigest: null,
+    ackToken: null,
+    acknowledgementDigest: null,
+    lastError: null,
     updatedAt: 0
   };
 }
@@ -478,11 +486,7 @@ function requiredArg2(value, flag) {
 async function prepareState(event, official, env) {
   const state = await readState(event, env);
   const cwd = eventCwd(event);
-  const candidatePath = resolve4(cwd, requiredArg2(official.args.input, "--input"));
-  let candidate = await readFile3(candidatePath, "utf8");
-  if (!candidate.trim()) throw new Error("candidate content is empty");
-  if (candidate.includes(SEAL_PREFIX)) throw new Error("candidate contains a reserved seal marker");
-  if (!candidate.endsWith("\n")) candidate += "\n";
+  const candidate = await readReportCandidate(official.args, cwd);
   const target = official.action === "prepare" ? reportPath({ kind: official.kind, ...official.args, home: home(env) }) : resolve4(cwd, requiredArg2(official.args.report, "--report"));
   let reportSha256 = null;
   if (official.action === "addition-prepare") {
@@ -491,16 +495,28 @@ async function prepareState(event, official, env) {
     if (!checked.ok) throw new Error(`report cannot be appended: ${checked.reason}`);
     reportSha256 = sha256(report);
   }
+  const acknowledgement = candidate.contract && candidate.evidence ? createAcknowledgement(candidate.contract, candidate.evidence) : null;
   await writeState(event, {
     ...state,
     phase: "prepared",
     kind: official.kind === "report" ? state.kind : official.kind,
-    candidateSha256: sha256(candidate),
-    candidatePath,
+    candidateSha256: sha256(candidate.body),
+    candidatePath: candidate.candidatePath,
+    evidencePath: candidate.evidencePath,
+    contractDigest: acknowledgement?.contractDigest ?? null,
+    evidenceDigest: acknowledgement?.evidenceDigest ?? null,
+    ackToken: acknowledgement?.token ?? null,
+    acknowledgementDigest: null,
+    lastError: null,
     reportSha256,
     target,
     operation: official.action === "prepare" ? "save" : "append"
   }, env);
+  if (!acknowledgement || !candidate.contract) return "Candidate digest recorded. Present the complete content and wait for explicit confirmation.";
+  const dispositions = candidate.contract.employeeDispositions.map((item) => `${item.findingId}=${item.status}${item.status === "accepted" ? "" : `:${item.reason ?? "reason"}`}`);
+  const commitments = candidate.contract.commitments.map((item) => `commit=${item.id}`);
+  return `V2 candidate prepared. Require this exact acknowledgement after showing the full report:
+# work-report-ack ${acknowledgement.token} | ${[...dispositions, ...commitments].join(" | ")}`;
 }
 async function runPre(event, env) {
   const state = await readState(event, env);
@@ -509,8 +525,8 @@ async function runPre(event, env) {
   const trusted = Boolean(official && !hasOfficialError(official) && await officialScriptTrusted(official, { cwd: eventCwd(event) }));
   if (trusted && official && !hasOfficialError(official) && (official.action === "prepare" || official.action === "addition-prepare")) {
     try {
-      await prepareState(event, official, env);
-      writeJson(contextOutput("PreToolUse", "[Work Report Insights] Candidate digest recorded. Present the complete content and wait for explicit confirmation."));
+      const message = await prepareState(event, official, env);
+      writeJson(contextOutput("PreToolUse", `[Work Report Insights] ${message}`));
     } catch (error) {
       writeJson(preToolDeny(`[Work Report Insights] Prepare denied: ${errorMessage2(error)}`));
     }
@@ -529,7 +545,7 @@ async function runPost(event, env) {
     return;
   }
   if (official.action !== "save" && official.action !== "append") return;
-  if (toolReportedFailure(event) || state.phase !== "prepared" || state.operation !== official.action) return;
+  if (toolReportedFailure(event) || state.phase !== "prepared" && state.phase !== "acknowledged" || state.operation !== official.action) return;
   try {
     const target = official.action === "save" ? reportPath({ kind: official.kind, ...official.args, home: home(env) }) : resolve4(eventCwd(event), requiredArg2(official.args.report, "--report"));
     if (target !== state.target) return;
@@ -538,13 +554,61 @@ async function runPost(event, env) {
     if (!checked.ok) return;
     if (official.action === "save" && checked.digest !== state.candidateSha256) return;
     if (official.action === "append" && sha256(content) === state.reportSha256) return;
+    if (official.action === "save" && state.contractDigest) {
+      const ledger = JSON.parse(await readFile3(`${target}.ledger.json`, "utf8"));
+      if (ledger.schema !== "WorkReportLedgerV2" || ledger.reportDigest !== checked.digest || ledger.contractDigest !== state.contractDigest || ledger.evidenceDigest !== state.evidenceDigest) return;
+    }
     await writeState(event, { ...state, phase: "sealed", target, candidateSha256: null, candidatePath: null, operation: null }, env);
     writeJson(contextOutput("PostToolUse", `[Work Report Insights] Sealed report verified: ${target}
 SHA-256: ${checked.digest}`));
   } catch {
   }
 }
+function reportIntent(prompt) {
+  return /(?:\u5199|\u751f\u6210|\u6574\u7406|\u590d\u76d8|\u603b\u7ed3|create|write|review|summari[sz]e).{0,16}(?:\u65e5\u62a5|\u5468\u62a5|\u5de5\u4f5c\u603b\u7ed3|\u9636\u6bb5\u603b\u7ed3|\u5de5\u4f5c\u590d\u76d8|work\s+report|weekly\s+report|daily\s+report)|(?:\u65e5\u62a5|\u5468\u62a5|\u5de5\u4f5c\u603b\u7ed3|\u9636\u6bb5\u603b\u7ed3|\u5de5\u4f5c\u590d\u76d8).{0,16}(?:\u5199|\u751f\u6210|\u6574\u7406|\u590d\u76d8|\u603b\u7ed3)/iu.test(prompt);
+}
+async function runPrompt(event, env) {
+  const prompt = eventPrompt(event).trim();
+  const state = await readState(event, env);
+  if (prompt.startsWith("# work-report-ack")) {
+    if (state.phase !== "prepared" || !state.ackToken || !state.candidatePath || !state.evidencePath) {
+      writeJson(contextOutput("UserPromptSubmit", "[Work Report Insights] Acknowledgement rejected: no matching prepared V2 report."));
+      return;
+    }
+    try {
+      const candidate = await readReportCandidate({ contract: state.candidatePath, evidence: state.evidencePath });
+      if (!candidate.contract || !candidate.evidence) throw new Error("prepared V2 inputs are unavailable");
+      const current = createAcknowledgement(candidate.contract, candidate.evidence, "digest-check");
+      if (current.contractDigest !== state.contractDigest || current.evidenceDigest !== state.evidenceDigest) throw new Error("contract or evidence changed after prepare");
+      const parsed = parseAcknowledgement(prompt);
+      const checked = validateAcknowledgement(parsed, { token: state.ackToken, contractDigest: state.contractDigest, evidenceDigest: state.evidenceDigest }, candidate.contract);
+      if (!checked.ok) throw new Error(checked.errors.join("; "));
+      await writeState(event, { ...state, phase: "acknowledged", acknowledgementDigest: sha256(JSON.stringify(parsed)), lastError: null }, env);
+      writeJson(contextOutput("UserPromptSubmit", "[Work Report Insights] Employee acknowledgement recorded; the prepared V2 candidate may now be saved."));
+    } catch (error) {
+      writeJson(contextOutput("UserPromptSubmit", `[Work Report Insights] Acknowledgement rejected: ${errorMessage2(error)}`));
+    }
+    return;
+  }
+  if (!reportIntent(prompt)) return;
+  await writeState(event, { ...state, phase: state.phase === "idle" ? "routed" : state.phase }, env);
+  writeJson(contextOutput("UserPromptSubmit", "[Work Report Insights] Route this request through `$work-report-authoring`. Select the period, collect EvidenceBundleV2, build WorkReportContractV2, obtain exact employee acknowledgement, then save."));
+}
+async function runSession(event, env) {
+  const state = await readState(event, env);
+  if (state.phase === "idle" || state.phase === "sealed") return;
+  writeJson(contextOutput("SessionStart", `[Work Report Insights] Resume unfinished work-report workflow at phase: ${state.phase}.`));
+}
+async function runFailure(event, env) {
+  if (!isShellTool2(event)) return;
+  const official = parseOfficialCommand(extractShellCommand(event));
+  if (!official || hasOfficialError(official)) return;
+  const state = await readState(event, env);
+  await writeState(event, { ...state, lastError: `official ${official.action} failed; inspect the tool error and retry from ${state.phase}` }, env);
+  writeJson(contextOutput("PostToolUseFailure", `[Work Report Insights] Official ${official.action} failed. State remains ${state.phase}; fix the reported cause and retry the same stage.`));
+}
 async function runStop(event, env) {
+  if (event.stop_hook_active === true) return;
   const state = await readState(event, env);
   if (state.phase === "idle" || state.phase === "sealed") return;
   const message = eventAssistantMessage(event);
@@ -558,9 +622,11 @@ async function main() {
   if (event.__parseError) return;
   const env = process.env;
   try {
-    if (mode === "prompt" || mode === "UserPromptSubmit") return;
+    if (mode === "prompt" || mode === "UserPromptSubmit") await runPrompt(event, env);
+    else if (mode === "session" || mode === "SessionStart") await runSession(event, env);
     else if (mode === "pre" || mode === "PreToolUse") await runPre(event, env);
     else if (mode === "post" || mode === "PostToolUse") await runPost(event, env);
+    else if (mode === "failure" || mode === "PostToolUseFailure") await runFailure(event, env);
     else if (mode === "stop" || mode === "Stop") await runStop(event, env);
   } catch (error) {
     if (mode === "pre" || mode === "PreToolUse") {
@@ -575,7 +641,10 @@ var entry = process.argv[1];
 var isMain = Boolean(entry && resolve4(entry) === fileURLToPath2(import.meta.url));
 if (isMain) await main();
 export {
+  runFailure,
   runPost,
   runPre,
+  runPrompt,
+  runSession,
   runStop
 };

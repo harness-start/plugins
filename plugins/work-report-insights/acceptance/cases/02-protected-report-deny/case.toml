@@ -2,3 +2,4 @@ id = "02-protected-report-deny"
 hosts = ["claude", "codex"]
 timeout_sec = 180
 tags = ["pre-tool", "report", "deny"]
+allowed_host_exits_codex = [0, 1, 124]
