@@ -8,6 +8,7 @@ export const MUSIC_WRITERS = [
   "project-lint.mjs",
   "project-optimize.mjs",
   "project-preview.mjs",
+  "project-reference.mjs",
   "project-render.mjs",
   "project-review.mjs",
   "project-stage.mjs",
@@ -19,6 +20,7 @@ const CAPABILITIES: Record<string, string | undefined> = {
   "project-init.mjs": "music-init",
   "project-optimize.mjs": "music-optimize",
   "project-preview.mjs": "music-preview",
+  "project-reference.mjs": "music-reference",
   "project-render.mjs": "music-render",
   "project-review.mjs": "music-review",
   "project-stage.mjs": "music-stage",
@@ -45,7 +47,9 @@ export function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory 
   const extra = words.slice(3);
   const shapeValid = approved.writer === "project-init.mjs"
     ? extra.every((word) => ["--skip-install", "--install-browser"].includes(word)) && new Set(extra).size === extra.length
-    : ["project-advice.mjs", "project-review.mjs"].includes(approved.writer)
+    : approved.writer === "project-reference.mjs"
+      ? words.length === 5
+      : ["project-advice.mjs", "project-review.mjs"].includes(approved.writer)
       ? words.length === 4
       : approved.writer === "project-stage.mjs"
         ? words.length === 4 && words[3] === "release"

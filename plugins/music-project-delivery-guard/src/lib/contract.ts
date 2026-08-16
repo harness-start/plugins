@@ -6,24 +6,39 @@ const SUBJECT_EXCLUDED_PATH = /^(?:plan\.contract\.json$|build\/|proofs\/|dist\/
 const COMPOSITION_OWNER_VIOLATION = /(?:\b(?:fetch|XMLHttpRequest|WebSocket|Date\.now|Math\.random)\b|https?:\/\/|Tone\.(?:Offline|Recorder|start)\b|getTransport\(\)\.(?:start|stop)\s*\()/u;
 const INSTRUMENT_OWNER_VIOLATION = /(?:\b(?:fetch|XMLHttpRequest|WebSocket|Date\.now|Math\.random)\b|https?:\/\/|\.toDestination\s*\(|Tone\.(?:Offline|Recorder|start)\b|getTransport\(\)\.(?:start|stop)\s*\()/u;
 const ROLE = /^(?:bass|drums|fx|harmony|melody|texture)$/u;
-export const MUSIC_ENGINE = "music-project-delivery-guard@0.3.0";
+export const MUSIC_ENGINE = "music-project-delivery-guard@0.4.0";
 export const PLAN_SCHEMA = "music-project-delivery-guard/plan/v1";
-export const BRIEF_SCHEMA = "music-project-delivery-guard/brief/v1";
+export const LEGACY_BRIEF_SCHEMA = "music-project-delivery-guard/brief/v1";
+export const BRIEF_SCHEMA = "music-project-delivery-guard/brief/v2";
 export const DIRECTION_SCHEMA = "music-project-delivery-guard/direction/v1";
 export const ARRANGEMENT_SCHEMA = "music-project-delivery-guard/arrangement/v1";
-export const SKILL_COMPOSITION_SCHEMA = "music-project-delivery-guard/skill-composition/v1";
+export const LEGACY_SKILL_COMPOSITION_SCHEMA = "music-project-delivery-guard/skill-composition/v1";
+export const SKILL_COMPOSITION_SCHEMA = "music-project-delivery-guard/skill-composition/v2";
 export const SKILL_ADVICE_INPUT_SCHEMA = "music-project-delivery-guard/advice-input/v1";
 export const SKILL_ADVICE_SCHEMA = "music-project-delivery-guard/advice/v1";
+export const REFERENCE_SOURCES_INPUT_SCHEMA = "music-project-delivery-guard/reference-sources-input/v1";
+export const REFERENCE_PROFILE_INPUT_SCHEMA = "music-project-delivery-guard/reference-profile-input/v1";
+export const REFERENCE_PROFILE_SCHEMA = "music-project-delivery-guard/reference-profile/v1";
 export const PREVIEW_SCHEMA = "music-project-delivery-guard/preview/v1";
-export const REVIEW_INPUT_SCHEMA = "music-project-delivery-guard/review-input/v1";
-export const REVIEW_SCHEMA = "music-project-delivery-guard/review/v1";
+export const LEGACY_REVIEW_INPUT_SCHEMA = "music-project-delivery-guard/review-input/v1";
+export const REVIEW_INPUT_SCHEMA = "music-project-delivery-guard/review-input/v2";
+export const LEGACY_REVIEW_SCHEMA = "music-project-delivery-guard/review/v1";
+export const REVIEW_SCHEMA = "music-project-delivery-guard/review/v2";
 export const PROJECT_SCHEMA = "music-project-delivery-guard/project/v1";
 
+export const LEGACY_EXTERNAL_SKILLS = [
+  { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
+  { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
+  { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview"] },
+  { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["preview", "review"] },
+] as const;
+
 export const EXTERNAL_SKILLS = [
-  { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", phases: ["brief", "direction", "composition", "arrangement"] },
-  { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", phases: ["brief", "direction", "arrangement"] },
-  { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", phases: ["arrangement", "render", "preview"] },
-  { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", phases: ["preview", "review"] },
+  LEGACY_EXTERNAL_SKILLS[0],
+  LEGACY_EXTERNAL_SKILLS[1],
+  { name: "musical-dna", revision: "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
+  LEGACY_EXTERNAL_SKILLS[2],
+  LEGACY_EXTERNAL_SKILLS[3],
 ] as const;
 
 export type MusicFinding = {
@@ -84,6 +99,59 @@ export function computeMusicSubjectDigest(model: MusicModel) {
     .map(([filePath]) => `${filePath}\0${digestFor(model, filePath)}\n`)
     .join("");
   return sha256(`${MUSIC_ENGINE}\n${records}`);
+}
+
+export function musicBriefSha256(model: MusicModel) {
+  return sha256(model.files?.["plan.brief.json"] ?? "");
+}
+
+export function musicReferenceProfilePath(model: MusicModel) {
+  return `evidence/reference-profile.${musicBriefSha256(model)}.json`;
+}
+
+export function musicReferenceAnalysisRequired(model: MusicModel) {
+  try {
+    const brief = JSON.parse(model.files?.["plan.brief.json"] ?? "null") as unknown;
+    return isRecord(brief) && brief.schema === BRIEF_SCHEMA && isRecord(brief.reference) && brief.reference.mode === "source-analysis";
+  } catch {
+    return false;
+  }
+}
+
+const REFERENCE_DIMENSIONS = ["rhythmicFoundation", "harmonicArchitecture", "instrumentalTechniques", "productionAesthetics", "genreFusion", "energyArchitecture"] as const;
+const TONEJS_MAPPINGS = ["rhythmAndTempo", "harmonyAndVoicing", "timbreAndEffects", "spaceAndDynamics", "formAndEnergy"] as const;
+
+export function validateMusicReferenceProfile(model: MusicModel) {
+  const findings: MusicFinding[] = [];
+  if (!musicReferenceAnalysisRequired(model)) return findings;
+  const path = musicReferenceProfilePath(model);
+  const value = parseJson(model.files, path, findings);
+  const profile = isRecord(value) ? value : {};
+  const brief = (() => { try { return JSON.parse(model.files?.["plan.brief.json"] ?? "null") as unknown; } catch { return null; } })();
+  const reference = isRecord(brief) && isRecord(brief.reference) ? brief.reference : {};
+  const dimensions = isRecord(profile.dimensions) ? profile.dimensions : {};
+  const mapping = isRecord(profile.toneJsMapping) ? profile.toneJsMapping : {};
+  const antiImitation = isRecord(profile.antiImitation) ? profile.antiImitation : {};
+  const traitsValid = REFERENCE_DIMENSIONS.every((key) => Array.isArray(dimensions[key]) && (dimensions[key] as unknown[]).length > 0
+    && (dimensions[key] as unknown[]).every((item) => isRecord(item) && nonEmptyString(item, "trait")
+      && ["observed", "inferred", "user-described"].includes(String(item.basis)) && nonEmptyList(item, "referenceIds")));
+  const mappingsValid = TONEJS_MAPPINGS.every((key) => Array.isArray(mapping[key]) && (mapping[key] as unknown[]).length > 0
+    && (mapping[key] as unknown[]).every((item) => typeof item === "string" && item.trim().length > 0));
+  const descriptors = Array.isArray(profile.descriptors) ? profile.descriptors : [];
+  const unsupportedTraits = Array.isArray(profile.unsupportedTraits) ? profile.unsupportedTraits : [];
+  if (profile.schema !== REFERENCE_PROFILE_SCHEMA || profile.plugin !== "music-project-delivery-guard" || profile.artifactId !== model.artifactId
+    || profile.briefSha256 !== musicBriefSha256(model) || profile.sourceSetSha256 !== reference.sourceSetSha256
+    || profile.skillName !== "musical-dna" || profile.revision !== EXTERNAL_SKILLS[2].revision
+    || profile.ecosystem !== "en" || profile.mode !== "reference-only" || profile.phase !== "reference-analysis"
+    || !Number.isInteger(profile.referenceCount) || Number(profile.referenceCount) < 3 || Number(profile.referenceCount) > 5
+    || !traitsValid || !mappingsValid || descriptors.length < 5 || descriptors.length > 10
+    || descriptors.some((item) => typeof item !== "string" || !item.trim())
+    || unsupportedTraits.some((item) => !isRecord(item) || !nonEmptyString(item, "trait") || !nonEmptyString(item, "reason"))
+    || antiImitation.artistNamesRemoved !== true
+    || antiImitation.signatureMaterialExcluded !== true || antiImitation.imitationPromptExcluded !== true) {
+    findings.push(finding("REFERENCE_PROFILE_INVALID", path, "reference profile must bind the current brief and source manifest, cover all six dimensions, map implementable Tone.js traits, and exclude imitation"));
+  }
+  return findings;
 }
 
 export function musicSourcePaths(model: MusicModel) {
@@ -204,10 +272,20 @@ function validatePlanning(model: MusicModel, findings: MusicFinding[]) {
   const files = model.files ?? {};
   const briefValue = parseJson(files, "plan.brief.json", findings);
   const brief = isRecord(briefValue) ? briefValue : {};
-  if (brief.schema !== BRIEF_SCHEMA || brief.artifactId !== model.artifactId
+  const reference = isRecord(brief.reference) ? brief.reference : {};
+  const referenceMode = String(reference.mode ?? "");
+  const legacyBrief = brief.schema === LEGACY_BRIEF_SCHEMA;
+  const currentBrief = brief.schema === BRIEF_SCHEMA;
+  const referenceValid = legacyBrief
+    ? nonEmptyList(brief, "referenceTraits")
+    : currentBrief && ["none", "traits", "source-analysis"].includes(referenceMode)
+      && (referenceMode !== "source-analysis" || (typeof reference.sourceSetSha256 === "string" && /^[a-f0-9]{64}$/u.test(reference.sourceSetSha256)))
+      && (referenceMode !== "traits" || nonEmptyList(brief, "referenceTraits"));
+  if ((!legacyBrief && !currentBrief) || brief.artifactId !== model.artifactId
     || !["language", "audience", "useCase", "mood", "genre"].every((key) => nonEmptyString(brief, key))
     || !Number.isFinite(brief.durationSeconds) || Number(brief.durationSeconds) <= 0
-    || !["referenceTraits", "structure", "instrumentation", "constraints", "prohibitedDirections", "successCriteria"].every((key) => nonEmptyList(brief, key))) {
+    || !referenceValid
+    || !["structure", "instrumentation", "constraints", "prohibitedDirections", "successCriteria"].every((key) => nonEmptyList(brief, key))) {
     findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind the project and define audience, use, duration, musical intent, constraints, prohibited directions, and success criteria"));
   }
   const directionValue = parseJson(files, "plan.direction.json", findings);
@@ -227,27 +305,44 @@ function validatePlanning(model: MusicModel, findings: MusicFinding[]) {
   const compositionValue = parseJson(files, "plan.skill-composition.json", findings);
   const composition = isRecord(compositionValue) ? compositionValue : {};
   const workers = Array.isArray(composition.workers) ? composition.workers.filter(isRecord) : [];
-  let valid = composition.schema === SKILL_COMPOSITION_SCHEMA && composition.artifactId === model.artifactId && workers.length === EXTERNAL_SKILLS.length;
-  for (const expected of EXTERNAL_SKILLS) {
+  const pool = composition.schema === LEGACY_SKILL_COMPOSITION_SCHEMA
+    ? LEGACY_EXTERNAL_SKILLS
+    : composition.schema === SKILL_COMPOSITION_SCHEMA ? EXTERNAL_SKILLS : [];
+  let valid = pool.length > 0 && composition.artifactId === model.artifactId && workers.length === pool.length;
+  if (currentBrief && composition.schema !== SKILL_COMPOSITION_SCHEMA) valid = false;
+  const referenceFindings = validateMusicReferenceProfile(model);
+  for (const expected of pool) {
     const worker = workers.find((entry) => entry.name === expected.name);
     if (!worker || worker.revision !== expected.revision || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
       || !["used", "skipped"].includes(String(worker.status)) || typeof worker.reason !== "string" || !worker.reason.trim()) valid = false;
+    if (composition.schema === SKILL_COMPOSITION_SCHEMA && worker?.artifactKind !== expected.artifactKind) valid = false;
     if (worker?.status === "used") {
-      const advicePath = `evidence/skills/${expected.name}.json`;
-      if (worker.advicePath !== advicePath) valid = false;
-      const adviceValue = files[advicePath];
-      try {
-        const advice = JSON.parse(adviceValue ?? "null") as Record<string, unknown> | null;
-        if (!advice || advice.schema !== SKILL_ADVICE_SCHEMA || advice.skillName !== expected.name || advice.revision !== expected.revision
-          || advice.subjectDigest !== computeMusicSubjectDigest(model)) valid = false;
-      } catch { valid = false; }
+      if (expected.artifactKind === "reference-profile") {
+        const profilePath = musicReferenceProfilePath(model);
+        if (worker.evidencePath !== profilePath || referenceFindings.length > 0) valid = false;
+      } else {
+        const advicePath = `evidence/skills/${expected.name}.json`;
+        const declaredPath = composition.schema === LEGACY_SKILL_COMPOSITION_SCHEMA ? worker.advicePath : worker.evidencePath;
+        if (declaredPath !== advicePath) valid = false;
+        const adviceValue = files[advicePath];
+        try {
+          const advice = JSON.parse(adviceValue ?? "null") as Record<string, unknown> | null;
+          if (!advice || advice.schema !== SKILL_ADVICE_SCHEMA || advice.skillName !== expected.name || advice.revision !== expected.revision
+            || advice.subjectDigest !== computeMusicSubjectDigest(model)) valid = false;
+        } catch { valid = false; }
+      }
     }
   }
-  for (const phase of ["brief", "direction", "composition", "arrangement", "render", "preview", "review"]) {
-    const active = workers.filter((worker) => worker.status === "used" && EXTERNAL_SKILLS.find((entry) => entry.name === worker.name)?.phases.includes(phase as never));
+  if (composition.schema === SKILL_COMPOSITION_SCHEMA) {
+    const musicalDna = workers.find((entry) => entry.name === "musical-dna");
+    if (referenceMode === "source-analysis" ? musicalDna?.status !== "used" : musicalDna?.status !== "skipped") valid = false;
+  }
+  for (const phase of ["brief", "reference-analysis", "direction", "composition", "arrangement", "render", "preview", "review"]) {
+    const active = workers.filter((worker) => worker.status === "used" && pool.find((entry) => entry.name === worker.name)?.phases.includes(phase as never));
     if (active.length > 3) findings.push(finding("SKILL_COMPOSITION_ACTIVE_LIMIT", "plan.skill-composition.json", `at most three advisers may be active in ${phase}`));
   }
-  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the exact pinned bilingual adviser pool and current digest-bound advice for used workers"));
+  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the exact pinned adviser pool and current evidence for every used worker"));
+  findings.push(...referenceFindings);
 }
 
 function validateProject(model: MusicModel, findings: MusicFinding[]) {
@@ -310,7 +405,8 @@ function validateSourceArtifacts(model: MusicModel, findings: MusicFinding[]) {
 
 export function musicReviewArtifactPaths(model: MusicModel) {
   const paths = musicSourcePaths(model);
-  return [paths.score, paths.metrics, paths.renderReceipt, paths.mix, ...paths.proofs, paths.preview];
+  return [paths.score, paths.metrics, paths.renderReceipt, paths.mix, ...paths.proofs, paths.preview,
+    ...(musicReferenceAnalysisRequired(model) ? [musicReferenceProfilePath(model)] : [])];
 }
 
 export function validateMusicReview(model: MusicModel, { requireApproved = false }: { requireApproved?: boolean } = {}) {
@@ -322,7 +418,13 @@ export function validateMusicReview(model: MusicModel, { requireApproved = false
   const reviewer = isRecord(review.reviewer) ? review.reviewer : {};
   const renderValue = parseJson(model.files, musicSourcePaths(model).renderReceipt, findings);
   const render = isRecord(renderValue) ? renderValue : {};
-  if (review.schema !== REVIEW_SCHEMA || review.artifactId !== model.artifactId || review.subjectDigest !== computeMusicSubjectDigest(model)
+  const expectedReviewSchema = (() => {
+    try {
+      const brief = JSON.parse(model.files?.["plan.brief.json"] ?? "null") as unknown;
+      return isRecord(brief) && brief.schema === BRIEF_SCHEMA ? REVIEW_SCHEMA : LEGACY_REVIEW_SCHEMA;
+    } catch { return LEGACY_REVIEW_SCHEMA; }
+  })();
+  if (review.schema !== expectedReviewSchema || review.artifactId !== model.artifactId || review.subjectDigest !== computeMusicSubjectDigest(model)
     || !["approved", "changes_requested"].includes(String(review.decision)) || !["human", "independent-agent"].includes(String(reviewer.kind))
     || typeof reviewer.sessionId !== "string" || !reviewer.sessionId) findings.push(finding("REVIEW_INVALID", "review.music.json", "review must bind the project, current subject, independent reviewer, and a supported decision"));
   if (reviewer.sessionId && reviewer.sessionId === render.sessionId) findings.push(finding("REVIEW_SELF", "review.music.json", "reviewer session must differ from the session that produced the current render"));
@@ -331,7 +433,8 @@ export function validateMusicReview(model: MusicModel, { requireApproved = false
     findings.push(finding("REVIEW_COVERAGE_INVALID", "review.music.json", "review must cover the exact current score, render, preview, mix, and every stem"));
   }
   const checks = Array.isArray(review.checks) ? review.checks.filter(isRecord) : [];
-  const requiredChecks = ["brief-alignment", "melody-harmony", "rhythm-groove", "form-arrangement", "timbre-orchestration", "balance-space-dynamics", "technical-integrity"];
+  const requiredChecks = ["brief-alignment", "melody-harmony", "rhythm-groove", "form-arrangement", "timbre-orchestration", "balance-space-dynamics", "technical-integrity",
+    ...(musicReferenceAnalysisRequired(model) ? ["reference-profile-alignment"] : [])];
   if (!requiredChecks.every((id) => checks.some((entry) => entry.id === id && ["pass", "fail"].includes(String(entry.status)) && typeof entry.note === "string" && entry.note.trim().length >= 8))) {
     findings.push(finding("REVIEW_CHECKS_INCOMPLETE", "review.music.json", "all musical and technical checks require a pass/fail result and substantive note"));
   }

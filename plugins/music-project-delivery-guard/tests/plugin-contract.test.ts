@@ -18,8 +18,8 @@ test("publishes the renamed music guard with separate authoring and review skill
   const codex = await json(join(pluginRoot, ".codex-plugin", "plugin.json"));
   assert.equal(claude.name, "music-project-delivery-guard");
   assert.equal(codex.name, "music-project-delivery-guard");
-  assert.equal(claude.version, "0.3.0");
-  assert.equal(codex.version, "0.3.0");
+  assert.equal(claude.version, "0.4.0");
+  assert.equal(codex.version, "0.4.0");
 
   const authoring = await readFile(join(pluginRoot, "skills", "music-project-authoring", "SKILL.md"), "utf8");
   const review = await readFile(join(pluginRoot, "skills", "music-project-review", "SKILL.md"), "utf8");
@@ -35,18 +35,24 @@ test("pins a bilingual external adviser pool and exposes controlled seams", asyn
   assert.deepEqual(skills.map(({ name }) => name), [
     "music-composition",
     "miaoxiang-music",
+    "musical-dna",
     "workflow-audio-production",
     "workflow-analysis-quality",
   ]);
   assert.ok(skills.some(({ ecosystem }) => ecosystem === "zh"));
   assert.ok(skills.some(({ ecosystem }) => ecosystem === "en"));
+  const musicalDna = skills.find(({ name }) => name === "musical-dna");
+  assert.deepEqual(musicalDna?.allowFiles, ["SKILL.md"]);
+  assert.equal(musicalDna?.revision, "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32");
+  assert.equal(musicalDna?.subpath, "skills/creative/music/musical-dna");
+  assert.match(String(musicalDna?.license), /declared in SKILL\.md/u);
   for (const skill of skills) {
     assert.match(String(skill.revision), /^[a-f0-9]{40}$/u);
     assert.ok(["adviser", "reference-only"].includes(String(skill.mode)));
   }
   assert.deepEqual(skills.map(({ name, revision, ecosystem, mode }) => ({ name, revision, ecosystem, mode })), EXTERNAL_SKILLS.map(({ name, revision, ecosystem, mode }) => ({ name, revision, ecosystem, mode })));
 
-  for (const entry of ["project-advice", "project-review", "project-stage"]) {
+  for (const entry of ["project-advice", "project-reference", "project-review", "project-stage"]) {
     await readFile(join(pluginRoot, "src", "entries", "cli", `${entry}.ts`), "utf8");
   }
   await readFile(join(pluginRoot, "src", "lib", "capability.ts"), "utf8");

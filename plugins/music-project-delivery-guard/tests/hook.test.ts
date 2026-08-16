@@ -10,6 +10,7 @@ import { consumeMusicWriterCapability } from "../src/lib/capability.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/music-project-delivery-guard.mjs", import.meta.url));
 const RENDER_ENTRY = fileURLToPath(new URL("../dist/cli/project-render.mjs", import.meta.url));
+const REFERENCE_ENTRY = fileURLToPath(new URL("../dist/cli/project-reference.mjs", import.meta.url));
 const INIT_ENTRY = fileURLToPath(new URL("../dist/cli/project-init.mjs", import.meta.url));
 
 async function runPre(command, cwd = process.cwd(), env = process.env) {
@@ -79,6 +80,21 @@ test("issues a bootstrap capability for the exact project initializer", async ()
   assert.equal(grant.sessionId, "init-hook-session");
 });
 
+test("issues a reference capability only for the exact two-input writer command", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "music-hook-reference-"));
+  const root = join(cwd, "artifacts", "music", "study");
+  await mkdir(root, { recursive: true });
+  await writeFile(join(root, "music.project.json"), JSON.stringify({ schema: "music-project-delivery-guard/project/v1", artifactId: "study", tracks: [] }));
+  const sources = join(cwd, "sources.json");
+  const profile = join(cwd, "profile.json");
+  const command = `node "${REFERENCE_ENTRY}" "${root}" "${sources}" "${profile}"`;
+  const result = await runPre(command, cwd, { ...process.env, AI_EXPERTS_SESSION_ID: "reference-hook-session", AI_EXPERTS_TRIGGER_FROM: "test:pre" });
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "");
+  const grant = await consumeMusicWriterCapability({ root, capability: "music-reference", argv: [REFERENCE_ENTRY, root, sources, profile] });
+  assert.equal(grant.sessionId, "reference-hook-session");
+});
+
 test("allows a recursive Stop after the first contract block to prevent a host loop", async () => {
   const cwd = await mkdtemp(join(tmpdir(), "tonejs-stop-loop-"));
   const project = join(cwd, "artifacts", "music", "demo");
@@ -110,4 +126,25 @@ test("denies source edits after the project advances to release", async () => {
   });
   assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
   assert.match(result.stdout, /RELEASE_STAGE_LOCKED/u);
+});
+
+test("denies direction edits while source analysis lacks a current reference profile", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "music-reference-gate-"));
+  const project = join(cwd, "artifacts", "music", "demo");
+  await mkdir(project, { recursive: true });
+  await writeFile(join(project, "plan.brief.json"), JSON.stringify({
+    schema: "music-project-delivery-guard/brief/v2",
+    artifactId: "demo",
+    reference: { mode: "source-analysis", sourceSetSha256: "a".repeat(64) },
+  }));
+  const result = await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [ENTRY, "pre"], { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk; });
+    child.on("error", reject);
+    child.on("close", (code) => resolve({ code, stdout }));
+    child.stdin.end(JSON.stringify({ cwd, tool_name: "Write", tool_input: { file_path: join(project, "plan.direction.json"), content: "{}" } }));
+  });
+  assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  assert.match(result.stdout, /REFERENCE_PROFILE_REQUIRED/u);
 });

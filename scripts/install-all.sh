@@ -882,7 +882,7 @@ local_repo_root() {
   cd "${script_dir}/.." && pwd
 }
 
-# Parse skill-deps JSON → stdout lines: name<TAB>source
+# Parse skill-deps JSON → stdout lines: name<TAB>source<TAB>revision<TAB>subpath
 # Returns 0 when JSON is valid (including empty skills). Returns 1 on parse error.
 parse_skill_deps_json() {
   local json="$1"
@@ -918,6 +918,15 @@ parse_skill_deps_json() {
             or ((.value.source // "") | type != "string")
             or ((.value.source // "") | length == 0)
             or ((.value | has("revision")) and (((.value.revision // "") | type != "string") or ((.value.revision // "") | length == 0)))
+            or ((.value | has("subpath")) and (
+              ((.value.subpath // "") | type != "string")
+              or ((.value.subpath // "") | length == 0)
+              or ((.value.subpath // "") | startswith("/"))
+              or ((.value.subpath // "") | contains("\\"))
+              or (((.value.subpath // "") | test("^[A-Za-z0-9._/-]+$")) | not)
+              or ((.value.subpath // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
+              or ((.value | has("revision")) | not)
+            ))
           )
         | "\(.key)"
       '
@@ -930,14 +939,14 @@ parse_skill_deps_json() {
       .skills[]?
       | select((.name | type == "string") and (.name | length > 0)
                and (.source | type == "string") and (.source | length > 0))
-      | "\(.name)\t\(.source)\t\(.revision // "")"
+      | "\(.name)\t\(.source)\t\(.revision // "")\t\(.subpath // "")"
     '
     return 0
   fi
 
   if have_cmd python3; then
     printf '%s' "${json}" | python3 -c '
-import json, sys
+import json, re, sys
 label = sys.argv[1]
 try:
     data = json.load(sys.stdin)
@@ -961,6 +970,7 @@ for i, item in enumerate(skills):
     name = item.get("name")
     source = item.get("source")
     revision = item.get("revision", "")
+    subpath = item.get("subpath", "")
     if not isinstance(name, str) or not name.strip():
         print(f"error: {label}: skills[{i}].name must be a non-empty string", file=sys.stderr)
         sys.exit(1)
@@ -970,7 +980,12 @@ for i, item in enumerate(skills):
     if not isinstance(revision, str) or ("revision" in item and not revision.strip()):
         print(f"error: {label}: skills[{i}].revision must be a non-empty string when present", file=sys.stderr)
         sys.exit(1)
-    print(f"{name.strip()}\t{source.strip()}\t{revision.strip()}")
+    if "subpath" in item:
+        parts = subpath.split("/") if isinstance(subpath, str) else []
+        if not isinstance(subpath, str) or not subpath or not re.fullmatch(r"[A-Za-z0-9._/-]+", subpath) or subpath.startswith("/") or "\\" in subpath or not revision.strip() or any(not p or p in (".", "..") or p.startswith("-") for p in parts):
+            print(f"error: {label}: skills[{i}].subpath must be a safe relative path with revision", file=sys.stderr)
+            sys.exit(1)
+    print(f"{name.strip()}\t{source.strip()}\t{revision.strip()}\t{subpath.strip()}")
 ' "${plugin_label}"
     return $?
   fi
@@ -980,7 +995,7 @@ for i, item in enumerate(skills):
 }
 
 # Load skill-deps for one plugin name. Prefer local marketplace / clone, else GitHub raw.
-# Emits name<TAB>source lines to stdout. Missing file is not an error.
+# Emits name<TAB>source<TAB>revision<TAB>subpath lines to stdout. Missing file is not an error.
 load_skill_deps_for_plugin() {
   local plugin="$1"
   local root json url label
@@ -1011,11 +1026,11 @@ load_skill_deps_for_plugin() {
 }
 
 # Collect unique skill deps for the given plugin names.
-# Prints name<TAB>source, deduped by skill name (first source wins).
+# Prints parsed dependency lines, deduped by skill name (first identity wins).
 # Sets global SKILL_DEPS_PARSE_FAIL to non-zero when any manifest is invalid.
 collect_skill_deps() {
   local -a plugins=("$@")
-  local plugin lines line name source revision remainder identity
+  local plugin lines line name source revision subpath remainder fields identity
   local -A seen_names=()
   SKILL_DEPS_PARSE_FAIL=0
 
@@ -1037,13 +1052,15 @@ collect_skill_deps() {
       name="${line%%$'\t'*}"
       remainder="${line#*$'\t'}"
       source="${remainder%%$'\t'*}"
-      revision="${remainder#*$'\t'}"
-      [ "${revision}" = "${remainder}" ] && revision=""
+      fields="${remainder#*$'\t'}"
+      revision="${fields%%$'\t'*}"
+      subpath="${fields#*$'\t'}"
+      [ "${subpath}" = "${fields}" ] && subpath=""
       if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
         warn "Skipping malformed skill-deps line from ${plugin}: ${line}"
         continue
       fi
-      identity="${source}@${revision}"
+      identity="${source}@${revision}:${subpath}"
       if [ -n "${seen_names[${name}]+x}" ]; then
         if [ "${seen_names[${name}]}" != "${identity}" ]; then
           warn "Skill ${name} declared with different sources/revisions; keeping ${seen_names[${name}]} (ignoring ${identity} from ${plugin})"
@@ -1051,7 +1068,7 @@ collect_skill_deps() {
         continue
       fi
       seen_names["${name}"]="${identity}"
-      printf '%s\t%s\t%s\n' "${name}" "${source}" "${revision}"
+      printf '%s\t%s\t%s\t%s\n' "${name}" "${source}" "${revision}" "${subpath}"
     done <<<"${lines}"
   done
   return 0
@@ -1078,6 +1095,7 @@ install_global_skill() {
   local name="$1"
   local source="$2"
   local revision="${3:-}"
+  local subpath="${4:-}"
   local -a agents=()
   local -a agent_args=()
   local agent
@@ -1104,6 +1122,21 @@ install_global_skill() {
     install_source="${checkout_root}/repo"
   fi
 
+  if [ -n "${subpath}" ]; then
+    case "${subpath}" in
+      /*|-*|*//*|*\\*|*[^A-Za-z0-9._/-]*) err "Unsafe skill subpath for ${name}: ${subpath}"; [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"; return 1 ;;
+    esac
+    case "/${subpath}/" in
+      */./*|*/../*|*/-*) err "Unsafe skill subpath for ${name}: ${subpath}"; [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"; return 1 ;;
+    esac
+    if [ -z "${checkout_root}" ] || [ ! -f "${checkout_root}/repo/${subpath}/SKILL.md" ] || [ -L "${checkout_root}/repo/${subpath}" ]; then
+      [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
+      err "Skill subpath missing SKILL.md for ${name}: ${subpath}"
+      return 1
+    fi
+    install_source="${checkout_root}/repo/${subpath}"
+  fi
+
   log "Skills: install/update global ${name} from ${source}${revision:+ at ${revision}} (agents: ${agents[*]})"
   # Always re-run add: updates/overwrites existing global install; works even when
   # the skill was previously copied outside the skills CLI lockfile.
@@ -1120,7 +1153,7 @@ install_global_skill() {
 sync_skill_deps() {
   local -a plugins=("$@")
   local failures=0
-  local deps_lines line name source revision remainder
+  local deps_lines line name source revision subpath remainder fields
   local -a dep_arr=()
 
   if [ "${SKIP_SKILL_DEPS}" = "1" ]; then
@@ -1170,10 +1203,12 @@ sync_skill_deps() {
     name="${line%%$'\t'*}"
     remainder="${line#*$'\t'}"
     source="${remainder%%$'\t'*}"
-    revision="${remainder#*$'\t'}"
-    [ "${revision}" = "${remainder}" ] && revision=""
+    fields="${remainder#*$'\t'}"
+    revision="${fields%%$'\t'*}"
+    subpath="${fields#*$'\t'}"
+    [ "${subpath}" = "${fields}" ] && subpath=""
     set +e
-    install_global_skill "${name}" "${source}" "${revision}"
+    install_global_skill "${name}" "${source}" "${revision}" "${subpath}"
     local rc=$?
     set -e
     if [ "${rc}" -ne 0 ]; then
@@ -1222,7 +1257,7 @@ EOF
       local deps_lines
       deps_lines="$(collect_skill_deps "${PLUGINS[@]}" || true)"
       if [ -n "${deps_lines}" ]; then
-        printf '\n# skill-deps (name<TAB>source)\n' >&2
+        printf '\n# skill-deps (name<TAB>source<TAB>revision<TAB>subpath)\n' >&2
         printf '%s\n' "${deps_lines}"
       fi
       if [ "${SKILL_DEPS_PARSE_FAIL:-0}" -gt 0 ]; then

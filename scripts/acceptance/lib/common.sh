@@ -226,7 +226,7 @@ plugin_skill_deps_file() {
   printf '%s/skill-deps.json\n' "${plugin_dir}"
 }
 
-# Parse skill-deps JSON → stdout lines: name<TAB>source.
+# Parse skill-deps JSON → stdout lines: name<TAB>source<TAB>revision<TAB>subpath.
 # Returns 0 for valid object (including empty skills[]). Returns 1 on error.
 parse_skill_deps_json() {
   local json="$1"
@@ -260,6 +260,15 @@ parse_skill_deps_json() {
           or ((.value.source // "") | type != "string")
           or ((.value.source // "") | length == 0)
           or ((.value | has("revision")) and (((.value.revision // "") | type != "string") or ((.value.revision // "") | length == 0)))
+          or ((.value | has("subpath")) and (
+            ((.value.subpath // "") | type != "string")
+            or ((.value.subpath // "") | length == 0)
+            or ((.value.subpath // "") | startswith("/"))
+            or ((.value.subpath // "") | contains("\\"))
+            or (((.value.subpath // "") | test("^[A-Za-z0-9._/-]+$")) | not)
+            or ((.value.subpath // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
+            or ((.value | has("revision")) | not)
+          ))
         )
       | "\(.key)"
     '
@@ -272,7 +281,7 @@ parse_skill_deps_json() {
     .skills[]?
     | select((.name | type == "string") and (.name | length > 0)
              and (.source | type == "string") and (.source | length > 0))
-    | "\(.name)\t\(.source)\t\(.revision // "")"
+    | "\(.name)\t\(.source)\t\(.revision // "")\t\(.subpath // "")"
   '
   return 0
 }
@@ -331,6 +340,7 @@ install_skill_into_home() {
   local source="$2"
   local host="${3:-both}"
   local revision="${4:-}"
+  local subpath="${5:-}"
   local agent
   local -a agent_args=()
   local install_source="${source}"
@@ -365,6 +375,21 @@ install_skill_into_home() {
     install_source="${checkout_root}/repo"
   fi
 
+  if [ -n "${subpath}" ]; then
+    case "${subpath}" in
+      /*|-*|*//*|*\\*|*[^A-Za-z0-9._/-]*) printf 'skill-deps: unsafe subpath for %s: %s\n' "${name}" "${subpath}" >&2; [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"; return 1 ;;
+    esac
+    case "/${subpath}/" in
+      */./*|*/../*|*/-*) printf 'skill-deps: unsafe subpath for %s: %s\n' "${name}" "${subpath}" >&2; [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"; return 1 ;;
+    esac
+    if [ -z "${checkout_root}" ] || [ ! -f "${checkout_root}/repo/${subpath}/SKILL.md" ] || [ -L "${checkout_root}/repo/${subpath}" ]; then
+      [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
+      printf 'skill-deps: subpath missing a regular skill for %s: %s\n' "${name}" "${subpath}" >&2
+      return 1
+    fi
+    install_source="${checkout_root}/repo/${subpath}"
+  fi
+
   printf 'skill-deps: install %s from %s%s (HOME=%s agents=%s)\n' \
     "${name}" "${source}" "${revision:+ at ${revision}}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
 
@@ -392,7 +417,7 @@ populate_skill_deps_cache_home() {
   local plugin_dir="$1"
   local cache_home="$2"
   local host="${3:-both}"
-  local deps_file line name source revision remainder
+  local deps_file line name source revision subpath remainder fields
   local -a deps=()
 
   deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
@@ -429,13 +454,15 @@ populate_skill_deps_cache_home() {
       name="${line%%$'\t'*}"
       remainder="${line#*$'\t'}"
       source="${remainder%%$'\t'*}"
-      revision="${remainder#*$'\t'}"
-      [ "${revision}" = "${remainder}" ] && revision=""
+      fields="${remainder#*$'\t'}"
+      revision="${fields%%$'\t'*}"
+      subpath="${fields#*$'\t'}"
+      [ "${subpath}" = "${fields}" ] && subpath=""
       if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
         printf 'skill-deps: malformed line in %s: %s\n' "${deps_file}" "${line}" >&2
         exit 1
       fi
-      install_skill_into_home "${name}" "${source}" "${host}" "${revision}" || exit 1
+      install_skill_into_home "${name}" "${source}" "${host}" "${revision}" "${subpath}" || exit 1
     done
   )
 }

@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 import {
   collectMusicModel,
   releaseProject
-} from "../chunks/chunk-WIQQJUMV.mjs";
+} from "../chunks/chunk-C5T2T6QC.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-LUXGHUEP.mjs";
+} from "../chunks/chunk-JH77OJDC.mjs";
 import {
   computeMusicSubjectDigest
-} from "../chunks/chunk-CA6YKXLK.mjs";
+} from "../chunks/chunk-3BB6Q6R4.mjs";
 
 // plugins/music-project-delivery-guard/src/entries/cli/project-release.ts
 import { resolve } from "node:path";

@@ -11,7 +11,7 @@ import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/c
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { issueMusicWriterCapability } from "../../lib/capability.js";
-import { computeMusicSubjectDigest, evaluateMusicWrite, validateMusicModel, type MusicFinding, type MusicProjectConfig } from "../../lib/contract.js";
+import { computeMusicSubjectDigest, evaluateMusicWrite, validateMusicModel, validateMusicReferenceProfile, type MusicFinding, type MusicProjectConfig } from "../../lib/contract.js";
 import { evaluateMusicShell } from "../../lib/shell-policy.js";
 
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
@@ -64,6 +64,11 @@ function format(findings: HookFinding[]) {
   ].join("\n");
 }
 
+function isReferenceDownstreamPath(projectRoot: string, target: string) {
+  const path = relative(projectRoot, target).replaceAll("\\", "/");
+  return path === "plan.direction.json" || path === "plan.arrangement.json" || path === "src/composition.mjs" || path.startsWith("src/instruments/");
+}
+
 async function main() {
   const mode = process.argv[2] ?? "session";
   const event = await readStdinJson();
@@ -92,6 +97,13 @@ async function main() {
             writeJson(deny("RELEASE_STAGE_LOCKED: source and plan files cannot be edited after the monotonic release transition"));
             return;
           }
+          if (isReferenceDownstreamPath(projectMatch.groups.root, absoluteTarget)) {
+            const model = { artifactId: basename(projectMatch.groups.root), files: collected.files, digests: collected.digests };
+            if (validateMusicReferenceProfile(model).length > 0) {
+              writeJson(deny("REFERENCE_PROFILE_REQUIRED: source-analysis briefs require a current controlled reference profile before direction or source edits"));
+              return;
+            }
+          }
         } catch { /* malformed projects are reported by post/stop validation */ }
       }
     }
@@ -105,7 +117,7 @@ async function main() {
       const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
       if (shell.writer === "project-init.mjs") {
         try {
-          const subjectDigest = createHash("sha256").update(`music-project-delivery-guard@0.3.0\ninit\0${shell.projectRoot}`).digest("hex");
+          const subjectDigest = createHash("sha256").update(`music-project-delivery-guard@0.4.0\ninit\0${shell.projectRoot}`).digest("hex");
           await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest, sessionId, ...(process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {}) });
         } catch (error) {
           writeJson(deny(error instanceof Error ? error.message : String(error)));
@@ -117,6 +129,8 @@ async function main() {
       const model = { artifactId: basename(shell.projectRoot), files: collected.files, digests: collected.digests, plan: parsed("plan.contract.json"), project: parsed("music.project.json") as MusicProjectConfig | null };
       try {
         if (isRecord(model.plan) && model.plan.targetStage === "release" && shell.writer !== "project-release.mjs") throw new Error("RELEASE_STAGE_LOCKED");
+        if (["project-optimize.mjs", "project-render.mjs", "project-preview.mjs", "project-review.mjs", "project-stage.mjs", "project-release.mjs"].includes(shell.writer)
+          && validateMusicReferenceProfile(model).length > 0) throw new Error("REFERENCE_PROFILE_REQUIRED");
         await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest: computeMusicSubjectDigest(model), sessionId, ...(process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {}) });
       } catch (error) {
         writeJson(deny(error instanceof Error ? error.message : String(error)));

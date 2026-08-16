@@ -5,7 +5,7 @@ import { mkdir, readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
 import { consumeMusicWriterCapability, processMusicWriterArgv } from "../../lib/capability.js";
-import { EXTERNAL_SKILLS, SKILL_ADVICE_INPUT_SCHEMA, SKILL_ADVICE_SCHEMA, SKILL_COMPOSITION_SCHEMA, computeMusicSubjectDigest } from "../../lib/contract.js";
+import { EXTERNAL_SKILLS, LEGACY_SKILL_COMPOSITION_SCHEMA, SKILL_ADVICE_INPUT_SCHEMA, SKILL_ADVICE_SCHEMA, SKILL_COMPOSITION_SCHEMA, computeMusicSubjectDigest } from "../../lib/contract.js";
 import { collectMusicModel } from "../../lib/release.js";
 import { atomicWriteMusicJson, musicSessionMetadata, withMusicJournal } from "../../lib/writer.js";
 
@@ -28,7 +28,12 @@ async function main() {
   const composition = record(JSON.parse(model.files?.["plan.skill-composition.json"] ?? "null"));
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
   const worker = workers.find((entry) => entry.name === payload.skillName);
-  if (composition.schema !== SKILL_COMPOSITION_SCHEMA || !expected || !worker || worker.status !== "used" || worker.revision !== expected.revision
+  const supportedComposition = composition.schema === SKILL_COMPOSITION_SCHEMA || composition.schema === LEGACY_SKILL_COMPOSITION_SCHEMA;
+  const expectedEvidencePath = `evidence/skills/${expected?.name ?? ""}.json`;
+  const declaredEvidencePath = composition.schema === SKILL_COMPOSITION_SCHEMA ? worker?.evidencePath : worker?.advicePath;
+  if (!supportedComposition || !expected || expected.artifactKind !== "advice" || !worker || worker.status !== "used" || worker.revision !== expected.revision
+    || (composition.schema === SKILL_COMPOSITION_SCHEMA && worker.artifactKind !== "advice")
+    || declaredEvidencePath !== expectedEvidencePath
     || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode
     || !expected.phases.includes(payload.phase as never)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
   if (!Array.isArray(payload.recommendations) || !Array.isArray(payload.adopted) || !Array.isArray(payload.rejected) || typeof payload.summary !== "string" || !payload.summary.trim()) throw new Error("ADVICE_RESULT_INCOMPLETE");

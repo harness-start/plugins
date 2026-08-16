@@ -298,6 +298,21 @@ check_skill_deps() {
       exit 1
     fi
 
+    if ! jq -e '
+      .skills
+      | all(
+          (has("subpath") | not)
+          or (
+            (.subpath | type == "string" and length > 0 and test("^[A-Za-z0-9._/-]+$") and (startswith("/") | not) and (contains("\\") | not))
+            and (.subpath | split("/") | all(length > 0 and . != "." and . != ".." and (startswith("-") | not)))
+            and (.revision | type == "string" and length > 0)
+          )
+        )
+    ' "${deps_file}" >/dev/null; then
+      printf 'skills[].subpath must be a safe relative path and requires revision: %s\n' "${deps_file}" >&2
+      exit 1
+    fi
+
     # Optional description must be a string when present.
     if ! jq -e '
       .skills

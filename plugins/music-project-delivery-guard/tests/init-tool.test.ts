@@ -16,7 +16,7 @@ test("initializes a code-managed mathematical music project without installing w
   try {
     const root = join(workspace, "artifacts", "music", "study");
     const argv = [ENTRY, root, "--skip-install"];
-    const subjectDigest = createHash("sha256").update(`music-project-delivery-guard@0.3.0\ninit\0${root}`).digest("hex");
+    const subjectDigest = createHash("sha256").update(`music-project-delivery-guard@0.4.0\ninit\0${root}`).digest("hex");
     await issueMusicWriterCapability({ root, capability: "music-init", argv, subjectDigest, sessionId: "init-session", triggerFrom: "test" });
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, argv, { stdio: ["ignore", "pipe", "pipe"] });
@@ -36,9 +36,10 @@ test("initializes a code-managed mathematical music project without installing w
     assert.equal(project.artifactId, "study");
     assert.equal(project.schema, "music-project-delivery-guard/project/v1");
     assert.equal(brief.artifactId, "study");
+    assert.equal(brief.schema, "music-project-delivery-guard/brief/v2");
     assert.equal(direction.artifactId, "study");
     assert.equal(arrangement.artifactId, "study");
-    assert.equal(skillComposition.workers.length, 4);
+    assert.equal(skillComposition.workers.length, 5);
     assert.match(composition, /tonejs-composition\/v1/u);
   } finally {
     await rm(workspace, { recursive: true, force: true });

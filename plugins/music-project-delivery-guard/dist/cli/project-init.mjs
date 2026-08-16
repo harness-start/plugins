@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-LUXGHUEP.mjs";
+} from "../chunks/chunk-JH77OJDC.mjs";
 
 // plugins/music-project-delivery-guard/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -40,7 +40,7 @@ async function writeJson(filePath, value) {
 async function main() {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id)) throw new Error("music id must be kebab-case");
   const grant = await consumeMusicWriterCapability({ root, capability: "music-init", argv: processMusicWriterArgv() });
-  const expectedSubject = createHash("sha256").update(`music-project-delivery-guard@0.3.0
+  const expectedSubject = createHash("sha256").update(`music-project-delivery-guard@0.4.0
 init\0${root}`).digest("hex");
   if (grant.subjectDigest !== expectedSubject) throw new Error("WRITER_SUBJECT_CHANGED");
   process.env.AI_EXPERTS_SESSION_ID = grant.sessionId;
@@ -52,7 +52,7 @@ init\0${root}`).digest("hex");
     writeFile(join(root, ".gitignore"), "node_modules/\n.cache/\n.tmp/\n", { flag: "wx" }),
     writeJson(join(root, "package.json"), {
       name: `music-project-${id}`,
-      version: "0.3.0",
+      version: "0.4.0",
       private: true,
       type: "module"
     }),
@@ -62,7 +62,7 @@ init\0${root}`).digest("hex");
       targetStage: "source"
     }),
     writeJson(join(root, "plan.brief.json"), {
-      schema: "music-project-delivery-guard/brief/v1",
+      schema: "music-project-delivery-guard/brief/v2",
       artifactId: id,
       language: "en",
       audience: "general listeners",
@@ -70,6 +70,7 @@ init\0${root}`).digest("hex");
       durationSeconds: 8,
       mood: "focused and optimistic",
       genre: "electronic pop",
+      reference: { mode: "traits" },
       referenceTraits: ["clear four-bar hook"],
       structure: ["main"],
       instrumentation: ["synth lead"],
@@ -97,13 +98,14 @@ init\0${root}`).digest("hex");
       mixIntent: "Intelligible melody without clipping or DC offset."
     }),
     writeJson(join(root, "plan.skill-composition.json"), {
-      schema: "music-project-delivery-guard/skill-composition/v1",
+      schema: "music-project-delivery-guard/skill-composition/v2",
       artifactId: id,
       workers: [
-        { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", status: "skipped", reason: "Select when external composition advice is needed." },
-        { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
-        { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "Select for arrangement, mix, or preview guidance." },
-        { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "Select in the independent review phase for audio QC guidance." }
+        { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
+        { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
+        { name: "musical-dna", revision: "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
+        { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, or preview guidance." },
+        { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select in the independent review phase for audio QC guidance." }
       ]
     }),
     writeJson(join(root, "music.project.json"), {

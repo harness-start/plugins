@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 import {
   MUSIC_ENGINE
-} from "./chunk-CA6YKXLK.mjs";
+} from "./chunk-3BB6Q6R4.mjs";
 
 // plugins/music-project-delivery-guard/src/lib/composition-loader.ts
 import { spawn } from "node:child_process";

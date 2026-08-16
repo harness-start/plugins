@@ -4,7 +4,10 @@ import test from "node:test";
 
 import {
   computeMusicSubjectDigest,
+  musicBriefSha256,
+  musicReferenceProfilePath,
   musicReviewArtifactPaths,
+  musicSourcePaths,
   validateMusicModel,
   validateMusicReview,
 } from "../src/lib/contract.js";
@@ -86,6 +89,62 @@ function approvedReviewModel() {
   return model;
 }
 
+function referenceDesignModel() {
+  const model = validModel();
+  for (const filePath of Object.keys(model.files)) {
+    if (/^(?:build|proofs|evidence)\//u.test(filePath)) delete model.files[filePath];
+  }
+  model.files["plan.brief.json"] = JSON.stringify({
+    schema: "music-project-delivery-guard/brief/v2",
+    artifactId: model.artifactId,
+    language: "en",
+    audience: "listeners",
+    useCase: "cue",
+    durationSeconds: 8,
+    mood: "bright",
+    genre: "electronic",
+    reference: { mode: "source-analysis", sourceSetSha256: "a".repeat(64) },
+    referenceTraits: [],
+    structure: ["main"],
+    instrumentation: ["lead"],
+    constraints: ["synth only"],
+    prohibitedDirections: ["copying"],
+    successCriteria: ["clear motif"],
+  });
+  const profilePath = musicReferenceProfilePath(model);
+  model.files["plan.skill-composition.json"] = JSON.stringify({
+    schema: "music-project-delivery-guard/skill-composition/v2",
+    artifactId: model.artifactId,
+    workers: [
+      { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "musical-dna", revision: "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "used", reason: "source analysis", evidencePath: profilePath },
+      { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+    ],
+  });
+  const trait = [{ trait: "syncopated pulse", basis: "observed", referenceIds: ["r1"] }];
+  model.files[profilePath] = JSON.stringify({
+    schema: "music-project-delivery-guard/reference-profile/v1",
+    plugin: "music-project-delivery-guard",
+    artifactId: model.artifactId,
+    briefSha256: musicBriefSha256(model),
+    sourceSetSha256: "a".repeat(64),
+    referenceCount: 3,
+    skillName: "musical-dna",
+    revision: "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32",
+    ecosystem: "en",
+    mode: "reference-only",
+    phase: "reference-analysis",
+    dimensions: { rhythmicFoundation: trait, harmonicArchitecture: trait, instrumentalTechniques: trait, productionAesthetics: trait, genreFusion: trait, energyArchitecture: trait },
+    descriptors: ["syncopated pulse", "slow harmony", "short attacks", "dry center", "energy lift"],
+    toneJsMapping: { rhythmAndTempo: ["syncopation"], harmonyAndVoicing: ["close voices"], timbreAndEffects: ["short envelope"], spaceAndDynamics: ["dry center"], formAndEnergy: ["final lift"] },
+    unsupportedTraits: [],
+    antiImitation: { artistNamesRemoved: true, signatureMaterialExcluded: true, imitationPromptExcluded: true },
+  });
+  return model;
+}
+
 test("accepts source artifacts bound to the current mathematical composition digest", () => {
   assert.deepEqual(validateMusicModel(validModel(), { stage: "source" }), []);
 });
@@ -138,4 +197,28 @@ test("invalidates review coverage when a rendered artifact changes", () => {
   const mixPath = Object.keys(model.files).find((path) => path.startsWith("build/mix."));
   model.files[mixPath] = "RIFF0000WAVE-CHANGED";
   assert.ok(validateMusicReview(model, { requireApproved: true }).some(({ code }) => code === "REVIEW_COVERAGE_INVALID"));
+});
+
+test("requires a current anonymous reference profile for source-analysis design", () => {
+  const model = referenceDesignModel();
+  const profilePath = musicReferenceProfilePath(model);
+  assert.deepEqual(validateMusicModel(model, { stage: "design" }), []);
+  assert.equal(musicReviewArtifactPaths(model).at(-1), profilePath);
+  model.files["plan.brief.json"] = model.files["plan.brief.json"].replace('"bright"', '"dark"');
+  assert.ok(validateMusicModel(model, { stage: "design" }).some(({ code }) => code === "REFERENCE_PROFILE_INVALID" || code === "REQUIRED_PATH_MISSING"));
+});
+
+test("requires reference-profile-alignment in a source-analysis review", () => {
+  const model = referenceDesignModel();
+  const artifactPaths = musicReviewArtifactPaths(model);
+  const renderPath = musicSourcePaths(model).renderReceipt;
+  for (const path of artifactPaths) model.files[path] ??= "{}";
+  model.files[renderPath] = JSON.stringify({ sessionId: "author-session" });
+  const coverage = artifactPaths.map((path) => ({ path, sha256: createHash("sha256").update(model.files[path]).digest("hex") }));
+  const checks = ["brief-alignment", "melody-harmony", "rhythm-groove", "form-arrangement", "timbre-orchestration", "balance-space-dynamics", "technical-integrity"].map((id) => ({ id, status: "pass", note: `${id} passes current evidence.` }));
+  model.files["review.music.json"] = JSON.stringify({ schema: "music-project-delivery-guard/review/v2", artifactId: model.artifactId, subjectDigest: computeMusicSubjectDigest(model), decision: "approved", reviewer: { kind: "independent-agent", id: "reviewer", sessionId: "review-session" }, coverage, checks, findings: [] });
+  assert.ok(validateMusicReview(model, { requireApproved: true }).some(({ code }) => code === "REVIEW_CHECKS_INCOMPLETE"));
+  checks.push({ id: "reference-profile-alignment", status: "pass", note: "Anonymous traits are audible without signature copying." });
+  model.files["review.music.json"] = JSON.stringify({ ...JSON.parse(model.files["review.music.json"]), checks });
+  assert.equal(validateMusicReview(model, { requireApproved: true }).some(({ code }) => code === "REVIEW_CHECKS_INCOMPLETE"), false);
 });

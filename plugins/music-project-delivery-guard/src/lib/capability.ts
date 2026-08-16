@@ -3,7 +3,7 @@ import { chmod, lstat, mkdir, readFile, realpath, unlink, writeFile } from "node
 import { join, resolve } from "node:path";
 
 const TTL_MS = 30_000;
-const CAPABILITY = /^music-(?:init|advice|optimize|render|preview|stage|review|release)$/u;
+const CAPABILITY = /^music-(?:init|advice|reference|optimize|render|preview|stage|review|release)$/u;
 
 export type MusicWriterGrant = {
   schema: string;

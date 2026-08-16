@@ -1,7 +1,7 @@
 {
   "name": "music-project-delivery-guard",
-  "version": "0.3.0",
-  "description": "Guards a code-managed music workflow from brief and composition through independent review and digest-bound release.",
+  "version": "0.4.0",
+  "description": "Guards a code-managed music workflow from brief and reference analysis through independent review and digest-bound release.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "Music Project Delivery Guard",
     "shortDescription": "Compose, review, render, and prove coded music.",
-    "longDescription": "Orchestrates a brief-to-release Tone.js workflow with pinned external advisers, deterministic rendering, independent listening review, and digest-bound evidence.",
+    "longDescription": "Orchestrates a brief-to-release Tone.js workflow with pinned external advisers, conditional name-free reference analysis, deterministic rendering, independent listening review, and digest-bound evidence.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],
