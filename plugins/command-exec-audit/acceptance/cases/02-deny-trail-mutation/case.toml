@@ -1,4 +1,0 @@
-id = "02-deny-trail-mutation"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["pre-tool", "command-exec-audit", "protect"]

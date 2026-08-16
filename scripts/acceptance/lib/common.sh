@@ -259,7 +259,7 @@ parse_skill_deps_json() {
           or ((.value.name // "") | length == 0)
           or ((.value.source // "") | type != "string")
           or ((.value.source // "") | length == 0)
-          or ((.value | has("revision")) and (((.value.revision // "") | type != "string") or ((.value.revision // "") | length == 0)))
+          or (((.value.revision // "") | type != "string") or (((.value.revision // "") | test("^[0-9a-f]{40}$")) | not))
           or ((.value | has("subpath")) and (
             ((.value.subpath // "") | type != "string")
             or ((.value.subpath // "") | length == 0)
@@ -269,12 +269,28 @@ parse_skill_deps_json() {
             or ((.value.subpath // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
             or ((.value | has("revision")) | not)
           ))
+          or ((.value | has("execution")) and (
+            (.value.mode != "audited-executable")
+            or ((.value.execution | type) != "object")
+            or (.value.execution.approved != true)
+            or ((.value.execution.paths | type) != "array")
+            or ((.value.execution.paths | length) == 0)
+            or (.value.execution.paths | any(
+              (type != "object")
+              or ((.path // "") | type != "string")
+              or (((.path // "") | test("^[A-Za-z0-9._/-]+$")) | not)
+              or ((.path // "") | startswith("/"))
+              or ((.path // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
+              or ((.sha256 // "") | test("^[0-9a-f]{64}$") | not)
+            ))
+          ))
+          or ((.value.mode // "") == "audited-executable" and ((.value | has("execution")) | not))
         )
       | "\(.key)"
     '
   )"
   if [ -n "${bad}" ]; then
-    printf '%s: each skills[] entry needs non-empty string name and source\n' "${label}" >&2
+    printf '%s: each skills[] entry needs name, source, and an exact lowercase commit revision\n' "${label}" >&2
     return 1
   fi
   printf '%s' "${json}" | jq -r '

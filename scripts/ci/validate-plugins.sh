@@ -128,7 +128,7 @@ check_scripts() {
   bash -n scripts/install-all.sh
   printf 'Checking scripts/install-all.sh --list-only (offline-friendly)\n'
   # Prefer local marketplace.json when network is blocked; still exercises the script.
-  bash scripts/install-all.sh --list-only >/dev/null
+  bash scripts/install-all.sh --local . --list-only --skip-missing-hosts >/dev/null
 }
 
 check_unit_tests() {
@@ -256,11 +256,12 @@ check_manifest_versions() {
 }
 
 check_skill_deps() {
-  log "Checking optional skill-deps.json manifests"
+  log "Checking pinned, non-conflicting community skill-deps.json manifests"
   require_cmd jq
 
   local plugin name deps_file count
   local found=0
+  local identity_rows=""
 
   for plugin in plugins/*; do
     [ -d "${plugin}" ] || continue
@@ -289,11 +290,11 @@ check_skill_deps() {
       .skills
       | all(
           type == "object"
-          and (.name | type == "string" and length > 0)
-          and (.source | type == "string" and length > 0)
+          and (.name | type == "string" and test("^[A-Za-z0-9._-]+$"))
+          and (.source | type == "string" and test("^https://"))
         )
     ' "${deps_file}" >/dev/null; then
-      printf 'Each skills[] entry needs non-empty string name and source: %s\n' \
+      printf 'Each skills[] entry needs a safe name and HTTPS source: %s\n' \
         "${deps_file}" >&2
       exit 1
     fi
@@ -326,17 +327,48 @@ check_skill_deps() {
       exit 1
     fi
 
-    if ! jq -e '
-      .skills
-      | all(
-          (has("revision") | not)
-          or (.revision | type == "string" and length > 0 and test("^[A-Za-z0-9._/-]+$") and (startswith("-") | not) and (contains("..") | not))
-        )
-    ' "${deps_file}" >/dev/null; then
-      printf 'skills[].revision must be a safe non-empty Git revision when present: %s\n' \
+    if ! jq -e '.skills | all(.revision | type == "string" and test("^[0-9a-f]{40}$"))' "${deps_file}" >/dev/null; then
+      printf 'skills[].revision must be an exact lowercase 40-character commit: %s\n' \
         "${deps_file}" >&2
       exit 1
     fi
+
+    if ! jq -e '
+      .skills | all(
+        ((has("required") | not) or (.required | type == "boolean"))
+        and ((has("mode") | not) or (.mode | type == "string" and length > 0))
+        and ((has("allowFiles") | not) or (
+          (.allowFiles | type == "array" and length > 0)
+          and (.allowFiles | all(
+            type == "string" and test("^[A-Za-z0-9._/-]+$")
+            and (startswith("/") | not) and (contains("\\") | not)
+            and (split("/") | all(length > 0 and . != "." and . != ".." and (startswith("-") | not)))
+          ))
+        ))
+        and ((has("execution") | not) or (
+          .mode == "audited-executable"
+          and (.execution | type == "object")
+          and .execution.approved == true
+          and (.execution.paths | type == "array" and length > 0)
+          and (.execution.paths | all(
+            type == "object"
+            and (.path | type == "string" and test("^[A-Za-z0-9._/-]+$") and (startswith("/") | not) and (contains("\\") | not))
+            and (.path | split("/") | all(length > 0 and . != "." and . != ".." and (startswith("-") | not)))
+            and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
+          ))
+        ))
+        and ((.mode // "") != "audited-executable" or has("execution"))
+      )
+    ' "${deps_file}" >/dev/null; then
+      printf 'skills[] optional fields or audited executable declaration are invalid: %s\n' \
+        "${deps_file}" >&2
+      exit 1
+    fi
+
+    while IFS=$'\t' read -r dep_name dep_source dep_revision dep_subpath; do
+      [ -n "${dep_name}" ] || continue
+      identity_rows+="${dep_name}"$'\t'"${dep_source}"$'\t'"${dep_revision}"$'\t'"${dep_subpath}"$'\n'
+    done < <(jq -r '.skills[] | [.name, .source, .revision, (.subpath // "")] | @tsv' "${deps_file}")
 
     printf '%s: %s skill-dep(s)\n' "${name}" "${count}"
     jq -r '.skills[] | "  - \(.name) <= \(.source)"' "${deps_file}"
@@ -346,6 +378,22 @@ check_skill_deps() {
     printf 'No skill-deps.json files present (optional)\n'
   else
     printf 'Validated %s skill-deps.json file(s)\n' "${found}"
+  fi
+
+  local conflicts
+  conflicts="$(
+    printf '%s' "${identity_rows}" | sort -u | awk -F '\t' '
+      NF >= 3 {
+        identity = $2 FS $3 FS $4
+        if (($1 in seen) && seen[$1] != identity) conflict[$1] = 1
+        else seen[$1] = identity
+      }
+      END { for (name in conflict) print name }
+    ' | sort
+  )"
+  if [ -n "${conflicts}" ]; then
+    printf 'Community Skill names resolve to multiple identities:\n%s\n' "${conflicts}" >&2
+    exit 1
   fi
 }
 

@@ -1,0 +1,16 @@
+{
+  "name": "engineering-quality",
+  "version": "0.2.0",
+  "description": "Enforces source checks, file line budgets, and Markdown structure after edits.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Engineering Quality",
+    "shortDescription": "Source, line-budget, and Markdown quality enforcement.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

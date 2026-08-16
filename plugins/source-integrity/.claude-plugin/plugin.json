@@ -1,0 +1,10 @@
+{
+  "name": "source-integrity",
+  "version": "0.3.0",
+  "description": "Blocks backup artifacts and obvious replacement-character corruption in source files.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

@@ -840,7 +840,7 @@ write_language_profile() {
     codex) config_root="${CODEX_HOME:-$HOME/.codex}" ;;
     *) err "unsupported language profile host: ${host}"; return 1 ;;
   esac
-  path="${config_root}/harness-start/language-output-governance.json"
+  path="${config_root}/harness-start/language-output.json"
 
   if [ "${DRY_RUN}" = "1" ]; then
     log "${host}: would set language profile ${LANGUAGE_PROFILE} in ${path}"
@@ -917,7 +917,7 @@ parse_skill_deps_json() {
             or ((.value.name // "") | length == 0)
             or ((.value.source // "") | type != "string")
             or ((.value.source // "") | length == 0)
-            or ((.value | has("revision")) and (((.value.revision // "") | type != "string") or ((.value.revision // "") | length == 0)))
+            or (((.value.revision // "") | type != "string") or (((.value.revision // "") | test("^[0-9a-f]{40}$")) | not))
             or ((.value | has("subpath")) and (
               ((.value.subpath // "") | type != "string")
               or ((.value.subpath // "") | length == 0)
@@ -927,12 +927,28 @@ parse_skill_deps_json() {
               or ((.value.subpath // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
               or ((.value | has("revision")) | not)
             ))
+            or ((.value | has("execution")) and (
+              (.value.mode != "audited-executable")
+              or ((.value.execution | type) != "object")
+              or (.value.execution.approved != true)
+              or ((.value.execution.paths | type) != "array")
+              or ((.value.execution.paths | length) == 0)
+              or (.value.execution.paths | any(
+                (type != "object")
+                or ((.path // "") | type != "string")
+                or (((.path // "") | test("^[A-Za-z0-9._/-]+$")) | not)
+                or ((.path // "") | startswith("/"))
+                or ((.path // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
+                or ((.sha256 // "") | test("^[0-9a-f]{64}$") | not)
+              ))
+            ))
+            or ((.value.mode // "") == "audited-executable" and ((.value | has("execution")) | not))
           )
         | "\(.key)"
       '
     )"
     if [ -n "${bad}" ]; then
-      err "${plugin_label}: each skills[] entry needs non-empty string name/source and an optional non-empty string revision"
+      err "${plugin_label}: each skills[] entry needs non-empty string name/source and an exact 40-character lowercase commit revision"
       return 1
     fi
     printf '%s' "${json}" | jq -r '
@@ -977,14 +993,27 @@ for i, item in enumerate(skills):
     if not isinstance(source, str) or not source.strip():
         print(f"error: {label}: skills[{i}].source must be a non-empty string", file=sys.stderr)
         sys.exit(1)
-    if not isinstance(revision, str) or ("revision" in item and not revision.strip()):
-        print(f"error: {label}: skills[{i}].revision must be a non-empty string when present", file=sys.stderr)
+    if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-f]{40}", revision):
+        print(f"error: {label}: skills[{i}].revision must be an exact lowercase commit SHA", file=sys.stderr)
         sys.exit(1)
     if "subpath" in item:
         parts = subpath.split("/") if isinstance(subpath, str) else []
         if not isinstance(subpath, str) or not subpath or not re.fullmatch(r"[A-Za-z0-9._/-]+", subpath) or subpath.startswith("/") or "\\" in subpath or not revision.strip() or any(not p or p in (".", "..") or p.startswith("-") for p in parts):
             print(f"error: {label}: skills[{i}].subpath must be a safe relative path with revision", file=sys.stderr)
             sys.exit(1)
+    execution = item.get("execution")
+    if item.get("mode") == "audited-executable" or execution is not None:
+        paths = execution.get("paths") if isinstance(execution, dict) else None
+        if item.get("mode") != "audited-executable" or not isinstance(execution, dict) or execution.get("approved") is not True or not isinstance(paths, list) or not paths:
+            print(f"error: {label}: skills[{i}].execution must be approved and non-empty only for audited-executable mode", file=sys.stderr)
+            sys.exit(1)
+        for asset in paths:
+            path = asset.get("path") if isinstance(asset, dict) else None
+            digest = asset.get("sha256") if isinstance(asset, dict) else None
+            parts = path.split("/") if isinstance(path, str) else []
+            if not isinstance(path, str) or not re.fullmatch(r"[A-Za-z0-9._/-]+", path) or path.startswith("/") or any(not p or p in (".", "..") or p.startswith("-") for p in parts) or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+                print(f"error: {label}: skills[{i}] has an invalid audited executable path or SHA-256", file=sys.stderr)
+                sys.exit(1)
     print(f"{name.strip()}\t{source.strip()}\t{revision.strip()}\t{subpath.strip()}")
 ' "${plugin_label}"
     return $?
@@ -1026,7 +1055,7 @@ load_skill_deps_for_plugin() {
 }
 
 # Collect unique skill deps for the given plugin names.
-# Prints parsed dependency lines, deduped by skill name (first identity wins).
+# Prints parsed dependency lines, deduped only when name and identity are equal.
 # Sets global SKILL_DEPS_PARSE_FAIL to non-zero when any manifest is invalid.
 collect_skill_deps() {
   local -a plugins=("$@")
@@ -1063,7 +1092,8 @@ collect_skill_deps() {
       identity="${source}@${revision}:${subpath}"
       if [ -n "${seen_names[${name}]+x}" ]; then
         if [ "${seen_names[${name}]}" != "${identity}" ]; then
-          warn "Skill ${name} declared with different sources/revisions; keeping ${seen_names[${name}]} (ignoring ${identity} from ${plugin})"
+          err "Skill identity conflict for ${name}: ${seen_names[${name}]} vs ${identity} from ${plugin}"
+          return 1
         fi
         continue
       fi
@@ -1163,7 +1193,11 @@ sync_skill_deps() {
 
   if ! have_cmd npx; then
     # Collect first so we only warn when deps actually exist.
-    deps_lines="$(collect_skill_deps "${plugins[@]}" || true)"
+    set +e
+    deps_lines="$(collect_skill_deps "${plugins[@]}")"
+    local collect_without_npx_rc=$?
+    set -e
+    if [ "${collect_without_npx_rc}" -ne 0 ]; then return 1; fi
     if [ -n "${deps_lines}" ] || [ "${SKILL_DEPS_PARSE_FAIL:-0}" -gt 0 ]; then
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "npx not found; skipping community skill-deps install"
@@ -1180,7 +1214,7 @@ sync_skill_deps() {
   deps_lines="$(collect_skill_deps "${plugins[@]}")"
   local collect_rc=$?
   set -e
-  if [ "${collect_rc}" -ne 0 ] && [ "${FAIL_FAST}" = "1" ]; then
+  if [ "${collect_rc}" -ne 0 ]; then
     return 1
   fi
 
@@ -1255,7 +1289,14 @@ EOF
     printf '%s\n' "${PLUGINS[@]}"
     if [ "${SKIP_SKILL_DEPS}" != "1" ]; then
       local deps_lines
-      deps_lines="$(collect_skill_deps "${PLUGINS[@]}" || true)"
+      set +e
+      deps_lines="$(collect_skill_deps "${PLUGINS[@]}")"
+      local collect_list_rc=$?
+      set -e
+      if [ "${collect_list_rc}" -ne 0 ]; then
+        err "skill-deps collection failed"
+        exit 1
+      fi
       if [ -n "${deps_lines}" ]; then
         printf '\n# skill-deps (name<TAB>source<TAB>revision<TAB>subpath)\n' >&2
         printf '%s\n' "${deps_lines}"

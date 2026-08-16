@@ -51,11 +51,11 @@ From the repo root:
 ./scripts/acceptance/run.sh --smoke
 
 # one plugin (container)
-./scripts/acceptance/run.sh --plugin command-safety-guards
+./scripts/acceptance/run.sh --plugin command-safety
 
 # one case / one host (container)
 ./scripts/acceptance/run.sh \
-  --plugin command-safety-guards \
+  --plugin command-safety \
   --case 01-deny-cat-heredoc \
   --host claude
 
@@ -64,7 +64,7 @@ From the repo root:
 
 # optional: custom image tag / out dir
 ACCEPT_IMAGE=harness-host-acceptance:local \
-  ./scripts/acceptance/run.sh --out .acceptance-runs/my-run --plugin file-line-budget-guard
+  ./scripts/acceptance/run.sh --out .acceptance-runs/my-run --plugin engineering-quality
 ```
 
 `--docker` is accepted for clarity but is **redundant** on the host: live runs

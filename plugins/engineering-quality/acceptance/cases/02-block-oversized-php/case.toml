@@ -1,0 +1,4 @@
+id = "02-block-oversized-php"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "engineering-quality", "budget"]

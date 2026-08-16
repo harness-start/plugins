@@ -11,7 +11,7 @@
 
 本候选取代原 `git-delivery-closure-gate` 与 `gitlab-review-gate`。源仓 `delivery-closure-gate` 会从最终回复匹配 MR URL、pipeline success 和 merge commit 字样；这些文本可以被模型自行编造，不能作为 marketplace 的硬效果。`gitlab-review-*` 又依赖参数化 GitLab Tools 和 operational facts，不能直接移植。
 
-保留的真实缺口是：`git-delivery-guards` 只管本地 Git，不证明远端 GitLab 已接收、CI 已成功或 MR 已合并。
+保留的真实缺口是：`git-delivery` 只管本地 Git，不证明远端 GitLab 已接收、CI 已成功或 MR 已合并。
 
 ## 最小产品合同
 

@@ -208,12 +208,12 @@ assert_project_install_ready() {
     printf 'project-accept: missing install-all.log under %s\n' "${dest_home}" >&2
     return 1
   fi
-  if ! grep -Eq 'logo-project-delivery-guard' "${install_log}"; then
-    printf 'project-accept: install-all log does not mention logo-project-delivery-guard\n' >&2
+  if ! grep -Eq 'brand-logo-production' "${install_log}"; then
+    printf 'project-accept: install-all log does not mention brand-logo-production\n' >&2
     return 1
   fi
   # Community skills from catalog skill-deps must land under isolated HOME.
-  # grill-me is declared by work-report-insights and is a stable canary.
+  # grill-me is declared by work-reporting and is a stable canary.
   # skills CLI may install to ~/.agents/skills (universal) and/or ~/.claude/skills
   # depending on -a agents (claude-only often copies into ~/.claude/skills only).
   if [ ! -f "${dest_home}/.agents/skills/grill-me/SKILL.md" ] \

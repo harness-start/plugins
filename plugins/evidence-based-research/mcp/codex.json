@@ -1,0 +1,12 @@
+{
+  "research_provenance": {
+    "command": "node",
+    "args": ["./dist/mcp/research-provenance-server.mjs"],
+    "cwd": ".",
+    "env": {
+      "RESEARCH_PROVENANCE_HOST": "codex",
+      "AI_EXPERTS_TRIGGER_FROM": "evidence-based-research:mcp"
+    },
+    "env_vars": ["PLUGIN_DATA", "AI_EXPERTS_SESSION_ID", "PWD"]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "work-reporting",
+  "version": "0.3.0",
+  "description": "Builds evidence-backed employee growth reports and TL verification packs from local sessions, Git, and optional authenticated forge metadata.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

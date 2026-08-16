@@ -1,0 +1,8 @@
+{
+  "skills": [
+    { "name": "research", "source": "https://github.com/mattpocock/skills", "revision": "835450ef244ab7335f75d95b83e7d979eae22a6d", "subpath": "skills/engineering/research", "required": true, "mode": "instruction-only", "description": "Primary-source candidate discovery only; recapture evidence through the plugin MCP boundary." },
+    { "name": "firecrawl", "source": "https://github.com/firecrawl/cli", "revision": "296b5b9766822f0190b769ae085b1fc22c07491e", "subpath": "skills/firecrawl-cli", "required": true, "mode": "instruction-only", "description": "Search and scrape strategy only; direct CLI execution remains outside the evidence boundary." },
+    { "name": "arxiv-search", "source": "https://github.com/langchain-ai/deepagents", "revision": "a6c06b029710d34035af6ae1faded093cc8f3073", "subpath": "libs/cli/examples/skills/arxiv-search", "required": true, "mode": "instruction-only", "description": "Academic candidate discovery only; returned metadata is not final evidence." },
+    { "name": "handoff", "source": "https://github.com/mattpocock/skills", "revision": "068b6e0c62393147daf03530149cdce209c93da8", "required": true, "mode": "instruction-only", "description": "Post-seal outbound handoff orchestration." }
+  ]
+}

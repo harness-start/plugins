@@ -5,6 +5,8 @@ description: Use when a code or configuration change must be delivered through a
 
 # CI-gated MR Workflow
 
+Load the required community Skills `requesting-code-review`, `verification-before-completion`, and `finishing-a-development-branch` at their corresponding stages. If a stage dependency is absent or unreadable, stop that orchestration stage and report the gap; do not imitate it from memory. Repository policy and Hooks remain independent authorities.
+
 ## The one rule
 
 Own the delivery loop until the repository reaches an evidenced terminal state. Local checks prepare a change for remote CI; they never substitute for required review, pipeline, merge, or post-merge evidence.

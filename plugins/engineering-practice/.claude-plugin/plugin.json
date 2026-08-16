@@ -1,0 +1,10 @@
+{
+  "name": "engineering-practice",
+  "version": "1.1.0",
+  "description": "Orchestrates community engineering methods for implementation, debugging, and verification.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

@@ -85,7 +85,7 @@ require_hook_prompt_signal() {
 # plugin-owned first-prompt receipt instead of treating model prose as proof.
 require_intent_first_turn_signal() {
   if [ "${ACCEPT_HOST:-}" = "claude" ]; then
-    require_hook_prompt_signal '\[intent-clarify-gate:first-turn\]'
+    require_hook_prompt_signal '\[intent-discovery:first-turn\]'
     return
   fi
 
@@ -110,7 +110,7 @@ require_intent_first_turn_signal() {
       receipt_count=$((receipt_count + 1))
     fi
   done < <(find "${ACCEPT_OUT:?}/codex-home/plugins/data" \
-    -path '*/intent-clarify-gate/first-prompts/*.json' -type f -print0 2>/dev/null)
+    -path '*/intent-discovery/first-prompts/*.json' -type f -print0 2>/dev/null)
 
   if [ "${receipt_count}" -ne 1 ]; then
     echo "expect fail: expected one valid intent first-turn receipt, got ${receipt_count}" >&2
@@ -210,7 +210,7 @@ require_research_seal_receipt() {
       "${receipt}" >/dev/null 2>&1; then
       return 0
     fi
-  done < <(find "${ACCEPT_OUT:?}" -path '*/research-provenance-guard/hook-events/*.json' -type f -print0)
+  done < <(find "${ACCEPT_OUT:?}" -path '*/evidence-based-research/hook-events/*.json' -type f -print0)
   echo "expect fail: no matching research_seal PostToolUse receipt" >&2
   return 1
 }
@@ -228,7 +228,7 @@ require_composer_json_without_repositories() {
 }
 
 # Plugin-specific real marker sets (never path fragments).
-MARKERS_INTENT_CLARIFY='\[intent-clarify-gate:first-turn\]|Load and follow the bundled `intent-discovery` Skill'
+MARKERS_INTENT_CLARIFY='\[intent-discovery:first-turn\]|Load and follow the bundled `intent-discovery` Skill'
 MARKERS_FILE_BUDGET='\[File Budget\]|exceeds its file line budget|exceeds the build-recipe reference budget'
 MARKERS_PROTECTED_FILE='\[Protected File Guard\]|Protected file modification blocked'
 MARKERS_ENCODING_GUARD='\[Encoding Guard\]|Prohibited file encoding detected'
@@ -239,7 +239,7 @@ MARKERS_LARAVEL='\[Laravel Protected Path\]'
 MARKERS_THINKPHP='\[ThinkPHP Protected Path\]'
 MARKERS_WEBMAN='\[Webman Protected Path\]'
 MARKERS_SYMFONY='\[Symfony Protected Path\]'
-MARKERS_LANGUAGE_OUTPUT='\[language-output-governance\] profile='
+MARKERS_LANGUAGE_OUTPUT='\[language-output\] profile='
 MARKERS_LANGUAGE_OUTPUT_FEEDBACK='\[Language Output Feedback\]'
 MARKERS_LANGUAGE_OUTPUT_GATE='\[Language Output Gate\]'
 MARKERS_SKILL_ROUTING_TRANSPARENCY='\[Skill Routing Transparency( Reminder)?\]|📌 Skill route'

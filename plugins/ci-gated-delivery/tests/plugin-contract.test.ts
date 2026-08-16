@@ -24,7 +24,12 @@ test("plugin exposes one delivery skill without duplicate Git hooks", () => {
   assert.equal(Object.hasOwn(codex, "hooks"), false);
   assert.equal(Object.hasOwn(claude, "hooks"), false);
   assert.equal(existsSync(join(ROOT, "hooks")), false);
-  assert.equal(existsSync(join(ROOT, "skill-deps.json")), false);
+  assert.equal(existsSync(join(ROOT, "skill-deps.json")), true);
+  assert.deepEqual(json("skill-deps.json").skills.map(({ name }) => name), [
+    "requesting-code-review",
+    "verification-before-completion",
+    "finishing-a-development-branch",
+  ]);
 
   const skillNames = readdirSync(join(ROOT, "skills"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

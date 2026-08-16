@@ -7,8 +7,8 @@
 #
 # Usage (from repo root on the host):
 #   ./scripts/acceptance/run.sh                          # all plugins × both hosts (Docker)
-#   ./scripts/acceptance/run.sh --plugin command-safety-guards
-#   ./scripts/acceptance/run.sh --plugin command-safety-guards --case 01-deny-cat-heredoc --host claude
+#   ./scripts/acceptance/run.sh --plugin command-safety
+#   ./scripts/acceptance/run.sh --plugin command-safety --case 01-deny-cat-heredoc --host claude
 #   ./scripts/acceptance/run.sh --smoke                  # DeepSeek smoke (Docker)
 #   ./scripts/acceptance/run.sh --honesty-only           # inert expect gate only (no Docker, no API)
 #   ./scripts/acceptance/run.sh --docker                 # accepted alias; Docker is already required
@@ -166,7 +166,7 @@ if [ "${SMOKE_ONLY}" -eq 1 ]; then
   configure_claude_home "${HOME}" "${DEEPSEEK_MODEL}"
   claude_log="${OUT_DIR}/deepseek-host-smoke-claude.log"
   set +e
-  run_claude_session "${smoke_ws}" "${REPO_ROOT}/plugins/command-safety-guards" \
+  run_claude_session "${smoke_ws}" "${REPO_ROOT}/plugins/command-safety" \
     <(printf 'Reply with exactly: PONG\n') "${claude_log}" 90
   set -e
   if ! grep -q 'PONG' "${claude_log}"; then
@@ -181,7 +181,7 @@ if [ "${SMOKE_ONLY}" -eq 1 ]; then
     "${REPO_ROOT}/docker/host-acceptance/models.json"
   codex_log="${OUT_DIR}/deepseek-host-smoke-codex.log"
   set +e
-  run_codex_session "${smoke_ws}" "command-safety-guards" "${REPO_ROOT}" \
+  run_codex_session "${smoke_ws}" "command-safety" "${REPO_ROOT}" \
     <(printf 'Reply with exactly: PONG and do not modify files.\n') "${codex_log}" 120
   set -e
   if ! grep -q 'PONG' "${codex_log}"; then

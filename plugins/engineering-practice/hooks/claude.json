@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/engineering-practice.mjs\"",
+            "statusMessage": "Loading selective engineering Skill routes",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

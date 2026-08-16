@@ -36,9 +36,9 @@
 | P1 | [external-skill-supply-chain.md](./external-skill-supply-chain.md) | 新插件 | 保留；全局安装阻断与隔离静态审计是独立安全边界 |
 | P1 | [spec-workflow-gate.md](./spec-workflow-gate.md) | 新插件 | 保留；固定 `.specs` 产物图可做确定性前置门禁 |
 | P1 | [gitlab-delivery-closure-guard.md](./gitlab-delivery-closure-guard.md) | 新插件 | 合并原两个 GitLab / delivery 候选；只做 GitLab 远端交付状态回读 |
-| P1 | [command-safety-infrastructure-packs.md](./command-safety-infrastructure-packs.md) | 扩展 `command-safety-guards` | 不新增 `infra-ops-safety`；按 provider 拆成可开关引擎 |
+| P1 | [command-safety-infrastructure-packs.md](./command-safety-infrastructure-packs.md) | 扩展 `command-safety` | 不新增 `infra-ops-safety`；按 provider 拆成可开关引擎 |
 | P2 | [design-contract-guard.md](./design-contract-guard.md) | 新插件 | 收窄为可机械检查的 DESIGN.md token 漂移；不宣称证明 a11y |
-| P2 | [research-content-audit-profile.md](./research-content-audit-profile.md) | 扩展 `research-provenance-guard` | 不新增内容审计插件；复用既有 capture / anchor / seal |
+| P2 | [research-content-audit-profile.md](./research-content-audit-profile.md) | 扩展 `evidence-based-research` | 不新增内容审计插件；复用既有 capture / anchor / seal |
 | P2 | [svn-delivery-guards.md](./svn-delivery-guards.md) | 新插件、opt-in | 保留；SVN 命令面与 Git 分离，规则可自包含实现 |
 
 ## 已删除或合并
@@ -46,7 +46,7 @@
 | 原候选 | 处理 | 原因 |
 | --- | --- | --- |
 | `completion-evidence-gate` | 删除 | 通用自然语言完成声明没有权威证据源；外部 effect gate 又依赖源仓 tool registry，移植后只剩可伪造 receipt。领域 delivery guard 覆盖可确定的交付声明。 |
-| `tdd-sequence-gate` | 由 `tdd-guard` 收窄替代 | `tdd-guard` 用 git 相对 HEAD 判断测试/实现是否变化，并用 shell 测试回执记录 RED/GREEN；不靠会话写记录，也不用 basename/simple name 解锁。 |
+| `tdd-sequence-gate` | 由 `test-driven-development` 收窄替代 | `test-driven-development` 用 git 相对 HEAD 判断测试/实现是否变化，并用 shell 测试回执记录 RED/GREEN；不靠会话写记录，也不用 basename/simple name 解锁。 |
 | `git-delivery-closure-gate` + `gitlab-review-gate` | 合并并改名 | 源实现依赖 GitLab 和 operational facts；按 GitLab 单平台收口，删除只检查最终回复中 URL/status 字样的弱路径。 |
 | `infra-ops-safety` | 改为现有插件扩展 | 都是 shell `PreToolUse` 风险判断；独立插件会复制 tokenizer、配置与 deny 升级逻辑。 |
 | `content-credibility-gate` | 改为现有插件扩展 | 与研究插件共享 source snapshot、anchor、typed claim 和 seal，独立证据栈会重复且容易产生两套互不兼容的 provenance。 |

@@ -12,9 +12,9 @@ const dedicatedPlugins = [
 ];
 
 const naturalLanguageOwners = [
-  "debugging-workflow-guard",
+  "software-debugging",
   "project-capability-governance",
-  "work-report-insights",
+  "work-reporting",
 ];
 
 function readJson(path) {
@@ -51,11 +51,11 @@ test("domain plugins do not authenticate or schedule native subagents", () => {
 
 test("domain skill prompts use plain delegation without shared handoff protocols", () => {
   const skillPaths = [
-    "plugins/debugging-workflow-guard/skills/debug-workflow/SKILL.md",
+    "plugins/software-debugging/skills/debug-workflow/SKILL.md",
     "plugins/project-capability-governance/skills/project-capability-governance/SKILL.md",
-    "plugins/reasoning-discipline/skills/first-principles/SKILL.md",
-    "plugins/reasoning-discipline/skills/reasoning-discipline/SKILL.md",
-    "plugins/research-provenance-guard/skills/research-evidence-workflow/SKILL.md",
+    "plugins/reasoning-methods/skills/first-principles/SKILL.md",
+    "plugins/reasoning-methods/skills/reasoning-methods/SKILL.md",
+    "plugins/evidence-based-research/skills/research-evidence-workflow/SKILL.md",
   ];
   const forbidden = /subagent-(?:handoff|plan-execution)|SUBAGENT_APPLICATION|(?:DBG|FP|RD)_REVIEW_(?:REQUEST|RESULT)|reviewNonce/iu;
 

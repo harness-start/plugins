@@ -8,7 +8,7 @@ Review 阶段使用有界 Task Brief 和 Result Card。Reviewer 只接收目标�
 
 插件不注册 Hook，也不保存交付台账。
 
-- 本地 `git add`、提交信息、危险命令和 commit scope 由 `git-delivery-guards` 负责；本插件不重复这些拦截。
+- 本地 `git add`、提交信息、危险命令和 commit scope 由 `git-delivery` 负责；本插件不重复这些拦截。
 - 远端事实必须来自当前会话里的 provider 工具或结构化 API 输出，并绑定 repository、head SHA、pipeline/run id 和观测时间。
 - 没有远端回执、查询失败或权限不足时，Skill 要停在 `externally blocked`，不能用本地测试或格式化的证据卡替代。
 - 成功 pipeline 必须绑定当前 MR/PR head SHA；旧 SHA 的绿色状态、未解决的 blocking discussion 或失败的默认分支 pipeline 都不能关闭交付。

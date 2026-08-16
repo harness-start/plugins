@@ -1,0 +1,11 @@
+{
+  "name": "presentation-production",
+  "version": "0.3.0",
+  "description": "Orchestrates and enforces editable PPTX source, rendering, probes, independent review, and release evidence.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

@@ -33,10 +33,10 @@ if [ -z "${HOME:-}" ] || [ ! -s "${HOME}/install-all.log" ]; then
 else
   ok "install-all.log present"
 fi
-if [ -s "${HOME}/install-all.log" ] && grep -Eq 'logo-project-delivery-guard' "${HOME}/install-all.log"; then
-  ok "catalog includes logo-project-delivery-guard"
+if [ -s "${HOME}/install-all.log" ] && grep -Eq 'brand-logo-production' "${HOME}/install-all.log"; then
+  ok "catalog includes brand-logo-production"
 else
-  bad "install-all did not install logo-project-delivery-guard"
+  bad "install-all did not install brand-logo-production"
 fi
 if [ -f "${HOME}/.agents/skills/grill-me/SKILL.md" ] \
   || [ -f "${HOME}/.claude/skills/grill-me/SKILL.md" ]; then
@@ -106,7 +106,7 @@ for id in "${logo_ids[@]:-}"; do
 done
 
 # Contract probe via the shipped validator. Prefer formal Fib findings.
-validate_js="${REPO}/plugins/logo-project-delivery-guard/dist/cli/project-validate.mjs"
+validate_js="${REPO}/plugins/brand-logo-production/dist/cli/project-validate.mjs"
 if [ "${#logo_ids[@]}" -gt 0 ] && [ -f "${validate_js}" ] && command -v node >/dev/null 2>&1; then
   id="${logo_ids[0]}"
   target_stage="$(jq -r '.targetStage // "source"' "${logo_root}/${id}/plan.contract.json" 2>/dev/null || printf source)"

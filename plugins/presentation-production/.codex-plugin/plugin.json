@@ -1,0 +1,23 @@
+{
+  "name": "presentation-production",
+  "version": "0.3.0",
+  "description": "Orchestrates and enforces editable PPTX source, rendering, probes, independent review, and release evidence.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "PPTX Project Delivery Guard",
+    "shortDescription": "Orchestrate and guard editable PPTX delivery.",
+    "longDescription": "Provides bundled authoring and independent-review Skills plus protected init, lint, render, probe, review, and release writers for an evidence-bound editable PPTX workflow.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "defaultPrompt": "Use $pptx-deck-authoring to create a new editable PPTX project and carry it through independent review and release.",
+    "capabilities": [
+      "skills",
+      "hooks"
+    ]
+  }
+}

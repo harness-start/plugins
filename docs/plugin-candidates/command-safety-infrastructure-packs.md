@@ -1,15 +1,15 @@
-# 现有插件扩展：`command-safety-guards` infrastructure packs
+# 现有插件扩展：`command-safety` infrastructure packs
 
 | 字段 | 裁定 |
 | --- | --- |
-| 形态 | 扩展 `plugins/command-safety-guards/`，不新增插件 ID |
+| 形态 | 扩展 `plugins/command-safety/`，不新增插件 ID |
 | 优先级 | P1 |
 | 默认安装 | 随现有插件；provider pack 默认关闭 |
 | 目标 | 复用现有 tokenizer、配置、deny/report 与升级机制，补持久数据和基础设施命令风险 |
 
 ## 为什么不新增 `infra-ops-safety`
 
-原候选的 K8s、PVE、Docker、云 CLI 全部发生在 shell `PreToolUse`，与 `command-safety-guards` 的声明式规则和引擎机制相同。独立插件会复制 shell 分段、wrapper 展开、项目配置、Hook 输出和 deny escalation，还可能让两个插件对同一命令给出冲突决定。
+原候选的 K8s、PVE、Docker、云 CLI 全部发生在 shell `PreToolUse`，与 `command-safety` 的声明式规则和引擎机制相同。独立插件会复制 shell 分段、wrapper 展开、项目配置、Hook 输出和 deny escalation，还可能让两个插件对同一命令给出冲突决定。
 
 两个源仓提供的规则可以迁移，但必须按 provider 分包，不能把所有基础设施机制塞进一个默认开启的大引擎。
 
@@ -26,7 +26,7 @@
 pack 是配置聚合；每条不可恢复语义仍由独立 engine 或窄 rule 实现。依赖 cwd、kube context、文件证据或多步 preflight 的判断不得降级成单条正则。
 
 ```js
-// .command-safety-guards.mjs
+// .command-safety.mjs
 export default {
   settings: {
     engines: {
@@ -57,7 +57,7 @@ export default {
 
 ## 实现准入与验收
 
-- 先给 `command-safety-guards` 增加 engine 注册表与重复策略检查，确保同一语义只有一个 owner；
+- 先给 `command-safety` 增加 engine 注册表与重复策略检查，确保同一语义只有一个 owner；
 - 覆盖 env/sudo/ssh/sh -c、管道、连接符、参数换序、quoted commit message 和 heredoc near-miss；
 - `kubectl get`、PVE 扩容、精确非数据删除、普通 Docker cleanup 不误拦；
 - 每个 opt-in engine 分别有配置启停、deny/report、恢复文本和 deny escalation 测试；

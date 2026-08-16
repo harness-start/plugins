@@ -1,4 +1,0 @@
-id = "01-record-file-write"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["post-tool", "file-access-audit", "record"]

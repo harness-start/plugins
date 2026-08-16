@@ -41,7 +41,7 @@ find-skill Skill 编排 audit begin
 
 ## 与现有插件的边界
 
-`command-safety-guards` 继续负责通用危险命令；本候选负责 Skill 安装语义、平台目录和隔离审计。它不修改 `install-all.sh` 的既有行为，也不在 agent Hook 中为全局安装提供可伪造的 `--yes-i-approve` 逃生参数。
+`command-safety` 继续负责通用危险命令；本候选负责 Skill 安装语义、平台目录和隔离审计。它不修改 `install-all.sh` 的既有行为，也不在 agent Hook 中为全局安装提供可伪造的 `--yes-i-approve` 逃生参数。
 
 ## 实现准入与验收
 

@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-quality:post\" node \"${PLUGIN_ROOT}/dist/hooks/engineering-quality-post.mjs\"",
+            "statusMessage": "Running source quality checks",
+            "timeout": 60000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-quality:stop\" node \"${PLUGIN_ROOT}/dist/hooks/engineering-quality-stop.mjs\"",
+            "statusMessage": "Running PHPStan batch checks",
+            "timeout": 60000
+          }
+        ]
+      }
+    ]
+  }
+}

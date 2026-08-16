@@ -1,0 +1,10 @@
+{
+  "name": "reasoning-methods",
+  "version": "1.0.0",
+  "description": "Provides adaptive first-principles and verification-oriented reasoning methods without a file-backed workflow.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/"
+}

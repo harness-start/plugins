@@ -1,0 +1,10 @@
+{
+  "name": "language-output",
+  "version": "0.3.0",
+  "description": "Keeps agent prose aligned with a configurable session language profile and corrects unauthorized language drift.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

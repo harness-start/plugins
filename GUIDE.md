@@ -360,7 +360,7 @@ CLAUDE_PLUGIN_DATA
 - `CLAUDE_PLUGIN_ROOT` 指向当前安装版本的插件目录；
 - `CLAUDE_PLUGIN_DATA` 是宿主提供的插件数据目录，本仓库插件不把生产状态写到那里。
 
-插件自己产生的会话状态、回执和捕获文件写在当前工作目录下该插件拥有的 `.state/`（例如 `.reasoning-discipline/.state/`），并带 `*` 的 `.gitignore`。不要写入插件安装目录。
+插件自己产生的会话状态、回执和捕获文件写在当前工作目录下该插件拥有的 `.state/`（例如 `.reasoning-methods/.state/`），并带 `*` 的 `.gitignore`。不要写入插件安装目录。
 
 ### 8.2 Codex hook
 

@@ -1,0 +1,11 @@
+{
+  "name": "intent-discovery",
+  "version": "2.0.0",
+  "description": "Front-loads first-turn context discovery and bounded adversarial review without pausing the user or blocking writes.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

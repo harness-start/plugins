@@ -7,128 +7,113 @@
   },
   "plugins": [
     {
-      "name": "research-provenance-guard",
-      "source": "./plugins/research-provenance-guard",
+      "name": "evidence-based-research",
+      "source": "./plugins/evidence-based-research",
       "description": "Enforces captured, anchored, fresh, machine-verifiable evidence for explicit research tasks."
     },
     {
-      "name": "execution-loop-guard",
-      "source": "./plugins/execution-loop-guard",
+      "name": "execution-discipline",
+      "source": "./plugins/execution-discipline",
       "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session."
     },
     {
-      "name": "source-sanity-guard",
-      "source": "./plugins/source-sanity-guard",
-      "description": "Blocks backup artifacts and obvious replacement-character corruption in source files."
+      "name": "source-integrity",
+      "source": "./plugins/source-integrity",
+      "description": "Protects source filenames, replacement characters, and strict UTF-8 encoding."
     },
     {
-      "name": "git-delivery-guards",
-      "source": "./plugins/git-delivery-guards",
+      "name": "git-delivery",
+      "source": "./plugins/git-delivery",
       "description": "Guards local Git commands, atomic commits, repository state, and unresolved merge markers."
     },
     {
-      "name": "code-quality-guard",
-      "source": "./plugins/code-quality-guard",
-      "description": "Runs bounded JS/TS, Python, and PHP syntax, lint, and static-analysis checks after file edits."
+      "name": "engineering-quality",
+      "source": "./plugins/engineering-quality",
+      "description": "Enforces source checks, line budgets, and Markdown structure."
     },
     {
-      "name": "tdd-guard",
-      "source": "./plugins/tdd-guard",
+      "name": "test-driven-development",
+      "source": "./plugins/test-driven-development",
       "description": "Requires an observed failing test before implementation and a relevant passing test before completion."
     },
     {
-      "name": "encoding-guard",
-      "source": "./plugins/encoding-guard",
-      "description": "Encoding guard: blocks BOM-bearing and invalid UTF-8 text files after AI writes."
-    },
-    {
-      "name": "file-line-budget-guard",
-      "source": "./plugins/file-line-budget-guard",
-      "description": "Ratchet-enforced file line budget guard: prevents source files from exceeding per-language line limits."
-    },
-    {
-      "name": "protected-file-guard",
-      "source": "./plugins/protected-file-guard",
+      "name": "dependency-file-custody",
+      "source": "./plugins/dependency-file-custody",
       "description": "Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories."
     },
     {
-      "name": "command-safety-guards",
-      "source": "./plugins/command-safety-guards",
+      "name": "command-safety",
+      "source": "./plugins/command-safety",
       "description": "Command safety guards: deny broad recursive deletion, unbacked sed in-place edits, and cat heredoc writes outside temporary directories."
     },
     {
-      "name": "language-output-governance",
-      "source": "./plugins/language-output-governance",
+      "name": "language-output",
+      "source": "./plugins/language-output",
       "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
     },
     {
-      "name": "intent-clarify-gate",
-      "source": "./plugins/intent-clarify-gate",
+      "name": "intent-discovery",
+      "source": "./plugins/intent-discovery",
       "description": "Front-loads first-turn repository context and bounded adversarial review, then continues without an interview gate."
     },
     {
-      "name": "engineering-mindset",
-      "source": "./plugins/engineering-mindset",
-      "description": "Injects selective engineering and natural-writing Skill routing at SessionStart without blocking ordinary work."
+      "name": "engineering-practice",
+      "source": "./plugins/engineering-practice",
+      "description": "Orchestrates pinned community engineering methods."
     },
     {
-      "name": "reasoning-discipline",
-      "source": "./plugins/reasoning-discipline",
+      "name": "professional-writing",
+      "source": "./plugins/professional-writing",
+      "description": "Orchestrates pinned community Skills for professional prose."
+    },
+    {
+      "name": "reasoning-methods",
+      "source": "./plugins/reasoning-methods",
       "description": "Provides adaptive first-principles and verification-oriented reasoning methods without a file-backed workflow."
     },
     {
-      "name": "markdown-format-guard",
-      "source": "./plugins/markdown-format-guard",
-      "description": "Checks Markdown heading structure and common formatting rules after AI write operations."
+      "name": "agent-activity-audit",
+      "source": "./plugins/agent-activity-audit",
+      "description": "Records protected per-session file and command activity."
     },
     {
-      "name": "file-access-audit",
-      "source": "./plugins/file-access-audit",
-      "description": "Records structured agent file reads and writes to a project-local per-session JSONL trail."
-    },
-    {
-      "name": "command-exec-audit",
-      "source": "./plugins/command-exec-audit",
-      "description": "Records agent shell commands with status and duration to a project-local per-session JSONL trail."
-    },
-    {
-      "name": "debugging-workflow-guard",
-      "source": "./plugins/debugging-workflow-guard",
+      "name": "software-debugging",
+      "source": "./plugins/software-debugging",
       "description": "Activates evidence-first, multi-bug debugging only through an explicit on-disk Debug Work Order."
     },
     {
-      "name": "pptx-project-delivery-guard",
-      "source": "./plugins/pptx-project-delivery-guard",
+      "name": "presentation-production",
+      "source": "./plugins/presentation-production",
       "description": "Guards PptxGenJS slide modules, source-bound previews, generated writers, and release evidence."
     },
     {
-      "name": "poster-project-delivery-guard",
-      "source": "./plugins/poster-project-delivery-guard",
+      "name": "poster-production",
+      "source": "./plugins/poster-production",
       "description": "Guards ordered Satori layers, paired proofs, generated writers, and poster release evidence."
     },
     {
-      "name": "video-project-delivery-guard",
-      "source": "./plugins/video-project-delivery-guard",
+      "name": "video-production",
+      "source": "./plugins/video-production",
       "description": "Guards Remotion visual/audio frame projections, media proofs, and final video evidence."
     },
     {
-      "name": "logo-project-delivery-guard",
-      "source": "./plugins/logo-project-delivery-guard",
+      "name": "brand-logo-production",
+      "source": "./plugins/brand-logo-production",
       "description": "Guards logo concepts, native-vector masters, construction sheets, variants, and release evidence."
     },
     {
-      "name": "print-publication-delivery-guard",
-      "source": "./plugins/print-publication-delivery-guard",
+      "name": "print-publication-production",
+      "source": "./plugins/print-publication-production",
       "description": "Guards static publication units, Paged Media sources, print PDFs, and preflight evidence."
     },
     {
-      "name": "music-project-delivery-guard",
-      "source": "./plugins/music-project-delivery-guard",
+      "name": "music-production",
+      "source": "./plugins/music-production",
       "description": "Guards brief-to-release Tone.js music projects with pinned advisers, independent review, one-shot writers, and digest-bound WAV evidence."
     },
     {
-      "name": "work-report-insights",
-      "source": "./plugins/work-report-insights",
+      "name": "work-reporting",
+      "source": "./plugins/work-reporting",
       "description": "Creates guided daily, weekly, and range work reports from local transcripts, then protects confirmed bodies with SHA-256 seals and append-only additions."
     },
     {
@@ -137,8 +122,8 @@
       "description": "Captures schema-validated project capability proposals and guides human-confirmed project-local adoption without blocking ordinary work."
     },
     {
-      "name": "sdd-workflow",
-      "source": "./plugins/sdd-workflow",
+      "name": "spec-driven-development",
+      "source": "./plugins/spec-driven-development",
       "description": "Guides lightweight SDD and validates recognized spec, plan, and tasks writes with digest freshness."
     },
     {
@@ -147,8 +132,8 @@
       "description": "Guides code and configuration changes through branch, review, remote CI, merge, post-merge verification, and cleanup."
     },
     {
-      "name": "cross-repo-history-migration",
-      "source": "./plugins/cross-repo-history-migration",
+      "name": "repository-history-migration",
+      "source": "./plugins/repository-history-migration",
       "description": "Plans and executes sealed, source-read-only Git history extraction into a new repository."
     }
   ]

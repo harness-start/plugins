@@ -1,0 +1,24 @@
+{
+  "name": "professional-writing",
+  "version": "1.1.0",
+  "description": "Orchestrates language-aware community Skills for professional prose editing.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "专业写作",
+    "shortDescription": "按语言和文稿类型编排写作 Skill。",
+    "longDescription": "为中英文和 Markdown 文稿选择固定版本的社区 Skill，并由内部 Skill 组织执行顺序。",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": ["skills", "hooks"],
+    "defaultPrompt": [
+      "把这段英文改得自然、准确并保留事实。",
+      "清理这段中文的机器写作痕迹并保持原意。",
+      "清理这段中英文内容的 AI 写作痕迹，同时保留事实。"
+    ]
+  }
+}

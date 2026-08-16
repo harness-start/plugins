@@ -1,0 +1,11 @@
+{
+  "name": "test-driven-development",
+  "version": "0.5.0",
+  "description": "Requires git-visible test change or already-red evidence, then observed RED before implementation and GREEN before completion.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json",
+  "skills": "./skills/"
+}

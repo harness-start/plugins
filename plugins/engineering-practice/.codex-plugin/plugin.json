@@ -1,0 +1,23 @@
+{
+  "name": "engineering-practice",
+  "version": "1.1.0",
+  "description": "Orchestrates community engineering methods for implementation, debugging, and verification.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "工程实践",
+    "shortDescription": "按工程任务加载必要的方法 Skill。",
+    "longDescription": "为实现、调试与完成前验证选择固定版本的社区 Skill；缺失时停止对应编排。",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": ["hooks"],
+    "defaultPrompt": [
+      "用工程师思维处理这个代码任务。",
+      "先建立可复现证据，再修复这个问题。",
+      "完成前运行直接相关的验证并给出证据。"
+    ]
+  }
+}

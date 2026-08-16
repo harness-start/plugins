@@ -1,0 +1,17 @@
+{
+  "name": "evidence-based-research",
+  "version": "0.4.0",
+  "description": "Orchestrated hard research: project workflow files, MCP capture/anchors, seal, and post-seal handoff.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "mcpServers": "./mcp/codex.json",
+  "interface": {
+    "displayName": "Research Provenance Guard",
+    "shortDescription": "Require captured and anchored research evidence.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

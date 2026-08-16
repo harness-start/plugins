@@ -48,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 - **Codex：** 通过 `/hooks` 审查并信任插件 Hook。安装成功不表示 Hook 已受信任或正在运行。
 - **社区 Skill：** 插件可声明 `skill-deps.json`；`install-all.sh` 会把这些依赖安装或更新到全局 Skill scope，即执行 `npx skills add … --global`。
 
-`--language <profile>` 接受 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将 profile 写入每个已安装宿主自己的配置目录。不传时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale，并映射到支持的 profile；无法映射或系统使用 `C`/`POSIX` locale 时使用 `en-US`。项目的 `.language-output-governance.mjs` 优先于用户级安装偏好。
+`--language <code>` 接受 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将语言代码写入每个已安装宿主自己的配置目录。不传时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale，并映射到支持的语言；无法映射或系统使用 `C`/`POSIX` locale 时使用 `en-US`。项目的 `.language-output.mjs` 优先于用户级安装偏好。
 
 ### 手动安装
 
@@ -102,43 +102,45 @@ codex plugin add <name>@harness-start --json
 
 | 插件 | 说明 |
 | --- | --- |
-| `research-provenance-guard` | 保存网页或本地资料为可引用片段，要求每条结论绑定来源；证据封存后才允许交付 |
-| `execution-loop-guard` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
-| `source-sanity-guard` | 阻断源码目录中的备份产物和明显的 replacement character 解码损坏 |
-| `git-delivery-guards` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
-| `code-quality-guard` | 写入后执行有界的 JS/TS、Python 和 PHP 语法、lint 与静态分析检查 |
-| `tdd-guard` | 先记录测试文件变化，再按 FQCN、module/package 身份或完整目录镜像允许 PHP、Python、JS、TS、Rust、Go 实现写入；已有对应测试时必须先改那些文件 |
-| `encoding-guard` | AI 写入后阻断带 BOM 或不符合严格 UTF-8 的文本文件 |
-| `markdown-format-guard` | 写入后检查 Markdown 标题结构和常见格式规则 |
-| `file-line-budget-guard` | 在 Edit/Write 后按语言实施棘轮式文件行数预算 |
-| `protected-file-guard` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
-| `command-safety-guards` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
-| `language-output-governance` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
-| `intent-clarify-gate` | 首个 prompt 自动前置探索项目事实、候选解释和反例；按复杂度并发只读 subagent，汇总后直接继续 |
-| `reasoning-discipline` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
-| `debugging-workflow-guard` | 通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
-| `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
-| `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
-| `logo-project-delivery-guard` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
-| `poster-project-delivery-guard` | 用统一编排 Skill、固定设计顾问、Satori/resvg writer、独立审查和 digest evidence 交付数字海报 |
-| `pptx-project-delivery-guard` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
-| `print-publication-delivery-guard` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
-| `video-project-delivery-guard` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
-| `music-project-delivery-guard` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
-| `work-report-insights` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
+| `evidence-based-research` | 保存网页或本地资料为可引用片段，要求每条结论绑定来源；证据封存后才允许交付 |
+| `execution-discipline` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
+| `source-integrity` | 写入前阻断备份产物与明显 replacement character，写入后校验严格 UTF-8 与 BOM |
+| `git-delivery` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
+| `engineering-quality` | 用一个 Post 分发器执行源码检查、文件行数预算与 Markdown 结构检查，并在 Stop 执行延迟静态分析 |
+| `test-driven-development` | 先记录测试文件变化，再按 FQCN、module/package 身份或完整目录镜像允许 PHP、Python、JS、TS、Rust、Go 实现写入；已有对应测试时必须先改那些文件 |
+| `dependency-file-custody` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
+| `command-safety` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
+| `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
+| `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；按复杂度并发只读 subagent，汇总后直接继续 |
+| `engineering-practice` | 编排固定版本的社区工程方法 Skill；依赖缺失时停止对应编排，不替代 Hook 证据 |
+| `professional-writing` | 按语言与文稿类型编排固定版本的社区写作 Skill；只执行经过路径与 SHA-256 审计的脚本 |
+| `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
+| `software-debugging` | 通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
+| `agent-activity-audit` | 将文件读写与 shell 命令统一记录到 `.agent-activity-audit/sessions/<session>.jsonl`，记录以 `kind` 区分 |
+| `brand-logo-production` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
+| `poster-production` | 用统一编排 Skill、固定设计顾问、Satori/resvg writer、独立审查和 digest evidence 交付数字海报 |
+| `presentation-production` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
+| `print-publication-production` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
+| `video-production` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
+| `music-production` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
+| `work-reporting` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
+| `project-capability-governance` | 记录 schema 校验的项目能力提案，并只在人工确认后采用项目级能力 |
+| `spec-driven-development` | 编排固定版本的社区 SDD 方法，并由 Hook 独立校验当前 spec、plan 与 tasks |
+| `ci-gated-delivery` | 编排短生命周期分支、独立审查、远端 CI、合并与合并后验证 |
+| `repository-history-migration` | 在源仓只读、提交封存和目标验证约束下迁移 Git 历史 |
 
 ## 插件分类与设计
 
-25 个插件按实现机制分为六类。分类依据是各插件内的 Hook 配置、校验脚本与 Skill 资产，具体机制见每个插件的 `README.md`。
+26 个插件按职责分为六类。每个插件可独立安装，不声明或读取其他本项目插件；`skill-deps.json` 只允许固定到精确 commit 的外部社区 Skill。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
-| 纯 Hook 校验器 | `encoding-guard`、`markdown-format-guard`、`file-line-budget-guard`、`protected-file-guard`、`source-sanity-guard`、`git-delivery-guards`、`code-quality-guard`、`tdd-guard`、`command-safety-guards`、`execution-loop-guard` | 在 `PreToolUse` / `PostToolUse` / `Stop` 拦截文件写入与 shell 命令，静态校验后放行或 `exit(2)` 阻断 |
-| 纯 Skill 方法 | `reasoning-discipline` | 根据问题选用第一性原理、精确、因果、决策或事实核验结构；用反例和外部证据提高结论质量，不持久化私有思考过程 |
-| Hook + Skill 工作流 | `intent-clarify-gate`、`debugging-workflow-guard`、`research-provenance-guard` | 首轮方法注入，或显式工作流的磁盘状态机与证据链；开放式判断留给 Skill，机械生命周期留给 Hook |
-| 审计 / 日志 | `file-access-audit`、`command-exec-audit` | 向项目本地 append-only JSONL 记录活动，Hook 同时保护 trail 不被改写 |
-| 项目交付守卫 | `logo-project-delivery-guard`、`poster-project-delivery-guard`、`pptx-project-delivery-guard`、`print-publication-delivery-guard`、`video-project-delivery-guard`、`music-project-delivery-guard` | contract 文件 + SHA-256 receipt 绑定交付物新鲜度，输出经受控 writer 工具生成 |
-| 治理类 | `project-capability-governance`、`language-output-governance`、`work-report-insights` | 提案格式与采用流程、会话语言、报告封印与追加 |
+| 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`dependency-file-custody`、`command-safety` | 对命令、写入、测试顺序与源码质量实施可机械验证的硬门禁 |
+| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development` | 内部 Skill 组织步骤；通用方法优先来自固定版本的社区 Skill，缺失时停止对应路线 |
+| 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
+| 领域生产 | `brand-logo-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
+| 项目与交付治理 | `project-capability-governance`、`ci-gated-delivery`、`repository-history-migration` | 管理能力采用、远端交付状态机和跨仓历史迁移 |
+| 输出治理 | `language-output` | 用平台独立 Hook 维持会话语言，不依赖其他插件 |
 
 ### Subagent 原则
 
@@ -173,7 +175,7 @@ plugins/<name>/
 - **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出放行/阻断决策，stderr 输出给人读的消息；解析失败一律 fail-open。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
 - **证据**：工作流插件用磁盘回执和 SHA-256 receipt 绑新鲜度；交付前要求回执和 trail 对得上。Hook 被调用、格式对、或多走几轮模型，都不算做完。
 - **fail-open / fail-closed**：解析失败和证据缺失就放行；写入安全、trail 完整性和交付新鲜度出问题就拦住。
-- **可配置**：多数守卫支持项目级配置（如 `.encoding-guard.mjs`、`.language-output-governance.mjs`），解析失败回退内置规则。
+- **可配置**：多数守卫支持项目级配置（如 `.source-integrity.mjs`、`.language-output.mjs`），解析失败回退内置规则。
 - **验证配套**：每个插件至少一个 TypeScript 离线测试与一套 acceptance cases；CI 统一运行 typecheck、ESLint、`check:dist`、单元测试和 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
 
 ## 前置条件
@@ -225,7 +227,7 @@ codex plugin add <plugin-name>@harness-start --json
 
 ## 社区 Skill 依赖
 
-部分插件依赖公开 Agent Skill，例如 `work-report-insights` → `grill-me`。在插件目录声明：
+部分插件依赖公开 Agent Skill，例如 `work-reporting` → `grill-me`。在插件目录声明：
 
 ```text
 plugins/<name>/skill-deps.json
@@ -286,7 +288,7 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 ```bash
 ./scripts/acceptance/run.sh --smoke                         # DeepSeek smoke，Docker
 ./scripts/acceptance/run.sh                                 # 全部插件 × Claude/Codex，Docker
-./scripts/acceptance/run.sh --plugin command-safety-guards  # 单个插件，Docker
+./scripts/acceptance/run.sh --plugin command-safety  # 单个插件，Docker
 ./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
 bash scripts/acceptance/test-skill-deps-install.sh          # skill-deps 安装辅助（无 API）
 

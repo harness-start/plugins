@@ -9,7 +9,7 @@
 
 ## 为什么保留
 
-两个源仓都有 `svn-bulk-operation-guard` 和 `svn-commit-message-guard`，当前 marketplace 只有 Git 规则。SVN 的工作副本、显式路径和提交语义与 Git index 不同，不应塞进 `git-delivery-guards`，也不应抽象成一个多后端 VCS 核心。
+两个源仓都有 `svn-bulk-operation-guard` 和 `svn-commit-message-guard`，当前 marketplace 只有 Git 规则。SVN 的工作副本、显式路径和提交语义与 Git index 不同，不应塞进 `git-delivery`，也不应抽象成一个多后端 VCS 核心。
 
 规则只依赖 shell 命令和本地工作副本，可做成自包含插件，不需要远端 API 或 MCP。
 

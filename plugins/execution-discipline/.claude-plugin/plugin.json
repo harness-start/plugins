@@ -1,0 +1,10 @@
+{
+  "name": "execution-discipline",
+  "version": "0.2.0",
+  "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json"
+}

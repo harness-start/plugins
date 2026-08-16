@@ -57,13 +57,13 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "${tmp}"' EXIT
 
 # --- parse: valid -------------------------------------------------------------
-valid_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills"}]}'
+valid_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
 got="$(parse_skill_deps_json "${valid_json}" "valid.json")"
-assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t\t'
+assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
 
-pinned_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"v1.0.0"}]}'
+pinned_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
 got="$(parse_skill_deps_json "${pinned_json}" "pinned.json")"
-assert_eq "parse pinned revision" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\tv1.0.0\t'
+assert_eq "parse pinned revision" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
 
 nested_json='{"skills":[{"name":"musical-dna","source":"https://github.com/jwynia/agent-skills","revision":"e02ec7e226a6e4f8419fd3b88a1d8e472d421b32","subpath":"skills/creative/music/musical-dna"}]}'
 got="$(parse_skill_deps_json "${nested_json}" "nested.json")"
@@ -71,6 +71,8 @@ assert_eq "parse pinned nested skill" "${got}" $'musical-dna\thttps://github.com
 
 invalid_revision_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":""}]}'
 assert_fail "reject empty pinned revision" parse_skill_deps_json "${invalid_revision_json}" "invalid-revision.json"
+assert_fail "reject missing pinned revision" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo"}]}' "missing-revision.json"
+assert_fail "reject unapproved executable" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","revision":"0123456789012345678901234567890123456789","mode":"audited-executable","execution":{"approved":false,"paths":[{"path":"scripts/x.py","sha256":"0123456789012345678901234567890123456789012345678901234567890123"}]}}]}' "unapproved-executable.json"
 assert_fail "reject escaping skill subpath" \
   parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","subpath":"../x"}]}' "invalid-subpath.json"
 
@@ -86,6 +88,15 @@ assert_fail "parse rejects empty name" \
 assert_fail "parse rejects empty source" \
   parse_skill_deps_json '{"skills":[{"name":"x","source":""}]}' "bad.json"
 
+# --- catalog identity conflict ------------------------------------------------
+conflict_market="${tmp}/conflict-market"
+mkdir -p "${conflict_market}/.claude-plugin" "${conflict_market}/plugins/a" "${conflict_market}/plugins/b"
+printf '{"plugins":[{"name":"a","source":"./plugins/a"},{"name":"b","source":"./plugins/b"}]}\n' >"${conflict_market}/.claude-plugin/marketplace.json"
+printf '{"skills":[{"name":"same","source":"https://example.com/one","revision":"1111111111111111111111111111111111111111"}]}\n' >"${conflict_market}/plugins/a/skill-deps.json"
+printf '{"skills":[{"name":"same","source":"https://example.com/two","revision":"2222222222222222222222222222222222222222"}]}\n' >"${conflict_market}/plugins/b/skill-deps.json"
+assert_fail "catalog rejects same-name different-identity Skills" \
+  bash "${REPO_ROOT}/scripts/install-all.sh" --local "${conflict_market}" --list-only --skip-missing-hosts
+
 # --- list: missing file is no-op ---------------------------------------------
 plugin_none="${tmp}/plugin-none"
 mkdir -p "${plugin_none}"
@@ -93,15 +104,15 @@ got="$(list_plugin_skill_deps "${plugin_none}")"
 assert_eq "missing skill-deps is empty" "${got}" ""
 
 # --- list: real marketplace plugin with deps ---------------------------------
-if [ -f "${REPO_ROOT}/plugins/work-report-insights/skill-deps.json" ]; then
-  got="$(list_plugin_skill_deps "${REPO_ROOT}/plugins/work-report-insights")"
+if [ -f "${REPO_ROOT}/plugins/work-reporting/skill-deps.json" ]; then
+  got="$(list_plugin_skill_deps "${REPO_ROOT}/plugins/work-reporting")"
   if printf '%s\n' "${got}" | grep -q $'^grill-me\t'; then
-    pass "list work-report-insights includes grill-me"
+    pass "list work-reporting includes grill-me"
   else
-    fail "list work-report-insights missing grill-me (got=${got})"
+    fail "list work-reporting missing grill-me (got=${got})"
   fi
 else
-  fail "work-report-insights skill-deps.json missing from repo"
+  fail "work-reporting skill-deps.json missing from repo"
 fi
 
 # --- seed without install (synthetic cache) ----------------------------------
@@ -149,7 +160,7 @@ assert_fail "install fails closed on invalid skill-deps" \
   install_plugin_skill_deps "${plugin_bad}" "${dest_home}" "${tmp}/cache-bad" "claude"
 
 ACCEPT_SKIP_SKILL_DEPS=1 assert_ok "ACCEPT_SKIP_SKILL_DEPS skips valid deps" \
-  install_plugin_skill_deps "${REPO_ROOT}/plugins/work-report-insights" \
+  install_plugin_skill_deps "${REPO_ROOT}/plugins/work-reporting" \
   "${tmp}/skip-home" "${tmp}/skip-cache" "claude"
 unset ACCEPT_SKIP_SKILL_DEPS
 

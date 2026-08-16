@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "research-provenance-guard",
+      "name": "evidence-based-research",
       "source": {
         "source": "local",
-        "path": "./plugins/research-provenance-guard"
+        "path": "./plugins/evidence-based-research"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -17,10 +17,10 @@
       "category": "Productivity"
     },
     {
-      "name": "execution-loop-guard",
+      "name": "execution-discipline",
       "source": {
         "source": "local",
-        "path": "./plugins/execution-loop-guard"
+        "path": "./plugins/execution-discipline"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -29,10 +29,23 @@
       "category": "Productivity"
     },
     {
-      "name": "source-sanity-guard",
+      "name": "source-integrity",
       "source": {
         "source": "local",
-        "path": "./plugins/source-sanity-guard"
+        "path": "./plugins/source-integrity"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Protects source filenames, replacement characters, and strict UTF-8 encoding."
+    },
+    {
+      "name": "git-delivery",
+      "source": {
+        "source": "local",
+        "path": "./plugins/git-delivery"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -41,10 +54,23 @@
       "category": "Productivity"
     },
     {
-      "name": "git-delivery-guards",
+      "name": "engineering-quality",
       "source": {
         "source": "local",
-        "path": "./plugins/git-delivery-guards"
+        "path": "./plugins/engineering-quality"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Enforces source checks, line budgets, and Markdown structure."
+    },
+    {
+      "name": "test-driven-development",
+      "source": {
+        "source": "local",
+        "path": "./plugins/test-driven-development"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -53,10 +79,10 @@
       "category": "Productivity"
     },
     {
-      "name": "code-quality-guard",
+      "name": "dependency-file-custody",
       "source": {
         "source": "local",
-        "path": "./plugins/code-quality-guard"
+        "path": "./plugins/dependency-file-custody"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -65,10 +91,10 @@
       "category": "Productivity"
     },
     {
-      "name": "tdd-guard",
+      "name": "command-safety",
       "source": {
         "source": "local",
-        "path": "./plugins/tdd-guard"
+        "path": "./plugins/command-safety"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -77,10 +103,10 @@
       "category": "Productivity"
     },
     {
-      "name": "encoding-guard",
+      "name": "language-output",
       "source": {
         "source": "local",
-        "path": "./plugins/encoding-guard"
+        "path": "./plugins/language-output"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -89,10 +115,10 @@
       "category": "Productivity"
     },
     {
-      "name": "file-line-budget-guard",
+      "name": "intent-discovery",
       "source": {
         "source": "local",
-        "path": "./plugins/file-line-budget-guard"
+        "path": "./plugins/intent-discovery"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -101,10 +127,36 @@
       "category": "Productivity"
     },
     {
-      "name": "protected-file-guard",
+      "name": "engineering-practice",
       "source": {
         "source": "local",
-        "path": "./plugins/protected-file-guard"
+        "path": "./plugins/engineering-practice"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Orchestrates pinned community engineering methods."
+    },
+    {
+      "name": "professional-writing",
+      "source": {
+        "source": "local",
+        "path": "./plugins/professional-writing"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Orchestrates pinned community Skills for professional prose."
+    },
+    {
+      "name": "reasoning-methods",
+      "source": {
+        "source": "local",
+        "path": "./plugins/reasoning-methods"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -113,10 +165,23 @@
       "category": "Productivity"
     },
     {
-      "name": "command-safety-guards",
+      "name": "agent-activity-audit",
       "source": {
         "source": "local",
-        "path": "./plugins/command-safety-guards"
+        "path": "./plugins/agent-activity-audit"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Records protected per-session file and command activity."
+    },
+    {
+      "name": "software-debugging",
+      "source": {
+        "source": "local",
+        "path": "./plugins/software-debugging"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -125,10 +190,10 @@
       "category": "Productivity"
     },
     {
-      "name": "language-output-governance",
+      "name": "presentation-production",
       "source": {
         "source": "local",
-        "path": "./plugins/language-output-governance"
+        "path": "./plugins/presentation-production"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -137,10 +202,10 @@
       "category": "Productivity"
     },
     {
-      "name": "intent-clarify-gate",
+      "name": "poster-production",
       "source": {
         "source": "local",
-        "path": "./plugins/intent-clarify-gate"
+        "path": "./plugins/poster-production"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -149,10 +214,10 @@
       "category": "Productivity"
     },
     {
-      "name": "engineering-mindset",
+      "name": "video-production",
       "source": {
         "source": "local",
-        "path": "./plugins/engineering-mindset"
+        "path": "./plugins/video-production"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -161,10 +226,10 @@
       "category": "Productivity"
     },
     {
-      "name": "reasoning-discipline",
+      "name": "brand-logo-production",
       "source": {
         "source": "local",
-        "path": "./plugins/reasoning-discipline"
+        "path": "./plugins/brand-logo-production"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -173,10 +238,10 @@
       "category": "Productivity"
     },
     {
-      "name": "markdown-format-guard",
+      "name": "print-publication-production",
       "source": {
         "source": "local",
-        "path": "./plugins/markdown-format-guard"
+        "path": "./plugins/print-publication-production"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -185,10 +250,10 @@
       "category": "Productivity"
     },
     {
-      "name": "file-access-audit",
+      "name": "music-production",
       "source": {
         "source": "local",
-        "path": "./plugins/file-access-audit"
+        "path": "./plugins/music-production"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -197,69 +262,15 @@
       "category": "Productivity"
     },
     {
-      "name": "command-exec-audit",
+      "name": "work-reporting",
       "source": {
         "source": "local",
-        "path": "./plugins/command-exec-audit"
+        "path": "./plugins/work-reporting"
       },
       "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "category": "Productivity"
-    },
-    {
-      "name": "debugging-workflow-guard",
-      "source": {
-        "source": "local",
-        "path": "./plugins/debugging-workflow-guard"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "pptx-project-delivery-guard",
-      "source": {"source": "local", "path": "./plugins/pptx-project-delivery-guard"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-      "category": "Productivity"
-    },
-    {
-      "name": "poster-project-delivery-guard",
-      "source": {"source": "local", "path": "./plugins/poster-project-delivery-guard"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-      "category": "Productivity"
-    },
-    {
-      "name": "video-project-delivery-guard",
-      "source": {"source": "local", "path": "./plugins/video-project-delivery-guard"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-      "category": "Productivity"
-    },
-    {
-      "name": "logo-project-delivery-guard",
-      "source": {"source": "local", "path": "./plugins/logo-project-delivery-guard"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-      "category": "Productivity"
-    },
-    {
-      "name": "print-publication-delivery-guard",
-      "source": {"source": "local", "path": "./plugins/print-publication-delivery-guard"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-      "category": "Productivity"
-    },
-    {
-      "name": "music-project-delivery-guard",
-      "source": {"source": "local", "path": "./plugins/music-project-delivery-guard"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
-      "category": "Productivity"
-    },
-    {
-      "name": "work-report-insights",
-      "source": {"source": "local", "path": "./plugins/work-report-insights"},
-      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
       "category": "Productivity"
     },
     {
@@ -275,10 +286,10 @@
       "category": "Productivity"
     },
     {
-      "name": "sdd-workflow",
+      "name": "spec-driven-development",
       "source": {
         "source": "local",
-        "path": "./plugins/sdd-workflow"
+        "path": "./plugins/spec-driven-development"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -299,10 +310,10 @@
       "category": "Productivity"
     },
     {
-      "name": "cross-repo-history-migration",
+      "name": "repository-history-migration",
       "source": {
         "source": "local",
-        "path": "./plugins/cross-repo-history-migration"
+        "path": "./plugins/repository-history-migration"
       },
       "policy": {
         "installation": "AVAILABLE",

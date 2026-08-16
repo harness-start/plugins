@@ -152,7 +152,7 @@ test("recognizes project remote pushes without intercepting unrelated repositori
     "command git -c push.autoSetupRemote=true push",
     `git -C ${projectRoot} push`,
     "git send-pack origin refs/heads/main",
-    "cd plugins/git-delivery-guards && git push",
+    "cd plugins/git-delivery && git push",
   ];
 
   for (const command of pushCommands) {

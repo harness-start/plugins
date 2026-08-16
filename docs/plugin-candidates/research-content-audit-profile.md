@@ -1,15 +1,15 @@
-# 现有插件扩展：`research-provenance-guard` content-audit profile
+# 现有插件扩展：`evidence-based-research` content-audit profile
 
 | 字段 | 裁定 |
 | --- | --- |
-| 形态 | 扩展 `plugins/research-provenance-guard/`，不新增插件 ID |
+| 形态 | 扩展 `plugins/evidence-based-research/`，不新增插件 ID |
 | 优先级 | P2；先恢复现有插件双宿主基线 |
 | 默认安装 | 随现有插件；只有显式创建 `content-audit` run 才激活 |
 | 目标 | 对给定文章、网页或字幕生成可复验的主张矩阵，同时复用现有 evidence capture 与 seal |
 
 ## 为什么不新增 `content-credibility-gate`
 
-`harness-starter` 的 `content-credibility-audit` 提供 claim 抽取、判定、确定性 renderer、validator 与 completion gate；当前 `ai-experts` 没有对应组件，不能作为实现交叉验证。但本仓 `research-provenance-guard` 已经拥有 source capture、anchor、typed claim、snapshot、seal 与 handoff。再建一套 `.content-credibility` evidence 栈会重复抓取、摘要和 provenance，并允许同一来源出现两套不兼容结论。
+`harness-starter` 的 `content-credibility-audit` 提供 claim 抽取、判定、确定性 renderer、validator 与 completion gate；当前 `ai-experts` 没有对应组件，不能作为实现交叉验证。但本仓 `evidence-based-research` 已经拥有 source capture、anchor、typed claim、snapshot、seal 与 handoff。再建一套 `.content-credibility` evidence 栈会重复抓取、摘要和 provenance，并允许同一来源出现两套不兼容结论。
 
 因此只新增 run profile 和 schema，不新增插件、MCP server 或独立 seal 格式。
 
@@ -41,7 +41,7 @@
 
 ## 实现顺序与验收
 
-现有 `research-provenance-guard` 在 `docs/acceptance-matrix.md` 中仍标记 Codex MCP tools 暴露问题。该问题未修复且 Claude/Codex 定向基线未重新变绿前，不开始本扩展。
+现有 `evidence-based-research` 在 `docs/acceptance-matrix.md` 中仍标记 Codex MCP tools 暴露问题。该问题未修复且 Claude/Codex 定向基线未重新变绿前，不开始本扩展。
 
 基线恢复后至少覆盖：
 
