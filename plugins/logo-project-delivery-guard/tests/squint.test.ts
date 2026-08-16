@@ -7,6 +7,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { decodePngToRgba } from "../src/lib/png-decode.js";
+import { computeLogoSubjectDigest } from "../src/lib/contract.js";
+import { issueWriterCapability } from "../src/lib/capability.js";
+import { loadLogoProject } from "../src/lib/project.js";
 import { renderPreviewStrip } from "../src/lib/preview-strip.js";
 import { analyzeSquintCell, buildSquintEvidence } from "../src/lib/squint.js";
 
@@ -69,6 +72,7 @@ test("project preview runs with an isolated HOME and no external Skill tool", as
       join(project, "build", "master", "mark.svg"),
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="20" fill="#111"/></svg>\n',
     );
+    await issueWriterCapability({ root: project, capability: "logo-preview", argv: [PREVIEW_ENTRY, project], subjectDigest: computeLogoSubjectDigest(await loadLogoProject(project)), sessionId: "preview-session" });
     const result = spawnSync(process.execPath, [PREVIEW_ENTRY, project], {
       encoding: "utf8",
       env: {
@@ -89,12 +93,20 @@ test("project preview runs with an isolated HOME and no external Skill tool", as
   }
 });
 
+test("project preview rejects the removed review-writing option", async () => {
+  const sandbox = await mkdtemp(join(tmpdir(), "logo-preview-review-option-"));
+  try {
+    const result = spawnSync(process.execPath, [PREVIEW_ENTRY, sandbox, "--write-review"], { encoding: "utf8" });
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /usage:/u);
+  } finally {
+    await rm(sandbox, { recursive: true, force: true });
+  }
+});
+
 test("distributed preview sources do not name undeclared logo Skill dependencies", async () => {
-  const sources = await Promise.all([
-    new URL("../README.md", import.meta.url),
-    new URL("../dist/cli/project-preview.mjs", import.meta.url),
-  ].map((url) => readFile(url, "utf8")));
-  assert.doesNotMatch(sources.join("\n"), /logo-design|logo-audit|lettering-design|visual-evidence|\/srv\/workspaces\//u);
+  const source = await readFile(new URL("../dist/cli/project-preview.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /brand-identity|logo-design|color-expert|logo-generator|logo-audit|lettering-design|visual-evidence|\/srv\/workspaces\//u);
 });
 
 test("bundled preview fails closed when its declared renderer is unavailable", async () => {

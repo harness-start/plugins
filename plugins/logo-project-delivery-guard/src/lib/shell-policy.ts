@@ -7,7 +7,8 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
 const TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
-const WRITERS = new Set(["project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-stage.mjs", "project-validate.mjs"]);
+const WRITERS = new Set(["project-advice.mjs", "project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
+const MUTATING_WRITERS = new Set(["project-advice.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
 const READ_ONLY = new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
 
 export function parseShellWords(command: unknown): string[] | null {
@@ -43,7 +44,7 @@ function expandKnownPluginRoot(command: unknown): string {
   return expanded;
 }
 
-function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: string): { name: string; projectRoot: string } | null {
+function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: string): { name: string; projectRoot: string; argv: string[] } | null {
   const first = words?.[0];
   const second = words?.[1];
   const third = words?.[2];
@@ -54,6 +55,7 @@ function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: s
   const projectRoot = isAbsolute(third) ? resolve(third) : resolve(cwd, third);
   if (dirname(projectRoot) !== resolve(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
+  if (["project-advice.mjs", "project-review.mjs"].includes(name) && words.length !== 4) return null;
   if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3] ?? ""))) return null;
   if (name === "project-stage.mjs" && (words.length !== 4 || words[3] !== "release")) return null;
   if (name === "project-validate.mjs") {
@@ -67,14 +69,9 @@ function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: s
     }
   }
   if (name === "project-preview.mjs") {
-    const args = words.slice(3);
-    while (args.length > 0) {
-      const value = args.shift();
-      if (value === "--write-review") continue;
-      return null;
-    }
+    if (words.length !== 3) return null;
   }
-  return { name, projectRoot };
+  return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 
 function readOnlyCommand(words: string[] | null): boolean {
@@ -99,6 +96,7 @@ export type LogoShellDecision = {
   decision: "allow" | "deny";
   writer?: string;
   projectRoot?: string;
+  argv?: string[];
   code?: string;
   message?: string;
 };
@@ -117,7 +115,12 @@ export function evaluateLogoShell({
   if (activeProjectCount < 1 && !touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
-  if (invocation) return { decision: "allow", writer: invocation.name, projectRoot: invocation.projectRoot };
+  if (invocation) {
+    const writer = MUTATING_WRITERS.has(invocation.name)
+      ? `logo-${invocation.name.slice("project-".length, -".mjs".length)}`
+      : undefined;
+    return { decision: "allow", ...(writer ? { writer } : {}), projectRoot: invocation.projectRoot, argv: invocation.argv };
+  }
   if (readOnlyCommand(words)) return { decision: "allow" };
   return { decision: "deny", code: "UNKNOWN_MUTATION_SHELL", message: "logo scope permits only read-only commands or an exact registered writer invocation" };
 }

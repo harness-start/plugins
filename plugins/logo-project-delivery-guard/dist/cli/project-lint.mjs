@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
+// harness-source-hash: sha256:a97d59b43726d9807ef2c87177f781204e567b64805a135569788e61cd29a495
 import {
   assertLogoProjectRoot
-} from "../chunks/chunk-6VSA7JKI.mjs";
+} from "../chunks/chunk-7TWYATJQ.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";

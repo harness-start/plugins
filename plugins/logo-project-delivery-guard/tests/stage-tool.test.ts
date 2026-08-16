@@ -7,6 +7,9 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { computeLogoSubjectDigest } from "../src/lib/contract.js";
+import { issueWriterCapability } from "../src/lib/capability.js";
+import { loadLogoProject } from "../src/lib/project.js";
 import { validLogoModel, writeModel } from "./helpers/logo-fixture.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/cli/project-stage.mjs", import.meta.url));
@@ -16,6 +19,7 @@ test("registered stage writer validates source closure and atomically advances t
   const project = join(sandbox, "artifacts", "logo", "orbit-logo");
   try {
     await writeModel(project, validLogoModel({ stage: "source" }));
+    await issueWriterCapability({ root: project, capability: "logo-stage", argv: [ENTRY, project, "release"], subjectDigest: computeLogoSubjectDigest(await loadLogoProject(project)), sessionId: "stage-session" });
     const result = await new Promise((resolve, reject) => {
       const child = spawn(process.execPath, [ENTRY, project, "release"], { cwd: sandbox, stdio: ["ignore", "pipe", "pipe"] });
       let stderr = "";

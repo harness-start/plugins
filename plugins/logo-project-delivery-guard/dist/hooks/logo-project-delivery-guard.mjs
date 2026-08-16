@@ -1,14 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
+// harness-source-hash: sha256:a97d59b43726d9807ef2c87177f781204e567b64805a135569788e61cd29a495
+import {
+  issueWriterCapability
+} from "../chunks/chunk-U4EQK624.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-6VSA7JKI.mjs";
+} from "../chunks/chunk-7TWYATJQ.mjs";
 import {
+  computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-XNRN4R7K.mjs";
+} from "../chunks/chunk-D2X3E36I.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/hooks/logo-project-delivery-guard.ts
 import { access } from "node:fs/promises";
@@ -39,6 +43,17 @@ async function readStdinJson(input = process.stdin) {
   } catch {
     return { __parseError: true };
   }
+}
+function eventSessionId(event) {
+  const context2 = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context2?.session_id
+  );
 }
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
@@ -218,7 +233,8 @@ var PLUGIN_DIRECTORY = resolve2(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
 var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
-var WRITERS = /* @__PURE__ */ new Set(["project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-stage.mjs", "project-validate.mjs"]);
+var WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
+var MUTATING_WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
 function parseShellWords(command) {
   const words = [];
@@ -281,6 +297,7 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
   if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
+  if (["project-advice.mjs", "project-review.mjs"].includes(name) && words.length !== 4) return null;
   if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3] ?? ""))) return null;
   if (name === "project-stage.mjs" && (words.length !== 4 || words[3] !== "release")) return null;
   if (name === "project-validate.mjs") {
@@ -294,14 +311,9 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
     }
   }
   if (name === "project-preview.mjs") {
-    const args = words.slice(3);
-    while (args.length > 0) {
-      const value = args.shift();
-      if (value === "--write-review") continue;
-      return null;
-    }
+    if (words.length !== 3) return null;
   }
-  return { name, projectRoot };
+  return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 function readOnlyCommand(words) {
   const command = words?.[0];
@@ -328,7 +340,10 @@ function evaluateLogoShell({
   if (activeProjectCount < 1 && !touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
-  if (invocation) return { decision: "allow", writer: invocation.name, projectRoot: invocation.projectRoot };
+  if (invocation) {
+    const writer = MUTATING_WRITERS.has(invocation.name) ? `logo-${invocation.name.slice("project-".length, -".mjs".length)}` : void 0;
+    return { decision: "allow", ...writer ? { writer } : {}, projectRoot: invocation.projectRoot, argv: invocation.argv };
+  }
   if (readOnlyCommand(words)) return { decision: "allow" };
   return { decision: "deny", code: "UNKNOWN_MUTATION_SHELL", message: "logo scope permits only read-only commands or an exact registered writer invocation" };
 }
@@ -411,12 +426,20 @@ async function main() {
 `);
       else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
+      else if (result.writer && result.projectRoot && result.argv) {
+        try {
+          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown", triggerFrom: `logo-project-delivery-guard:pre:${result.writer}` });
+        } catch (error) {
+          process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`))}
+`);
+        }
+      }
     }
     return;
   }
   if (mode === "session") {
     const { roots } = await findLogoProjects(cwd);
-    if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s); generated outputs require project-render and release requires project-release.`))}
+    if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s). Use $logo-project-authoring; advice, render, preview, review, stage, and release require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`))}
 `);
     return;
   }

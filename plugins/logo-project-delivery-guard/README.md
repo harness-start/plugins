@@ -1,12 +1,20 @@
 # Logo Project Delivery Guard
 
-`logo-project-delivery-guard` 管 Logo 工程，不管整套 VI。交付要从 concept source 走到 master、制图/预览/审查，再到 release receipt。只改文件名、交空图、交 schema 桩或伪造 wrapper，过不了。
+`logo-project-delivery-guard` 管 Logo 工程，不管整套 VI。v0.4 通过 `$logo-project-authoring` 串联 `brief → concept → master → construction → variants → preview → review → release`，并用 `$logo-project-review` 做独立终审。只改文件名、交空图、交 schema 桩、伪造外部 Skill 使用记录或伪造 wrapper，过不了。
 
 Fibonacci / φ 检查的是：构造关系能按当前 master 复算。它不说黄金比例一定更好看，也不等于商标能注册。
 
 ## 工程契约
 
-`plan.contract.json` 必须绑定项目和 `source` 或 `release` 阶段。概念文件使用 `NNN-slug.logo.tsx`，concept id 与 source 必须唯一，`logo.project.json` 必须精确选择其中一个概念。注册 renderer 生成带 source SHA-256 的真实 PNG。
+`plan.contract.json` 必须绑定项目和 `source` 或 `release` 阶段。`plan.brief.json` 固化受众、品牌定位、语言、约束、禁用方向和成功标准。`plan.skill-composition.json` 保存完整的中英文公开候选池、固定 revision、真实状态和选择理由。概念文件使用 `NNN-slug.logo.tsx`，concept id 与 source 必须唯一，`logo.project.json` 必须精确选择其中一个概念。注册 renderer 生成带 source SHA-256 的真实 PNG。
+
+## 外部 Skill 编排
+
+候选池包含英文 `brand-identity`、`logo-design`、`color-expert` 和中文生态的双语 `logo-generator`。每个项目动态择优，最多使用 3 个且 advice artifact 必须互不相同；不强制每次同时使用中英文 Skill。
+
+来源与归因：[`brand-identity`](https://github.com/arnabbagxd/Brand-building-skills)（MIT）、[`logo-design`](https://github.com/seb1n/awesome-ai-agent-skills)（MIT，作者 Burhan Sebin / AI Agent Skills Community）、[`color-expert`](https://github.com/meodai/skill.color-expert)（CC-BY-4.0，作者/项目归因为 `meodai/skill.color-expert`）、[`logo-generator`](https://github.com/op7418/logo-generator-skill)（MIT，双语社区项目）。实际安装 revision 和 reference-only allowlist 以 `skill-deps.json` 为准。
+
+外部 Skill 只有建议权：不能写项目、运行 reference-only 包的脚本或联网流程、生成受保护 evidence、担任独立 reviewer 或执行 release。每个 `used` worker 在项目外生成 Result Card，再由 `project-advice.mjs` 校验 name、revision、phase、subject digest 后准入 `evidence/skills/`。`skipped` 与 `unavailable` 必须记录真实原因。
 
 master 固定为 `Mark.logo.tsx`、`Wordmark.logo.tsx`、`Lockup.logo.tsx`，每个文件只导出同名原生 SVG component。built master 必须是带 `viewBox` 和可渲染 vector geometry 的自包含 SVG；无效 path data、无尺寸 primitive、固定 width/height、raster、text、远程资源或运行期 I/O 都会被拒绝。
 
@@ -27,24 +35,24 @@ Release 在 Source 闭包之上还必须包含：
 - accessibility、approved review 与 release manifest；
 - 绑定 master digest 的 preview strip 和 manifest，覆盖 16/32/64、black/mono 与 reverse；
 - squint JSON 使用实测 `box-blur-threshold-connected-components`，绑定 strip digest、真实 bbox 和每格指标；
-- `singleMemoryPoint`、`opticalCraft`、`markWordmarkSystem` 均达到 `requiredMin`，并记录实质说明；
+- `singleMemoryPoint`、`opticalCraft`、`markWordmarkSystem` 的 `requiredMin` 不得低于 2，分数均达到阈值并记录实质说明；
 - receipt 同时绑定 source、master、construction、preview、review 和最终输出。
 
 ## 注册工具工作流
 
 项目 `package.json` 必须提供 `logo:render`。这是项目自有、受信任的可执行配置边界；它可以读取项目源码并生成文件，但输出仍须通过格式、关系、manifest 和 digest 校验。
 
-按顺序使用 `project-render.mjs`、`project-validate.mjs`、`project-preview.mjs`、`project-stage.mjs`、`project-release.mjs` 完成生成、实测预览、单调升级和 receipt 签发。
+按顺序使用 `project-advice.mjs`、`project-render.mjs`、`project-validate.mjs`、`project-preview.mjs`、`project-stage.mjs`、`project-review.mjs`、`project-release.mjs` 完成建议准入、生成、实测预览、单调升级、独立评审和 receipt 签发。
 
-`project-preview.mjs` 在插件内构建多尺寸黑稿/反白稿条带，通过 FFmpeg 栅格化为真实 PNG，再做 squint 分析；它不查找外部 Skill，也不会自动伪造通过的审美分数。运行环境需提供支持 SVG 输入的 FFmpeg；非标准安装位置可通过 `LOGO_PREVIEW_RENDERER` 指定可执行文件。仓库规定的 host-acceptance 容器已包含该运行时。
+`project-preview.mjs` 在插件内构建多尺寸黑稿/反白稿条带，通过 FFmpeg 栅格化为真实 PNG，再做 squint 分析；它不查找外部 Skill，也不能写 `review.logo.json`。运行环境需提供支持 SVG 输入的 FFmpeg；非标准安装位置可通过 `LOGO_PREVIEW_RENDERER` 指定可执行文件。仓库规定的 host-acceptance 容器已包含该运行时。
 
-标志质量复核、定制字形制作和视觉证据判读是可选的上游或人工能力，不是本插件的运行时依赖。插件只校验进入工程契约的产物和证据，不声称替代这些专业判断。
+`project-review.mjs` 只接收项目外 review-input JSON，要求 reviewer session 与 render/release session 分离，覆盖当前 master、construction、variants、PNG 和 preview hashes。blocker/major finding 必须由 reviewer 对当前 artifact 复验为 `verified`。插件不声称替代商标法务判断。
 
-`project-render.mjs` 与 `project-release.mjs` 使用独占 journal；失败会保留 journal 并阻止 Stop。已有 plan 不能通过普通编辑工具删除或降级，只能使用 `project-stage.mjs` 单调升级。
+所有 mutating wrapper 消耗 30 秒、单次、argv/session/subject 绑定 capability 并使用独占 journal。renderer 只能写 render-owned 路径；若它碰 preview、advice、review、manifest 或 receipt，wrapper 会恢复原字节并失败。`project-release.mjs` 独占写 release manifest 与 receipt。已有 plan 不能通过普通编辑工具删除或降级，只能使用 `project-stage.mjs` 单调升级。
 
 ## Hook 与边界
 
-Hook 采用 fail-closed shell policy：Logo scope 只允许窄化的只读命令，或参数形状精确匹配的 `project-lint`、`project-render`、`project-stage`、`project-preview`、`project-validate`、`project-release`。
+Hook 采用 fail-closed shell policy：Logo scope 只允许窄化的只读命令，或参数形状精确匹配的 `project-advice`、`project-lint`、`project-render`、`project-stage`、`project-preview`、`project-review`、`project-validate`、`project-release`。
 
 注册工具只能指向 workspace 内已发现、非 symlink 的 Logo 项目实体目录。路径伪装的同名二进制、`rg --pre`、可写 `sed`/`find`、wrapper 路径仅作为普通参数、`node -e`、compound shell 和畸形 hook JSON 都不会放行。没有 Logo 项目的普通会话不受这组 shell allowlist 影响。
 

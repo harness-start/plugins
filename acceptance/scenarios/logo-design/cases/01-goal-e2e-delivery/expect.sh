@@ -62,9 +62,11 @@ for id in "${logo_ids[@]:-}"; do
   base="${logo_root}/${id}"
   soft "inspecting ${base}"
 
-  # Structural progress (not full release contract — first e2e is observational).
+  # Structural inventory; the contract probe below is the release hard gate.
   for rel in \
     plan.contract.json \
+    plan.brief.json \
+    plan.skill-composition.json \
     logo.project.json \
     src/master/Mark.logo.tsx \
     src/master/Wordmark.logo.tsx \
@@ -103,19 +105,23 @@ for id in "${logo_ids[@]:-}"; do
   fi
 done
 
-# Contract probe via shipped project-validate (source). Prefer formal Fib findings.
-validate_js="${REPO}/plugins/logo-project-delivery-guard/scripts/tools/project-validate.mjs"
+# Contract probe via the shipped validator. Prefer formal Fib findings.
+validate_js="${REPO}/plugins/logo-project-delivery-guard/dist/cli/project-validate.mjs"
 if [ "${#logo_ids[@]}" -gt 0 ] && [ -f "${validate_js}" ] && command -v node >/dev/null 2>&1; then
   id="${logo_ids[0]}"
+  target_stage="$(jq -r '.targetStage // "source"' "${logo_root}/${id}/plan.contract.json" 2>/dev/null || printf source)"
+  if [ "${target_stage}" != "release" ]; then
+    bad "target stage is ${target_stage}; full orchestration must reach release"
+  fi
   set +e
-  node "${validate_js}" "${logo_root}/${id}" --stage source --json >>"${notes}" 2>&1
+  node "${validate_js}" "${logo_root}/${id}" --stage "${target_stage}" --json >>"${notes}" 2>&1
   probe_rc=$?
   set -e
   if [ "${probe_rc}" -eq 0 ]; then
-    ok "source contract validate clean for ${id}"
+    ok "${target_stage} contract validate clean for ${id}"
     score=$((score + 2))
   else
-    soft "source contract still has findings for ${id} (see quality-notes.md)"
+    bad "${target_stage} contract still has findings for ${id} (see quality-notes.md)"
   fi
   # Formal construction signal: fibonacci.json should declare circles when present
   fib="${logo_root}/${id}/src/construction/fibonacci.json"
@@ -142,8 +148,7 @@ fi
 
 note "quality-notes written to ${notes} (score=${score} fails=${fail})"
 
-# Hard gate for first e2e: install stack + some logo artifact progress.
-# Full release receipt is NOT required yet — observe quality in notes.
+# Hard gate: install stack, complete release contract, and substantive logo artifacts.
 if [ "${fail}" -ne 0 ]; then
   exit 1
 fi

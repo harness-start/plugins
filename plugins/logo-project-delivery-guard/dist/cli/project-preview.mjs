@@ -1,8 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
+// harness-source-hash: sha256:a97d59b43726d9807ef2c87177f781204e567b64805a135569788e61cd29a495
 import {
+  withWriterJournal
+} from "../chunks/chunk-YYSHLFOI.mjs";
+import {
+  consumeWriterCapability,
+  processWriterArgv
+} from "../chunks/chunk-U4EQK624.mjs";
+import {
+  assertLogoProjectRoot
+} from "../chunks/chunk-7TWYATJQ.mjs";
+import {
+  computeLogoSubjectDigest,
   masterSubjectDigest
-} from "../chunks/chunk-XNRN4R7K.mjs";
+} from "../chunks/chunk-D2X3E36I.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-preview.ts
 import { createHash } from "node:crypto";
@@ -424,89 +435,52 @@ async function loadTextTree(root) {
 async function main() {
   const args = process.argv.slice(2);
   const rootArg = args[0];
-  const options = args.slice(1);
   const root = resolve2(rootArg?.startsWith("-") ? "" : rootArg ?? "");
-  const writeReview = args.includes("--write-review");
-  if (!rootArg || rootArg.startsWith("-") || options.some((option) => option !== "--write-review") || options.filter((option) => option === "--write-review").length > 1) {
-    process.stderr.write("usage: project-preview.mjs <project-root> [--write-review]\n");
+  if (!rootArg || rootArg.startsWith("-") || args.length !== 1) {
+    process.stderr.write("usage: project-preview.mjs <project-root>\n");
     process.exitCode = 2;
     return;
   }
+  await assertLogoProjectRoot(root);
+  const grant = await consumeWriterCapability({ root, capability: "logo-preview", argv: processWriterArgv() });
   const markSvg = join2(root, "build/master/mark.svg");
   if (!await exists(markSvg)) throw new Error("build/master/mark.svg is required");
   const tree = await loadTextTree(root);
   const model = { files: tree.files, digests: tree.digests, artifactId: basename2(root) };
+  if (grant.subjectDigest !== computeLogoSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
   const digest = masterSubjectDigest(model);
-  const previewDir = join2(root, "evidence/preview");
-  await mkdir(previewDir, { recursive: true });
-  const stripPath = join2(previewDir, `strip.${digest}.png`);
-  const manifestPath = join2(previewDir, `strip.${digest}.manifest.json`);
-  const squintPath = join2(previewDir, `squint.${digest}.json`);
-  const geometry = await renderPreviewStrip({
-    svgSource: await readFile2(markSvg, "utf8"),
-    outputPath: stripPath
+  const result = await withWriterJournal(root, "logo-preview", grant, async () => {
+    const previewDir = join2(root, "evidence/preview");
+    await mkdir(previewDir, { recursive: true });
+    const stripPath = join2(previewDir, `strip.${digest}.png`);
+    const manifestPath = join2(previewDir, `strip.${digest}.manifest.json`);
+    const squintPath = join2(previewDir, `squint.${digest}.json`);
+    const geometry = await renderPreviewStrip({ svgSource: await readFile2(markSvg, "utf8"), outputPath: stripPath });
+    const stripBytes = await readFile2(stripPath);
+    const stripDigest = createHash("sha256").update(stripBytes).digest("hex");
+    const manifest = { schemaVersion: 1, masterDigest: digest, artifact: { path: relativeToRoot(root, stripPath), kind: "image/png", sha256: stripDigest, bytes: stripBytes.byteLength, width: geometry.width, height: geometry.height }, samples: geometry.samples };
+    await writeFile2(manifestPath, `${JSON.stringify(manifest, null, 2)}
+`);
+    const { width, height, rgba } = decodePngToRgba(stripBytes);
+    const squint = buildSquintEvidence({ rgba, width, height, samples: manifest.samples, masterDigest: digest, stripDigest });
+    await writeFile2(squintPath, `${JSON.stringify(squint, null, 2)}
+`);
+    return { squint, stripPath, manifestPath, squintPath, stripDigest, sampleCount: manifest.samples.length };
   });
-  const stripBytes = await readFile2(stripPath);
-  const stripDigest = createHash("sha256").update(stripBytes).digest("hex");
-  const manifest = {
-    schemaVersion: 1,
-    masterDigest: digest,
-    artifact: {
-      path: relativeToRoot(root, stripPath),
-      kind: "image/png",
-      sha256: stripDigest,
-      bytes: stripBytes.byteLength,
-      width: geometry.width,
-      height: geometry.height
-    },
-    samples: geometry.samples
-  };
-  await writeFile2(manifestPath, `${JSON.stringify(manifest, null, 2)}
-`);
-  const { width, height, rgba } = decodePngToRgba(stripBytes);
-  const squint = buildSquintEvidence({
-    rgba,
-    width,
-    height,
-    samples: manifest.samples,
-    masterDigest: digest,
-    stripDigest
-  });
-  await writeFile2(squintPath, `${JSON.stringify(squint, null, 2)}
-`);
-  if (writeReview) {
-    const reviewPath = join2(root, "review.logo.json");
-    let review = {};
-    if (await exists(reviewPath)) {
-      try {
-        const parsed = JSON.parse(await readFile2(reviewPath, "utf8"));
-        review = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-      } catch {
-        review = {};
-      }
-    }
-    review.masterDigest = digest;
-    review.squintStripDigest = stripDigest;
-    review.squintPass = squint.pass;
-    if (review.autoStamped) delete review.autoStamped;
-    if (review.source === "project-preview-default") delete review.source;
-    await writeFile2(reviewPath, `${JSON.stringify(review, null, 2)}
-`);
-  }
-  if (!squint.pass) {
-    process.stderr.write(`[logo-project-preview] squint FAILED \u2014 see ${squintPath}
+  if (!result.squint.pass) {
+    process.stderr.write(`[logo-project-preview] squint FAILED \u2014 see ${result.squintPath}
 `);
     process.exitCode = 3;
   }
   process.stdout.write(`${JSON.stringify({
-    ok: squint.pass,
+    ok: result.squint.pass,
     masterDigest: digest,
-    stripPath: relativeToRoot(root, stripPath),
-    manifestPath: relativeToRoot(root, manifestPath),
-    squintPath: relativeToRoot(root, squintPath),
-    stripDigest,
-    squintPass: squint.pass,
-    sampleCount: manifest.samples.length
+    stripPath: relativeToRoot(root, result.stripPath),
+    manifestPath: relativeToRoot(root, result.manifestPath),
+    squintPath: relativeToRoot(root, result.squintPath),
+    stripDigest: result.stripDigest,
+    squintPass: result.squint.pass,
+    sampleCount: result.sampleCount
   }, null, 2)}
 `);
 }

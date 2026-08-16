@@ -1,0 +1,47 @@
+{
+  "skills": [
+    {
+      "name": "brand-identity",
+      "source": "https://github.com/arnabbagxd/Brand-building-skills",
+      "revision": "4a0a8b5b7a0f64bf0fc551978a18a591670a5223",
+      "ecosystem": "en",
+      "license": "MIT",
+      "mode": "adviser",
+      "phases": ["brief", "concept"],
+      "description": "Optional English brief adviser pinned to an audited MIT revision; no project writer, review, or release authority."
+    },
+    {
+      "name": "logo-design",
+      "source": "https://github.com/seb1n/awesome-ai-agent-skills",
+      "revision": "75865a5d037a4cdaa7f409a4ec14ab9b0292920b",
+      "ecosystem": "en",
+      "license": "MIT",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md"],
+      "phases": ["concept", "master", "variants", "preview"],
+      "description": "Optional English logo workflow reference pinned to an audited MIT revision; instruction-only with no project writer, review, or release authority."
+    },
+    {
+      "name": "color-expert",
+      "source": "https://github.com/meodai/skill.color-expert",
+      "revision": "6aa1d1315dddd93be74a9481d62712291059253e",
+      "ecosystem": "en",
+      "license": "CC-BY-4.0",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md", "references/INDEX.md"],
+      "phases": ["variants", "preview"],
+      "description": "Optional English color and accessibility reference pinned to a CC-BY-4.0 revision; attribution required and no project writer, review, or release authority."
+    },
+    {
+      "name": "logo-generator",
+      "source": "https://github.com/op7418/logo-generator-skill",
+      "revision": "bf4e9ac4d4428bda261afcfe981871ceb92d94e6",
+      "ecosystem": "zh",
+      "license": "MIT",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md", "references/design_patterns.md"],
+      "phases": ["concept", "master", "preview"],
+      "description": "Optional bilingual Chinese-ecosystem logo-pattern reference pinned to an audited MIT revision; scripts, API keys, and network generation are forbidden and it has no project writer, review, or release authority."
+    }
+  ]
+}

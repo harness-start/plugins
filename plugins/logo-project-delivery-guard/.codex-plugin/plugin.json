@@ -1,6 +1,6 @@
 {
   "name": "logo-project-delivery-guard",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Enforces native-vector logo masters, construction evidence, variants, and release closure.",
   "author": {
     "name": "Harness Start",
@@ -14,7 +14,9 @@
     "category": "Productivity",
     "defaultPrompt": "Validate the active logo artifact project and explain each vector or construction finding.",
     "capabilities": [
+      "skills",
       "hooks"
     ]
-  }
+  },
+  "skills": "./skills/"
 }

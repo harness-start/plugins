@@ -78,7 +78,7 @@ test("pre hook allows only an exact registered render invocation for the project
   try {
     mkdirSync(join(root, "artifacts", "logo", "orbit"), { recursive: true });
     const wrapper = fileURLToPath(new URL("../dist/cli/project-render.mjs", import.meta.url));
-    const result = await runHook("pre", { cwd: root, tool_name: "Bash", tool_input: { command: `node ${wrapper} artifacts/logo/orbit release` } });
+    const result = await runHook("pre", { cwd: root, session_id: "hook-render-session", tool_name: "Bash", tool_input: { command: `node ${wrapper} artifacts/logo/orbit release` } });
     assert.equal(result.code, 0);
     assert.equal(result.stdout, "");
   } finally { rmSync(root, { recursive: true, force: true }); }

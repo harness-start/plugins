@@ -1,50 +1,56 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
+// harness-source-hash: sha256:a97d59b43726d9807ef2c87177f781204e567b64805a135569788e61cd29a495
+import {
+  atomicWriteJson,
+  sessionMetadata,
+  withWriterJournal
+} from "../chunks/chunk-YYSHLFOI.mjs";
+import {
+  consumeWriterCapability,
+  processWriterArgv
+} from "../chunks/chunk-U4EQK624.mjs";
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-6VSA7JKI.mjs";
+} from "../chunks/chunk-7TWYATJQ.mjs";
 import {
+  computeLogoSubjectDigest,
   createLogoReceipt,
+  createLogoReleaseManifest,
   validateLogoModel,
   validateLogoReceipt
-} from "../chunks/chunk-XNRN4R7K.mjs";
+} from "../chunks/chunk-D2X3E36I.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-release.ts
-import { open, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, join, resolve } from "node:path";
-function planField(plan, key) {
-  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan[key] : void 0;
-}
-var root = resolve(process.argv[2] ?? "");
-var journalPath = join(root, ".logo-delivery-journal.json");
-var receiptPath = join(root, "receipt.release.json");
-var temporaryPath = join(root, `.receipt.release.${process.pid}.tmp`);
+import { resolve } from "node:path";
+var planField = (plan, key) => typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan[key] : void 0;
 async function main() {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(root))) throw new Error("project root must end in a kebab-case artifact id");
-  await assertLogoProjectRoot(root);
-  const model = await loadLogoProject(root);
+  const root = await assertLogoProjectRoot(resolve(process.argv[2] ?? ""));
+  const grant = await consumeWriterCapability({ root, capability: "logo-release", argv: processWriterArgv() });
+  let model = await loadLogoProject(root);
+  if (grant.subjectDigest !== computeLogoSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
   if (planField(model.plan, "targetStage") !== "release") throw new Error("RELEASE_STAGE_NOT_REQUESTED");
-  const findings = validateLogoModel(model, { stage: "release" }).filter(({ code, path }) => code !== "RECEIPT_INVALID" && !(code === "RELEASE_PATH_MISSING" && path === "receipt.release.json"));
-  if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
-  const handle = await open(journalPath, "wx");
-  await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, plugin: "logo-project-delivery-guard", operation: "release", artifactId: basename(root), sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown" })}
-`);
-  await handle.sync();
-  await handle.close();
-  let complete = false;
+  let review = {};
   try {
-    const receipt = { ...createLogoReceipt(model), createdAt: (/* @__PURE__ */ new Date()).toISOString(), sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown", triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM ?? "unknown" };
-    await writeFile(temporaryPath, `${JSON.stringify(receipt, null, 2)}
-`, { flag: "wx" });
-    await rename(temporaryPath, receiptPath);
-    if (!validateLogoReceipt(await loadLogoProject(root))) throw new Error("written receipt did not verify against current files");
-    complete = true;
-    process.stdout.write(`${JSON.stringify(receipt)}
-`);
-  } finally {
-    if (complete) await unlink(journalPath);
+    review = JSON.parse(String(model.files["review.logo.json"]));
+  } catch {
   }
+  const reviewer = typeof review.reviewer === "object" && review.reviewer !== null ? review.reviewer : {};
+  if (reviewer.sessionId === grant.sessionId) throw new Error("SELF_RELEASE_REVIEW_DENIED");
+  const findings = validateLogoModel(model, { stage: "release" }).filter(({ path, code }) => !["release.manifest.json", "receipt.release.json"].includes(path) && code !== "RECEIPT_INVALID");
+  if (findings.length) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
+  const receipt = await withWriterJournal(root, "logo-release", grant, async () => {
+    await atomicWriteJson(root, "release.manifest.json", createLogoReleaseManifest(model));
+    model = await loadLogoProject(root);
+    const payload = { ...createLogoReceipt(model), ...sessionMetadata("logo-release", grant) };
+    await atomicWriteJson(root, "receipt.release.json", payload);
+    const finalModel = await loadLogoProject(root);
+    const finalFindings = validateLogoModel(finalModel, { stage: "release" }).filter(({ code }) => code !== "MUTATION_JOURNAL_OPEN");
+    if (finalFindings.length || !validateLogoReceipt(finalModel)) throw new Error(finalFindings.map(({ code, path }) => `${code}:${path}`).join(", ") || "written receipt did not verify against current files");
+    return payload;
+  });
+  process.stdout.write(`${JSON.stringify(receipt)}
+`);
 }
 main().catch((error) => {
   process.stderr.write(`[logo-project-release] ${error instanceof Error ? error.message : String(error)}

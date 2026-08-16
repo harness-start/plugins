@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  BRIEF_SCHEMA,
+  SKILL_ADVICE_SCHEMA,
+  SKILL_COMPOSITION_SCHEMA,
   createLogoReceipt,
   extractSvgCircles,
   FIB_SEQUENCE,
@@ -13,6 +16,29 @@ import { minimalPng, validLogoModel } from "./helpers/logo-fixture.js";
 
 test("accepts a semantically bound logo release", () => {
   assert.deepEqual(validateLogoModel(validLogoModel(), { stage: "release" }), []);
+});
+
+test("requires a decision-complete brief and the exact bilingual skill pool", () => {
+  const model = validLogoModel({ stage: "source" });
+  model.files["plan.brief.json"] = JSON.stringify({ schema: BRIEF_SCHEMA, artifactId: model.artifactId });
+  model.files["plan.skill-composition.json"] = JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, selectionPolicy: "anything", workers: [] });
+  const codes = new Set(validateLogoModel(model, { stage: "source" }).map(({ code }) => code));
+  assert.ok(codes.has("BRIEF_INVALID"));
+  assert.ok(codes.has("SKILL_COMPOSITION_INVALID"));
+});
+
+test("limits active advisers to three and requires digest-bound advice evidence", () => {
+  const model = validLogoModel({ stage: "source" });
+  const composition = JSON.parse(String(model.files["plan.skill-composition.json"]));
+  for (const worker of composition.workers) worker.status = "used";
+  model.files["plan.skill-composition.json"] = JSON.stringify(composition);
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "SKILL_COMPOSITION_ACTIVE_LIMIT"));
+
+  composition.workers[3].status = "skipped";
+  model.files["plan.skill-composition.json"] = JSON.stringify(composition);
+  const used = composition.workers[0];
+  model.files[used.advicePath] = JSON.stringify({ schema: SKILL_ADVICE_SCHEMA, skillName: used.name, revision: used.revision, subjectDigest: "0".repeat(64) });
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "SKILL_ADVICE_INVALID"));
 });
 
 test("rejects an unselected or ambiguous concept manifest", () => {
@@ -192,6 +218,18 @@ test("release requires measured squint evidence and passing aesthetic scores", (
   review.criteria.singleMemoryPoint.score = 0;
   lowScore.files["review.logo.json"] = JSON.stringify(review);
   assert.ok(validateLogoModel(lowScore, { stage: "release" }).some(({ code }) => code === "AESTHETIC_SCORE_BELOW_THRESHOLD"));
+
+  const loweredThreshold = validLogoModel();
+  const thresholdReview = JSON.parse(loweredThreshold.files["review.logo.json"]);
+  thresholdReview.criteria.singleMemoryPoint = { score: 0, requiredMin: 0, note: "threshold was improperly lowered" };
+  loweredThreshold.files["review.logo.json"] = JSON.stringify(thresholdReview);
+  assert.ok(validateLogoModel(loweredThreshold, { stage: "release" }).some(({ code }) => code === "AESTHETIC_SCORE_BELOW_THRESHOLD"));
+
+  const forgedFinding = validLogoModel();
+  const findingReview = JSON.parse(forgedFinding.files["review.logo.json"]);
+  findingReview.findings.push({ findingId: "forged-001", severity: "minor", evidenceAnchor: "build/master/mark.svg", artifactDigest: "0".repeat(64), fix: "replace forged digest", status: "open", recheckEvidence: "" });
+  forgedFinding.files["review.logo.json"] = JSON.stringify(findingReview);
+  assert.ok(validateLogoModel(forgedFinding, { stage: "release" }).some(({ code }) => code === "REVIEW_FINDINGS_INVALID"));
 
   const missingReviewer = validLogoModel();
   const unsigned = JSON.parse(missingReviewer.files["review.logo.json"]);

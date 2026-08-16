@@ -4,10 +4,11 @@ import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { eventCwd, eventSessionId, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, type HookEventName } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { evaluateLogoWrite, validateLogoModel, type ContractFinding } from "../../lib/contract.js";
+import { computeLogoSubjectDigest, evaluateLogoWrite, validateLogoModel, type ContractFinding } from "../../lib/contract.js";
+import { issueWriterCapability } from "../../lib/capability.js";
 import { findLogoProjects, loadLogoProject, resolveWorkspaceRoot } from "../../lib/project.js";
 import { evaluateLogoShell } from "../../lib/shell-policy.js";
 
@@ -81,12 +82,17 @@ async function main() {
       const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
       if (result.writer && (result.projectRoot === undefined || !roots.includes(result.projectRoot))) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}\n`);
       else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
+      else if (result.writer && result.projectRoot && result.argv) {
+        try {
+          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown", triggerFrom: `logo-project-delivery-guard:pre:${result.writer}` });
+        } catch (error) { process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`))}\n`); }
+      }
     }
     return;
   }
   if (mode === "session") {
     const { roots } = await findLogoProjects(cwd);
-    if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s); generated outputs require project-render and release requires project-release.`))}\n`);
+    if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s). Use $logo-project-authoring; advice, render, preview, review, stage, and release require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`))}\n`);
     return;
   }
   const { findings } = await findingsFor(cwd);

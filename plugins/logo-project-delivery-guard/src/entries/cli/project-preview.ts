@@ -3,17 +3,20 @@
  * Generate multi-size + black/reverse preview strip and REAL squint evidence.
  * Builds the strip inside the plugin and analyzes its rendered pixels.
  *
- * Usage: node project-preview.mjs <project-root> [--write-review]
+ * Usage: node project-preview.mjs <project-root>
  * Does NOT auto-stamp aesthetic scores.
  */
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 
-import { masterSubjectDigest, type DigestMap, type FileMap, type JsonRecord } from "../../lib/contract.js";
+import { computeLogoSubjectDigest, masterSubjectDigest, type DigestMap, type FileMap } from "../../lib/contract.js";
+import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { decodePngToRgba } from "../../lib/png-decode.js";
 import { renderPreviewStrip } from "../../lib/preview-strip.js";
+import { assertLogoProjectRoot } from "../../lib/project.js";
 import { buildSquintEvidence } from "../../lib/squint.js";
+import { withWriterJournal } from "../../lib/writer.js";
 
 async function exists(path: string): Promise<boolean> {
   try { await access(path); return true; } catch { return false; }
@@ -43,93 +46,53 @@ async function loadTextTree(root: string): Promise<{ files: FileMap; digests: Di
 async function main() {
   const args = process.argv.slice(2);
   const rootArg = args[0];
-  const options = args.slice(1);
   const root = resolve(rootArg?.startsWith("-") ? "" : (rootArg ?? ""));
-  const writeReview = args.includes("--write-review");
-  if (!rootArg || rootArg.startsWith("-") || options.some((option) => option !== "--write-review") || options.filter((option) => option === "--write-review").length > 1) {
-    process.stderr.write("usage: project-preview.mjs <project-root> [--write-review]\n");
+  if (!rootArg || rootArg.startsWith("-") || args.length !== 1) {
+    process.stderr.write("usage: project-preview.mjs <project-root>\n");
     process.exitCode = 2;
     return;
   }
 
+  await assertLogoProjectRoot(root);
+  const grant = await consumeWriterCapability({ root, capability: "logo-preview", argv: processWriterArgv() });
   const markSvg = join(root, "build/master/mark.svg");
   if (!(await exists(markSvg))) throw new Error("build/master/mark.svg is required");
 
   const tree = await loadTextTree(root);
   const model = { files: tree.files, digests: tree.digests, artifactId: basename(root) };
+  if (grant.subjectDigest !== computeLogoSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
   const digest = masterSubjectDigest(model);
-
-  const previewDir = join(root, "evidence/preview");
-  await mkdir(previewDir, { recursive: true });
-  const stripPath = join(previewDir, `strip.${digest}.png`);
-  const manifestPath = join(previewDir, `strip.${digest}.manifest.json`);
-  const squintPath = join(previewDir, `squint.${digest}.json`);
-
-  const geometry = await renderPreviewStrip({
-    svgSource: await readFile(markSvg, "utf8"),
-    outputPath: stripPath,
+  const result = await withWriterJournal(root, "logo-preview", grant, async () => {
+    const previewDir = join(root, "evidence/preview");
+    await mkdir(previewDir, { recursive: true });
+    const stripPath = join(previewDir, `strip.${digest}.png`);
+    const manifestPath = join(previewDir, `strip.${digest}.manifest.json`);
+    const squintPath = join(previewDir, `squint.${digest}.json`);
+    const geometry = await renderPreviewStrip({ svgSource: await readFile(markSvg, "utf8"), outputPath: stripPath });
+    const stripBytes = await readFile(stripPath);
+    const stripDigest = createHash("sha256").update(stripBytes).digest("hex");
+    const manifest = { schemaVersion: 1, masterDigest: digest, artifact: { path: relativeToRoot(root, stripPath), kind: "image/png", sha256: stripDigest, bytes: stripBytes.byteLength, width: geometry.width, height: geometry.height }, samples: geometry.samples };
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const { width, height, rgba } = decodePngToRgba(stripBytes);
+    const squint = buildSquintEvidence({ rgba, width, height, samples: manifest.samples, masterDigest: digest, stripDigest });
+    await writeFile(squintPath, `${JSON.stringify(squint, null, 2)}\n`);
+    return { squint, stripPath, manifestPath, squintPath, stripDigest, sampleCount: manifest.samples.length };
   });
 
-  const stripBytes = await readFile(stripPath);
-  const stripDigest = createHash("sha256").update(stripBytes).digest("hex");
-  const manifest = {
-    schemaVersion: 1,
-    masterDigest: digest,
-    artifact: {
-      path: relativeToRoot(root, stripPath),
-      kind: "image/png",
-      sha256: stripDigest,
-      bytes: stripBytes.byteLength,
-      width: geometry.width,
-      height: geometry.height,
-    },
-    samples: geometry.samples,
-  };
-  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-
-  const { width, height, rgba } = decodePngToRgba(stripBytes);
-  const squint = buildSquintEvidence({
-    rgba,
-    width,
-    height,
-    samples: manifest.samples,
-    masterDigest: digest,
-    stripDigest,
-  });
-  await writeFile(squintPath, `${JSON.stringify(squint, null, 2)}\n`);
-
-  if (writeReview) {
-    // Only bind digests; never invent passing aesthetic scores.
-    const reviewPath = join(root, "review.logo.json");
-    let review: JsonRecord = {};
-    if (await exists(reviewPath)) {
-      try {
-        const parsed: unknown = JSON.parse(await readFile(reviewPath, "utf8"));
-        review = parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as JsonRecord : {};
-      } catch { review = {}; }
-    }
-    review.masterDigest = digest;
-    review.squintStripDigest = stripDigest;
-    review.squintPass = squint.pass;
-    if (review.autoStamped) delete review.autoStamped;
-    if (review.source === "project-preview-default") delete review.source;
-    await writeFile(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
-  }
-
-  if (!squint.pass) {
-    process.stderr.write(`[logo-project-preview] squint FAILED — see ${squintPath}\n`);
+  if (!result.squint.pass) {
+    process.stderr.write(`[logo-project-preview] squint FAILED — see ${result.squintPath}\n`);
     process.exitCode = 3;
   }
 
   process.stdout.write(`${JSON.stringify({
-    ok: squint.pass,
+    ok: result.squint.pass,
     masterDigest: digest,
-    stripPath: relativeToRoot(root, stripPath),
-    manifestPath: relativeToRoot(root, manifestPath),
-    squintPath: relativeToRoot(root, squintPath),
-    stripDigest,
-    squintPass: squint.pass,
-    sampleCount: manifest.samples.length,
+    stripPath: relativeToRoot(root, result.stripPath),
+    manifestPath: relativeToRoot(root, result.manifestPath),
+    squintPath: relativeToRoot(root, result.squintPath),
+    stripDigest: result.stripDigest,
+    squintPass: result.squint.pass,
+    sampleCount: result.sampleCount,
   }, null, 2)}\n`);
 }
 

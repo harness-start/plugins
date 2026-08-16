@@ -1,13 +1,21 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b6d710d6cd2226c331b93c4ff7254d225a172129e4624386a97285798320362
+// harness-source-hash: sha256:a97d59b43726d9807ef2c87177f781204e567b64805a135569788e61cd29a495
+import {
+  withWriterJournal
+} from "../chunks/chunk-YYSHLFOI.mjs";
+import {
+  consumeWriterCapability,
+  processWriterArgv
+} from "../chunks/chunk-U4EQK624.mjs";
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-6VSA7JKI.mjs";
+} from "../chunks/chunk-7TWYATJQ.mjs";
 import {
   PLAN_SCHEMA,
+  computeLogoSubjectDigest,
   validateLogoModel
-} from "../chunks/chunk-XNRN4R7K.mjs";
+} from "../chunks/chunk-D2X3E36I.mjs";
 
 // plugins/logo-project-delivery-guard/src/entries/cli/project-stage.ts
 import { rename, writeFile } from "node:fs/promises";
@@ -22,15 +30,19 @@ var temporaryPath = join(root, `.plan.contract.${process.pid}.tmp`);
 async function main() {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(root))) throw new Error("project root must end in a kebab-case artifact id");
   await assertLogoProjectRoot(root);
+  const grant = await consumeWriterCapability({ root, capability: "logo-stage", argv: processWriterArgv() });
   if (targetStage !== "release") throw new Error("only the monotonic source to release transition is supported");
   const model = await loadLogoProject(root);
+  if (grant.subjectDigest !== computeLogoSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
   if (planField(model.plan, "schema") !== PLAN_SCHEMA || planField(model.plan, "artifactId") !== model.artifactId || planField(model.plan, "targetStage") !== "source") throw new Error("PLAN_TRANSITION_INVALID: current plan must be a bound source plan");
   const findings = validateLogoModel(model, { stage: "source" });
   if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
   const next = { schema: PLAN_SCHEMA, artifactId: model.artifactId, targetStage: "release" };
-  await writeFile(temporaryPath, `${JSON.stringify(next, null, 2)}
+  await withWriterJournal(root, "logo-stage", grant, async () => {
+    await writeFile(temporaryPath, `${JSON.stringify(next, null, 2)}
 `, { flag: "wx" });
-  await rename(temporaryPath, planPath);
+    await rename(temporaryPath, planPath);
+  });
   process.stdout.write(`[logo-project-stage] advanced ${model.artifactId} to release
 `);
 }

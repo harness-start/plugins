@@ -4,6 +4,11 @@ import { dirname, join } from "node:path";
 import { deflateSync } from "node:zlib";
 
 import {
+  BRIEF_SCHEMA,
+  EXTERNAL_SKILLS,
+  RENDER_EVIDENCE_SCHEMA,
+  REVIEW_SCHEMA,
+  SKILL_COMPOSITION_SCHEMA,
   computeLogoSubjectDigest,
   createConstructionManifest,
   createLogoReleaseManifest,
@@ -13,7 +18,7 @@ import {
 
 export const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
-export const RENDER_FIXTURE_SCRIPT = `import { cp, readdir } from "node:fs/promises";\nimport { join } from "node:path";\nconst source=process.env.LOGO_FIXTURE_SOURCE;\nfor(const entry of await readdir(source)){if(entry!=="receipt.release.json")await cp(join(source,entry),join(process.cwd(),entry),{recursive:true,force:true});}\n`;
+export const RENDER_FIXTURE_SCRIPT = `import { cp, mkdir, readdir } from "node:fs/promises";\nimport { dirname, join, relative } from "node:path";\nconst source=process.env.LOGO_FIXTURE_SOURCE;\nconst allowed=(p)=>/^(?:build\\/|dist\\/|evidence\\/construction\\/|evidence\\.accessibility\\.json$|src\\/concepts\\/.+\\.[0-9a-f]{64}\\.png$)/u.test(p);\nasync function walk(dir){for(const entry of await readdir(dir,{withFileTypes:true})){const abs=join(dir,entry.name);if(entry.isDirectory())await walk(abs);else{const rel=relative(source,abs).replaceAll("\\\\","/");if(allowed(rel)){const target=join(process.cwd(),rel);await mkdir(dirname(target),{recursive:true});await cp(abs,target,{force:true});}}}}\nawait walk(source);\n`;
 
 function crc32(bytes) {
   let crc = 0xffffffff;
@@ -69,6 +74,12 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     "package.json": JSON.stringify({ scripts: { "logo:render": "node render-fixture.mjs" } }),
     "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "": {} } }),
     "plan.contract.json": JSON.stringify({ schema: "logo-project-delivery-guard/plan/v1", artifactId, targetStage: stage }),
+    "plan.brief.json": JSON.stringify({ schema: BRIEF_SCHEMA, artifactId, audience: "brand customers", brandPositioning: "distinctive geometric identity", language: "en", constraints: ["native vector"], prohibitedDirections: ["generic template"], successCriteria: ["legible at 16px"] }),
+    "plan.skill-composition.json": JSON.stringify({
+      schema: SKILL_COMPOSITION_SCHEMA,
+      selectionPolicy: "dynamic-bilingual-pool",
+      workers: EXTERNAL_SKILLS.map((worker) => ({ ...worker, status: "skipped", reason: "fixture uses bundled contracts", advicePath: `evidence/skills/${worker.name}.json` })),
+    }),
     "plan.assets.json": JSON.stringify({ assets: [] }),
     "logo.project.json": JSON.stringify({ schema: "logo-project-delivery-guard/project/v1", artifactId, selectedConcept: "geometric-orbit" }),
     "src/render.ts": "export const rendererContract = 'logo:render';\n",
@@ -164,15 +175,24 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     cells: samples.map((sample) => ({ ...sample, bbox: sample.locator.bbox, silhouetteIntact: true, density: 0.25, primaryShare: 0.9 })),
   });
   const subjectDigest = computeLogoSubjectDigest(model);
+  files["evidence.render.json"] = JSON.stringify({
+    schema: RENDER_EVIDENCE_SCHEMA,
+    plugin: "logo-project-delivery-guard",
+    artifactId,
+    subjectDigest,
+    sessionId: "logo-render-session",
+    outputs: ["build/master/mark.svg", "build/master/wordmark.svg", "build/master/lockup.svg", "dist/primary/mark.svg"].map((path) => ({ path, sha256: sha256(files[path]) })),
+  });
   files["evidence.accessibility.json"] = JSON.stringify({ schema: "logo-project-delivery-guard/accessibility/v1", artifactId, subjectDigest, checks: [{ id: "minimum-size", status: "pass" }, { id: "contrast", status: "pass" }] });
   files["review.logo.json"] = JSON.stringify({
-    schema: "logo-project-delivery-guard/review/v1",
+    schema: REVIEW_SCHEMA,
     artifactId,
     subjectDigest,
     masterDigest,
     squintStripDigest: stripDigest,
     decision: "approved",
     reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: "logo-review-session" },
+    findings: [],
     checks: [{ id: "geometry", status: "pass" }, { id: "legibility", status: "pass" }, { id: "variants", status: "pass" }],
     criteria: {
       singleMemoryPoint: { score: 2, requiredMin: 2, note: "single orbital silhouette" },

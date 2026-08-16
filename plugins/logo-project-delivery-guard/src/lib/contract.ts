@@ -83,6 +83,10 @@ const PATH_ARITY = { A: 7, C: 6, H: 1, L: 2, M: 2, Q: 4, S: 4, T: 2, V: 1, Z: 0 
 type PathCommand = keyof typeof PATH_ARITY;
 
 export const PLAN_SCHEMA = "logo-project-delivery-guard/plan/v1";
+export const BRIEF_SCHEMA = "logo-project-delivery-guard/brief/v1";
+export const SKILL_COMPOSITION_SCHEMA = "logo-project-delivery-guard/skill-composition/v2";
+export const SKILL_ADVICE_SCHEMA = "logo-project-delivery-guard/skill-advice/v1";
+export const SKILL_ADVICE_INPUT_SCHEMA = "logo-project-delivery-guard/skill-advice-input/v1";
 export const PROJECT_SCHEMA = "logo-project-delivery-guard/project/v1";
 export const CONSTRUCTION_SCHEMA = "logo-project-delivery-guard/construction/v1";
 export const STANDARD_GRID_SCHEMA = "logo-project-delivery-guard/standard-grid/v1";
@@ -90,8 +94,10 @@ export const GEOMETRY_SCHEMA = "logo-project-delivery-guard/geometry/v1";
 export const FIBONACCI_SCHEMA = "logo-project-delivery-guard/fibonacci/v1";
 export const CONSTRUCTION_MANIFEST_SCHEMA = "logo-project-delivery-guard/construction-manifest/v1";
 export const ACCESSIBILITY_SCHEMA = "logo-project-delivery-guard/accessibility/v1";
-export const REVIEW_SCHEMA = "logo-project-delivery-guard/review/v1";
-export const RELEASE_MANIFEST_SCHEMA = "logo-project-delivery-guard/release-manifest/v1";
+export const RENDER_EVIDENCE_SCHEMA = "logo-project-delivery-guard/render-evidence/v1";
+export const REVIEW_INPUT_SCHEMA = "logo-project-delivery-guard/review-input/v1";
+export const REVIEW_SCHEMA = "logo-project-delivery-guard/review/v2";
+export const RELEASE_MANIFEST_SCHEMA = "logo-project-delivery-guard/release-manifest/v2";
 
 const PLUGIN = "logo-project-delivery-guard";
 const STAGES = new Set(["source", "release"]);
@@ -109,6 +115,12 @@ const PRIMITIVE_TYPES = new Set(["circle", "ellipse", "rect", "line", "arc", "po
 const FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 const PHI = 1.618033988749895;
 const AESTHETIC_CRITERIA = ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"];
+export const EXTERNAL_SKILLS = [
+  { name: "brand-identity", revision: "4a0a8b5b7a0f64bf0fc551978a18a591670a5223", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
+  { name: "logo-design", revision: "75865a5d037a4cdaa7f409a4ec14ab9b0292920b", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
+  { name: "color-expert", revision: "6aa1d1315dddd93be74a9481d62712291059253e", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
+  { name: "logo-generator", revision: "bf4e9ac4d4428bda261afcfe981871ceb92d94e6", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] },
+] as const;
 
 export const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");
 const finding = (code: string, path: string, message: string): ContractFinding => ({ code, path, message });
@@ -181,7 +193,7 @@ function finalOutputPaths(): string[] {
   return [
     ...VARIANTS.flatMap((variant) => ROLES.map((role) => `dist/${variant}/${role}.svg`)),
     ...ROLES.map((role) => `dist/primary/${role}.png`),
-    "evidence.accessibility.json", "review.logo.json", "release.manifest.json",
+    "evidence.render.json", "evidence.accessibility.json", "review.logo.json", "release.manifest.json",
   ];
 }
 
@@ -192,6 +204,16 @@ function previewEvidencePaths(model: LogoModel | null | undefined): string[] {
     `evidence/preview/strip.${digest}.manifest.json`,
     `evidence/preview/squint.${digest}.json`,
   ];
+}
+
+export function reviewArtifactPaths(model: LogoModel | null | undefined): string[] {
+  return [
+    ...ROLES.map((role) => `build/master/${role}.svg`),
+    ...constructionPaths(model),
+    ...VARIANTS.flatMap((variant) => ROLES.map((role) => `dist/${variant}/${role}.svg`)),
+    ...ROLES.map((role) => `dist/primary/${role}.png`),
+    ...previewEvidencePaths(model),
+  ].sort((left, right) => left.localeCompare(right));
 }
 
 export function logoDeliveryPaths(model: LogoModel | null | undefined, { stage = "release" }: LogoValidateOptions = {}): string[] {
@@ -221,7 +243,7 @@ export function createLogoReleaseManifest(model: LogoModel | null | undefined): 
 
 export function createLogoReceipt(model: LogoModel | null | undefined): LogoReceipt {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     plugin: PLUGIN,
     artifactId: model?.artifactId,
     stage: "release",
@@ -302,12 +324,48 @@ function expectedRatio(larger: number, smaller: number): number | null {
 
 function validateRequired(files: FileMap, findings: ContractFinding[]): void {
   for (const filePath of [
-    ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.assets.json",
+    ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.brief.json", "plan.skill-composition.json", "plan.assets.json",
     "logo.project.json", "src/render.ts", "src/concepts/manifest.json", "src/master/Mark.logo.tsx",
     "src/master/Wordmark.logo.tsx", "src/master/Lockup.logo.tsx", "src/construction/construction.json",
     "src/construction/standard-grid.json", "src/construction/geometry.json", "src/construction/fibonacci.json",
     "src/variants/manifest.json", "build/master/mark.svg", "build/master/wordmark.svg", "build/master/lockup.svg",
   ]) if (!Object.prototype.hasOwnProperty.call(files, filePath)) findings.push(finding(filePath === "plan.contract.json" ? "PLAN_CONTRACT_MISSING" : "REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
+}
+
+function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFinding[]): void {
+  const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
+  if (!brief || brief.schema !== BRIEF_SCHEMA || brief.artifactId !== model.artifactId
+    || ["audience", "brandPositioning", "language"].some((key) => typeof brief[key] !== "string" || !String(brief[key]).trim())
+    || ["constraints", "prohibitedDirections", "successCriteria"].some((key) => !Array.isArray(brief[key]))) {
+    findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind the project and declare audience, positioning, language, constraints, prohibited directions, and success criteria"));
+  }
+
+  const composition = rec(parseJson(model.files, "plan.skill-composition.json", findings, "SKILL_COMPOSITION_INVALID"));
+  const workers = asList(composition?.workers).map(rec).filter((worker): worker is JsonRecord => worker !== undefined);
+  const byName = new Map(workers.map((worker) => [String(worker.name), worker]));
+  let valid = composition?.schema === SKILL_COMPOSITION_SCHEMA && composition?.selectionPolicy === "dynamic-bilingual-pool" && workers.length === EXTERNAL_SKILLS.length;
+  for (const expected of EXTERNAL_SKILLS) {
+    const worker = byName.get(expected.name);
+    const status = String(worker?.status ?? "");
+    if (!worker || worker.revision !== expected.revision || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
+      || !["used", "skipped", "unavailable"].includes(status) || typeof worker.reason !== "string" || !worker.reason.trim()
+      || worker.advicePath !== `evidence/skills/${expected.name}.json`) valid = false;
+    if (status === "used" && worker) {
+      const advicePath = String(worker.advicePath);
+      let advice: JsonRecord | undefined;
+      try { advice = rec(JSON.parse(textOf(model.files?.[advicePath]))); } catch { advice = undefined; }
+      if (!advice || advice.schema !== SKILL_ADVICE_SCHEMA || advice.plugin !== PLUGIN || advice.artifactId !== model.artifactId
+        || advice.skillName !== expected.name || advice.revision !== expected.revision || advice.ecosystem !== expected.ecosystem || advice.mode !== expected.mode
+        || !expected.phases.includes(advice.phase as never) || advice.subjectDigest !== computeLogoSubjectDigest(model)
+        || !Array.isArray(advice.recommendations) || !Array.isArray(advice.adopted) || !Array.isArray(advice.rejected)) {
+        findings.push(finding("SKILL_ADVICE_INVALID", advicePath, `used worker ${expected.name} requires current admitted advice evidence`));
+      }
+    }
+  }
+  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the exact pinned bilingual pool with truthful statuses, reasons, modes, and advice paths"));
+  const used = workers.filter((worker) => worker.status === "used");
+  if (used.length > 3) findings.push(finding("SKILL_COMPOSITION_ACTIVE_LIMIT", "plan.skill-composition.json", "at most three external workers may be used"));
+  if (new Set(used.map((worker) => worker.advicePath)).size !== used.length) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "used workers require distinct advice artifacts"));
 }
 
 function validatePlanAndProject(model: LogoModel, stage: unknown, findings: ContractFinding[]): void {
@@ -964,8 +1022,8 @@ function validatePreviewAndAesthetic(model: LogoModel, findings: ContractFinding
     for (const key of AESTHETIC_CRITERIA) {
       const row = rec(criteria?.[key]);
       const score = Number(row?.score);
-      const requiredMin = Number(row?.requiredMin ?? 2);
-      if (!Number.isFinite(score) || score < requiredMin) findings.push(finding("AESTHETIC_SCORE_BELOW_THRESHOLD", "review.logo.json", `${key} score ${score} < requiredMin ${requiredMin}`));
+      const requiredMin = Number(row?.requiredMin);
+      if (!Number.isFinite(score) || !Number.isFinite(requiredMin) || requiredMin < 2 || score < requiredMin) findings.push(finding("AESTHETIC_SCORE_BELOW_THRESHOLD", "review.logo.json", `${key} score ${score} < requiredMin ${requiredMin}; requiredMin cannot be lower than 2`));
       if (typeof row?.note !== "string" || row.note.trim().length < 8) findings.push(finding("AESTHETIC_NOTE_MISSING", "review.logo.json", `${key} requires a substantive note`));
     }
     if (reviewRec?.squintStripDigest !== fileDigest(model, stripPath)) findings.push(finding("REVIEW_SQUINT_DIGEST_MISMATCH", "review.logo.json", "review squintStripDigest must match strip PNG"));
@@ -999,9 +1057,19 @@ function validateRelease(model: LogoModel, findings: ContractFinding[]): void {
     if (hasFile(model, filePath) && !pngValid(model, filePath)) findings.push(finding("RELEASE_PNG_INVALID", filePath, "primary PNG must have a valid PNG header and positive dimensions"));
   }
   validateEvidenceRecord(model, "evidence.accessibility.json", ACCESSIBILITY_SCHEMA, ["minimum-size", "contrast"], "ACCESSIBILITY_EVIDENCE_INVALID", findings);
+  const render = rec(parseJson(model.files, "evidence.render.json", findings, "RENDER_EVIDENCE_INVALID"));
+  const renderOutputs = asList(render?.outputs).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  if (!render || render.schema !== RENDER_EVIDENCE_SCHEMA || render.plugin !== PLUGIN || render.artifactId !== model.artifactId || render.subjectDigest !== computeLogoSubjectDigest(model)
+    || typeof render.sessionId !== "string" || !render.sessionId || renderOutputs.length === 0
+    || renderOutputs.some((entry) => typeof entry.path !== "string" || entry.sha256 !== fileDigest(model, String(entry.path)))) {
+    findings.push(finding("RENDER_EVIDENCE_INVALID", "evidence.render.json", "render evidence must bind the current subject, renderer session, and every declared output digest"));
+  }
   const review = rec(validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, ["geometry", "legibility", "variants"], "REVIEW_INVALID", findings));
   const reviewer = rec(review?.reviewer);
   if (review?.decision !== "approved") findings.push(finding("REVIEW_INVALID", "review.logo.json", "logo review decision must be approved"));
+  const reviewFindings = asList(review?.findings).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  const expectedReviewPaths = reviewArtifactPaths(model);
+  if (reviewFindings.some((entry) => !["blocker", "major", "minor", "info"].includes(String(entry.severity)) || typeof entry.findingId !== "string" || !entry.findingId.trim() || typeof entry.evidenceAnchor !== "string" || !expectedReviewPaths.includes(entry.evidenceAnchor) || entry.artifactDigest !== fileDigest(model, entry.evidenceAnchor) || typeof entry.fix !== "string" || !entry.fix.trim() || !["open", "fixed_pending_recheck", "verified"].includes(String(entry.status)) || (["blocker", "major"].includes(String(entry.severity)) && (entry.status !== "verified" || typeof entry.recheckEvidence !== "string" || !entry.recheckEvidence.trim())))) findings.push(finding("REVIEW_FINDINGS_INVALID", "review.logo.json", "findings require stable ids, current anchors and digests; blocker/major findings must be independently verified"));
   if (review && (!["human", "independent-agent"].includes(reviewer?.kind as string) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId)) {
     findings.push(finding("REVIEWER_INVALID", "review.logo.json", "logo review must name an independent reviewer kind and sessionId"));
   } else if (reviewer?.sessionId && reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
@@ -1024,6 +1092,7 @@ export function validateLogoModel(model: LogoModel | null | undefined, { stage =
   validateMaster(model ?? {}, findings);
   validateConstruction(model ?? {}, findings);
   validateVariants(model ?? {}, findings);
+  validateBriefAndSkillComposition(model ?? {}, findings);
   if (stage === "release") {
     validateRelease(model ?? {}, findings);
     validatePreviewAndAesthetic(model ?? {}, findings);

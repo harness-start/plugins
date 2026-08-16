@@ -1,0 +1,4 @@
+interface:
+  display_name: "Logo Project Review"
+  short_description: "Independently review final logo artifacts"
+  default_prompt: "Use $logo-project-review to inspect and review a rendered logo project independently."
