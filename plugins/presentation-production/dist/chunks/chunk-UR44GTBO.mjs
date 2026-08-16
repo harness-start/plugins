@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:3a7a73a51faf0474b6f004f89fbc539352682b5634c299e513c0457bcb6f3f34
+// harness-source-hash: sha256:d5d7ed7bfdb1b4ab6dd26ae72a75840bd04c9bf12e032238b79da19e3af2c9a4
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7015,8 +7015,8 @@ function validateSourceSchemas(model, files, findings) {
   const composition = schemaRecord(files, "plan.skill-composition.json", SKILL_COMPOSITION_SCHEMA, "SKILL_COMPOSITION_INVALID", findings);
   if (composition && (!Array.isArray(composition.workers) || !composition.workers.every((entry) => {
     const worker = rec(entry);
-    return worker && typeof worker.name === "string" && typeof worker.revision === "string" && ["used", "skipped", "unavailable"].includes(String(worker.status));
-  }))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "workers must declare name, revision, and used/skipped/unavailable status"));
+    return worker && !Object.hasOwn(worker, "revision") && typeof worker.name === "string" && ["used", "skipped", "unavailable"].includes(String(worker.status));
+  }))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "workers must declare name and used/skipped/unavailable status"));
   const design = schemaRecord(files, "design.system.json", DESIGN_SYSTEM_SCHEMA, "DESIGN_SYSTEM_INVALID", findings);
   if (design) validateDesignSystem(design, findings);
   const project = schemaRecord(files, "pptx.project.json", PROJECT_SCHEMA, "PROJECT_INVALID", findings);
