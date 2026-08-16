@@ -18,7 +18,7 @@
 bash scripts/install-all.sh
 ```
 
-安装器按 `skill-deps.json` 中的精确 Git commit 安装社区 Skill。只通过宿主 marketplace 单独安装插件时，需要另行安装声明的外部 Skill。选中路线的必要 Skill 缺失或不可读时，内部编排必须停止并报告缺口，不能用当前会话知识模仿缺失能力。
+安装器按 `skill-deps.json` 声明的来源安装社区 Skill 的当前上游版本。只通过宿主 marketplace 单独安装插件时，需要另行安装声明的外部 Skill。选中路线的必要 Skill 缺失或不可读时，内部编排必须停止并报告缺口，不能用当前会话知识模仿缺失能力。
 
 ## 边界
 
@@ -29,4 +29,4 @@ SessionStart 只负责工程方法编排，不处理专业写作，也不提供�
 - `karpathy-guidelines`：MIT
 - `systematic-debugging`、`verification-before-completion`：MIT
 
-外部 Skill 固定到 `skill-deps.json` 声明的 commit，不复制社区 Skill 正文。
+外部 Skill 跟随 `skill-deps.json` 声明来源的当前版本，不复制社区 Skill 正文。

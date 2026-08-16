@@ -6,7 +6,7 @@
 ./scripts/acceptance/run.sh --plugin professional-writing
 ```
 
-脚本会在 `docker/host-acceptance` 容器内为 Claude Code 和 Codex 创建隔离会话，并按 `skill-deps.json` 安装固定版本的社区 Skill。
+脚本会在 `docker/host-acceptance` 容器内为 Claude Code 和 Codex 创建隔离会话，并按 `skill-deps.json` 安装社区 Skill 的当前上游版本。
 
 - `01-debug-and-verify`：不在 prompt 中点名 Skill；验证 SessionStart 注入系统化调试与完成前验证路由，并检查真实失败被最小修复和验证。
 - `02-explicit-caveman`：用户明确要求减少 token 时，验证 `caveman` 路由已注入并保持指定技术内容不变。

@@ -1,15 +1,13 @@
 {
   "skills": [
-    { "name": "caveman", "source": "https://github.com/JuliusBrussee/caveman", "revision": "fcf7663366c217dc8f334a11028de52ed950ceab", "required": true, "mode": "instruction-only" },
-    { "name": "humanizer", "source": "https://github.com/blader/humanizer", "revision": "523374dee72d67c7b2b5f858ea0094ffda49c3ac", "required": true, "mode": "instruction-only" },
-    { "name": "stop-slop", "source": "https://github.com/hardikpandya/stop-slop", "revision": "8da1f030185bdfe8471220585162991eaeb970e9", "required": true, "mode": "instruction-only" },
-    { "name": "humanizer-zh", "source": "https://github.com/op7418/Humanizer-zh", "revision": "91f3d394db8419c20d67ebe22a96cf8fee0a404b", "required": true, "mode": "instruction-only" },
-    { "name": "shuorenhua", "source": "https://github.com/MrGeDiao/shuorenhua", "revision": "a9145e38875f116d65235a728cd0048b7c3d9003", "required": true, "mode": "instruction-only" },
+    { "name": "caveman", "source": "https://github.com/JuliusBrussee/caveman", "required": true, "mode": "instruction-only" },
+    { "name": "humanizer", "source": "https://github.com/blader/humanizer", "required": true, "mode": "instruction-only" },
+    { "name": "stop-slop", "source": "https://github.com/hardikpandya/stop-slop", "required": true, "mode": "instruction-only" },
+    { "name": "humanizer-zh", "source": "https://github.com/op7418/Humanizer-zh", "required": true, "mode": "instruction-only" },
+    { "name": "shuorenhua", "source": "https://github.com/MrGeDiao/shuorenhua", "required": true, "mode": "instruction-only" },
     {
       "name": "remove-ai-style",
       "source": "https://github.com/zc277584121/marketing-skills",
-      "revision": "be7fde2347141faba7453026d002f172bc1804b8",
-      "subpath": "skills/remove-ai-style",
       "required": true,
       "mode": "audited-executable",
       "execution": {
