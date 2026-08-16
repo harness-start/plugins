@@ -1,5 +1,5 @@
 {
   "skills": [
-    { "name": "spec-driven-development", "source": "https://github.com/addyosmani/agent-skills", "revision": "df1edb2e05487d0aa6d93c747141e0aed1187f25", "required": true, "mode": "instruction-only" }
+    { "name": "spec-driven-development", "source": "https://github.com/addyosmani/agent-skills", "required": true, "mode": "instruction-only" }
   ]
 }

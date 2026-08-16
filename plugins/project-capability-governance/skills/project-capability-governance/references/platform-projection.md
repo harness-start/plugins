@@ -21,7 +21,7 @@ Do not make one host execute files from the other host's directory. Preserve exi
 For a dual-host community Skill, run the project-scoped Skills CLI with both hosts selected:
 
 ```bash
-DISABLE_TELEMETRY=1 npx --yes skills add <pinned-source> \
+DISABLE_TELEMETRY=1 npx --yes skills add <source> \
   --skill <skill-id> \
   --agent claude-code \
   --agent codex \
