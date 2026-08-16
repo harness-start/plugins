@@ -57,24 +57,19 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "${tmp}"' EXIT
 
 # --- parse: valid -------------------------------------------------------------
-valid_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
+valid_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills"}]}'
 got="$(parse_skill_deps_json "${valid_json}" "valid.json")"
-assert_eq "parse valid name/source" "${got}" $'grilling\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
+assert_eq "parse valid name/source" "${got}" $'grilling\thttps://github.com/mattpocock/skills'
 
-pinned_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}'
-got="$(parse_skill_deps_json "${pinned_json}" "pinned.json")"
-assert_eq "parse pinned revision" "${got}" $'grilling\thttps://github.com/mattpocock/skills\t068b6e0c62393147daf03530149cdce209c93da8\t'
-
-nested_json='{"skills":[{"name":"musical-dna","source":"https://github.com/jwynia/agent-skills","revision":"e02ec7e226a6e4f8419fd3b88a1d8e472d421b32","subpath":"skills/creative/music/musical-dna"}]}'
-got="$(parse_skill_deps_json "${nested_json}" "nested.json")"
-assert_eq "parse pinned nested skill" "${got}" $'musical-dna\thttps://github.com/jwynia/agent-skills\te02ec7e226a6e4f8419fd3b88a1d8e472d421b32\tskills/creative/music/musical-dna'
-
-invalid_revision_json='{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":""}]}'
-assert_fail "reject empty pinned revision" parse_skill_deps_json "${invalid_revision_json}" "invalid-revision.json"
-assert_fail "reject missing pinned revision" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo"}]}' "missing-revision.json"
-assert_fail "reject unapproved executable" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","revision":"0123456789012345678901234567890123456789","mode":"audited-executable","execution":{"approved":false,"paths":[{"path":"scripts/x.py","sha256":"0123456789012345678901234567890123456789012345678901234567890123"}]}}]}' "unapproved-executable.json"
+assert_fail "reject revision pin" parse_skill_deps_json '{"skills":[{"name":"grilling","source":"https://github.com/mattpocock/skills","revision":"068b6e0c62393147daf03530149cdce209c93da8"}]}' "pinned.json"
+assert_fail "reject legacy subpath selector" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","subpath":"skills/x"}]}' "subpath.json"
+assert_fail "reject unapproved executable" parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","mode":"audited-executable","execution":{"approved":false,"paths":[{"path":"scripts/x.py","sha256":"0123456789012345678901234567890123456789012345678901234567890123"}]}}]}' "unapproved-executable.json"
 assert_fail "reject escaping skill subpath" \
   parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","subpath":"../x"}]}' "invalid-subpath.json"
+assert_ok "installer does not run Git for community Skills" \
+  sh -c '! grep -Eq "git (clone|fetch|checkout)" "$1"' sh "${REPO_ROOT}/scripts/install-all.sh"
+assert_ok "acceptance helper does not run Git for community Skills" \
+  sh -c '! grep -Eq "git (clone|fetch|checkout)" "$1"' sh "${REPO_ROOT}/scripts/acceptance/lib/common.sh"
 
 empty_json='{"skills":[]}'
 got="$(parse_skill_deps_json "${empty_json}" "empty.json" || true)"
@@ -92,8 +87,8 @@ assert_fail "parse rejects empty source" \
 conflict_market="${tmp}/conflict-market"
 mkdir -p "${conflict_market}/.claude-plugin" "${conflict_market}/plugins/a" "${conflict_market}/plugins/b"
 printf '{"plugins":[{"name":"a","source":"./plugins/a"},{"name":"b","source":"./plugins/b"}]}\n' >"${conflict_market}/.claude-plugin/marketplace.json"
-printf '{"skills":[{"name":"same","source":"https://example.com/one","revision":"1111111111111111111111111111111111111111"}]}\n' >"${conflict_market}/plugins/a/skill-deps.json"
-printf '{"skills":[{"name":"same","source":"https://example.com/two","revision":"2222222222222222222222222222222222222222"}]}\n' >"${conflict_market}/plugins/b/skill-deps.json"
+printf '{"skills":[{"name":"same","source":"https://example.com/one"}]}\n' >"${conflict_market}/plugins/a/skill-deps.json"
+printf '{"skills":[{"name":"same","source":"https://example.com/two"}]}\n' >"${conflict_market}/plugins/b/skill-deps.json"
 assert_fail "catalog rejects same-name different-identity Skills" \
   bash "${REPO_ROOT}/scripts/install-all.sh" --local "${conflict_market}" --list-only --skip-missing-hosts
 
@@ -175,8 +170,7 @@ if [ "${ACCEPT_TEST_NETWORK:-0}" = "1" ]; then
   "skills": [
     {
       "name": "grilling",
-      "source": "https://github.com/mattpocock/skills",
-      "revision": "068b6e0c62393147daf03530149cdce209c93da8"
+      "source": "https://github.com/mattpocock/skills"
     }
   ]
 }

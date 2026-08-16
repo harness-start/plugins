@@ -226,7 +226,7 @@ plugin_skill_deps_file() {
   printf '%s/skill-deps.json\n' "${plugin_dir}"
 }
 
-# Parse skill-deps JSON → stdout lines: name<TAB>source<TAB>revision<TAB>subpath.
+# Parse skill-deps JSON → stdout lines: name<TAB>source.
 # Returns 0 for valid object (including empty skills[]). Returns 1 on error.
 parse_skill_deps_json() {
   local json="$1"
@@ -259,16 +259,8 @@ parse_skill_deps_json() {
           or ((.value.name // "") | length == 0)
           or ((.value.source // "") | type != "string")
           or ((.value.source // "") | length == 0)
-          or (((.value.revision // "") | type != "string") or (((.value.revision // "") | test("^[0-9a-f]{40}$")) | not))
-          or ((.value | has("subpath")) and (
-            ((.value.subpath // "") | type != "string")
-            or ((.value.subpath // "") | length == 0)
-            or ((.value.subpath // "") | startswith("/"))
-            or ((.value.subpath // "") | contains("\\"))
-            or (((.value.subpath // "") | test("^[A-Za-z0-9._/-]+$")) | not)
-            or ((.value.subpath // "") | split("/") | any(. == "" or . == "." or . == ".." or startswith("-")))
-            or ((.value | has("revision")) | not)
-          ))
+          or (.value | has("revision"))
+          or (.value | has("subpath"))
           or ((.value | has("execution")) and (
             (.value.mode != "audited-executable")
             or ((.value.execution | type) != "object")
@@ -290,14 +282,14 @@ parse_skill_deps_json() {
     '
   )"
   if [ -n "${bad}" ]; then
-    printf '%s: each skills[] entry needs name, source, and an exact lowercase commit revision\n' "${label}" >&2
+    printf '%s: each skills[] entry needs name/source and must not declare revision or subpath\n' "${label}" >&2
     return 1
   fi
   printf '%s' "${json}" | jq -r '
     .skills[]?
     | select((.name | type == "string") and (.name | length > 0)
              and (.source | type == "string") and (.source | length > 0))
-    | "\(.name)\t\(.source)\t\(.revision // "")\t\(.subpath // "")"
+    | "\(.name)\t\(.source)"
   '
   return 0
 }
@@ -355,12 +347,8 @@ install_skill_into_home() {
   local name="$1"
   local source="$2"
   local host="${3:-both}"
-  local revision="${4:-}"
-  local subpath="${5:-}"
   local agent
   local -a agent_args=()
-  local install_source="${source}"
-  local checkout_root=""
 
   if ! command -v npx >/dev/null 2>&1; then
     printf 'npx is required to install skill-deps (missing on PATH)\n' >&2
@@ -376,47 +364,15 @@ install_skill_into_home() {
     agent_args=(-a claude-code -a codex)
   fi
 
-  if [ -n "${revision}" ]; then
-    case "${revision}" in
-      -*|*..*|*[^A-Za-z0-9._/-]*) printf 'skill-deps: unsafe revision for %s: %s\n' "${name}" "${revision}" >&2; return 1 ;;
-    esac
-    checkout_root="$(mktemp -d)"
-    if ! git clone --filter=blob:none --no-checkout "${source}" "${checkout_root}/repo" >&2 \
-      || ! git -C "${checkout_root}/repo" fetch --depth 1 origin "${revision}" >&2 \
-      || ! git -C "${checkout_root}/repo" checkout --detach FETCH_HEAD >&2; then
-      rm -rf "${checkout_root}"
-      printf 'skill-deps: failed to resolve %s at %s\n' "${source}" "${revision}" >&2
-      return 1
-    fi
-    install_source="${checkout_root}/repo"
-  fi
-
-  if [ -n "${subpath}" ]; then
-    case "${subpath}" in
-      /*|-*|*//*|*\\*|*[^A-Za-z0-9._/-]*) printf 'skill-deps: unsafe subpath for %s: %s\n' "${name}" "${subpath}" >&2; [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"; return 1 ;;
-    esac
-    case "/${subpath}/" in
-      */./*|*/../*|*/-*) printf 'skill-deps: unsafe subpath for %s: %s\n' "${name}" "${subpath}" >&2; [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"; return 1 ;;
-    esac
-    if [ -z "${checkout_root}" ] || [ ! -f "${checkout_root}/repo/${subpath}/SKILL.md" ] || [ -L "${checkout_root}/repo/${subpath}" ]; then
-      [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
-      printf 'skill-deps: subpath missing a regular skill for %s: %s\n' "${name}" "${subpath}" >&2
-      return 1
-    fi
-    install_source="${checkout_root}/repo/${subpath}"
-  fi
-
-  printf 'skill-deps: install %s from %s%s (HOME=%s agents=%s)\n' \
-    "${name}" "${source}" "${revision:+ at ${revision}}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
+  printf 'skill-deps: install %s from current %s (HOME=%s agents=%s)\n' \
+    "${name}" "${source}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
 
   # Always re-run add so cache rebuilds and prior partial installs are overwritten.
   # Route CLI noise to stderr: callers capture stdout for the cache path only.
-  if ! npx --yes skills add "${install_source}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
-    [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
+  if ! npx --yes skills add "${source}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
     printf 'skill-deps: failed to install %s from %s\n' "${name}" "${source}" >&2
     return 1
   fi
-  [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
 
   local installed_file
   installed_file="$(skill_dep_file_for_host "${HOME}" "${name}" "${host}")"
@@ -433,7 +389,7 @@ populate_skill_deps_cache_home() {
   local plugin_dir="$1"
   local cache_home="$2"
   local host="${3:-both}"
-  local deps_file line name source revision subpath remainder fields
+  local deps_file line name source
   local -a deps=()
 
   deps_file="$(plugin_skill_deps_file "${plugin_dir}")"
@@ -468,17 +424,12 @@ populate_skill_deps_cache_home() {
     for line in "${deps[@]}"; do
       [ -n "${line}" ] || continue
       name="${line%%$'\t'*}"
-      remainder="${line#*$'\t'}"
-      source="${remainder%%$'\t'*}"
-      fields="${remainder#*$'\t'}"
-      revision="${fields%%$'\t'*}"
-      subpath="${fields#*$'\t'}"
-      [ "${subpath}" = "${fields}" ] && subpath=""
+      source="${line#*$'\t'}"
       if [ -z "${name}" ] || [ -z "${source}" ] || [ "${name}" = "${line}" ]; then
         printf 'skill-deps: malformed line in %s: %s\n' "${deps_file}" "${line}" >&2
         exit 1
       fi
-      install_skill_into_home "${name}" "${source}" "${host}" "${revision}" "${subpath}" || exit 1
+      install_skill_into_home "${name}" "${source}" "${host}" || exit 1
     done
   )
 }
