@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b5e5daa277c2eb4afbf858dbc813d0d33804145aee3d84e860736f4a09a09f4
+// harness-source-hash: sha256:1c869dc400d91e1b03d27ae05d20e097258a13f87459ee64f0d04e8f3bef5c27
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-SL4HHXOZ.mjs";
+} from "../chunks/chunk-VZJSDG2K.mjs";
 
 // plugins/music-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -101,11 +101,11 @@ init\0${root}`).digest("hex");
       schema: "music-production/skill-composition/v2",
       artifactId: id,
       workers: [
-        { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
-        { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
-        { name: "musical-dna", revision: "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
-        { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, or preview guidance." },
-        { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select in the independent review phase for audio QC guidance." }
+        { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
+        { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
+        { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
+        { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, or preview guidance." },
+        { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select in the independent review phase for audio QC guidance." }
       ]
     }),
     writeJson(join(root, "music.project.json"), {
