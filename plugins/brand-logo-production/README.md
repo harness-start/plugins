@@ -6,15 +6,15 @@ Fibonacci / φ 检查的是：构造关系能按当前 master 复算。它不说
 
 ## 工程契约
 
-`plan.contract.json` 必须绑定项目和 `source` 或 `release` 阶段。`plan.brief.json` 固化受众、品牌定位、语言、约束、禁用方向和成功标准。`plan.skill-composition.json` 保存完整的中英文公开候选池、固定 revision、真实状态和选择理由。概念文件使用 `NNN-slug.logo.tsx`，concept id 与 source 必须唯一，`logo.project.json` 必须精确选择其中一个概念。注册 renderer 生成带 source SHA-256 的真实 PNG。
+`plan.contract.json` 必须绑定项目和 `source` 或 `release` 阶段。`plan.brief.json` 固化受众、品牌定位、语言、约束、禁用方向和成功标准。`plan.skill-composition.json` 保存完整的中英文公开候选池、真实状态和选择理由。概念文件使用 `NNN-slug.logo.tsx`，concept id 与 source 必须唯一，`logo.project.json` 必须精确选择其中一个概念。注册 renderer 生成带 source SHA-256 的真实 PNG。
 
 ## 外部 Skill 编排
 
 候选池包含英文 `brand-identity`、`logo-design`、`color-expert` 和中文生态的双语 `logo-generator`。每个项目动态择优，最多使用 3 个且 advice artifact 必须互不相同；不强制每次同时使用中英文 Skill。
 
-来源与归因：[`brand-identity`](https://github.com/arnabbagxd/Brand-building-skills)（MIT）、[`logo-design`](https://github.com/seb1n/awesome-ai-agent-skills)（MIT，作者 Burhan Sebin / AI Agent Skills Community）、[`color-expert`](https://github.com/meodai/skill.color-expert)（CC-BY-4.0，作者/项目归因为 `meodai/skill.color-expert`）、[`logo-generator`](https://github.com/op7418/logo-generator-skill)（MIT，双语社区项目）。实际安装 revision 和 reference-only allowlist 以 `skill-deps.json` 为准。
+来源与归因：[`brand-identity`](https://github.com/arnabbagxd/Brand-building-skills)（MIT）、[`logo-design`](https://github.com/seb1n/awesome-ai-agent-skills)（MIT，作者 Burhan Sebin / AI Agent Skills Community）、[`color-expert`](https://github.com/meodai/skill.color-expert)（CC-BY-4.0，作者/项目归因为 `meodai/skill.color-expert`）、[`logo-generator`](https://github.com/op7418/logo-generator-skill)（MIT，双语社区项目）。实际安装来源和 reference-only allowlist 以 `skill-deps.json` 为准。
 
-外部 Skill 只有建议权：不能写项目、运行 reference-only 包的脚本或联网流程、生成受保护 evidence、担任独立 reviewer 或执行 release。每个 `used` worker 在项目外生成 Result Card，再由 `project-advice.mjs` 校验 name、revision、phase、subject digest 后准入 `evidence/skills/`。`skipped` 与 `unavailable` 必须记录真实原因。
+外部 Skill 只有建议权：不能写项目、运行 reference-only 包的脚本或联网流程、生成受保护 evidence、担任独立 reviewer 或执行 release。每个 `used` worker 在项目外生成 Result Card，再由 `project-advice.mjs` 校验 name、phase、subject digest 后准入 `evidence/skills/`。`skipped` 与 `unavailable` 必须记录真实原因。
 
 master 固定为 `Mark.logo.tsx`、`Wordmark.logo.tsx`、`Lockup.logo.tsx`，每个文件只导出同名原生 SVG component。built master 必须是带 `viewBox` 和可渲染 vector geometry 的自包含 SVG；无效 path data、无尺寸 primitive、固定 width/height、raster、text、远程资源或运行期 I/O 都会被拒绝。
 
