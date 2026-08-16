@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:76d7789e2465588d1bd1394d140e4ff1d0a1104b623f16f49e98aa66c400df25
+// harness-source-hash: sha256:f8cd02d3283c3dea28945314e2505550effc23fa844dc2b109e0794c67957586
 import {
   assertVideoProjectRoot
-} from "./chunk-MGXMLK5O.mjs";
+} from "./chunk-LY6VDG62.mjs";
 
 // plugins/video-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
@@ -158,23 +158,23 @@ var REQUIRED_PROJECT_PATHS = [
   "src/audio/manifest.json",
   "src/captions/manifest.json"
 ];
-var REQUIRED_ADVISORS = /* @__PURE__ */ new Map([
-  ["motion-art-direction", "3c129f769d90a1328c209c386492333c9ac62312"],
-  ["animation-principles", "3c129f769d90a1328c209c386492333c9ac62312"],
-  ["beat-sync-editing", "3c129f769d90a1328c209c386492333c9ac62312"],
-  ["color-motion", "3c129f769d90a1328c209c386492333c9ac62312"],
-  ["shot-composition", "3c129f769d90a1328c209c386492333c9ac62312"],
-  ["explainer-video", "3e2d411b725d9a72939cf8e5eb81579e751373e7"],
-  ["short-form-video", "2a775336b5a638cbf8a61dbd785f9a1b649be016"],
-  ["caption-animation", "2a775336b5a638cbf8a61dbd785f9a1b649be016"],
-  ["product-launch-video", "9de027d1947ce8f8b60ccf70aa89e482bf80ecea"],
-  ["gemini-tts", "9de027d1947ce8f8b60ccf70aa89e482bf80ecea"],
-  ["chengfeng-cut", "2e51611965af6e6b8baea3bfc82995b5c9e8f5ef"],
-  ["chengfeng-subtitle", "2e51611965af6e6b8baea3bfc82995b5c9e8f5ef"],
-  ["model-selector", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d"],
-  ["prompt-translator", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d"],
-  ["seedance-storyboard", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d"],
-  ["impeccable", "5a149f3fdb1b5793f10567233b1dcab98fc305fd"]
+var REQUIRED_ADVISORS = /* @__PURE__ */ new Set([
+  "motion-art-direction",
+  "animation-principles",
+  "beat-sync-editing",
+  "color-motion",
+  "shot-composition",
+  "explainer-video",
+  "short-form-video",
+  "caption-animation",
+  "product-launch-video",
+  "gemini-tts",
+  "chengfeng-cut",
+  "chengfeng-subtitle",
+  "model-selector",
+  "prompt-translator",
+  "seedance-storyboard",
+  "impeccable"
 ]);
 var BASE_REVIEW_CHECKS = [
   "narrative",
@@ -380,8 +380,8 @@ function validateDirection(model, stage, findings) {
   }
   const workers = isObject(composition) && Array.isArray(composition.workers) ? composition.workers : [];
   const workerMap = new Map(workers.filter(isObject).map((worker) => [String(worker.name), worker]));
-  if (!isObject(composition) || composition.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== REQUIRED_ADVISORS.size || [...REQUIRED_ADVISORS].some(([name, revision]) => workerMap.get(name)?.revision !== revision || !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)) || !["advisor", "external-runner"].includes(String(workerMap.get(name)?.mode)))) {
-    findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "every pinned companion must declare its exact revision, mode, and truthful status"));
+  if (!isObject(composition) || composition.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== REQUIRED_ADVISORS.size || workers.some((worker) => isObject(worker) && Object.hasOwn(worker, "revision")) || [...REQUIRED_ADVISORS].some((name) => !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)) || !["advisor", "external-runner"].includes(String(workerMap.get(name)?.mode)))) {
+    findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "every current-source companion must declare its mode and truthful status"));
   }
 }
 function validateStoryboard(model, stage, findings) {

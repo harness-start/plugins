@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:76d7789e2465588d1bd1394d140e4ff1d0a1104b623f16f49e98aa66c400df25
+// harness-source-hash: sha256:f8cd02d3283c3dea28945314e2505550effc23fa844dc2b109e0794c67957586
 import {
   probeMedia,
   validateMeasuredMedia
-} from "../chunks/chunk-EVRFBJWB.mjs";
+} from "../chunks/chunk-IDI3J5Q7.mjs";
 import {
   audioProofPaths,
   consumeWriterCapability,
@@ -12,14 +12,14 @@ import {
   processWriterArgv,
   validateVideoModel,
   visualProofPaths
-} from "../chunks/chunk-6P2TPBVF.mjs";
+} from "../chunks/chunk-FJWYHWOX.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-MGXMLK5O.mjs";
+} from "../chunks/chunk-LY6VDG62.mjs";
 
 // plugins/video-production/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";
