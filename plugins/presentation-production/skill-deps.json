@@ -3,14 +3,12 @@
     {
       "name": "pptx-generator",
       "source": "https://github.com/minimax-ai/skills",
-      "revision": "4006c2661305ed221f957a08e1d3429cb525de67",
-      "description": "Optional storyboard and PptxGenJS source adviser pinned to an audited MIT revision; no protected-path writer, evidence, reviewer, or release authority."
+      "description": "Optional storyboard and PptxGenJS source adviser from the current upstream source; no protected-path writer, evidence, reviewer, or release authority."
     },
     {
       "name": "impeccable",
       "source": "https://github.com/pbakaus/impeccable",
-      "revision": "5a149f3fdb1b5793f10567233b1dcab98fc305fd",
-      "description": "Optional Apache-2.0 design-system adviser pinned to skill-v4.1.1 for hierarchy, typography, spacing, and color; no project writer, reviewer, or release authority."
+      "description": "Optional Apache-2.0 design-system adviser from the current upstream source for hierarchy, typography, spacing, and color; no project writer, reviewer, or release authority."
     }
   ]
 }

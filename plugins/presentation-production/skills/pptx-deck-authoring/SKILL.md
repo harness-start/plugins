@@ -21,7 +21,7 @@ Read all of these before authoring:
 
 1. Choose a lowercase kebab-case artifact id. Run the registered `project-init.mjs` wrapper for `artifacts/pptx/<artifact-id>`.
 2. Replace every scaffold placeholder. Freeze `plan.contract.json`, `plan.storyboard.json`, and `plan.skill-composition.json` before slide source work.
-3. Acquire optional external workers only for their declared phase. Record each exact revision and `used`, `skipped`, or `unavailable` status. Treat their output as advice; integrate it into project-owned JSON or TypeScript yourself.
+3. Acquire optional external workers only for their declared phase. Record each current-source worker's `used`, `skipped`, or `unavailable` status. Treat their output as advice; integrate it into project-owned JSON or TypeScript yourself.
 4. Freeze `design.system.json`. Make color, typography, spacing, chart, and accessibility decisions semantic and measurable.
 5. Implement `src/deck.ts`, `src/theme.ts`, and exactly one `src/slides/NNN-slug.ts` module per manifest slide. A slide module modifies only the supplied slide and does not create slides, write files, fetch, spawn, or use nondeterminism.
 6. Run `project-lint.mjs`. Resolve every source-contract or ESLint finding.
