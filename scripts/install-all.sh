@@ -866,7 +866,7 @@ write_language_profile() {
 #   {
 #     "skills": [
 #       {
-#         "name": "grill-me",
+#         "name": "grilling",
 #         "source": "https://github.com/mattpocock/skills",
 #         "description": "optional human note"
 #       }
