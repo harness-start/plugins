@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-LUXGHUEP.mjs";
+} from "../chunks/chunk-JH77OJDC.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
-  validateMusicModel
-} from "../chunks/chunk-CA6YKXLK.mjs";
+  validateMusicModel,
+  validateMusicReferenceProfile
+} from "../chunks/chunk-3BB6Q6R4.mjs";
 
 // plugins/music-project-delivery-guard/src/entries/hooks/music-project-delivery-guard.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -348,6 +349,7 @@ var MUSIC_WRITERS = [
   "project-lint.mjs",
   "project-optimize.mjs",
   "project-preview.mjs",
+  "project-reference.mjs",
   "project-render.mjs",
   "project-review.mjs",
   "project-stage.mjs",
@@ -358,6 +360,7 @@ var CAPABILITIES = {
   "project-init.mjs": "music-init",
   "project-optimize.mjs": "music-optimize",
   "project-preview.mjs": "music-preview",
+  "project-reference.mjs": "music-reference",
   "project-render.mjs": "music-render",
   "project-review.mjs": "music-review",
   "project-stage.mjs": "music-stage",
@@ -375,7 +378,7 @@ function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory }) {
   const approved = evaluateRegisteredWriter({ command: expanded, cwd, workspaceRoot, carrier: "music", writers: MUSIC_WRITERS, toolDirectory });
   if (!approved.ok) return { decision: "deny", code: "UNKNOWN_MUTATION_SHELL", message: "music scope allows only an exact registered writer invocation or a narrow read-only command" };
   const extra = words.slice(3);
-  const shapeValid = approved.writer === "project-init.mjs" ? extra.every((word) => ["--skip-install", "--install-browser"].includes(word)) && new Set(extra).size === extra.length : ["project-advice.mjs", "project-review.mjs"].includes(approved.writer) ? words.length === 4 : approved.writer === "project-stage.mjs" ? words.length === 4 && words[3] === "release" : approved.writer === "project-preview.mjs" ? words.length === 3 || words.length === 4 && words[3] === "--evidence-only" : words.length === 3;
+  const shapeValid = approved.writer === "project-init.mjs" ? extra.every((word) => ["--skip-install", "--install-browser"].includes(word)) && new Set(extra).size === extra.length : approved.writer === "project-reference.mjs" ? words.length === 5 : ["project-advice.mjs", "project-review.mjs"].includes(approved.writer) ? words.length === 4 : approved.writer === "project-stage.mjs" ? words.length === 4 && words[3] === "release" : approved.writer === "project-preview.mjs" ? words.length === 3 || words.length === 4 && words[3] === "--evidence-only" : words.length === 3;
   if (!shapeValid) return { decision: "deny", code: "WRITER_ARGUMENTS_INVALID", message: "registered music writers require their exact documented argument shape" };
   const script = resolve4(words[1] ?? "");
   const capability = CAPABILITIES[approved.writer];
@@ -430,6 +433,10 @@ function format(findings) {
     "recovery: Use $music-project-authoring to refresh advice, optimize, render, and preview; use a separate $music-project-review session before stage and release."
   ].join("\n");
 }
+function isReferenceDownstreamPath(projectRoot, target) {
+  const path = relative2(projectRoot, target).replaceAll("\\", "/");
+  return path === "plan.direction.json" || path === "plan.arrangement.json" || path === "src/composition.mjs" || path.startsWith("src/instruments/");
+}
 async function main() {
   const mode = process.argv[2] ?? "session";
   const event = await readStdinJson();
@@ -458,6 +465,13 @@ async function main() {
             writeJson(deny("RELEASE_STAGE_LOCKED: source and plan files cannot be edited after the monotonic release transition"));
             return;
           }
+          if (isReferenceDownstreamPath(projectMatch.groups.root, absoluteTarget)) {
+            const model = { artifactId: basename2(projectMatch.groups.root), files: collected.files, digests: collected.digests };
+            if (validateMusicReferenceProfile(model).length > 0) {
+              writeJson(deny("REFERENCE_PROFILE_REQUIRED: source-analysis briefs require a current controlled reference profile before direction or source edits"));
+              return;
+            }
+          }
         } catch {
         }
       }
@@ -472,7 +486,7 @@ async function main() {
       const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
       if (shell.writer === "project-init.mjs") {
         try {
-          const subjectDigest = createHash2("sha256").update(`music-project-delivery-guard@0.3.0
+          const subjectDigest = createHash2("sha256").update(`music-project-delivery-guard@0.4.0
 init\0${shell.projectRoot}`).digest("hex");
           await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest, sessionId, ...process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {} });
         } catch (error) {
@@ -491,6 +505,7 @@ init\0${shell.projectRoot}`).digest("hex");
       const model = { artifactId: basename2(shell.projectRoot), files: collected.files, digests: collected.digests, plan: parsed("plan.contract.json"), project: parsed("music.project.json") };
       try {
         if (isRecord2(model.plan) && model.plan.targetStage === "release" && shell.writer !== "project-release.mjs") throw new Error("RELEASE_STAGE_LOCKED");
+        if (["project-optimize.mjs", "project-render.mjs", "project-preview.mjs", "project-review.mjs", "project-stage.mjs", "project-release.mjs"].includes(shell.writer) && validateMusicReferenceProfile(model).length > 0) throw new Error("REFERENCE_PROFILE_REQUIRED");
         await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest: computeMusicSubjectDigest(model), sessionId, ...process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {} });
       } catch (error) {
         writeJson(deny(error instanceof Error ? error.message : String(error)));

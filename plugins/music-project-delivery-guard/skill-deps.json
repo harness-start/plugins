@@ -23,6 +23,18 @@
       "description": "Chinese genre, ambience, guofeng, and short-form BGM reference; platform and generation instructions are out of scope."
     },
     {
+      "name": "musical-dna",
+      "source": "https://github.com/jwynia/agent-skills",
+      "revision": "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32",
+      "subpath": "skills/creative/music/musical-dna",
+      "ecosystem": "en",
+      "license": "MIT (declared in SKILL.md; no repository-root license file at the pinned revision)",
+      "mode": "reference-only",
+      "allowFiles": ["SKILL.md"],
+      "phases": ["brief", "reference-analysis", "direction", "arrangement"],
+      "description": "Technique-level musical identity analysis for user-authorized references; artist names, track names, signature material, scripts, and network actions are excluded from admitted evidence."
+    },
+    {
       "name": "workflow-audio-production",
       "source": "https://github.com/damionrashford/media-os",
       "revision": "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e",

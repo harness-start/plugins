@@ -1,24 +1,25 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 import {
   atomicWriteMusicJson,
   musicSessionMetadata,
   withMusicJournal
-} from "../chunks/chunk-5XAGUQQ4.mjs";
+} from "../chunks/chunk-WWVRKCHZ.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-WIQQJUMV.mjs";
+} from "../chunks/chunk-C5T2T6QC.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-LUXGHUEP.mjs";
+} from "../chunks/chunk-JH77OJDC.mjs";
 import {
   EXTERNAL_SKILLS,
+  LEGACY_SKILL_COMPOSITION_SCHEMA,
   SKILL_ADVICE_INPUT_SCHEMA,
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   computeMusicSubjectDigest
-} from "../chunks/chunk-CA6YKXLK.mjs";
+} from "../chunks/chunk-3BB6Q6R4.mjs";
 
 // plugins/music-project-delivery-guard/src/entries/cli/project-advice.ts
 import { createHash } from "node:crypto";
@@ -46,7 +47,10 @@ async function main() {
   const composition = record(JSON.parse(model.files?.["plan.skill-composition.json"] ?? "null"));
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
   const worker = workers.find((entry) => entry.name === payload.skillName);
-  if (composition.schema !== SKILL_COMPOSITION_SCHEMA || !expected || !worker || worker.status !== "used" || worker.revision !== expected.revision || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
+  const supportedComposition = composition.schema === SKILL_COMPOSITION_SCHEMA || composition.schema === LEGACY_SKILL_COMPOSITION_SCHEMA;
+  const expectedEvidencePath = `evidence/skills/${expected?.name ?? ""}.json`;
+  const declaredEvidencePath = composition.schema === SKILL_COMPOSITION_SCHEMA ? worker?.evidencePath : worker?.advicePath;
+  if (!supportedComposition || !expected || expected.artifactKind !== "advice" || !worker || worker.status !== "used" || worker.revision !== expected.revision || composition.schema === SKILL_COMPOSITION_SCHEMA && worker.artifactKind !== "advice" || declaredEvidencePath !== expectedEvidencePath || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
   if (!Array.isArray(payload.recommendations) || !Array.isArray(payload.adopted) || !Array.isArray(payload.rejected) || typeof payload.summary !== "string" || !payload.summary.trim()) throw new Error("ADVICE_RESULT_INCOMPLETE");
   const output = {
     schema: SKILL_ADVICE_SCHEMA,

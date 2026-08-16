@@ -1,25 +1,28 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 import {
   atomicWriteMusicJson,
   musicSessionMetadata,
   withMusicJournal
-} from "../chunks/chunk-5XAGUQQ4.mjs";
+} from "../chunks/chunk-WWVRKCHZ.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-WIQQJUMV.mjs";
+} from "../chunks/chunk-C5T2T6QC.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-LUXGHUEP.mjs";
+} from "../chunks/chunk-JH77OJDC.mjs";
 import {
+  BRIEF_SCHEMA,
+  LEGACY_REVIEW_INPUT_SCHEMA,
+  LEGACY_REVIEW_SCHEMA,
   REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
   computeMusicSubjectDigest,
   musicReviewArtifactPaths,
   musicSourcePaths,
   validateMusicReview
-} from "../chunks/chunk-CA6YKXLK.mjs";
+} from "../chunks/chunk-3BB6Q6R4.mjs";
 
 // plugins/music-project-delivery-guard/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";
@@ -43,11 +46,14 @@ async function main() {
   const model = await collectMusicModel(root);
   const subjectDigest = computeMusicSubjectDigest(model);
   const paths = musicSourcePaths(model);
-  if (grant.subjectDigest !== subjectDigest || payload.schema !== REVIEW_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== subjectDigest || payload.mixSha256 !== model.digests?.[paths.mix] || !["approved", "changes_requested"].includes(String(payload.decision))) throw new Error("REVIEW_INPUT_INVALID");
+  const brief = record(JSON.parse(model.files?.["plan.brief.json"] ?? "null"));
+  const inputSchema = brief.schema === BRIEF_SCHEMA ? REVIEW_INPUT_SCHEMA : LEGACY_REVIEW_INPUT_SCHEMA;
+  const outputSchema = brief.schema === BRIEF_SCHEMA ? REVIEW_SCHEMA : LEGACY_REVIEW_SCHEMA;
+  if (grant.subjectDigest !== subjectDigest || payload.schema !== inputSchema || payload.artifactId !== model.artifactId || payload.subjectDigest !== subjectDigest || payload.mixSha256 !== model.digests?.[paths.mix] || !["approved", "changes_requested"].includes(String(payload.decision))) throw new Error("REVIEW_INPUT_INVALID");
   const reviewer = record(payload.reviewer);
   const render = record(JSON.parse(model.files?.[`build/render.${subjectDigest}.json`] ?? "null"));
   if (!["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
-  const output = { ...payload, schema: REVIEW_SCHEMA, plugin: "music-project-delivery-guard", reviewer, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...musicSessionMetadata("music-review", grant) };
+  const output = { ...payload, schema: outputSchema, plugin: "music-project-delivery-guard", reviewer, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...musicSessionMetadata("music-review", grant) };
   const outputBytes = `${JSON.stringify(output, null, 2)}
 `;
   const candidate = { ...model, files: { ...model.files, "review.music.json": outputBytes }, digests: { ...model.digests, "review.music.json": createHash("sha256").update(outputBytes).digest("hex") } };

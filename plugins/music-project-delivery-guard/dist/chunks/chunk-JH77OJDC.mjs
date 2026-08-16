@@ -1,11 +1,11 @@
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 
 // plugins/music-project-delivery-guard/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, realpath, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 var TTL_MS = 3e4;
-var CAPABILITY = /^music-(?:init|advice|optimize|render|preview|stage|review|release)$/u;
+var CAPABILITY = /^music-(?:init|advice|reference|optimize|render|preview|stage|review|release)$/u;
 var argvDigest = (argv) => createHash("sha256").update(JSON.stringify(argv)).digest("hex");
 var grantPath = (root, capability) => join(root, ".tmp", "music-guard", `capability.${capability}.json`);
 var errorCode = (error) => typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:9252d0cc9916d9adbb98c685ea0599f968feb60c7151c614c458b266914093e7
+// harness-source-hash: sha256:135cd2f55217f03f52404088fe22ea3cfc46882729cd2899c40505e6de3d9a8a
 
 // plugins/music-project-delivery-guard/src/lib/writer.ts
 import { mkdir, open, rename, unlink, writeFile } from "node:fs/promises";

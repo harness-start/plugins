@@ -1,6 +1,6 @@
 ---
 name: music-project-authoring
-description: Orchestrate a code-managed instrumental music project from brief and pinned external advice through deterministic composition, arrangement, Tone.js rendering, preview, independent review handoff, and digest-bound release.
+description: Orchestrate a code-managed instrumental music project from brief and conditional reference analysis through deterministic composition, arrangement, Tone.js rendering, preview, independent review handoff, and digest-bound release.
 ---
 
 # Music Project Authoring
@@ -9,7 +9,7 @@ Build music as reviewable source code and establish a causal chain from brief to
 
 ## Establish the contract
 
-1. Freeze `plan.brief.json`, `plan.direction.json`, and `plan.arrangement.json` before optimization.
+1. Freeze `plan.brief.json`, any required reference profile, `plan.direction.json`, and `plan.arrangement.json` before optimization.
 2. State falsifiable assumptions for anything the user did not specify.
 3. Keep v1 within instrumental synthesis: no samples, vocals, MIDI import/export, MP3, tempo maps, meter changes, or microtonality.
 4. Read [mathematical-model.md](references/mathematical-model.md) before changing composition or optimization logic.
@@ -21,6 +21,7 @@ Use `plan.skill-composition.json` to select the pinned bilingual adviser pool. K
 
 - `music-composition`: composition, harmony, form, and orchestration.
 - `miaoxiang-music`: Chinese genre, ambience, guofeng, and scene vocabulary.
+- `musical-dna`: reference identity expressed as techniques rather than artist imitation.
 - `workflow-audio-production`: arrangement, balance, dynamics, and space.
 - `workflow-analysis-quality`: reserved for preview/review QC.
 
@@ -49,6 +50,90 @@ The payload must bind the current subject digest and declare recommendations plu
 }
 ```
 
+## Analyze references before direction
+
+Use `reference.mode: "none"` when no reference intent exists and `"traits"` when the user already supplied name-free technical traits. If the request names artists or tracks, use `"source-analysis"`; `musical-dna` then becomes mandatory before editing direction, arrangement, composition, or instruments.
+
+Prepare a 3–5 item source manifest outside the project. Each item needs a stable kebab-case id, artist, title, and an honest `observationBasis`: `auditioned`, `documented-analysis`, or `user-described`. Put the SHA-256 of the exact manifest bytes in `plan.brief.json.reference.sourceSetSha256`. Do not claim audition when only metadata or written analysis was available.
+
+```json
+{
+  "schema": "music-project-delivery-guard/reference-sources-input/v1",
+  "artifactId": "<id>",
+  "references": [
+    {
+      "id": "reference-1",
+      "artist": "<external-only artist>",
+      "title": "<external-only track>",
+      "observationBasis": "auditioned"
+    },
+    {
+      "id": "reference-2",
+      "artist": "<external-only artist>",
+      "title": "<external-only track>",
+      "observationBasis": "auditioned"
+    },
+    {
+      "id": "reference-3",
+      "artist": "<external-only artist>",
+      "title": "<external-only track>",
+      "observationBasis": "documented-analysis"
+    }
+  ]
+}
+```
+
+After adding the source digest to the brief, calculate the SHA-256 of the exact `plan.brief.json` bytes. Mark the `musical-dna` worker `used` and set its `evidencePath` to `evidence/reference-profile.<briefSha256>.json` before invoking the writer.
+
+Run the pinned `musical-dna` skill and prepare a separate profile input. Cover rhythmic foundation, harmonic architecture, instrumental techniques, production aesthetics, genre fusion, and energy architecture. Every trait must state whether it was observed, inferred, or user-described and cite one or more manifest ids. Distill 5–10 name-free descriptors, map the result to rhythm/tempo, harmony/voicing, timbre/effects, space/dynamics, and form/energy, and reject traits that v1 synthesis cannot implement. Set all three anti-imitation assertions only after removing artist names, signature material, and imitation prompts.
+
+```json
+{
+  "schema": "music-project-delivery-guard/reference-profile-input/v1",
+  "artifactId": "<id>",
+  "briefSha256": "<64-hex>",
+  "sourceSetSha256": "<64-hex>",
+  "skillName": "musical-dna",
+  "revision": "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32",
+  "ecosystem": "en",
+  "mode": "reference-only",
+  "phase": "reference-analysis",
+  "dimensions": {
+    "rhythmicFoundation": [{ "trait": "<trait>", "basis": "observed", "referenceIds": ["reference-1"] }],
+    "harmonicArchitecture": [{ "trait": "<trait>", "basis": "observed", "referenceIds": ["reference-1"] }],
+    "instrumentalTechniques": [{ "trait": "<trait>", "basis": "observed", "referenceIds": ["reference-1"] }],
+    "productionAesthetics": [{ "trait": "<trait>", "basis": "observed", "referenceIds": ["reference-1"] }],
+    "genreFusion": [{ "trait": "<trait>", "basis": "inferred", "referenceIds": ["reference-1"] }],
+    "energyArchitecture": [{ "trait": "<trait>", "basis": "observed", "referenceIds": ["reference-1"] }]
+  },
+  "descriptors": ["<descriptor-1>", "<descriptor-2>", "<descriptor-3>", "<descriptor-4>", "<descriptor-5>"],
+  "toneJsMapping": {
+    "rhythmAndTempo": ["<mapping>"],
+    "harmonyAndVoicing": ["<mapping>"],
+    "timbreAndEffects": ["<mapping>"],
+    "spaceAndDynamics": ["<mapping>"],
+    "formAndEnergy": ["<mapping>"]
+  },
+  "unsupportedTraits": [{ "trait": "<trait>", "reason": "<reason>" }],
+  "antiImitation": {
+    "artistNamesRemoved": true,
+    "signatureMaterialExcluded": true,
+    "imitationPromptExcluded": true
+  }
+}
+```
+
+Admit the result through the only reference-profile writer:
+
+```bash
+node "${PLUGIN_ROOT}/dist/cli/project-reference.mjs" \
+  "artifacts/music/<id>" \
+  "/absolute/path/to/reference-sources.json" \
+  "/absolute/path/to/reference-profile.json"
+```
+
+The writer stores only `evidence/reference-profile.<briefSha256>.json`; it rejects source identities in admitted content. If `musical-dna` is unavailable, stop and repair the declared skill dependency. Do not replace it with current-session knowledge or fabricate a compatible payload. Changing the brief or source manifest repeats reference-analysis; changing direction keeps the brief-bound profile current but invalidates downstream subject-bound evidence.
+
 ## Initialize
 
 Create the project under `artifacts/music/<id>`:
@@ -65,7 +150,7 @@ Edit only source-owned files directly:
 - `src/instruments/*.mjs` owns synth and effect construction, but not transport, destination, network, time, randomness, or offline rendering.
 - `music.project.json` owns track registration, audio format, and numerical quality limits.
 - `plan.brief.json`, `plan.direction.json`, and `plan.arrangement.json` own creative intent.
-- `plan.skill-composition.json` owns adviser selection and truthful use/skip reasons.
+- `plan.skill-composition.json` owns adviser selection, artifact kinds, evidence paths, and truthful use/skip reasons.
 - `plan.contract.json` is protected and may advance only through `project-stage.mjs`.
 
 ## Compose mathematically
@@ -138,6 +223,7 @@ Report:
 - hard constraints and candidate count;
 - source digest and selected candidate ID;
 - WAV duration, peak, RMS, DC offset, clipping, and non-silent ratio;
+- reference-profile digest and adopted/unsupported traits when source analysis was used;
 - independent review decision, findings, and any remaining artistic uncertainty;
 - final output and receipt paths.
 

@@ -9,7 +9,7 @@ Use this skill in a session that did not create the current render. It is a revi
 
 ## Authority boundary
 
-- Read `plan.brief.json`, `plan.direction.json`, `plan.arrangement.json`, the symbolic score, render receipt, preview evidence, current mix, and every proof stem.
+- Read `plan.brief.json`, `plan.direction.json`, `plan.arrangement.json`, the symbolic score, render receipt, preview evidence, current mix, every proof stem, and the current anonymous reference profile when source analysis was used.
 - You may consult the pinned `workflow-analysis-quality` reference. Do not execute its scripts or commands.
 - Do not edit plans, composition or instrument sources, generated audio, preview evidence, release manifests, or receipts.
 - Do not call `project-release.mjs`. Return requested changes to `$music-project-authoring`.
@@ -17,7 +17,7 @@ Use this skill in a session that did not create the current render. It is a revi
 
 ## Review gate
 
-Audition the exact digest-bound mix and every stem. Cover brief alignment, melodic and harmonic coherence, rhythm and groove, form and arrangement, timbre and orchestration, balance/space/dynamics, and technical integrity. Every finding needs a stable id, severity, exact evidence path and SHA-256, a verifiable fix, status, and recheck evidence for blocker or major findings that are marked verified.
+Audition the exact digest-bound mix and every stem. Cover brief alignment, melodic and harmonic coherence, rhythm and groove, form and arrangement, timbre and orchestration, balance/space/dynamics, and technical integrity. For a source-analysis brief, also compare the audible result with the anonymous profile under `reference-profile-alignment`; do not recover artist identities or rerun `musical-dna`. Every finding needs a stable id, severity, exact evidence path and SHA-256, a verifiable fix, status, and recheck evidence for blocker or major findings that are marked verified.
 
 Use `changes_requested` while any blocker or major finding remains open. Use `approved` only when the current artifacts meet the brief and all required checks pass. The writer binds your decision to the current subject, mix, stems, preview, session, and payload digest.
 
@@ -25,7 +25,7 @@ Prepare this payload outside the project root. `coverage` must follow the writer
 
 ```json
 {
-  "schema": "music-project-delivery-guard/review-input/v1",
+  "schema": "music-project-delivery-guard/review-input/v2",
   "artifactId": "<id>",
   "subjectDigest": "<64-hex>",
   "mixSha256": "<64-hex>",
@@ -40,5 +40,7 @@ Prepare this payload outside the project root. `coverage` must follow the writer
   "findings": []
 }
 ```
+
+Legacy `brief/v1` projects continue to use `review-input/v1`. Current `brief/v2` projects use v2, and source-analysis coverage appends `evidence/reference-profile.<briefSha256>.json` after preview evidence.
 
 Submit it with `node "${PLUGIN_ROOT}/dist/cli/project-review.mjs" "artifacts/music/<id>" "/absolute/path/to/review-input.json"`.

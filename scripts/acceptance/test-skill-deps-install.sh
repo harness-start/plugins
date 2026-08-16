@@ -59,14 +59,20 @@ trap 'rm -rf "${tmp}"' EXIT
 # --- parse: valid -------------------------------------------------------------
 valid_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills"}]}'
 got="$(parse_skill_deps_json "${valid_json}" "valid.json")"
-assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t'
+assert_eq "parse valid name/source" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\t\t'
 
 pinned_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":"v1.0.0"}]}'
 got="$(parse_skill_deps_json "${pinned_json}" "pinned.json")"
-assert_eq "parse pinned revision" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\tv1.0.0'
+assert_eq "parse pinned revision" "${got}" $'grill-me\thttps://github.com/mattpocock/skills\tv1.0.0\t'
+
+nested_json='{"skills":[{"name":"musical-dna","source":"https://github.com/jwynia/agent-skills","revision":"e02ec7e226a6e4f8419fd3b88a1d8e472d421b32","subpath":"skills/creative/music/musical-dna"}]}'
+got="$(parse_skill_deps_json "${nested_json}" "nested.json")"
+assert_eq "parse pinned nested skill" "${got}" $'musical-dna\thttps://github.com/jwynia/agent-skills\te02ec7e226a6e4f8419fd3b88a1d8e472d421b32\tskills/creative/music/musical-dna'
 
 invalid_revision_json='{"skills":[{"name":"grill-me","source":"https://github.com/mattpocock/skills","revision":""}]}'
 assert_fail "reject empty pinned revision" parse_skill_deps_json "${invalid_revision_json}" "invalid-revision.json"
+assert_fail "reject escaping skill subpath" \
+  parse_skill_deps_json '{"skills":[{"name":"x","source":"https://example.com/repo","subpath":"../x"}]}' "invalid-subpath.json"
 
 empty_json='{"skills":[]}'
 got="$(parse_skill_deps_json "${empty_json}" "empty.json" || true)"

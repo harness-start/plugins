@@ -8,7 +8,7 @@
 
 ## External advisers
 
-Only dependencies pinned in `skill-deps.json` may be selected. At most three may be active in one phase. External skills have no project writer, review, or release authority. A used adviser needs a distinct `evidence/skills/<name>.json` receipt produced from an external, size-limited JSON payload and bound to the current subject digest.
+Only dependencies pinned in `skill-deps.json` may be selected. At most three may be active in one phase. External skills have no project writer, review, or release authority. A used adviser needs a distinct controlled evidence artifact. General advice uses `evidence/skills/<name>.json` bound to the current subject digest. A source-analysis brief instead requires `musical-dna` and `evidence/reference-profile.<briefSha256>.json`, bound to a 3–5 item external source manifest without copying source identities into the project.
 
 ## Digest and writer chain
 
@@ -20,7 +20,7 @@ Protected outputs are `plan.contract.json`, `build/`, `proofs/`, `evidence/`, `r
 
 ## Review and release
 
-Review must come from a session different from the one recorded by the current render receipt. Coverage binds score, metrics, render receipt, preview, mix, and every stem by SHA-256. Approval requires every declared musical/technical check to pass and all blocker/major findings to be independently verified.
+Review must come from a session different from the one recorded by the current render receipt. Coverage binds score, metrics, render receipt, preview, mix, and every stem by SHA-256. Source-analysis projects also bind the current anonymous reference profile and require `reference-profile-alignment`. Approval requires every declared musical/technical check to pass and all blocker/major findings to be independently verified.
 
 Release format is PCM16 WAV, 48 kHz stereo. Objective limits cover peak, RMS, DC offset, clipped samples, duration, and non-silent ratio for mix and stems. They supplement rather than replace listening.
 
