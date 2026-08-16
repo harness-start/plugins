@@ -275,3 +275,50 @@ esac
     rmSync(fixture, { recursive: true, force: true });
   }
 });
+
+test("installer replaces a Git Codex marketplace when upgrade fails", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-codex-git-mp-upgrade-failure-"));
+  const bin = join(fixture, "bin");
+  const logFile = join(fixture, "codex.log");
+  mkdirSync(bin, { recursive: true });
+  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
+  executable(join(bin, "codex"), `#!/bin/sh
+printf '%s\\n' "$*" >> "${logFile}"
+case " $* " in
+  *" marketplace list "*)
+    cat <<'JSON'
+{
+  "marketplaces": [
+    {
+      "name": "harness-start",
+      "marketplaceSource": { "sourceType": "git", "source": "https://github.com/harness-start/plugins.git" }
+    }
+  ]
+}
+JSON
+    ;;
+  *" marketplace upgrade "*)
+    printf '%s\\n' 'fatal: early EOF' >&2
+    exit 1
+    ;;
+  *)
+    printf '%s\\n' "[]"
+    ;;
+esac
+`);
+
+  try {
+    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CODEX_HOME: join(fixture, "codex"),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const commands = readFileSync(logFile, "utf8");
+    assert.match(
+      commands,
+      /marketplace upgrade harness-start --json[\s\S]*marketplace remove harness-start --json[\s\S]*marketplace add harness-start\/plugins --ref master --json/u,
+    );
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});

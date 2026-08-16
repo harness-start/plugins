@@ -751,7 +751,9 @@ ensure_codex_marketplace() {
     warn "Codex marketplace upgrade failed; re-adding ${MARKETPLACE_SOURCE}"
   elif [ -n "${source_type}" ]; then
     log "Codex: marketplace ${MARKETPLACE_NAME} is ${source_type}, not a Git marketplace; replacing with ${MARKETPLACE_SOURCE}"
-    run_cmd codex plugin marketplace remove "${MARKETPLACE_NAME}" --json || true
+  fi
+  if [ -n "${source_type}" ]; then
+    run_cmd codex plugin marketplace remove "${MARKETPLACE_NAME}" --json
   fi
   add_codex_git_marketplace
 }
