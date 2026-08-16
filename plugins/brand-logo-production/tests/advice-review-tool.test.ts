@@ -27,7 +27,7 @@ function run(entry: string, args: string[]) {
   });
 }
 
-test("advice writer admits one selected pinned worker result and consumes its capability", async () => {
+test("advice writer admits one selected current-source worker result and consumes its capability", async () => {
   const sandbox = mkdtempSync(join(tmpdir(), "logo-advice-"));
   const project = join(sandbox, "artifacts", "logo", "orbit-logo");
   const input = join(sandbox, "advice.json");
@@ -40,7 +40,7 @@ test("advice writer admits one selected pinned worker result and consumes its ca
     await writeModel(project, model);
     const loaded = await loadLogoProject(project);
     const subjectDigest = computeLogoSubjectDigest(loaded);
-    await writeFile(input, JSON.stringify({ schema: SKILL_ADVICE_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, skillName: "brand-identity", revision: composition.workers[0].revision, ecosystem: "en", mode: "adviser", phase: "brief", summary: "Clarified a distinctive geometric positioning.", recommendations: ["Use one orbital memory point"], adopted: ["Use one orbital memory point"], rejected: [] }));
+    await writeFile(input, JSON.stringify({ schema: SKILL_ADVICE_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, skillName: "brand-identity", ecosystem: "en", mode: "adviser", phase: "brief", summary: "Clarified a distinctive geometric positioning.", recommendations: ["Use one orbital memory point"], adopted: ["Use one orbital memory point"], rejected: [] }));
     await issueWriterCapability({ root: project, capability: "logo-advice", argv: [ADVICE_ENTRY, project, input], subjectDigest, sessionId: "advice-session" });
     const admitted = await run(ADVICE_ENTRY, [project, input]);
     assert.equal(admitted.code, 0, admitted.stderr);

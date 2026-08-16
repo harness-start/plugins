@@ -15,10 +15,10 @@ test("publishes a standalone engineering-practice plugin", () => {
   assert.equal("skills" in json(".claude-plugin/plugin.json"), false);
 });
 
-test("pins only the engineering community Skills", () => {
+test("declares only current-source engineering community Skills", () => {
   const deps = json("skill-deps.json").skills;
   assert.deepEqual(deps.map((item: { name: string }) => item.name), [
     "karpathy-guidelines", "systematic-debugging", "verification-before-completion",
   ]);
-  assert.ok(deps.every((item: { revision: string; required: boolean }) => /^[0-9a-f]{40}$/u.test(item.revision) && item.required));
+  assert.ok(deps.every((item: { required: boolean }) => !Object.hasOwn(item, "revision") && item.required));
 });

@@ -51,7 +51,7 @@ test("probe and review cannot pass with empty measurements or visual checks", ()
   assert.ok(codes.has("REVIEW_INVALID"));
 });
 
-test("skill composition rejects an unpinned or substituted advisor", () => {
+test("skill composition rejects a substituted advisor", () => {
   const model = validPosterModel("source");
   const composition = JSON.parse(String(model.files!["plan.skill-composition.json"]));
   composition.workers[0].name = "lookalike-advisor";

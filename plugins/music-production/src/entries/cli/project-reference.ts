@@ -80,10 +80,11 @@ async function main() {
   const worker = workers.find((entry) => entry.name === "musical-dna");
   const evidencePath = musicReferenceProfilePath(model);
   if (!expected || composition.schema !== SKILL_COMPOSITION_SCHEMA || worker?.status !== "used" || worker.artifactKind !== "reference-profile"
-    || worker.evidencePath !== evidencePath || worker.revision !== expected.revision || payload.skillName !== expected.name
-    || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode
+    || worker.evidencePath !== evidencePath || payload.skillName !== expected.name
+    || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode
     || payload.phase !== "reference-analysis") throw new Error("REFERENCE_WORKER_NOT_SELECTED");
 
+  if (Object.hasOwn(payload, "revision")) throw new Error("REFERENCE_INPUT_INVALID");
   const dimensions = record(payload.dimensions);
   const mappings = record(payload.toneJsMapping);
   const validTrait = (value: unknown) => Array.isArray(value) && value.length > 0 && value.every((item) => {
@@ -122,7 +123,6 @@ async function main() {
     sourceSetSha256,
     referenceCount: references.length,
     skillName: expected.name,
-    revision: expected.revision,
     ecosystem: expected.ecosystem,
     mode: expected.mode,
     phase: "reference-analysis",

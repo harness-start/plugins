@@ -1,7 +1,7 @@
 {
   "skills": [
-    { "name": "requesting-code-review", "source": "https://github.com/obra/superpowers", "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797", "required": true, "mode": "instruction-only" },
-    { "name": "verification-before-completion", "source": "https://github.com/obra/superpowers", "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797", "required": true, "mode": "instruction-only" },
-    { "name": "finishing-a-development-branch", "source": "https://github.com/obra/superpowers", "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797", "required": true, "mode": "instruction-only" }
+    { "name": "requesting-code-review", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" },
+    { "name": "verification-before-completion", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" },
+    { "name": "finishing-a-development-branch", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" }
   ]
 }

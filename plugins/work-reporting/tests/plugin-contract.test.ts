@@ -36,14 +36,14 @@ test("dual-host manifests expose the same plugin and platform-scoped hooks", () 
   }
 });
 
-test("plugin exposes one orchestrator, one review skill, and pinned optional advisors", () => {
+test("plugin exposes one orchestrator, one review skill, and current-source optional advisors", () => {
   const skillNames = readdirSync(join(ROOT, "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   assert.deepEqual(skillNames, ["work-report-authoring", "work-report-review"]);
   const dependencies = json("skill-deps.json").skills;
   assert.deepEqual(dependencies.map((skill) => skill.name).sort(), ["brag-sheet", "grilling", "growth-log", "performance-review-writer"]);
   for (const dependency of dependencies) {
     assert.equal(dependency.required, false);
-    assert.match(dependency.revision, /^[a-f0-9]{40}$/u);
+    assert.equal(Object.hasOwn(dependency, "revision"), false);
     assert.equal(Array.isArray(dependency.stages), true);
   }
   for (const skill of skillNames) {

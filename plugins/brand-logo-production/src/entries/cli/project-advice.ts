@@ -23,16 +23,16 @@ async function main() {
   try { payload = record(JSON.parse(bytes.toString("utf8"))); } catch { throw new Error("ADVICE_INPUT_JSON_INVALID"); }
   const model = await loadLogoProject(root);
   const subjectDigest = computeLogoSubjectDigest(model);
-  if (grant.subjectDigest !== subjectDigest || payload.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId) throw new Error("ADVICE_INPUT_INVALID");
+  if (grant.subjectDigest !== subjectDigest || payload.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId || Object.hasOwn(payload, "revision")) throw new Error("ADVICE_INPUT_INVALID");
   const expected = EXTERNAL_SKILLS.find((entry) => entry.name === payload.skillName);
   const composition = record(JSON.parse(String(model.files["plan.skill-composition.json"] ?? "{}")));
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
   const worker = workers.find((entry) => entry.name === payload.skillName);
-  if (composition.schema !== SKILL_COMPOSITION_SCHEMA || !expected || !worker || worker.status !== "used" || worker.revision !== expected.revision || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase as never)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
+  if (composition.schema !== SKILL_COMPOSITION_SCHEMA || !expected || !worker || worker.status !== "used" || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase as never)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
   if (!Array.isArray(payload.recommendations) || !Array.isArray(payload.adopted) || !Array.isArray(payload.rejected) || typeof payload.summary !== "string" || !payload.summary.trim()) throw new Error("ADVICE_RESULT_INCOMPLETE");
   const output = {
     schema: SKILL_ADVICE_SCHEMA, plugin: "brand-logo-production", artifactId: model.artifactId, subjectDigest,
-    skillName: expected.name, revision: expected.revision, ecosystem: expected.ecosystem, mode: expected.mode, phase: payload.phase,
+    skillName: expected.name, ecosystem: expected.ecosystem, mode: expected.mode, phase: payload.phase,
     summary: payload.summary, recommendations: payload.recommendations, adopted: payload.adopted, rejected: payload.rejected,
     inputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("logo-advice", grant),
   };

@@ -64,7 +64,7 @@ test("v2 publishes exactly the responsibility-oriented catalog", () => {
   }
 });
 
-test("every declared community Skill is pinned and no plugin declares another plugin", () => {
+test("every declared community Skill follows its current source and no plugin declares another plugin", () => {
   for (const plugin of expected) {
     const pluginRoot = resolve(root, "plugins", plugin);
     const manifest = JSON.parse(readFileSync(resolve(pluginRoot, ".claude-plugin/plugin.json"), "utf8"));
@@ -74,8 +74,9 @@ test("every declared community Skill is pinned and no plugin declares another pl
     try {
       const deps = JSON.parse(readFileSync(resolve(pluginRoot, "skill-deps.json"), "utf8"));
       for (const skill of deps.skills) {
-        assert.match(skill.revision, /^[0-9a-f]{40}$/u, `${plugin}:${skill.name} must use an exact commit`);
         assert.match(skill.source, /^https:\/\//u, `${plugin}:${skill.name} must be an external Skill source`);
+        assert.equal("revision" in skill, false, `${plugin}:${skill.name} cannot lock an external Skill revision`);
+        assert.equal("subpath" in skill, false, `${plugin}:${skill.name} cannot bypass source-native Skill discovery`);
         if (skill.mode === "audited-executable") {
           assert.equal(skill.execution?.approved, true, `${plugin}:${skill.name} executable must be approved`);
           assert.ok(skill.execution.paths.length > 0, `${plugin}:${skill.name} executable needs approved paths`);

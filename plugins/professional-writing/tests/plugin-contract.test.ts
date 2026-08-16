@@ -15,10 +15,10 @@ test("publishes a standalone professional-writing plugin", () => {
   assert.equal(json(".claude-plugin/plugin.json").skills, "./skills/");
 });
 
-test("pins only the writing community Skills", () => {
+test("declares only current-source writing community Skills", () => {
   const deps = json("skill-deps.json").skills;
   assert.deepEqual(deps.map((item: { name: string }) => item.name), [
     "caveman", "humanizer", "stop-slop", "humanizer-zh", "shuorenhua", "remove-ai-style",
   ]);
-  assert.ok(deps.every((item: { revision: string; required: boolean }) => /^[0-9a-f]{40}$/u.test(item.revision) && item.required));
+  assert.ok(deps.every((item: { required: boolean }) => !Object.hasOwn(item, "revision") && item.required));
 });

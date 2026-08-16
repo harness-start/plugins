@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b5e5daa277c2eb4afbf858dbc813d0d33804145aee3d84e860736f4a09a09f4
+// harness-source-hash: sha256:1c869dc400d91e1b03d27ae05d20e097258a13f87459ee64f0d04e8f3bef5c27
 import {
   atomicWriteMusicJson,
   musicSessionMetadata,
   withMusicJournal
-} from "../chunks/chunk-PTCLBN7K.mjs";
+} from "../chunks/chunk-64PZRYJE.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-LPCC7XKB.mjs";
+} from "../chunks/chunk-2D6VRN4B.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-SL4HHXOZ.mjs";
+} from "../chunks/chunk-VZJSDG2K.mjs";
 import {
   BRIEF_SCHEMA,
   EXTERNAL_SKILLS,
@@ -22,7 +22,7 @@ import {
   computeMusicSubjectDigest,
   musicBriefSha256,
   musicReferenceProfilePath
-} from "../chunks/chunk-6EVHE5PU.mjs";
+} from "../chunks/chunk-X3NZ4YRX.mjs";
 
 // plugins/music-production/src/entries/cli/project-reference.ts
 import { createHash } from "node:crypto";
@@ -79,7 +79,8 @@ async function main() {
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
   const worker = workers.find((entry) => entry.name === "musical-dna");
   const evidencePath = musicReferenceProfilePath(model);
-  if (!expected || composition.schema !== SKILL_COMPOSITION_SCHEMA || worker?.status !== "used" || worker.artifactKind !== "reference-profile" || worker.evidencePath !== evidencePath || worker.revision !== expected.revision || payload.skillName !== expected.name || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || payload.phase !== "reference-analysis") throw new Error("REFERENCE_WORKER_NOT_SELECTED");
+  if (!expected || composition.schema !== SKILL_COMPOSITION_SCHEMA || worker?.status !== "used" || worker.artifactKind !== "reference-profile" || worker.evidencePath !== evidencePath || payload.skillName !== expected.name || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || payload.phase !== "reference-analysis") throw new Error("REFERENCE_WORKER_NOT_SELECTED");
+  if (Object.hasOwn(payload, "revision")) throw new Error("REFERENCE_INPUT_INVALID");
   const dimensions = record(payload.dimensions);
   const mappings = record(payload.toneJsMapping);
   const validTrait = (value) => Array.isArray(value) && value.length > 0 && value.every((item) => {
@@ -112,7 +113,6 @@ async function main() {
     sourceSetSha256,
     referenceCount: references.length,
     skillName: expected.name,
-    revision: expected.revision,
     ecosystem: expected.ecosystem,
     mode: expected.mode,
     phase: "reference-analysis",

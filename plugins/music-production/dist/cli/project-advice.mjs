@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8b5e5daa277c2eb4afbf858dbc813d0d33804145aee3d84e860736f4a09a09f4
+// harness-source-hash: sha256:1c869dc400d91e1b03d27ae05d20e097258a13f87459ee64f0d04e8f3bef5c27
 import {
   atomicWriteMusicJson,
   musicSessionMetadata,
   withMusicJournal
-} from "../chunks/chunk-PTCLBN7K.mjs";
+} from "../chunks/chunk-64PZRYJE.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-LPCC7XKB.mjs";
+} from "../chunks/chunk-2D6VRN4B.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-SL4HHXOZ.mjs";
+} from "../chunks/chunk-VZJSDG2K.mjs";
 import {
   EXTERNAL_SKILLS,
   LEGACY_SKILL_COMPOSITION_SCHEMA,
@@ -19,7 +19,7 @@ import {
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   computeMusicSubjectDigest
-} from "../chunks/chunk-6EVHE5PU.mjs";
+} from "../chunks/chunk-X3NZ4YRX.mjs";
 
 // plugins/music-production/src/entries/cli/project-advice.ts
 import { createHash } from "node:crypto";
@@ -42,7 +42,7 @@ async function main() {
   }
   const model = await collectMusicModel(root);
   const subjectDigest = computeMusicSubjectDigest(model);
-  if (grant.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== subjectDigest) throw new Error("ADVICE_INPUT_INVALID");
+  if (grant.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== subjectDigest || Object.hasOwn(payload, "revision")) throw new Error("ADVICE_INPUT_INVALID");
   const expected = EXTERNAL_SKILLS.find((entry) => entry.name === payload.skillName);
   const composition = record(JSON.parse(model.files?.["plan.skill-composition.json"] ?? "null"));
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
@@ -50,7 +50,7 @@ async function main() {
   const supportedComposition = composition.schema === SKILL_COMPOSITION_SCHEMA || composition.schema === LEGACY_SKILL_COMPOSITION_SCHEMA;
   const expectedEvidencePath = `evidence/skills/${expected?.name ?? ""}.json`;
   const declaredEvidencePath = composition.schema === SKILL_COMPOSITION_SCHEMA ? worker?.evidencePath : worker?.advicePath;
-  if (!supportedComposition || !expected || expected.artifactKind !== "advice" || !worker || worker.status !== "used" || worker.revision !== expected.revision || composition.schema === SKILL_COMPOSITION_SCHEMA && worker.artifactKind !== "advice" || declaredEvidencePath !== expectedEvidencePath || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
+  if (!supportedComposition || !expected || expected.artifactKind !== "advice" || !worker || worker.status !== "used" || composition.schema === SKILL_COMPOSITION_SCHEMA && worker.artifactKind !== "advice" || declaredEvidencePath !== expectedEvidencePath || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
   if (!Array.isArray(payload.recommendations) || !Array.isArray(payload.adopted) || !Array.isArray(payload.rejected) || typeof payload.summary !== "string" || !payload.summary.trim()) throw new Error("ADVICE_RESULT_INCOMPLETE");
   const output = {
     schema: SKILL_ADVICE_SCHEMA,
@@ -58,7 +58,6 @@ async function main() {
     artifactId: model.artifactId,
     subjectDigest,
     skillName: expected.name,
-    revision: expected.revision,
     ecosystem: expected.ecosystem,
     mode: expected.mode,
     phase: payload.phase,

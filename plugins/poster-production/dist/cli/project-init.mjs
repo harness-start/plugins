@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:61aead647a73b4924d0c50ee010f2a8901072f6c04fcbc0b45eb35e24e582045
+// harness-source-hash: sha256:1668757b8a7e596efb29be29c078ad66efa78f7cad8852de2cfd88407153d2d7
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-BEAKBJSQ.mjs";
+} from "../chunks/chunk-YLTBWM7Q.mjs";
 import {
   ART_DIRECTION_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
@@ -15,7 +15,7 @@ import {
   SKILL_COMPOSITION_SCHEMA,
   VARIANT_MANIFEST_SCHEMA,
   assertPosterProjectRoot
-} from "../chunks/chunk-VNYHPIQB.mjs";
+} from "../chunks/chunk-7C3JNDVC.mjs";
 
 // plugins/poster-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -74,10 +74,10 @@ async function main() {
     "plan.art-direction.json": `${JSON.stringify({ schema: ART_DIRECTION_SCHEMA, profile, concept: defaults.concept, visualCenter: defaults.visualCenter, hierarchy: "one focal relationship, one headline, then restrained supporting information", typographyStrategy: "deterministic Noto Sans SC typography with role-based scale and spacing", colorRationale: "high-contrast semantic palette selected for the declared communication objective", negativeRules: ["tourism-collage", "pseudo-text", "unlicensed-assets", "artist-imitation"] }, null, 2)}
 `,
     "plan.skill-composition.json": `${JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [
-      { name: "regional-culture-poster", revision: "e8f37639833b341c0d2f0b30c89b07faf5e2f458", status: "skipped" },
-      { name: "qiaomu-mondo-poster-design", revision: "e82e411c403ca5a0327a85682c658ad155cd9cbb", status: "skipped" },
-      { name: "cvpr-2026-poster", revision: "63892ddcd10e88ab9081eea8d25adb797cf18946", status: "skipped" },
-      { name: "impeccable", revision: "5a149f3fdb1b5793f10567233b1dcab98fc305fd", status: "skipped" }
+      { name: "regional-culture-poster", status: "skipped" },
+      { name: "qiaomu-mondo-poster-design", status: "skipped" },
+      { name: "cvpr-2026-poster", status: "skipped" },
+      { name: "impeccable", status: "skipped" }
     ] }, null, 2)}
 `,
     "plan.assets.json": `${JSON.stringify({ schema: ASSET_MANIFEST_SCHEMA, assets: [] }, null, 2)}

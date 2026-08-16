@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:61aead647a73b4924d0c50ee010f2a8901072f6c04fcbc0b45eb35e24e582045
+// harness-source-hash: sha256:d5d7ed7bfdb1b4ab6dd26ae72a75840bd04c9bf12e032238b79da19e3af2c9a4
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -40,10 +40,10 @@ var require_conventions = __commonJS({
       if (list2 && typeof ac.find === "function") {
         return ac.find.call(list2, predicate);
       }
-      for (var i = 0; i < list2.length; i++) {
-        if (hasOwn(list2, i)) {
-          var item = list2[i];
-          if (predicate.call(void 0, item, i, list2)) {
+      for (var i2 = 0; i2 < list2.length; i2++) {
+        if (hasOwn(list2, i2)) {
+          var item = list2[i2];
+          if (predicate.call(void 0, item, i2, list2)) {
             return item;
           }
         }
@@ -377,12 +377,12 @@ var require_errors = __commonJS({
       DATA_CLONE_ERR: 25
     };
     var entries = Object.entries(ExceptionCode);
-    for (i = 0; i < entries.length; i++) {
-      key = entries[i][0];
-      DOMException[key] = entries[i][1];
+    for (i2 = 0; i2 < entries.length; i2++) {
+      key = entries[i2][0];
+      DOMException[key] = entries[i2][1];
     }
     var key;
-    var i;
+    var i2;
     function ParseError(message, locator) {
       this.message = message;
       this.locator = locator;
@@ -786,8 +786,8 @@ var require_dom = __commonJS({
         } else {
           opts = { requireWellFormed: false, splitCDATASections: true, nodeFilter: null };
         }
-        for (var buf = [], i = 0; i < this.length; i++) {
-          serializeToString(this[i], buf, null, opts);
+        for (var buf = [], i2 = 0; i2 < this.length; i2++) {
+          serializeToString(this[i2], buf, null, opts);
         }
         return buf.join("");
       },
@@ -851,9 +851,9 @@ var require_dom = __commonJS({
         var ls = list2._refresh(list2._node);
         __set__(list2, "length", ls.length);
         if (!list2.$$length || ls.length < list2.$$length) {
-          for (var i = ls.length; i in list2; i++) {
-            if (hasOwn(list2, i)) {
-              delete list2[i];
+          for (var i2 = ls.length; i2 in list2; i2++) {
+            if (hasOwn(list2, i2)) {
+              delete list2[i2];
             }
           }
         }
@@ -861,20 +861,20 @@ var require_dom = __commonJS({
         list2._inc = inc;
       }
     }
-    LiveNodeList.prototype.item = function(i) {
+    LiveNodeList.prototype.item = function(i2) {
       _updateLiveList(this);
-      return this[i] || null;
+      return this[i2] || null;
     };
     _extends(LiveNodeList, NodeList);
     function NamedNodeMap() {
     }
     function _findNodeIndex(list2, node) {
-      var i = 0;
-      while (i < list2.length) {
-        if (list2[i] === node) {
-          return i;
+      var i2 = 0;
+      while (i2 < list2.length) {
+        if (list2[i2] === node) {
+          return i2;
         }
-        i++;
+        i2++;
       }
     }
     function _addNamedNode(el, list2, newAttr, oldAttr) {
@@ -894,11 +894,11 @@ var require_dom = __commonJS({
       }
     }
     function _removeNamedNode(el, list2, attr) {
-      var i = _findNodeIndex(list2, attr);
-      if (i >= 0) {
+      var i2 = _findNodeIndex(list2, attr);
+      if (i2 >= 0) {
         var lastIndex = list2.length - 1;
-        while (i <= lastIndex) {
-          list2[i] = list2[++i];
+        while (i2 <= lastIndex) {
+          list2[i2] = list2[++i2];
         }
         list2.length = lastIndex;
         if (el) {
@@ -927,13 +927,13 @@ var require_dom = __commonJS({
         if (this._ownerElement && this._ownerElement._isInHTMLDocumentAndNamespace()) {
           localName = localName.toLowerCase();
         }
-        var i = 0;
-        while (i < this.length) {
-          var attr = this[i];
+        var i2 = 0;
+        while (i2 < this.length) {
+          var attr = this[i2];
           if (attr.nodeName === localName) {
             return attr;
           }
-          i++;
+          i2++;
         }
         return null;
       },
@@ -1041,13 +1041,13 @@ var require_dom = __commonJS({
         if (!namespaceURI) {
           namespaceURI = null;
         }
-        var i = 0;
-        while (i < this.length) {
-          var node = this[i];
+        var i2 = 0;
+        while (i2 < this.length) {
+          var node = this[i2];
           if (node.localName === localName && node.namespaceURI === namespaceURI) {
             return node;
           }
-          i++;
+          i2++;
         }
         return null;
       }
@@ -1458,8 +1458,8 @@ var require_dom = __commonJS({
               if (node.prefix !== other.prefix) return false;
               if (node.localName !== other.localName) return false;
               if (node.attributes.length !== other.attributes.length) return false;
-              for (var i = 0; i < node.attributes.length; i++) {
-                var attr = node.attributes.item(i);
+              for (var i2 = 0; i2 < node.attributes.length; i2++) {
+                var attr = node.attributes.item(i2);
                 var otherAttr = other.getAttributeNodeNS(attr.namespaceURI, attr.localName);
                 if (!otherAttr) return false;
                 stack.push({ node: attr, other: otherAttr });
@@ -1480,8 +1480,8 @@ var require_dom = __commonJS({
               break;
           }
           if (node.childNodes.length !== other.childNodes.length) return false;
-          for (var i = node.childNodes.length - 1; i >= 0; i--) {
-            stack.push({ node: node.childNodes[i], other: other.childNodes[i] });
+          for (var i2 = node.childNodes.length - 1; i2 >= 0; i2--) {
+            stack.push({ node: node.childNodes[i2], other: other.childNodes[i2] });
           }
         }
         return true;
@@ -1762,7 +1762,7 @@ var require_dom = __commonJS({
           attr2 = node2;
           node2 = attr2.ownerElement;
           if (attr1 && node1 && node2 === node1) {
-            for (var i = 0, attr; attr = node2.attributes[i]; i++) {
+            for (var i2 = 0, attr; attr = node2.attributes[i2]; i2++) {
               if (attr === attr1)
                 return DocumentPosition.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC + DocumentPosition.DOCUMENT_POSITION_PRECEDING;
               if (attr === attr2)
@@ -1881,12 +1881,12 @@ var require_dom = __commonJS({
           childNodes[childNodes.length++] = newChild;
         } else {
           var child = parent.firstChild;
-          var i = 0;
+          var i2 = 0;
           while (child) {
-            childNodes[i++] = child;
+            childNodes[i2++] = child;
             child = child.nextSibling;
           }
-          childNodes.length = i;
+          childNodes.length = i2;
           delete childNodes[childNodes.length];
         }
       }
@@ -2756,9 +2756,9 @@ var require_dom = __commonJS({
       if (prefix === "xml" && uri === NAMESPACE.XML || uri === NAMESPACE.XMLNS) {
         return false;
       }
-      var i = visibleNamespaces.length;
-      while (i--) {
-        var ns = visibleNamespaces[i];
+      var i2 = visibleNamespaces.length;
+      while (i2--) {
+        var ns = visibleNamespaces[i2];
         if (ns.prefix === prefix) {
           return ns.namespace !== uri;
         }
@@ -2843,8 +2843,8 @@ var require_dom = __commonJS({
                 }
                 buf.push("<", prefixedNodeName);
                 var childNamespaces = namespaces.slice();
-                for (var i = 0; i < len; i++) {
-                  var attr = attrs.item(i);
+                for (var i2 = 0; i2 < len; i2++) {
+                  var attr = attrs.item(i2);
                   if (attr.prefix == "xmlns") {
                     childNamespaces.push({
                       prefix: attr.localName,
@@ -2854,8 +2854,8 @@ var require_dom = __commonJS({
                     childNamespaces.push({ prefix: "", namespace: attr.value });
                   }
                 }
-                for (var i = 0; i < len; i++) {
-                  var attr = attrs.item(i);
+                for (var i2 = 0; i2 < len; i2++) {
+                  var attr = attrs.item(i2);
                   if (needNamespaceDefine(attr, isHTML, childNamespaces)) {
                     var attrPrefix = attr.prefix || "";
                     var uri = attr.namespaceURI;
@@ -3052,8 +3052,8 @@ var require_dom = __commonJS({
               var attrs2 = destNode.attributes = new NamedNodeMap();
               var len = attrs.length;
               attrs2._ownerElement = destNode;
-              for (var i = 0; i < len; i++) {
-                destNode.setAttributeNode(cloneNode(doc, attrs.item(i), true));
+              for (var i2 = 0; i2 < len; i2++) {
+                destNode.setAttributeNode(cloneNode(doc, attrs.item(i2), true));
               }
               break;
             case ATTRIBUTE_NODE:
@@ -5511,8 +5511,8 @@ var require_sax = __commonJS({
               }
               if (locator && len) {
                 var locator2 = copyLocator(locator, {});
-                for (var i = 0; i < len; i++) {
-                  var a = el[i];
+                for (var i2 = 0; i2 < len; i2++) {
+                  var a = el[i2];
                   position(a.offset);
                   a.locator = copyLocator(locator, {});
                 }
@@ -5733,9 +5733,9 @@ var require_sax = __commonJS({
     function appendElement(el, domBuilder, currentNSMap) {
       var tagName = el.tagName;
       var localNSMap = null;
-      var i = el.length;
-      while (i--) {
-        var a = el[i];
+      var i2 = el.length;
+      while (i2--) {
+        var a = el[i2];
         var qName = a.qName;
         var value = a.value;
         var nsp = qName.indexOf(":");
@@ -5759,9 +5759,9 @@ var require_sax = __commonJS({
           domBuilder.startPrefixMapping(nsPrefix, value);
         }
       }
-      var i = el.length;
-      while (i--) {
-        a = el[i];
+      var i2 = el.length;
+      while (i2--) {
+        a = el[i2];
         if (a.prefix) {
           if (a.prefix === "xml") {
             a.uri = NAMESPACE.XML;
@@ -6059,20 +6059,20 @@ var require_sax = __commonJS({
         this[this.length++] = { qName, value, offset };
       },
       length: 0,
-      getLocalName: function(i) {
-        return this[i].localName;
+      getLocalName: function(i2) {
+        return this[i2].localName;
       },
-      getLocator: function(i) {
-        return this[i].locator;
+      getLocator: function(i2) {
+        return this[i2].locator;
       },
-      getQName: function(i) {
-        return this[i].qName;
+      getQName: function(i2) {
+        return this[i2].qName;
       },
-      getURI: function(i) {
-        return this[i].uri;
+      getURI: function(i2) {
+        return this[i2].uri;
       },
-      getValue: function(i) {
-        return this[i].value;
+      getValue: function(i2) {
+        return this[i2].value;
       }
       //	,getIndex:function(uri, localName)){
       //		if(localName){
@@ -6199,12 +6199,12 @@ var require_dom_parser = __commonJS({
         appendElement(this, el);
         this.currentElement = el;
         this.locator && position(this.locator, el);
-        for (var i = 0; i < len; i++) {
-          var namespaceURI = attrs.getURI(i);
-          var value = attrs.getValue(i);
-          var qName = attrs.getQName(i);
+        for (var i2 = 0; i2 < len; i2++) {
+          var namespaceURI = attrs.getURI(i2);
+          var value = attrs.getValue(i2);
+          var qName = attrs.getQName(i2);
           var attr = doc.createAttributeNS(namespaceURI, qName);
-          this.locator && position(attrs.getLocator(i), attr);
+          this.locator && position(attrs.getLocator(i2), attr);
           attr.value = attr.nodeValue = value;
           el.setAttributeNode(attr);
         }
@@ -6401,548 +6401,931 @@ var require_lib = __commonJS({
   }
 });
 
-// plugins/poster-production/src/lib/contract.ts
+// plugins/presentation-production/src/lib/contract.ts
 var import_xmldom = __toESM(require_lib(), 1);
 import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve } from "node:path";
-import { inflateSync } from "node:zlib";
-var POSTER_PROFILES = ["regional-culture", "mondo", "editorial", "academic", "custom"];
-var POSTER_STAGES = ["source", "design", "render", "probe", "review", "release"];
-var PLAN_SCHEMA = "poster-production/plan/v2";
-var ART_DIRECTION_SCHEMA = "poster-production/art-direction/v1";
-var SKILL_COMPOSITION_SCHEMA = "poster-production/skill-composition/v1";
-var ASSET_MANIFEST_SCHEMA = "poster-production/assets/v2";
-var DESIGN_SYSTEM_SCHEMA = "poster-production/design-system/v1";
-var PROJECT_SCHEMA = "poster-production/project/v2";
-var VARIANT_MANIFEST_SCHEMA = "poster-production/variant-manifest/v2";
-var LAYER_MANIFEST_SCHEMA = "poster-production/layer-manifest/v2";
-var RENDER_EVIDENCE_SCHEMA = "poster-production/render/v1";
-var PROBE_EVIDENCE_SCHEMA = "poster-production/probe/v1";
-var ACCESSIBILITY_EVIDENCE_SCHEMA = "poster-production/accessibility/v2";
-var REVIEW_SCHEMA = "poster-production/review/v2";
-var RELEASE_MANIFEST_SCHEMA = "poster-production/release-manifest/v2";
-var STAGE_RANK = { source: 0, design: 1, render: 2, probe: 3, review: 4, release: 5 };
-var PROFILE_SET = new Set(POSTER_PROFILES);
-var STAGE_SET = new Set(POSTER_STAGES);
-var VARIANT_DIRECTORY = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$/u;
-var LAYER_SOURCE = /^(?<index>[0-9]{3})-(?<role>background|media|overlay|decoration|title|body|metadata|brand|cta)-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.tsx$/u;
-var OWNER_VIOLATION = /(?:\bzIndex\s*:|from\s+["'](?:satori|@resvg\/resvg-js|node:|fs|child_process|http|https|net|tls|dns)|\b(?:import|require|fetch|setTimeout|setInterval)\s*\(|\b(?:process|globalThis|performance|crypto)\.|\b(?:Date\.now|Math\.random)\s*\(|\bnew\s+Date\b|\b(?:useState|useEffect|useLayoutEffect)\s*\(|<\s*(?:script|style|link|iframe)\b|https?:\/\/)/u;
-var GENERATED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.poster\.json$|release\.manifest\.json$|receipt\.release\.json$|\.poster-delivery-journal\.json$|\.tmp\/poster-guard\/)/u;
-var SUBJECT_EXCLUDED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.poster\.json$|release\.manifest\.json$|receipt\.release\.json$|\.poster-delivery-journal\.json$|\.tmp\/)/u;
-var SOURCE_PROOF = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
-var SOURCE_PROOF_PATH = /^src\/variants\/.+\.(?:png|svg)$/u;
-var REQUIRED_SOURCE_FILES = [".gitignore", "package.json", "package-lock.json", "src/render.ts", "src/compose.ts", "src/theme.ts"];
-var REQUIRED_ADVISORS = /* @__PURE__ */ new Map([
-  ["regional-culture-poster", "e8f37639833b341c0d2f0b30c89b07faf5e2f458"],
-  ["qiaomu-mondo-poster-design", "e82e411c403ca5a0327a85682c658ad155cd9cbb"],
-  ["cvpr-2026-poster", "63892ddcd10e88ab9081eea8d25adb797cf18946"],
-  ["impeccable", "5a149f3fdb1b5793f10567233b1dcab98fc305fd"]
+import { execFileSync } from "node:child_process";
+import { createReadStream } from "node:fs";
+import { lstat, readdir } from "node:fs/promises";
+import { basename, dirname, extname, join, posix, relative, resolve, sep } from "node:path";
+import { TextDecoder as TextDecoder2 } from "node:util";
+
+// node_modules/fflate/esm/index.mjs
+import { createRequire } from "module";
+var require2 = createRequire("/");
+var Worker;
+try {
+  Worker = require2("worker_threads").Worker;
+} catch (e) {
+}
+var u8 = Uint8Array;
+var u16 = Uint16Array;
+var i32 = Int32Array;
+var fleb = new u8([
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  1,
+  1,
+  2,
+  2,
+  2,
+  2,
+  3,
+  3,
+  3,
+  3,
+  4,
+  4,
+  4,
+  4,
+  5,
+  5,
+  5,
+  5,
+  0,
+  /* unused */
+  0,
+  0,
+  /* impossible */
+  0
 ]);
-var REVIEW_CHECKS = ["hierarchy", "typography", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
-var sha256 = (value) => createHash("sha256").update(value).digest("hex");
-var finding = (code, path, message) => ({ code, path, message });
-var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-var record = (value) => isObject(value) ? value : {};
-var list = (value) => Array.isArray(value) ? value : [];
-var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
-var rawBytes = (model, path) => model?.bytes?.[path] ?? (Buffer.isBuffer(model?.files?.[path]) ? model.files[path] : Buffer.from(textOf(model?.files?.[path])));
-var digestOf = (model, path) => model?.digests?.[path] ?? sha256(rawBytes(model, path));
-var stageAtLeast = (stage, expected) => STAGE_RANK[stage] >= STAGE_RANK[expected];
-function parseJson(files, path, findings) {
-  if (!(path in files)) {
-    findings.push(finding("REQUIRED_PATH_MISSING", path, `${path} is required`));
-    return null;
+var fdeb = new u8([
+  0,
+  0,
+  0,
+  0,
+  1,
+  1,
+  2,
+  2,
+  3,
+  3,
+  4,
+  4,
+  5,
+  5,
+  6,
+  6,
+  7,
+  7,
+  8,
+  8,
+  9,
+  9,
+  10,
+  10,
+  11,
+  11,
+  12,
+  12,
+  13,
+  13,
+  /* unused */
+  0,
+  0
+]);
+var clim = new u8([16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15]);
+var freb = function(eb, start) {
+  var b = new u16(31);
+  for (var i2 = 0; i2 < 31; ++i2) {
+    b[i2] = start += 1 << eb[i2 - 1];
   }
-  try {
-    return JSON.parse(textOf(files[path]));
-  } catch {
-    findings.push(finding("JSON_INVALID", path, `${path} must contain valid JSON`));
-    return null;
+  var r = new i32(b[30]);
+  for (var i2 = 1; i2 < 30; ++i2) {
+    for (var j = b[i2]; j < b[i2 + 1]; ++j) {
+      r[j] = j - b[i2] << 5 | i2;
+    }
   }
+  return { b, r };
+};
+var _a = freb(fleb, 2);
+var fl = _a.b;
+var revfl = _a.r;
+fl[28] = 258, revfl[258] = 28;
+var _b = freb(fdeb, 0);
+var fd = _b.b;
+var revfd = _b.r;
+var rev = new u16(32768);
+for (i = 0; i < 32768; ++i) {
+  x = (i & 43690) >> 1 | (i & 21845) << 1;
+  x = (x & 52428) >> 2 | (x & 13107) << 2;
+  x = (x & 61680) >> 4 | (x & 3855) << 4;
+  rev[i] = ((x & 65280) >> 8 | (x & 255) << 8) >> 1;
 }
-function parseDimension(value) {
-  const match = String(value ?? "").trim().match(/^([0-9]+(?:\.[0-9]+)?)(?:px)?$/u);
-  return match ? Number(match[1]) : Number.NaN;
-}
-function inspectPosterSvg(bytes) {
-  const source = bytes.toString("utf8");
-  if (bytes.byteLength < 40 || /<!DOCTYPE|<!ENTITY|<(?:script|foreignObject)\b|\son[a-z]+\s*=/iu.test(source)) throw new Error("SVG_UNSAFE");
-  if (/\b(?:href|xlink:href)\s*=\s*["'](?:https?:|file:|\/\/)|\burl\(\s*["']?(?:https?:|file:|\/\/)/iu.test(source)) throw new Error("SVG_EXTERNAL_REFERENCE");
-  const document = new import_xmldom.DOMParser().parseFromString(source, "image/svg+xml");
-  const root = document.documentElement;
-  if (!root || root.tagName.toLowerCase() !== "svg" || document.getElementsByTagName("parsererror").length > 0) throw new Error("SVG_INVALID");
-  const width = parseDimension(root.getAttribute("width"));
-  const height = parseDimension(root.getAttribute("height"));
-  const viewBoxParts = String(root.getAttribute("viewBox") ?? "").trim().split(/[\s,]+/u).map(Number);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0 || viewBoxParts.length !== 4 || viewBoxParts.some((part) => !Number.isFinite(part)) || (viewBoxParts[2] ?? 0) <= 0 || (viewBoxParts[3] ?? 0) <= 0) throw new Error("SVG_DIMENSIONS_INVALID");
-  return { width, height, viewBox: viewBoxParts };
-}
-function inspectPosterPng(bytes) {
-  try {
-    const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-    if (bytes.byteLength < 57 || !bytes.subarray(0, 8).equals(signature)) throw new Error("PNG_INVALID");
-    let cursor = 8;
-    let width = 0;
-    let height = 0;
-    let sawHeader = false;
-    let sawEnd = false;
-    const compressed = [];
-    while (cursor < bytes.byteLength) {
-      if (cursor + 12 > bytes.byteLength) throw new Error("PNG_INVALID");
-      const length = bytes.readUInt32BE(cursor);
-      const type = bytes.subarray(cursor + 4, cursor + 8);
-      const dataStart = cursor + 8;
-      const dataEnd = dataStart + length;
-      if (length > 64 * 1024 * 1024 || dataEnd + 4 > bytes.byteLength) throw new Error("PNG_INVALID");
-      const expectedCrc = bytes.readUInt32BE(dataEnd);
-      if (pngCrc32(Buffer.concat([type, bytes.subarray(dataStart, dataEnd)])) !== expectedCrc) throw new Error("PNG_INVALID");
-      const chunkType = type.toString("ascii");
-      if (chunkType === "IHDR") {
-        if (sawHeader || cursor !== 8 || length !== 13) throw new Error("PNG_INVALID");
-        width = bytes.readUInt32BE(dataStart);
-        height = bytes.readUInt32BE(dataStart + 4);
-        const bitDepth = bytes[dataStart + 8];
-        const colorType = bytes[dataStart + 9];
-        const compression = bytes[dataStart + 10];
-        const filter = bytes[dataStart + 11];
-        const interlace = bytes[dataStart + 12];
-        if (width <= 0 || height <= 0 || width > 8192 || height > 8192 || bitDepth !== 8 || colorType !== 6 || compression !== 0 || filter !== 0 || interlace !== 0) throw new Error("PNG_INVALID");
-        sawHeader = true;
-      } else if (chunkType === "IDAT") compressed.push(bytes.subarray(dataStart, dataEnd));
-      else if (chunkType === "IEND") {
-        if (length !== 0 || !sawHeader) throw new Error("PNG_INVALID");
-        sawEnd = true;
-        cursor = dataEnd + 4;
+var x;
+var i;
+var hMap = (function(cd, mb, r) {
+  var s = cd.length;
+  var i2 = 0;
+  var l = new u16(mb);
+  for (; i2 < s; ++i2) {
+    if (cd[i2])
+      ++l[cd[i2] - 1];
+  }
+  var le = new u16(mb);
+  for (i2 = 1; i2 < mb; ++i2) {
+    le[i2] = le[i2 - 1] + l[i2 - 1] << 1;
+  }
+  var co;
+  if (r) {
+    co = new u16(1 << mb);
+    var rvb = 15 - mb;
+    for (i2 = 0; i2 < s; ++i2) {
+      if (cd[i2]) {
+        var sv = i2 << 4 | cd[i2];
+        var r_1 = mb - cd[i2];
+        var v = le[cd[i2] - 1]++ << r_1;
+        for (var m = v | (1 << r_1) - 1; v <= m; ++v) {
+          co[rev[v] >> rvb] = sv;
+        }
+      }
+    }
+  } else {
+    co = new u16(s);
+    for (i2 = 0; i2 < s; ++i2) {
+      if (cd[i2]) {
+        co[i2] = rev[le[cd[i2] - 1]++] >> 15 - cd[i2];
+      }
+    }
+  }
+  return co;
+});
+var flt = new u8(288);
+for (i = 0; i < 144; ++i)
+  flt[i] = 8;
+var i;
+for (i = 144; i < 256; ++i)
+  flt[i] = 9;
+var i;
+for (i = 256; i < 280; ++i)
+  flt[i] = 7;
+var i;
+for (i = 280; i < 288; ++i)
+  flt[i] = 8;
+var i;
+var fdt = new u8(32);
+for (i = 0; i < 32; ++i)
+  fdt[i] = 5;
+var i;
+var flrm = /* @__PURE__ */ hMap(flt, 9, 1);
+var fdrm = /* @__PURE__ */ hMap(fdt, 5, 1);
+var max = function(a) {
+  var m = a[0];
+  for (var i2 = 1; i2 < a.length; ++i2) {
+    if (a[i2] > m)
+      m = a[i2];
+  }
+  return m;
+};
+var bits = function(d, p, m) {
+  var o = p / 8 | 0;
+  return (d[o] | d[o + 1] << 8) >> (p & 7) & m;
+};
+var bits16 = function(d, p) {
+  var o = p / 8 | 0;
+  return (d[o] | d[o + 1] << 8 | d[o + 2] << 16) >> (p & 7);
+};
+var shft = function(p) {
+  return (p + 7) / 8 | 0;
+};
+var slc = function(v, s, e) {
+  if (s == null || s < 0)
+    s = 0;
+  if (e == null || e > v.length)
+    e = v.length;
+  return new u8(v.subarray(s, e));
+};
+var ec = [
+  "unexpected EOF",
+  "invalid block type",
+  "invalid length/literal",
+  "invalid distance",
+  "stream finished",
+  "no stream handler",
+  ,
+  "no callback",
+  "invalid UTF-8 data",
+  "extra field too long",
+  "date not in range 1980-2099",
+  "filename too long",
+  "stream finishing",
+  "invalid zip data"
+  // determined by unknown compression method
+];
+var err = function(ind, msg, nt) {
+  var e = new Error(msg || ec[ind]);
+  e.code = ind;
+  if (Error.captureStackTrace)
+    Error.captureStackTrace(e, err);
+  if (!nt)
+    throw e;
+  return e;
+};
+var inflt = function(dat, st, buf, dict) {
+  var sl = dat.length, dl = dict ? dict.length : 0;
+  if (!sl || st.f && !st.l)
+    return buf || new u8(0);
+  var noBuf = !buf;
+  var resize = noBuf || st.i != 2;
+  var noSt = st.i;
+  if (noBuf)
+    buf = new u8(sl * 3);
+  var cbuf = function(l2) {
+    var bl = buf.length;
+    if (l2 > bl) {
+      var nbuf = new u8(Math.max(bl * 2, l2));
+      nbuf.set(buf);
+      buf = nbuf;
+    }
+  };
+  var final = st.f || 0, pos = st.p || 0, bt = st.b || 0, lm = st.l, dm = st.d, lbt = st.m, dbt = st.n;
+  var tbts = sl * 8;
+  do {
+    if (!lm) {
+      final = bits(dat, pos, 1);
+      var type = bits(dat, pos + 1, 3);
+      pos += 3;
+      if (!type) {
+        var s = shft(pos) + 4, l = dat[s - 4] | dat[s - 3] << 8, t = s + l;
+        if (t > sl) {
+          if (noSt)
+            err(0);
+          break;
+        }
+        if (resize)
+          cbuf(bt + l);
+        buf.set(dat.subarray(s, t), bt);
+        st.b = bt += l, st.p = pos = t * 8, st.f = final;
+        continue;
+      } else if (type == 1)
+        lm = flrm, dm = fdrm, lbt = 9, dbt = 5;
+      else if (type == 2) {
+        var hLit = bits(dat, pos, 31) + 257, hcLen = bits(dat, pos + 10, 15) + 4;
+        var tl = hLit + bits(dat, pos + 5, 31) + 1;
+        pos += 14;
+        var ldt = new u8(tl);
+        var clt = new u8(19);
+        for (var i2 = 0; i2 < hcLen; ++i2) {
+          clt[clim[i2]] = bits(dat, pos + i2 * 3, 7);
+        }
+        pos += hcLen * 3;
+        var clb = max(clt), clbmsk = (1 << clb) - 1;
+        var clm = hMap(clt, clb, 1);
+        for (var i2 = 0; i2 < tl; ) {
+          var r = clm[bits(dat, pos, clbmsk)];
+          pos += r & 15;
+          var s = r >> 4;
+          if (s < 16) {
+            ldt[i2++] = s;
+          } else {
+            var c = 0, n = 0;
+            if (s == 16)
+              n = 3 + bits(dat, pos, 3), pos += 2, c = ldt[i2 - 1];
+            else if (s == 17)
+              n = 3 + bits(dat, pos, 7), pos += 3;
+            else if (s == 18)
+              n = 11 + bits(dat, pos, 127), pos += 7;
+            while (n--)
+              ldt[i2++] = c;
+          }
+        }
+        var lt = ldt.subarray(0, hLit), dt = ldt.subarray(hLit);
+        lbt = max(lt);
+        dbt = max(dt);
+        lm = hMap(lt, lbt, 1);
+        dm = hMap(dt, dbt, 1);
+      } else
+        err(1);
+      if (pos > tbts) {
+        if (noSt)
+          err(0);
         break;
       }
-      cursor = dataEnd + 4;
     }
-    if (!sawHeader || !sawEnd || cursor !== bytes.byteLength || compressed.length === 0) throw new Error("PNG_INVALID");
-    const rowBytes = width * 4;
-    const raw = inflateSync(Buffer.concat(compressed), { maxOutputLength: height * (rowBytes + 1) });
-    if (raw.byteLength !== height * (rowBytes + 1)) throw new Error("PNG_INVALID");
-    let opaque = 0;
-    let previous = Buffer.alloc(rowBytes);
-    let offset = 0;
-    for (let y = 0; y < height; y += 1) {
-      const filterType = raw[offset++] ?? -1;
-      const row = Buffer.from(raw.subarray(offset, offset + rowBytes));
-      offset += rowBytes;
-      if (filterType < 0 || filterType > 4) throw new Error("PNG_INVALID");
-      for (let x = 0; x < rowBytes; x += 1) {
-        const encoded = row[x] ?? 0;
-        const left = x >= 4 ? row[x - 4] ?? 0 : 0;
-        const up = previous[x] ?? 0;
-        const upLeft = x >= 4 ? previous[x - 4] ?? 0 : 0;
-        const predictor = filterType === 1 ? left : filterType === 2 ? up : filterType === 3 ? Math.floor((left + up) / 2) : filterType === 4 ? paeth(left, up, upLeft) : 0;
-        row[x] = encoded + predictor & 255;
+    if (resize)
+      cbuf(bt + 131072);
+    var lms = (1 << lbt) - 1, dms = (1 << dbt) - 1;
+    var lpos = pos;
+    for (; ; lpos = pos) {
+      var c = lm[bits16(dat, pos) & lms], sym = c >> 4;
+      pos += c & 15;
+      if (pos > tbts) {
+        if (noSt)
+          err(0);
+        break;
       }
-      for (let x = 3; x < rowBytes; x += 4) if ((row[x] ?? 0) > 0) opaque += 1;
-      previous = row;
+      if (!c)
+        err(2);
+      if (sym < 256)
+        buf[bt++] = sym;
+      else if (sym == 256) {
+        lpos = pos, lm = null;
+        break;
+      } else {
+        var add = sym - 254;
+        if (sym > 264) {
+          var i2 = sym - 257, b = fleb[i2];
+          add = bits(dat, pos, (1 << b) - 1) + fl[i2];
+          pos += b;
+        }
+        var d = dm[bits16(dat, pos) & dms], dsym = d >> 4;
+        if (!d)
+          err(3);
+        pos += d & 15;
+        var dt = fd[dsym];
+        if (dsym > 3) {
+          var b = fdeb[dsym];
+          dt += bits16(dat, pos) & (1 << b) - 1, pos += b;
+        }
+        if (pos > tbts) {
+          if (noSt)
+            err(0);
+          break;
+        }
+        if (resize)
+          cbuf(bt + 131072);
+        var end = bt + add;
+        if (bt < dt) {
+          var shift = dl - dt, dend = Math.min(dt, end);
+          if (shift + bt < 0)
+            err(3);
+          for (; bt < dend; ++bt)
+            buf[bt] = dict[shift + bt];
+        }
+        for (; bt < end; ++bt)
+          buf[bt] = buf[bt - dt];
+      }
     }
-    return { width, height, alphaCoverage: opaque / (width * height) };
-  } catch {
-    throw new Error("PNG_INVALID");
+    st.l = lm, st.p = lpos, st.b = bt, st.f = final;
+    if (lm)
+      final = 1, st.m = lbt, st.d = dm, st.n = dbt;
+  } while (!final);
+  return bt != buf.length && noBuf ? slc(buf, 0, bt) : buf.subarray(0, bt);
+};
+var et = /* @__PURE__ */ new u8(0);
+var b2 = function(d, b) {
+  return d[b] | d[b + 1] << 8;
+};
+var b4 = function(d, b) {
+  return (d[b] | d[b + 1] << 8 | d[b + 2] << 16 | d[b + 3] << 24) >>> 0;
+};
+var b8 = function(d, b) {
+  return b4(d, b) + b4(d, b + 4) * 4294967296;
+};
+function inflateSync(data, opts) {
+  return inflt(data, { i: 2 }, opts && opts.out, opts && opts.dictionary);
+}
+var td = typeof TextDecoder != "undefined" && /* @__PURE__ */ new TextDecoder();
+var tds = 0;
+try {
+  td.decode(et, { stream: true });
+  tds = 1;
+} catch (e) {
+}
+var dutf8 = function(d) {
+  for (var r = "", i2 = 0; ; ) {
+    var c = d[i2++];
+    var eb = (c > 127) + (c > 223) + (c > 239);
+    if (i2 + eb > d.length)
+      return { s: r, r: slc(d, i2 - 1) };
+    if (!eb)
+      r += String.fromCharCode(c);
+    else if (eb == 3) {
+      c = ((c & 15) << 18 | (d[i2++] & 63) << 12 | (d[i2++] & 63) << 6 | d[i2++] & 63) - 65536, r += String.fromCharCode(55296 | c >> 10, 56320 | c & 1023);
+    } else if (eb & 1)
+      r += String.fromCharCode((c & 31) << 6 | d[i2++] & 63);
+    else
+      r += String.fromCharCode((c & 15) << 12 | (d[i2++] & 63) << 6 | d[i2++] & 63);
+  }
+};
+function strFromU8(dat, latin1) {
+  if (latin1) {
+    var r = "";
+    for (var i2 = 0; i2 < dat.length; i2 += 16384)
+      r += String.fromCharCode.apply(null, dat.subarray(i2, i2 + 16384));
+    return r;
+  } else if (td) {
+    return td.decode(dat);
+  } else {
+    var _a2 = dutf8(dat), s = _a2.s, r = _a2.r;
+    if (r.length)
+      err(8);
+    return s;
   }
 }
-var PNG_CRC_TABLE = Array.from({ length: 256 }, (_, index) => {
-  let value = index;
-  for (let bit = 0; bit < 8; bit += 1) value = (value & 1) !== 0 ? 3988292384 ^ value >>> 1 : value >>> 1;
-  return value >>> 0;
-});
-function pngCrc32(bytes) {
-  let crc = 4294967295;
-  for (const byte of bytes) crc = (PNG_CRC_TABLE[(crc ^ byte) & 255] ?? 0) ^ crc >>> 8;
-  return (crc ^ 4294967295) >>> 0;
+var slzh = function(d, b) {
+  return b + 30 + b2(d, b + 26) + b2(d, b + 28);
+};
+var zh = function(d, b, z) {
+  var fnl = b2(d, b + 28), fn = strFromU8(d.subarray(b + 46, b + 46 + fnl), !(b2(d, b + 8) & 2048)), es = b + 46 + fnl, bs = b4(d, b + 20);
+  var _a2 = z && bs == 4294967295 ? z64e(d, es) : [bs, b4(d, b + 24), b4(d, b + 42)], sc = _a2[0], su = _a2[1], off = _a2[2];
+  return [b2(d, b + 10), sc, su, fn, es + b2(d, b + 30) + b2(d, b + 32), off];
+};
+var z64e = function(d, b) {
+  for (; b2(d, b) != 1; b += 4 + b2(d, b + 2))
+    ;
+  return [b8(d, b + 12), b8(d, b + 4), b8(d, b + 20)];
+};
+function unzipSync(data, opts) {
+  var files = {};
+  var e = data.length - 22;
+  for (; b4(data, e) != 101010256; --e) {
+    if (!e || data.length - e > 65558)
+      err(13);
+  }
+  ;
+  var c = b2(data, e + 8);
+  if (!c)
+    return {};
+  var o = b4(data, e + 16);
+  var z = o == 4294967295 || c == 65535;
+  if (z) {
+    var ze = b4(data, e - 12);
+    z = b4(data, ze) == 101075792;
+    if (z) {
+      c = b4(data, ze + 32);
+      o = b4(data, ze + 48);
+    }
+  }
+  var fltr = opts && opts.filter;
+  for (var i2 = 0; i2 < c; ++i2) {
+    var _a2 = zh(data, o, z), c_2 = _a2[0], sc = _a2[1], su = _a2[2], fn = _a2[3], no = _a2[4], off = _a2[5], b = slzh(data, off);
+    o = no;
+    if (!fltr || fltr({
+      name: fn,
+      size: sc,
+      originalSize: su,
+      compression: c_2
+    })) {
+      if (!c_2)
+        files[fn] = slc(data, b, b + sc);
+      else if (c_2 == 8)
+        files[fn] = inflateSync(data.subarray(b, b + sc), { out: new u8(su) });
+      else
+        err(14, "unknown compression type " + c_2);
+    }
+  }
+  return files;
 }
-function paeth(left, up, upLeft) {
-  const estimate = left + up - upLeft;
-  const leftDistance = Math.abs(estimate - left);
-  const upDistance = Math.abs(estimate - up);
-  const diagonalDistance = Math.abs(estimate - upLeft);
-  return leftDistance <= upDistance && leftDistance <= diagonalDistance ? left : upDistance <= diagonalDistance ? up : upLeft;
-}
-function computePosterSubjectDigest(model) {
-  const paths = Object.keys(model?.files ?? {}).filter((path) => !SUBJECT_EXCLUDED_PATH.test(path) && !SOURCE_PROOF.test(path)).sort();
-  return sha256(paths.map((path) => `${path}\0${digestOf(model, path)}
-`).join(""));
-}
-function variantRecords(model) {
+
+// plugins/presentation-production/src/lib/contract.ts
+var PLAN_SCHEMA = "presentation-production/plan/v2";
+var STORYBOARD_SCHEMA = "presentation-production/storyboard/v2";
+var SKILL_COMPOSITION_SCHEMA = "presentation-production/skill-composition/v1";
+var DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v1";
+var PROJECT_SCHEMA = "presentation-production/project/v2";
+var SLIDE_MANIFEST_SCHEMA = "presentation-production/slide-manifest/v2";
+var RENDER_EVIDENCE_SCHEMA = "presentation-production/render-evidence/v1";
+var STRUCTURE_EVIDENCE_SCHEMA = "presentation-production/structure-evidence/v2";
+var DESIGN_EVIDENCE_SCHEMA = "presentation-production/design-evidence/v1";
+var ACCESSIBILITY_EVIDENCE_SCHEMA = "presentation-production/accessibility-evidence/v2";
+var REVIEW_SCHEMA = "presentation-production/review/v2";
+var RELEASE_MANIFEST_SCHEMA = "presentation-production/release-manifest/v2";
+var RECEIPT_SCHEMA = "presentation-production/receipt/v2";
+var STAGES = /* @__PURE__ */ new Set(["source", "design", "render", "probe", "review", "release"]);
+var STAGE_RANK = { source: 0, design: 1, render: 2, probe: 3, review: 4, release: 5 };
+var SLIDE_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.ts$/u;
+var GENERATED_PATH = /^(?:dist\/|evidence\.[^/]+\.json$|review\.[^/]+\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
+var SLIDE_OWNER_VIOLATION = /(?:\baddSlide\s*\(|\bnew\s+pptxgen\b|from\s+["']pptxgenjs["']|\b(?:writeFile|writeFileSync|createWriteStream|fetch|setTimeout|setInterval)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|from\s+["']node:(?:fs|child_process)["'])/u;
+var TEXT_EXTENSIONS = /* @__PURE__ */ new Set([".cjs", ".js", ".json", ".jsx", ".md", ".mjs", ".toml", ".ts", ".tsx", ".txt", ".yaml", ".yml"]);
+var TEXT_BASENAMES = /* @__PURE__ */ new Set([".gitignore", "LICENSE"]);
+var SKIPPED_DIRECTORIES = /* @__PURE__ */ new Set(["node_modules", ".git", ".cache", ".tmp"]);
+var UTF8 = new TextDecoder2("utf-8", { fatal: true, ignoreBOM: true });
+var PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+var digest = (value) => createHash("sha256").update(value).digest("hex");
+var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var rec = (value) => isObject(value) ? value : void 0;
+var list = (value) => Array.isArray(value) ? value : [];
+var bytesOf = (value) => Buffer.isBuffer(value) ? value : Buffer.from(typeof value === "string" ? value : "");
+var finding = (code, path, message) => ({ code, path, message });
+var stageAtLeast = (stage, expected) => STAGE_RANK[stage] >= STAGE_RANK[expected];
+function parseJson(files, filePath, findings) {
+  const value = files[filePath];
+  if (typeof value !== "string") {
+    findings?.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required and must be UTF-8 JSON`));
+    return null;
+  }
   try {
-    return list(record(JSON.parse(textOf(model?.files?.["src/variants/manifest.json"]))).variants).map(record);
+    return JSON.parse(value);
   } catch {
-    return [];
+    findings?.push(finding("JSON_INVALID", filePath, `${filePath} must contain valid JSON`));
+    return null;
   }
 }
-function finalOutputPaths(model) {
-  return variantRecords(model).flatMap((variant) => [
-    `dist/${model?.artifactId}.${String(variant.id)}.svg`,
-    `dist/${model?.artifactId}.${String(variant.id)}.png`
-  ]);
+function schemaRecord(files, filePath, schema, code, findings) {
+  const value = parseJson(files, filePath, findings);
+  const record = rec(value);
+  if (value !== null && (!record || record.schema !== schema)) findings.push(finding(code, filePath, `${filePath} must use schema ${schema}`));
+  return record;
 }
-function receiptOutputPaths(model) {
-  return [
-    ...finalOutputPaths(model),
-    ...Object.keys(model?.files ?? {}).filter((path) => /^evidence\/layers\/.+\.(?:png|svg)$/u.test(path)).sort(),
-    "evidence.render.json",
-    "evidence.probe.json",
-    "evidence.accessibility.json",
-    "review.poster.json",
-    "release.manifest.json"
-  ];
+function sourceDigestRecord(model, record) {
+  return Boolean(record) && record?.artifactId === model.artifactId && record?.subjectDigest === computePptxSubjectDigest(model);
 }
-function createPosterReleaseManifest(model) {
+function isGeneratedSubjectPath(filePath) {
+  return filePath === ".pptx-delivery-journal.json" || GENERATED_PATH.test(filePath) || filePath.startsWith("src/slides/") && filePath.endsWith(".png");
+}
+function fileDigest(model, filePath) {
+  return model?.digests?.[filePath] ?? digest(bytesOf(model?.files?.[filePath]));
+}
+function computePptxSubjectDigest(model) {
+  const records = Object.keys(model?.files ?? {}).filter((filePath) => !isGeneratedSubjectPath(filePath)).sort().map((filePath) => `${filePath}\0${fileDigest(model, filePath)}
+`).join("");
+  return digest(records);
+}
+function releaseOutputPaths(model) {
+  return Object.keys(model?.files ?? {}).filter((filePath) => GENERATED_PATH.test(filePath) || filePath.startsWith("src/slides/") && filePath.endsWith(".png")).filter((filePath) => filePath !== "receipt.release.json").sort();
+}
+function createPptxReceipt(model, stage = "release") {
+  if (stage !== "release") throw new Error(`unsupported PPTX receipt stage: ${stage}`);
   return {
-    schema: RELEASE_MANIFEST_SCHEMA,
-    plugin: "poster-production",
-    artifactId: model?.artifactId,
-    subjectDigest: computePosterSubjectDigest(model),
-    variants: variantRecords(model).map((variant) => ({
-      id: variant.id,
-      width: variant.width,
-      height: variant.height,
-      svg: `dist/${model?.artifactId}.${String(variant.id)}.svg`,
-      svgSha256: digestOf(model, `dist/${model?.artifactId}.${String(variant.id)}.svg`),
-      png: `dist/${model?.artifactId}.${String(variant.id)}.png`,
-      pngSha256: digestOf(model, `dist/${model?.artifactId}.${String(variant.id)}.png`)
-    }))
+    schema: RECEIPT_SCHEMA,
+    plugin: "presentation-production",
+    artifactId: model.artifactId,
+    stage,
+    subjectDigest: computePptxSubjectDigest(model),
+    outputs: Object.fromEntries(releaseOutputPaths(model).map((filePath) => [filePath, fileDigest(model, filePath)]))
   };
 }
-function createPosterReceipt(model) {
-  return {
-    schemaVersion: 2,
-    plugin: "poster-production",
-    artifactId: model?.artifactId,
-    stage: "release",
-    subjectDigest: computePosterSubjectDigest(model),
-    outputs: Object.fromEntries(receiptOutputPaths(model).map((path) => [path, digestOf(model, path)]))
-  };
-}
-function validatePosterReceipt(model) {
+function validatePptxReceipt(model, stage = "release") {
+  if (stage !== "release") return false;
+  const text = model?.files?.[`receipt.${stage}.json`];
+  if (typeof text !== "string") return false;
+  let receipt;
   try {
-    const actual = record(JSON.parse(textOf(model?.files?.["receipt.release.json"])));
-    const expected = createPosterReceipt(model);
-    return actual.schemaVersion === expected.schemaVersion && actual.plugin === expected.plugin && actual.artifactId === expected.artifactId && actual.stage === expected.stage && actual.subjectDigest === expected.subjectDigest && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
+    receipt = JSON.parse(text);
   } catch {
     return false;
   }
+  const expected = createPptxReceipt(model ?? {}, stage);
+  const record = rec(receipt);
+  return Boolean(record) && record?.schema === expected.schema && record.plugin === expected.plugin && record.artifactId === expected.artifactId && record.stage === expected.stage && record.subjectDigest === expected.subjectDigest && JSON.stringify(record.outputs) === JSON.stringify(expected.outputs);
 }
-function validateBase(model, findings) {
-  const files = model?.files ?? {};
-  for (const path of REQUIRED_SOURCE_FILES) if (!(path in files)) findings.push(finding("REQUIRED_PATH_MISSING", path, `${path} is required`));
-  if (".poster-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".poster-delivery-journal.json", "an interrupted writer must be recovered"));
-  const plan = record(parseJson(files, "plan.contract.json", findings));
-  const profile = String(plan.profile ?? "");
-  if (plan.schema !== PLAN_SCHEMA || plan.artifactId !== model?.artifactId || !PROFILE_SET.has(profile) || !STAGE_SET.has(String(plan.targetStage)) || typeof plan.audience !== "string" || !plan.audience.trim() || typeof plan.objective !== "string" || !plan.objective.trim() || typeof plan.language !== "string") findings.push(finding("PLAN_INVALID", "plan.contract.json", "plan must bind schema, artifact, profile, stage, audience, objective, and language"));
-  const art = record(parseJson(files, "plan.art-direction.json", findings));
-  if (art.schema !== ART_DIRECTION_SCHEMA || art.profile !== profile || ["concept", "visualCenter", "hierarchy", "typographyStrategy", "colorRationale"].some((key) => typeof art[key] !== "string" || !String(art[key]).trim() || /TODO/u.test(String(art[key])))) findings.push(finding("ART_DIRECTION_INVALID", "plan.art-direction.json", "art direction must be complete and profile-bound"));
-  const skills = record(parseJson(files, "plan.skill-composition.json", findings));
-  const workers = list(skills.workers).map(record);
-  const workerMap = new Map(workers.map((worker) => [String(worker.name), worker]));
-  if (skills.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== REQUIRED_ADVISORS.size || [...REQUIRED_ADVISORS].some(([name, revision]) => workerMap.get(name)?.revision !== revision || !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "the four exact pinned advisors with truthful statuses are required"));
-  const assets = record(parseJson(files, "plan.assets.json", findings));
-  const entries = list(assets.assets).map(record);
-  if (assets.schema !== ASSET_MANIFEST_SCHEMA || entries.some((asset) => typeof asset.path !== "string" || typeof asset.role !== "string" || !asset.role.trim() || !/^[a-f0-9]{64}$/u.test(String(asset.sha256)) || !["project", "user", "generated", "licensed", "public-domain"].includes(String(asset.sourceType)) || !(String(asset.path) in files) || digestOf(model, String(asset.path)) !== asset.sha256 || asset.sourceType === "generated" && (!asset.tool || !asset.model || !/^[a-f0-9]{64}$/u.test(String(asset.promptDigest))) || ["licensed", "public-domain"].includes(String(asset.sourceType)) && (!/^https?:\/\//u.test(String(asset.sourceUrl)) || typeof asset.rightsStatus !== "string" || !asset.rightsStatus.trim()))) findings.push(finding("ASSET_MANIFEST_INVALID", "plan.assets.json", "assets must be local, digest-bound, role-bound, and provenance-complete"));
-  const design = record(parseJson(files, "design.system.json", findings));
-  const colors = record(design.colors);
-  const typography = record(design.typography);
-  const contrastPairs = list(design.contrastPairs).map(record);
-  if (design.schema !== DESIGN_SYSTEM_SCHEMA || Object.keys(colors).length < 2 || Object.values(colors).some((color) => !/^[a-f0-9]{6}$/iu.test(String(color))) || Object.keys(typography).length === 0 || Object.values(typography).map(record).some((role) => typeof role.family !== "string" || !role.family.trim() || !Number.isInteger(role.sizePx) || Number(role.sizePx) <= 0 || !Number.isInteger(role.weight)) || !isObject(design.spacing) || contrastPairs.length === 0 || contrastPairs.some((pair) => !(String(pair.foreground) in colors) || !(String(pair.background) in colors) || !Number.isFinite(pair.minimum) || Number(pair.minimum) < 1)) findings.push(finding("DESIGN_SYSTEM_INVALID", "design.system.json", "semantic colors, typed roles, spacing, and valid contrast pairs are required"));
-  const project = record(parseJson(files, "poster.project.json", findings));
-  if (project.schema !== PROJECT_SCHEMA || project.artifactId !== model?.artifactId || project.profile !== profile || project.entry !== "src/render.ts" || project.variantManifest !== "src/variants/manifest.json") findings.push(finding("PROJECT_INVALID", "poster.project.json", "project must bind artifact, profile, entry, and variant manifest"));
+function validateRequiredSource(files, findings) {
+  for (const filePath of [
+    ".gitignore",
+    "package.json",
+    "package-lock.json",
+    "plan.contract.json",
+    "plan.storyboard.json",
+    "plan.skill-composition.json",
+    "design.system.json",
+    "pptx.project.json",
+    "src/deck.ts",
+    "src/theme.ts",
+    "src/slides/manifest.json"
+  ]) if (!(filePath in files)) findings.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
 }
-function validateVariants(model, stage, findings) {
-  const files = model?.files ?? {};
-  const manifest = record(parseJson(files, "src/variants/manifest.json", findings));
-  const variants = list(manifest.variants).map(record);
-  if (manifest.schema !== VARIANT_MANIFEST_SCHEMA || variants.length === 0) findings.push(finding("VARIANT_MANIFEST_INVALID", "src/variants/manifest.json", "at least one v2 variant is required"));
-  const seen = /* @__PURE__ */ new Set();
-  for (const [offset, variant] of variants.entries()) {
-    const directory = String(variant.directory ?? "");
-    const id = String(variant.id ?? "");
-    const match = directory.match(VARIANT_DIRECTORY);
-    const width = Number(variant.width);
-    const height = Number(variant.height);
-    if (!match || variant.index !== offset + 1 || Number(match.groups?.index) !== variant.index || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) || seen.has(id) || !Number.isInteger(width) || !Number.isInteger(height) || width < 320 || height < 320 || width > 8192 || height > 8192) {
-      findings.push(finding("VARIANT_INVALID", "src/variants/manifest.json", "variants must have unique ids, contiguous directories, and bounded integer dimensions"));
-      continue;
+function validateGitignore(files, findings) {
+  const text = files[".gitignore"];
+  if (typeof text !== "string") return;
+  text.split(/\r?\n/u).forEach((raw, offset) => {
+    const line = raw.trim();
+    if (!line || line.startsWith("#") || line.startsWith("!")) return;
+    const normalized = line.replace(/^\//u, "");
+    if (/^(?:dist|build|evidence)(?:\/|$)/u.test(normalized) || /^(?:receipt|review|release)(?:\.|\/|$)/u.test(normalized) || /^(?:\*\*\/)?\*\.(?:png|svg|pdf|pptx)$/u.test(normalized)) {
+      findings.push(finding("DELIVERY_PATH_IGNORED", `.gitignore:${offset + 1}`, `artifact delivery path must not be ignored: ${line}`));
     }
-    seen.add(id);
-    const variantPath = `src/variants/${directory}/variant.json`;
-    const variantConfig = record(parseJson(files, variantPath, findings));
-    if (variantConfig.schema !== "poster-production/variant/v2" || variantConfig.id !== id || variantConfig.width !== width || variantConfig.height !== height || variantConfig.data !== `data/${id}.json`) findings.push(finding("VARIANT_CONFIG_INVALID", variantPath, "variant config must match the manifest and data path"));
-    parseJson(files, `data/${id}.json`, findings);
-    const layersPath = `src/variants/${directory}/layers/manifest.json`;
-    const layerManifest = record(parseJson(files, layersPath, findings));
-    const layers = list(layerManifest.layers).map(record);
-    if (layerManifest.schema !== LAYER_MANIFEST_SCHEMA || layers.length === 0 || record(layers[0]).role !== "background") findings.push(finding("LAYER_MANIFEST_INVALID", layersPath, "a v2 manifest beginning with background is required"));
-    for (const [layerOffset, layer] of layers.entries()) {
-      const source = String(layer.source ?? "");
-      const sourcePath = `src/variants/${directory}/layers/${source}`;
-      const sourceMatch = source.match(LAYER_SOURCE);
-      if (!sourceMatch || layer.index !== layerOffset + 1 || sourceMatch.groups?.role !== layer.role || !(sourcePath in files)) {
-        findings.push(finding("LAYER_INVALID", sourcePath, "layer filename, role, order, and source must agree"));
+  });
+}
+function validateDesignSystem(record, findings) {
+  const colors = rec(record?.colors);
+  const roles = rec(colors?.roles);
+  const typography = rec(record?.typography);
+  const typeRoles = rec(typography?.roles);
+  const spacing = rec(record?.spacing);
+  const requiredColors = ["canvas", "surface", "textPrimary", "textSecondary", "accent", "success", "warning", "error"];
+  if (!roles || !requiredColors.every((key) => typeof roles[key] === "string" && /^[A-Fa-f0-9]{6}$/u.test(String(roles[key])))) findings.push(finding("DESIGN_SYSTEM_INVALID", "design.system.json", "semantic color roles must be six-digit sRGB hex values without #"));
+  if (!typeRoles || !["display", "title", "section", "body", "caption", "numeric"].every((key) => isObject(typeRoles[key]) && typeof rec(typeRoles[key])?.fontFamily === "string" && Number(rec(typeRoles[key])?.fontSizePt) > 0)) findings.push(finding("DESIGN_SYSTEM_INVALID", "design.system.json", "typography roles must declare fontFamily and fontSizePt"));
+  if (!spacing || Number(spacing.pageMarginIn) < 0.3 || Number(spacing.baseUnitIn) <= 0) findings.push(finding("DESIGN_SYSTEM_INVALID", "design.system.json", "spacing must declare pageMarginIn >= 0.3 and a positive baseUnitIn"));
+}
+function validateSourceSchemas(model, files, findings) {
+  const plan = schemaRecord(files, "plan.contract.json", PLAN_SCHEMA, "PLAN_INVALID", findings);
+  if (plan && (plan.artifactId !== model.artifactId || !STAGES.has(plan.targetStage) || typeof plan.audience !== "string" || typeof plan.objective !== "string" || typeof plan.language !== "string")) findings.push(finding("PLAN_INVALID", "plan.contract.json", "plan must bind artifactId, targetStage, audience, objective, and language"));
+  const storyboard = schemaRecord(files, "plan.storyboard.json", STORYBOARD_SCHEMA, "STORYBOARD_INVALID", findings);
+  const storyboardSlides = list(storyboard?.slides);
+  if (storyboard && (!storyboardSlides.length || !storyboardSlides.every((entry, index) => rec(entry)?.index === index + 1 && typeof rec(entry)?.id === "string" && typeof rec(entry)?.title === "string" && typeof rec(entry)?.role === "string" && typeof rec(entry)?.visualType === "string"))) findings.push(finding("STORYBOARD_INVALID", "plan.storyboard.json", "storyboard slides must be non-empty, contiguous, and declare id, title, role, and visualType"));
+  const composition = schemaRecord(files, "plan.skill-composition.json", SKILL_COMPOSITION_SCHEMA, "SKILL_COMPOSITION_INVALID", findings);
+  if (composition && (!Array.isArray(composition.workers) || !composition.workers.every((entry) => {
+    const worker = rec(entry);
+    return worker && !Object.hasOwn(worker, "revision") && typeof worker.name === "string" && ["used", "skipped", "unavailable"].includes(String(worker.status));
+  }))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "workers must declare name and used/skipped/unavailable status"));
+  const design = schemaRecord(files, "design.system.json", DESIGN_SYSTEM_SCHEMA, "DESIGN_SYSTEM_INVALID", findings);
+  if (design) validateDesignSystem(design, findings);
+  const project = schemaRecord(files, "pptx.project.json", PROJECT_SCHEMA, "PROJECT_INVALID", findings);
+  if (project && (project.artifactId !== model.artifactId || project.layout !== "LAYOUT_16X9" || project.entry !== "src/deck.ts" || project.slideManifest !== "src/slides/manifest.json" || project.designSystem !== "design.system.json")) findings.push(finding("PROJECT_INVALID", "pptx.project.json", "project must bind artifactId and the fixed editable 16:9 source contract"));
+  return { storyboardSlides };
+}
+function validateSlideSource(files, entry, findings) {
+  const item = rec(entry);
+  const sourceName = item?.source;
+  const sourceMatch = typeof sourceName === "string" ? sourceName.match(SLIDE_SOURCE) : null;
+  const sourcePath = typeof sourceName === "string" ? posix.join("src/slides", sourceName) : "src/slides/manifest.json";
+  if (!sourceMatch) {
+    findings.push(finding("SLIDE_NAME_INVALID", sourcePath, "slide source must use NNN-slug.ts"));
+    return;
+  }
+  if (Number(sourceMatch.groups?.index) !== item?.index) findings.push(finding("SLIDE_INDEX_MISMATCH", sourcePath, "filename index must match manifest index"));
+  const source = files[sourcePath];
+  if (typeof source !== "string") {
+    findings.push(finding("SLIDE_SOURCE_MISSING", sourcePath, "manifest slide source is missing"));
+    return;
+  }
+  if (SLIDE_OWNER_VIOLATION.test(source)) findings.push(finding("SLIDE_OWNER_VIOLATION", sourcePath, "slide module may only modify the provided slide context"));
+  if ((source.match(/export\s+(?:async\s+)?function\s+renderSlide\s*\(/gu) ?? []).length !== 1) findings.push(finding("SLIDE_EXPORT_INVALID", sourcePath, "slide module must export exactly one renderSlide function"));
+  if (/from\s+["']\.\/[0-9]{3}-[^"']+["']/u.test(source)) findings.push(finding("CROSS_SLIDE_IMPORT", sourcePath, "slide modules may not import sibling slides"));
+}
+function validateManifest(files, storyboardSlides, findings) {
+  const manifest = schemaRecord(files, "src/slides/manifest.json", SLIDE_MANIFEST_SCHEMA, "MANIFEST_INVALID", findings);
+  const slides = list(manifest?.slides);
+  if (manifest && !slides.length) findings.push(finding("MANIFEST_INVALID", "src/slides/manifest.json", "manifest slides must be a non-empty array"));
+  const ids = /* @__PURE__ */ new Set();
+  slides.forEach((entry, index) => {
+    const item = rec(entry);
+    if (item?.index !== index + 1 || typeof item.id !== "string" || ids.has(item.id) || typeof item.title !== "string" || typeof item.role !== "string" || !isObject(item.accessibility)) findings.push(finding("SLIDE_SEQUENCE_INVALID", "src/slides/manifest.json", "slide indexes and ids must be unique, contiguous, and include title, role, and accessibility"));
+    ids.add(item?.id);
+    validateSlideSource(files, entry, findings);
+  });
+  if (storyboardSlides.length && (storyboardSlides.length !== slides.length || storyboardSlides.some((entry, index) => rec(entry)?.id !== rec(slides[index])?.id))) findings.push(finding("STORYBOARD_MANIFEST_MISMATCH", "src/slides/manifest.json", "manifest must preserve storyboard page count and ids"));
+  return slides;
+}
+function xmlRelationships(xml) {
+  const relationships = [];
+  const document = new import_xmldom.DOMParser({
+    onError: (level, message) => {
+      if (level === "fatalError" || level === "error") throw new Error(`PPTX_XML_INVALID:${message}`);
+    }
+  }).parseFromString(xml, "application/xml");
+  for (const element of Array.from(document.getElementsByTagName("Relationship"))) {
+    relationships.push({
+      id: element.getAttribute("Id") ?? "",
+      target: element.getAttribute("Target") ?? "",
+      type: element.getAttribute("Type") ?? "",
+      external: element.getAttribute("TargetMode") === "External"
+    });
+  }
+  return relationships;
+}
+function inspectPptxPackage(bytes) {
+  if (bytes.length < 4 || bytes[0] !== 80 || bytes[1] !== 75) throw new Error("PPTX_ZIP_SIGNATURE_INVALID");
+  let total = 0;
+  const entries = unzipSync(bytes, {
+    filter(file) {
+      if (file.name.startsWith("/") || file.name.split("/").includes("..")) throw new Error("PPTX_ZIP_PATH_INVALID");
+      total += file.originalSize;
+      if (total > 256 * 1024 * 1024 || file.originalSize > 64 * 1024 * 1024) throw new Error("PPTX_ZIP_LIMIT_EXCEEDED");
+      return true;
+    }
+  });
+  const names = new Set(Object.keys(entries));
+  const requiredParts = ["[Content_Types].xml", "_rels/.rels", "ppt/presentation.xml", "ppt/_rels/presentation.xml.rels"];
+  if (!requiredParts.every((name) => names.has(name))) throw new Error("PPTX_REQUIRED_PART_MISSING");
+  const decode = (name) => UTF8.decode(entries[name]);
+  const externalRelationships = [];
+  const unresolvedRelationships = [];
+  for (const name of [...names].filter((entry) => entry.endsWith(".rels"))) {
+    const source = name === "_rels/.rels" ? "" : name.replace(/_rels\/([^/]+)\.rels$/u, "$1");
+    for (const relationship of xmlRelationships(decode(name))) {
+      if (relationship.external) {
+        externalRelationships.push(`${name}:${relationship.target}`);
         continue;
       }
-      const sourceText = textOf(files[sourcePath]);
-      if (OWNER_VIOLATION.test(sourceText) || (sourceText.match(/export\s+(?:async\s+)?function\s+buildLayer\s*\(/gu) ?? []).length !== 1 || /from\s+["']\.\/[0-9]{3}-[^"']+["']/u.test(sourceText)) findings.push(finding("LAYER_OWNER_VIOLATION", sourcePath, "layer must be a deterministic isolated buildLayer module"));
-      if (stageAtLeast(stage, "render")) {
-        const base = `evidence/layers/${id}/${source.slice(0, -4)}.${digestOf(model, sourcePath)}`;
-        for (const extension of ["svg", "png"]) {
-          const proofPath = `${base}.${extension}`;
-          if (!(proofPath in files)) findings.push(finding("LAYER_PROOF_MISSING", proofPath, "current source-hash proof is required"));
-          else try {
-            if (extension === "svg") inspectPosterSvg(rawBytes(model, proofPath));
-            else inspectPosterPng(rawBytes(model, proofPath));
-          } catch (error) {
-            findings.push(finding("LAYER_PROOF_INVALID", proofPath, error instanceof Error ? error.message : String(error)));
-          }
-        }
-      }
-    }
-    if (stageAtLeast(stage, "render")) {
-      for (const extension of ["svg", "png"]) {
-        const output = `dist/${model?.artifactId}.${id}.${extension}`;
-        if (!(output in files)) {
-          findings.push(finding("RENDER_OUTPUT_MISSING", output, "final SVG and PNG are required"));
-          continue;
-        }
-        try {
-          const inspection = extension === "svg" ? inspectPosterSvg(rawBytes(model, output)) : inspectPosterPng(rawBytes(model, output));
-          if (inspection.width !== width || inspection.height !== height) findings.push(finding("RENDER_DIMENSION_MISMATCH", output, "output dimensions must match the variant"));
-        } catch (error) {
-          findings.push(finding("RENDER_OUTPUT_INVALID", output, error instanceof Error ? error.message : String(error)));
-        }
-      }
+      const target = posix.normalize(posix.join(posix.dirname(source), relationship.target));
+      if (!names.has(target)) unresolvedRelationships.push(`${name}:${relationship.id}:${target}`);
     }
   }
+  const slides = [...names].filter((name) => /^ppt\/slides\/slide[0-9]+\.xml$/u.test(name)).sort((a, b) => Number(a.match(/[0-9]+/u)?.[0]) - Number(b.match(/[0-9]+/u)?.[0]));
+  if (!slides.length) throw new Error("PPTX_SLIDES_MISSING");
+  for (const slide of slides) {
+    const rels = `ppt/slides/_rels/${basename(slide)}.rels`;
+    if (!names.has(rels) || !xmlRelationships(decode(rels)).some((entry) => entry.type.endsWith("/slideLayout") && !entry.external)) throw new Error(`PPTX_SLIDE_LAYOUT_MISSING:${slide}`);
+  }
+  return { slideCount: slides.length, requiredParts, externalRelationships: externalRelationships.sort(), unresolvedRelationships: unresolvedRelationships.sort() };
 }
-function readEvidence(model, path) {
+function inspectPng(bytes) {
+  if (bytes.length < 24 || !bytes.subarray(0, 8).equals(PNG_SIGNATURE)) throw new Error("PNG_SIGNATURE_INVALID");
+  const width = bytes.readUInt32BE(16);
+  const height = bytes.readUInt32BE(20);
+  if (width <= 0 || height <= 0) throw new Error("PNG_DIMENSIONS_INVALID");
+  return { width, height };
+}
+function validateRendered(model, slides, findings) {
+  const files = model.files ?? {};
+  const pptxPath = `dist/${model.artifactId}.pptx`;
+  const pdfPath = `dist/${model.artifactId}.pdf`;
   try {
-    return record(JSON.parse(textOf(model?.files?.[path])));
+    const inspection = inspectPptxPackage(bytesOf(files[pptxPath]));
+    if (inspection.slideCount !== slides.length || inspection.unresolvedRelationships.length) findings.push(finding("PPTX_STRUCTURE_INVALID", pptxPath, "PPTX slide count and internal relationships must match the manifest"));
+  } catch (error) {
+    findings.push(finding("PPTX_INVALID", pptxPath, error instanceof Error ? error.message : String(error)));
+  }
+  const pdf = bytesOf(files[pdfPath]);
+  if (pdf.length < 5 || pdf.subarray(0, 5).toString("ascii") !== "%PDF-") findings.push(finding("PDF_INVALID", pdfPath, "PDF must have a valid PDF signature and originate from the final PPTX"));
+  const pagePaths = Object.keys(files).filter((name) => /^dist\/pages\/[0-9]{3}\.png$/u.test(name)).sort();
+  if (pagePaths.length !== slides.length || pagePaths.some((name, index) => name !== `dist/pages/${String(index + 1).padStart(3, "0")}.png`)) findings.push(finding("PAGE_MAPPING_INVALID", "dist/pages", "page PNGs must be contiguous and one-to-one with manifest slides"));
+  for (const pagePath of pagePaths) try {
+    inspectPng(bytesOf(files[pagePath]));
   } catch {
-    return {};
+    findings.push(finding("PNG_INVALID", pagePath, "rendered page must be a valid PNG"));
   }
-}
-function evidenceHeaderCurrent(model, evidence, schema) {
-  return evidence.schema === schema && evidence.plugin === "poster-production" && evidence.artifactId === model?.artifactId && evidence.subjectDigest === computePosterSubjectDigest(model) && evidence.verdict === "pass";
-}
-function expectedRenderPaths(model) {
-  return [
-    ...finalOutputPaths(model),
-    ...Object.keys(model?.files ?? {}).filter((path) => /^evidence\/layers\/.+\.(?:svg|png)$/u.test(path))
-  ].sort();
-}
-function renderEvidenceCurrent(model) {
-  const evidence = readEvidence(model, "evidence.render.json");
-  const outputs = list(evidence.outputs).map(record);
-  const expected = expectedRenderPaths(model);
-  return evidenceHeaderCurrent(model, evidence, RENDER_EVIDENCE_SCHEMA) && isObject(evidence.renderer) && typeof record(evidence.renderer).satori === "string" && typeof record(evidence.renderer).resvg === "string" && outputs.length === expected.length && outputs.every((output, index) => output.path === expected[index] && output.sha256 === digestOf(model, expected[index] ?? ""));
-}
-function probeEvidenceCurrent(model) {
-  const evidence = readEvidence(model, "evidence.probe.json");
-  const measurements = list(evidence.measurements).map(record);
-  const variants = variantRecords(model);
-  const checks = list(evidence.checks).map(record);
-  return evidenceHeaderCurrent(model, evidence, PROBE_EVIDENCE_SCHEMA) && measurements.length === variants.length && measurements.every((measurement, index) => {
-    const variant = variants[index] ?? {};
-    const id = String(variant.id);
-    const svgPath = `dist/${model?.artifactId}.${id}.svg`;
-    const pngPath = `dist/${model?.artifactId}.${id}.png`;
-    const svg = record(measurement.svg);
-    const png = record(measurement.png);
-    return measurement.id === id && svg.width === variant.width && svg.height === variant.height && png.width === variant.width && png.height === variant.height && Number(png.alphaCoverage) >= 0.01 && measurement.svgSha256 === digestOf(model, svgPath) && measurement.pngSha256 === digestOf(model, pngPath) && measurement.independentRasterSha256 === digestOf(model, pngPath);
-  }) && ["svg-png-byte-equivalence", "bounded-nonblank-raster"].every((criterion) => checks.some((check) => check.criterion === criterion && check.status === "pass"));
-}
-function accessibilityEvidenceCurrent(model) {
-  const evidence = readEvidence(model, "evidence.accessibility.json");
-  const checks = list(evidence.checks).map(record);
-  const design = readEvidence(model, "design.system.json");
-  const pairs = list(design.contrastPairs).map(record);
-  const typographyRoles = Object.keys(record(design.typography));
-  return evidenceHeaderCurrent(model, evidence, ACCESSIBILITY_EVIDENCE_SCHEMA) && evidence.nonColorEncoding === true && checks.length >= pairs.length + typographyRoles.length && checks.every((check) => check.status === "pass") && pairs.every((pair) => checks.some((check) => check.criterion === `contrast:${String(pair.foreground)}:${String(pair.background)}` && Number(check.value) >= Number(pair.minimum))) && typographyRoles.every((role) => checks.some((check) => check.role === role && check.status === "pass"));
-}
-function reviewEvidenceCurrent(model) {
-  const evidence = readEvidence(model, "review.poster.json");
-  const variants = variantRecords(model);
-  const reviewed = list(evidence.variants).map(record);
-  const checks = record(evidence.checks);
-  const reviewFindings = list(evidence.findings).map(record);
-  return evidenceHeaderCurrent(model, evidence, REVIEW_SCHEMA) && reviewed.length === variants.length && reviewed.every((variant, index) => variant.id === variants[index]?.id && variant.verdict === "pass" && variant.pngSha256 === digestOf(model, `dist/${model?.artifactId}.${String(variant.id)}.png`)) && REVIEW_CHECKS.every((key) => checks[key] === "pass") && reviewFindings.every((entry) => ["low", "medium", "high", "critical"].includes(String(entry.severity)) && typeof entry.anchor === "string" && entry.anchor.trim() && typeof entry.evidence === "string" && entry.evidence.trim() && typeof entry.recovery === "string" && entry.recovery.trim() && ["resolved", "accepted"].includes(String(entry.disposition)));
-}
-function validatePosterModel(model, { stage = "source" } = {}) {
-  if (typeof stage !== "string" || !STAGE_SET.has(stage)) return [finding("STAGE_INVALID", "plan.contract.json", `unsupported poster stage: ${String(stage)}`)];
-  const typedStage = stage;
-  const findings = [];
-  validateBase(model, findings);
-  validateVariants(model, typedStage, findings);
-  if (stageAtLeast(typedStage, "render") && !renderEvidenceCurrent(model)) findings.push(finding("RENDER_EVIDENCE_INVALID", "evidence.render.json", "render evidence must bind every current output digest and renderer"));
-  if (stageAtLeast(typedStage, "probe")) {
-    if (!probeEvidenceCurrent(model)) findings.push(finding("PROBE_EVIDENCE_INVALID", "evidence.probe.json", "probe evidence must bind dimensions, decoded raster coverage, and independently reproduced output digests"));
-    if (!accessibilityEvidenceCurrent(model)) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", "evidence.accessibility.json", "accessibility evidence must bind all current contrast, typography, and non-color checks"));
-  }
-  if (stageAtLeast(typedStage, "review")) {
-    if (!reviewEvidenceCurrent(model)) findings.push(finding("REVIEW_INVALID", "review.poster.json", "independent passing review must cover every current variant and required visual check"));
-    else {
-      const review = record(JSON.parse(textOf(model?.files?.["review.poster.json"])));
-      const reviewer = record(review.reviewer);
-      const renderSession = record(readEvidence(model, "evidence.render.json")).sessionId;
-      if (!["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || typeof reviewer.sessionId !== "string" || !reviewer.sessionId || reviewer.sessionId === renderSession || reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) findings.push(finding("REVIEW_SELF", "review.poster.json", "reviewer identity and session must be independent from rendering and the current session"));
-    }
-  }
-  if (stageAtLeast(typedStage, "release")) {
-    try {
-      if (JSON.stringify(record(JSON.parse(textOf(model?.files?.["release.manifest.json"])))) !== JSON.stringify(createPosterReleaseManifest(model))) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must map current SVG and PNG outputs"));
+  for (const entry of slides) {
+    const item = rec(entry);
+    const source = typeof item?.source === "string" ? `src/slides/${item.source}` : "";
+    const preview = source ? `${source.slice(0, -3)}.${fileDigest(model, source)}.png` : "";
+    if (!preview || !(preview in files)) findings.push(finding("PREVIEW_MISSING", preview || "src/slides", "current source-hash preview is required after render"));
+    else try {
+      inspectPng(bytesOf(files[preview]));
     } catch {
-      findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest is required"));
+      findings.push(finding("PNG_INVALID", preview, "slide preview must be a valid PNG"));
     }
-    if (!("receipt.release.json" in (model?.files ?? {}))) findings.push(finding("RELEASE_PATH_MISSING", "receipt.release.json", "release receipt is required"));
-    else if (!validatePosterReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "receipt must bind current source and all delivery bytes"));
   }
+  const render = schemaRecord(files, "evidence.render.json", RENDER_EVIDENCE_SCHEMA, "RENDER_EVIDENCE_INVALID", findings);
+  if (render && (!sourceDigestRecord(model, render) || rec(render.output)?.pptxSha256 !== model.digests?.[pptxPath] || rec(render.output)?.pdfSha256 !== model.digests?.[pdfPath] || render.pageCount !== slides.length)) findings.push(finding("RENDER_EVIDENCE_INVALID", "evidence.render.json", "render evidence must bind current sources and every rendered output"));
+}
+function validateEvidence(model, slides, findings) {
+  const files = model.files ?? {};
+  const pptxPath = `dist/${model.artifactId}.pptx`;
+  const structure = schemaRecord(files, "evidence.structure.json", STRUCTURE_EVIDENCE_SCHEMA, "STRUCTURE_EVIDENCE_INVALID", findings);
+  if (structure && (!sourceDigestRecord(model, structure) || rec(structure.output)?.sha256 !== model.digests?.[pptxPath] || rec(structure.package)?.slideCount !== slides.length || structure.verdict !== "pass")) findings.push(finding("STRUCTURE_EVIDENCE_INVALID", "evidence.structure.json", "structure evidence must pass and bind current PPTX structure"));
+  const design = schemaRecord(files, "evidence.design.json", DESIGN_EVIDENCE_SCHEMA, "DESIGN_EVIDENCE_INVALID", findings);
+  if (design && (!sourceDigestRecord(model, design) || design.designSystemSha256 !== model.digests?.["design.system.json"] || design.verdict !== "pass" || !Array.isArray(design.checks) || !design.checks.length)) findings.push(finding("DESIGN_EVIDENCE_INVALID", "evidence.design.json", "design evidence must bind the design system and contain measured checks"));
+  const accessibility = schemaRecord(files, "evidence.accessibility.json", ACCESSIBILITY_EVIDENCE_SCHEMA, "ACCESSIBILITY_EVIDENCE_INVALID", findings);
+  if (accessibility && (!sourceDigestRecord(model, accessibility) || accessibility.outputSha256 !== model.digests?.[pptxPath] || accessibility.verdict !== "pass" || !Array.isArray(accessibility.checks) || !accessibility.checks.length || accessibility.checks.some((entry) => !isObject(entry) || !["measurement", "tool-report", "manual-walkthrough", "content-review"].includes(String(entry.source)) || entry.status !== "pass"))) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", "evidence.accessibility.json", "accessibility evidence must bind the final PPTX and contain passing, attributable checks"));
+}
+function validateReview(model, slides, findings) {
+  const files = model.files ?? {};
+  const review = schemaRecord(files, "review.pptx.json", REVIEW_SCHEMA, "REVIEW_INVALID", findings);
+  const reviewer = rec(review?.reviewer);
+  const pages = list(review?.pages);
+  const render = rec(parseJson(files, "evidence.render.json"));
+  if (review && (!sourceDigestRecord(model, review) || review.verdict !== "pass" || !reviewer || !["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.sessionId !== "string" || !reviewer.sessionId || reviewer.sessionId === render?.sessionId || pages.length !== slides.length || pages.some((entry, index) => rec(entry)?.index !== index + 1 || rec(entry)?.sha256 !== model.digests?.[`dist/pages/${String(index + 1).padStart(3, "0")}.png`] || rec(entry)?.verdict !== "pass") || !Array.isArray(review.findings) || review.findings.some((entry) => !isObject(entry) || !["resolved", "accepted"].includes(String(entry.disposition))))) findings.push(finding("REVIEW_INVALID", "review.pptx.json", "review must be independent, cover every current page, and disposition every finding"));
+}
+function createPptxReleaseManifest(model) {
+  const outputPaths = releaseOutputPaths(model).filter((path) => path !== "release.manifest.json");
+  return {
+    schema: RELEASE_MANIFEST_SCHEMA,
+    plugin: "presentation-production",
+    artifactId: model.artifactId,
+    subjectDigest: computePptxSubjectDigest(model),
+    outputs: outputPaths.map((path) => ({ path, sha256: fileDigest(model, path) })),
+    roles: { pptx: `dist/${model.artifactId}.pptx`, pdf: `dist/${model.artifactId}.pdf`, pages: "dist/pages", structure: "evidence.structure.json", design: "evidence.design.json", accessibility: "evidence.accessibility.json", review: "review.pptx.json" }
+  };
+}
+function validateRelease(model, findings) {
+  const files = model.files ?? {};
+  const manifest = schemaRecord(files, "release.manifest.json", RELEASE_MANIFEST_SCHEMA, "RELEASE_MANIFEST_INVALID", findings);
+  if (manifest) {
+    const expected = createPptxReleaseManifest(model);
+    if (manifest.artifactId !== expected.artifactId || manifest.subjectDigest !== expected.subjectDigest || JSON.stringify(manifest.outputs) !== JSON.stringify(expected.outputs) || JSON.stringify(manifest.roles) !== JSON.stringify(expected.roles)) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind every current output and delivery role"));
+  }
+  if (!validatePptxReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current sources and outputs"));
+}
+function validatePptxModel(model, { stage = "source" } = {}) {
+  if (typeof stage !== "string" || !STAGES.has(stage)) return [finding("STAGE_INVALID", "plan.contract.json", `unsupported PPTX stage: ${String(stage)}`)];
+  const currentStage = stage;
+  const findings = [];
+  const current = model ?? {};
+  const files = current.files ?? {};
+  if (".pptx-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".pptx-delivery-journal.json", "an interrupted writer must be resumed or recovered"));
+  validateRequiredSource(files, findings);
+  validateGitignore(files, findings);
+  const { storyboardSlides } = validateSourceSchemas(current, files, findings);
+  const slides = validateManifest(files, storyboardSlides, findings);
+  if (stageAtLeast(currentStage, "render")) validateRendered(current, slides, findings);
+  if (stageAtLeast(currentStage, "probe")) validateEvidence(current, slides, findings);
+  if (stageAtLeast(currentStage, "review")) validateReview(current, slides, findings);
+  if (stageAtLeast(currentStage, "release")) validateRelease(current, findings);
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }
-function resolveWorkspaceRoot(cwd) {
-  let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === "poster" && basename(dirname(dirname(current))) === "artifacts") return dirname(dirname(dirname(current)));
-    current = dirname(current);
-  }
-  return resolve(cwd);
-}
-function isPosterProjectRoot(root, workspaceRoot) {
-  return dirname(resolve(root)) === resolve(workspaceRoot, "artifacts", "poster") && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(root));
-}
-async function findPosterProjects(cwd) {
-  const workspaceRoot = resolveWorkspaceRoot(cwd);
-  const carrier = join(workspaceRoot, "artifacts", "poster");
-  try {
-    const entries = await readdir(carrier, { withFileTypes: true });
-    if (entries.length > 128) throw new Error("PROJECT_COUNT_LIMIT_EXCEEDED");
-    return entries.filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name)).map((entry) => join(carrier, entry.name)).sort();
-  } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return [];
-    throw error;
-  }
-}
-async function collectProject(root, directory, model, counter) {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
-    if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
-    const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collectProject(root, absolute, model, counter);
-    else if (entry.isFile()) {
-      if (++counter.files > 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
-      const bytes = await readFile(absolute);
-      counter.bytes += bytes.byteLength;
-      if (bytes.byteLength > 32 * 1024 * 1024 || counter.bytes > 256 * 1024 * 1024) throw new Error("PROJECT_SIZE_LIMIT_EXCEEDED");
-      const path = relative(root, absolute).replaceAll("\\", "/");
-      model.bytes[path] = bytes;
-      model.digests[path] = sha256(bytes);
-      model.files[path] = /\.(?:png|woff|woff2|ttf|otf)$/iu.test(path) ? bytes : bytes.toString("utf8");
-    }
-  }
-}
-async function loadPosterProject(root) {
-  const model = { files: {}, bytes: {}, digests: {} };
-  await collectProject(root, root, model, { files: 0, bytes: 0 });
-  const parse = (path) => {
-    try {
-      return JSON.parse(textOf(model.files[path]));
-    } catch {
-      return null;
-    }
-  };
-  return { root, artifactId: basename(root), ...model, plan: parse("plan.contract.json"), project: parse("poster.project.json") };
-}
-function posterProjectInside(relativePath = "", cwd = "") {
-  const normalized = relativePath.replaceAll("\\", "/");
-  const absolute = resolve(cwd || ".", relativePath).replaceAll("\\", "/");
-  for (const candidate of [normalized, absolute]) {
-    const match = candidate.match(/(?:^|\/)artifacts\/poster\/[^/]+\/(?<inside>.+)$/u);
-    if (match?.groups?.inside) return match.groups.inside;
-  }
-  return "";
-}
-function evaluatePosterWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
-  const inside = posterProjectInside(relativePath, cwd);
-  if (!inside) return { decision: "allow" };
-  if ((GENERATED_PATH.test(inside) || SOURCE_PROOF_PATH.test(inside)) && !writer.startsWith("poster-")) return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a registered poster writer, not ${toolName || "an unregistered tool"}` };
+function evaluatePptxWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
+  const normalized = resolve(cwd || ".", relativePath).replaceAll("\\", "/");
+  const marker = "/artifacts/pptx/";
+  const offset = normalized.indexOf(marker);
+  if (offset < 0) return { decision: "allow" };
+  const inside = normalized.slice(offset + marker.length).split("/").slice(1).join("/");
+  const preview = inside.startsWith("src/slides/") && inside.endsWith(".png");
+  const generated = inside === ".pptx-delivery-journal.json" || GENERATED_PATH.test(inside) || preview;
+  if (generated && !/^pptx-(?:render|probe|review|release)$/u.test(writer)) return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a registered presentation-production writer, not ${toolName || "an unregistered tool"}` };
   return { decision: "allow" };
 }
-
-// plugins/poster-production/src/lib/writer.ts
-import { mkdir, open, rename, unlink, writeFile } from "node:fs/promises";
-import { basename as basename2, dirname as dirname2, join as join2, resolve as resolve2 } from "node:path";
-function assertPosterProjectRoot(value, { allowMissing = false } = {}) {
-  const root = resolve2(value ?? "");
-  const workspaceRoot = resolveWorkspaceRoot(allowMissing ? resolve2(root, "../../..") : root);
-  if (!isPosterProjectRoot(root, workspaceRoot)) throw new Error("PROJECT_ROOT_OUT_OF_SCOPE");
-  return root;
-}
-function sessionMetadata(capability, grant = {}) {
-  return {
-    createdAt: (/* @__PURE__ */ new Date()).toISOString(),
-    sessionId: grant.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? "unknown",
-    triggerFrom: grant.triggerFrom ?? process.env.AI_EXPERTS_TRIGGER_FROM ?? "unknown",
-    capability
-  };
-}
-async function atomicWriteJson(root, relativePath, payload) {
-  const target = join2(root, relativePath);
-  const temporaryDirectory = join2(root, ".tmp", "poster-guard");
-  await mkdir(temporaryDirectory, { recursive: true });
-  const temporary = join2(temporaryDirectory, `${basename2(relativePath)}.${process.pid}.${Date.now()}.tmp`);
-  await writeFile(temporary, `${JSON.stringify(payload, null, 2)}
-`, { flag: "wx" });
-  await mkdir(dirname2(target), { recursive: true });
-  await rename(temporary, target);
-}
-async function withWriterJournal(root, capability, callback, grant = {}) {
-  const journalPath = join2(root, ".poster-delivery-journal.json");
-  const handle = await open(journalPath, "wx");
+function resolveWorkspaceRoot(cwd) {
+  const absolute = resolve(cwd);
   try {
-    await handle.writeFile(`${JSON.stringify({ schemaVersion: 2, plugin: "poster-production", operation: capability, artifactId: basename2(root), ...sessionMetadata(capability, grant) })}
-`);
-    await handle.sync();
-  } finally {
-    await handle.close();
+    const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { cwd: absolute, encoding: "utf8", timeout: 5e3, stdio: ["ignore", "pipe", "ignore"] }).trim();
+    if (root) return resolve(root);
+  } catch {
   }
-  const result = await callback();
-  await unlink(journalPath).catch((error) => {
-    const code = typeof error === "object" && error !== null && "code" in error ? error.code : void 0;
-    if (code !== "ENOENT") throw error;
-  });
-  return result;
+  const parts = absolute.split(sep);
+  for (let index = parts.length - 3; index >= 0; index -= 1) if (parts[index] === "artifacts" && parts[index + 1] === "pptx") return resolve(parts.slice(0, index).join(sep) || sep);
+  return absolute;
+}
+function isPptxProjectRoot(projectRoot, workspaceRoot) {
+  return dirname(resolve(projectRoot)) === join(resolve(workspaceRoot), "artifacts", "pptx") && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot));
+}
+function isTextPath(filePath) {
+  return TEXT_BASENAMES.has(basename(filePath)) || TEXT_EXTENSIONS.has(extname(filePath).toLowerCase());
+}
+async function hashFile(filePath, maxBytes, collectBytes) {
+  const before = await lstat(filePath, { bigint: true });
+  if (!before.isFile() || before.isSymbolicLink()) throw new Error(`NOT_A_FILE:${filePath}`);
+  if (before.size > BigInt(maxBytes)) throw new Error(`FILE_SIZE_LIMIT_EXCEEDED:${filePath}`);
+  const hash = createHash("sha256");
+  const chunks = [];
+  let bytes = 0;
+  for await (const chunk of createReadStream(filePath)) {
+    bytes += chunk.byteLength;
+    hash.update(chunk);
+    if (collectBytes) chunks.push(chunk);
+  }
+  const after = await lstat(filePath, { bigint: true });
+  if (before.size !== after.size || before.mtimeNs !== after.mtimeNs) throw new Error(`FILE_CHANGED_DURING_READ:${filePath}`);
+  return { digest: hash.digest("hex"), bytes, content: collectBytes ? Buffer.concat(chunks) : null };
+}
+async function collect(root, directory, state, limits) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const absolute = join(directory, entry.name);
+    const relativePath = relative(root, absolute).replaceAll("\\", "/");
+    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${relativePath}`);
+    if (entry.isDirectory()) {
+      if (!SKIPPED_DIRECTORIES.has(entry.name)) await collect(root, absolute, state, limits);
+      continue;
+    }
+    if (!entry.isFile()) continue;
+    state.count += 1;
+    if (state.count > limits.maxFiles) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
+    const text = isTextPath(relativePath);
+    const result = await hashFile(absolute, text ? Math.min(limits.maxBytesPerFile, limits.maxTextBytes) : limits.maxBytesPerFile, true);
+    state.digests[relativePath] = result.digest;
+    state.sizes[relativePath] = result.bytes;
+    if (!result.content) state.files[relativePath] = null;
+    else if (text) {
+      try {
+        state.files[relativePath] = UTF8.decode(result.content);
+      } catch {
+        throw new Error(`PROJECT_TEXT_ENCODING_INVALID:${relativePath}`);
+      }
+    } else state.files[relativePath] = result.content;
+  }
+}
+async function loadPptxProject(projectRoot, limits = {}) {
+  const root = resolve(projectRoot);
+  const state = { files: {}, digests: {}, sizes: {}, count: 0 };
+  await collect(root, root, state, { maxFiles: limits.maxFiles ?? 4096, maxBytesPerFile: limits.maxBytesPerFile ?? 256 * 1024 * 1024, maxTextBytes: limits.maxTextBytes ?? 4 * 1024 * 1024 });
+  return { artifactId: basename(root), root, files: state.files, digests: state.digests, sizes: state.sizes, plan: parseJson(state.files, "plan.contract.json"), project: parseJson(state.files, "pptx.project.json"), tracked: [], ignored: [] };
+}
+async function findPptxProjects(cwd, { maxProjects = 32 } = {}) {
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
+  const carrierRoot = join(workspaceRoot, "artifacts", "pptx");
+  let entries;
+  try {
+    entries = await readdir(carrierRoot, { withFileTypes: true });
+  } catch (error) {
+    if (isObject(error) && error.code === "ENOENT") return [];
+    throw error;
+  }
+  const roots = [];
+  for (const entry of entries) {
+    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:artifacts/pptx/${entry.name}`);
+    if (!entry.isDirectory() || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name)) continue;
+    const root = join(carrierRoot, entry.name);
+    try {
+      if ((await lstat(join(root, "plan.contract.json"))).isFile()) roots.push(root);
+    } catch (error) {
+      if (!(isObject(error) && error.code === "ENOENT")) throw error;
+    }
+    if (roots.length > maxProjects) throw new Error("PROJECT_COUNT_LIMIT_EXCEEDED");
+  }
+  return roots.sort();
 }
 
 export {
-  POSTER_PROFILES,
   PLAN_SCHEMA,
-  ART_DIRECTION_SCHEMA,
+  STORYBOARD_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
-  ASSET_MANIFEST_SCHEMA,
   DESIGN_SYSTEM_SCHEMA,
   PROJECT_SCHEMA,
-  VARIANT_MANIFEST_SCHEMA,
-  LAYER_MANIFEST_SCHEMA,
+  SLIDE_MANIFEST_SCHEMA,
   RENDER_EVIDENCE_SCHEMA,
-  PROBE_EVIDENCE_SCHEMA,
+  STRUCTURE_EVIDENCE_SCHEMA,
+  DESIGN_EVIDENCE_SCHEMA,
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   REVIEW_SCHEMA,
-  inspectPosterSvg,
-  inspectPosterPng,
-  computePosterSubjectDigest,
-  createPosterReleaseManifest,
-  createPosterReceipt,
-  validatePosterReceipt,
-  validatePosterModel,
+  computePptxSubjectDigest,
+  createPptxReceipt,
+  validatePptxReceipt,
+  inspectPptxPackage,
+  createPptxReleaseManifest,
+  validatePptxModel,
+  evaluatePptxWrite,
   resolveWorkspaceRoot,
-  findPosterProjects,
-  loadPosterProject,
-  evaluatePosterWrite,
-  assertPosterProjectRoot,
-  sessionMetadata,
-  atomicWriteJson,
-  withWriterJournal
+  isPptxProjectRoot,
+  loadPptxProject,
+  findPptxProjects
 };

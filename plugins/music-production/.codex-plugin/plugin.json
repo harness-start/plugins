@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "Music Project Delivery Guard",
     "shortDescription": "Compose, review, render, and prove coded music.",
-    "longDescription": "Orchestrates a brief-to-release Tone.js workflow with pinned external advisers, conditional name-free reference analysis, deterministic rendering, independent listening review, and digest-bound evidence.",
+    "longDescription": "Orchestrates a brief-to-release Tone.js workflow with current-source external advisers, conditional name-free reference analysis, deterministic rendering, independent listening review, and digest-bound evidence.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],

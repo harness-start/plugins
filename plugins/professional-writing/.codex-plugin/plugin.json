@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "专业写作",
     "shortDescription": "按语言和文稿类型编排写作 Skill。",
-    "longDescription": "为中英文和 Markdown 文稿选择固定版本的社区 Skill，并由内部 Skill 组织执行顺序。",
+    "longDescription": "为中英文和 Markdown 文稿选择社区 Skill 的当前上游版本，并由内部 Skill 组织执行顺序。",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],

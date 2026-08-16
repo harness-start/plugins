@@ -12,7 +12,6 @@ import { computeMusicSubjectDigest } from "../src/lib/contract.js";
 import { collectMusicModel } from "../src/lib/release.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/cli/project-reference.mjs", import.meta.url));
-const REVISION = "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32";
 
 function sha256(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -46,7 +45,6 @@ function profile(briefSha256: string, sourceSetSha256: string) {
     briefSha256,
     sourceSetSha256,
     skillName: "musical-dna",
-    revision: REVISION,
     ecosystem: "en",
     mode: "reference-only",
     phase: "reference-analysis",
@@ -105,11 +103,11 @@ async function fixture() {
     schema: "music-production/skill-composition/v2",
     artifactId: "study",
     workers: [
-      { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "fixture" },
-      { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
-      { name: "musical-dna", revision: REVISION, ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "used", reason: "source analysis required", evidencePath: `evidence/reference-profile.${briefSha256}.json` },
-      { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
-      { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "used", reason: "source analysis required", evidencePath: `evidence/reference-profile.${briefSha256}.json` },
+      { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
     ],
   }));
   const model = await collectMusicModel(root);

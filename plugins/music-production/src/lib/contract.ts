@@ -27,16 +27,16 @@ export const REVIEW_SCHEMA = "music-production/review/v2";
 export const PROJECT_SCHEMA = "music-production/project/v1";
 
 export const LEGACY_EXTERNAL_SKILLS = [
-  { name: "music-composition", revision: "07cecf9c8fd15249ea3da311dc9a7c7893ff801f", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
-  { name: "miaoxiang-music", revision: "1447ff68be4a544a61354377592f345a9216ff1f", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
-  { name: "workflow-audio-production", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview"] },
-  { name: "workflow-analysis-quality", revision: "5014c1e8b23fd3e18d49926d9aa147d15a3aa08e", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["preview", "review"] },
+  { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
+  { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
+  { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview"] },
+  { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["preview", "review"] },
 ] as const;
 
 export const EXTERNAL_SKILLS = [
   LEGACY_EXTERNAL_SKILLS[0],
   LEGACY_EXTERNAL_SKILLS[1],
-  { name: "musical-dna", revision: "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
+  { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
   LEGACY_EXTERNAL_SKILLS[2],
   LEGACY_EXTERNAL_SKILLS[3],
 ] as const;
@@ -141,7 +141,7 @@ export function validateMusicReferenceProfile(model: MusicModel) {
   const unsupportedTraits = Array.isArray(profile.unsupportedTraits) ? profile.unsupportedTraits : [];
   if (profile.schema !== REFERENCE_PROFILE_SCHEMA || profile.plugin !== "music-production" || profile.artifactId !== model.artifactId
     || profile.briefSha256 !== musicBriefSha256(model) || profile.sourceSetSha256 !== reference.sourceSetSha256
-    || profile.skillName !== "musical-dna" || profile.revision !== EXTERNAL_SKILLS[2].revision
+    || profile.skillName !== "musical-dna" || Object.hasOwn(profile, "revision")
     || profile.ecosystem !== "en" || profile.mode !== "reference-only" || profile.phase !== "reference-analysis"
     || !Number.isInteger(profile.referenceCount) || Number(profile.referenceCount) < 3 || Number(profile.referenceCount) > 5
     || !traitsValid || !mappingsValid || descriptors.length < 5 || descriptors.length > 10
@@ -313,7 +313,7 @@ function validatePlanning(model: MusicModel, findings: MusicFinding[]) {
   const referenceFindings = validateMusicReferenceProfile(model);
   for (const expected of pool) {
     const worker = workers.find((entry) => entry.name === expected.name);
-    if (!worker || worker.revision !== expected.revision || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
+    if (!worker || Object.hasOwn(worker, "revision") || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
       || !["used", "skipped"].includes(String(worker.status)) || typeof worker.reason !== "string" || !worker.reason.trim()) valid = false;
     if (composition.schema === SKILL_COMPOSITION_SCHEMA && worker?.artifactKind !== expected.artifactKind) valid = false;
     if (worker?.status === "used") {
@@ -327,7 +327,7 @@ function validatePlanning(model: MusicModel, findings: MusicFinding[]) {
         const adviceValue = files[advicePath];
         try {
           const advice = JSON.parse(adviceValue ?? "null") as Record<string, unknown> | null;
-          if (!advice || advice.schema !== SKILL_ADVICE_SCHEMA || advice.skillName !== expected.name || advice.revision !== expected.revision
+          if (!advice || Object.hasOwn(advice, "revision") || advice.schema !== SKILL_ADVICE_SCHEMA || advice.skillName !== expected.name
             || advice.subjectDigest !== computeMusicSubjectDigest(model)) valid = false;
         } catch { valid = false; }
       }
@@ -341,7 +341,7 @@ function validatePlanning(model: MusicModel, findings: MusicFinding[]) {
     const active = workers.filter((worker) => worker.status === "used" && pool.find((entry) => entry.name === worker.name)?.phases.includes(phase as never));
     if (active.length > 3) findings.push(finding("SKILL_COMPOSITION_ACTIVE_LIMIT", "plan.skill-composition.json", `at most three advisers may be active in ${phase}`));
   }
-  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the exact pinned adviser pool and current evidence for every used worker"));
+  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the current-source adviser pool and current evidence for every used worker"));
   findings.push(...referenceFindings);
 }
 

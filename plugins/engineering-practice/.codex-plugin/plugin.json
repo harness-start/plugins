@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "工程实践",
     "shortDescription": "按工程任务加载必要的方法 Skill。",
-    "longDescription": "为实现、调试与完成前验证选择固定版本的社区 Skill；缺失时停止对应编排。",
+    "longDescription": "为实现、调试与完成前验证选择社区 Skill 的当前上游版本；缺失时停止对应编排。",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["hooks"],

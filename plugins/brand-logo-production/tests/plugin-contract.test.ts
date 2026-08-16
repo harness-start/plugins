@@ -19,15 +19,10 @@ test("both manifests expose the bundled authoring and independent review skills"
   assert.equal(existsSync(join(ROOT, "skills/logo-project-review/SKILL.md")), true);
 });
 
-test("external skill pool is public, revision-pinned, bilingual, and authority-free", () => {
+test("external skill pool follows public current sources and remains bilingual and authority-free", () => {
   const dependencies = json("skill-deps.json").skills;
   assert.deepEqual(dependencies.map(({ name }: { name: string }) => name), ["brand-identity", "logo-design", "color-expert", "logo-generator"]);
-  assert.deepEqual(dependencies.map(({ revision }: { revision: string }) => revision), [
-    "4a0a8b5b7a0f64bf0fc551978a18a591670a5223",
-    "75865a5d037a4cdaa7f409a4ec14ab9b0292920b",
-    "6aa1d1315dddd93be74a9481d62712291059253e",
-    "bf4e9ac4d4428bda261afcfe981871ceb92d94e6",
-  ]);
+  assert.ok(dependencies.every((dependency: Record<string, unknown>) => !Object.hasOwn(dependency, "revision")));
   assert.deepEqual(new Set(dependencies.map(({ ecosystem }: { ecosystem: string }) => ecosystem)), new Set(["en", "zh"]));
   for (const dependency of dependencies) {
     assert.match(dependency.source, /^https:\/\/github\.com\//u);

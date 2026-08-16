@@ -109,7 +109,7 @@ export default {
 
 ## 方法来源
 
-工作流吸收了四项固定 revision 的外部方法，但不会安装或路由到这些外部 Skill：
+工作流参考了四项历史审计时的外部方法，但不会安装或路由到这些外部 Skill：
 
 - `obra/superpowers/systematic-debugging` @ `44c9b2d6e889982ac18c27d05a19fefe335194e1`：修复前先定位根因，重复失败后升级架构处理；
 - `anthropics/knowledge-work-plugins/debug` @ `28153f89ef0dcc754d0707a1d02ce0bf8213b9cc`：精简的复现、隔离、诊断和修复报告循环；

@@ -188,8 +188,8 @@ function validateSourceSchemas(model: PptxModel, files: FileMap, findings: Contr
   if (storyboard && (!storyboardSlides.length || !storyboardSlides.every((entry, index) => rec(entry)?.index === index + 1 && typeof rec(entry)?.id === "string" && typeof rec(entry)?.title === "string" && typeof rec(entry)?.role === "string" && typeof rec(entry)?.visualType === "string"))) findings.push(finding("STORYBOARD_INVALID", "plan.storyboard.json", "storyboard slides must be non-empty, contiguous, and declare id, title, role, and visualType"));
   const composition = schemaRecord(files, "plan.skill-composition.json", SKILL_COMPOSITION_SCHEMA, "SKILL_COMPOSITION_INVALID", findings);
   if (composition && (!Array.isArray(composition.workers) || !composition.workers.every((entry) => {
-    const worker = rec(entry); return worker && typeof worker.name === "string" && typeof worker.revision === "string" && ["used", "skipped", "unavailable"].includes(String(worker.status));
-  }))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "workers must declare name, revision, and used/skipped/unavailable status"));
+    const worker = rec(entry); return worker && !Object.hasOwn(worker, "revision") && typeof worker.name === "string" && ["used", "skipped", "unavailable"].includes(String(worker.status));
+  }))) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "workers must declare name and used/skipped/unavailable status"));
   const design = schemaRecord(files, "design.system.json", DESIGN_SYSTEM_SCHEMA, "DESIGN_SYSTEM_INVALID", findings);
   if (design) validateDesignSystem(design, findings);
   const project = schemaRecord(files, "pptx.project.json", PROJECT_SCHEMA, "PROJECT_INVALID", findings);

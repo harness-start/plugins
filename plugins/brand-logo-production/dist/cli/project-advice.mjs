@@ -1,25 +1,25 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0822b65d7c8a5428e21a97cb54a4f33d89a4ec4425f615416ce36f6965494b64
+// harness-source-hash: sha256:753b388e72bbc78e2b0c64acd2d108bcea05e837d5c22592c328117bfcd8835c
 import {
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-FHHFSZI3.mjs";
+} from "../chunks/chunk-466WFTUW.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-NIOAYKMH.mjs";
+} from "../chunks/chunk-542DPOMQ.mjs";
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-URPK6G7U.mjs";
+} from "../chunks/chunk-FACY4KWJ.mjs";
 import {
   EXTERNAL_SKILLS,
   SKILL_ADVICE_INPUT_SCHEMA,
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   computeLogoSubjectDigest
-} from "../chunks/chunk-67JMDBR5.mjs";
+} from "../chunks/chunk-MLKNUB26.mjs";
 
 // plugins/brand-logo-production/src/entries/cli/project-advice.ts
 import { createHash } from "node:crypto";
@@ -42,12 +42,12 @@ async function main() {
   }
   const model = await loadLogoProject(root);
   const subjectDigest = computeLogoSubjectDigest(model);
-  if (grant.subjectDigest !== subjectDigest || payload.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId) throw new Error("ADVICE_INPUT_INVALID");
+  if (grant.subjectDigest !== subjectDigest || payload.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId || Object.hasOwn(payload, "revision")) throw new Error("ADVICE_INPUT_INVALID");
   const expected = EXTERNAL_SKILLS.find((entry) => entry.name === payload.skillName);
   const composition = record(JSON.parse(String(model.files["plan.skill-composition.json"] ?? "{}")));
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
   const worker = workers.find((entry) => entry.name === payload.skillName);
-  if (composition.schema !== SKILL_COMPOSITION_SCHEMA || !expected || !worker || worker.status !== "used" || worker.revision !== expected.revision || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
+  if (composition.schema !== SKILL_COMPOSITION_SCHEMA || !expected || !worker || worker.status !== "used" || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || !expected.phases.includes(payload.phase)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
   if (!Array.isArray(payload.recommendations) || !Array.isArray(payload.adopted) || !Array.isArray(payload.rejected) || typeof payload.summary !== "string" || !payload.summary.trim()) throw new Error("ADVICE_RESULT_INCOMPLETE");
   const output = {
     schema: SKILL_ADVICE_SCHEMA,
@@ -55,7 +55,6 @@ async function main() {
     artifactId: model.artifactId,
     subjectDigest,
     skillName: expected.name,
-    revision: expected.revision,
     ecosystem: expected.ecosystem,
     mode: expected.mode,
     phase: payload.phase,

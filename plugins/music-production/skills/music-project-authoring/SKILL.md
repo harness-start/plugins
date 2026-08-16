@@ -17,7 +17,7 @@ Build music as reviewable source code and establish a causal chain from brief to
 
 ## Compose external expertise
 
-Use `plan.skill-composition.json` to select the pinned bilingual adviser pool. Keep at most three active in any phase and give every used adviser a distinct evidence artifact.
+Use `plan.skill-composition.json` to select the current-source bilingual adviser pool. Keep at most three active in any phase and give every used adviser a distinct evidence artifact.
 
 - `music-composition`: composition, harmony, form, and orchestration.
 - `miaoxiang-music`: Chinese genre, ambience, guofeng, and scene vocabulary.
@@ -39,7 +39,6 @@ The payload must bind the current subject digest and declare recommendations plu
   "artifactId": "<id>",
   "subjectDigest": "<64-hex>",
   "skillName": "music-composition",
-  "revision": "<pinned-40-hex>",
   "ecosystem": "en",
   "mode": "adviser",
   "phase": "composition",
@@ -85,7 +84,7 @@ Prepare a 3–5 item source manifest outside the project. Each item needs a stab
 
 After adding the source digest to the brief, calculate the SHA-256 of the exact `plan.brief.json` bytes. Mark the `musical-dna` worker `used` and set its `evidencePath` to `evidence/reference-profile.<briefSha256>.json` before invoking the writer.
 
-Run the pinned `musical-dna` skill and prepare a separate profile input. Cover rhythmic foundation, harmonic architecture, instrumental techniques, production aesthetics, genre fusion, and energy architecture. Every trait must state whether it was observed, inferred, or user-described and cite one or more manifest ids. Distill 5–10 name-free descriptors, map the result to rhythm/tempo, harmony/voicing, timbre/effects, space/dynamics, and form/energy, and reject traits that v1 synthesis cannot implement. Set all three anti-imitation assertions only after removing artist names, signature material, and imitation prompts.
+Run the installed current-source `musical-dna` skill and prepare a separate profile input. Cover rhythmic foundation, harmonic architecture, instrumental techniques, production aesthetics, genre fusion, and energy architecture. Every trait must state whether it was observed, inferred, or user-described and cite one or more manifest ids. Distill 5–10 name-free descriptors, map the result to rhythm/tempo, harmony/voicing, timbre/effects, space/dynamics, and form/energy, and reject traits that v1 synthesis cannot implement. Set all three anti-imitation assertions only after removing artist names, signature material, and imitation prompts.
 
 ```json
 {
@@ -94,7 +93,6 @@ Run the pinned `musical-dna` skill and prepare a separate profile input. Cover r
   "briefSha256": "<64-hex>",
   "sourceSetSha256": "<64-hex>",
   "skillName": "musical-dna",
-  "revision": "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32",
   "ecosystem": "en",
   "mode": "reference-only",
   "phase": "reference-analysis",

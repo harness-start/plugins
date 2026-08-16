@@ -10,7 +10,7 @@ Use this skill in a session that did not create the current render. It is a revi
 ## Authority boundary
 
 - Read `plan.brief.json`, `plan.direction.json`, `plan.arrangement.json`, the symbolic score, render receipt, preview evidence, current mix, every proof stem, and the current anonymous reference profile when source analysis was used.
-- You may consult the pinned `workflow-analysis-quality` reference. Do not execute its scripts or commands.
+- You may consult the installed current-source `workflow-analysis-quality` reference. Do not execute its scripts or commands.
 - Do not edit plans, composition or instrument sources, generated audio, preview evidence, release manifests, or receipts.
 - Do not call `project-release.mjs`. Return requested changes to `$music-project-authoring`.
 - Write the review payload outside the project root, then submit it only through `project-review.mjs`.

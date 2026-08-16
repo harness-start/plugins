@@ -256,7 +256,7 @@ check_manifest_versions() {
 }
 
 check_skill_deps() {
-  log "Checking pinned, non-conflicting community skill-deps.json manifests"
+  log "Checking current-source, non-conflicting community skill-deps.json manifests"
   require_cmd jq
 
   local plugin name deps_file count
@@ -299,21 +299,6 @@ check_skill_deps() {
       exit 1
     fi
 
-    if ! jq -e '
-      .skills
-      | all(
-          (has("subpath") | not)
-          or (
-            (.subpath | type == "string" and length > 0 and test("^[A-Za-z0-9._/-]+$") and (startswith("/") | not) and (contains("\\") | not))
-            and (.subpath | split("/") | all(length > 0 and . != "." and . != ".." and (startswith("-") | not)))
-            and (.revision | type == "string" and length > 0)
-          )
-        )
-    ' "${deps_file}" >/dev/null; then
-      printf 'skills[].subpath must be a safe relative path and requires revision: %s\n' "${deps_file}" >&2
-      exit 1
-    fi
-
     # Optional description must be a string when present.
     if ! jq -e '
       .skills
@@ -327,8 +312,8 @@ check_skill_deps() {
       exit 1
     fi
 
-    if ! jq -e '.skills | all(.revision | type == "string" and test("^[0-9a-f]{40}$"))' "${deps_file}" >/dev/null; then
-      printf 'skills[].revision must be an exact lowercase 40-character commit: %s\n' \
+    if ! jq -e '.skills | all((has("revision") | not) and (has("subpath") | not))' "${deps_file}" >/dev/null; then
+      printf 'skills[] must follow the current source and cannot declare revision or subpath: %s\n' \
         "${deps_file}" >&2
       exit 1
     fi
@@ -365,10 +350,10 @@ check_skill_deps() {
       exit 1
     fi
 
-    while IFS=$'\t' read -r dep_name dep_source dep_revision dep_subpath; do
+    while IFS=$'\t' read -r dep_name dep_source; do
       [ -n "${dep_name}" ] || continue
-      identity_rows+="${dep_name}"$'\t'"${dep_source}"$'\t'"${dep_revision}"$'\t'"${dep_subpath}"$'\n'
-    done < <(jq -r '.skills[] | [.name, .source, .revision, (.subpath // "")] | @tsv' "${deps_file}")
+      identity_rows+="${dep_name}"$'\t'"${dep_source}"$'\n'
+    done < <(jq -r '.skills[] | [.name, .source] | @tsv' "${deps_file}")
 
     printf '%s: %s skill-dep(s)\n' "${name}" "${count}"
     jq -r '.skills[] | "  - \(.name) <= \(.source)"' "${deps_file}"
@@ -383,8 +368,8 @@ check_skill_deps() {
   local conflicts
   conflicts="$(
     printf '%s' "${identity_rows}" | sort -u | awk -F '\t' '
-      NF >= 3 {
-        identity = $2 FS $3 FS $4
+      NF >= 2 {
+        identity = $2
         if (($1 in seen) && seen[$1] != identity) conflict[$1] = 1
         else seen[$1] = identity
       }

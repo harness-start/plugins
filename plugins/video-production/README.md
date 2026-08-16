@@ -9,7 +9,7 @@
 - `$video-project-authoring`：手动触发，或由 motion explainer、产品宣传、短视频、口播、参考视频复刻、微短剧等创作请求自动触发。主 agent 始终拥有项目文件和交付判断。
 - `$video-project-review`：只在独立宿主会话中触发；只读检查最终媒体和证据，不修改项目源文件。
 
-authoring Skill 会根据 `motion-explainer`、`product-promo`、`short-form`、`talking-head`、`reference-led` 或 `micro-drama` profile 选择顾问组合。外部 Skill 默认只提供建议；需要调用外部模型的 worker 必须在 artifact 外运行，再通过准入 writer 导入。所有 worker 均固定到 `skill-deps.json` 中的精确 revision，并在 `plan.skill-composition.json` 如实记录 `used`、`skipped` 或 `unavailable`。
+authoring Skill 会根据 `motion-explainer`、`product-promo`、`short-form`、`talking-head`、`reference-led` 或 `micro-drama` profile 选择顾问组合。外部 Skill 默认只提供建议；需要调用外部模型的 worker 必须在 artifact 外运行，再通过准入 writer 导入。所有 worker 均跟随 `skill-deps.json` 声明来源的当前版本，并在 `plan.skill-composition.json` 如实记录 `used`、`skipped` 或 `unavailable`。
 
 ## 最小流程
 
@@ -30,7 +30,7 @@ guided 模式要求 direction、storyboard、assets 三道当前摘要绑定的 
 
 ## 外部媒体准入
 
-外部生成器、剪辑器、TTS 或字幕工具只能写 artifact 根目录之外。其 manifest 必须声明精确 Skill revision、provider/model、成本、run id、输出绝对路径与可选 SHA-256；对应 asset 需事先在 `plan.assets.json` 中声明为 `external-run`。随后执行：
+外部生成器、剪辑器、TTS 或字幕工具只能写 artifact 根目录之外。其 manifest 必须声明 Skill 名称与模式、provider/model、成本、run id、输出绝对路径与可选 SHA-256；对应 asset 需事先在 `plan.assets.json` 中声明为 `external-run`。随后执行：
 
 ```bash
 node plugins/video-production/dist/cli/project-admit.mjs artifacts/video/demo /tmp/external-run.json

@@ -23,7 +23,7 @@ async function main() {
   try { payload = record(JSON.parse(bytes.toString("utf8"))); } catch { throw new Error("ADVICE_INPUT_JSON_INVALID"); }
   const model = await collectMusicModel(root);
   const subjectDigest = computeMusicSubjectDigest(model);
-  if (grant.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== subjectDigest) throw new Error("ADVICE_INPUT_INVALID");
+  if (grant.subjectDigest !== subjectDigest || payload.schema !== SKILL_ADVICE_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== subjectDigest || Object.hasOwn(payload, "revision")) throw new Error("ADVICE_INPUT_INVALID");
   const expected = EXTERNAL_SKILLS.find((entry) => entry.name === payload.skillName);
   const composition = record(JSON.parse(model.files?.["plan.skill-composition.json"] ?? "null"));
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
@@ -31,14 +31,14 @@ async function main() {
   const supportedComposition = composition.schema === SKILL_COMPOSITION_SCHEMA || composition.schema === LEGACY_SKILL_COMPOSITION_SCHEMA;
   const expectedEvidencePath = `evidence/skills/${expected?.name ?? ""}.json`;
   const declaredEvidencePath = composition.schema === SKILL_COMPOSITION_SCHEMA ? worker?.evidencePath : worker?.advicePath;
-  if (!supportedComposition || !expected || expected.artifactKind !== "advice" || !worker || worker.status !== "used" || worker.revision !== expected.revision
+  if (!supportedComposition || !expected || expected.artifactKind !== "advice" || !worker || worker.status !== "used"
     || (composition.schema === SKILL_COMPOSITION_SCHEMA && worker.artifactKind !== "advice")
     || declaredEvidencePath !== expectedEvidencePath
-    || payload.revision !== expected.revision || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode
+    || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode
     || !expected.phases.includes(payload.phase as never)) throw new Error("ADVICE_WORKER_NOT_SELECTED");
   if (!Array.isArray(payload.recommendations) || !Array.isArray(payload.adopted) || !Array.isArray(payload.rejected) || typeof payload.summary !== "string" || !payload.summary.trim()) throw new Error("ADVICE_RESULT_INCOMPLETE");
   const output = { schema: SKILL_ADVICE_SCHEMA, plugin: "music-production", artifactId: model.artifactId, subjectDigest,
-    skillName: expected.name, revision: expected.revision, ecosystem: expected.ecosystem, mode: expected.mode, phase: payload.phase,
+    skillName: expected.name, ecosystem: expected.ecosystem, mode: expected.mode, phase: payload.phase,
     summary: payload.summary, recommendations: payload.recommendations, adopted: payload.adopted, rejected: payload.rejected,
     inputSha256: createHash("sha256").update(bytes).digest("hex"), ...musicSessionMetadata("music-advice", grant) };
   await mkdir(resolve(root, "evidence", "skills"), { recursive: true });

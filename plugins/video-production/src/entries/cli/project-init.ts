@@ -23,7 +23,7 @@ const PROFILE_DEFAULTS: Record<VideoProfile, { width: number; height: number; fp
 };
 
 const WORKERS = [
-  ["motion-art-direction", "3c129f769d90a1328c209c386492333c9ac62312", "advisor"], ["animation-principles", "3c129f769d90a1328c209c386492333c9ac62312", "advisor"], ["beat-sync-editing", "3c129f769d90a1328c209c386492333c9ac62312", "advisor"], ["color-motion", "3c129f769d90a1328c209c386492333c9ac62312", "advisor"], ["shot-composition", "3c129f769d90a1328c209c386492333c9ac62312", "advisor"], ["explainer-video", "3e2d411b725d9a72939cf8e5eb81579e751373e7", "advisor"], ["short-form-video", "2a775336b5a638cbf8a61dbd785f9a1b649be016", "advisor"], ["caption-animation", "2a775336b5a638cbf8a61dbd785f9a1b649be016", "advisor"], ["product-launch-video", "9de027d1947ce8f8b60ccf70aa89e482bf80ecea", "advisor"], ["gemini-tts", "9de027d1947ce8f8b60ccf70aa89e482bf80ecea", "external-runner"], ["chengfeng-cut", "2e51611965af6e6b8baea3bfc82995b5c9e8f5ef", "external-runner"], ["chengfeng-subtitle", "2e51611965af6e6b8baea3bfc82995b5c9e8f5ef", "external-runner"], ["model-selector", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d", "advisor"], ["prompt-translator", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d", "advisor"], ["seedance-storyboard", "b4ceecc4ca27ded6b6f542b04ac756bf5bd7816d", "advisor"], ["impeccable", "5a149f3fdb1b5793f10567233b1dcab98fc305fd", "advisor"],
+  ["motion-art-direction", "advisor"], ["animation-principles", "advisor"], ["beat-sync-editing", "advisor"], ["color-motion", "advisor"], ["shot-composition", "advisor"], ["explainer-video", "advisor"], ["short-form-video", "advisor"], ["caption-animation", "advisor"], ["product-launch-video", "advisor"], ["gemini-tts", "external-runner"], ["chengfeng-cut", "external-runner"], ["chengfeng-subtitle", "external-runner"], ["model-selector", "advisor"], ["prompt-translator", "advisor"], ["seedance-storyboard", "advisor"], ["impeccable", "advisor"],
 ] as const;
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -68,7 +68,7 @@ async function main() {
     "plan.direction.json": direction,
     "plan.script.json": script,
     "plan.storyboard.json": storyboard,
-    "plan.skill-composition.json": json({ schema: SKILL_COMPOSITION_SCHEMA, workers: WORKERS.map(([name, revision, workerMode]) => ({ name, revision, mode: workerMode, status: "skipped" })) }),
+    "plan.skill-composition.json": json({ schema: SKILL_COMPOSITION_SCHEMA, workers: WORKERS.map(([name, workerMode]) => ({ name, mode: workerMode, status: "skipped" })) }),
     "plan.assets.json": assets,
     "plan.approvals.json": json({ schema: APPROVALS_SCHEMA, mode, gates: [{ stage: "direction", status: "pending", subjectSha256: sha256(direction), actor: "", reason: "" }, { stage: "storyboard", status: "pending", subjectSha256: storyboardDigest, actor: "", reason: "" }, { stage: "assets", status: "pending", subjectSha256: sha256(assets), actor: "", reason: "" }] }),
     "plan.references.json": json({ schema: REFERENCES_SCHEMA, references: [] }),

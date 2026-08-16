@@ -1,10 +1,10 @@
-// harness-source-hash: sha256:db08f2a5683ef6c09648006a46a62d4b628c169ab8dec4f7dae5898f03a24b9b
+// harness-source-hash: sha256:2887b4e29130b2775641e5a04c281a6c97ab17c4bef500df91650bef4d71f6f9
 import {
   buildReportWindow,
   collectTranscriptActivity,
   isRecord,
   scanTranscripts
-} from "./chunk-A55E4EAH.mjs";
+} from "./chunk-Y2BCQ4MJ.mjs";
 
 // plugins/work-reporting/src/lib/report-integrity.ts
 import { createHash } from "node:crypto";
@@ -327,7 +327,7 @@ function validateWorkReportContract(contract, evidence) {
     }
   }
   for (const advisor of contract.advisorRuns) {
-    if (!/^[a-f0-9]{40}$/u.test(advisor.revision) || !/^[a-f0-9]{64}$/u.test(advisor.inputDigest) || !/^[a-f0-9]{64}$/u.test(advisor.outputDigest)) {
+    if (Object.hasOwn(advisor, "revision") || !/^[a-f0-9]{64}$/u.test(advisor.inputDigest) || !/^[a-f0-9]{64}$/u.test(advisor.outputDigest)) {
       errors.push(`advisor ${advisor.skill} provenance is malformed`);
     }
   }
@@ -397,7 +397,7 @@ function renderWorkReport(contract, evidence) {
     "",
     "## Advisor provenance",
     "",
-    ...contract.advisorRuns.length > 0 ? contract.advisorRuns.map((run) => `- ${cell(run.skill)}@${run.revision} \xB7 ${cell(run.stage)} \xB7 ${run.decision} \xB7 input:${run.inputDigest} \xB7 output:${run.outputDigest}`) : ["- No external advisor was used; the plugin-internal workflow was applied."],
+    ...contract.advisorRuns.length > 0 ? contract.advisorRuns.map((run) => `- ${cell(run.skill)} \xB7 ${cell(run.stage)} \xB7 ${run.decision} \xB7 input:${run.inputDigest} \xB7 output:${run.outputDigest}`) : ["- No external advisor was used; the plugin-internal workflow was applied."],
     ""
   ];
   return lines.join("\n");
