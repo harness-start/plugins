@@ -21,7 +21,7 @@ Read all of these before authoring:
 ## Workflow
 
 1. Select exactly one profile and a lowercase kebab-case artifact id. Run registered `project-init.mjs <root> --profile <profile>`.
-2. Replace the scaffold brief with the user-approved audience, objective, language, assumptions, and terminal `targetStage` (normally `release`) in `plan.contract.json`; freeze the matching direction in `plan.art-direction.json`. Record every advisor as `used`, `skipped`, or `unavailable` at its exact revision.
+2. Replace the scaffold brief with the user-approved audience, objective, language, assumptions, and terminal `targetStage` (normally `release`) in `plan.contract.json`; freeze the matching direction in `plan.art-direction.json`. Record every current-source advisor as `used`, `skipped`, or `unavailable`.
 3. Treat advisors as read-only. Integrate their useful advice into project-owned JSON or TSX; never run their scripts or accept their outputs as evidence, review, or release authority.
 4. Register all user, generated, licensed, and public-domain assets in `plan.assets.json` before use. AI imagery is an input asset, never the complete deliverable.
 5. Freeze `design.system.json`, exact copy in `data/<variant>.json`, variant order, dimensions, safe area, typography roles, color roles, and contrast pairs.
