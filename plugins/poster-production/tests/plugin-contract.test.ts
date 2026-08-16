@@ -19,7 +19,7 @@ test("plugin publishes authoring and independent review skills on both hosts", (
   assert.equal(dirname(root).endsWith("plugins"), true);
 });
 
-test("poster skill dependencies are exact read-only advisors", () => {
+test("poster skill dependencies follow current sources and are read-only advisors", () => {
   const deps = readJson("../skill-deps.json");
   assert.deepEqual(deps.skills.map(({ name }: { name: string }) => name), [
     "regional-culture-poster",
@@ -28,7 +28,7 @@ test("poster skill dependencies are exact read-only advisors", () => {
     "impeccable",
   ]);
   for (const dependency of deps.skills) {
-    assert.match(dependency.revision, /^[a-f0-9]{40}$/u);
+    assert.equal(Object.hasOwn(dependency, "revision"), false);
     assert.match(dependency.description, /read-only|只读/iu);
   }
 });
