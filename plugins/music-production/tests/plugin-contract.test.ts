@@ -29,7 +29,7 @@ test("publishes the renamed music guard with separate authoring and review skill
   assert.doesNotMatch(review, /node .*project-release\.mjs/iu);
 });
 
-test("pins a bilingual external adviser pool and exposes controlled seams", async () => {
+test("uses a current-source bilingual external adviser pool and exposes controlled seams", async () => {
   const dependencies = await json(join(pluginRoot, "skill-deps.json"));
   const skills = dependencies.skills as Array<Record<string, unknown>>;
   assert.deepEqual(skills.map(({ name }) => name), [
@@ -43,14 +43,14 @@ test("pins a bilingual external adviser pool and exposes controlled seams", asyn
   assert.ok(skills.some(({ ecosystem }) => ecosystem === "en"));
   const musicalDna = skills.find(({ name }) => name === "musical-dna");
   assert.deepEqual(musicalDna?.allowFiles, ["SKILL.md"]);
-  assert.equal(musicalDna?.revision, "e02ec7e226a6e4f8419fd3b88a1d8e472d421b32");
-  assert.equal(musicalDna?.subpath, "skills/creative/music/musical-dna");
+  assert.equal(Object.hasOwn(musicalDna ?? {}, "revision"), false);
+  assert.equal(Object.hasOwn(musicalDna ?? {}, "subpath"), false);
   assert.match(String(musicalDna?.license), /declared in SKILL\.md/u);
   for (const skill of skills) {
-    assert.match(String(skill.revision), /^[a-f0-9]{40}$/u);
+    assert.equal(Object.hasOwn(skill, "revision"), false);
     assert.ok(["adviser", "reference-only"].includes(String(skill.mode)));
   }
-  assert.deepEqual(skills.map(({ name, revision, ecosystem, mode }) => ({ name, revision, ecosystem, mode })), EXTERNAL_SKILLS.map(({ name, revision, ecosystem, mode }) => ({ name, revision, ecosystem, mode })));
+  assert.deepEqual(skills.map(({ name, ecosystem, mode }) => ({ name, ecosystem, mode })), EXTERNAL_SKILLS.map(({ name, ecosystem, mode }) => ({ name, ecosystem, mode })));
 
   for (const entry of ["project-advice", "project-reference", "project-review", "project-stage"]) {
     await readFile(join(pluginRoot, "src", "entries", "cli", `${entry}.ts`), "utf8");
