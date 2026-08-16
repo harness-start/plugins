@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:0822b65d7c8a5428e21a97cb54a4f33d89a4ec4425f615416ce36f6965494b64
+// harness-source-hash: sha256:753b388e72bbc78e2b0c64acd2d108bcea05e837d5c22592c328117bfcd8835c
 
 // plugins/brand-logo-production/src/lib/contract.ts
 import { createHash } from "node:crypto";
@@ -37,10 +37,10 @@ var FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 var PHI = 1.618033988749895;
 var AESTHETIC_CRITERIA = ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"];
 var EXTERNAL_SKILLS = [
-  { name: "brand-identity", revision: "4a0a8b5b7a0f64bf0fc551978a18a591670a5223", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
-  { name: "logo-design", revision: "75865a5d037a4cdaa7f409a4ec14ab9b0292920b", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
-  { name: "color-expert", revision: "6aa1d1315dddd93be74a9481d62712291059253e", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
-  { name: "logo-generator", revision: "bf4e9ac4d4428bda261afcfe981871ceb92d94e6", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] }
+  { name: "brand-identity", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
+  { name: "logo-design", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
+  { name: "color-expert", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
+  { name: "logo-generator", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] }
 ];
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
@@ -262,7 +262,7 @@ function validateBriefAndSkillComposition(model, findings) {
   for (const expected of EXTERNAL_SKILLS) {
     const worker = byName.get(expected.name);
     const status = String(worker?.status ?? "");
-    if (!worker || worker.revision !== expected.revision || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode || !["used", "skipped", "unavailable"].includes(status) || typeof worker.reason !== "string" || !worker.reason.trim() || worker.advicePath !== `evidence/skills/${expected.name}.json`) valid = false;
+    if (!worker || Object.hasOwn(worker, "revision") || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode || !["used", "skipped", "unavailable"].includes(status) || typeof worker.reason !== "string" || !worker.reason.trim() || worker.advicePath !== `evidence/skills/${expected.name}.json`) valid = false;
     if (status === "used" && worker) {
       const advicePath = String(worker.advicePath);
       let advice;
@@ -271,12 +271,12 @@ function validateBriefAndSkillComposition(model, findings) {
       } catch {
         advice = void 0;
       }
-      if (!advice || advice.schema !== SKILL_ADVICE_SCHEMA || advice.plugin !== PLUGIN || advice.artifactId !== model.artifactId || advice.skillName !== expected.name || advice.revision !== expected.revision || advice.ecosystem !== expected.ecosystem || advice.mode !== expected.mode || !expected.phases.includes(advice.phase) || advice.subjectDigest !== computeLogoSubjectDigest(model) || !Array.isArray(advice.recommendations) || !Array.isArray(advice.adopted) || !Array.isArray(advice.rejected)) {
+      if (!advice || Object.hasOwn(advice, "revision") || advice.schema !== SKILL_ADVICE_SCHEMA || advice.plugin !== PLUGIN || advice.artifactId !== model.artifactId || advice.skillName !== expected.name || advice.ecosystem !== expected.ecosystem || advice.mode !== expected.mode || !expected.phases.includes(advice.phase) || advice.subjectDigest !== computeLogoSubjectDigest(model) || !Array.isArray(advice.recommendations) || !Array.isArray(advice.adopted) || !Array.isArray(advice.rejected)) {
         findings.push(finding("SKILL_ADVICE_INVALID", advicePath, `used worker ${expected.name} requires current admitted advice evidence`));
       }
     }
   }
-  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the exact pinned bilingual pool with truthful statuses, reasons, modes, and advice paths"));
+  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the current bilingual pool with truthful statuses, reasons, modes, and advice paths"));
   const used = workers.filter((worker) => worker.status === "used");
   if (used.length > 3) findings.push(finding("SKILL_COMPOSITION_ACTIVE_LIMIT", "plan.skill-composition.json", "at most three external workers may be used"));
   if (new Set(used.map((worker) => worker.advicePath)).size !== used.length) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "used workers require distinct advice artifacts"));

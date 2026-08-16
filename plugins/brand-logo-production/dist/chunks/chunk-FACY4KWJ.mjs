@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:0822b65d7c8a5428e21a97cb54a4f33d89a4ec4425f615416ce36f6965494b64
+// harness-source-hash: sha256:753b388e72bbc78e2b0c64acd2d108bcea05e837d5c22592c328117bfcd8835c
 
 // plugins/brand-logo-production/src/lib/project.ts
 import { createHash } from "node:crypto";
