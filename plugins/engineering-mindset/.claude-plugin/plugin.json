@@ -1,10 +1,11 @@
 {
   "name": "engineering-mindset",
-  "version": "1.0.0",
-  "description": "Injects selective engineering Skill routing at SessionStart without blocking ordinary work.",
+  "version": "1.1.0",
+  "description": "Injects selective engineering and natural-writing Skill routing at SessionStart without blocking ordinary work.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
-  "hooks": "./hooks/claude.json"
+  "hooks": "./hooks/claude.json",
+  "skills": "./skills/"
 }

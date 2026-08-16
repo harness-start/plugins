@@ -30,6 +30,11 @@ test("SessionStart publishes a bounded, selective skill routing contract", () =>
   assert.match(context, /bug.*systematic-debugging/isu);
   assert.match(context, /completion.*verification-before-completion/isu);
   assert.match(context, /explicitly asks.*caveman/isu);
+  assert.match(context, /English prose.*humanizer.*stop-slop/isu);
+  assert.match(context, /Chinese prose.*humanizer-zh.*shuorenhua.*ai-flavor-remover/isu);
+  assert.match(context, /Markdown.*remove-ai-style.*analyzer/isu);
+  assert.match(context, /mixed-language.*both language stacks/isu);
+  assert.match(context, /code.*commands.*machine-readable/isu);
   assert.match(context, /smallest relevant set/iu);
   assert.match(context, /never claim.*missing/isu);
   assert.doesNotMatch(context, /\btriage\b/iu);
@@ -49,6 +54,7 @@ test("Codex receives an explicit installed Skill file loading contract", () => {
   );
   assert.equal(result.status, 0, result.stderr);
   const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+  assert.ok(Buffer.byteLength(context, "utf8") <= 2400);
   assert.match(context, /Codex.*\$HOME\/\.agents\/skills\/<name>\/SKILL\.md/isu);
   assert.match(context, /first matching engineering action/iu);
   assert.match(
@@ -63,4 +69,7 @@ test("README states the advisory boundary and dependency installation path", () 
   assert.match(readme, /skill-deps\.json/iu);
   assert.match(readme, /install-all\.sh/iu);
   assert.match(readme, /does not guarantee|不保证/iu);
+  assert.match(readme, /humanizer.*stop-slop/isu);
+  assert.match(readme, /humanizer-zh.*shuorenhua.*ai-flavor-remover/isu);
+  assert.match(readme, /remove-ai-style/iu);
 });

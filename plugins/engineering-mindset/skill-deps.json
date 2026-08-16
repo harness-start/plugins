@@ -23,6 +23,36 @@
       "source": "https://github.com/obra/superpowers",
       "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
       "description": "Fresh command evidence before completion, fixed, passing, commit, or pull-request claims."
+    },
+    {
+      "name": "humanizer",
+      "source": "https://github.com/blader/humanizer",
+      "revision": "523374dee72d67c7b2b5f858ea0094ffda49c3ac",
+      "description": "English final-copy editor with contextual AI-writing pattern detection, voice calibration, and false-positive protection."
+    },
+    {
+      "name": "stop-slop",
+      "source": "https://github.com/hardikpandya/stop-slop",
+      "revision": "8da1f030185bdfe8471220585162991eaeb970e9",
+      "description": "English prose audit for predictable AI phrases, structures, rhythm, and filler."
+    },
+    {
+      "name": "humanizer-zh",
+      "source": "https://github.com/op7418/Humanizer-zh",
+      "revision": "91f3d394db8419c20d67ebe22a96cf8fee0a404b",
+      "description": "Chinese AI-writing pattern audit and rewrite guidance."
+    },
+    {
+      "name": "shuorenhua",
+      "source": "https://github.com/MrGeDiao/shuorenhua",
+      "revision": "a9145e38875f116d65235a728cd0048b7c3d9003",
+      "description": "Scene-aware Chinese editing with protected spans, factual fidelity, and false-positive guards."
+    },
+    {
+      "name": "remove-ai-style",
+      "source": "https://github.com/zc277584121/marketing-skills",
+      "revision": "be7fde2347141faba7453026d002f172bc1804b8",
+      "description": "Bilingual Markdown prose review with a bundled deterministic analyzer and before/after evidence."
     }
   ]
 }

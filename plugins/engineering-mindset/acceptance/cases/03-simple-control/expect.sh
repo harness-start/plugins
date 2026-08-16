@@ -12,8 +12,8 @@ if [ "${ACCEPT_HOST}" = "claude" ]; then
     exit 1
   fi
 else
-  if grep -Eq '/skills/(karpathy-guidelines|caveman|systematic-debugging|verification-before-completion)/SKILL\.md' "${ACCEPT_LOG}"; then
-    echo "expect fail: simple control loaded an engineering Skill" >&2
+  if grep -Eq '/skills/(karpathy-guidelines|caveman|systematic-debugging|verification-before-completion|humanizer|stop-slop|humanizer-zh|shuorenhua|ai-flavor-remover|remove-ai-style)/SKILL\.md' "${ACCEPT_LOG}"; then
+    echo "expect fail: simple control loaded an engineering or writing Skill" >&2
     exit 1
   fi
 fi

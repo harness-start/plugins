@@ -1,22 +1,24 @@
 {
   "name": "engineering-mindset",
-  "version": "1.0.0",
-  "description": "Injects selective engineering Skill routing at SessionStart without blocking ordinary work.",
+  "version": "1.1.0",
+  "description": "Injects selective engineering and natural-writing Skill routing at SessionStart without blocking ordinary work.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "hooks": "./hooks/codex.json",
+  "skills": "./skills/",
   "interface": {
     "displayName": "工程师思维",
-    "shortDescription": "按工程场景加载最小必要 Skill。",
-    "longDescription": "在会话开始时注入轻量路由提示，为非简单代码工作、系统化调试、完成前验证和显式精简表达选择对应 Skill。",
+    "shortDescription": "按工程与写作场景加载必要 Skill。",
+    "longDescription": "在会话开始时注入轻量路由提示，为工程任务、完成前验证、精简表达和中英文去 AI 味写作选择对应 Skill。",
     "developerName": "Harness Start",
     "category": "Productivity",
-    "capabilities": ["hooks"],
+    "capabilities": ["skills", "hooks"],
     "defaultPrompt": [
       "用工程师思维处理这个代码任务。",
-      "先建立可复现证据，再修复这个问题。"
+      "先建立可复现证据，再修复这个问题。",
+      "清理这段中英文内容的 AI 写作痕迹，同时保留事实。"
     ]
   }
 }

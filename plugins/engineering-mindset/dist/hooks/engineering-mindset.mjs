@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:154bfa04d198de2af76554a5ff0f27eb7ea822a0ba5bbfe221f08a07114be9da
+// harness-source-hash: sha256:04c6ee510b41b4118471af41569971ae1cabc60e4496f05be924fd8413c0facc
 
 // plugins/engineering-mindset/src/entries/hooks/engineering-mindset.ts
 import { resolve } from "node:path";
@@ -46,19 +46,22 @@ function warn(message) {
 `);
 }
 function engineeringMindsetContext() {
-  const hostLoadingRule = process.env.HARNESS_HOST === "codex" ? "Codex loading rule: before the first matching engineering action, read `$HOME/.agents/skills/<name>/SKILL.md` for each selected Skill; reading the file is the Skill load on this host. Codex completion gate: after the last change and before the final response, read `$HOME/.agents/skills/verification-before-completion/SKILL.md`, then run fresh verification." : "Claude loading rule: use the native Skill tool for each selected Skill before the first matching engineering action.";
+  const hostLoadingRule = process.env.HARNESS_HOST === "codex" ? "Codex loading rule: before the first matching engineering action, read `$HOME/.agents/skills/<name>/SKILL.md` for community Skills and the discovered plugin path for bundled Skills. Codex completion gate: after the last change and before the final response, read `$HOME/.agents/skills/verification-before-completion/SKILL.md`, then verify." : "Claude loading rule: use the native Skill tool for every selected Skill before the first matching engineering or writing action.";
   return [
     "[Engineering Mindset] Selective Skill routing",
-    "Mandatory pre-action gate: before the first tool call or substantive answer for a matching request, load the named Skill through the host-native Skill invocation or by reading its installed SKILL.md. Do not proceed from memory alone.",
+    "Mandatory pre-action gate: before any matching action or answer, load every Skill in its route via host-native Skill invocation or its resolved SKILL.md; memory is not a load.",
     hostLoadingRule,
-    "Load only the smallest relevant set of installed Skills; do not load every Skill for every request.",
-    "Before non-trivial code implementation, review, or refactoring, load and follow `karpathy-guidelines` to surface assumptions, keep the change surgical, prefer the simplest sufficient design, and define verifiable success criteria.",
-    "For a bug, test or build failure, performance regression, or unexpected technical behavior, load `systematic-debugging` before proposing a fix. Establish evidence and a reproducible signal first; use `karpathy-guidelines` when implementing the confirmed fix.",
-    "Immediately before any completion, fixed, passing, commit, or PR claim, load `verification-before-completion` and support the claim with fresh, directly relevant command output from the current work epoch.",
-    "Load `caveman` only when the user explicitly asks for terse output, fewer tokens, or caveman mode. Do not compress security warnings, irreversible-action confirmations, ambiguous ordered procedures, code, commands, paths, identifiers, numbers, or exact errors.",
-    "For trivial requests, pure prose, or work with no matching engineering condition, load none of these Skills.",
-    "User instructions, project instructions, safety constraints, and platform-specific runtime rules take precedence over this advisory router.",
-    "If a named Skill is missing or cannot be loaded, never claim it was loaded. Report the missing dependency briefly and continue using the applicable project rules and verifiable evidence."
+    "Load only the smallest relevant set; never load unrelated Skills.",
+    "For non-trivial implementation, review, or refactoring, load `karpathy-guidelines`; keep changes surgical and success verifiable.",
+    "For a bug, test/build failure, regression, or unexpected behavior, load `systematic-debugging` before a fix; add `karpathy-guidelines` to implement it.",
+    "Before any completion, fixed, passing, commit, or PR claim, load `verification-before-completion` and run fresh relevant verification.",
+    "Load `caveman` only when the user explicitly asks for terse output, fewer tokens, or caveman mode; preserve safety and exact technical content.",
+    "For an English prose deliverable, load both `humanizer` and `stop-slop`: use stop-slop to find candidates and humanizer to decide contextual edits and false positives.",
+    "For a Chinese prose deliverable, load `humanizer-zh`, `shuorenhua`, and `ai-flavor-remover`; shuorenhua's scene, fidelity, and protected-span rules resolve conflicts.",
+    "For substantial mixed-language prose, load both language stacks; isolated foreign terms follow the main language.",
+    "For human-readable Markdown prose, also load `remove-ai-style` and use its analyzer before/after edits, or after a new first draft and revision. Hits are evidence, not replacements.",
+    "Exclude code, commands, config, machine-readable output, quotations, and exact short replies. Preserve facts, numbers, URLs, identifiers, citations, and Markdown structure.",
+    "User, project, safety, and platform rules take precedence. Never claim a missing Skill, reference, Python 3, or analyzer loaded or ran; report the gap and use available rules."
   ].join("\n");
 }
 async function runSessionStart() {

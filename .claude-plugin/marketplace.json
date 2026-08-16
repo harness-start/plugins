@@ -69,7 +69,7 @@
     {
       "name": "engineering-mindset",
       "source": "./plugins/engineering-mindset",
-      "description": "Injects selective engineering Skill routing at SessionStart without blocking ordinary work."
+      "description": "Injects selective engineering and natural-writing Skill routing at SessionStart without blocking ordinary work."
     },
     {
       "name": "reasoning-discipline",
