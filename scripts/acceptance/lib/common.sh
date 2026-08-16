@@ -306,6 +306,25 @@ skill_deps_agents_for_host() {
   esac
 }
 
+skill_dep_file_for_host() {
+  local home_dir="$1"
+  local name="$2"
+  local host="${3:-both}"
+  case "${host}" in
+    claude) printf '%s/.claude/skills/%s/SKILL.md\n' "${home_dir}" "${name}" ;;
+    codex|both|"") printf '%s/.agents/skills/%s/SKILL.md\n' "${home_dir}" "${name}" ;;
+    *) printf '%s/.agents/skills/%s/SKILL.md\n' "${home_dir}" "${name}" ;;
+  esac
+}
+
+skill_deps_cache_scope() {
+  case "${1:-both}" in
+    claude) printf '%s\n' "claude" ;;
+    codex) printf '%s\n' "codex" ;;
+    *) printf '%s\n' "both" ;;
+  esac
+}
+
 # Install one community skill into the current HOME (global user scope for that HOME).
 install_skill_into_home() {
   local name="$1"
@@ -358,9 +377,11 @@ install_skill_into_home() {
   fi
   [ -z "${checkout_root}" ] || rm -rf "${checkout_root}"
 
-  if [ ! -f "${HOME}/.agents/skills/${name}/SKILL.md" ]; then
+  local installed_file
+  installed_file="$(skill_dep_file_for_host "${HOME}" "${name}" "${host}")"
+  if [ ! -f "${installed_file}" ]; then
     printf 'skill-deps: install reported success but SKILL.md missing for %s under %s\n' \
-      "${name}" "${HOME}/.agents/skills/${name}" >&2
+      "${name}" "${installed_file}" >&2
     return 1
   fi
   return 0
@@ -434,7 +455,7 @@ ensure_plugin_skill_deps_cache() {
   local plugin_dir="$1"
   local cache_root="$2"
   local host="${3:-both}"
-  local plugin_name deps_file fp cache_home stamp ready name line
+  local plugin_name deps_file fp cache_home cache_scope stamp ready name line
   local -a deps=()
 
   plugin_name="$(basename "${plugin_dir}")"
@@ -458,7 +479,8 @@ ensure_plugin_skill_deps_cache() {
   # Empty skills[] is valid; still create a stamp so we do not re-parse forever.
   fp="$(skill_deps_fingerprint "${deps_file}")"
   mkdir -p "${cache_root}"
-  cache_home="$(cd "${cache_root}" && pwd)/${plugin_name}"
+  cache_scope="$(skill_deps_cache_scope "${host}")"
+  cache_home="$(cd "${cache_root}" && pwd)/${plugin_name}-${cache_scope}"
   stamp="${cache_home}/.skill-deps-fingerprint"
 
   ready=1
@@ -468,7 +490,7 @@ ensure_plugin_skill_deps_cache() {
   if [ "${ready}" -eq 1 ] && [ "${#deps[@]}" -gt 0 ]; then
     for line in "${deps[@]}"; do
       name="${line%%$'\t'*}"
-      if [ ! -f "${cache_home}/.agents/skills/${name}/SKILL.md" ]; then
+      if [ ! -f "$(skill_dep_file_for_host "${cache_home}" "${name}" "${host}")" ]; then
         ready=0
         break
       fi
@@ -578,9 +600,11 @@ install_plugin_skill_deps() {
   for line in "${deps[@]}"; do
     [ -n "${line}" ] || continue
     name="${line%%$'\t'*}"
-    if [ ! -f "${dest_home}/.agents/skills/${name}/SKILL.md" ]; then
+    local installed_file
+    installed_file="$(skill_dep_file_for_host "${dest_home}" "${name}" "${host}")"
+    if [ ! -f "${installed_file}" ]; then
       printf 'skill-deps: after seed, missing %s in %s\n' \
-        "${name}" "${dest_home}/.agents/skills/${name}" >&2
+        "${name}" "${installed_file}" >&2
       return 1
     fi
   done

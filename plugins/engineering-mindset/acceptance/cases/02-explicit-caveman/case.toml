@@ -1,0 +1,4 @@
+id = "02-explicit-caveman"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["session-start", "skill-routing", "caveman", "opt-in"]

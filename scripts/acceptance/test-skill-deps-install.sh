@@ -119,6 +119,19 @@ assert_ok "seed copies claude skill link" test -e "${dest_home}/.claude/skills/d
 assert_ok "install no-op without skill-deps.json" \
   install_plugin_skill_deps "${plugin_none}" "${dest_home}" "${tmp}/cache" "claude"
 
+# Host-scoped caches must not let a Codex-only .agents tree satisfy a later
+# Claude case, or vice versa.
+plugin_empty="${tmp}/plugin-empty"
+mkdir -p "${plugin_empty}"
+printf '{"skills":[]}\n' >"${plugin_empty}/skill-deps.json"
+claude_cache="$(ensure_plugin_skill_deps_cache "${plugin_empty}" "${tmp}/cache-scoped" "claude")"
+codex_cache="$(ensure_plugin_skill_deps_cache "${plugin_empty}" "${tmp}/cache-scoped" "codex")"
+if [ "${claude_cache}" != "${codex_cache}" ]; then
+  pass "skill-deps cache is host scoped"
+else
+  fail "skill-deps cache aliases Claude and Codex: ${claude_cache}"
+fi
+
 assert_ok "container run-case keeps skill cache under writable output" \
   grep -Fq 'SKILL_DEPS_CACHE="${ACCEPT_SKILL_DEPS_CACHE:-${OUT_DIR}/skill-deps-cache}"' \
   "${REPO_ROOT}/scripts/acceptance/lib/run-case.sh"

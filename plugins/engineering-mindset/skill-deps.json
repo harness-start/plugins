@@ -1,0 +1,28 @@
+{
+  "skills": [
+    {
+      "name": "karpathy-guidelines",
+      "source": "https://github.com/szkocot/andrej-karpathy-skills",
+      "revision": "64723a49ea6117894304eb491f0d32a60570bf45",
+      "description": "General non-trivial coding, review, and refactoring discipline: explicit assumptions, simplicity, surgical changes, and verifiable goals."
+    },
+    {
+      "name": "caveman",
+      "source": "https://github.com/JuliusBrussee/caveman",
+      "revision": "fcf7663366c217dc8f334a11028de52ed950ceab",
+      "description": "Opt-in terse communication mode for explicit token-efficiency requests; never a default engineering-quality gate."
+    },
+    {
+      "name": "systematic-debugging",
+      "source": "https://github.com/obra/superpowers",
+      "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+      "description": "Evidence-first diagnosis for bugs, failures, performance regressions, and unexpected behavior before fixes are proposed."
+    },
+    {
+      "name": "verification-before-completion",
+      "source": "https://github.com/obra/superpowers",
+      "revision": "b36e0829c6d0140e93cfef2ca599b1b07d4a7797",
+      "description": "Fresh command evidence before completion, fixed, passing, commit, or pull-request claims."
+    }
+  ]
+}

@@ -67,6 +67,11 @@
       "description": "Front-loads first-turn repository context and bounded adversarial review, then continues without an interview gate."
     },
     {
+      "name": "engineering-mindset",
+      "source": "./plugins/engineering-mindset",
+      "description": "Injects selective engineering Skill routing at SessionStart without blocking ordinary work."
+    },
+    {
       "name": "reasoning-discipline",
       "source": "./plugins/reasoning-discipline",
       "description": "Provides adaptive first-principles and verification-oriented reasoning methods without a file-backed workflow."

@@ -1,0 +1,4 @@
+id = "01-debug-and-verify"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["session-start", "skill-routing", "debugging", "verification", "outcome"]

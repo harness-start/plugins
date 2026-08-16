@@ -1,0 +1,1 @@
+The test suite is failing because a request equal to the remaining capacity should be allowed. Diagnose the failure before fixing it, keep the change minimal, run the directly relevant tests, and do not create new files. Do not name or request a Skill yourself; follow any applicable session guidance. Finish with one short factual status line.

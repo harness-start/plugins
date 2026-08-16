@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-mindset:session-start\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/engineering-mindset.mjs\"",
+            "statusMessage": "Loading selective engineering Skill routes",
+            "timeout": 10000,
+            "additionalContextLimit": 2400
+          }
+        ]
+      }
+    ]
+  }
+}

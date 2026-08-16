@@ -1,0 +1,22 @@
+{
+  "name": "engineering-mindset",
+  "version": "1.0.0",
+  "description": "Injects selective engineering Skill routing at SessionStart without blocking ordinary work.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "工程师思维",
+    "shortDescription": "按工程场景加载最小必要 Skill。",
+    "longDescription": "在会话开始时注入轻量路由提示，为非简单代码工作、系统化调试、完成前验证和显式精简表达选择对应 Skill。",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": ["hooks"],
+    "defaultPrompt": [
+      "用工程师思维处理这个代码任务。",
+      "先建立可复现证据，再修复这个问题。"
+    ]
+  }
+}
