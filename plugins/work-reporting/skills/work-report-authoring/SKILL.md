@@ -14,7 +14,7 @@ description: 员工要生成日报、周报、阶段总结、工作复盘或改�
 3. **归纳**：把工作整理为 action → result → impact → evidenceIds。可选调用 `$brag-sheet`；不得接受无证据产出。
 4. **改进**：只写可观察行为和影响，使用 root cause → transferable pattern → signal → next action。可选调用 `$growth-log`。禁止人格判断、自动绩效分或由活动量推断绩效。
 5. **补缺**：可选调用 `$grilling`，一次一问，daily 最多 3 问，weekly/summary 最多 5 问。员工回答标成 `employee-attested`，不能伪装成工具事实。
-6. **合同**：形成 `WorkReportContractV2`，包含 workItems、improvementFindings、priorCommitments、commitments、employeeDispositions、tlVerification、advisorRuns 和 dataGaps。advisor run 记录 skill/revision/stage、输入输出 digest、accepted/rejected；不保存 advisor 原始输入。
+6. **合同**：形成 `WorkReportContractV2`，包含 workItems、improvementFindings、priorCommitments、commitments、employeeDispositions、tlVerification、advisorRuns 和 dataGaps。advisor run 记录 skill/stage、输入输出 digest、accepted/rejected；不保存 advisor 原始输入。
 7. **渲染与准备**：确定性渲染单一 Markdown，顺序固定为工作明细、成果与影响、阻碍与决策、改进观察、上期承诺复核、新承诺、员工确认、TL 验证矩阵、证据索引/数据缺口/advisor provenance。运行 prepare；任何合同或证据变化都必须重新 prepare。
 8. **确认**：要求员工严格回复 `# work-report-ack <token> | G1=accepted | G2=disputed:<reason> | commit=A1`。状态只能 `prepared → acknowledged → saved`。accepted finding 必须关联 commitment；全部 disputed/needs-context 时必须留下 TL follow-up。weekly/summary 必须有 1–3 个承诺；daily 仅在存在实质缺口或学习时要求承诺。
 9. **保存**：确认 token 与合同/证据 digest 一致后才运行 save。保存同源 machine ledger，绑定 Markdown digest，供下一周期 carry-over。不得自动发送、上传或触发登录。
