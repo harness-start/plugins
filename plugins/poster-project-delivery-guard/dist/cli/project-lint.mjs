@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:21339e5aa2f538881d437fbd29dbff83b962e871c2e0409ac2452689fb50a359
-
-// plugins/poster-project-delivery-guard/src/entries/cli/project-lint.ts
-import { resolve as resolve2 } from "node:path";
+// harness-source-hash: sha256:ecf8f3e613c1d2b5cab95aace981dfcbbd4ef468b665b365b3ef2bc77a5bb914
+import {
+  assertPosterProjectRoot,
+  loadPosterProject,
+  validatePosterModel
+} from "../chunks/chunk-VPQQEAD3.mjs";
 
 // core/src/eslint-local-runner.ts
 import { createRequire } from "node:module";
@@ -73,12 +75,16 @@ function createPreset({ parser }) {
 
 // plugins/poster-project-delivery-guard/src/entries/cli/project-lint.ts
 async function main() {
-  const { output, failed } = await runLocalEslint({
-    root: resolve2(process.argv[2] ?? ""),
-    preset: createPreset,
-    defaultFiles: ["src/variants/*/layers/*.tsx"],
-    extraFiles: process.argv.slice(3)
-  });
+  const root = assertPosterProjectRoot(process.argv[2]);
+  const model = await loadPosterProject(root);
+  const findings = validatePosterModel(model, { stage: "source" });
+  if (findings.length) {
+    process.stderr.write(`${findings.map(({ code, path, message }) => `${path} [${code}] ${message}`).join("\n")}
+`);
+    process.exitCode = 2;
+    return;
+  }
+  const { output, failed } = await runLocalEslint({ root, preset: createPreset, defaultFiles: ["src/variants/*/layers/*.tsx"], extraFiles: [] });
   if (output) process.stdout.write(output);
   if (failed) process.exitCode = 2;
 }

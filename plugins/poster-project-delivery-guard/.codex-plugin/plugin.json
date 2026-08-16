@@ -1,18 +1,20 @@
 {
   "name": "poster-project-delivery-guard",
-  "version": "0.2.0",
-  "description": "Enforces ordered Satori layer projects, paired proofs, and fresh poster delivery evidence.",
+  "version": "0.3.0",
+  "description": "Orchestrates and enforces deterministic digital poster source, rendering, probes, independent review, and release evidence.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Poster Project Delivery Guard",
-    "shortDescription": "Guard Satori layers, proofs, and release evidence.",
-    "longDescription": "Enforces poster variant and layer manifests, pure Satori TSX boundaries, paired source-hash SVG/PNG proofs, protected writers, and required release outputs.",
+    "shortDescription": "Orchestrate and guard deterministic poster delivery.",
+    "longDescription": "Provides bundled authoring and independent-review Skills plus protected init, lint, render, probe, review, and release writers for evidence-bound SVG and PNG poster delivery.",
     "developerName": "Harness Start",
     "category": "Productivity",
-    "defaultPrompt": "Validate the active poster artifact project and explain the recovery path for every finding.",
-    "capabilities": ["hooks"]
+    "defaultPrompt": "Use $poster-project-authoring to create a deterministic digital poster project and carry it through independent review and release.",
+    "capabilities": ["skills", "hooks"]
   }
 }

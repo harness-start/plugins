@@ -1,133 +1,85 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
-import { additionalContext, preToolDeny, stopBlock, writeJson, type HookEventName } from "@harness/core/hook-output";
+import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { evaluatePosterWrite, validatePosterModel, type BytesMap, type ContractFinding, type DigestMap, type FileMap } from "../../lib/contract.js";
+
+import { computePosterSubjectDigest, evaluatePosterWrite, findPosterProjects, loadPosterProject, resolveWorkspaceRoot, validatePosterModel, type ContractFinding } from "../../lib/contract.js";
+import { issueWriterCapability } from "../../lib/capability.js";
 import { evaluatePosterShell } from "../../lib/shell-policy.js";
 
-const nameOf = (event: HookEvent) => eventToolName(event);
-const cwdOf = (event: HookEvent) => resolve(eventCwd(event));
+const deny = (reason: string) => preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
+const initDigest = (root: string) => createHash("sha256").update(`poster-init:${resolve(root)}`).digest("hex");
 
-function targetsOf(event: HookEvent): string[] {
-  return extractFileTargets(event, { tools: "any" });
-}
-
-function deny(reason: string) {
-  return preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
-}
-
-function context(eventName: HookEventName, message: string) {
-  return additionalContext(eventName, message);
-}
-
-function resolveWorkspaceRoot(cwd: string): string {
-  let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === "poster" && basename(dirname(dirname(current))) === "artifacts") {
-      return dirname(dirname(dirname(current)));
-    }
-    current = dirname(current);
+async function runPre(event: HookEvent) {
+  const cwd = resolve(eventCwd(event));
+  for (const target of extractFileTargets(event, { tools: "any" })) {
+    const result = evaluatePosterWrite({ relativePath: relative(cwd, resolve(cwd, target)), toolName: eventToolName(event), cwd });
+    if (result.decision === "deny") return deny(`${result.code}: ${result.message}`);
   }
-  return resolve(cwd);
-}
-
-async function discover(cwd: string): Promise<string[]> {
-  const workspaceRoot = resolveWorkspaceRoot(cwd);
-  const root = join(workspaceRoot, "artifacts", "poster");
-  try {
-    return (await readdir(root, { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name))
-      .slice(0, 32)
-      .map((entry) => join(root, entry.name));
-  } catch (error: unknown) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return [];
-    throw error;
+  const command = extractShellCommand(event);
+  if (!command) return undefined;
+  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+  if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
+  if (decision.writer && decision.writer !== "poster-lint" && decision.projectRoot && decision.argv) {
+    try {
+      const subjectDigest = decision.writer === "poster-init" ? initDigest(decision.projectRoot) : computePosterSubjectDigest(await loadPosterProject(decision.projectRoot));
+      await issueWriterCapability({
+        root: decision.projectRoot,
+        capability: decision.writer,
+        argv: decision.argv,
+        subjectDigest,
+        sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown",
+        triggerFrom: `poster-project-delivery-guard:pre:${decision.writer}`,
+      });
+    } catch (error) { return deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`); }
   }
-}
-
-async function collect(root: string, directory: string, files: FileMap, digests: DigestMap, bytesMap: BytesMap): Promise<void> {
-  if (Object.keys(files).length >= 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
-    if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
-    const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collect(root, absolute, files, digests, bytesMap);
-    else if (entry.isFile()) {
-      const filePath = relative(root, absolute).replaceAll("\\", "/");
-      const bytes = await readFile(absolute);
-      files[filePath] = bytes.toString("utf8");
-      bytesMap[filePath] = bytes;
-      digests[filePath] = createHash("sha256").update(bytes).digest("hex");
-    }
-  }
+  return undefined;
 }
 
 type ProjectFinding = ContractFinding & { artifactId: string };
+const targetStage = (plan: unknown): unknown => typeof plan === "object" && plan !== null && !Array.isArray(plan) ? (plan as Record<string, unknown>).targetStage : undefined;
+const reviewRequested = (plan: unknown) => ["review", "release"].includes(String(targetStage(plan)));
 
-function targetStageOf(plan: unknown): unknown {
-  return typeof plan === "object" && plan !== null && !Array.isArray(plan)
-    ? (plan as Record<string, unknown>).targetStage
-    : undefined;
-}
-
-async function findingsFor(cwd: string): Promise<ProjectFinding[]> {
+async function projectFindings(cwd: string, subagent = false): Promise<ProjectFinding[]> {
   const findings: ProjectFinding[] = [];
-  for (const root of await discover(cwd)) {
-    const files: FileMap = {};
-    const digests: DigestMap = {};
-    const bytes: BytesMap = {};
-    await collect(root, root, files, digests, bytes);
-    if (!("plan.contract.json" in files)) continue;
-    let plan: unknown = null;
-    let project: unknown = null;
-    try { plan = JSON.parse(String(files["plan.contract.json"] ?? "")); } catch {}
-    try { project = JSON.parse(String(files["poster.project.json"] ?? "")); } catch {}
-    const model = { artifactId: basename(root), files, digests, bytes, plan, project };
-    for (const item of validatePosterModel(model, { stage: targetStageOf(plan) ?? "source" })) findings.push({ artifactId: model.artifactId, ...item });
+  for (const root of await findPosterProjects(cwd)) {
+    try {
+      const model = await loadPosterProject(root);
+      const stage = subagent && reviewRequested(model.plan) ? "review" : targetStage(model.plan) ?? "source";
+      for (const item of validatePosterModel(model, { stage })) findings.push({ artifactId: model.artifactId ?? relative(cwd, root), ...item });
+    } catch (error) { findings.push({ artifactId: relative(cwd, root), code: "PROJECT_READ_FAILED", path: ".", message: error instanceof Error ? error.message : String(error) }); }
   }
   return findings;
 }
 
-function format(findings: ProjectFinding[]): string {
-  return ["[Poster Project Delivery Guard] Project contract violations", ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`), "recovery: Fix the named variant, layer, proof, or output and rerun the registered poster tool."].join("\n");
+function formatFindings(findings: ProjectFinding[]) {
+  return ["[Poster Project Delivery Guard] Project contract violations", ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`), "recovery: Fix the named brief/design/source/output, then rerun the registered poster writer."].join("\n");
 }
 
 async function main() {
   const mode = process.argv[2] ?? "session";
   const event = await readStdinJson();
-  if (event.__parseError) return;
-  const cwd = cwdOf(event);
-  if (mode === "pre") {
-    for (const target of targetsOf(event)) {
-      const result = evaluatePosterWrite({
-        relativePath: relative(cwd, resolve(cwd, target)),
-        toolName: nameOf(event),
-        cwd,
-      });
-      if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
-    }
-    const command = extractShellCommand(event) ?? "";
-    if (command) {
-      const result = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
-      if (result.decision === "deny") {
-        process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
-      }
-    }
+  if (event.__parseError) { process.stderr.write("[Poster Project Delivery Guard] invalid hook JSON\n"); process.exitCode = 2; return; }
+  const cwd = eventCwd(event);
+  if (mode === "pre") { writeJson(await runPre(event)); return; }
+  if (mode === "session") {
+    const roots = await findPosterProjects(cwd);
+    if (roots.length) writeJson(additionalContext("SessionStart", `[Poster Project Delivery Guard] discovered ${roots.length} project(s). Use $poster-project-authoring; generated SVG/PNG, evidence, review, and release files require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`));
     return;
   }
-  const findings = await findingsFor(cwd);
-  if (mode === "session") {
-    if ((await discover(cwd)).length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", "[Poster Project Delivery Guard] active; generated outputs require registered writers."))}\n`);
-  } else if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+  if (mode === "post" || mode === "failure") {
+    const findings = await projectFindings(cwd);
+    if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
+    return;
+  }
+  if (mode === "stop" || mode === "subagent-stop") {
+    const findings = await projectFindings(cwd, mode === "subagent-stop");
+    if (findings.length) writeJson(stopBlock(formatFindings(findings)));
   }
 }
 

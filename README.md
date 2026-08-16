@@ -120,7 +120,7 @@ codex plugin add <name>@harness-start --json
 | `file-access-audit` | 将结构化 agent 文件读写记录到项目本地 `.file-access-audit/sessions/<session>.jsonl` |
 | `command-exec-audit` | 将 agent shell 命令、状态和耗时记录到项目本地 `.command-exec-audit/sessions/<session>.jsonl` |
 | `logo-project-delivery-guard` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
-| `poster-project-delivery-guard` | 校验 React/Satori 海报工程的 layer 顺序、role、成对 SVG/PNG proof 和 release freshness |
+| `poster-project-delivery-guard` | 用统一编排 Skill、固定设计顾问、Satori/resvg writer、独立审查和 digest evidence 交付数字海报 |
 | `pptx-project-delivery-guard` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
 | `print-publication-delivery-guard` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
 | `video-project-delivery-guard` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |

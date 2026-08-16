@@ -1,10 +1,11 @@
 {
   "name": "poster-project-delivery-guard",
-  "version": "0.2.0",
-  "description": "Enforces ordered Satori layer projects, paired proofs, and fresh poster delivery evidence.",
+  "version": "0.3.0",
+  "description": "Orchestrates and enforces deterministic digital poster source, rendering, probes, independent review, and release evidence.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "skills": "./skills/",
   "hooks": "./hooks/claude.json"
 }

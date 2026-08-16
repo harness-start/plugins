@@ -1,14 +1,20 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:21339e5aa2f538881d437fbd29dbff83b962e871c2e0409ac2452689fb50a359
+// harness-source-hash: sha256:ecf8f3e613c1d2b5cab95aace981dfcbbd4ef468b665b365b3ef2bc77a5bb914
 import {
+  issueWriterCapability
+} from "../chunks/chunk-Z5MZ7LH3.mjs";
+import {
+  computePosterSubjectDigest,
   evaluatePosterWrite,
+  findPosterProjects,
+  loadPosterProject,
+  resolveWorkspaceRoot,
   validatePosterModel
-} from "../chunks/chunk-J5YS3GVE.mjs";
+} from "../chunks/chunk-VPQQEAD3.mjs";
 
 // plugins/poster-project-delivery-guard/src/entries/hooks/poster-project-delivery-guard.ts
 import { createHash } from "node:crypto";
-import { readdir, readFile } from "node:fs/promises";
-import { basename as basename2, dirname as dirname2, join, relative, resolve as resolve3 } from "node:path";
+import { relative, resolve as resolve3 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -36,6 +42,17 @@ async function readStdinJson(input = process.stdin) {
     return { __parseError: true };
   }
 }
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
@@ -59,14 +76,14 @@ function preToolDeny(reason) {
     }
   };
 }
-function additionalContext(hookEventName, context2, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context2}
+function additionalContext(hookEventName, context, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context}
 `);
   if (options.suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,
-      additionalContext: context2
+      additionalContext: context
     }
   };
 }
@@ -212,13 +229,11 @@ function extractFileTargets(event, options = {}) {
 import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 var MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve2(
-  process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
-  process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
-);
+var PLUGIN_DIRECTORY = resolve2(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
 var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
-var WRITERS = /* @__PURE__ */ new Set(["project-lint.mjs", "project-release.mjs"]);
-var READ_ONLY = /* @__PURE__ */ new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
+var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
+var PROFILES = /* @__PURE__ */ new Set(["regional-culture", "mondo", "editorial", "academic", "custom"]);
+var READ_ONLY = /* @__PURE__ */ new Set(["find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
 function parseShellWords(command) {
   const words = [];
   let current = "";
@@ -265,173 +280,122 @@ function expandKnownPluginRoot(command) {
   let expanded = String(command ?? "");
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
-    if (value) expanded = expanded.replaceAll(`\${${name}}`, resolve2(value));
+    if (value) expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve2(value)}/dist/cli/`);
   }
   return expanded;
 }
 function wrapperInvocation(words, cwd, workspaceRoot) {
-  const first = words?.[0];
-  const second = words?.[1];
-  const third = words?.[2];
-  if (!words || words.length < 3 || first === void 0 || second === void 0 || third === void 0 || !["node", basename(process.execPath), process.execPath].includes(first) || second.startsWith("-")) {
-    return null;
-  }
-  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
+  if (!words || words.length < 3) return null;
+  const [runtime, entry, rootWord] = words;
+  if (!runtime || !entry || !rootWord || !["node", basename(process.execPath), process.execPath].includes(runtime) || entry.startsWith("-")) return null;
+  const script = isAbsolute2(entry) ? resolve2(entry) : resolve2(cwd, entry);
   const name = basename(script);
-  if (dirname(script) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
-  if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) {
-    return null;
-  }
-  if (name === "project-release.mjs" && words.length !== 3) return null;
-  if (name === "project-lint.mjs" && words.slice(3).some((word) => word.startsWith("-"))) return null;
-  return { name, projectRoot };
+  if (dirname(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(rootWord) ? resolve2(rootWord) : resolve2(cwd, rootWord);
+  if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
+  if (name === "project-init.mjs" && (words.length !== 5 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? ""))) return null;
+  if (name === "project-review.mjs" && words.length !== 4) return null;
+  if (!["project-init.mjs", "project-review.mjs"].includes(name) && words.length !== 3) return null;
+  return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 function readOnlyCommand(words) {
-  const command = words?.[0];
-  if (!words?.length || command === void 0 || command !== basename(command) || !READ_ONLY.has(command)) return false;
-  if (command === "git") {
-    if (!["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
-    if (words.some((word) => word === "--output" || word.startsWith("--output=") || /^-o.+/u.test(word) || ["--ext-diff", "--textconv"].includes(word))) {
-      return false;
-    }
-  }
+  if (!words?.length) return false;
+  const command = basename(words[0] ?? "");
+  if (!READ_ONLY.has(command)) return false;
+  if (command === "git" && (!["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "") || words.some((word) => word === "--output" || word.startsWith("--output=")))) return false;
+  if (command === "find" && words.some((word) => ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"].includes(word))) return false;
   if (command === "rg" && words.some((word) => word === "--pre" || word.startsWith("--pre="))) return false;
   return true;
 }
-function touchesPoster(command, cwd, workspaceRoot) {
-  const normalized = String(command ?? "").replaceAll("\\", "/");
-  const root = resolve2(workspaceRoot).replaceAll("\\", "/");
-  const current = resolve2(cwd).replaceAll("\\", "/");
-  return current.startsWith(`${root}/artifacts/poster/`) || /(?:^|[\s"'=])\.?\/?artifacts\/poster(?:\/|[\s"']|$)/u.test(normalized) || normalized.includes(`${root}/artifacts/poster/`);
+function commandTouchesPosterScope(command, cwd, workspaceRoot) {
+  const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
+  const normalizedCwd = resolve2(cwd).replaceAll("\\", "/");
+  const normalizedRoot = resolve2(workspaceRoot).replaceAll("\\", "/");
+  return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/poster/`) || /(?:^|[\s"'=])\.?\/?artifacts\/poster(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/poster/`);
 }
 function evaluatePosterShell({ command, cwd, workspaceRoot }) {
-  if (!touchesPoster(command, cwd, workspaceRoot)) return { decision: "allow" };
+  if (!commandTouchesPosterScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
-  if (invocation) return { decision: "allow", writer: invocation.name, projectRoot: invocation.projectRoot };
+  if (invocation) return { decision: "allow", writer: `poster-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
   if (readOnlyCommand(words)) return { decision: "allow" };
-  return {
-    decision: "deny",
-    code: "UNKNOWN_MUTATION_SHELL",
-    message: "poster scope permits only read-only commands or an exact registered writer invocation"
-  };
+  return { decision: "deny", code: "UNKNOWN_MUTATION_SHELL", message: "poster scope permits only read-only commands or an exact registered writer invocation" };
 }
 
 // plugins/poster-project-delivery-guard/src/entries/hooks/poster-project-delivery-guard.ts
-var nameOf = (event) => eventToolName(event);
-var cwdOf = (event) => resolve3(eventCwd(event));
-function targetsOf(event) {
-  return extractFileTargets(event, { tools: "any" });
-}
-function deny(reason) {
-  return preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
-}
-function context(eventName, message) {
-  return additionalContext(eventName, message);
-}
-function resolveWorkspaceRoot(cwd) {
-  let current = resolve3(cwd);
-  while (current !== dirname2(current)) {
-    if (basename2(dirname2(current)) === "poster" && basename2(dirname2(dirname2(current))) === "artifacts") {
-      return dirname2(dirname2(dirname2(current)));
-    }
-    current = dirname2(current);
+var deny = (reason) => preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
+var initDigest = (root) => createHash("sha256").update(`poster-init:${resolve3(root)}`).digest("hex");
+async function runPre(event) {
+  const cwd = resolve3(eventCwd(event));
+  for (const target of extractFileTargets(event, { tools: "any" })) {
+    const result = evaluatePosterWrite({ relativePath: relative(cwd, resolve3(cwd, target)), toolName: eventToolName(event), cwd });
+    if (result.decision === "deny") return deny(`${result.code}: ${result.message}`);
   }
-  return resolve3(cwd);
-}
-async function discover(cwd) {
-  const workspaceRoot = resolveWorkspaceRoot(cwd);
-  const root = join(workspaceRoot, "artifacts", "poster");
-  try {
-    return (await readdir(root, { withFileTypes: true })).filter((entry) => entry.isDirectory() && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(entry.name)).slice(0, 32).map((entry) => join(root, entry.name));
-  } catch (error) {
-    if (typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT") return [];
-    throw error;
-  }
-}
-async function collect(root, directory, files, digests, bytesMap) {
-  if (Object.keys(files).length >= 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
-    if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
-    const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collect(root, absolute, files, digests, bytesMap);
-    else if (entry.isFile()) {
-      const filePath = relative(root, absolute).replaceAll("\\", "/");
-      const bytes = await readFile(absolute);
-      files[filePath] = bytes.toString("utf8");
-      bytesMap[filePath] = bytes;
-      digests[filePath] = createHash("sha256").update(bytes).digest("hex");
+  const command = extractShellCommand(event);
+  if (!command) return void 0;
+  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+  if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
+  if (decision.writer && decision.writer !== "poster-lint" && decision.projectRoot && decision.argv) {
+    try {
+      const subjectDigest = decision.writer === "poster-init" ? initDigest(decision.projectRoot) : computePosterSubjectDigest(await loadPosterProject(decision.projectRoot));
+      await issueWriterCapability({
+        root: decision.projectRoot,
+        capability: decision.writer,
+        argv: decision.argv,
+        subjectDigest,
+        sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown",
+        triggerFrom: `poster-project-delivery-guard:pre:${decision.writer}`
+      });
+    } catch (error) {
+      return deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  return void 0;
 }
-function targetStageOf(plan) {
-  return typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0;
-}
-async function findingsFor(cwd) {
+var targetStage = (plan) => typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0;
+var reviewRequested = (plan) => ["review", "release"].includes(String(targetStage(plan)));
+async function projectFindings(cwd, subagent = false) {
   const findings = [];
-  for (const root of await discover(cwd)) {
-    const files = {};
-    const digests = {};
-    const bytes = {};
-    await collect(root, root, files, digests, bytes);
-    if (!("plan.contract.json" in files)) continue;
-    let plan = null;
-    let project = null;
+  for (const root of await findPosterProjects(cwd)) {
     try {
-      plan = JSON.parse(String(files["plan.contract.json"] ?? ""));
-    } catch {
+      const model = await loadPosterProject(root);
+      const stage = subagent && reviewRequested(model.plan) ? "review" : targetStage(model.plan) ?? "source";
+      for (const item of validatePosterModel(model, { stage })) findings.push({ artifactId: model.artifactId ?? relative(cwd, root), ...item });
+    } catch (error) {
+      findings.push({ artifactId: relative(cwd, root), code: "PROJECT_READ_FAILED", path: ".", message: error instanceof Error ? error.message : String(error) });
     }
-    try {
-      project = JSON.parse(String(files["poster.project.json"] ?? ""));
-    } catch {
-    }
-    const model = { artifactId: basename2(root), files, digests, bytes, plan, project };
-    for (const item of validatePosterModel(model, { stage: targetStageOf(plan) ?? "source" })) findings.push({ artifactId: model.artifactId, ...item });
   }
   return findings;
 }
-function format(findings) {
-  return ["[Poster Project Delivery Guard] Project contract violations", ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`), "recovery: Fix the named variant, layer, proof, or output and rerun the registered poster tool."].join("\n");
+function formatFindings(findings) {
+  return ["[Poster Project Delivery Guard] Project contract violations", ...findings.slice(0, 50).map((item) => `- ${item.artifactId}/${item.path} [${item.code}] ${item.message}`), "recovery: Fix the named brief/design/source/output, then rerun the registered poster writer."].join("\n");
 }
 async function main() {
   const mode = process.argv[2] ?? "session";
   const event = await readStdinJson();
-  if (event.__parseError) return;
-  const cwd = cwdOf(event);
-  if (mode === "pre") {
-    for (const target of targetsOf(event)) {
-      const result = evaluatePosterWrite({
-        relativePath: relative(cwd, resolve3(cwd, target)),
-        toolName: nameOf(event),
-        cwd
-      });
-      if (result.decision === "deny") {
-        process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
-`);
-        return;
-      }
-    }
-    const command = extractShellCommand(event) ?? "";
-    if (command) {
-      const result = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
-      if (result.decision === "deny") {
-        process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
-`);
-      }
-    }
+  if (event.__parseError) {
+    process.stderr.write("[Poster Project Delivery Guard] invalid hook JSON\n");
+    process.exitCode = 2;
     return;
   }
-  const findings = await findingsFor(cwd);
+  const cwd = eventCwd(event);
+  if (mode === "pre") {
+    writeJson(await runPre(event));
+    return;
+  }
   if (mode === "session") {
-    if ((await discover(cwd)).length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", "[Poster Project Delivery Guard] active; generated outputs require registered writers."))}
-`);
-  } else if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}
-`);
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+    const roots = await findPosterProjects(cwd);
+    if (roots.length) writeJson(additionalContext("SessionStart", `[Poster Project Delivery Guard] discovered ${roots.length} project(s). Use $poster-project-authoring; generated SVG/PNG, evidence, review, and release files require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`));
+    return;
+  }
+  if (mode === "post" || mode === "failure") {
+    const findings = await projectFindings(cwd);
+    if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
+    return;
+  }
+  if (mode === "stop" || mode === "subagent-stop") {
+    const findings = await projectFindings(cwd, mode === "subagent-stop");
+    if (findings.length) writeJson(stopBlock(formatFindings(findings)));
   }
 }
 if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {

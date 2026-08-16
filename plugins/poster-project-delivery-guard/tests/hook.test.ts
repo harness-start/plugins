@@ -93,6 +93,11 @@ test("pre hook denies MultiEdit targets listed under edits[]", async () => {
 for (const command of [
   "sed -i 's/a/b/' artifacts/poster/launch/dist/launch.main.png",
   "dd if=/dev/null of=artifacts/poster/launch/dist/launch.main.png",
+  "sed 'w artifacts/poster/launch/dist/copied.png' artifacts/poster/launch/data/main.json",
+  "find artifacts/poster/launch -fprint artifacts/poster/launch/dist/files.txt",
+  "find artifacts/poster/launch -fprintf artifacts/poster/launch/dist/files.txt '%p'",
+  "rg --pre 'touch artifacts/poster/launch/dist/owned' title artifacts/poster/launch",
+  "git diff --output=artifacts/poster/launch/dist/diff.txt",
 ]) {
   test(`pre hook fails closed for poster shell mutator: ${command.split(" ")[0]}`, async () => {
     const root = mkdtempSync(join(tmpdir(), "poster-shell-"));
@@ -117,15 +122,22 @@ test("pre hook rejects a node eval command that only mentions the release wrappe
   }
 });
 
-test("pre hook allows only an exact registered release invocation", async () => {
+for (const writer of ["project-init.mjs", "project-render.mjs", "project-probe.mjs", "project-review.mjs", "project-release.mjs"]) {
+test(`pre hook allows an exact registered ${writer} invocation`, async () => {
   const root = mkdtempSync(join(tmpdir(), "poster-writer-allow-"));
   try {
     mkdirSync(join(root, "artifacts", "poster", "launch"), { recursive: true });
-    const wrapper = fileURLToPath(new URL("../dist/cli/project-release.mjs", import.meta.url));
+    const wrapper = fileURLToPath(new URL(`../dist/cli/${writer}`, import.meta.url));
+    const suffix = writer === "project-init.mjs"
+      ? " --profile editorial"
+      : writer === "project-review.mjs"
+        ? ` ${join(root, "review-input.json")}`
+        : "";
     const result = await run({
       cwd: root,
       tool_name: "Bash",
-      tool_input: { command: `node ${wrapper} artifacts/poster/launch` },
+      session_id: "poster-hook-session",
+      tool_input: { command: `node ${wrapper} artifacts/poster/launch${suffix}` },
     });
     assert.equal(result.code, 0);
     assert.equal(result.stdout, "");
@@ -133,6 +145,7 @@ test("pre hook allows only an exact registered release invocation", async () => 
     rmSync(root, { recursive: true, force: true });
   }
 });
+}
 
 test("pre hook still allows an unrelated repo-root shell", async () => {
   const root = mkdtempSync(join(tmpdir(), "poster-unrelated-"));

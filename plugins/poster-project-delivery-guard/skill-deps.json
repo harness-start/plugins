@@ -1,9 +1,28 @@
 {
   "skills": [
     {
-      "name": "ui-ux-pro-max",
-      "source": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill",
-      "description": "Optional read-only advice for poster hierarchy, typography, palette, and icon exploration; no script execution, artifact writer, reviewer, or release authority. Source is the repo root (skills CLI cannot clone a bare commit as a branch; pin via lockfile when skills CLI supports it)."
+      "name": "regional-culture-poster",
+      "source": "https://github.com/dacnay816y62-hub/regional-culture-poster",
+      "revision": "e8f37639833b341c0d2f0b30c89b07faf5e2f458",
+      "description": "MIT-licensed read-only regional-cultural strategy advisor; no script execution, image generation, project writes, review, or release authority."
+    },
+    {
+      "name": "qiaomu-mondo-poster-design",
+      "source": "https://github.com/joeseesun/qiaomu-mondo-poster-design",
+      "revision": "e82e411c403ca5a0327a85682c658ad155cd9cbb",
+      "description": "MIT-licensed read-only symbolic screen-print advisor; bundled API scripts are never executed and it has no writer, reviewer, or release authority."
+    },
+    {
+      "name": "cvpr-2026-poster",
+      "source": "https://github.com/yunyiliu/cvpr-2026-poster-skill",
+      "revision": "63892ddcd10e88ab9081eea8d25adb797cf18946",
+      "description": "MIT-licensed read-only academic narrative and scanability advisor; no conference assets, time-sensitive claims, scripts, writer, reviewer, or release authority."
+    },
+    {
+      "name": "impeccable",
+      "source": "https://github.com/pbakaus/impeccable",
+      "revision": "5a149f3fdb1b5793f10567233b1dcab98fc305fd",
+      "description": "Apache-licensed read-only hierarchy, typography, spacing, color, and critique advisor; no project writes, review verdict, or release authority."
     }
   ]
 }

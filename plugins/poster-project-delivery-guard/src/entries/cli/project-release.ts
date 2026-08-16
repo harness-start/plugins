@@ -1,77 +1,29 @@
 #!/usr/bin/env node
 
-import { createHash } from "node:crypto";
-import { open, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
-import { basename, join, relative, resolve } from "node:path";
-
-import { createPosterReceipt, validatePosterModel, validatePosterReceipt, type BytesMap, type DigestMap, type FileMap } from "../../lib/contract.js";
-import type { BinaryLike } from "node:crypto";
-
-const root = resolve(process.argv[2] ?? "");
-const journalPath = join(root, ".poster-delivery-journal.json");
-const receiptPath = join(root, "receipt.release.json");
-const temporaryPath = join(root, `.receipt.release.${process.pid}.tmp`);
-const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");
-
-async function collect(directory: string, files: FileMap, digests: DigestMap, bytesMap: BytesMap, limits: { files: number }): Promise<void> {
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
-    if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
-    const absolute = join(directory, entry.name);
-    if (entry.isDirectory()) await collect(absolute, files, digests, bytesMap, limits);
-    else if (entry.isFile()) {
-      if (++limits.files > 2048) throw new Error("PROJECT_FILE_LIMIT_EXCEEDED");
-      const bytes = await readFile(absolute);
-      if (bytes.byteLength > 32 * 1024 * 1024) throw new Error(`PROJECT_FILE_SIZE_EXCEEDED:${entry.name}`);
-      const filePath = relative(root, absolute).replaceAll("\\", "/");
-      files[filePath] = bytes.toString("utf8");
-      bytesMap[filePath] = bytes;
-      digests[filePath] = sha256(bytes);
-    }
-  }
-}
-
-async function load() {
-  const files: FileMap = {};
-  const digests: DigestMap = {};
-  const bytes: BytesMap = {};
-  await collect(root, files, digests, bytes, { files: 0 });
-  const parse = (filePath: string): unknown => {
-    try { return JSON.parse(String(files[filePath] ?? "")); } catch { return null; }
-  };
-  return { artifactId: basename(root), files, digests, bytes, plan: parse("plan.contract.json"), project: parse("poster.project.json") };
-}
+import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
+import { computePosterSubjectDigest, createPosterReceipt, createPosterReleaseManifest, loadPosterProject, validatePosterModel, validatePosterReceipt } from "../../lib/contract.js";
+import { assertPosterProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 
 async function main() {
-  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(root))) throw new Error("project root must end in a kebab-case artifact id");
-  const model = await load();
-  const findings = validatePosterModel(model, { stage: "release" }).filter(({ code, path }) =>
-    code !== "RECEIPT_INVALID" && !(code === "RELEASE_PATH_MISSING" && path === "receipt.release.json"));
-  if (findings.length > 0) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
-
-  const handle = await open(journalPath, "wx");
-  await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, plugin: "poster-project-delivery-guard", operation: "release", artifactId: basename(root), sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown" })}\n`);
-  await handle.sync();
-  await handle.close();
-  let complete = false;
-  try {
-    const receipt = {
-      ...createPosterReceipt(model),
-      createdAt: new Date().toISOString(),
-      sessionId: process.env.AI_EXPERTS_SESSION_ID ?? "unknown",
-      triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM ?? "unknown",
-    };
-    await writeFile(temporaryPath, `${JSON.stringify(receipt, null, 2)}\n`, { flag: "wx" });
-    await rename(temporaryPath, receiptPath);
-    if (!validatePosterReceipt(await load())) throw new Error("written receipt did not verify against current files");
-    complete = true;
+  const root = assertPosterProjectRoot(process.argv[2]);
+  const grant = await consumeWriterCapability({ root, capability: "poster-release", argv: processWriterArgv() });
+  let model = await loadPosterProject(root);
+  if (grant.subjectDigest !== computePosterSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
+  const review = JSON.parse(String(model.files?.["review.poster.json"] ?? "{}")) as { reviewer?: { sessionId?: string } };
+  if (review.reviewer?.sessionId === grant.sessionId) throw new Error("SELF_RELEASE_DENIED");
+  const before = validatePosterModel(model, { stage: "review" }).filter(({ code, path }) => !["RELEASE_MANIFEST_INVALID", "RECEIPT_INVALID"].includes(code) && !["release.manifest.json", "receipt.release.json"].includes(path));
+  if (before.length) throw new Error(before.map(({ code, path }) => `${code}:${path}`).join(", "));
+  await withWriterJournal(root, "poster-release", async () => {
+    await atomicWriteJson(root, "release.manifest.json", createPosterReleaseManifest(model));
+    model = await loadPosterProject(root);
+    const manifestFindings = validatePosterModel(model, { stage: "release" }).filter(({ code, path }) => code !== "MUTATION_JOURNAL_OPEN" && code !== "RECEIPT_INVALID" && path !== "receipt.release.json");
+    if (manifestFindings.length) throw new Error(manifestFindings.map(({ code, path }) => `${code}:${path}`).join(", "));
+    const receipt = { ...createPosterReceipt(model), ...sessionMetadata("poster-release", grant) };
+    await atomicWriteJson(root, "receipt.release.json", receipt);
+    model = await loadPosterProject(root);
+    if (!validatePosterReceipt(model)) throw new Error("WRITTEN_RECEIPT_INVALID");
     process.stdout.write(`${JSON.stringify(receipt)}\n`);
-  } finally {
-    if (complete) await unlink(journalPath);
-  }
+  }, grant);
 }
 
-main().catch((error: unknown) => {
-  process.stderr.write(`[poster-project-release] ${error instanceof Error ? error.message : String(error)}\n`);
-  process.exitCode = 2;
-});
+main().catch((error: unknown) => { process.stderr.write(`[poster-project-release] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

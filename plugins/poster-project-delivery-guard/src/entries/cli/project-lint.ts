@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 
-import { resolve } from "node:path";
-
 import { runLocalEslint } from "@harness/core/eslint-local-runner";
 import { createPreset } from "../../lib/eslint/preset.js";
+import { loadPosterProject, validatePosterModel } from "../../lib/contract.js";
+import { assertPosterProjectRoot } from "../../lib/writer.js";
 
 async function main() {
-  const { output, failed } = await runLocalEslint({
-    root: resolve(process.argv[2] ?? ""),
-    preset: createPreset,
-    defaultFiles: ["src/variants/*/layers/*.tsx"],
-    extraFiles: process.argv.slice(3),
-  });
+  const root = assertPosterProjectRoot(process.argv[2]);
+  const model = await loadPosterProject(root);
+  const findings = validatePosterModel(model, { stage: "source" });
+  if (findings.length) {
+    process.stderr.write(`${findings.map(({ code, path, message }) => `${path} [${code}] ${message}`).join("\n")}\n`);
+    process.exitCode = 2;
+    return;
+  }
+  const { output, failed } = await runLocalEslint({ root, preset: createPreset, defaultFiles: ["src/variants/*/layers/*.tsx"], extraFiles: [] });
   if (output) process.stdout.write(output);
   if (failed) process.exitCode = 2;
 }
