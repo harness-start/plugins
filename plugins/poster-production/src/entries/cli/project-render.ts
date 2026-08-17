@@ -37,7 +37,7 @@ async function main() {
       await runProjectRenderer(root, temp);
       await rm(join(root, "dist"), { recursive: true, force: true });
       await rm(join(root, "evidence", "layers"), { recursive: true, force: true });
-      for (const path of ["evidence.render.json", "evidence.probe.json", "evidence.accessibility.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) await rm(join(root, path), { force: true });
+      for (const path of ["evidence.render.json", "evidence.probe.json", "evidence.accessibility.json", "evidence.composition.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) await rm(join(root, path), { force: true });
       await mkdir(join(root, "dist"), { recursive: true });
       await mkdir(join(root, "evidence", "layers"), { recursive: true });
       for (const variant of manifest.variants) {

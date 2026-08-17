@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6232a393989c0fdc4ebab7cc4c5ccbf1d7fc516cc3d54e89164eee6b31a0280f
+// harness-source-hash: sha256:0dc829ef84a74bd3fbde86a786a288eb9425c791086323436850f4e40078fe2a
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-PRIHQFKW.mjs";
+} from "../chunks/chunk-ONNEYWYX.mjs";
 import {
   REVIEW_SCHEMA,
   assertPosterProjectRoot,
@@ -13,7 +13,7 @@ import {
   sessionMetadata,
   validatePosterModel,
   withWriterJournal
-} from "../chunks/chunk-VTO7MNAJ.mjs";
+} from "../chunks/chunk-IASJ6GUS.mjs";
 
 // plugins/poster-production/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";
@@ -46,7 +46,7 @@ async function main() {
   if (payload.schema !== "poster-production/review-input/v2" || payload.artifactId !== model.artifactId || payload.subjectDigest !== computePosterSubjectDigest(model) || payload.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
   if (!["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
   if (variants.length !== manifest.variants.length || variants.some((variant, index) => variant.id !== manifest.variants[index]?.id || variant.pngSha256 !== model.digests?.[`dist/${model.artifactId}.${String(variant.id)}.png`] || variant.verdict !== "pass")) throw new Error("REVIEW_VARIANT_COVERAGE_INVALID");
-  const requiredChecks = ["hierarchy", "typography", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
+  const requiredChecks = ["hierarchy", "typography", "composition", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
   const checks = record(payload.checks);
   if (requiredChecks.some((key) => checks[key] !== "pass")) throw new Error("REVIEW_CHECKS_INCOMPLETE");
   const reviewFindings = Array.isArray(payload.findings) ? payload.findings.map(record) : [];

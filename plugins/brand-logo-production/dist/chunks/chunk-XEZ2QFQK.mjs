@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:5255d8fceb7d5d0f23a7cade4becece0e00325c93aa0c46337bcb9c50185d83d
+// harness-source-hash: sha256:4888bad0e7f3076932bf8366e2bf0d197a81108a5370fc3844afcf8ac5aeadb1
 
 // plugins/brand-logo-production/src/lib/png-decode.ts
 import { inflateSync } from "node:zlib";
@@ -90,7 +90,8 @@ import { createHash } from "node:crypto";
 import { inflateSync as inflateSync2 } from "node:zlib";
 var PATH_ARITY = { A: 7, C: 6, H: 1, L: 2, M: 2, Q: 4, S: 4, T: 2, V: 1, Z: 0 };
 var PLAN_SCHEMA = "brand-logo-production/plan/v1";
-var BRIEF_SCHEMA = "brand-logo-production/brief/v1";
+var BRIEF_SCHEMA = "brand-logo-production/brief/v2";
+var WORDMARK_MANIFEST_SCHEMA = "brand-logo-production/wordmark-manifest/v1";
 var BRAND_CONTEXT_SCHEMA = "brand-logo-production/brand-context/v1";
 var ASSET_PLAN_SCHEMA = "brand-logo-production/assets/v1";
 var DELIVERY_PROFILE_SCHEMA = "brand-logo-production/delivery-profile/v1";
@@ -128,7 +129,7 @@ var PRIMITIVE_TYPES = /* @__PURE__ */ new Set(["circle", "ellipse", "rect", "lin
 var FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 var PHI = 1.618033988749895;
 var AESTHETIC_CRITERIA = ["structureConsistency", "opticalCorrection", "singleMemoryPoint", "semanticIntegration", "markWordmarkSystem", "restraint"];
-var REVIEW_CHECKS = ["brief-fidelity", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"];
+var REVIEW_CHECKS = ["brief-fidelity", "wordmark-copy", "script-fidelity", "spacing-rhythm", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"];
 var EXTERNAL_SKILLS = [
   { name: "logo-brand-direction", role: "brand-direction", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "adviser", phases: ["brief", "concept"] },
   { name: "logo-form-language", role: "vector-production", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
@@ -354,6 +355,7 @@ function validateRequired(files, findings) {
     "src/render.ts",
     "src/concepts/manifest.json",
     "src/master/Mark.logo.tsx",
+    "src/master/wordmark.manifest.json",
     "src/master/Wordmark.logo.tsx",
     "src/master/Lockup.logo.tsx",
     "src/construction/construction.json",
@@ -367,8 +369,9 @@ function validateRequired(files, findings) {
 }
 function validateBriefAndSkillComposition(model, findings) {
   const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
-  if (!brief || brief.schema !== BRIEF_SCHEMA || brief.artifactId !== model.artifactId || ["audience", "brandPositioning", "language"].some((key) => typeof brief[key] !== "string" || !String(brief[key]).trim()) || ["constraints", "prohibitedDirections", "successCriteria"].some((key) => !Array.isArray(brief[key]))) {
-    findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind the project and declare audience, positioning, language, constraints, prohibited directions, and success criteria"));
+  const letterform = rec(brief?.letterform);
+  if (!brief || brief.schema !== BRIEF_SCHEMA || brief.artifactId !== model.artifactId || ["brandName", "wordmarkText", "audience", "brandPositioning", "language", "scriptPolicy", "casePolicy"].some((key) => typeof brief[key] !== "string" || !String(brief[key]).trim()) || !["cjk-simplified", "cjk-traditional", "latin", "mixed", "other"].includes(String(brief.scriptPolicy)) || !["exact", "upper", "lower", "title", "not-applicable"].includes(String(brief.casePolicy)) || ["typeClass", "strokeProfile", "structure", "edgeFinish", "sceneReference"].some((key) => typeof letterform?.[key] !== "string" || !String(letterform[key]).trim()) || ["constraints", "prohibitedDirections", "successCriteria"].some((key) => !Array.isArray(brief[key]))) {
+    findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind exact wordmark copy, script/case policy, letterform dimensions, audience, positioning, constraints, prohibited directions, and success criteria"));
   }
   const context = rec(parseJson(model.files, "plan.context.json", findings, "BRAND_CONTEXT_INVALID"));
   const referenceRows = asList(context?.references);
@@ -717,6 +720,21 @@ function validateMaster(model, findings) {
     const builtPath = `build/master/${role}.svg`;
     if (hasFile(model, builtPath) && !svgValid(model.files?.[builtPath])) findings.push(finding("MASTER_SVG_INVALID", builtPath, "built master must be a self-contained non-empty SVG with viewBox"));
   }
+}
+function validateWordmarkManifest(model, findings) {
+  const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
+  const manifest = rec(parseJson(model.files, "src/master/wordmark.manifest.json", findings, "WORDMARK_MANIFEST_INVALID"));
+  const rawUnits = asList(manifest?.units);
+  const units = rawUnits.map(rec).filter((entry) => entry !== void 0);
+  const availablePathIds = svgPrimitiveIds(model.files?.["build/master/wordmark.svg"]);
+  const claimedPathIds = /* @__PURE__ */ new Set();
+  let valid = Boolean(manifest) && manifest?.schema === WORDMARK_MANIFEST_SCHEMA && manifest?.artifactId === model.artifactId && manifest?.text === brief?.wordmarkText && manifest?.scriptPolicy === brief?.scriptPolicy && units.length > 0 && units.length === rawUnits.length && units.map((unit) => String(unit.text ?? "")).join("") === manifest?.text;
+  for (const [offset, unit] of units.entries()) {
+    const pathIds = asList(unit.pathIds).map(String);
+    if (unit.index !== offset + 1 || typeof unit.text !== "string" || !unit.text || pathIds.length === 0 || pathIds.some((id) => !availablePathIds.has(id) || claimedPathIds.has(id))) valid = false;
+    for (const id of pathIds) claimedPathIds.add(id);
+  }
+  if (!valid) findings.push(finding("WORDMARK_MANIFEST_INVALID", "src/master/wordmark.manifest.json", "wordmark manifest must bind exact brief copy and script policy to unique current master path ids"));
 }
 function validateFibonacciConstruction(model, findings) {
   const path = "src/construction/fibonacci.json";
@@ -1132,6 +1150,7 @@ function validateLogoModel(model, { stage = "source" } = {}) {
   validateArtifactGitignore(files, findings);
   validateConcepts(model ?? {}, findings);
   validateMaster(model ?? {}, findings);
+  validateWordmarkManifest(model ?? {}, findings);
   validateConstruction(model ?? {}, findings);
   validateVariants(model ?? {}, findings);
   validateBriefAndSkillComposition(model ?? {}, findings);

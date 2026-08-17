@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:534dc6f90482ec3bb7158a43649af783c53d5d9654463df56663715715076073
+// harness-source-hash: sha256:1f18cb91b7397d991e2f45204ffcde0e2a62aaa20bd6fce0f06514f69bbfc9a1
 import {
   createPrintReceipt,
   validatePrintModel,
   validatePrintReceipt
-} from "../chunks/chunk-WMXH7DHR.mjs";
+} from "../chunks/chunk-CB5TTYJS.mjs";
 
 // plugins/print-publication-production/src/entries/cli/project-release.ts
 import { createHash } from "node:crypto";

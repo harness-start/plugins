@@ -2,7 +2,7 @@
 
 Create an external JSON object with schema `brand-logo-production/review-input/v1`. Bind `artifactId`, current `subjectDigest`, every required artifact path and SHA-256, and a reviewer whose session is the current independent session. In a Claude review subagent, the plugin injects a trusted agent-scoped principal; use that exact value for `reviewer.sessionId`.
 
-Set `decision` to `approved` only when all six outcome checks pass; all six aesthetic criteria contain substantive notes, set `requiredMin` to 2, and score 2; and every blocker or major finding is `verified` against the current artifact with `recheckEvidence`. Do not average scores. Finding fields are `findingId`, `severity`, `evidenceAnchor`, `artifactDigest`, `fix`, `status`, and `recheckEvidence`. `evidenceAnchor` must be one of the required coverage paths and `artifactDigest` must exactly equal that path's current SHA-256.
+Set `decision` to `approved` only when all nine outcome checks pass; all six aesthetic criteria contain substantive notes, set `requiredMin` to 2, and score 2; and every blocker or major finding is `verified` against the current artifact with `recheckEvidence`. Do not average scores. Finding fields are `findingId`, `severity`, `evidenceAnchor`, `artifactDigest`, `fix`, `status`, and `recheckEvidence`. `evidenceAnchor` must be one of the required coverage paths and `artifactDigest` must exactly equal that path's current SHA-256.
 
 Write the JSON outside the project, then invoke `project-review.mjs <project-root> <external-json>`. Do not edit the project directly.
 
@@ -24,6 +24,9 @@ Use this shape. `coverage` must contain every required review artifact exactly o
   ],
   "checks": [
     { "id": "brief-fidelity", "status": "pass" },
+    { "id": "wordmark-copy", "status": "pass" },
+    { "id": "script-fidelity", "status": "pass" },
+    { "id": "spacing-rhythm", "status": "pass" },
     { "id": "concept-divergence", "status": "pass" },
     { "id": "vector-craft", "status": "pass" },
     { "id": "mono-reverse", "status": "pass" },

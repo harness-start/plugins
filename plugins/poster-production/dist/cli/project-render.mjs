@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6232a393989c0fdc4ebab7cc4c5ccbf1d7fc516cc3d54e89164eee6b31a0280f
+// harness-source-hash: sha256:0dc829ef84a74bd3fbde86a786a288eb9425c791086323436850f4e40078fe2a
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-PRIHQFKW.mjs";
+} from "../chunks/chunk-ONNEYWYX.mjs";
 import {
   RENDER_EVIDENCE_SCHEMA,
   assertPosterProjectRoot,
@@ -15,7 +15,7 @@ import {
   sessionMetadata,
   validatePosterModel,
   withWriterJournal
-} from "../chunks/chunk-VTO7MNAJ.mjs";
+} from "../chunks/chunk-IASJ6GUS.mjs";
 
 // plugins/poster-production/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";
@@ -58,7 +58,7 @@ async function main() {
       await runProjectRenderer(root, temp);
       await rm(join(root, "dist"), { recursive: true, force: true });
       await rm(join(root, "evidence", "layers"), { recursive: true, force: true });
-      for (const path of ["evidence.render.json", "evidence.probe.json", "evidence.accessibility.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) await rm(join(root, path), { force: true });
+      for (const path of ["evidence.render.json", "evidence.probe.json", "evidence.accessibility.json", "evidence.composition.json", "review.poster.json", "release.manifest.json", "receipt.release.json"]) await rm(join(root, path), { force: true });
       await mkdir(join(root, "dist"), { recursive: true });
       await mkdir(join(root, "evidence", "layers"), { recursive: true });
       for (const variant of manifest.variants) {

@@ -85,7 +85,8 @@ const PATH_ARITY = { A: 7, C: 6, H: 1, L: 2, M: 2, Q: 4, S: 4, T: 2, V: 1, Z: 0 
 type PathCommand = keyof typeof PATH_ARITY;
 
 export const PLAN_SCHEMA = "brand-logo-production/plan/v1";
-export const BRIEF_SCHEMA = "brand-logo-production/brief/v1";
+export const BRIEF_SCHEMA = "brand-logo-production/brief/v2";
+export const WORDMARK_MANIFEST_SCHEMA = "brand-logo-production/wordmark-manifest/v1";
 export const BRAND_CONTEXT_SCHEMA = "brand-logo-production/brand-context/v1";
 export const ASSET_PLAN_SCHEMA = "brand-logo-production/assets/v1";
 export const DELIVERY_PROFILE_SCHEMA = "brand-logo-production/delivery-profile/v1";
@@ -124,7 +125,7 @@ const PRIMITIVE_TYPES = new Set(["circle", "ellipse", "rect", "line", "arc", "po
 const FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 const PHI = 1.618033988749895;
 const AESTHETIC_CRITERIA = ["structureConsistency", "opticalCorrection", "singleMemoryPoint", "semanticIntegration", "markWordmarkSystem", "restraint"];
-export const REVIEW_CHECKS = ["brief-fidelity", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"];
+export const REVIEW_CHECKS = ["brief-fidelity", "wordmark-copy", "script-fidelity", "spacing-rhythm", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"];
 export const EXTERNAL_SKILLS = [
   { name: "logo-brand-direction", role: "brand-direction", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "adviser", phases: ["brief", "concept"] },
   { name: "logo-form-language", role: "vector-production", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
@@ -355,7 +356,7 @@ function validateRequired(files: FileMap, findings: ContractFinding[]): void {
   for (const filePath of [
     ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.brief.json", "plan.context.json", "plan.skill-composition.json", "plan.assets.json",
     "plan.concept-selection.json", "plan.delivery-profile.json", "plan.integration.json",
-    "logo.project.json", "src/render.ts", "src/concepts/manifest.json", "src/master/Mark.logo.tsx",
+    "logo.project.json", "src/render.ts", "src/concepts/manifest.json", "src/master/Mark.logo.tsx", "src/master/wordmark.manifest.json",
     "src/master/Wordmark.logo.tsx", "src/master/Lockup.logo.tsx", "src/construction/construction.json",
     "src/construction/standard-grid.json", "src/construction/geometry.json",
     "src/variants/manifest.json", "build/master/mark.svg", "build/master/wordmark.svg", "build/master/lockup.svg",
@@ -364,10 +365,14 @@ function validateRequired(files: FileMap, findings: ContractFinding[]): void {
 
 function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFinding[]): void {
   const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
+  const letterform = rec(brief?.letterform);
   if (!brief || brief.schema !== BRIEF_SCHEMA || brief.artifactId !== model.artifactId
-    || ["audience", "brandPositioning", "language"].some((key) => typeof brief[key] !== "string" || !String(brief[key]).trim())
+    || ["brandName", "wordmarkText", "audience", "brandPositioning", "language", "scriptPolicy", "casePolicy"].some((key) => typeof brief[key] !== "string" || !String(brief[key]).trim())
+    || !["cjk-simplified", "cjk-traditional", "latin", "mixed", "other"].includes(String(brief.scriptPolicy))
+    || !["exact", "upper", "lower", "title", "not-applicable"].includes(String(brief.casePolicy))
+    || ["typeClass", "strokeProfile", "structure", "edgeFinish", "sceneReference"].some((key) => typeof letterform?.[key] !== "string" || !String(letterform[key]).trim())
     || ["constraints", "prohibitedDirections", "successCriteria"].some((key) => !Array.isArray(brief[key]))) {
-    findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind the project and declare audience, positioning, language, constraints, prohibited directions, and success criteria"));
+    findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind exact wordmark copy, script/case policy, letterform dimensions, audience, positioning, constraints, prohibited directions, and success criteria"));
   }
 
   const context = rec(parseJson(model.files, "plan.context.json", findings, "BRAND_CONTEXT_INVALID"));
@@ -746,6 +751,24 @@ function validateMaster(model: LogoModel, findings: ContractFinding[]): void {
     const builtPath = `build/master/${role}.svg`;
     if (hasFile(model, builtPath) && !svgValid(model.files?.[builtPath])) findings.push(finding("MASTER_SVG_INVALID", builtPath, "built master must be a self-contained non-empty SVG with viewBox"));
   }
+}
+
+function validateWordmarkManifest(model: LogoModel, findings: ContractFinding[]): void {
+  const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
+  const manifest = rec(parseJson(model.files, "src/master/wordmark.manifest.json", findings, "WORDMARK_MANIFEST_INVALID"));
+  const rawUnits = asList(manifest?.units);
+  const units = rawUnits.map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  const availablePathIds = svgPrimitiveIds(model.files?.["build/master/wordmark.svg"]);
+  const claimedPathIds = new Set<string>();
+  let valid = Boolean(manifest) && manifest?.schema === WORDMARK_MANIFEST_SCHEMA && manifest?.artifactId === model.artifactId
+    && manifest?.text === brief?.wordmarkText && manifest?.scriptPolicy === brief?.scriptPolicy
+    && units.length > 0 && units.length === rawUnits.length && units.map((unit) => String(unit.text ?? "")).join("") === manifest?.text;
+  for (const [offset, unit] of units.entries()) {
+    const pathIds = asList(unit.pathIds).map(String);
+    if (unit.index !== offset + 1 || typeof unit.text !== "string" || !unit.text || pathIds.length === 0 || pathIds.some((id) => !availablePathIds.has(id) || claimedPathIds.has(id))) valid = false;
+    for (const id of pathIds) claimedPathIds.add(id);
+  }
+  if (!valid) findings.push(finding("WORDMARK_MANIFEST_INVALID", "src/master/wordmark.manifest.json", "wordmark manifest must bind exact brief copy and script policy to unique current master path ids"));
 }
 
 /**
@@ -1217,6 +1240,7 @@ export function validateLogoModel(model: LogoModel | null | undefined, { stage =
   validateArtifactGitignore(files, findings);
   validateConcepts(model ?? {}, findings);
   validateMaster(model ?? {}, findings);
+  validateWordmarkManifest(model ?? {}, findings);
   validateConstruction(model ?? {}, findings);
   validateVariants(model ?? {}, findings);
   validateBriefAndSkillComposition(model ?? {}, findings);

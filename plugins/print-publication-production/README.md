@@ -46,7 +46,9 @@ artifacts/print/field-manual/
 3. 用实际探测器写入 PDF 结构、字体、图片、分页、印前检查和无障碍 evidence；
 4. 由具名 reviewer 写 `review.print.json`，并在 `release.manifest.json` 列出本次交付角色。
 
-`evidence/preflight.json` 应记录使用的 printer profile，以及 Trim/Bleed box、字体嵌入、DPI、色彩 profile、总墨量和脊宽等实际检查结果。当前插件除 PDF magic 外，只强制 evidence 路径和 freshness，不校验这些 JSON 的业务 schema，也不代替印厂签字。
+六份 evidence 都必须使用各自的 `print-publication-production/*-evidence/v1` schema，绑定当前 `artifactId` 与 `subjectDigest`，给出 `verdict: "pass"` 和非空 passing checks。字体 evidence 还必须证明字体嵌入、字形覆盖，并按排版角色记录字号、行高、字距和最大行长；分页 evidence 必须给出正页数并通过 `widows-orphans`；preflight evidence 必须记录 printer profile。Trim/Bleed box、DPI、色彩 profile、总墨量和脊宽等项目仍应作为实际检查写入，但插件不代替印厂签字。
+
+`review.print.json` 使用 `review/v2`：reviewer session 必须独立于发布 session，coverage 必须逐字节绑定当前四份 PDF 和六份 evidence，并明确通过 `typography`、`pagination`、`preflight`。`release.manifest.json` 使用 `release-manifest/v2` 并覆盖同一组当前 digest；修改 PDF 或重新签发 evidence 都会让旧 review 和 manifest 失效。
 
 受保护的 `build/html/`、`dist/`、evidence、review 和 manifest 只能由登记 writer 写入；当前插件没有登记 render/preflight writer。已启用 Hook 的 agent 不能直接生成这些文件，应由安装前或宿主外的受信任项目流水线生成。`project-release.mjs` 只生成 receipt。
 
@@ -57,7 +59,7 @@ node plugins/print-publication-production/dist/cli/project-lint.mjs artifacts/pr
 AI_EXPERTS_SESSION_ID="${AI_EXPERTS_SESSION_ID:-manual}" AI_EXPERTS_TRIGGER_FROM="print-publication-production:manual-release" node plugins/print-publication-production/dist/cli/project-release.mjs artifacts/print/field-manual
 ```
 
-lint 使用 artifact 本地 ESLint/parser，干净环境需先按 `package-lock.json` 安装依赖。release 要求四份 PDF 都以 `%PDF` 开头且所有 evidence 已存在，然后通过 `.print-delivery-journal.json` 原子签发 receipt。章节、CSS、字体、素材、配置或输出的任何变化都会使旧 receipt 失效。
+lint 使用 artifact 本地 ESLint/parser，干净环境需先按 `package-lock.json` 安装依赖。release 要求四份 PDF 都以 `%PDF` 开头、六份业务 evidence 当前有效、独立 review 与 manifest 完整覆盖，然后通过 `.print-delivery-journal.json` 原子签发 receipt。章节、CSS、字体、素材、配置、evidence 或输出的任何变化都会使旧 review、manifest 或 receipt 失效。
 
 ## 失败恢复
 

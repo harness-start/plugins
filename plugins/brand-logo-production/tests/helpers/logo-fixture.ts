@@ -12,6 +12,7 @@ import {
   EXTERNAL_SKILLS,
   INTEGRATION_PLAN_SCHEMA,
   RENDER_EVIDENCE_SCHEMA,
+  REVIEW_CHECKS,
   REVIEW_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   computeLogoSubjectDigest,
@@ -97,7 +98,7 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     "package.json": JSON.stringify({ scripts: { "logo:render": "node render-fixture.mjs" } }),
     "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "": {} } }),
     "plan.contract.json": JSON.stringify({ schema: "brand-logo-production/plan/v1", artifactId, targetStage: stage }),
-    "plan.brief.json": JSON.stringify({ schema: BRIEF_SCHEMA, artifactId, audience: "brand customers", brandPositioning: "distinctive geometric identity", language: "en", constraints: ["native vector"], prohibitedDirections: ["generic template"], successCriteria: ["legible at 16px"] }),
+    "plan.brief.json": JSON.stringify({ schema: BRIEF_SCHEMA, artifactId, brandName: "Orbit", wordmarkText: "Orbit", audience: "brand customers", brandPositioning: "distinctive geometric identity", language: "en", scriptPolicy: "latin", casePolicy: "exact", letterform: { typeClass: "geometric sans", strokeProfile: "uniform", structure: "stable horizontal wordmark", edgeFinish: "clean vector", sceneReference: "enterprise software identity" }, constraints: ["native vector"], prohibitedDirections: ["generic template"], successCriteria: ["legible at 16px"] }),
     "plan.context.json": JSON.stringify({ schema: BRAND_CONTEXT_SCHEMA, artifactId, brandStory: "A connected service that guides customers through complex work.", market: "Professional B2B workflow software", differentiation: "One calm connected system instead of a fragmented tool stack.", competitors: ["generic suite", "point solution"], references: [{ id: "provided-brief", source: "workspace/README.md", provenance: "provided" }] }),
     "plan.skill-composition.json": JSON.stringify({
       schema: SKILL_COMPOSITION_SCHEMA,
@@ -119,6 +120,7 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     "src/variants/manifest.json": JSON.stringify({ roles: ["mark", "wordmark", "lockup"], variants: ["primary", "mono", "reverse"] }),
     "build/master/mark.svg": vector("mark", 100),
     "build/master/wordmark.svg": vector("wordmark", 200),
+    "src/master/wordmark.manifest.json": JSON.stringify({ schema: "brand-logo-production/wordmark-manifest/v1", artifactId, text: "Orbit", scriptPolicy: "latin", units: [{ index: 1, text: "Orbit", pathIds: ["wordmark-shape"] }] }),
     "build/master/lockup.svg": vector("lockup", 300),
   };
   for (const entry of concepts) {
@@ -231,7 +233,7 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: "logo-review-session" },
     coverage: reviewArtifactPaths(model).map((path) => ({ path, sha256: sha256(files[path]) })),
     findings: [],
-    checks: ["brief-fidelity", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"].map((id) => ({ id, status: "pass" })),
+    checks: REVIEW_CHECKS.map((id) => ({ id, status: "pass" })),
     criteria: {
       structureConsistency: { score: 2, requiredMin: 2, note: "stable proportions across every role" },
       opticalCorrection: { score: 2, requiredMin: 2, note: "measured optical balance at target sizes" },

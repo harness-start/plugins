@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:768ee076d5a3e64ee844ad7f658eedb612e9687692899e4dc7dbee5d4de6bf9d
+// harness-source-hash: sha256:eac00115d6d589f256192b384bccc882c86993859a63c0e65f1233b1a34d0b4d
 import {
   loadPptxProject,
   validatePptxModel
-} from "../chunks/chunk-OIEUSLY6.mjs";
+} from "../chunks/chunk-7C6MEJKD.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";

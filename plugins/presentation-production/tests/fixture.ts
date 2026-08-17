@@ -66,7 +66,7 @@ export function sourceModel(artifactId = "deck"): PptxModel {
     "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "release", audience: "leadership", objective: "inform", language: "zh-CN" }),
     "plan.storyboard.json": JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "Opening", role: "opening", visualType: "statement" }] }),
     "plan.skill-composition.json": JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "presentation-storyboard", status: "used" }, { name: "presentation-visual-critique", status: "used" }] }),
-    "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F4F6F8", textPrimary: "111827", textSecondary: "374151", accent: "1D4ED8", success: "15803D", warning: "A16207", error: "B91C1C" } }, typography: { roles: Object.fromEntries(["display", "title", "section", "body", "caption", "numeric"].map((role) => [role, { fontFamily: "Noto Sans CJK SC", fontSizePt: role === "body" ? 22 : 28 }])) }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.125 } }),
+    "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F4F6F8", textPrimary: "111827", textSecondary: "374151", accent: "1D4ED8", success: "15803D", warning: "A16207", error: "B91C1C" } }, typography: { roles: Object.fromEntries(["display", "title", "section", "body", "caption", "numeric"].map((role) => [role, { fontFamily: "Noto Sans CJK SC", fontSizePt: role === "body" ? 22 : 28, lineSpacingMultiple: role === "body" ? 1.35 : 1.15, charSpacingPt: 0, maxLines: role === "body" ? 6 : 2, scriptPolicy: "mixed" }])) }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.125, blockGapIn: 0.3, paragraphGapIn: 0.18 } }),
     "pptx.project.json": JSON.stringify({ schema: PROJECT_SCHEMA, artifactId, layout: "LAYOUT_16X9", entry: "src/deck.ts", slideManifest: "src/slides/manifest.json", designSystem: "design.system.json" }),
     "src/deck.ts": "const deck = new pptxgen();\ndeck.addSlide();\n",
     "src/theme.ts": "export const theme = {};\n",
@@ -92,7 +92,10 @@ export function releaseModel(artifactId = "deck") {
   const base = { plugin: "presentation-production", artifactId, subjectDigest };
   files["evidence.render.json"] = JSON.stringify({ schema: RENDER_EVIDENCE_SCHEMA, ...base, sessionId: "render-session", output: { pptxSha256: model.digests?.[pptxPath], pdfSha256: model.digests?.[pdfPath] }, pageCount: 1 });
   files["evidence.structure.json"] = JSON.stringify({ schema: STRUCTURE_EVIDENCE_SCHEMA, ...base, output: { sha256: model.digests?.[pptxPath] }, package: { slideCount: 1 }, verdict: "pass" });
-  files["evidence.design.json"] = JSON.stringify({ schema: DESIGN_EVIDENCE_SCHEMA, ...base, designSystemSha256: model.digests?.["design.system.json"], verdict: "pass", checks: [{ source: "measurement", status: "pass" }] });
+  files["evidence.design.json"] = JSON.stringify({ schema: DESIGN_EVIDENCE_SCHEMA, ...base, designSystemSha256: model.digests?.["design.system.json"], verdict: "pass", checks: [
+    { criterion: "body-text-contrast", source: "measurement", status: "pass" },
+    ...["display", "title", "section", "body", "caption", "numeric"].map((role) => ({ criterion: `typography:${role}`, source: "design-system-measurement", status: "pass" })),
+  ] });
   files["evidence.accessibility.json"] = JSON.stringify({ schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, outputSha256: model.digests?.[pptxPath], verdict: "pass", checks: [{ source: "tool-report", status: "pass" }] });
   hydrate(model);
   files["review.pptx.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }], findings: [] });

@@ -7,6 +7,14 @@ import { fileURLToPath } from "node:url";
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const REPO = dirname(dirname(ROOT));
 
+test("typography floor is script-aware and responsive instead of using one universal measure", () => {
+  const skill = readFileSync(join(ROOT, "skills/interface-craft-floor/SKILL.md"), "utf8");
+  assert.match(skill, /CJK/u);
+  assert.match(skill, /mixed[- ]script/iu);
+  assert.match(skill, /responsive/iu);
+  assert.doesNotMatch(skill, /body measure 65–75ch/iu);
+});
+
 function text(path: string) {
   return readFileSync(join(ROOT, path), "utf8");
 }

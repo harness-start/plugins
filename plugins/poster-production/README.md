@@ -44,6 +44,7 @@ artifacts/poster/launch-poster/
   evidence.render.json
   evidence.probe.json
   evidence.accessibility.json
+  evidence.composition.json
   review.poster.json
   release.manifest.json
   receipt.release.json
@@ -66,9 +67,9 @@ node "${PLUGIN_ROOT}/dist/cli/project-review.mjs" artifacts/poster/launch-poster
 node "${PLUGIN_ROOT}/dist/cli/project-release.mjs" artifacts/poster/launch-poster
 ```
 
-Claude Code 使用 `CLAUDE_PLUGIN_ROOT`；Codex 使用 `PLUGIN_ROOT`。初始化器写入固定版本的渲染依赖并以 `npm install --ignore-scripts` 生成 lockfile。渲染器先让项目 Satori 源生成自包含 SVG，再由固定 resvg 生成 PNG，并为每层保留源 hash proof。probe 会重新栅格化 SVG，要求 PNG 字节一致，同时检查尺寸、非空 alpha、语义色对比、字号下限和非颜色编码。
+Claude Code 使用 `CLAUDE_PLUGIN_ROOT`；Codex 使用 `PLUGIN_ROOT`。初始化器写入固定版本的渲染依赖并以 `npm install --ignore-scripts` 生成 lockfile。`design.system.json` 的 `fontRegistry` 将每个字体 family/weight 绑定到固定包内的具体字体文件，渲染器从该 registry 构造 Satori 字体输入。渲染器先让项目 Satori 源生成自包含 SVG，再由固定 resvg 生成 PNG，并为每层保留源 hash proof。probe 会重新栅格化 SVG，要求 PNG 字节一致，同时检查尺寸、非空 alpha、语义色对比、逐角色排版指标、前景/留白比例、标题与图像关系和非颜色编码。
 
-审查输入必须位于项目外部，绑定当前 `subjectDigest`、每个 variant 的 PNG SHA-256、独立 session 和八项视觉检查。review writer 拒绝 producer session、自审、漏 variant、旧 digest 和未处置 finding。release manifest 同时记录 SVG/PNG 路径、尺寸和 SHA-256；receipt 再绑定全部成品、layer proof 和 evidence 原始字节。
+审查输入必须位于项目外部，绑定当前 `subjectDigest`、每个 variant 的 PNG SHA-256、独立 session 和九项视觉检查（含 composition）。review writer 拒绝 producer session、自审、漏 variant、旧 digest 和未处置 finding。release manifest 同时记录 SVG/PNG 路径、尺寸和 SHA-256；receipt 再绑定全部成品、layer proof 和 evidence 原始字节。
 
 任意 brief、依赖、设计系统、copy、asset、variant、layer 或源码变化都会改变 `subjectDigest`，使 render/probe/review/release 证据过期。任意成品或 evidence 字节变化都会使 receipt 失效。
 

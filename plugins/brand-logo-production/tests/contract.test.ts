@@ -28,6 +28,23 @@ test("requires a decision-complete brief and the exact bilingual skill pool", ()
   assert.ok(codes.has("SKILL_COMPOSITION_INVALID"));
 });
 
+test("requires exact wordmark copy, script policy, and letterform dimensions", () => {
+  const model = validLogoModel({ stage: "source" });
+  const brief = JSON.parse(String(model.files["plan.brief.json"]));
+  delete brief.wordmarkText;
+  delete brief.letterform;
+  model.files["plan.brief.json"] = JSON.stringify(brief);
+
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "BRIEF_INVALID"));
+});
+
+test("rejects a wordmark manifest whose mapped copy differs from the brief", () => {
+  const model = validLogoModel({ stage: "source" });
+  model.files["src/master/wordmark.manifest.json"] = JSON.stringify({ schema: "brand-logo-production/wordmark-manifest/v1", text: "Wrong", scriptPolicy: "latin", units: [{ index: 1, text: "Wrong", pathIds: ["wordmark-shape"] }] });
+
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "WORDMARK_MANIFEST_INVALID"));
+});
+
 test("requires parsed brand context, reference provenance, asset provenance, and delivery integration plans", () => {
   const model = validLogoModel({ stage: "source" });
   model.files["plan.assets.json"] = "not-json";

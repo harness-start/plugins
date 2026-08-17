@@ -2,7 +2,9 @@
 
 The project root is `artifacts/logo/<artifact-id>`. The delivery path is `brief/context → divergent concepts → selection rounds → master → method-appropriate construction → variants/outputs → preview → independent review → release`; feedback may return to the preceding source stage.
 
-Keep `plan.brief.json` decision-complete. Bind `plan.context.json`, `plan.assets.json`, `plan.concept-selection.json`, `plan.delivery-profile.json`, and `plan.integration.json` to the same artifact. References and assets need provenance. The Figma plan always declares an honest capability mode and `svg-import-package` fallback.
+Keep `plan.brief.json` decision-complete. The v2 brief binds exact brand and wordmark copy, script/case policy, and five executable letterform dimensions. Bind `plan.context.json`, `plan.assets.json`, `plan.concept-selection.json`, `plan.delivery-profile.json`, and `plan.integration.json` to the same artifact. References and assets need provenance. The Figma plan always declares an honest capability mode and `svg-import-package` fallback.
+
+`src/master/wordmark.manifest.json` binds ordered text units to unique path ids in the current built wordmark SVG. Its units concatenate to the exact brief copy. Path presence proves traceability, not visual glyph correctness; independent review still checks the visible wordmark.
 
 Create six black-and-white concept buckets (`symbolic`, `typographic`, `monogram`, `negative-space`, `geometric`, `narrative`) with distinct rationales and source-hash previews. Record at least two selection/feedback rounds before choosing one. A construction config chooses `modular-grid`, `geometric`, `typographic`, `optical`, or `fibonacci`; Fibonacci evidence is required only for the last method.
 

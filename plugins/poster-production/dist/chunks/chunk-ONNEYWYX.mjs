@@ -1,22 +1,22 @@
-// harness-source-hash: sha256:5255d8fceb7d5d0f23a7cade4becece0e00325c93aa0c46337bcb9c50185d83d
+// harness-source-hash: sha256:0dc829ef84a74bd3fbde86a786a288eb9425c791086323436850f4e40078fe2a
 import {
-  assertLogoProjectRoot
-} from "./chunk-Z3XVMBVP.mjs";
+  assertPosterProjectRoot
+} from "./chunk-IASJ6GUS.mjs";
 
-// plugins/brand-logo-production/src/lib/capability.ts
+// plugins/poster-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 var TTL_MS = 3e4;
-var pathOf = (root, capability) => join(root, ".tmp", "logo-guard", `capability.${capability}.json`);
+var pathOf = (root, capability) => join(root, ".tmp", "poster-guard", `capability.${capability}.json`);
 var argvDigest = (argv) => createHash("sha256").update(JSON.stringify(argv)).digest("hex");
 var errorCode = (error) => typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, triggerFrom }) {
-  const root = await assertLogoProjectRoot(rawRoot);
-  if (!/^logo-(?:advice|lock|render|preview|stage|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+  const root = assertPosterProjectRoot(rawRoot, { allowMissing: capability === "poster-init" });
+  if (!/^poster-(?:init|render|probe|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
-  const directory = join(root, ".tmp", "logo-guard");
+  const directory = join(root, ".tmp", "poster-guard");
   const target = pathOf(root, capability);
   await mkdir(directory, { recursive: true });
   try {
@@ -30,7 +30,7 @@ async function issueWriterCapability({ root: rawRoot, capability, argv, subjectD
     });
   }
   const grant = {
-    schema: "brand-logo-production/writer-capability/v1",
+    schema: "poster-production/writer-capability/v1",
     id: randomUUID(),
     capability,
     root,
@@ -47,7 +47,7 @@ async function issueWriterCapability({ root: rawRoot, capability, argv, subjectD
   return grant;
 }
 async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
-  const root = await assertLogoProjectRoot(rawRoot);
+  const root = assertPosterProjectRoot(rawRoot, { allowMissing: capability === "poster-init" });
   const target = pathOf(root, capability);
   let bytes;
   try {
@@ -67,7 +67,7 @@ async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
   }
   if (typeof grant !== "object" || grant === null) throw new Error("WRITER_CAPABILITY_INVALID");
   const value = grant;
-  if (value.schema !== "brand-logo-production/writer-capability/v1" || value.capability !== capability || value.root !== root || value.argvSha256 !== argvDigest(argv) || !Number.isFinite(value.expiresAt) || Number(value.expiresAt) < Date.now() || typeof value.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(value.subjectDigest) || typeof value.sessionId !== "string" || !value.sessionId || value.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
+  if (value.schema !== "poster-production/writer-capability/v1" || value.capability !== capability || value.root !== root || value.argvSha256 !== argvDigest(argv) || !Number.isFinite(value.expiresAt) || Number(value.expiresAt) < Date.now() || typeof value.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(value.subjectDigest) || typeof value.sessionId !== "string" || !value.sessionId || value.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
   return value;
 }
 function processWriterArgv() {

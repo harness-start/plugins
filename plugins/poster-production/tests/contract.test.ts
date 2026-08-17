@@ -5,6 +5,7 @@ import {
   computePosterSubjectDigest,
   createPosterReceipt,
   evaluatePosterWrite,
+  posterForegroundMask,
   validatePosterModel,
   validatePosterReceipt,
 } from "../src/lib/contract.js";
@@ -12,6 +13,39 @@ import { makePng, sha256, validPosterModel } from "./fixture.js";
 
 test("accepts the complete v2 source contract", () => {
   assert.deepEqual(validatePosterModel(validPosterModel("source"), { stage: "source" }), []);
+});
+
+test("source rejects typography roles without measurable spacing and script policy", () => {
+  const model = validPosterModel("source");
+  const design = JSON.parse(String(model.files!["design.system.json"]));
+  design.typography.display = { family: "Noto Sans SC", sizePx: 72, weight: 700 };
+  model.files!["design.system.json"] = JSON.stringify(design);
+
+  assert.ok(validatePosterModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
+});
+
+test("source rejects typography whose declared family and weight are not backed by the font registry", () => {
+  const model = validPosterModel("source");
+  const design = JSON.parse(String(model.files!["design.system.json"]));
+  design.typography.display.family = "Unregistered Display";
+  model.files!["design.system.json"] = JSON.stringify(design);
+
+  assert.ok(validatePosterModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
+});
+
+test("source rejects free-form art direction without letterform and composition contracts", () => {
+  const model = validPosterModel("source");
+  const art = JSON.parse(String(model.files!["plan.art-direction.json"]));
+  delete art.letterform;
+  delete art.composition;
+  model.files!["plan.art-direction.json"] = JSON.stringify(art);
+
+  assert.ok(validatePosterModel(model, { stage: "source" }).some(({ code }) => code === "ART_DIRECTION_INVALID"));
+});
+
+test("foreground measurement distinguishes canvas pixels from visible poster mass", () => {
+  assert.equal(posterForegroundMask(makePng(20, 10), "F4F0E8").foregroundCoverage, 0);
+  assert.equal(posterForegroundMask(makePng(20, 10, [17, 17, 17, 255]), "F4F0E8").foregroundCoverage, 1);
 });
 
 test("render rejects stub proof bytes that are not decoded PNG or parsed SVG", () => {
@@ -49,6 +83,13 @@ test("probe and review cannot pass with empty measurements or visual checks", ()
   const codes = new Set(validatePosterModel(model, { stage: "review" }).map(({ code }) => code));
   assert.ok(codes.has("PROBE_EVIDENCE_INVALID"));
   assert.ok(codes.has("REVIEW_INVALID"));
+});
+
+test("probe requires current measured composition evidence", () => {
+  const model = validPosterModel("probe");
+  delete model.files!["evidence.composition.json"];
+
+  assert.ok(validatePosterModel(model, { stage: "probe" }).some(({ code }) => code === "COMPOSITION_EVIDENCE_INVALID"));
 });
 
 test("skill composition rejects a substituted advisor", () => {

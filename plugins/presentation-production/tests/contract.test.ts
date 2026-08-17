@@ -14,6 +14,15 @@ test("accepts the strict source-stage project contract", () => {
   assert.deepEqual(validatePptxModel(sourceModel(), { stage: "source" }), []);
 });
 
+test("rejects presentation typography without carrier-specific rhythm and script limits", () => {
+  const model = sourceModel();
+  const design = JSON.parse(String(model.files!["design.system.json"]));
+  design.typography.roles.body = { fontFamily: "Noto Sans CJK SC", fontSizePt: 22 };
+  model.files!["design.system.json"] = JSON.stringify(design);
+
+  assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
+});
+
 test("accepts a valid restricted OOXML package and resolves its internal relationships", () => {
   const inspection = inspectPptxPackage(minimalPptx());
   assert.equal(inspection.slideCount, 1);

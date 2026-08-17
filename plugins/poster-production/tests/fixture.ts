@@ -5,6 +5,7 @@ import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   ART_DIRECTION_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
+  COMPOSITION_EVIDENCE_SCHEMA,
   DESIGN_SYSTEM_SCHEMA,
   LAYER_MANIFEST_SCHEMA,
   PLAN_SCHEMA,
@@ -77,7 +78,7 @@ export function validPosterModel(stage: PosterStage = "source"): PosterModel {
     "package.json": "{}\n",
     "package-lock.json": "{}\n",
     "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, profile: "editorial", targetStage: "release", audience: "digital readers", objective: "announce a public event", language: "zh-CN", assumptions: [] }),
-    "plan.art-direction.json": JSON.stringify({ schema: ART_DIRECTION_SCHEMA, profile: "editorial", concept: "A type-led editorial announcement.", visualCenter: "One decisive event title.", hierarchy: "Title, date, supporting copy.", typographyStrategy: "Role-based scale and spacing.", colorRationale: "High-contrast restrained palette.", negativeRules: [] }),
+    "plan.art-direction.json": JSON.stringify({ schema: ART_DIRECTION_SCHEMA, profile: "editorial", concept: "A type-led editorial announcement.", visualCenter: "One decisive event title.", hierarchy: "Title, date, supporting copy.", typographyStrategy: "Role-based scale and spacing.", colorRationale: "High-contrast restrained palette.", letterform: { typeClass: "geometric sans", strokeProfile: "uniform", structure: "stable horizontal gravity", edgeFinish: "clean vector", sceneReference: "public event editorial title" }, composition: { dominantAxis: "asymmetric-grid", focalRelationship: "title anchors the lower field", massToVoidTarget: { min: 0, max: 0.4 }, titleMediaRelation: "separate" }, negativeRules: ["pseudo-text", "decorative-metadata"] }),
     "plan.skill-composition.json": JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [
       { name: "poster-regional-culture", status: "skipped" },
       { name: "poster-mondo", status: "skipped" },
@@ -85,9 +86,9 @@ export function validPosterModel(stage: PosterStage = "source"): PosterModel {
       { name: "poster-visual-critique", status: "skipped" },
     ] }),
     "plan.assets.json": JSON.stringify({ schema: ASSET_MANIFEST_SCHEMA, assets: [] }),
-    "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { canvas: "F4F0E8", textPrimary: "111111" }, typography: { display: { family: "Noto Sans SC", sizePx: 72, weight: 700 } }, spacing: { safeAreaPx: 24, baseUnitPx: 8 }, contrastPairs: [{ foreground: "textPrimary", background: "canvas", minimum: 4.5 }] }),
+    "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { canvas: "F4F0E8", textPrimary: "111111" }, typography: { display: { family: "Noto Sans SC", sizePx: 72, weight: 700, lineHeightPx: 80, letterSpacingEm: 0, maxWidthPx: 280, maxLines: 2, scriptPolicy: "mixed" } }, fontRegistry: [{ family: "Noto Sans SC", package: "@fontsource/noto-sans-sc", files: [{ path: "noto-sans-sc-latin-700-normal.woff", weight: 700, script: "latin" }, { path: "noto-sans-sc-chinese-simplified-700-normal.woff", weight: 700, script: "cjk" }] }], spacing: { safeAreaPx: 24, baseUnitPx: 8, paragraphGapPx: 16 }, contrastPairs: [{ foreground: "textPrimary", background: "canvas", minimum: 4.5 }] }),
     "poster.project.json": JSON.stringify({ schema: PROJECT_SCHEMA, artifactId, profile: "editorial", entry: "src/render.ts", variantManifest: "src/variants/manifest.json" }),
-    "src/render.ts": "export const render = () => {};\n",
+    "src/render.ts": "export const fonts = theme.fontRegistry;\nexport const render = () => {};\n",
     "src/compose.ts": "export const compose = () => {};\n",
     "src/theme.ts": "export const theme = {};\n",
     "src/variants/manifest.json": JSON.stringify({ schema: VARIANT_MANIFEST_SCHEMA, variants: [{ index: 1, id: "main", directory: "001-main", width: 320, height: 320 }] }),
@@ -109,9 +110,10 @@ export function validPosterModel(stage: PosterStage = "source"): PosterModel {
     const subjectDigest = computePosterSubjectDigest(model);
     files["evidence.probe.json"] = JSON.stringify({ schema: PROBE_EVIDENCE_SCHEMA, plugin: "poster-production", artifactId, subjectDigest, verdict: "pass", measurements: [{ id: "main", svg: { width: 320, height: 320, viewBox: [0, 0, 320, 320] }, png: { width: 320, height: 320, alphaCoverage: 1 }, svgSha256: sha256(svg), pngSha256: sha256(png), independentRasterSha256: sha256(png) }], checks: [{ criterion: "svg-png-byte-equivalence", status: "pass" }, { criterion: "bounded-nonblank-raster", status: "pass" }] });
     files["evidence.accessibility.json"] = JSON.stringify({ schema: ACCESSIBILITY_EVIDENCE_SCHEMA, plugin: "poster-production", artifactId, subjectDigest, verdict: "pass", nonColorEncoding: true, checks: [{ criterion: "contrast:textPrimary:canvas", status: "pass", value: 17.1, minimum: 4.5 }, { role: "display", status: "pass", sizePx: 72 }] });
+    files["evidence.composition.json"] = JSON.stringify({ schema: COMPOSITION_EVIDENCE_SCHEMA, plugin: "poster-production", artifactId, subjectDigest, verdict: "pass", measurements: [{ id: "main", foregroundCoverage: 0, voidCoverage: 1, titleMediaRelation: "separate", overlapRatio: 0, status: "pass" }] });
   }
   if (["review", "release"].includes(stage)) {
-    files["review.poster.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, plugin: "poster-production", artifactId, subjectDigest: computePosterSubjectDigest(model), verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, variants: [{ id: "main", pngSha256: sha256(png), verdict: "pass" }], checks: { hierarchy: "pass", typography: "pass", legibility: "pass", clipping: "pass", color: "pass", copy: "pass", profileFidelity: "pass", assetIntegrity: "pass" }, findings: [] });
+    files["review.poster.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, plugin: "poster-production", artifactId, subjectDigest: computePosterSubjectDigest(model), verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, variants: [{ id: "main", pngSha256: sha256(png), verdict: "pass" }], checks: { hierarchy: "pass", typography: "pass", composition: "pass", legibility: "pass", clipping: "pass", color: "pass", copy: "pass", profileFidelity: "pass", assetIntegrity: "pass" }, findings: [] });
   }
   if (stage === "release") {
     files["release.manifest.json"] = JSON.stringify(createPosterReleaseManifest(model));

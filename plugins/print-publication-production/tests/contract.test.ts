@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
+  computePrintSubjectDigest,
   createPrintReceipt,
   evaluatePrintWrite,
   validatePrintModel,
@@ -39,6 +40,31 @@ function validModel() {
   };
 }
 
+function releaseModel() {
+  const model = validModel();
+  const subjectDigest = computePrintSubjectDigest(model);
+  Object.assign(model.files, {
+    "dist/field-manual.interior.proof.pdf": "%PDF-proof-interior",
+    "dist/field-manual.interior.print.pdf": "%PDF-print-interior",
+    "dist/field-manual.cover.proof.pdf": "%PDF-proof-cover",
+    "dist/field-manual.cover.print.pdf": "%PDF-print-cover",
+    "evidence/pdf.json": JSON.stringify({ schema: "print-publication-production/pdf-evidence/v1", artifactId: model.artifactId, subjectDigest, verdict: "pass", checks: [{ id: "pdf-structure", status: "pass" }] }),
+    "evidence/fonts.json": JSON.stringify({ schema: "print-publication-production/fonts-evidence/v1", artifactId: model.artifactId, subjectDigest, verdict: "pass", fonts: [{ family: "Source Sans 3", embedded: true, glyphCoverage: true }], typography: [{ role: "body", fontFamily: "Source Sans 3", fontSizePt: 10, lineHeightPt: 14, letterSpacingPt: 0, maxLineLength: 72 }] }),
+    "evidence/images.json": JSON.stringify({ schema: "print-publication-production/images-evidence/v1", artifactId: model.artifactId, subjectDigest, verdict: "pass", checks: [{ id: "image-resolution", status: "pass" }] }),
+    "evidence/pagination.json": JSON.stringify({ schema: "print-publication-production/pagination-evidence/v1", artifactId: model.artifactId, subjectDigest, verdict: "pass", pages: 8, checks: [{ id: "widows-orphans", status: "pass" }] }),
+    "evidence/preflight.json": JSON.stringify({ schema: "print-publication-production/preflight-evidence/v1", artifactId: model.artifactId, subjectDigest, verdict: "pass", printerProfile: "ISO Coated v2", checks: [{ id: "trim-bleed-fonts", status: "pass" }] }),
+    "evidence.accessibility.json": JSON.stringify({ schema: "print-publication-production/accessibility-evidence/v1", artifactId: model.artifactId, subjectDigest, verdict: "pass", checks: [{ id: "reading-order", status: "pass" }] }),
+  });
+  const coverage = Object.keys(model.files)
+    .filter((path) => path.startsWith("dist/") || path.startsWith("evidence/" ) || path === "evidence.accessibility.json")
+    .sort()
+    .map((path) => ({ path, sha256: sha256(model.files[path]) }));
+  model.files["review.print.json"] = JSON.stringify({ schema: "print-publication-production/review/v2", plugin: "print-publication-production", artifactId: model.artifactId, subjectDigest, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "print-review-session" }, coverage, checks: [{ id: "typography", status: "pass" }, { id: "pagination", status: "pass" }, { id: "preflight", status: "pass" }] });
+  model.files["release.manifest.json"] = JSON.stringify({ schema: "print-publication-production/release-manifest/v2", plugin: "print-publication-production", artifactId: model.artifactId, subjectDigest, outputs: coverage });
+  model.files["receipt.release.json"] = JSON.stringify(createPrintReceipt(model));
+  return model;
+}
+
 test("accepts strictly increasing static publication sections", () => {
   assert.deepEqual(validatePrintModel(validModel(), { stage: "source" }), []);
 });
@@ -64,21 +90,7 @@ test("denies direct HTML and PDF writes but allows section source", () => {
 });
 
 test("release receipt binds publication sources, PDFs, and preflight evidence", () => {
-  const model = validModel();
-  Object.assign(model.files, {
-    "dist/field-manual.interior.proof.pdf": "%PDF-proof-interior",
-    "dist/field-manual.interior.print.pdf": "%PDF-print-interior",
-    "dist/field-manual.cover.proof.pdf": "%PDF-proof-cover",
-    "dist/field-manual.cover.print.pdf": "%PDF-print-cover",
-    "evidence/pdf.json": "{}\n",
-    "evidence/fonts.json": "{}\n",
-    "evidence/images.json": "{}\n",
-    "evidence/pagination.json": "{}\n",
-    "evidence/preflight.json": "{}\n",
-    "evidence.accessibility.json": "{}\n",
-    "review.print.json": `${JSON.stringify({ schema: "print-publication-production/review/v1", verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "print-review-session" } })}\n`,
-    "release.manifest.json": "{}\n",
-  });
+  const model = releaseModel();
   const receipt = createPrintReceipt(model);
   model.files["receipt.release.json"] = JSON.stringify(receipt);
 
@@ -86,4 +98,23 @@ test("release receipt binds publication sources, PDFs, and preflight evidence", 
   assert.equal(validatePrintReceipt(model), true);
   model.files["src/styles/page.css"] += "@page chapter { margin: 15mm; }\n";
   assert.equal(validatePrintReceipt(model), false);
+});
+
+test("release rejects stale review coverage after a PDF changes even when the receipt is reissued", () => {
+  const model = releaseModel();
+  model.files["dist/field-manual.interior.print.pdf"] = "%PDF-mutated-after-review";
+  model.files["receipt.release.json"] = JSON.stringify(createPrintReceipt(model));
+
+  assert.ok(validatePrintModel(model, { stage: "release" }).some(({ code }) => code === "REVIEW_COVERAGE_INVALID"));
+});
+
+test("release rejects empty business evidence and an unbound release manifest", () => {
+  const model = releaseModel();
+  model.files["evidence/fonts.json"] = "{}";
+  model.files["release.manifest.json"] = "{}";
+  model.files["receipt.release.json"] = JSON.stringify(createPrintReceipt(model));
+
+  const codes = new Set(validatePrintModel(model, { stage: "release" }).map(({ code }) => code));
+  assert.ok(codes.has("EVIDENCE_INVALID"));
+  assert.ok(codes.has("RELEASE_MANIFEST_INVALID"));
 });

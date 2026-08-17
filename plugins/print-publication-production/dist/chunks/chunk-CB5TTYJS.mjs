@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:534dc6f90482ec3bb7158a43649af783c53d5d9654463df56663715715076073
+// harness-source-hash: sha256:1f18cb91b7397d991e2f45204ffcde0e2a62aaa20bd6fce0f06514f69bbfc9a1
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";
@@ -34,13 +34,25 @@ var SECTION_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.sec
 var GENERATED_PATH = /^(?:build\/html\/|dist\/|evidence(?:\/|\.[^/]+\.json$)|evidence\.accessibility\.json$|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
 var UNIT_VIOLATION = /(?:\b(?:useState|useEffect|useLayoutEffect|useReducer|hydrateRoot|createRoot|createPortal|fetch|setTimeout|setInterval)\s*\(|from\s+["'](?:react-router|react-router-dom|node:fs|node:child_process)["']|https?:\/\/|\b(?:Date\.now|Math\.random)\s*\()/u;
 var RECEIPT_EXCLUDED_PATH = /^(?:build\/|dist\/|evidence(?:\.|\/)|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.print-delivery-journal\.json$)/u;
+var PLUGIN = "print-publication-production";
+var REVIEW_SCHEMA = `${PLUGIN}/review/v2`;
+var RELEASE_MANIFEST_SCHEMA = `${PLUGIN}/release-manifest/v2`;
+var EVIDENCE_SCHEMAS = {
+  "evidence/pdf.json": `${PLUGIN}/pdf-evidence/v1`,
+  "evidence/fonts.json": `${PLUGIN}/fonts-evidence/v1`,
+  "evidence/images.json": `${PLUGIN}/images-evidence/v1`,
+  "evidence/pagination.json": `${PLUGIN}/pagination-evidence/v1`,
+  "evidence/preflight.json": `${PLUGIN}/preflight-evidence/v1`,
+  "evidence.accessibility.json": `${PLUGIN}/accessibility-evidence/v1`
+};
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
 var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 var rec = (value) => isObject(value) ? value : void 0;
 var asList = (value) => Array.isArray(value) ? value : [];
 var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
-function validateIndependentReviewFile(files, filePath, schema, findings) {
+function validateIndependentReviewFile(model, filePath, findings) {
+  const files = model.files ?? {};
   let review;
   try {
     review = JSON.parse(files[filePath] === void 0 ? "null" : textOf(files[filePath]));
@@ -48,7 +60,7 @@ function validateIndependentReviewFile(files, filePath, schema, findings) {
     review = null;
   }
   const reviewRec = rec(review);
-  if (!review || reviewRec?.schema !== schema || reviewRec?.verdict !== "pass") {
+  if (!review || reviewRec?.schema !== REVIEW_SCHEMA || reviewRec?.plugin !== PLUGIN || reviewRec?.artifactId !== model.artifactId || reviewRec?.subjectDigest !== computePrintSubjectDigest(model) || reviewRec?.verdict !== "pass") {
     findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
     return;
   }
@@ -60,6 +72,15 @@ function validateIndependentReviewFile(files, filePath, schema, findings) {
   if (reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
     findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
   }
+  const coverage = asList(reviewRec.coverage).map(rec);
+  const expectedPaths = printReviewCoveragePaths(model);
+  if (coverage.length !== expectedPaths.length || coverage.some((entry, index) => entry?.path !== expectedPaths[index] || entry?.sha256 !== fileDigest(model, expectedPaths[index] ?? ""))) {
+    findings.push(finding("REVIEW_COVERAGE_INVALID", filePath, "review coverage must bind every current PDF and evidence digest"));
+  }
+  const checks = asList(reviewRec.checks).map(rec);
+  if (!["typography", "pagination", "preflight"].every((id) => checks.some((check) => check?.id === id && check?.status === "pass"))) {
+    findings.push(finding("REVIEW_CHECKS_INVALID", filePath, "review must pass typography, pagination, and preflight checks"));
+  }
 }
 var fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
 function computePrintSubjectDigest(model) {
@@ -67,21 +88,59 @@ function computePrintSubjectDigest(model) {
 `).join("");
   return sha256(records);
 }
-function printOutputPaths(model) {
+function printPdfPaths(model) {
   return [
     `dist/${model?.artifactId}.interior.proof.pdf`,
     `dist/${model?.artifactId}.interior.print.pdf`,
     `dist/${model?.artifactId}.cover.proof.pdf`,
-    `dist/${model?.artifactId}.cover.print.pdf`,
-    "evidence/pdf.json",
-    "evidence/fonts.json",
-    "evidence/images.json",
-    "evidence/pagination.json",
-    "evidence/preflight.json",
-    "evidence.accessibility.json",
-    "review.print.json",
-    "release.manifest.json"
+    `dist/${model?.artifactId}.cover.print.pdf`
   ];
+}
+function printReviewCoveragePaths(model) {
+  return [...printPdfPaths(model), ...Object.keys(EVIDENCE_SCHEMAS)].sort();
+}
+function printOutputPaths(model) {
+  return [...printReviewCoveragePaths(model), "review.print.json", "release.manifest.json"];
+}
+function passingChecks(value) {
+  const checks = asList(value?.checks).map(rec);
+  return checks.length > 0 && checks.every((check) => check?.status === "pass" && typeof check.id === "string" && check.id.trim());
+}
+function validateEvidence(model, findings) {
+  const files = model.files ?? {};
+  const subjectDigest = computePrintSubjectDigest(model);
+  for (const [filePath, schema] of Object.entries(EVIDENCE_SCHEMAS)) {
+    let value;
+    try {
+      value = rec(JSON.parse(textOf(files[filePath])));
+    } catch {
+      value = void 0;
+    }
+    let valid = value?.schema === schema && value.artifactId === model.artifactId && value.subjectDigest === subjectDigest && value.verdict === "pass" && passingChecks(value);
+    if (filePath === "evidence/fonts.json") {
+      const fonts = asList(value?.fonts).map(rec);
+      const typography = asList(value?.typography).map(rec);
+      valid = valid && fonts.length > 0 && fonts.every((font) => typeof font?.family === "string" && font.family.trim() && font.embedded === true && font.glyphCoverage === true) && typography.length > 0 && typography.every((role) => typeof role?.role === "string" && typeof role.fontFamily === "string" && Number(role.fontSizePt) > 0 && Number(role.lineHeightPt) >= Number(role.fontSizePt) && Number.isFinite(Number(role.letterSpacingPt)) && Number(role.maxLineLength) > 0);
+    } else if (filePath === "evidence/pagination.json") {
+      valid = valid && Number.isInteger(value?.pages) && Number(value?.pages) > 0 && asList(value?.checks).map(rec).some((check) => check?.id === "widows-orphans" && check.status === "pass");
+    } else if (filePath === "evidence/preflight.json") {
+      valid = valid && typeof value?.printerProfile === "string" && value.printerProfile.trim().length > 0;
+    }
+    if (!valid) findings.push(finding("EVIDENCE_INVALID", filePath, `${filePath} must contain current passing business evidence`));
+  }
+}
+function validateReleaseManifest(model, findings) {
+  let manifest;
+  try {
+    manifest = rec(JSON.parse(textOf(model.files?.["release.manifest.json"])));
+  } catch {
+    manifest = void 0;
+  }
+  const expectedPaths = printReviewCoveragePaths(model);
+  const outputs = asList(manifest?.outputs).map(rec);
+  if (manifest?.schema !== RELEASE_MANIFEST_SCHEMA || manifest.plugin !== PLUGIN || manifest.artifactId !== model.artifactId || manifest.subjectDigest !== computePrintSubjectDigest(model) || outputs.length !== expectedPaths.length || outputs.some((entry, index) => entry?.path !== expectedPaths[index] || entry?.sha256 !== fileDigest(model, expectedPaths[index] ?? ""))) {
+    findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind every current PDF and evidence digest"));
+  }
 }
 function createPrintReceipt(model) {
   return {
@@ -182,7 +241,7 @@ function validatePrintModel(model, { stage = "source" } = {}) {
   if (typeof renderTsx === "string" && !/renderPublication/u.test(renderTsx)) findings.push(finding("RENDER_OWNER_INVALID", "src/render.tsx", "render.tsx must own the static publication render"));
   if (stage === "release") {
     const outputs = printOutputPaths(model);
-    const pdfs = outputs.filter((filePath) => filePath.endsWith(".pdf"));
+    const pdfs = printPdfPaths(model);
     for (const filePath of [...outputs, "receipt.release.json"]) {
       if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
     }
@@ -190,8 +249,10 @@ function validatePrintModel(model, { stage = "source" } = {}) {
       const pdf = files[filePath];
       if (typeof pdf === "string" && !pdf.startsWith("%PDF-")) findings.push(finding("PDF_MAGIC_INVALID", filePath, "PDF output must have PDF magic and be directly probed"));
     }
+    validateEvidence(model, findings);
+    validateReleaseManifest(model, findings);
     if ("receipt.release.json" in files && !validatePrintReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current publication sources and outputs"));
-    validateIndependentReviewFile(files, "review.print.json", "print-publication-production/review/v1", findings);
+    validateIndependentReviewFile(model, "review.print.json", findings);
   }
   return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
 }

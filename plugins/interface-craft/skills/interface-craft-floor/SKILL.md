@@ -12,7 +12,7 @@ Load this after direction is settled. A committed DESIGN.md or brief overrides h
 - Contrast: body and placeholder text ≥4.5:1, large text ≥3:1.
 - Depth: shadows carry an offset and a soft blur. A zero-offset halo is decoration.
 - Spacing: tight groups, generous separation, more space above a heading than below it.
-- Type: body measure 65–75ch, display max 6rem, tracking floor -0.04em.
+- Type: set measure by script and viewport: Latin body copy 55–75ch; CJK body copy 24–40 full-width characters; mixed-script interfaces must satisfy both runs at every responsive breakpoint. Use Latin body line-height 1.4–1.7 and CJK body line-height 1.5–1.9. Keep body tracking near normal; reserve wide tracking for short Latin uppercase labels. Display text still caps at 6rem.
 - Motion: one authored moment. Prefer transform and opacity; provide a reduced-motion fallback.
 - States: hover, disabled, loading, error, empty, plus keyboard focus.
 

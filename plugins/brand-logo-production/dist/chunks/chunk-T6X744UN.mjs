@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:5255d8fceb7d5d0f23a7cade4becece0e00325c93aa0c46337bcb9c50185d83d
+// harness-source-hash: sha256:4888bad0e7f3076932bf8366e2bf0d197a81108a5370fc3844afcf8ac5aeadb1
 
 // plugins/brand-logo-production/src/lib/writer.ts
 import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
