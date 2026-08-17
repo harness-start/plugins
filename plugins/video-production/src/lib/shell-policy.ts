@@ -7,7 +7,7 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
 const TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
-const WRITERS = new Set(["project-admit.mjs", "project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
+const WRITERS = new Set(["project-admit.mjs", "project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs", "project-shot-stage.mjs"]);
 const PROFILES = new Set(["motion-explainer", "product-promo", "short-form", "talking-head", "reference-led", "micro-drama"]);
 const READ_ONLY = new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 
@@ -59,6 +59,7 @@ function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: s
   if (name === "project-init.mjs" && (words.length !== 7 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? "") || words[5] !== "--mode" || !["guided", "autonomous"].includes(words[6] ?? ""))) return null;
   if (name === "project-admit.mjs" && words.length !== 4) return null;
   if (name === "project-review.mjs" && words.length !== 4) return null;
+  if (name === "project-shot-stage.mjs" && words.length !== 6) return null;
   if (["project-lint.mjs", "project-probe.mjs", "project-release.mjs"].includes(name) && words.length !== 3) return null;
   if (name === "project-render.mjs" && ![4, 5].includes(words.length)) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };

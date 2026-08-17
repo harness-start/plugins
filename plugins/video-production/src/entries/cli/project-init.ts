@@ -8,8 +8,9 @@ import { basename, join } from "node:path";
 import {
   APPROVALS_SCHEMA, ASSET_MANIFEST_SCHEMA, DESIGN_SYSTEM_SCHEMA, DIRECTION_SCHEMA,
   PLAN_SCHEMA, PROJECT_SCHEMA, REFERENCES_SCHEMA, SCRIPT_SCHEMA, SKILL_COMPOSITION_SCHEMA,
-  STORYBOARD_SCHEMA, VIDEO_PROFILES, type VideoProfile,
+  SHOT_PLAN_SCHEMA, STORYBOARD_SCHEMA, VIDEO_PROFILES, type VideoProfile,
 } from "../../lib/contract.js";
+import { SHOT_LIBRARY_UPSTREAM_COMMIT } from "../../lib/shot-library.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertVideoProjectRoot } from "../../lib/writer.js";
 
@@ -60,19 +61,21 @@ async function main() {
   const script = json({ schema: SCRIPT_SCHEMA, beats: [], claims: [] });
   const storyboard = json({ schema: STORYBOARD_SCHEMA, beats: [] });
   const assets = json({ schema: ASSET_MANIFEST_SCHEMA, assets: [] });
-  const storyboardDigest = sha256(`plan.script.json\0${sha256(script)}\nplan.storyboard.json\0${sha256(storyboard)}\n`);
+  const shots = profile === "product-promo" ? json({ schema: SHOT_PLAN_SCHEMA, catalogRevision: SHOT_LIBRARY_UPSTREAM_COMMIT, selections: [], customBeats: [] }) : undefined;
+  const storyboardDigest = sha256(`plan.script.json\0${sha256(script)}\nplan.storyboard.json\0${sha256(storyboard)}\n${shots === undefined ? "" : `plan.shots.json\0${sha256(shots)}\n`}`);
+  const workers = profile === "product-promo" ? [...WORKERS, ["video-shot-recipes", "advisor"] as const] : WORKERS;
   const files: Record<string, string> = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
-    "package.json": json({ name: `video-${artifactId}`, private: true, type: "module", scripts: { "video:render:visual": "node tools/render-visual.mjs", "video:render:audio": "node tools/render-audio.mjs", "video:render:final": "remotion render src/index.ts Main" }, dependencies: { remotion: "4.0.512", "@remotion/cli": "4.0.512", react: "19.2.8", "react-dom": "19.2.8" }, devDependencies: { "@types/react": "19.2.18", "@types/react-dom": "19.2.3", typescript: "6.0.3" } }),
-    "plan.contract.json": json({ schema: PLAN_SCHEMA, artifactId, profile, mode, targetStage: "source", audience: "general audience", objective: `deliver an original ${profile} video`, platform: defaults.platform, language: "zh-CN", assumptions: [], externalBudget: { currency: "USD", limit: 0, spent: 0 } }),
+    "package.json": json({ name: `video-${artifactId}`, private: true, type: "module", scripts: { "video:render:visual": "node tools/render-visual.mjs", "video:render:audio": "node tools/render-audio.mjs", "video:render:final": "remotion render src/index.ts Main" }, dependencies: { remotion: "4.0.512", "@remotion/cli": "4.0.512", "@remotion/motion-blur": "4.0.512", react: "19.2.8", "react-dom": "19.2.8" }, devDependencies: { "@types/react": "19.2.18", "@types/react-dom": "19.2.3", typescript: "6.0.3" } }),
+    "plan.contract.json": json({ schema: PLAN_SCHEMA, artifactId, profile, mode, targetStage: "source", audience: "general audience", objective: `deliver an original ${profile} video`, platform: defaults.platform, language: "zh-CN", assumptions: [], externalBudget: { currency: "USD", limit: 0, spent: 0 }, craft: { shotPlanning: profile === "product-promo" ? "required" : "optional", remotionLicense: "unconfirmed" } }),
     "plan.direction.json": direction,
     "plan.script.json": script,
     "plan.storyboard.json": storyboard,
-    "plan.skill-composition.json": json({ schema: SKILL_COMPOSITION_SCHEMA, workers: WORKERS.map(([name, workerMode]) => ({ name, mode: workerMode, status: "skipped" })) }),
+    "plan.skill-composition.json": json({ schema: SKILL_COMPOSITION_SCHEMA, workers: workers.map(([name, workerMode]) => ({ name, mode: workerMode, status: "skipped" })) }),
     "plan.assets.json": assets,
     "plan.approvals.json": json({ schema: APPROVALS_SCHEMA, mode, gates: [{ stage: "direction", status: "pending", subjectSha256: sha256(direction), actor: "", reason: "" }, { stage: "storyboard", status: "pending", subjectSha256: storyboardDigest, actor: "", reason: "" }, { stage: "assets", status: "pending", subjectSha256: sha256(assets), actor: "", reason: "" }] }),
     "plan.references.json": json({ schema: REFERENCES_SCHEMA, references: [] }),
-    "design.system.json": json({ schema: DESIGN_SYSTEM_SCHEMA, colors: { canvas: "#101114", text: "#f7f7f5", accent: "#5eead4" }, typography: { displayPx: 96, bodyPx: 42, captionPx: 36 }, safeAreaPx: 80, motion: { enterFrames: 15, exitFrames: 12, easing: "ease-out" }, captions: { maxCharsPerSecond: 20, maxLines: 2 }, audio: { integratedLufs: -16, truePeakDb: -1 } }),
+    "design.system.json": json({ schema: DESIGN_SYSTEM_SCHEMA, colors: { canvas: "#101114", text: "#f7f7f5", accent: "#5eead4" }, typography: { displayPx: 96, bodyPx: 42, captionPx: 36 }, safeAreaPx: 80, motion: { enterFrames: 15, exitFrames: 12, easing: "ease-out", spring: { damping: 18, stiffness: 120, mass: 1 }, staggerFrames: 4, blurPx: 12, cameraDepthPx: 1200 }, captions: { maxCharsPerSecond: 20, maxLines: 2 }, audio: { integratedLufs: -16, truePeakDb: -1 } }),
     "video.project.json": json({ schema: PROJECT_SCHEMA, artifactId, profile, compositionId: "Main", durationInFrames: defaults.durationInFrames, fps: defaults.fps, width: defaults.width, height: defaults.height }),
     "src/index.ts": "import { registerRoot } from \"remotion\";\nimport { Root } from \"./Root.js\";\nregisterRoot(Root);\n",
     "src/Root.tsx": `import React from "react";\nimport { Composition } from "remotion";\nimport { Video } from "./Video.js";\nexport const Root = () => <Composition id="Main" component={Video} durationInFrames={${defaults.durationInFrames}} fps={${defaults.fps}} width={${defaults.width}} height={${defaults.height}} />;\n`,
@@ -86,6 +89,7 @@ async function main() {
     "tools/render-visual.mjs": "throw new Error(\"IMPLEMENT_VIDEO_VISUAL_RENDERER\");\n",
     "tools/render-audio.mjs": "throw new Error(\"IMPLEMENT_VIDEO_AUDIO_RENDERER\");\n",
   };
+  if (shots !== undefined) files["plan.shots.json"] = shots;
   for (const [relativePath, content] of Object.entries(files)) {
     await mkdir(join(root, relativePath, ".."), { recursive: true });
     await writeFile(join(root, relativePath), content, { flag: "wx" });

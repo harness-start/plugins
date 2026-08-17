@@ -1,7 +1,11 @@
-// harness-source-hash: sha256:176c672fb1ccc5b2d4cacdc40f3f5b7135aa822e2c9643592ccd92403c1d355c
+// harness-source-hash: sha256:4b3af0ed4bca5ea8fc7c745843fb38d3146ef4653efcae930120634bcc0a4472
+import {
+  SHOT_LIBRARY_UPSTREAM_COMMIT,
+  getShotRecipe
+} from "./chunk-7UBLRPCJ.mjs";
 import {
   assertVideoProjectRoot
-} from "./chunk-DPIYBJ4M.mjs";
+} from "./chunk-JTRXQ3FD.mjs";
 
 // plugins/video-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
@@ -18,7 +22,7 @@ function errorMessage(error) {
 }
 async function issueWriterCapability({ root: rawRoot, capability, argv, sessionId, triggerFrom }) {
   const root = assertVideoProjectRoot(rawRoot);
-  if (!/^video-(?:init|admit|render|probe|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+  if (!/^video-(?:init|admit|render|probe|review|release|shot-stage)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (typeof sessionId !== "string" || !sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
   const directory = join(root, ".tmp", "video-guard");
   const target = grantPath(root, capability);
@@ -87,12 +91,14 @@ var AUDIO_EVIDENCE_SCHEMA = "video-production/audio-evidence/v1";
 var MOTION_EVIDENCE_SCHEMA = "video-production/motion-evidence/v1";
 var CAPTION_EVIDENCE_SCHEMA = "video-production/caption-evidence/v1";
 var REFERENCE_EVIDENCE_SCHEMA = "video-production/reference-evidence/v1";
+var SHOT_EVIDENCE_SCHEMA = "video-production/shot-evidence/v1";
 var FRAME_EVIDENCE_SCHEMA = "video-production/frame-evidence/v1";
 var ACCESSIBILITY_EVIDENCE_SCHEMA = "video-production/accessibility-evidence/v1";
 var VIDEO_REVIEW_SCHEMA = "video-production/video-review/v2";
 var REVIEW_INPUT_SCHEMA = "video-production/review-input/v2";
 var RELEASE_MANIFEST_SCHEMA = "video-production/release-manifest/v2";
 var PLAN_SCHEMA = "video-production/plan/v2";
+var SHOT_PLAN_SCHEMA = "video-production/shot-plan/v1";
 var DIRECTION_SCHEMA = "video-production/direction/v1";
 var SCRIPT_SCHEMA = "video-production/script/v1";
 var STORYBOARD_SCHEMA = "video-production/storyboard/v2";
@@ -132,7 +138,7 @@ var GENERATED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.video\.json$|release\
 var ADMITTED_ASSET_PATH = /^public\/admitted\//u;
 var PROOF_MEDIA_PATH = /^src\/(?:visual\/.+\.mp4|audio\/.+\.wav)$/u;
 var PROOF_RECORD_PATH = /^src\/(?:visual\/.+\.mp4\.proof\.json|audio\/.+\.wav\.proof\.json)$/u;
-var CAPABILITY_PATH = /^\.tmp\/video-guard\/capability\.video-(?:init|admit|render|probe|review|release)\.json$/u;
+var CAPABILITY_PATH = /^\.tmp\/video-guard\/capability\.video-(?:init|admit|render|probe|review|release|shot-stage)\.json$/u;
 var VISUAL_OWNER = /(?:<\s*(?:Audio|Composition|Sequence|Series|TransitionSeries)\b|from\s+["']@remotion\/renderer["']|import\s*\(\s*["']@remotion\/renderer["']\s*\)|require\s*\(\s*["'](?:node:fs|node:child_process|@remotion\/renderer)["']\s*\)|\b(?:fetch|setTimeout|setInterval|XMLHttpRequest|WebSocket)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|animation\s*:|https?:\/\/)/u;
 var REQUIRED_PROJECT_PATHS = [
   ".gitignore",
@@ -240,6 +246,7 @@ function releaseArtifactPaths(model) {
     "review.video.json",
     "release.manifest.json"
   );
+  if (hasFile(model, "plan.shots.json")) paths.push("evidence.shots.json");
   paths.push(...Object.keys(model.files ?? {}).filter((filePath) => /^evidence\/admissions\/[^/]+\.json$/u.test(filePath)));
   return [...new Set(paths)];
 }
@@ -323,14 +330,69 @@ function validatePlan(model, stage, findings) {
     if (plan.artifactId !== model.artifactId || !PROFILES.has(String(plan.profile)) || !["guided", "autonomous"].includes(String(plan.mode)) || typeof targetStage !== "string" || !STAGES.has(targetStage) || typeof plan.audience !== "string" || !plan.audience.trim() || typeof plan.objective !== "string" || !plan.objective.trim() || typeof plan.platform !== "string" || !plan.platform.trim() || typeof plan.language !== "string" || !plan.language.trim() || typeof budget.currency !== "string" || !budget.currency || typeof budget.limit !== "number" || budget.limit < 0 || typeof budget.spent !== "number" || budget.spent < 0 || budget.spent > budget.limit) {
       findings.push(finding("PLAN_CONTRACT_INVALID", "plan.contract.json", "v2 plan must bind artifact, profile, mode, stage, audience, objective, platform, language, and a bounded external budget"));
     }
+    if (Object.hasOwn(plan, "craft")) {
+      const craft = isObject(plan.craft) ? plan.craft : {};
+      if (!["required", "optional"].includes(String(craft.shotPlanning)) || !["unconfirmed", "free-license", "company-license", "evaluation"].includes(String(craft.remotionLicense)) || plan.profile === "product-promo" && craft.shotPlanning !== "required") findings.push(finding("CRAFT_CONTRACT_INVALID", "plan.contract.json", "craft must declare valid shot planning and Remotion license statuses; product-promo requires shot planning"));
+    }
   }
   if (typeof stage !== "string" || !STAGES.has(stage)) findings.push(finding("STAGE_INVALID", "plan.contract.json", `closure stage must be one of ${VIDEO_STAGES.join("|")}`));
 }
 function planningDigest(model, stage) {
-  const paths = stage === "direction" ? ["plan.direction.json"] : stage === "storyboard" ? ["plan.script.json", "plan.storyboard.json"] : ["plan.assets.json"];
+  const paths = stage === "direction" ? ["plan.direction.json"] : stage === "storyboard" ? ["plan.script.json", "plan.storyboard.json", ...hasFile(model, "plan.shots.json") ? ["plan.shots.json"] : []] : ["plan.assets.json"];
   if (paths.length === 1) return fileDigest(model, paths[0] ?? "");
   return sha256(paths.map((filePath) => `${filePath}\0${fileDigest(model, filePath)}
 `).join(""));
+}
+function validateShotPlan(model, stage, findings) {
+  if (!stageAtLeast(stage, "storyboard")) return;
+  const plan = isObject(model.plan) ? model.plan : {};
+  const craft = isObject(plan.craft) ? plan.craft : {};
+  const required = craft.shotPlanning === "required";
+  if (!hasFile(model, "plan.shots.json")) {
+    if (required) findings.push(finding("SHOT_PLAN_MISSING", "plan.shots.json", "required shot planning must cover every storyboard beat"));
+    return;
+  }
+  const shotPlan = parseJson(model.files, "plan.shots.json", findings, "SHOT_PLAN_INVALID");
+  if (!isObject(shotPlan) || shotPlan.schema !== SHOT_PLAN_SCHEMA || !Array.isArray(shotPlan.selections) || !Array.isArray(shotPlan.customBeats)) {
+    findings.push(finding("SHOT_PLAN_INVALID", "plan.shots.json", `shot plan must use ${SHOT_PLAN_SCHEMA} with selections and customBeats arrays`));
+    return;
+  }
+  if (shotPlan.catalogRevision !== SHOT_LIBRARY_UPSTREAM_COMMIT) findings.push(finding("SHOT_CATALOG_REVISION_INVALID", "plan.shots.json", "shot selections must bind the bundled catalog revision"));
+  const storyboard = (() => {
+    try {
+      return JSON.parse(model.files?.["plan.storyboard.json"] ?? "");
+    } catch {
+      return null;
+    }
+  })();
+  const beats = isObject(storyboard) && Array.isArray(storyboard.beats) ? storyboard.beats.filter(isObject) : [];
+  const beatMap = new Map(beats.map((beat) => [String(beat.id), beat]));
+  const covered = /* @__PURE__ */ new Set();
+  for (const selection of shotPlan.selections) {
+    if (!isObject(selection)) {
+      findings.push(finding("SHOT_SELECTION_INVALID", "plan.shots.json", "shot selections must be structured records"));
+      continue;
+    }
+    const beatId = typeof selection.beatId === "string" ? selection.beatId : "";
+    const beat = beatMap.get(beatId);
+    const reviewFrames = Array.isArray(selection.reviewFrames) ? selection.reviewFrames : [];
+    const implementationPath = typeof selection.implementationPath === "string" ? selection.implementationPath : "";
+    let catalogValid = true;
+    try {
+      const selected = getShotRecipe(String(selection.recipeId ?? ""), String(selection.styleId ?? ""));
+      if (["direct", "adapted"].includes(String(selection.usage)) && selected.style.status !== "executable") catalogValid = false;
+    } catch {
+      catalogValid = false;
+    }
+    const valid = beat !== void 0 && !covered.has(beatId) && ["direct", "adapted", "inspired"].includes(String(selection.usage)) && typeof selection.adaptationNotes === "string" && selection.adaptationNotes.trim().length > 0 && implementationPath === path.normalize(implementationPath) && implementationPath.startsWith("src/visual/") && hasFile(model, implementationPath) && reviewFrames.length >= 2 && reviewFrames.every((frame) => Number.isInteger(frame) && frame >= Number(beat.startFrame) && frame < Number(beat.endFrame)) && new Set(reviewFrames).size === reviewFrames.length && catalogValid;
+    if (!valid) findings.push(finding("SHOT_SELECTION_INVALID", "plan.shots.json", `shot selection for ${beatId || "unknown beat"} must bind a real catalog style, implementation path, and review frames`));
+    if (beat !== void 0 && !covered.has(beatId)) covered.add(beatId);
+  }
+  for (const custom of shotPlan.customBeats) {
+    if (!isObject(custom) || typeof custom.beatId !== "string" || !beatMap.has(custom.beatId) || covered.has(custom.beatId) || typeof custom.reason !== "string" || !custom.reason.trim()) findings.push(finding("SHOT_CUSTOM_BEAT_INVALID", "plan.shots.json", "custom beats need a unique storyboard beat and a concrete reason"));
+    else covered.add(custom.beatId);
+  }
+  if (required && [...beatMap.keys()].some((beatId) => !covered.has(beatId))) findings.push(finding("SHOT_BEAT_UNCOVERED", "plan.shots.json", "every storyboard beat needs one catalog selection or custom reason"));
 }
 function validateApproval(model, stage, findings) {
   if (!stageAtLeast(stage, "direction")) return;
@@ -368,7 +430,11 @@ function validateDirection(model, stage, findings) {
   }
   const workers = isObject(composition) && Array.isArray(composition.workers) ? composition.workers : [];
   const workerMap = new Map(workers.filter(isObject).map((worker) => [String(worker.name), worker]));
-  if (!isObject(composition) || composition.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== REQUIRED_ADVISORS.size || workers.some((worker) => isObject(worker) && Object.hasOwn(worker, "revision")) || [...REQUIRED_ADVISORS].some((name) => !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)) || !["advisor", "external-runner"].includes(String(workerMap.get(name)?.mode)))) {
+  const plan = isObject(model.plan) ? model.plan : {};
+  const craft = isObject(plan.craft) ? plan.craft : {};
+  const requiredAdvisors = new Set(REQUIRED_ADVISORS);
+  if (craft.shotPlanning === "required") requiredAdvisors.add("video-shot-recipes");
+  if (!isObject(composition) || composition.schema !== SKILL_COMPOSITION_SCHEMA || workers.length !== requiredAdvisors.size || workers.some((worker) => isObject(worker) && Object.hasOwn(worker, "revision")) || [...requiredAdvisors].some((name) => !["used", "skipped", "unavailable"].includes(String(workerMap.get(name)?.status)) || !["advisor", "external-runner"].includes(String(workerMap.get(name)?.mode)))) {
     findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "every current-source companion must declare its mode and truthful status"));
   }
 }
@@ -435,7 +501,15 @@ function validateProjectConfig(model, findings) {
 function validateToolchain(files, findings) {
   const pkg = parseJson(files, "package.json", findings);
   const lock = parseJson(files, "package-lock.json", findings);
-  const requiredDependencies = ["remotion", "@remotion/cli", "react", "react-dom"];
+  const plan = (() => {
+    try {
+      return JSON.parse(files["plan.contract.json"] ?? "");
+    } catch {
+      return null;
+    }
+  })();
+  const craft = isObject(plan) && isObject(plan.craft) ? plan.craft : {};
+  const requiredDependencies = ["remotion", "@remotion/cli", "react", "react-dom", ...Object.keys(craft).length > 0 ? ["@remotion/motion-blur"] : []];
   if (isObject(pkg)) {
     const listed = isObject(pkg.dependencies) ? pkg.dependencies : {};
     const devListed = isObject(pkg.devDependencies) ? pkg.devDependencies : {};
@@ -619,7 +693,7 @@ function evidenceObject(model, filePath) {
 }
 function validEvidenceBase(model, value, schema) {
   const finalPath = finalRenderPaths(model).mediaPath;
-  const expectedCapability = [PROBE_SCHEMA, AUDIO_EVIDENCE_SCHEMA, MOTION_EVIDENCE_SCHEMA, CAPTION_EVIDENCE_SCHEMA, REFERENCE_EVIDENCE_SCHEMA].includes(schema) ? "video-probe" : "video-review";
+  const expectedCapability = [PROBE_SCHEMA, AUDIO_EVIDENCE_SCHEMA, MOTION_EVIDENCE_SCHEMA, CAPTION_EVIDENCE_SCHEMA, REFERENCE_EVIDENCE_SCHEMA, SHOT_EVIDENCE_SCHEMA].includes(schema) ? "video-probe" : "video-review";
   const output = isObject(value?.output) ? value.output : void 0;
   return value?.schema === schema && value?.plugin === PLUGIN && value?.artifactId === model.artifactId && value?.subjectDigest === computeVideoSubjectDigest(model) && output?.path === finalPath && output?.sha256 === fileDigest(model, finalPath) && value?.capability === expectedCapability && typeof value?.createdAt === "string" && typeof value?.sessionId === "string" && value.sessionId !== "unknown" && typeof value?.triggerFrom === "string";
 }
@@ -658,13 +732,29 @@ function validateProbeEvidence(model, findings) {
     }
   })();
   if (!validEvidenceBase(model, references, REFERENCE_EVIDENCE_SCHEMA) || references?.verdict !== "pass" || comparisons.length !== declaredReferences.length || !declaredReferences.every((reference) => isObject(reference) && comparisons.some((comparison) => isObject(comparison) && comparison.id === reference.id && comparison.fidelity === reference.fidelity && (reference.fidelity !== "frame-aligned" ? comparison.verdict === "review" : comparison.verdict === "pass" && typeof comparison.ssim === "number" && (typeof comparison.psnr === "number" || comparison.psnr === "infinity"))))) findings.push(finding("REFERENCE_EVIDENCE_INVALID", "evidence.reference.json", "reference evidence must bind every declared fidelity comparison"));
+  const shotPlan = evidenceObject(model, "plan.shots.json");
+  const declaredShots = Array.isArray(shotPlan?.selections) ? shotPlan.selections.filter(isObject) : [];
+  if (declaredShots.length > 0) {
+    const shots = evidenceObject(model, "evidence.shots.json");
+    const shotSelections = Array.isArray(shots?.selections) ? shots.selections.filter(isObject) : [];
+    const validSelections = declaredShots.every((selection) => {
+      const evidence = shotSelections.find((entry) => entry.beatId === selection.beatId);
+      const reviewFrames = isObject(evidence) && Array.isArray(evidence.reviewFrames) ? evidence.reviewFrames : [];
+      const expectedFrames = Array.isArray(selection.reviewFrames) ? selection.reviewFrames : [];
+      return isObject(evidence) && evidence.recipeId === selection.recipeId && evidence.styleId === selection.styleId && evidence.usage === selection.usage && evidence.implementationPath === selection.implementationPath && evidence.implementationSha256 === fileDigest(model, String(selection.implementationPath ?? "")) && reviewFrames.length === expectedFrames.length && expectedFrames.every((frame) => reviewFrames.some((sample) => isObject(sample) && sample.frame === frame && sixDigitHash(sample.sha256)));
+    });
+    if (!validEvidenceBase(model, shots, SHOT_EVIDENCE_SCHEMA) || shots?.catalogRevision !== shotPlan?.catalogRevision || shotSelections.length !== declaredShots.length || !validSelections) findings.push(finding("SHOT_EVIDENCE_INVALID", "evidence.shots.json", "shot evidence must bind every selected recipe to current implementation bytes and decoded review frames"));
+  }
   const sheetDigest = motion?.contactSheetSha256;
   if (!hasFile(model, "evidence/contact-sheet.png") || !sixDigitHash(sheetDigest) || sheetDigest !== fileDigest(model, "evidence/contact-sheet.png")) findings.push(finding("CONTACT_SHEET_INVALID", "evidence/contact-sheet.png", "contact sheet bytes must match motion evidence"));
 }
 function requiredReviewChecks(model) {
   const plan = isObject(model.plan) ? model.plan : {};
+  const shotPlan = evidenceObject(model, "plan.shots.json");
+  const hasShotSelections = Array.isArray(shotPlan?.selections) && shotPlan.selections.length > 0;
   return [
     ...BASE_REVIEW_CHECKS,
+    ...hasShotSelections ? ["shotFidelity"] : [],
     ...plan.profile === "reference-led" ? ["referenceFidelity"] : [],
     ...plan.profile === "micro-drama" ? ["characterContinuity"] : []
   ];
@@ -676,10 +766,12 @@ function validateReviewEvidence(model, findings) {
   const frameIndexes = frameList.map((item) => isObject(item) ? item.frame : void 0);
   const framesTool = nestedRecord(frames, "tool");
   const duration = model.project?.durationInFrames;
+  const shotPlan = evidenceObject(model, "plan.shots.json");
+  const requiredShotFrames = Array.isArray(shotPlan?.selections) ? shotPlan.selections.flatMap((selection) => isObject(selection) && Array.isArray(selection.reviewFrames) ? selection.reviewFrames : []) : [];
   if (!validEvidenceBase(model, frames, FRAME_EVIDENCE_SCHEMA) || framesTool?.name !== "ffmpeg" || typeof framesTool?.version !== "string" || !framesTool.version || frameList.length < 3 || !frameList.every((item) => {
     const record = isObject(item) ? item : void 0;
     return Number.isInteger(record?.frame) && record?.frame >= 0 && record?.frame < duration && sixDigitHash(record?.sha256);
-  }) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes(duration - 1)) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, and final extracted frame hashes"));
+  }) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes(duration - 1) || !requiredShotFrames.every((frame) => frameIndexes.includes(frame))) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, final, and selected shot-review frame hashes"));
   const accessibility = evidenceObject(model, "evidence.accessibility.json");
   const accessibilityChecks = nestedRecord(accessibility, "checks");
   if (!validEvidenceBase(model, accessibility, ACCESSIBILITY_EVIDENCE_SCHEMA) || accessibility?.verdict !== "pass" || !sixDigitHash(accessibility?.reviewInputSha256) || !["captionsReviewed", "flashingReviewed", "contrastReviewed"].every((key) => accessibilityChecks?.[key] === true)) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", "evidence.accessibility.json", "accessibility evidence requires explicit passing checks"));
@@ -688,13 +780,17 @@ function validateReviewEvidence(model, findings) {
   const reviewer = nestedRecord(review, "reviewer");
   const checks = nestedRecord(review, "checks");
   const reviewerKind = reviewer?.kind;
-  if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind)) || typeof reviewer?.id !== "string" || typeof reviewer?.sessionId !== "string" || reviewer?.sessionId !== review?.sessionId || reviewer?.sessionId === finalProof?.sessionId || !requiredReviewChecks(model).every((key) => checks?.[key] === "pass") || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json")) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be independent, profile-complete, passing, and bound to frame and accessibility evidence"));
+  const expectedShotDigest = hasFile(model, "evidence.shots.json") ? fileDigest(model, "evidence.shots.json") : void 0;
+  if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind)) || typeof reviewer?.id !== "string" || typeof reviewer?.sessionId !== "string" || reviewer?.sessionId !== review?.sessionId || reviewer?.sessionId === finalProof?.sessionId || !requiredReviewChecks(model).every((key) => checks?.[key] === "pass") || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json") || expectedShotDigest !== void 0 && review?.shotEvidenceSha256 !== expectedShotDigest) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be independent, profile-complete, passing, and bound to frame, accessibility, and selected-shot evidence"));
 }
 function validateReleaseEvidence(model, findings) {
   const { mediaPath, proofPath } = finalRenderPaths(model);
   if (!hasFile(model, proofPath) || !validRenderProof(model, { proofPath, kind: "final", sourcePath: null, outputPath: mediaPath, startFrame: 0, endFrame: model.project?.durationInFrames })) findings.push(finding("FINAL_RENDER_PROOF_INVALID", proofPath, "final MP4 requires a current structured render proof"));
   validateProbeEvidence(model, findings);
   validateReviewEvidence(model, findings);
+  const plan = isObject(model.plan) ? model.plan : {};
+  const craft = isObject(plan.craft) ? plan.craft : {};
+  if (Object.keys(craft).length > 0 && !["free-license", "company-license", "evaluation"].includes(String(craft.remotionLicense))) findings.push(finding("REMOTION_LICENSE_UNCONFIRMED", "plan.contract.json", "release requires an explicit Remotion license status declaration"));
   const manifest = evidenceObject(model, "release.manifest.json");
   const expectedManifest = createVideoReleaseManifest(model);
   if (JSON.stringify(manifest) !== JSON.stringify(expectedManifest)) findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind the current subject and every delivery output"));
@@ -713,6 +809,7 @@ function validateVideoModel(model, { stage } = {}) {
   validateEntrypoints(files, findings);
   validateDirection(model, stage, findings);
   validateStoryboard(model, stage, findings);
+  validateShotPlan(model, stage, findings);
   validateAssets(model, stage, findings);
   if (stageAtLeast(stage, "composition")) {
     const visualManifest = parseJson(files, "src/visual/manifest.json", findings);
@@ -749,9 +846,10 @@ function validateVideoModel(model, { stage } = {}) {
 var WRITER_PATHS = {
   "video-admit": /^(?:public\/admitted\/[^/]+|evidence\/admissions\/[^/]+\.json|\.video-delivery-journal\.json)$/u,
   "video-render": /^(?:src\/visual\/.*\.mp4(?:\.proof\.json)?|src\/audio\/.*\.wav(?:\.proof\.json)?|dist\/[^/]+\.mp4(?:\.proof\.json)?)$/u,
-  "video-probe": /^(?:evidence\.(?:probe|audio|motion|captions|reference)\.json|evidence\/contact-sheet\.png|\.video-delivery-journal\.json)$/u,
+  "video-probe": /^(?:evidence\.(?:probe|audio|motion|captions|reference|shots)\.json|evidence\/contact-sheet\.png|\.video-delivery-journal\.json)$/u,
   "video-review": /^(?:evidence\.(?:frames|accessibility)\.json|review\.video\.json)$/u,
-  "video-release": /^(?:release\.manifest\.json|receipt\.release\.json|\.video-delivery-journal\.json)$/u
+  "video-release": /^(?:release\.manifest\.json|receipt\.release\.json|\.video-delivery-journal\.json)$/u,
+  "video-shot-stage": /^(?:plan\.(?:shots|approvals)\.json|references\/shot-recipes\/[^/]+\/.*|\.video-delivery-journal\.json)$/u
 };
 function evaluateVideoWrite({ relativePath = "", toolName = "", writer = "" } = {}) {
   const normalized = String(relativePath).replaceAll("\\", "/");
@@ -775,11 +873,13 @@ export {
   MOTION_EVIDENCE_SCHEMA,
   CAPTION_EVIDENCE_SCHEMA,
   REFERENCE_EVIDENCE_SCHEMA,
+  SHOT_EVIDENCE_SCHEMA,
   FRAME_EVIDENCE_SCHEMA,
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   VIDEO_REVIEW_SCHEMA,
   REVIEW_INPUT_SCHEMA,
   PLAN_SCHEMA,
+  SHOT_PLAN_SCHEMA,
   DIRECTION_SCHEMA,
   SCRIPT_SCHEMA,
   STORYBOARD_SCHEMA,

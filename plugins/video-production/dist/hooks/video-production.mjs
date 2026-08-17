@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:176c672fb1ccc5b2d4cacdc40f3f5b7135aa822e2c9643592ccd92403c1d355c
+// harness-source-hash: sha256:4b3af0ed4bca5ea8fc7c745843fb38d3146ef4653efcae930120634bcc0a4472
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-JYYBMUVW.mjs";
+} from "../chunks/chunk-TFRFWGXF.mjs";
+import "../chunks/chunk-7UBLRPCJ.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-DPIYBJ4M.mjs";
+} from "../chunks/chunk-JTRXQ3FD.mjs";
 
 // plugins/video-production/src/entries/hooks/video-production.ts
 import { relative, resolve as resolve3 } from "node:path";
@@ -232,7 +233,7 @@ var PLUGIN_DIRECTORY = resolve2(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
 var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
-var WRITERS = /* @__PURE__ */ new Set(["project-admit.mjs", "project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
+var WRITERS = /* @__PURE__ */ new Set(["project-admit.mjs", "project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs", "project-shot-stage.mjs"]);
 var PROFILES = /* @__PURE__ */ new Set(["motion-explainer", "product-promo", "short-form", "talking-head", "reference-led", "micro-drama"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 function parseShellWords(command) {
@@ -294,6 +295,7 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (name === "project-init.mjs" && (words.length !== 7 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? "") || words[5] !== "--mode" || !["guided", "autonomous"].includes(words[6] ?? ""))) return null;
   if (name === "project-admit.mjs" && words.length !== 4) return null;
   if (name === "project-review.mjs" && words.length !== 4) return null;
+  if (name === "project-shot-stage.mjs" && words.length !== 6) return null;
   if (["project-lint.mjs", "project-probe.mjs", "project-release.mjs"].includes(name) && words.length !== 3) return null;
   if (name === "project-render.mjs" && ![4, 5].includes(words.length)) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };

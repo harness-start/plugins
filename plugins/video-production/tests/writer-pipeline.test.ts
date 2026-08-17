@@ -22,7 +22,7 @@ function write(root, relativePath, content, executable = false) {
   if (executable) chmodSync(target, 0o755);
 }
 
-function fixture(sandbox) {
+function fixture(sandbox, { shotCraft = false } = {}) {
   const root = join(sandbox, "artifacts", "video", "demo");
   const bin = join(sandbox, "bin");
   const visual = "export function Intro() { return <div />; }\n";
@@ -33,7 +33,7 @@ function fixture(sandbox) {
       "video:render:audio": "node tools/fake-render.mjs audio",
       "video:render:final": "node tools/fake-render.mjs final",
     },
-    dependencies: { remotion: "1.0.0", "@remotion/cli": "1.0.0", react: "1.0.0", "react-dom": "1.0.0" },
+    dependencies: { remotion: "1.0.0", "@remotion/cli": "1.0.0", ...(shotCraft ? { "@remotion/motion-blur": "1.0.0" } : {}), react: "1.0.0", "react-dom": "1.0.0" },
   };
   const direction = JSON.stringify({ schema: "video-production/direction/v1", motionThesis: "A signal becomes a resolved outcome.", visualMetaphor: "signal path", narrativeArc: "hook, mechanism, resolution", motionGrammar: ["route", "resolve"], negativeRules: ["slide-deck pacing"] });
   const script = JSON.stringify({ schema: "video-production/script/v1", beats: [{ id: "demo", narration: "A short demonstration." }], claims: [] });
@@ -41,13 +41,15 @@ function fixture(sandbox) {
   const assets = JSON.stringify({ schema: "video-production/assets/v2", assets: [{ id: "bed", kind: "audio", source: "user", path: "public/audio/bed.wav", rights: "owned" }] });
   const workers = [
     ["video-motion-direction", "advisor"], ["video-format-playbooks", "advisor"], ["video-visual-critique", "advisor"], ["video-media-import", "external-runner"],
+    ...(shotCraft ? [["video-shot-recipes", "advisor"]] : []),
   ].map(([name, mode]) => ({ name, mode, status: "skipped" }));
-  const storyboardDigest = sha256(`plan.script.json\0${sha256(script)}\nplan.storyboard.json\0${sha256(storyboard)}\n`);
+  const shots = shotCraft ? JSON.stringify({ schema: "video-production/shot-plan/v1", catalogRevision: "0d6f0b57f0d4d6700761644c07f7ef03c3e50234", selections: [{ beatId: "demo", recipeId: "deck-deal-flyin", styleId: "deck-deal-flyin", usage: "adapted", adaptationNotes: "Apply the accelerating card cadence to the signal proof.", implementationPath: "src/visual/v001-intro.f000000-f000010.tsx", reviewFrames: [0, 5, 9] }], customBeats: [] }) : undefined;
+  const storyboardDigest = sha256(`plan.script.json\0${sha256(script)}\nplan.storyboard.json\0${sha256(storyboard)}\n${shots === undefined ? "" : `plan.shots.json\0${sha256(shots)}\n`}`);
   const files = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": JSON.stringify(pkg),
-    "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "node_modules/remotion": { version: "1.0.0" }, "node_modules/@remotion/cli": { version: "1.0.0" }, "node_modules/react": { version: "1.0.0" }, "node_modules/react-dom": { version: "1.0.0" } } }),
-    "plan.contract.json": JSON.stringify({ schema: "video-production/plan/v2", artifactId: "demo", profile: "motion-explainer", mode: "guided", targetStage: "release", audience: "test viewers", objective: "verify the delivery closure", platform: "test", language: "en", assumptions: [], externalBudget: { currency: "USD", limit: 0, spent: 0 } }),
+    "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "node_modules/remotion": { version: "1.0.0" }, "node_modules/@remotion/cli": { version: "1.0.0" }, ...(shotCraft ? { "node_modules/@remotion/motion-blur": { version: "1.0.0" } } : {}), "node_modules/react": { version: "1.0.0" }, "node_modules/react-dom": { version: "1.0.0" } } }),
+    "plan.contract.json": JSON.stringify({ schema: "video-production/plan/v2", artifactId: "demo", profile: shotCraft ? "product-promo" : "motion-explainer", mode: "guided", targetStage: "release", audience: "test viewers", objective: "verify the delivery closure", platform: "test", language: "en", assumptions: [], externalBudget: { currency: "USD", limit: 0, spent: 0 }, ...(shotCraft ? { craft: { shotPlanning: "required", remotionLicense: "free-license" } } : {}) }),
     "plan.direction.json": direction,
     "plan.script.json": script,
     "plan.storyboard.json": storyboard,
@@ -56,7 +58,7 @@ function fixture(sandbox) {
     "plan.approvals.json": JSON.stringify({ schema: "video-production/approvals/v1", mode: "guided", gates: [{ stage: "direction", status: "approved", subjectSha256: sha256(direction), actor: "fixture", reason: "" }, { stage: "storyboard", status: "approved", subjectSha256: storyboardDigest, actor: "fixture", reason: "" }, { stage: "assets", status: "approved", subjectSha256: sha256(assets), actor: "fixture", reason: "" }] }),
     "plan.references.json": JSON.stringify({ schema: "video-production/references/v1", references: [] }),
     "design.system.json": JSON.stringify({ schema: "video-production/design-system/v1", colors: { canvas: "#111111", text: "#ffffff", accent: "#5eead4" }, typography: { displayPx: 96, bodyPx: 42, captionPx: 36 }, safeAreaPx: 80, motion: { enterFrames: 3, exitFrames: 3, easing: "ease-out" }, captions: { maxCharsPerSecond: 20, maxLines: 2 }, audio: { integratedLufs: -16, truePeakDb: -1 } }),
-    "video.project.json": JSON.stringify({ schema: "video-production/project/v2", artifactId: "demo", profile: "motion-explainer", durationInFrames: 10, fps: 30, width: 1920, height: 1080, compositionId: "Main" }),
+    "video.project.json": JSON.stringify({ schema: "video-production/project/v2", artifactId: "demo", profile: shotCraft ? "product-promo" : "motion-explainer", durationInFrames: 10, fps: 30, width: 1920, height: 1080, compositionId: "Main" }),
     "src/index.ts": "registerRoot(Root);\n",
     "src/Root.tsx": "export const Root = () => <Composition id='main' />;\n",
     "src/Video.tsx": "export const Video = () => <><VisualTimeline/><AudioTimeline/><CaptionTimeline/></>;\n",
@@ -71,6 +73,7 @@ function fixture(sandbox) {
     "src/captions/manifest.json": JSON.stringify({ units: [] }),
     "tools/fake-render.mjs": `import { mkdirSync, writeFileSync } from "node:fs"; import { dirname } from "node:path"; const args = Object.fromEntries(process.argv.slice(3).reduce((out, value, index, all) => index % 2 === 0 ? [...out, [value.replace(/^--/, ""), all[index + 1]]] : out, [])); mkdirSync(dirname(args.output), { recursive: true }); writeFileSync(args.output, process.argv[2] === "audio" ? "FAKE_WAV" : process.argv[2] === "final" ? "FAKE_FINAL_MP4" : "FAKE_VISUAL_MP4");\n`,
   };
+  if (shots !== undefined) files["plan.shots.json"] = shots;
   for (const [relativePath, content] of Object.entries(files)) write(root, relativePath, content);
   write(bin, "ffprobe", `#!/usr/bin/env node\nif(process.argv.includes("-version")){process.stdout.write("ffprobe fixture 1.0\\n");process.exit(0)} const fs=require("node:fs"); const file=process.argv.at(-1); const body=fs.readFileSync(file,"utf8"); const audio=body.includes("WAV"); const final=body.includes("FINAL"); const streams=audio?[{codec_type:"audio",codec_name:"pcm_s16le",sample_rate:"48000",channels:2}]:[{codec_type:"video",codec_name:"h264",width:1920,height:1080,r_frame_rate:"30/1",avg_frame_rate:"30/1",nb_frames:"10"},...(final?[{codec_type:"audio",codec_name:"aac",sample_rate:"48000",channels:2}]:[])]; process.stdout.write(JSON.stringify({format:{format_name:audio?"wav":"mov,mp4",duration:"0.333333"},streams}));\n`, true);
   write(bin, "ffmpeg", "#!/usr/bin/env node\nconst fs=require('node:fs'); if(process.argv.includes('-version')){process.stdout.write('ffmpeg fixture 1.0\\n');process.exit(0)} if(process.argv.includes('ebur128=peak=true')){process.stderr.write('Summary:\\n  Integrated loudness:\\n    I: -16.0 LUFS\\n  True peak:\\n    Peak: -1.0 dBFS\\n');process.exit(0)} if(process.argv.includes('-vf')){fs.mkdirSync(require('node:path').dirname(process.argv.at(-1)),{recursive:true});fs.writeFileSync(process.argv.at(-1),'PNG-CONTACT');process.exit(0)} process.stdout.write(Buffer.from(`FRAME:${process.argv.join(' ')}`));\n", true);
@@ -171,6 +174,55 @@ test("registered writers produce a structured render-probe-review-release closur
     const forgedCodes = validateVideoModel(forgedModel, { stage: "release" }).map(({ code }) => code);
     assert.ok(forgedCodes.includes("PROBE_EVIDENCE_INVALID"));
     assert.ok(forgedCodes.includes("FRAME_EVIDENCE_INVALID"));
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("shot-aware probe and review bind selected fidelity frames into release evidence", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "video-shot-evidence-"));
+  try {
+    const fx = fixture(sandbox, { shotCraft: true });
+    const env = { PATH: `${fx.bin}:${process.env.PATH}` };
+    for (const [kind, source] of [["visual", "v001-intro.f000000-f000010.tsx"], ["audio", "a001-music-bed.f000000-f000010.audio.json"], ["final", null]]) {
+      const rendered = await runAuthorized("project-render.mjs", [fx.root, kind, ...(source ? [source] : [])], { env, sessionId: "shot-render-session", cwd: sandbox });
+      assert.equal(rendered.code, 0, rendered.stderr);
+    }
+
+    const probed = await runAuthorized("project-probe.mjs", [fx.root], { env, sessionId: "shot-render-session", cwd: sandbox });
+
+    assert.equal(probed.code, 0, probed.stderr);
+    const evidence = JSON.parse(readFileSync(join(fx.root, "evidence.shots.json"), "utf8"));
+    assert.equal(evidence.schema, "video-production/shot-evidence/v1");
+    assert.equal(evidence.catalogRevision, "0d6f0b57f0d4d6700761644c07f7ef03c3e50234");
+    assert.deepEqual(evidence.selections[0].reviewFrames.map(({ frame }) => frame), [0, 5, 9]);
+    assert.equal(evidence.selections[0].implementationSha256, sha256(fx.visual));
+
+    const reviewInput = join(sandbox, "shot-review-input.json");
+    const checks: Record<string, string> = { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" };
+    const input = {
+      schema: "video-production/review-input/v2",
+      artifactId: "demo",
+      outputSha256: sha256("FAKE_FINAL_MP4"),
+      verdict: "pass",
+      reviewer: { kind: "independent-agent", id: "shot-reviewer", sessionId: "shot-review-session" },
+      frames: [0, 5, 9],
+      checks,
+      accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true },
+    };
+    writeFileSync(reviewInput, JSON.stringify(input));
+    const incomplete = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "shot-review-session", cwd: sandbox });
+    assert.equal(incomplete.code, 2);
+    assert.match(incomplete.stderr, /PROFILE_REVIEW_INCOMPLETE/u);
+    input.checks.shotFidelity = "pass";
+    writeFileSync(reviewInput, JSON.stringify(input));
+    const reviewed = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "shot-review-session", cwd: sandbox });
+    assert.equal(reviewed.code, 0, reviewed.stderr);
+    const released = await runAuthorized("project-release.mjs", [fx.root], { env, sessionId: "shot-release-session", cwd: sandbox });
+    assert.equal(released.code, 0, released.stderr);
+    const model = await loadVideoProject(fx.root);
+    assert.deepEqual(validateVideoModel(model, { stage: "release" }), []);
+    assert.equal(Object.hasOwn(JSON.parse(model.files["release.manifest.json"]).outputs, "evidence.shots.json"), true);
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }

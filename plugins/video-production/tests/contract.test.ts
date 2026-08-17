@@ -7,6 +7,7 @@ import {
   DESIGN_SYSTEM_SCHEMA,
   DIRECTION_SCHEMA,
   PLAN_SCHEMA,
+  SHOT_PLAN_SCHEMA,
   SCRIPT_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   STORYBOARD_SCHEMA,
@@ -19,6 +20,7 @@ import {
   validateVideoModel,
   validateVideoReceipt,
 } from "../src/lib/contract.js";
+import { SHOT_LIBRARY_UPSTREAM_COMMIT } from "../src/lib/shot-library.js";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -121,6 +123,20 @@ function v2PlanningModel() {
   return model;
 }
 
+function shotPlanningModel() {
+  const model = validModel();
+  const plan = {
+    ...model.plan,
+    profile: "product-promo",
+    craft: { shotPlanning: "required", remotionLicense: "free-license" },
+  };
+  model.plan = plan;
+  model.project = { ...model.project, profile: "product-promo" };
+  model.files["plan.contract.json"] = JSON.stringify(plan);
+  model.files["video.project.json"] = JSON.stringify(model.project);
+  return model;
+}
+
 test("v2 contract rejects a legacy unversioned plan instead of silently accepting it", () => {
   const model = validModel();
   model.plan = { artifactId: "launch-video", targetStage: "source" };
@@ -129,6 +145,77 @@ test("v2 contract rejects a legacy unversioned plan instead of silently acceptin
   const codes = validateVideoModel(model, { stage: "source" }).map(({ code }) => code);
 
   assert.ok(codes.includes("PLAN_SCHEMA_UNSUPPORTED"));
+});
+
+test("required shot planning fails closed when a storyboard beat has no selection or custom reason", () => {
+  const model = shotPlanningModel();
+
+  const codes = validateVideoModel(model, { stage: "storyboard" }).map(({ code }) => code);
+
+  assert.ok(codes.includes("SHOT_PLAN_MISSING"));
+});
+
+test("required shot planning accepts a catalog-bound selection and current storyboard approval", () => {
+  const model = shotPlanningModel();
+  const shots = JSON.stringify({
+    schema: SHOT_PLAN_SCHEMA,
+    catalogRevision: SHOT_LIBRARY_UPSTREAM_COMMIT,
+    selections: [{
+      beatId: "explain",
+      recipeId: "deck-deal-flyin",
+      styleId: "deck-deal-flyin",
+      usage: "adapted",
+      adaptationNotes: "Use the deal cadence for the product proof cards.",
+      implementationPath: "src/visual/v001-intro.f000000-f000090.tsx",
+      reviewFrames: [0, 60, 120, 239],
+    }],
+    customBeats: [],
+  });
+  model.files["plan.shots.json"] = shots;
+  const script = model.files["plan.script.json"];
+  const storyboard = model.files["plan.storyboard.json"];
+  const digest = sha256(`plan.script.json\0${sha256(script)}\nplan.storyboard.json\0${sha256(storyboard)}\nplan.shots.json\0${sha256(shots)}\n`);
+  const approvals = JSON.parse(model.files["plan.approvals.json"]);
+  approvals.gates.find(({ stage }) => stage === "storyboard").subjectSha256 = digest;
+  model.files["plan.approvals.json"] = JSON.stringify(approvals);
+
+  const codes = validateVideoModel(model, { stage: "storyboard" }).map(({ code }) => code);
+
+  assert.equal(codes.some((code) => code.startsWith("SHOT_")), false);
+  assert.equal(codes.includes("APPROVAL_REQUIRED"), false);
+});
+
+test("shot planning rejects catalog drift and unknown style identifiers", () => {
+  const model = shotPlanningModel();
+  model.files["plan.shots.json"] = JSON.stringify({
+    schema: SHOT_PLAN_SCHEMA,
+    catalogRevision: "floating-main",
+    selections: [{
+      beatId: "explain",
+      recipeId: "deck-deal-flyin",
+      styleId: "unknown-style",
+      usage: "direct",
+      adaptationNotes: "none",
+      implementationPath: "src/visual/v001-intro.f000000-f000090.tsx",
+      reviewFrames: [0, 239],
+    }],
+    customBeats: [],
+  });
+
+  const codes = validateVideoModel(model, { stage: "storyboard" }).map(({ code }) => code);
+
+  assert.ok(codes.includes("SHOT_CATALOG_REVISION_INVALID"));
+  assert.ok(codes.includes("SHOT_SELECTION_INVALID"));
+});
+
+test("craft contract rejects invalid shot-planning and Remotion license declarations", () => {
+  const model = validModel();
+  model.plan = { ...model.plan, craft: { shotPlanning: "sometimes", remotionLicense: "trust-me" } };
+  model.files["plan.contract.json"] = JSON.stringify(model.plan);
+
+  const codes = validateVideoModel(model, { stage: "source" }).map(({ code }) => code);
+
+  assert.ok(codes.includes("CRAFT_CONTRACT_INVALID"));
 });
 
 test("guided direction stage requires an approved record bound to the current direction digest", () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:176c672fb1ccc5b2d4cacdc40f3f5b7135aa822e2c9643592ccd92403c1d355c
+// harness-source-hash: sha256:4b3af0ed4bca5ea8fc7c745843fb38d3146ef4653efcae930120634bcc0a4472
 import {
   APPROVALS_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
@@ -9,15 +9,19 @@ import {
   PROJECT_SCHEMA,
   REFERENCES_SCHEMA,
   SCRIPT_SCHEMA,
+  SHOT_PLAN_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   STORYBOARD_SCHEMA,
   VIDEO_PROFILES,
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-JYYBMUVW.mjs";
+} from "../chunks/chunk-TFRFWGXF.mjs";
+import {
+  SHOT_LIBRARY_UPSTREAM_COMMIT
+} from "../chunks/chunk-7UBLRPCJ.mjs";
 import {
   assertVideoProjectRoot
-} from "../chunks/chunk-DPIYBJ4M.mjs";
+} from "../chunks/chunk-JTRXQ3FD.mjs";
 
 // plugins/video-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -76,21 +80,24 @@ async function main() {
   const script = json({ schema: SCRIPT_SCHEMA, beats: [], claims: [] });
   const storyboard = json({ schema: STORYBOARD_SCHEMA, beats: [] });
   const assets = json({ schema: ASSET_MANIFEST_SCHEMA, assets: [] });
+  const shots = profile === "product-promo" ? json({ schema: SHOT_PLAN_SCHEMA, catalogRevision: SHOT_LIBRARY_UPSTREAM_COMMIT, selections: [], customBeats: [] }) : void 0;
   const storyboardDigest = sha256(`plan.script.json\0${sha256(script)}
 plan.storyboard.json\0${sha256(storyboard)}
-`);
+${shots === void 0 ? "" : `plan.shots.json\0${sha256(shots)}
+`}`);
+  const workers = profile === "product-promo" ? [...WORKERS, ["video-shot-recipes", "advisor"]] : WORKERS;
   const files = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
-    "package.json": json({ name: `video-${artifactId}`, private: true, type: "module", scripts: { "video:render:visual": "node tools/render-visual.mjs", "video:render:audio": "node tools/render-audio.mjs", "video:render:final": "remotion render src/index.ts Main" }, dependencies: { remotion: "4.0.512", "@remotion/cli": "4.0.512", react: "19.2.8", "react-dom": "19.2.8" }, devDependencies: { "@types/react": "19.2.18", "@types/react-dom": "19.2.3", typescript: "6.0.3" } }),
-    "plan.contract.json": json({ schema: PLAN_SCHEMA, artifactId, profile, mode, targetStage: "source", audience: "general audience", objective: `deliver an original ${profile} video`, platform: defaults.platform, language: "zh-CN", assumptions: [], externalBudget: { currency: "USD", limit: 0, spent: 0 } }),
+    "package.json": json({ name: `video-${artifactId}`, private: true, type: "module", scripts: { "video:render:visual": "node tools/render-visual.mjs", "video:render:audio": "node tools/render-audio.mjs", "video:render:final": "remotion render src/index.ts Main" }, dependencies: { remotion: "4.0.512", "@remotion/cli": "4.0.512", "@remotion/motion-blur": "4.0.512", react: "19.2.8", "react-dom": "19.2.8" }, devDependencies: { "@types/react": "19.2.18", "@types/react-dom": "19.2.3", typescript: "6.0.3" } }),
+    "plan.contract.json": json({ schema: PLAN_SCHEMA, artifactId, profile, mode, targetStage: "source", audience: "general audience", objective: `deliver an original ${profile} video`, platform: defaults.platform, language: "zh-CN", assumptions: [], externalBudget: { currency: "USD", limit: 0, spent: 0 }, craft: { shotPlanning: profile === "product-promo" ? "required" : "optional", remotionLicense: "unconfirmed" } }),
     "plan.direction.json": direction,
     "plan.script.json": script,
     "plan.storyboard.json": storyboard,
-    "plan.skill-composition.json": json({ schema: SKILL_COMPOSITION_SCHEMA, workers: WORKERS.map(([name, workerMode]) => ({ name, mode: workerMode, status: "skipped" })) }),
+    "plan.skill-composition.json": json({ schema: SKILL_COMPOSITION_SCHEMA, workers: workers.map(([name, workerMode]) => ({ name, mode: workerMode, status: "skipped" })) }),
     "plan.assets.json": assets,
     "plan.approvals.json": json({ schema: APPROVALS_SCHEMA, mode, gates: [{ stage: "direction", status: "pending", subjectSha256: sha256(direction), actor: "", reason: "" }, { stage: "storyboard", status: "pending", subjectSha256: storyboardDigest, actor: "", reason: "" }, { stage: "assets", status: "pending", subjectSha256: sha256(assets), actor: "", reason: "" }] }),
     "plan.references.json": json({ schema: REFERENCES_SCHEMA, references: [] }),
-    "design.system.json": json({ schema: DESIGN_SYSTEM_SCHEMA, colors: { canvas: "#101114", text: "#f7f7f5", accent: "#5eead4" }, typography: { displayPx: 96, bodyPx: 42, captionPx: 36 }, safeAreaPx: 80, motion: { enterFrames: 15, exitFrames: 12, easing: "ease-out" }, captions: { maxCharsPerSecond: 20, maxLines: 2 }, audio: { integratedLufs: -16, truePeakDb: -1 } }),
+    "design.system.json": json({ schema: DESIGN_SYSTEM_SCHEMA, colors: { canvas: "#101114", text: "#f7f7f5", accent: "#5eead4" }, typography: { displayPx: 96, bodyPx: 42, captionPx: 36 }, safeAreaPx: 80, motion: { enterFrames: 15, exitFrames: 12, easing: "ease-out", spring: { damping: 18, stiffness: 120, mass: 1 }, staggerFrames: 4, blurPx: 12, cameraDepthPx: 1200 }, captions: { maxCharsPerSecond: 20, maxLines: 2 }, audio: { integratedLufs: -16, truePeakDb: -1 } }),
     "video.project.json": json({ schema: PROJECT_SCHEMA, artifactId, profile, compositionId: "Main", durationInFrames: defaults.durationInFrames, fps: defaults.fps, width: defaults.width, height: defaults.height }),
     "src/index.ts": 'import { registerRoot } from "remotion";\nimport { Root } from "./Root.js";\nregisterRoot(Root);\n',
     "src/Root.tsx": `import React from "react";
@@ -108,6 +115,7 @@ export const Root = () => <Composition id="Main" component={Video} durationInFra
     "tools/render-visual.mjs": 'throw new Error("IMPLEMENT_VIDEO_VISUAL_RENDERER");\n',
     "tools/render-audio.mjs": 'throw new Error("IMPLEMENT_VIDEO_AUDIO_RENDERER");\n'
   };
+  if (shots !== void 0) files["plan.shots.json"] = shots;
   for (const [relativePath, content] of Object.entries(files)) {
     await mkdir(join(root, relativePath, ".."), { recursive: true });
     await writeFile(join(root, relativePath), content, { flag: "wx" });

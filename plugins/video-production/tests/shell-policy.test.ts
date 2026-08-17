@@ -55,3 +55,20 @@ test("allows admission only through the exact wrapper command", () => {
   assert.equal(result.decision, "allow");
   assert.equal(result.writer, "video-admit");
 });
+
+test("allows shot staging only with an exact beat, recipe, and style tuple", () => {
+  const allowed = evaluateVideoShell({
+    command: `node "${PLUGIN_ROOT}/dist/cli/project-shot-stage.mjs" artifacts/video/demo hook deck-deal-flyin deck-deal-flyin`,
+    cwd: "/workspace",
+    workspaceRoot: "/workspace",
+  });
+  const missingStyle = evaluateVideoShell({
+    command: `node "${PLUGIN_ROOT}/dist/cli/project-shot-stage.mjs" artifacts/video/demo hook deck-deal-flyin`,
+    cwd: "/workspace",
+    workspaceRoot: "/workspace",
+  });
+
+  assert.equal(allowed.decision, "allow");
+  assert.equal(allowed.writer, "video-shot-stage");
+  assert.equal(missingStyle.decision, "deny");
+});

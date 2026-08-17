@@ -1,7 +1,7 @@
 {
   "name": "video-production",
-  "version": "0.4.0",
-  "description": "Orchestrates and enforces staged Remotion video production, controlled media admission, measured proofs, independent review, and release evidence.",
+  "version": "0.5.0",
+  "description": "Orchestrates evidence-bound Remotion production with an offline shot-recipe catalog, controlled media admission, measured proofs, independent review, and release evidence.",
   "author": {"name": "Harness Start", "email": "devtools@example.com"},
   "skills": "./skills/",
   "hooks": "./hooks/claude.json"

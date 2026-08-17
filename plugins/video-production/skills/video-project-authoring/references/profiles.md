@@ -3,7 +3,7 @@
 | Profile | Default | Required emphasis |
 |---|---:|---|
 | `motion-explainer` | 1920×1080, 30 fps, 60 s | motion thesis, continuous state change, sourced claims |
-| `product-promo` | 1920×1080, 30 fps, 30 s | hook, reveal, benefit sequence, honest CTA |
+| `product-promo` | 1920×1080, 30 fps, 30 s | hook, reveal, benefit sequence, beat-complete shot plan, honest CTA |
 | `short-form` | 1080×1920, 30 fps, 30 s | first-three-second hook, retention beats, captions, payoff or loop |
 | `talking-head` | 1080×1920, 30 fps, 60 s | speech intelligibility, captions, lower thirds, traceable B-roll |
 | `reference-led` | 1920×1080, 30 fps, 30 s | declared fidelity tier, rights, timebase and transformation rationale |

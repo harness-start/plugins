@@ -7,6 +7,7 @@
 ## 编排入口
 
 - `$video-project-authoring`：手动触发，或由 motion explainer、产品宣传、短视频、口播、参考视频复刻、微短剧等创作请求自动触发。主 agent 始终拥有项目文件和交付判断。
+- `$video-shot-recipes`：从随插件发布、固定上游 commit 的离线目录中检索与暂存镜头 recipe；它提供实现起点，不替代最终画面审查。
 - `$video-project-review`：只在独立宿主会话中触发；只读检查最终媒体和证据，不修改项目源文件。
 
 authoring Skill 会根据 `motion-explainer`、`product-promo`、`short-form`、`talking-head`、`reference-led` 或 `micro-drama` profile 选择顾问组合。捆绑顾问默认只提供建议；用户磁盘上的媒体通过 `video-media-import` 和准入 writer 导入。不调用需要 API Key 或供应商 URL 的 worker。每个 worker 在 `plan.skill-composition.json` 如实记录 `used`、`skipped` 或 `unavailable`。
@@ -17,6 +18,8 @@ authoring Skill 会根据 `motion-explainer`、`product-promo`、`short-form`、
 
 ```bash
 node plugins/video-production/dist/cli/project-init.mjs artifacts/video/demo --profile motion-explainer --mode guided
+node plugins/video-production/dist/cli/shot-catalog.mjs search "card entrance high energy"
+node plugins/video-production/dist/cli/project-shot-stage.mjs artifacts/video/demo hook deck-deal-flyin deck-deal-flyin
 node plugins/video-production/dist/cli/project-lint.mjs artifacts/video/demo
 node plugins/video-production/dist/cli/project-render.mjs artifacts/video/demo visual v001-intro.f000000-f000090.tsx
 node plugins/video-production/dist/cli/project-render.mjs artifacts/video/demo audio a001-music-bed.f000000-f000240.audio.json
@@ -46,6 +49,7 @@ probe 在最终 MP4 上重新测量 container、stream、fps、尺寸和精确�
 - `evidence.motion.json`：每个 storyboard beat 的起/中/末解码帧摘要及运动覆盖；
 - `evidence.captions.json`：字幕区间、重叠和阅读速度；
 - `evidence.reference.json`：声明为 frame-aligned 时的全视频 SSIM/PSNR；
+- `evidence.shots.json`：每个已选 recipe/style、当前实现源码摘要及指定解码帧；
 - `evidence/contact-sheet.png`：与 motion evidence 摘要绑定的接触表。
 
 review input 必须位于 artifact 外，并绑定当前 final digest：
@@ -70,7 +74,9 @@ review input 必须位于 artifact 外，并绑定当前 final digest：
 }
 ```
 
-`reference-led` 还要求 `referenceFidelity: "pass"`，`micro-drama` 还要求 `characterContinuity: "pass"`。reviewer 会话必须不同于 render，会由一次性 capability 的真实 session 校验；release 会话也必须不同于 reviewer。
+存在镜头选择时还要求 `shotFidelity: "pass"` 且 review frames 覆盖 `plan.shots.json` 的声明；`reference-led` 还要求 `referenceFidelity: "pass"`，`micro-drama` 还要求 `characterContinuity: "pass"`。reviewer 会话必须不同于 render，会由一次性 capability 的真实 session 校验；release 会话也必须不同于 reviewer。新 scaffold 还会记录 Remotion 许可状态，发布前必须由项目责任人把 `unconfirmed` 更新为真实声明。
+
+目录内容源自 `Vincentwei1021/video-shotcraft` 的固定 commit，按 Apache-2.0 再发布；归属、规范化说明与许可证见 `licenses/video-shotcraft/`。本插件不捆绑上游音频或其他二进制素材。
 
 ## 证明边界
 

@@ -51,7 +51,7 @@ function fakeToolchain(sandbox: string) {
   const bin = join(sandbox, "bin");
   write(join(bin, "npm"), `#!/usr/bin/env node
 const fs=require("node:fs");
-fs.writeFileSync("package-lock.json", JSON.stringify({lockfileVersion:3,packages:{"node_modules/remotion":{version:"4.0.512"},"node_modules/@remotion/cli":{version:"4.0.512"},"node_modules/react":{version:"19.2.8"},"node_modules/react-dom":{version:"19.2.8"}}}));
+fs.writeFileSync("package-lock.json", JSON.stringify({lockfileVersion:3,packages:{"node_modules/remotion":{version:"4.0.512"},"node_modules/@remotion/cli":{version:"4.0.512"},"node_modules/@remotion/motion-blur":{version:"4.0.512"},"node_modules/react":{version:"19.2.8"},"node_modules/react-dom":{version:"19.2.8"}}}));
 `, true);
   write(join(bin, "ffprobe"), `#!/usr/bin/env node
 if(process.argv.includes("-version")){process.stdout.write("ffprobe fixture 1.0\\n");process.exit(0)}
@@ -60,9 +60,9 @@ process.stdout.write(JSON.stringify({format:{format_name:"wav",duration:"1"},str
   return { PATH: `${bin}:${process.env.PATH}` };
 }
 
-async function initialize(sandbox: string, env: NodeJS.ProcessEnv) {
+async function initialize(sandbox: string, env: NodeJS.ProcessEnv, profile = "short-form") {
   const root = join(sandbox, "artifacts", "video", "demo");
-  const args = [root, "--profile", "short-form", "--mode", "guided"];
+  const args = [root, "--profile", profile, "--mode", "guided"];
   await authorize("project-init.mjs", args, sandbox, "producer-session");
   const result = await run("project-init.mjs", args, { env, sessionId: "producer-session" });
   assert.equal(result.code, 0, result.stderr);
@@ -77,6 +77,54 @@ test("project initializer creates a source-stage v2 scaffold through a capabilit
     const model = await loadVideoProject(root);
     assert.deepEqual(validateVideoModel(model, { stage: "source" }), []);
     assert.equal(JSON.parse(String(model.files?.["plan.contract.json"])).profile, "short-form");
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("product-promo initializer enables the bundled shot-planning contract", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "video-shot-init-"));
+  try {
+    const root = await initialize(sandbox, fakeToolchain(sandbox), "product-promo");
+    const plan = JSON.parse(readFileSync(join(root, "plan.contract.json"), "utf8"));
+    const shots = JSON.parse(readFileSync(join(root, "plan.shots.json"), "utf8"));
+    const composition = JSON.parse(readFileSync(join(root, "plan.skill-composition.json"), "utf8"));
+    const design = JSON.parse(readFileSync(join(root, "design.system.json"), "utf8"));
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+
+    assert.deepEqual(plan.craft, { shotPlanning: "required", remotionLicense: "unconfirmed" });
+    assert.equal(shots.schema, "video-production/shot-plan/v1");
+    assert.match(shots.catalogRevision, /^[a-f0-9]{40}$/u);
+    assert.deepEqual(shots.selections, []);
+    assert.equal(composition.workers.some(({ name }) => name === "video-shot-recipes"), true);
+    assert.equal(typeof design.motion.spring, "object");
+    assert.equal(pkg.dependencies["@remotion/motion-blur"], "4.0.512");
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("shot staging snapshots the pinned recipe and invalidates storyboard approval", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "video-shot-stage-"));
+  try {
+    const env = fakeToolchain(sandbox);
+    const root = await initialize(sandbox, env, "product-promo");
+    writeFileSync(join(root, "plan.storyboard.json"), JSON.stringify({ schema: "video-production/storyboard/v2", beats: [{ index: 1, id: "hook", startFrame: 0, endFrame: 90, narrativeJob: "hook", movingObject: "cards", stateChange: "deal into place", cameraMotion: "track", textRole: "headline", assetIds: [], pptRisk: "static grid" }] }));
+    const args = [root, "hook", "deck-deal-flyin", "deck-deal-flyin"];
+    await authorize("project-shot-stage.mjs", args, sandbox, "shot-stage-session");
+
+    const result = await run("project-shot-stage.mjs", args, { env, sessionId: "shot-stage-session" });
+
+    assert.equal(result.code, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    const shots = JSON.parse(readFileSync(join(root, "plan.shots.json"), "utf8"));
+    const approvals = JSON.parse(readFileSync(join(root, "plan.approvals.json"), "utf8"));
+    assert.equal(shots.selections[0].beatId, "hook");
+    assert.equal(shots.selections[0].sourceSha256, output.sourceSha256);
+    assert.equal(shots.selections[0].implementationPath, "");
+    assert.equal(existsSync(join(root, "references", "shot-recipes", "hook", "recipe.md")), true);
+    assert.equal(existsSync(join(root, "references", "shot-recipes", "hook", "source", output.upstreamPath)), true);
+    assert.equal(approvals.gates.find(({ stage }) => stage === "storyboard").status, "pending");
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }

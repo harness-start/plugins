@@ -37,7 +37,7 @@ export async function issueWriterCapability({ root: rawRoot, capability, argv, s
   triggerFrom?: string;
 }) {
   const root = assertVideoProjectRoot(rawRoot);
-  if (!/^video-(?:init|admit|render|probe|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+  if (!/^video-(?:init|admit|render|probe|review|release|shot-stage)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (typeof sessionId !== "string" || !sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
   const directory = join(root, ".tmp", "video-guard");
   const target = grantPath(root, capability);

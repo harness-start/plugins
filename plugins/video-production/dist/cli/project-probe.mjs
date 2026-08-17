@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:176c672fb1ccc5b2d4cacdc40f3f5b7135aa822e2c9643592ccd92403c1d355c
+// harness-source-hash: sha256:4b3af0ed4bca5ea8fc7c745843fb38d3146ef4653efcae930120634bcc0a4472
 import {
   compareVideoSimilarity,
   extractFrameDigest,
@@ -8,19 +8,21 @@ import {
   probeMedia,
   renderContactSheet,
   validateMeasuredMedia
-} from "../chunks/chunk-MA42MEWB.mjs";
+} from "../chunks/chunk-U4SGSRFL.mjs";
 import {
   AUDIO_EVIDENCE_SCHEMA,
   CAPTION_EVIDENCE_SCHEMA,
   MOTION_EVIDENCE_SCHEMA,
   PROBE_SCHEMA,
   REFERENCE_EVIDENCE_SCHEMA,
+  SHOT_EVIDENCE_SCHEMA,
   computeVideoSubjectDigest,
   consumeWriterCapability,
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-JYYBMUVW.mjs";
+} from "../chunks/chunk-TFRFWGXF.mjs";
+import "../chunks/chunk-7UBLRPCJ.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
@@ -28,7 +30,7 @@ import {
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-DPIYBJ4M.mjs";
+} from "../chunks/chunk-JTRXQ3FD.mjs";
 
 // plugins/video-production/src/entries/cli/project-probe.ts
 import { mkdir, rename, unlink } from "node:fs/promises";
@@ -66,11 +68,14 @@ async function main() {
   if (!Number.isFinite(targetLufs) || !Number.isFinite(targetPeak) || Math.abs(loudness.integratedLufs - targetLufs) > 2 || loudness.truePeakDb > targetPeak + 0.1) throw new Error("AUDIO_TARGET_MISSED");
   const storyboard = parseProjectJson(model, "plan.storyboard.json");
   const beats = isRecord(storyboard) && Array.isArray(storyboard.beats) ? storyboard.beats.filter(isRecord) : [];
-  const sampleFrames = [...new Set(beats.flatMap((beat) => {
+  const shotPlan = parseProjectJson(model, "plan.shots.json");
+  const shotSelections = isRecord(shotPlan) && Array.isArray(shotPlan.selections) ? shotPlan.selections.filter(isRecord) : [];
+  const shotReviewFrames = shotSelections.flatMap((selection) => Array.isArray(selection.reviewFrames) ? selection.reviewFrames : []);
+  const sampleFrames = [.../* @__PURE__ */ new Set([...beats.flatMap((beat) => {
     const start = Number(beat.startFrame);
     const end = Number(beat.endFrame);
     return [start, Math.floor((start + end - 1) / 2), end - 1];
-  }))].filter((frame) => Number.isInteger(frame) && frame >= 0 && frame < Number(project.durationInFrames)).sort((left, right) => left - right);
+  }), ...shotReviewFrames])].filter((frame) => Number.isInteger(frame) && Number(frame) >= 0 && Number(frame) < Number(project.durationInFrames)).sort((left, right) => left - right);
   const samples = [];
   for (const frame of sampleFrames) samples.push(await extractFrameDigest(`${root}/${mediaPath}`, frame, Number(project.fps), { cwd: root }));
   const sampleMap = new Map(samples.map((sample) => [sample.frame, sample]));
@@ -120,6 +125,11 @@ async function main() {
   }
   const tool = { name: "ffprobe", version: await mediaToolVersion() };
   const base = { plugin: "video-production", artifactId: model.artifactId, subjectDigest: computeVideoSubjectDigest(model), output: { path: mediaPath, sha256: model.digests?.[mediaPath] }, tool, ...sessionMetadata("video-probe", grant) };
+  const shotEvidence = shotSelections.map((selection) => {
+    const implementationPath = String(selection.implementationPath);
+    const reviewFrames = Array.isArray(selection.reviewFrames) ? selection.reviewFrames.map((frame) => sampleMap.get(Number(frame))).filter((sample) => sample !== void 0) : [];
+    return { beatId: selection.beatId, recipeId: selection.recipeId, styleId: selection.styleId, usage: selection.usage, implementationPath, implementationSha256: model.digests?.[implementationPath], reviewFrames };
+  });
   await withWriterJournal(root, "video-probe", async () => {
     const temporary = join(root, ".tmp", "video-guard", `contact-sheet.${process.pid}.png`);
     const contactPath = join(root, "evidence", "contact-sheet.png");
@@ -132,11 +142,12 @@ async function main() {
     await atomicWriteJson(root, "evidence.motion.json", { schema: MOTION_EVIDENCE_SCHEMA, ...base, verdict: motionVerdict, changedRatio, beats: motionBeats, contactSheetSha256: contact.digest });
     await atomicWriteJson(root, "evidence.captions.json", { schema: CAPTION_EVIDENCE_SCHEMA, ...base, verdict: "pass", count: captionItems.length, overlap: false, items: captionItems });
     await atomicWriteJson(root, "evidence.reference.json", { schema: REFERENCE_EVIDENCE_SCHEMA, ...base, verdict: "pass", comparisons });
+    if (isRecord(shotPlan)) await atomicWriteJson(root, "evidence.shots.json", { schema: SHOT_EVIDENCE_SCHEMA, ...base, catalogRevision: shotPlan.catalogRevision, selections: shotEvidence });
     await unlink(temporary).catch(() => {
     });
   }, grant);
   model = await loadVideoProject(root);
-  process.stdout.write(`${JSON.stringify({ probe: model.digests?.["evidence.probe.json"], audio: model.digests?.["evidence.audio.json"], motion: model.digests?.["evidence.motion.json"], captions: model.digests?.["evidence.captions.json"], reference: model.digests?.["evidence.reference.json"] })}
+  process.stdout.write(`${JSON.stringify({ probe: model.digests?.["evidence.probe.json"], audio: model.digests?.["evidence.audio.json"], motion: model.digests?.["evidence.motion.json"], captions: model.digests?.["evidence.captions.json"], reference: model.digests?.["evidence.reference.json"], shots: model.digests?.["evidence.shots.json"] })}
 `);
 }
 main().catch((error) => {
