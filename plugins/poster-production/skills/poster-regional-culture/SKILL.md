@@ -1,6 +1,6 @@
 ---
 name: poster-regional-culture
-description: Convert Chinese provinces, municipalities, autonomous regions, cities, counties, ancient cities, and cultural regions into restrained contemporary posters led by one culturally transformed Chinese character. Supports direct one-shot final image generation and layered production. Use when the user asks for a 中国省域文化海报、城市文化海报、地域文化视觉、极简大字海报、地区系列海报、展览主视觉、出版或社交封面，requests 直接生成、一次成图、不合成、不要后期、direct generation, or wants cultural analysis, art direction, image prompts, rendered poster images, or a coherent batch series for places such as 北京、广东、福建、江南、岭南、巴蜀 or 关中.
+description: Read-only cultural research and art-direction adviser for Chinese regional posters. Produces candidate directions, prompt packages, and input-asset briefs for deterministic poster authoring; it has no rendering, writer, review, or release authority.
 ---
 
 # Regional Culture Poster
@@ -9,7 +9,7 @@ This Skill is a **read-only** adviser. It cannot write project files, run bundle
 
 Turn a place into a cultural structure, not a landmark collage. Make one large Chinese character the composition's visual skeleton and connect it to one primary cultural structure, one supporting cue, and a restrained text system.
 
-Current preferred baseline: the most successful direct images are the earlier `regional-cities-10-direct-image2` style: one culturally condensed huge Chinese character, physically fused with a cropped architectural or spatial structure, with strong masking/negative-space tension and sparse copy. Minor direct-generation imperfections are acceptable when the image has strong concept, spatial force, and a memorable character-image relationship. Do not overcorrect into safe full-place-name wall posters.
+Preferred baseline: one culturally condensed Chinese character, physically related to a cropped architectural or spatial structure, with strong negative-space tension and sparse exact copy. The adviser describes that relationship; the authoring plugin owns deterministic typography, composition, proofs, and exports.
 
 Anti-rustic calibration: keep the single-character spatial collision, but make it contemporary. Avoid heritage-board, folk-tourism, non-material-culture-promo, ancient-rubbing, dusty-earth, and old-wall nostalgia unless the user explicitly asks for that mood. Prefer abstract construction, cool modern materials, controlled contrast, structural voids, glass/metal/concrete/water/light, and editorial distance.
 
@@ -26,11 +26,10 @@ Determine the requested stopping point:
 
 1. **Strategy only**: deliver candidate research, direction selection, and the analysis card.
 2. **Prompt package**: deliver strategy plus production-ready image prompts and typography directions.
-3. **Direct rendered poster**: generate the complete flattened poster, including imagery, dominant character or editorial title, exact copy, masking, and layout, in one image-model call. Prefer this when a capable image model is available or the user asks for direct generation, one-shot output, no compositing, or no post-production.
-4. **Layered rendered poster**: generate a visual foundation, add deterministic Chinese typography, reconnect image and type, then export. Use this when copy accuracy is contract-critical or direct generation repeatedly fails the text gate.
-5. **Batch series**: plan all regions first, run global deduplication, then render the series in one locked render mode.
+3. **Input-asset brief**: describe a text-free or copy-free visual asset that may be generated elsewhere, then register that result as a digest-bound input asset for deterministic authoring.
+4. **Batch series**: plan all regions first and run global deduplication before handing directions to the authoring workflow.
 
-Do not render images when the user only asks for analysis, review, or prompts. When the user asks to create, make, design, or generate the poster, treat that as authorization to produce the requested artifact.
+This adviser never renders images or mutates a poster project. When the user asks for an artifact, hand the selected direction and any generated input asset to `poster-project-authoring`.
 
 ## Establish inputs
 
@@ -44,7 +43,7 @@ Use supplied constraints. Otherwise apply these defaults:
 - modern/traditional layering: allowed when culturally defensible
 - supporting English: optional and subordinate
 - sentence and 3-5 keywords: included unless the user asks for a text-free image
-- render mode: prefer `direct` with a capable image model; use `layered` for copy-critical work or when explicitly requested
+- production handoff: deterministic authoring; generated imagery is an optional input asset, never the final layout
 - visual mode: infer MODE A or MODE B from the user's taste feedback; default to MODE A for “城市字体 / 大字 / 造字”, and MODE B for “编辑感 / 杂志感 / 城市文化研究 / 图文丰富 / 不要只有大字”
 
 For missing noncritical details, proceed with defaults. Ask only when the region itself is ambiguous enough to materially change the result.
@@ -151,34 +150,17 @@ Always present a compact candidate pool and 3-5 direction options, then emit thi
 
 Keep the sentence poetic and concrete, not promotional or didactic.
 
-### 6. Produce prompts or artwork
+### 6. Produce prompts or an input-asset brief
 
 For prompt packages, output:
 
 1. final image-generation prompt
 2. character-transformation logic
 3. image/type relationship
-4. render-mode plan: direct generation or deterministic post-typesetting
+4. deterministic-authoring handoff, including focal box, quiet regions, material, light, and asset role
 5. A/B/C variants when multiple directions are requested
 
-Read [production.md](references/production.md) for prompt construction and render-mode selection. For direct final generation, also read [direct-generation.md](references/direct-generation.md).
-
-For rendered posters:
-
-1. Lock `direct` or `layered` before rendering; do not mix modes silently.
-2. In `direct` mode, ask the image model to produce one finished flattened poster with exact copy, dominant character, cultural structure, masking, and layout together. Do not reserve placeholders or add local overlays afterward.
-3. In `layered` mode, generate a clean visual foundation, add exact typography deterministically, and rebuild masking and overlap.
-4. If the user explicitly asks for direct generation, fix failed glyphs or copy by regenerating the whole image. Do not repair it through compositing unless the user authorizes a mode change.
-5. Inspect every exported image at full size and thumbnail size.
-
-Save generated assets according to the active host environment or the user's explicit output path.
-For public or shared use, do not assume a Windows drive, personal directory, or private workspace path.
-If no output location is provided, choose a local project-relative output directory such as:
-
-- images: `./outputs/images`
-- drafts: `./outputs/drafts`
-- temporary files: `./outputs/temp`
-- final exports: `./outputs/exports`
+Read [production.md](references/production.md) for prompt construction and [direct-generation.md](references/direct-generation.md) for the generated-input-asset boundary. Do not put exact display copy, final typography, or the complete layout into a generated asset. Register every accepted generated image in `plan.assets.json` with its tool, model, prompt digest, and content digest before authoring uses it.
 
 ### 7. Validate before delivery
 
@@ -188,9 +170,8 @@ Reject and revise results that fail any of these gates:
 - Text-removal gate: if the city name, theme, and keywords are mentally covered, at least one visible structure, material, climate, craft, street-life, terrain, or spatial mechanism still points to the region. If not, revise before delivery.
 - The main character is correct, readable, dominant, and transformed for a stated reason.
 - When the full place name is the main title, every character is correct, independent enough to read instantly, and not dissolved into architecture, shadow, or texture.
-- Prefer a strong single-character direct result with a few tolerable text/glyph imperfections over a fully clean but visually ordinary full-name poster, unless the user explicitly demands exact copy above all.
+- Every required glyph and copy line remains deterministic, exact, and independently reviewable.
 - The image feels like an exhibition key visual, art-book cover, or cultural research poster, not a movie poster, tourism campaign, commercial KV, or souvenir advertisement.
-- In direct mode, the city, theme, keywords, epigraph, and English metadata contain no invented, duplicated, or malformed copy.
 - The design has one center, strong hierarchy, and genuine whitespace.
 - Clean compositions still contain a considered typography design: the dominant title has intentional stroke rhythm, spacing, edge treatment, or material logic rather than default unmodified text.
 - Color, material, and atmosphere come from the place rather than decoration.
@@ -198,6 +179,6 @@ Reject and revise results that fail any of these gates:
 - The sentence reads like an exhibition epigraph, not tourism copy.
 - The work avoids cliche national-trend styling and generic city-poster composition.
 - A series entry differs from prior entries in structure, character logic, palette, or composition.
-- The delivered file preserves the locked render mode; a direct deliverable has no post-generated image or typography layers.
+- The delivered poster comes only from the deterministic authoring and evidence workflow; generated imagery remains an input asset.
 
 For batch work, read [series-and-examples.md](references/series-and-examples.md) and perform a global deduplication pass before rendering.

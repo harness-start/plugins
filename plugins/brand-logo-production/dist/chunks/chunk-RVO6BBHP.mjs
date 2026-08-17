@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:4888bad0e7f3076932bf8366e2bf0d197a81108a5370fc3844afcf8ac5aeadb1
+// harness-source-hash: sha256:c7e54f63d9dd7d296c2526c985ca5269f5bdf62308560fce83747a373d088b44
 
 // plugins/brand-logo-production/src/lib/png-decode.ts
 import { inflateSync } from "node:zlib";
@@ -94,6 +94,7 @@ var BRIEF_SCHEMA = "brand-logo-production/brief/v2";
 var WORDMARK_MANIFEST_SCHEMA = "brand-logo-production/wordmark-manifest/v1";
 var BRAND_CONTEXT_SCHEMA = "brand-logo-production/brand-context/v1";
 var ASSET_PLAN_SCHEMA = "brand-logo-production/assets/v1";
+var COLOR_SYSTEM_SCHEMA = "brand-logo-production/color-system/v1";
 var DELIVERY_PROFILE_SCHEMA = "brand-logo-production/delivery-profile/v1";
 var INTEGRATION_PLAN_SCHEMA = "brand-logo-production/integration/v1";
 var CONCEPT_SELECTION_SCHEMA = "brand-logo-production/concept-selection/v1";
@@ -129,7 +130,7 @@ var PRIMITIVE_TYPES = /* @__PURE__ */ new Set(["circle", "ellipse", "rect", "lin
 var FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 var PHI = 1.618033988749895;
 var AESTHETIC_CRITERIA = ["structureConsistency", "opticalCorrection", "singleMemoryPoint", "semanticIntegration", "markWordmarkSystem", "restraint"];
-var REVIEW_CHECKS = ["brief-fidelity", "wordmark-copy", "script-fidelity", "spacing-rhythm", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"];
+var REVIEW_CHECKS = ["brief-fidelity", "wordmark-copy", "script-fidelity", "spacing-rhythm", "concept-divergence", "vector-craft", "color-system", "mono-reverse", "scene-application", "delivery-profile"];
 var EXTERNAL_SKILLS = [
   { name: "logo-brand-direction", role: "brand-direction", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "adviser", phases: ["brief", "concept"] },
   { name: "logo-form-language", role: "vector-production", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
@@ -348,6 +349,7 @@ function validateRequired(files, findings) {
     "plan.context.json",
     "plan.skill-composition.json",
     "plan.assets.json",
+    "plan.color-system.json",
     "plan.concept-selection.json",
     "plan.delivery-profile.json",
     "plan.integration.json",
@@ -385,6 +387,21 @@ function validateBriefAndSkillComposition(model, findings) {
   if (!assets || assets.schema !== ASSET_PLAN_SCHEMA || assets.artifactId !== model.artifactId || !Array.isArray(assets.assets) || assetRows.length !== rawAssetRows.length || assetRows.some((entry) => typeof entry.id !== "string" || !entry.id || typeof entry.kind !== "string" || !entry.kind || typeof entry.source !== "string" || !entry.source || !["provided", "licensed", "generated", "none"].includes(String(entry.provenance)))) {
     findings.push(finding("ASSET_PLAN_INVALID", "plan.assets.json", "asset plan must be valid JSON and record source/provenance for every input asset"));
   }
+  const colorSystem = rec(parseJson(model.files, "plan.color-system.json", findings, "COLOR_SYSTEM_INVALID"));
+  const tokens = rec(colorSystem?.tokens);
+  const structuralRoles = rec(colorSystem?.structuralRoles);
+  const rawScenarios = asList(colorSystem?.scenarios);
+  const rawContrastPairs = asList(colorSystem?.contrastPairs);
+  const rawProhibited = asList(colorSystem?.prohibitedCombinations);
+  const scenarios = rawScenarios.map(rec).filter((entry) => entry !== void 0);
+  const contrastPairs = rawContrastPairs.map(rec).filter((entry) => entry !== void 0);
+  const prohibited = rawProhibited.map(rec).filter((entry) => entry !== void 0);
+  const core = String(colorSystem?.core ?? "");
+  const colorSystemInvalid = !colorSystem || colorSystem.schema !== COLOR_SYSTEM_SCHEMA || colorSystem.artifactId !== model.artifactId || Object.keys(tokens ?? {}).length < 4 || Object.values(tokens ?? {}).some((value) => !/^[a-f0-9]{6}$/iu.test(String(value))) || !core || !(core in (tokens ?? {})) || !["brand", "canvas", "text", "reverse"].every((role) => typeof structuralRoles?.[role] === "string" && String(structuralRoles[role]) in (tokens ?? {})) || scenarios.length === 0 || scenarios.length !== rawScenarios.length || scenarios.some((scenario) => {
+    const roles = rec(scenario?.roles);
+    return typeof scenario?.id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(scenario.id) || scenario.core !== core || Object.keys(structuralRoles ?? {}).some((role) => typeof roles?.[role] !== "string" || !(String(roles[role]) in (tokens ?? {})));
+  }) || contrastPairs.length === 0 || contrastPairs.length !== rawContrastPairs.length || contrastPairs.some((pair) => !(String(pair?.foreground) in (tokens ?? {})) || !(String(pair?.background) in (tokens ?? {})) || !Number.isFinite(pair?.minimum) || Number(pair.minimum) < 3) || prohibited.length === 0 || prohibited.length !== rawProhibited.length || prohibited.some((pair) => !(String(pair?.foreground) in (tokens ?? {})) || !(String(pair?.background) in (tokens ?? {})) || pair?.foreground === pair?.background || typeof pair?.reason !== "string" || !pair.reason.trim());
+  if (colorSystemInvalid) findings.push(finding("COLOR_SYSTEM_INVALID", "plan.color-system.json", "color system must bind a stable core token, structural roles, valid scenarios, contrast pairs, and prohibited combinations"));
   const delivery = rec(parseJson(model.files, "plan.delivery-profile.json", findings, "DELIVERY_PROFILE_INVALID"));
   const transparentSizes = asList(delivery?.transparentPngSizes).map(Number);
   const faviconSizes = asList(delivery?.faviconSizes).map(Number);

@@ -11,12 +11,19 @@ const text = (path: string) => readFileSync(join(ROOT, path), "utf8");
 test("both manifests expose the bundled authoring and independent review skills", () => {
   for (const platform of [".claude-plugin", ".codex-plugin"]) {
     const manifest = json(`${platform}/plugin.json`);
-    assert.equal(manifest.version, "0.5.0");
+    assert.equal(manifest.version, "0.6.0");
     assert.equal(manifest.skills, "./skills/");
   }
   assert.deepEqual(json(".codex-plugin/plugin.json").interface.capabilities, ["skills", "hooks"]);
   assert.equal(existsSync(join(ROOT, "skills/logo-project-authoring/SKILL.md")), true);
   assert.equal(existsSync(join(ROOT, "skills/logo-project-review/SKILL.md")), true);
+});
+
+test("brand direction adviser specifies core, structural roles, and scenarios", () => {
+  const skill = text("skills/logo-brand-direction/SKILL.md");
+  assert.match(skill, /core token/iu);
+  assert.match(skill, /structural roles/iu);
+  assert.match(skill, /scenarios/iu);
 });
 
 test("first-party role adviser pool is bundled, bilingual, authority-free, and reference-complete", () => {

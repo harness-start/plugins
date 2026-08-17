@@ -2,7 +2,7 @@
 
 The project root is `artifacts/logo/<artifact-id>`. The delivery path is `brief/context → divergent concepts → selection rounds → master → method-appropriate construction → variants/outputs → preview → independent review → release`; feedback may return to the preceding source stage.
 
-Keep `plan.brief.json` decision-complete. The v2 brief binds exact brand and wordmark copy, script/case policy, and five executable letterform dimensions. Bind `plan.context.json`, `plan.assets.json`, `plan.concept-selection.json`, `plan.delivery-profile.json`, and `plan.integration.json` to the same artifact. References and assets need provenance. The Figma plan always declares an honest capability mode and `svg-import-package` fallback.
+Keep `plan.brief.json` decision-complete. The v2 brief binds exact brand and wordmark copy, script/case policy, and five executable letterform dimensions. Bind `plan.context.json`, `plan.assets.json`, `plan.color-system.json`, `plan.concept-selection.json`, `plan.delivery-profile.json`, and `plan.integration.json` to the same artifact. The color system declares a stable core token, hex tokens, structural roles, named scenarios, contrast pairs, and prohibited combinations; every scenario keeps the same core declaration while mapping all structural roles to known tokens. References and assets need provenance. The Figma plan always declares an honest capability mode and `svg-import-package` fallback.
 
 `src/master/wordmark.manifest.json` binds ordered text units to unique path ids in the current built wordmark SVG. Its units concatenate to the exact brief copy. Path presence proves traceability, not visual glyph correctness; independent review still checks the visible wordmark.
 
@@ -13,3 +13,5 @@ Select a role-based subset from the bundled bilingual adviser registry. At most 
 The plugin's bundled companion Skills are advisers only. They cannot edit project files, run bundled scripts, write evidence, act as the independent reviewer, request a writer capability, or release the project. The orchestrator integrates accepted advice into project-owned source and never substitutes a similarly named runtime Skill.
 
 Generated paths are wrapper-owned: `build/**`, `dist/**`, source-hash concept previews, `evidence/**`, `review.logo.json`, `release.manifest.json`, `receipt.release.json`, and the mutation journal. Release includes role/variant SVGs, a secondary lockup, transparent mark PNGs at 64/128/256/512, 16/32 favicons, a 512 app icon, specimen and application renders, print notes, and the Figma SVG-import manifest.
+
+Independent review includes the `color-system` check. It compares primary, mono, reverse, specimen, and scene applications with `plan.color-system.json`; a palette list without stable role behavior is not sufficient.

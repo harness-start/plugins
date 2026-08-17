@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   BRIEF_SCHEMA,
+  COLOR_SYSTEM_SCHEMA,
   CONCEPT_SELECTION_SCHEMA,
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
@@ -17,6 +18,36 @@ import { minimalPng, validLogoModel } from "./helpers/logo-fixture.js";
 
 test("accepts a semantically bound logo release", () => {
   assert.deepEqual(validateLogoModel(validLogoModel(), { stage: "release" }), []);
+});
+
+test("publishes and requires the brand color-system contract", () => {
+  assert.equal(COLOR_SYSTEM_SCHEMA, "brand-logo-production/color-system/v1");
+  const missing = validLogoModel({ stage: "source" });
+  delete missing.files["plan.color-system.json"];
+  const missingCodes = new Set(validateLogoModel(missing, { stage: "source" }).map(({ code }) => code));
+  assert.ok(missingCodes.has("REQUIRED_PATH_MISSING"));
+  assert.ok(missingCodes.has("COLOR_SYSTEM_INVALID"));
+});
+
+test("rejects color scenarios with unknown role tokens or a drifting core", () => {
+  const model = validLogoModel({ stage: "source" });
+  const colors = JSON.parse(String(model.files["plan.color-system.json"]));
+  colors.scenarios[0].roles.brand = "missing-token";
+  colors.scenarios[0].core = "accent";
+  model.files["plan.color-system.json"] = JSON.stringify(colors);
+
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "COLOR_SYSTEM_INVALID"));
+});
+
+test("rejects malformed rows hidden among otherwise valid color-system entries", () => {
+  const model = validLogoModel({ stage: "source" });
+  const colors = JSON.parse(String(model.files["plan.color-system.json"]));
+  colors.scenarios.push(null);
+  colors.contrastPairs.push("not-a-pair");
+  colors.prohibitedCombinations.push(false);
+  model.files["plan.color-system.json"] = JSON.stringify(colors);
+
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "COLOR_SYSTEM_INVALID"));
 });
 
 test("requires a decision-complete brief and the exact bilingual skill pool", () => {

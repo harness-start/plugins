@@ -10,8 +10,8 @@ const readJson = (relativePath: string) => JSON.parse(readFileSync(new URL(relat
 test("plugin publishes authoring and independent review skills on both hosts", () => {
   const codex = readJson("../.codex-plugin/plugin.json");
   const claude = readJson("../.claude-plugin/plugin.json");
-  assert.equal(codex.version, "0.3.0");
-  assert.equal(claude.version, "0.3.0");
+  assert.equal(codex.version, "0.4.0");
+  assert.equal(claude.version, "0.4.0");
   assert.equal(codex.hooks, "./hooks/codex.json");
   assert.equal(claude.hooks, "./hooks/claude.json");
   assert.ok(readFileSync(new URL("../skills/poster-project-authoring/SKILL.md", import.meta.url), "utf8").includes("project-render.mjs"));
@@ -35,4 +35,11 @@ test("poster-mondo publishes only bundled generic read-only guidance", () => {
   for (const match of skill.matchAll(/\[[^\]]+\]\(([^)]+)\)/gu)) {
     assert.equal(existsSync(new URL(`../skills/poster-mondo/${match[1]}`, import.meta.url)), true, `missing poster-mondo reference: ${match[1]}`);
   }
+});
+
+test("regional culture adviser never claims direct rendering authority", () => {
+  const skill = readFileSync(new URL("../skills/poster-regional-culture/SKILL.md", import.meta.url), "utf8");
+  const direct = readFileSync(new URL("../skills/poster-regional-culture/references/direct-generation.md", import.meta.url), "utf8");
+  assert.doesNotMatch(`${skill}\n${direct}`, /direct final generation|finished flattened poster|print-ready|direct rendered|direct deliverable/iu);
+  assert.match(`${skill}\n${direct}`, /input asset|输入素材|deterministic authoring/iu);
 });

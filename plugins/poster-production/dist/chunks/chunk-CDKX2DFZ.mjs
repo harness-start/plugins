@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:0dc829ef84a74bd3fbde86a786a288eb9425c791086323436850f4e40078fe2a
+// harness-source-hash: sha256:c4bc04f6dfe354ec49816370ec57b2bacf7e93976285208a91a8bf2e364648c5
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -6423,18 +6423,19 @@ var POSTER_STAGES = [
   "release"
 ];
 var PLAN_SCHEMA = "poster-production/plan/v2";
-var ART_DIRECTION_SCHEMA = "poster-production/art-direction/v2";
+var ART_DIRECTION_SCHEMA = "poster-production/art-direction/v3";
 var SKILL_COMPOSITION_SCHEMA = "poster-production/skill-composition/v1";
 var ASSET_MANIFEST_SCHEMA = "poster-production/assets/v2";
-var DESIGN_SYSTEM_SCHEMA = "poster-production/design-system/v2";
+var DESIGN_SYSTEM_SCHEMA = "poster-production/design-system/v3";
 var PROJECT_SCHEMA = "poster-production/project/v2";
-var VARIANT_MANIFEST_SCHEMA = "poster-production/variant-manifest/v2";
-var LAYER_MANIFEST_SCHEMA = "poster-production/layer-manifest/v2";
+var VARIANT_MANIFEST_SCHEMA = "poster-production/variant-manifest/v3";
+var LAYER_MANIFEST_SCHEMA = "poster-production/layer-manifest/v3";
 var RENDER_EVIDENCE_SCHEMA = "poster-production/render/v1";
 var PROBE_EVIDENCE_SCHEMA = "poster-production/probe/v1";
-var ACCESSIBILITY_EVIDENCE_SCHEMA = "poster-production/accessibility/v2";
-var COMPOSITION_EVIDENCE_SCHEMA = "poster-production/composition/v1";
-var REVIEW_SCHEMA = "poster-production/review/v2";
+var ACCESSIBILITY_EVIDENCE_SCHEMA = "poster-production/accessibility/v3";
+var COMPOSITION_EVIDENCE_SCHEMA = "poster-production/composition/v2";
+var REVIEW_INPUT_SCHEMA = "poster-production/review-input/v3";
+var REVIEW_SCHEMA = "poster-production/review/v3";
 var RELEASE_MANIFEST_SCHEMA = "poster-production/release-manifest/v2";
 var STAGE_RANK = {
   source: 0,
@@ -6470,21 +6471,21 @@ var REQUIRED_ADVISORS = /* @__PURE__ */ new Set([
 var REVIEW_CHECKS = [
   "hierarchy",
   "typography",
+  "scriptTypography",
   "composition",
+  "negativeSpace",
+  "focalDominance",
   "legibility",
   "clipping",
   "color",
+  "colorSystem",
+  "materialLighting",
   "copy",
   "profileFidelity",
   "assetIntegrity"
 ];
-var TITLE_MEDIA_RELATIONS = /* @__PURE__ */ new Set([
-  "front",
-  "behind",
-  "mask",
-  "interrupt",
-  "separate"
-]);
+var TITLE_MEDIA_DEPTHS = /* @__PURE__ */ new Set(["title-front", "media-front", "separate"]);
+var TITLE_MEDIA_MECHANISMS = /* @__PURE__ */ new Set(["none", "mask", "interrupt"]);
 var DOMINANT_AXES = /* @__PURE__ */ new Set([
   "horizontal",
   "vertical",
@@ -6492,11 +6493,31 @@ var DOMINANT_AXES = /* @__PURE__ */ new Set([
   "radial",
   "asymmetric-grid"
 ]);
+var VISUAL_ROLES = /* @__PURE__ */ new Set([
+  "background",
+  "media",
+  "overlay",
+  "decoration",
+  "title",
+  "body",
+  "metadata",
+  "brand",
+  "cta"
+]);
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
 var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 var record = (value) => isObject(value) ? value : {};
 var list = (value) => Array.isArray(value) ? value : [];
+var nonEmptyStringList = (value) => Array.isArray(value) && value.length > 0 && value.every((entry) => typeof entry === "string" && entry.trim().length > 0);
+var normalizedRect = (value) => {
+  const rect = record(value);
+  const x = Number(rect.x);
+  const y = Number(rect.y);
+  const width = Number(rect.width);
+  const height = Number(rect.height);
+  return [x, y, width, height].every(Number.isFinite) && x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1 && y + height <= 1;
+};
 var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
 var rawBytes = (model, path) => model?.bytes?.[path] ?? (Buffer.isBuffer(model?.files?.[path]) ? model.files[path] : Buffer.from(textOf(model?.files?.[path])));
 var digestOf = (model, path) => model?.digests?.[path] ?? sha256(rawBytes(model, path));
@@ -6653,6 +6674,48 @@ function posterForegroundMask(bytes, canvasHex, threshold = 18) {
   }
   return { width, height, foregroundCoverage: foreground / mask.length, mask };
 }
+function measureMaskGeometry(mask, width, height) {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0 || mask.length !== width * height) throw new Error("MASK_DIMENSIONS_INVALID");
+  let count = 0;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let sumX = 0;
+  let sumY = 0;
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index]) continue;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    count += 1;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    sumX += x + 0.5;
+    sumY += y + 0.5;
+  }
+  if (count === 0) return { occupancy: 0, bbox: null, centroid: null };
+  return {
+    occupancy: count / mask.length,
+    bbox: { x: minX / width, y: minY / height, width: (maxX - minX + 1) / width, height: (maxY - minY + 1) / height },
+    centroid: { x: sumX / count / width, y: sumY / count / height }
+  };
+}
+function measureMaskRegionOccupancy(mask, width, height, region) {
+  if (!normalizedRect(region) || mask.length !== width * height) throw new Error("MASK_REGION_INVALID");
+  const x0 = Math.floor(region.x * width);
+  const y0 = Math.floor(region.y * height);
+  const x1 = Math.ceil((region.x + region.width) * width);
+  const y1 = Math.ceil((region.y + region.height) * height);
+  let foreground = 0;
+  let pixels = 0;
+  for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) {
+    pixels += 1;
+    if (mask[y * width + x]) foreground += 1;
+  }
+  return pixels > 0 ? foreground / pixels : 0;
+}
 var PNG_CRC_TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
   for (let bit = 0; bit < 8; bit += 1)
@@ -6783,6 +6846,12 @@ function validateBase(model, findings) {
   const letterform = record(art.letterform);
   const composition = record(art.composition);
   const massToVoid = record(composition.massToVoidTarget);
+  const relation = record(composition.titleMediaRelation);
+  const brief = record(art.brief);
+  const constraints = record(art.constraints);
+  const material = record(art.material);
+  const lighting = record(art.lighting);
+  const quietRegions = list(composition.quietRegions).map(record);
   const artInvalid = art.schema !== ART_DIRECTION_SCHEMA || art.profile !== profile || [
     "concept",
     "visualCenter",
@@ -6791,7 +6860,9 @@ function validateBase(model, findings) {
     "colorRationale"
   ].some(
     (key) => typeof art[key] !== "string" || !String(art[key]).trim() || /TODO/u.test(String(art[key]))
-  ) || [
+  ) || ["audience", "objective", "environment"].some(
+    (key) => typeof brief[key] !== "string" || !String(brief[key]).trim()
+  ) || !nonEmptyStringList(constraints.mustKeep) || !nonEmptyStringList(constraints.mayChange) || !nonEmptyStringList(constraints.avoid) || [
     "typeClass",
     "strokeProfile",
     "structure",
@@ -6799,13 +6870,19 @@ function validateBase(model, findings) {
     "sceneReference"
   ].some(
     (key) => typeof letterform[key] !== "string" || !String(letterform[key]).trim()
-  ) || !DOMINANT_AXES.has(String(composition.dominantAxis)) || typeof composition.focalRelationship !== "string" || !composition.focalRelationship.trim() || !TITLE_MEDIA_RELATIONS.has(String(composition.titleMediaRelation)) || !Number.isFinite(massToVoid.min) || !Number.isFinite(massToVoid.max) || Number(massToVoid.min) < 0 || Number(massToVoid.max) > 1 || Number(massToVoid.min) >= Number(massToVoid.max) || !Array.isArray(art.negativeRules) || art.negativeRules.length === 0;
+  ) || !DOMINANT_AXES.has(String(composition.dominantAxis)) || typeof composition.focalRelationship !== "string" || !composition.focalRelationship.trim() || !TITLE_MEDIA_DEPTHS.has(String(relation.depth)) || !TITLE_MEDIA_MECHANISMS.has(String(relation.mechanism)) || relation.depth === "separate" && relation.mechanism !== "none" || typeof composition.primaryFocalLayer !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(composition.primaryFocalLayer)) || !normalizedRect(composition.focalBox) || quietRegions.length === 0 || quietRegions.some(
+    (region) => typeof region.id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(region.id)) || !normalizedRect(region.box) || !Number.isFinite(region.maxOccupancy) || Number(region.maxOccupancy) < 0 || Number(region.maxOccupancy) > 1
+  ) || !Number.isFinite(massToVoid.min) || !Number.isFinite(massToVoid.max) || Number(massToVoid.min) < 0 || Number(massToVoid.max) > 1 || Number(massToVoid.min) >= Number(massToVoid.max) || ["primary", "surfaceResponse"].some(
+    (key) => typeof material[key] !== "string" || !String(material[key]).trim()
+  ) || ["direction", "quality", "contrast"].some(
+    (key) => typeof lighting[key] !== "string" || !String(lighting[key]).trim()
+  ) || !Array.isArray(art.negativeRules) || art.negativeRules.length === 0;
   if (artInvalid)
     findings.push(
       finding(
         "ART_DIRECTION_INVALID",
         "plan.art-direction.json",
-        "art direction must bind structured letterform, composition, void range, and negative rules"
+        "art direction must bind brief, constraints, focal and quiet regions, material, lighting, and negative rules"
       )
     );
   const skills = record(
@@ -6842,7 +6919,10 @@ function validateBase(model, findings) {
       )
     );
   const design = record(parseJson(files, "design.system.json", findings));
-  const colors = record(design.colors);
+  const colorSystem = record(design.colors);
+  const colors = record(colorSystem.tokens);
+  const structuralRoles = record(colorSystem.structuralRoles);
+  const colorScenarios = list(colorSystem.scenarios).map(record);
   const typography = record(design.typography);
   const fontRegistry = list(design.fontRegistry).map(record);
   const spacing = record(design.spacing);
@@ -6853,15 +6933,19 @@ function validateBase(model, findings) {
       (file) => typeof file.path === "string" && /^[a-z0-9][a-z0-9._-]*\.woff2?$/iu.test(file.path) && Number.isInteger(file.weight) && Number(file.weight) >= 100 && Number(file.weight) <= 900 && ["latin", "cjk"].includes(String(file.script))
     );
   });
-  const registryCoversTypography = Object.values(typography).map(record).every(
-    (role) => fontRegistry.some(
-      (font) => font.family === role.family && list(font.files).map(record).some((file) => file.weight === role.weight)
-    )
-  );
-  if (design.schema !== DESIGN_SYSTEM_SCHEMA || Object.keys(colors).length < 2 || Object.values(colors).some(
-    (color) => !/^[a-f0-9]{6}$/iu.test(String(color))
-  ) || Object.keys(typography).length === 0 || Object.values(typography).map(record).some(
-    (role) => typeof role.family !== "string" || !role.family.trim() || !Number.isInteger(role.sizePx) || Number(role.sizePx) <= 0 || !Number.isInteger(role.weight) || !Number.isFinite(role.lineHeightPx) || Number(role.lineHeightPx) < Number(role.sizePx) || !Number.isFinite(role.letterSpacingEm) || Number(role.letterSpacingEm) < -0.08 || Number(role.letterSpacingEm) > 0.5 || !Number.isFinite(role.maxWidthPx) || Number(role.maxWidthPx) <= 0 || !Number.isInteger(role.maxLines) || Number(role.maxLines) <= 0 || !["cjk", "latin", "mixed"].includes(String(role.scriptPolicy))
+  const registryCoversTypography = Object.values(typography).map(record).every((role) => {
+    const families = record(role.families);
+    const scripts = role.scriptPolicy === "mixed" ? ["cjk", "latin"] : [String(role.scriptPolicy)];
+    return scripts.every((script) => fontRegistry.some(
+      (font) => font.family === families[script] && list(font.files).map(record).some((file) => file.weight === role.weight && file.script === script)
+    ));
+  });
+  const colorSystemValid = Object.keys(colors).length >= 2 && Object.values(colors).every((color) => /^[a-f0-9]{6}$/iu.test(String(color))) && typeof colorSystem.core === "string" && String(colorSystem.core) in colors && ["canvas", "primaryText"].every((role) => typeof structuralRoles[role] === "string" && String(structuralRoles[role]) in colors) && Object.values(structuralRoles).every((token) => typeof token === "string" && token in colors) && colorScenarios.length > 0 && colorScenarios.every((scenario) => {
+    const roles = record(scenario.roles);
+    return typeof scenario.id === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(scenario.id) && Object.keys(structuralRoles).every((role) => typeof roles[role] === "string" && String(roles[role]) in colors) && Object.values(roles).includes(colorSystem.core);
+  });
+  if (design.schema !== DESIGN_SYSTEM_SCHEMA || !colorSystemValid || Object.keys(typography).length === 0 || Object.values(typography).map(record).some(
+    (role) => !["cjk", "latin", "mixed"].includes(String(role.scriptPolicy)) || role.scriptPolicy !== "latin" && (typeof record(role.families).cjk !== "string" || !String(record(role.families).cjk).trim()) || role.scriptPolicy !== "cjk" && (typeof record(role.families).latin !== "string" || !String(record(role.families).latin).trim()) || !Number.isInteger(role.hierarchy) || Number(role.hierarchy) <= 0 || !["horizontal", "vertical"].includes(String(role.orientation)) || !["left", "center", "right"].includes(String(role.alignment)) || typeof role.trackingPolicy !== "string" || !role.trackingPolicy.trim() || !Number.isInteger(role.sizePx) || Number(role.sizePx) <= 0 || !Number.isInteger(role.weight) || !Number.isFinite(role.lineHeightPx) || Number(role.lineHeightPx) < Number(role.sizePx) || !Number.isFinite(role.letterSpacingEm) || Number(role.letterSpacingEm) < -0.08 || Number(role.letterSpacingEm) > 0.5 || !Number.isFinite(role.maxWidthPx) || Number(role.maxWidthPx) <= 0 || !Number.isInteger(role.maxLines) || Number(role.maxLines) <= 0
   ) || !registryValid || !registryCoversTypography || Number(spacing.safeAreaPx) <= 0 || Number(spacing.baseUnitPx) <= 0 || Number(spacing.paragraphGapPx) < 0 || contrastPairs.length === 0 || contrastPairs.some(
     (pair) => !(String(pair.foreground) in colors) || !(String(pair.background) in colors) || !Number.isFinite(pair.minimum) || Number(pair.minimum) < 1
   ))
@@ -6869,7 +6953,7 @@ function validateBase(model, findings) {
       finding(
         "DESIGN_SYSTEM_INVALID",
         "design.system.json",
-        "semantic colors, measurable typography roles, registered font files, spacing, and valid contrast pairs are required"
+        "role-based colors, scenarios, script-aware typography, registered font files, spacing, and valid contrast pairs are required"
       )
     );
   const project = record(parseJson(files, "poster.project.json", findings));
@@ -6896,12 +6980,17 @@ function validateVariants(model, stage, findings) {
     parseJson(files, "src/variants/manifest.json", findings)
   );
   const variants = list(manifest.variants).map(record);
+  const design = record(parseJson(files, "design.system.json", findings));
+  const scenarioIds = new Set(list(record(design.colors).scenarios).map((entry) => String(record(entry).id)));
+  const art = record(parseJson(files, "plan.art-direction.json", findings));
+  const artComposition = record(art.composition);
+  const typographyRoles = new Set(Object.keys(record(design.typography)));
   if (manifest.schema !== VARIANT_MANIFEST_SCHEMA || variants.length === 0)
     findings.push(
       finding(
         "VARIANT_MANIFEST_INVALID",
         "src/variants/manifest.json",
-        "at least one v2 variant is required"
+        "at least one v3 variant is required"
       )
     );
   const seen = /* @__PURE__ */ new Set();
@@ -6911,7 +7000,7 @@ function validateVariants(model, stage, findings) {
     const match = directory.match(VARIANT_DIRECTORY);
     const width = Number(variant.width);
     const height = Number(variant.height);
-    if (!match || variant.index !== offset + 1 || Number(match.groups?.index) !== variant.index || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) || seen.has(id) || !Number.isInteger(width) || !Number.isInteger(height) || width < 320 || height < 320 || width > 8192 || height > 8192) {
+    if (!match || variant.index !== offset + 1 || Number(match.groups?.index) !== variant.index || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(id) || seen.has(id) || !Number.isInteger(width) || !Number.isInteger(height) || width < 320 || height < 320 || width > 8192 || height > 8192 || !scenarioIds.has(String(variant.colorScenario))) {
       findings.push(
         finding(
           "VARIANT_INVALID",
@@ -6924,7 +7013,7 @@ function validateVariants(model, stage, findings) {
     seen.add(id);
     const variantPath = `src/variants/${directory}/variant.json`;
     const variantConfig = record(parseJson(files, variantPath, findings));
-    if (variantConfig.schema !== "poster-production/variant/v2" || variantConfig.id !== id || variantConfig.width !== width || variantConfig.height !== height || variantConfig.data !== `data/${id}.json`)
+    if (variantConfig.schema !== "poster-production/variant/v3" || variantConfig.id !== id || variantConfig.width !== width || variantConfig.height !== height || variantConfig.data !== `data/${id}.json` || variantConfig.colorScenario !== variant.colorScenario)
       findings.push(
         finding(
           "VARIANT_CONFIG_INVALID",
@@ -6936,24 +7025,25 @@ function validateVariants(model, stage, findings) {
     const layersPath = `src/variants/${directory}/layers/manifest.json`;
     const layerManifest = record(parseJson(files, layersPath, findings));
     const layers = list(layerManifest.layers).map(record);
-    if (layerManifest.schema !== LAYER_MANIFEST_SCHEMA || layers.length === 0 || record(layers[0]).role !== "background")
+    const layerIds = new Set(layers.map((layer) => String(layer.id)));
+    if (layerManifest.schema !== LAYER_MANIFEST_SCHEMA || layers.length === 0 || record(layers[0]).role !== "background" || layerIds.size !== layers.length || !layerIds.has(String(artComposition.primaryFocalLayer)))
       findings.push(
         finding(
           "LAYER_MANIFEST_INVALID",
           layersPath,
-          "a v2 manifest beginning with background is required"
+          "a v3 manifest beginning with background and containing the declared focal layer is required"
         )
       );
     for (const [layerOffset, layer] of layers.entries()) {
       const source = String(layer.source ?? "");
       const sourcePath = `src/variants/${directory}/layers/${source}`;
       const sourceMatch = source.match(LAYER_SOURCE);
-      if (!sourceMatch || layer.index !== layerOffset + 1 || sourceMatch.groups?.role !== layer.role || !(sourcePath in files)) {
+      if (!sourceMatch || layer.index !== layerOffset + 1 || typeof layer.id !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(layer.id)) || sourceMatch.groups?.role !== layer.role || !VISUAL_ROLES.has(String(layer.visualRole)) || layer.typographyRole !== void 0 && !typographyRoles.has(String(layer.typographyRole)) || !(sourcePath in files)) {
         findings.push(
           finding(
             "LAYER_INVALID",
             sourcePath,
-            "layer filename, role, order, and source must agree"
+            "layer id, filename, visual role, typography role, order, and source must agree"
           )
         );
         continue;
@@ -7100,10 +7190,17 @@ function compositionEvidenceCurrent(model) {
   const art = readEvidence(model, "plan.art-direction.json");
   const composition = record(art.composition);
   const target = record(composition.massToVoidTarget);
+  const declaredRelation = record(composition.titleMediaRelation);
+  const declaredQuietRegions = list(composition.quietRegions).map(record);
   return evidenceHeaderCurrent(model, evidence, COMPOSITION_EVIDENCE_SCHEMA) && measurements.length === variants.length && measurements.every((measurement, index) => {
     const foreground = Number(measurement.foregroundCoverage);
     const voidCoverage = Number(measurement.voidCoverage);
-    return measurement.id === variants[index]?.id && measurement.status === "pass" && Number.isFinite(foreground) && Number.isFinite(voidCoverage) && Math.abs(foreground + voidCoverage - 1) < 1e-3 && foreground >= Number(target.min) && foreground <= Number(target.max) && measurement.titleMediaRelation === composition.titleMediaRelation && Number.isFinite(Number(measurement.overlapRatio)) && Number(measurement.overlapRatio) >= 0;
+    const focal = record(measurement.focal);
+    const relation = record(measurement.titleMediaRelation);
+    const quietRegions = list(measurement.quietRegions).map(record);
+    return measurement.id === variants[index]?.id && measurement.status === "pass" && Number.isFinite(foreground) && Number.isFinite(voidCoverage) && Math.abs(foreground + voidCoverage - 1) < 1e-3 && foreground >= Number(target.min) && foreground <= Number(target.max) && focal.layerId === composition.primaryFocalLayer && focal.withinDeclaredBox === true && normalizedRect(focal.bbox) && isObject(focal.centroid) && Number(record(focal.centroid).x) >= 0 && Number(record(focal.centroid).x) <= 1 && Number(record(focal.centroid).y) >= 0 && Number(record(focal.centroid).y) <= 1 && relation.depth === declaredRelation.depth && relation.mechanism === declaredRelation.mechanism && Number.isFinite(Number(relation.overlapRatio)) && Number(relation.overlapRatio) >= 0 && (declaredRelation.depth === "separate" ? Number(relation.overlapRatio) <= 0.01 : Number(relation.overlapRatio) >= 0.01) && relation.orderMatches === true && quietRegions.length === declaredQuietRegions.length && quietRegions.every(
+      (region, regionIndex) => region.id === declaredQuietRegions[regionIndex]?.id && Number(region.occupancy) <= Number(declaredQuietRegions[regionIndex]?.maxOccupancy) && region.status === "pass"
+    );
   });
 }
 function reviewEvidenceCurrent(model) {
@@ -7117,10 +7214,13 @@ function reviewEvidenceCurrent(model) {
       model,
       `dist/${model?.artifactId}.${String(variant.id)}.png`
     )
-  ) && REVIEW_CHECKS.every((key) => checks[key] === "pass") && reviewFindings.every(
+  ) && REVIEW_CHECKS.every((key) => {
+    const check = record(checks[key]);
+    return check.status === "pass" && typeof check.anchor === "string" && check.anchor.trim().length > 0 && typeof check.evidence === "string" && check.evidence.trim().length > 0 && typeof check.recovery === "string" && check.recovery.trim().length > 0;
+  }) && reviewFindings.every(
     (entry) => ["low", "medium", "high", "critical"].includes(
       String(entry.severity)
-    ) && typeof entry.anchor === "string" && entry.anchor.trim() && typeof entry.evidence === "string" && entry.evidence.trim() && typeof entry.recovery === "string" && entry.recovery.trim() && ["resolved", "accepted"].includes(String(entry.disposition))
+    ) && typeof entry.anchor === "string" && entry.anchor.trim() && typeof entry.evidence === "string" && entry.evidence.trim() && typeof entry.recovery === "string" && entry.recovery.trim() && ["resolved", "accepted"].includes(String(entry.disposition)) && !(entry.disposition === "accepted" && ["high", "critical"].includes(String(entry.severity)))
   );
 }
 function validatePosterModel(model, { stage = "source" } = {}) {
@@ -7398,10 +7498,13 @@ export {
   PROBE_EVIDENCE_SCHEMA,
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   COMPOSITION_EVIDENCE_SCHEMA,
+  REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
   inspectPosterSvg,
   inspectPosterPng,
   posterForegroundMask,
+  measureMaskGeometry,
+  measureMaskRegionOccupancy,
   computePosterSubjectDigest,
   createPosterReleaseManifest,
   createPosterReceipt,

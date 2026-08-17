@@ -2,16 +2,35 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  ACCESSIBILITY_EVIDENCE_SCHEMA,
+  ART_DIRECTION_SCHEMA,
+  COMPOSITION_EVIDENCE_SCHEMA,
+  DESIGN_SYSTEM_SCHEMA,
+  LAYER_MANIFEST_SCHEMA,
+  REVIEW_SCHEMA,
+  VARIANT_MANIFEST_SCHEMA,
   computePosterSubjectDigest,
   createPosterReceipt,
   evaluatePosterWrite,
+  measureMaskGeometry,
+  measureMaskRegionOccupancy,
   posterForegroundMask,
   validatePosterModel,
   validatePosterReceipt,
 } from "../src/lib/contract.js";
 import { makePng, sha256, validPosterModel } from "./fixture.js";
 
-test("accepts the complete v2 source contract", () => {
+test("publishes the breaking v3 visual contracts", () => {
+  assert.equal(ART_DIRECTION_SCHEMA, "poster-production/art-direction/v3");
+  assert.equal(DESIGN_SYSTEM_SCHEMA, "poster-production/design-system/v3");
+  assert.equal(VARIANT_MANIFEST_SCHEMA, "poster-production/variant-manifest/v3");
+  assert.equal(LAYER_MANIFEST_SCHEMA, "poster-production/layer-manifest/v3");
+  assert.equal(ACCESSIBILITY_EVIDENCE_SCHEMA, "poster-production/accessibility/v3");
+  assert.equal(COMPOSITION_EVIDENCE_SCHEMA, "poster-production/composition/v2");
+  assert.equal(REVIEW_SCHEMA, "poster-production/review/v3");
+});
+
+test("accepts the complete v3 source contract", () => {
   assert.deepEqual(validatePosterModel(validPosterModel("source"), { stage: "source" }), []);
 });
 
@@ -27,7 +46,26 @@ test("source rejects typography roles without measurable spacing and script poli
 test("source rejects typography whose declared family and weight are not backed by the font registry", () => {
   const model = validPosterModel("source");
   const design = JSON.parse(String(model.files!["design.system.json"]));
-  design.typography.display.family = "Unregistered Display";
+  design.typography.display.families = { cjk: "Unregistered Display", latin: "Unregistered Display" };
+  model.files!["design.system.json"] = JSON.stringify(design);
+
+  assert.ok(validatePosterModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
+});
+
+test("source rejects a mixed-script role unless both CJK and Latin font files are registered", () => {
+  const model = validPosterModel("source");
+  const design = JSON.parse(String(model.files!["design.system.json"]));
+  design.fontRegistry[0].files = design.fontRegistry[0].files.filter(({ script }: { script: string }) => script !== "cjk");
+  model.files!["design.system.json"] = JSON.stringify(design);
+
+  assert.ok(validatePosterModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
+});
+
+test("source rejects a palette without structural roles and scenarios", () => {
+  const model = validPosterModel("source");
+  const design = JSON.parse(String(model.files!["design.system.json"]));
+  delete design.colors.structuralRoles;
+  delete design.colors.scenarios;
   model.files!["design.system.json"] = JSON.stringify(design);
 
   assert.ok(validatePosterModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
@@ -46,6 +84,21 @@ test("source rejects free-form art direction without letterform and composition 
 test("foreground measurement distinguishes canvas pixels from visible poster mass", () => {
   assert.equal(posterForegroundMask(makePng(20, 10), "F4F0E8").foregroundCoverage, 0);
   assert.equal(posterForegroundMask(makePng(20, 10, [17, 17, 17, 255]), "F4F0E8").foregroundCoverage, 1);
+});
+
+test("mask geometry measures normalized focal bounds, centroid, and regional occupancy", () => {
+  const mask = Uint8Array.from([
+    0, 0, 0, 0,
+    0, 1, 1, 0,
+    0, 1, 1, 0,
+    0, 0, 0, 0,
+  ]);
+  assert.deepEqual(measureMaskGeometry(mask, 4, 4), {
+    occupancy: 0.25,
+    bbox: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+    centroid: { x: 0.5, y: 0.5 },
+  });
+  assert.equal(measureMaskRegionOccupancy(mask, 4, 4, { x: 0, y: 0, width: 0.5, height: 0.5 }), 0.25);
 });
 
 test("render rejects stub proof bytes that are not decoded PNG or parsed SVG", () => {
@@ -85,9 +138,63 @@ test("probe and review cannot pass with empty measurements or visual checks", ()
   assert.ok(codes.has("REVIEW_INVALID"));
 });
 
+test("review closure rejects accepted high-severity findings", () => {
+  const model = validPosterModel("review");
+  const review = JSON.parse(String(model.files!["review.poster.json"]));
+  review.findings = [{ severity: "high", anchor: "variant:main", evidence: "The focal subject is unreadable at thumbnail size.", recovery: "Increase focal contrast and rerun review.", disposition: "accepted" }];
+  model.files!["review.poster.json"] = JSON.stringify(review);
+
+  assert.ok(validatePosterModel(model, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"));
+});
+
+test("review closure rejects boolean checks without evidence, anchors, and recovery", () => {
+  const model = validPosterModel("review");
+  const review = JSON.parse(String(model.files!["review.poster.json"]));
+  review.checks.hierarchy = true;
+  model.files!["review.poster.json"] = JSON.stringify(review);
+
+  assert.ok(validatePosterModel(model, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"));
+});
+
 test("probe requires current measured composition evidence", () => {
   const model = validPosterModel("probe");
   delete model.files!["evidence.composition.json"];
+
+  assert.ok(validatePosterModel(model, { stage: "probe" }).some(({ code }) => code === "COMPOSITION_EVIDENCE_INVALID"));
+});
+
+test("composition evidence rejects polluted quiet regions", () => {
+  const model = validPosterModel("probe");
+  const evidence = JSON.parse(String(model.files!["evidence.composition.json"]));
+  evidence.measurements[0].quietRegions[0].occupancy = 0.2;
+  model.files!["evidence.composition.json"] = JSON.stringify(evidence);
+
+  assert.ok(validatePosterModel(model, { stage: "probe" }).some(({ code }) => code === "COMPOSITION_EVIDENCE_INVALID"));
+});
+
+test("composition evidence rejects overlap when title and media are declared separate", () => {
+  const model = validPosterModel("probe");
+  const evidence = JSON.parse(String(model.files!["evidence.composition.json"]));
+  evidence.measurements[0].titleMediaRelation.overlapRatio = 0.2;
+  model.files!["evidence.composition.json"] = JSON.stringify(evidence);
+
+  assert.ok(validatePosterModel(model, { stage: "probe" }).some(({ code }) => code === "COMPOSITION_EVIDENCE_INVALID"));
+});
+
+test("composition evidence rejects a front relation whose layer order does not match", () => {
+  const model = validPosterModel("probe");
+  const art = JSON.parse(String(model.files!["plan.art-direction.json"]));
+  art.composition.titleMediaRelation = { depth: "title-front", mechanism: "mask" };
+  model.files!["plan.art-direction.json"] = JSON.stringify(art);
+  const subjectDigest = computePosterSubjectDigest(model);
+  for (const path of ["evidence.probe.json", "evidence.accessibility.json", "evidence.composition.json"]) {
+    const evidence = JSON.parse(String(model.files![path]));
+    evidence.subjectDigest = subjectDigest;
+    if (path === "evidence.composition.json") {
+      evidence.measurements[0].titleMediaRelation = { depth: "title-front", mechanism: "mask", overlapRatio: 0.2, orderMatches: false };
+    }
+    model.files![path] = JSON.stringify(evidence);
+  }
 
   assert.ok(validatePosterModel(model, { stage: "probe" }).some(({ code }) => code === "COMPOSITION_EVIDENCE_INVALID"));
 });
@@ -131,7 +238,7 @@ test("review closure rejects self-review and stale subject evidence", () => {
   assert.ok(validatePosterModel(stale, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"));
 });
 
-test("release closure accepts current v2 evidence and receipt", () => {
+test("release closure accepts current v3 evidence and receipt", () => {
   assert.deepEqual(validatePosterModel(validPosterModel("release"), { stage: "release" }), []);
 });
 

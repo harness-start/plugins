@@ -58,16 +58,16 @@ One paragraph (3–4 sentences) that translates the brand's positioning and pers
 
 ---
 
-### 03 — COLOR PALETTE
+### 03 — COLOR SYSTEM
 
-**Primary color** — name, hex code (suggest one), and rationale. What does this color say about the brand?
-
-**Secondary colors** — 2–3 complementary colors with hex codes and roles (accent, background, text)
-
+**Core token** — the stable brand color token, hex code, and rationale. Explain what remains invariant across applications.
+**Tokens** — brand, neutral, text, canvas, reverse, and accent tokens with hex values. A token is not a usage decision by itself.
+**Structural roles** — map brand, canvas, text, reverse, and any optional accent role to tokens.
+**Scenarios** — define at least the normal and inverse/dark application scenarios. Each scenario preserves the core token declaration and remaps structural roles explicitly.
+**Contrast pairs** — list the foreground/background pairs and minimum ratios that must be verified.
+**Prohibited combinations** — name disallowed token pairs and the reason each fails.
 **Color personality** — what emotional territory does this palette occupy?
-
-**Usage rules** — primary use cases and any combinations to avoid
-
+**Usage rules** — explain how the core, structural roles, and scenarios govern digital, print, signage, and small-size use
 **Palette type** — monochromatic, analogous, complementary, triadic?
 
 ---
@@ -75,13 +75,9 @@ One paragraph (3–4 sentences) that translates the brand's positioning and pers
 ### 04 — TYPOGRAPHY
 
 **Primary typeface** — suggest a specific free or paid font. Describe its character.
-
 **Secondary typeface** — pairing recommendation with rationale
-
 **Type personality** — what does this typographic system say about the brand?
-
 **Usage hierarchy** — Headlines / Subheads / Body / Labels
-
 **Avoid** — any typeface categories or styles that conflict with the brand
 
 ---
@@ -89,11 +85,8 @@ One paragraph (3–4 sentences) that translates the brand's positioning and pers
 ### 05 — IMAGERY & PHOTOGRAPHY STYLE
 
 **Overall aesthetic** — what is the visual mood? (e.g. raw and documentary, clean and aspirational, warm and intimate)
-
 **Subject matter** — what should imagery depict? People, product, environment, abstraction?
-
 **Color treatment** — natural, high contrast, desaturated, warm-toned?
-
 **What to avoid** — stock photo clichés, over-produced aesthetics, styles that feel off-brand
 
 ---
@@ -101,9 +94,7 @@ One paragraph (3–4 sentences) that translates the brand's positioning and pers
 ### 06 — ICONOGRAPHY & ILLUSTRATION
 
 **Style** — line icons, filled, rounded, sharp, illustrated, abstract?
-
 **Weight** — thin, regular, bold?
-
 **Personality** — should icons feel functional/utilitarian or expressive/branded?
 
 ---

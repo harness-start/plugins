@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0dc829ef84a74bd3fbde86a786a288eb9425c791086323436850f4e40078fe2a
+// harness-source-hash: sha256:c4bc04f6dfe354ec49816370ec57b2bacf7e93976285208a91a8bf2e364648c5
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-ONNEYWYX.mjs";
+} from "../chunks/chunk-YXENWX4D.mjs";
 import {
   assertPosterProjectRoot,
   atomicWriteJson,
@@ -15,7 +15,7 @@ import {
   validatePosterModel,
   validatePosterReceipt,
   withWriterJournal
-} from "../chunks/chunk-IASJ6GUS.mjs";
+} from "../chunks/chunk-CDKX2DFZ.mjs";
 
 // plugins/poster-production/src/entries/cli/project-release.ts
 async function main() {

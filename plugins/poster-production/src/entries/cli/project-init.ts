@@ -146,7 +146,7 @@ async function main() {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": `${JSON.stringify(packageJson, null, 2)}\n`,
     "plan.contract.json": `${JSON.stringify({ schema: PLAN_SCHEMA, artifactId, profile, targetStage: "source", audience: "general digital audience", objective: `deliver an original ${profile} poster`, language: "zh-CN", assumptions: [] }, null, 2)}\n`,
-    "plan.art-direction.json": `${JSON.stringify({ schema: ART_DIRECTION_SCHEMA, profile, concept: defaults.concept, visualCenter: defaults.visualCenter, hierarchy: "one focal relationship, one headline, then restrained supporting information", typographyStrategy: "deterministic role-based typography with measured line height, tracking, and line length", colorRationale: "high-contrast semantic palette selected for the declared communication objective", letterform: { typeClass: "geometric sans", strokeProfile: "uniform with role-based weight", structure: "stable editorial gravity", edgeFinish: "clean vector", sceneReference: `${profile} digital communication` }, composition: { dominantAxis: defaults.dominantAxis, focalRelationship: defaults.visualCenter, massToVoidTarget: defaults.massToVoidTarget, titleMediaRelation: "separate" }, negativeRules: ["tourism-collage", "pseudo-text", "unlicensed-assets", "artist-imitation"] }, null, 2)}\n`,
+    "plan.art-direction.json": `${JSON.stringify({ schema: ART_DIRECTION_SCHEMA, profile, brief: { audience: "general digital audience", objective: `deliver an original ${profile} poster`, environment: "mobile feed and desktop editorial listing" }, constraints: { mustKeep: ["exact authored copy", "declared focal layer"], mayChange: ["crop", "scale", "spacing"], avoid: ["pseudo-text", "unlicensed assets"] }, concept: defaults.concept, visualCenter: defaults.visualCenter, hierarchy: "one focal relationship, one headline, then restrained supporting information", typographyStrategy: "deterministic role-based typography with measured line height, tracking, and line length", colorRationale: "high-contrast semantic palette selected for the declared communication objective", letterform: { typeClass: "geometric sans", strokeProfile: "uniform with role-based weight", structure: "stable editorial gravity", edgeFinish: "clean vector", sceneReference: `${profile} digital communication` }, composition: { dominantAxis: defaults.dominantAxis, focalRelationship: defaults.visualCenter, massToVoidTarget: defaults.massToVoidTarget, primaryFocalLayer: "title-primary", focalBox: { x: 0.05, y: 0.48, width: 0.9, height: 0.47 }, quietRegions: [{ id: "upper-air", box: { x: 0, y: 0, width: 1, height: 0.35 }, maxOccupancy: 0.05 }], titleMediaRelation: { depth: "separate", mechanism: "none" } }, material: { primary: "uncoated editorial paper", surfaceResponse: "soft diffuse surface with restrained grain" }, lighting: { direction: "upper-left", quality: "soft and even", contrast: "controlled" }, negativeRules: ["tourism-collage", "pseudo-text", "unlicensed-assets", "artist-imitation"] }, null, 2)}\n`,
     "plan.skill-composition.json": `${JSON.stringify(
       {
         schema: SKILL_COMPOSITION_SCHEMA,
@@ -165,14 +165,18 @@ async function main() {
       {
         schema: DESIGN_SYSTEM_SCHEMA,
         colors: {
-          canvas: "F4F0E8",
-          textPrimary: "111111",
-          textSecondary: "4A4A4A",
-          accent: "C23B22",
+          tokens: { canvas: "F4F0E8", textPrimary: "111111", textSecondary: "4A4A4A", accent: "C23B22" },
+          core: "accent",
+          structuralRoles: { canvas: "canvas", primaryText: "textPrimary", secondaryText: "textSecondary", accent: "accent" },
+          scenarios: [{ id: "default", roles: { canvas: "canvas", primaryText: "textPrimary", secondaryText: "textSecondary", accent: "accent" } }],
         },
         typography: {
           display: {
-            family: "Noto Sans SC",
+            families: { cjk: "Noto Sans SC", latin: "Noto Sans SC" },
+            hierarchy: 1,
+            orientation: "horizontal",
+            alignment: "left",
+            trackingPolicy: "neutral CJK with measured Latin tracking",
             sizePx: 96,
             weight: 700,
             lineHeightPx: 104,
@@ -182,7 +186,11 @@ async function main() {
             scriptPolicy: "mixed",
           },
           body: {
-            family: "Noto Sans SC",
+            families: { cjk: "Noto Sans SC", latin: "Noto Sans SC" },
+            hierarchy: 2,
+            orientation: "horizontal",
+            alignment: "left",
+            trackingPolicy: "compact CJK and restrained Latin tracking",
             sizePx: 32,
             weight: 400,
             lineHeightPx: 46,
@@ -192,7 +200,11 @@ async function main() {
             scriptPolicy: "mixed",
           },
           caption: {
-            family: "Noto Sans SC",
+            families: { cjk: "Noto Sans SC", latin: "Noto Sans SC" },
+            hierarchy: 3,
+            orientation: "horizontal",
+            alignment: "left",
+            trackingPolicy: "neutral CJK and optically spaced Latin captions",
             sizePx: 20,
             weight: 400,
             lineHeightPx: 30,
@@ -240,14 +252,15 @@ async function main() {
       2,
     )}\n`,
     "poster.project.json": `${JSON.stringify({ schema: PROJECT_SCHEMA, artifactId, profile, entry: "src/render.ts", variantManifest: "src/variants/manifest.json", outputs: { svg: `dist/${artifactId}.<variant>.svg`, png: `dist/${artifactId}.<variant>.png` } }, null, 2)}\n`,
-    "src/variants/manifest.json": `${JSON.stringify({ schema: VARIANT_MANIFEST_SCHEMA, variants: [{ index: 1, id: "main", directory: "001-main", width: defaults.width, height: defaults.height }] }, null, 2)}\n`,
-    "src/variants/001-main/variant.json": `${JSON.stringify({ schema: "poster-production/variant/v2", id: "main", width: defaults.width, height: defaults.height, data: "data/main.json" }, null, 2)}\n`,
+    "src/variants/manifest.json": `${JSON.stringify({ schema: VARIANT_MANIFEST_SCHEMA, variants: [{ index: 1, id: "main", directory: "001-main", width: defaults.width, height: defaults.height, colorScenario: "default" }] }, null, 2)}\n`,
+    "src/variants/001-main/variant.json": `${JSON.stringify({ schema: "poster-production/variant/v3", id: "main", width: defaults.width, height: defaults.height, data: "data/main.json", colorScenario: "default" }, null, 2)}\n`,
     "src/variants/001-main/layers/manifest.json": `${JSON.stringify(
       {
         schema: LAYER_MANIFEST_SCHEMA,
         layers: [
-          { index: 1, role: "background", source: "001-background-base.tsx" },
-          { index: 2, role: "title", source: "002-title-primary.tsx" },
+          { index: 1, id: "background-base", role: "background", visualRole: "background", source: "001-background-base.tsx" },
+          { index: 2, id: "title-primary", role: "title", visualRole: "title", typographyRole: "display", source: "002-title-primary.tsx" },
+          { index: 3, id: "body-supporting", role: "body", visualRole: "body", typographyRole: "body", source: "003-body-supporting.tsx" },
         ],
       },
       null,
@@ -259,11 +272,13 @@ async function main() {
     "src/compose.ts":
       'import React from "react";\nexport function compose(width, height, children, canvas) { return React.createElement("div", { style: { display: "flex", position: "relative", width, height, overflow: "hidden", background: canvas } }, ...children); }\n',
     "src/variants/001-main/layers/001-background-base.tsx":
-      'import React from "react";\nexport function buildLayer(ctx) { return React.createElement("div", { style: { display: "flex", position: "absolute", inset: 0, background: `#${ctx.theme.colors.canvas}` } }); }\n',
+      'import React from "react";\nexport function buildLayer(ctx) { return React.createElement("div", { style: { display: "flex", position: "absolute", inset: 0, background: `#${ctx.theme.colors.tokens[ctx.theme.colors.structuralRoles.canvas]}` } }); }\n',
     "src/variants/001-main/layers/002-title-primary.tsx":
-      'import React from "react";\nexport function buildLayer(ctx) { const display = ctx.theme.typography.display; const body = ctx.theme.typography.body; return React.createElement("div", { style: { display: "flex", position: "absolute", left: ctx.safe, right: ctx.safe, bottom: ctx.safe, flexDirection: "column", color: `#${ctx.theme.colors.textPrimary}` } }, React.createElement("div", { style: { maxWidth: display.maxWidthPx, fontSize: display.sizePx, fontWeight: display.weight, lineHeight: `${display.lineHeightPx}px`, letterSpacing: `${display.letterSpacingEm}em` } }, ctx.data.title), React.createElement("div", { style: { marginTop: ctx.theme.spacing.paragraphGapPx, maxWidth: body.maxWidthPx, fontSize: body.sizePx, fontWeight: body.weight, lineHeight: `${body.lineHeightPx}px`, letterSpacing: `${body.letterSpacingEm}em`, color: `#${ctx.theme.colors.textSecondary}` } }, ctx.data.subtitle)); }\n',
+      'import React from "react";\nexport function buildLayer(ctx) { const display = ctx.theme.typography.display; const tokens = ctx.theme.colors.tokens; const roles = ctx.theme.colors.structuralRoles; return React.createElement("div", { style: { display: "flex", position: "absolute", left: ctx.safe, right: ctx.safe, bottom: ctx.safe + ctx.theme.typography.body.lineHeightPx + ctx.theme.spacing.paragraphGapPx, color: `#${tokens[roles.primaryText]}`, maxWidth: display.maxWidthPx, fontSize: display.sizePx, fontWeight: display.weight, lineHeight: `${display.lineHeightPx}px`, letterSpacing: `${display.letterSpacingEm}em` } }, ctx.data.title); }\n',
+    "src/variants/001-main/layers/003-body-supporting.tsx":
+      'import React from "react";\nexport function buildLayer(ctx) { const body = ctx.theme.typography.body; const tokens = ctx.theme.colors.tokens; const roles = ctx.theme.colors.structuralRoles; return React.createElement("div", { style: { display: "flex", position: "absolute", left: ctx.safe, right: ctx.safe, bottom: ctx.safe, maxWidth: body.maxWidthPx, fontSize: body.sizePx, fontWeight: body.weight, lineHeight: `${body.lineHeightPx}px`, letterSpacing: `${body.letterSpacingEm}em`, color: `#${tokens[roles.secondaryText]}` } }, ctx.data.subtitle); }\n',
     "src/render.ts":
-      'import { mkdir, readFile, writeFile } from "node:fs/promises";\nimport { basename, join, resolve } from "node:path";\nimport React from "react";\nimport satori from "satori";\nimport { compose } from "./compose.js";\nimport { theme } from "./theme.js";\nconst flag = process.argv.indexOf("--output-dir");\nif (flag < 0 || !process.argv[flag + 1]) throw new Error("OUTPUT_DIR_REQUIRED");\nconst out = resolve(process.argv[flag + 1]);\nconst manifest = JSON.parse(await readFile(new URL("./variants/manifest.json", import.meta.url), "utf8"));\nconst fonts = await Promise.all(theme.fontRegistry.flatMap((font) => font.files.map(async (file) => ({ name: font.family, data: await readFile(resolve("node_modules", font.package, "files", file.path)), weight: Number(file.weight), style: "normal" }))));\nfor (const variant of manifest.variants) { const base = new URL(`./variants/${variant.directory}/`, import.meta.url); const config = JSON.parse(await readFile(new URL("variant.json", base), "utf8")); const data = JSON.parse(await readFile(resolve(config.data), "utf8")); const layersManifest = JSON.parse(await readFile(new URL("layers/manifest.json", base), "utf8")); const children = []; await mkdir(join(out, "layers", variant.id), { recursive: true }); for (const layer of layersManifest.layers) { const module = await import(new URL(`layers/${layer.source}`, base).href); const child = module.buildLayer({ theme, data, variant, safe: theme.spacing.safeAreaPx }); children.push(child); const single = await satori(compose(variant.width, variant.height, [child], `#${theme.colors.canvas}`), { width: variant.width, height: variant.height, fonts }); await writeFile(join(out, "layers", variant.id, `${basename(layer.source, ".tsx")}.svg`), single); } await mkdir(join(out, "final"), { recursive: true }); const svg = await satori(compose(variant.width, variant.height, children, `#${theme.colors.canvas}`), { width: variant.width, height: variant.height, fonts }); await writeFile(join(out, "final", `${variant.id}.svg`), svg); }\n',
+      'import { mkdir, readFile, writeFile } from "node:fs/promises";\nimport { basename, join, resolve } from "node:path";\nimport React from "react";\nimport satori from "satori";\nimport { compose } from "./compose.js";\nimport { theme } from "./theme.js";\nconst flag = process.argv.indexOf("--output-dir");\nif (flag < 0 || !process.argv[flag + 1]) throw new Error("OUTPUT_DIR_REQUIRED");\nconst out = resolve(process.argv[flag + 1]);\nconst manifest = JSON.parse(await readFile(new URL("./variants/manifest.json", import.meta.url), "utf8"));\nconst fonts = await Promise.all(theme.fontRegistry.flatMap((font) => font.files.map(async (file) => ({ name: font.family, data: await readFile(resolve("node_modules", font.package, "files", file.path)), weight: Number(file.weight), style: "normal" }))));\nfor (const variant of manifest.variants) { const base = new URL(`./variants/${variant.directory}/`, import.meta.url); const config = JSON.parse(await readFile(new URL("variant.json", base), "utf8")); const data = JSON.parse(await readFile(resolve(config.data), "utf8")); const layersManifest = JSON.parse(await readFile(new URL("layers/manifest.json", base), "utf8")); const children = []; const canvas = `#${theme.colors.tokens[theme.colors.structuralRoles.canvas]}`; await mkdir(join(out, "layers", variant.id), { recursive: true }); for (const layer of layersManifest.layers) { const module = await import(new URL(`layers/${layer.source}`, base).href); const child = module.buildLayer({ theme, data, variant, safe: theme.spacing.safeAreaPx }); children.push(child); const single = await satori(compose(variant.width, variant.height, [child], canvas), { width: variant.width, height: variant.height, fonts }); await writeFile(join(out, "layers", variant.id, `${basename(layer.source, ".tsx")}.svg`), single); } await mkdir(join(out, "final"), { recursive: true }); const svg = await satori(compose(variant.width, variant.height, children, canvas), { width: variant.width, height: variant.height, fonts }); await writeFile(join(out, "final", `${variant.id}.svg`), svg); }\n',
   };
   for (const [path, content] of Object.entries(files)) {
     await mkdir(join(root, path, ".."), { recursive: true });

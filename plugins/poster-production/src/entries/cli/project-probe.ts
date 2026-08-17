@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { ACCESSIBILITY_EVIDENCE_SCHEMA, COMPOSITION_EVIDENCE_SCHEMA, PROBE_EVIDENCE_SCHEMA, computePosterSubjectDigest, inspectPosterPng, inspectPosterSvg, loadPosterProject, posterForegroundMask, validatePosterModel } from "../../lib/contract.js";
+import { ACCESSIBILITY_EVIDENCE_SCHEMA, COMPOSITION_EVIDENCE_SCHEMA, PROBE_EVIDENCE_SCHEMA, computePosterSubjectDigest, inspectPosterPng, inspectPosterSvg, loadPosterProject, measureMaskGeometry, measureMaskRegionOccupancy, posterForegroundMask, validatePosterModel, type NormalizedRect } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertPosterProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 
@@ -35,6 +35,13 @@ function maskOverlap(left: Uint8Array, right: Uint8Array): number {
   return denominator > 0 ? intersection / denominator : 0;
 }
 
+function rectContains(outer: NormalizedRect, inner: NormalizedRect): boolean {
+  const epsilon = 1e-6;
+  return inner.x + epsilon >= outer.x && inner.y + epsilon >= outer.y &&
+    inner.x + inner.width <= outer.x + outer.width + epsilon &&
+    inner.y + inner.height <= outer.y + outer.height + epsilon;
+}
+
 async function main() {
   const root = assertPosterProjectRoot(process.argv[2]);
   const grant = await consumeWriterCapability({ root, capability: "poster-probe", argv: processWriterArgv() });
@@ -47,9 +54,9 @@ async function main() {
   const manifest = JSON.parse(String(model.files?.["src/variants/manifest.json"])) as { variants: Array<{ id: string; directory: string; width: number; height: number }> };
   const measurements: Array<Record<string, unknown>> = [];
   const compositionMeasurements: Array<Record<string, unknown>> = [];
-  const design = JSON.parse(String(model.files?.["design.system.json"])) as { colors: Record<string, string>; contrastPairs: Array<{ foreground: string; background: string; minimum: number }>; typography: Record<string, { sizePx: number; lineHeightPx: number; letterSpacingEm: number; maxWidthPx: number; maxLines: number; scriptPolicy: string }> };
-  const art = JSON.parse(String(model.files?.["plan.art-direction.json"])) as { composition: { massToVoidTarget: { min: number; max: number }; titleMediaRelation: string } };
-  const canvas = design.colors.canvas ?? "FFFFFF";
+  const design = JSON.parse(String(model.files?.["design.system.json"])) as { colors: { tokens: Record<string, string>; structuralRoles: { canvas: string } }; contrastPairs: Array<{ foreground: string; background: string; minimum: number }>; spacing: { safeAreaPx: number }; typography: Record<string, { families: { cjk?: string; latin?: string }; hierarchy: number; orientation: string; alignment: string; trackingPolicy: string; sizePx: number; lineHeightPx: number; letterSpacingEm: number; maxWidthPx: number; maxLines: number; scriptPolicy: string }> };
+  const art = JSON.parse(String(model.files?.["plan.art-direction.json"])) as { composition: { massToVoidTarget: { min: number; max: number }; primaryFocalLayer: string; focalBox: NormalizedRect; quietRegions: Array<{ id: string; box: NormalizedRect; maxOccupancy: number }>; titleMediaRelation: { depth: "title-front" | "media-front" | "separate"; mechanism: "none" | "mask" | "interrupt" } } };
+  const canvas = design.colors.tokens[design.colors.structuralRoles.canvas] ?? "FFFFFF";
   for (const variant of manifest.variants) {
     const svgPath = `dist/${model.artifactId}.${variant.id}.svg`;
     const pngPath = `dist/${model.artifactId}.${variant.id}.png`;
@@ -64,24 +71,38 @@ async function main() {
     const target = art.composition.massToVoidTarget;
     if (foreground.foregroundCoverage < target.min || foreground.foregroundCoverage > target.max) throw new Error(`COMPOSITION_MASS_VOID_FAILED:${variant.id}`);
     const layersPath = `src/variants/${variant.directory}/layers/manifest.json`;
-    const layers = JSON.parse(String(model.files?.[layersPath])) as { layers: Array<{ role: string; source: string }> };
+    const layers = JSON.parse(String(model.files?.[layersPath])) as { layers: Array<{ id: string; role: string; source: string }> };
     const masksByRole = new Map<string, Uint8Array[]>();
+    const masksById = new Map<string, Uint8Array>();
     for (const layer of layers.layers) {
       const sourcePath = `src/variants/${variant.directory}/layers/${layer.source}`;
       const proofPath = `evidence/layers/${variant.id}/${layer.source.slice(0, -4)}.${model.digests?.[sourcePath]}.png`;
       const mask = posterForegroundMask(await readFile(join(root, proofPath)), canvas).mask;
       masksByRole.set(layer.role, [...(masksByRole.get(layer.role) ?? []), mask]);
+      masksById.set(layer.id, mask);
     }
     const titleMasks = masksByRole.get("title") ?? [];
     const mediaMasks = masksByRole.get("media") ?? [];
     const overlapRatio = maskOverlap(mergedMask(titleMasks, foreground.mask.length), mergedMask(mediaMasks, foreground.mask.length));
     const relation = art.composition.titleMediaRelation;
-    if (relation !== "separate" && (titleMasks.length === 0 || mediaMasks.length === 0 || overlapRatio < 0.01)) throw new Error(`TITLE_MEDIA_RELATION_FAILED:${variant.id}`);
-    compositionMeasurements.push({ id: variant.id, foregroundCoverage: foreground.foregroundCoverage, voidCoverage: 1 - foreground.foregroundCoverage, titleMediaRelation: relation, overlapRatio, status: "pass" });
+    const titleIndex = layers.layers.findIndex(({ role }) => role === "title");
+    const mediaIndex = layers.layers.findIndex(({ role }) => role === "media");
+    const orderMatches = relation.depth === "separate" || (relation.depth === "title-front" ? titleIndex > mediaIndex : mediaIndex > titleIndex);
+    if (relation.depth === "separate" ? overlapRatio > 0.01 : titleMasks.length === 0 || mediaMasks.length === 0 || overlapRatio < 0.01 || !orderMatches) throw new Error(`TITLE_MEDIA_RELATION_FAILED:${variant.id}`);
+    const focalMask = masksById.get(art.composition.primaryFocalLayer);
+    if (!focalMask) throw new Error(`FOCAL_LAYER_MISSING:${variant.id}`);
+    const focalGeometry = measureMaskGeometry(focalMask, foreground.width, foreground.height);
+    if (!focalGeometry.bbox || !focalGeometry.centroid || !rectContains(art.composition.focalBox, focalGeometry.bbox)) throw new Error(`FOCAL_BOX_FAILED:${variant.id}`);
+    const quietRegions = art.composition.quietRegions.map((region) => {
+      const occupancy = measureMaskRegionOccupancy(foreground.mask, foreground.width, foreground.height, region.box);
+      if (occupancy > region.maxOccupancy) throw new Error(`QUIET_REGION_FAILED:${variant.id}:${region.id}`);
+      return { id: region.id, occupancy, maximum: region.maxOccupancy, status: "pass" };
+    });
+    compositionMeasurements.push({ id: variant.id, foregroundCoverage: foreground.foregroundCoverage, voidCoverage: 1 - foreground.foregroundCoverage, focal: { layerId: art.composition.primaryFocalLayer, bbox: focalGeometry.bbox, centroid: focalGeometry.centroid, withinDeclaredBox: true }, quietRegions, titleMediaRelation: { ...relation, overlapRatio, orderMatches }, status: "pass" });
   }
-  const contrastChecks = design.contrastPairs.map((pair) => ({ ...pair, value: contrast(design.colors[pair.foreground] ?? "000000", design.colors[pair.background] ?? "FFFFFF") }));
+  const contrastChecks = design.contrastPairs.map((pair) => ({ ...pair, value: contrast(design.colors.tokens[pair.foreground] ?? "000000", design.colors.tokens[pair.background] ?? "FFFFFF") }));
   if (contrastChecks.some((check) => check.value < check.minimum)) throw new Error("DESIGN_CONTRAST_FAILED");
-  const typeChecks = Object.entries(design.typography).map(([role, value]) => ({ role, sizePx: value.sizePx, lineHeightPx: value.lineHeightPx, letterSpacingEm: value.letterSpacingEm, maxWidthPx: value.maxWidthPx, maxLines: value.maxLines, scriptPolicy: value.scriptPolicy, status: value.sizePx >= (role === "caption" ? 18 : 24) && value.lineHeightPx >= value.sizePx && value.maxWidthPx > 0 ? "pass" : "fail" }));
+  const typeChecks = Object.entries(design.typography).map(([role, value]) => ({ role, families: value.families, hierarchy: value.hierarchy, orientation: value.orientation, alignment: value.alignment, trackingPolicy: value.trackingPolicy, sizePx: value.sizePx, lineHeightPx: value.lineHeightPx, letterSpacingEm: value.letterSpacingEm, maxWidthPx: value.maxWidthPx, maxLines: value.maxLines, scriptPolicy: value.scriptPolicy, safeAreaPx: design.spacing.safeAreaPx, copyDigest: model.digests?.[`data/${manifest.variants[0]?.id ?? ""}.json`], status: value.sizePx >= (role === "caption" ? 18 : 24) && value.lineHeightPx >= value.sizePx && value.maxWidthPx > 0 ? "pass" : "fail" }));
   if (typeChecks.some((check) => check.status !== "pass")) throw new Error("TYPOGRAPHY_MINIMUM_FAILED");
   const base = { plugin: "poster-production", artifactId: model.artifactId, subjectDigest: computePosterSubjectDigest(model), verdict: "pass", ...sessionMetadata("poster-probe", grant) };
   await withWriterJournal(root, "poster-probe", async () => {

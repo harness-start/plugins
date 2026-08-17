@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0dc829ef84a74bd3fbde86a786a288eb9425c791086323436850f4e40078fe2a
+// harness-source-hash: sha256:c4bc04f6dfe354ec49816370ec57b2bacf7e93976285208a91a8bf2e364648c5
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-ONNEYWYX.mjs";
+} from "../chunks/chunk-YXENWX4D.mjs";
 import {
+  REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
   assertPosterProjectRoot,
   atomicWriteJson,
@@ -13,7 +14,7 @@ import {
   sessionMetadata,
   validatePosterModel,
   withWriterJournal
-} from "../chunks/chunk-IASJ6GUS.mjs";
+} from "../chunks/chunk-CDKX2DFZ.mjs";
 
 // plugins/poster-production/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";
@@ -43,14 +44,17 @@ async function main() {
   const render = record(JSON.parse(String(model.files?.["evidence.render.json"])));
   const manifest = JSON.parse(String(model.files?.["src/variants/manifest.json"]));
   const variants = Array.isArray(payload.variants) ? payload.variants.map(record) : [];
-  if (payload.schema !== "poster-production/review-input/v2" || payload.artifactId !== model.artifactId || payload.subjectDigest !== computePosterSubjectDigest(model) || payload.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
+  if (payload.schema !== REVIEW_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== computePosterSubjectDigest(model) || payload.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
   if (!["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
   if (variants.length !== manifest.variants.length || variants.some((variant, index) => variant.id !== manifest.variants[index]?.id || variant.pngSha256 !== model.digests?.[`dist/${model.artifactId}.${String(variant.id)}.png`] || variant.verdict !== "pass")) throw new Error("REVIEW_VARIANT_COVERAGE_INVALID");
-  const requiredChecks = ["hierarchy", "typography", "composition", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
+  const requiredChecks = ["hierarchy", "typography", "scriptTypography", "composition", "negativeSpace", "focalDominance", "legibility", "clipping", "color", "colorSystem", "materialLighting", "copy", "profileFidelity", "assetIntegrity"];
   const checks = record(payload.checks);
-  if (requiredChecks.some((key) => checks[key] !== "pass")) throw new Error("REVIEW_CHECKS_INCOMPLETE");
+  if (requiredChecks.some((key) => {
+    const check = record(checks[key]);
+    return check.status !== "pass" || typeof check.anchor !== "string" || !check.anchor || typeof check.evidence !== "string" || !check.evidence || typeof check.recovery !== "string" || !check.recovery;
+  })) throw new Error("REVIEW_CHECKS_INCOMPLETE");
   const reviewFindings = Array.isArray(payload.findings) ? payload.findings.map(record) : [];
-  if (reviewFindings.some((entry) => !["resolved", "accepted"].includes(String(entry.disposition)) || !["low", "medium", "high", "critical"].includes(String(entry.severity)) || typeof entry.anchor !== "string" || typeof entry.evidence !== "string" || typeof entry.recovery !== "string")) throw new Error("REVIEW_FINDING_UNRESOLVED");
+  if (reviewFindings.some((entry) => !["resolved", "accepted"].includes(String(entry.disposition)) || !["low", "medium", "high", "critical"].includes(String(entry.severity)) || typeof entry.anchor !== "string" || typeof entry.evidence !== "string" || typeof entry.recovery !== "string" || entry.disposition === "accepted" && ["high", "critical"].includes(String(entry.severity)))) throw new Error("REVIEW_FINDING_UNRESOLVED");
   await withWriterJournal(root, "poster-review", async () => {
     await atomicWriteJson(root, "review.poster.json", { schema: REVIEW_SCHEMA, plugin: "poster-production", artifactId: model.artifactId, subjectDigest: computePosterSubjectDigest(model), verdict: "pass", reviewer, variants, findings: reviewFindings, checks, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("poster-review", grant) });
   }, grant);

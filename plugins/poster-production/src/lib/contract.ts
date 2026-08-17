@@ -21,20 +21,21 @@ export const POSTER_STAGES = [
   "release",
 ] as const;
 export const PLAN_SCHEMA = "poster-production/plan/v2";
-export const ART_DIRECTION_SCHEMA = "poster-production/art-direction/v2";
+export const ART_DIRECTION_SCHEMA = "poster-production/art-direction/v3";
 export const SKILL_COMPOSITION_SCHEMA =
   "poster-production/skill-composition/v1";
 export const ASSET_MANIFEST_SCHEMA = "poster-production/assets/v2";
-export const DESIGN_SYSTEM_SCHEMA = "poster-production/design-system/v2";
+export const DESIGN_SYSTEM_SCHEMA = "poster-production/design-system/v3";
 export const PROJECT_SCHEMA = "poster-production/project/v2";
-export const VARIANT_MANIFEST_SCHEMA = "poster-production/variant-manifest/v2";
-export const LAYER_MANIFEST_SCHEMA = "poster-production/layer-manifest/v2";
+export const VARIANT_MANIFEST_SCHEMA = "poster-production/variant-manifest/v3";
+export const LAYER_MANIFEST_SCHEMA = "poster-production/layer-manifest/v3";
 export const RENDER_EVIDENCE_SCHEMA = "poster-production/render/v1";
 export const PROBE_EVIDENCE_SCHEMA = "poster-production/probe/v1";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA =
-  "poster-production/accessibility/v2";
-export const COMPOSITION_EVIDENCE_SCHEMA = "poster-production/composition/v1";
-export const REVIEW_SCHEMA = "poster-production/review/v2";
+  "poster-production/accessibility/v3";
+export const COMPOSITION_EVIDENCE_SCHEMA = "poster-production/composition/v2";
+export const REVIEW_INPUT_SCHEMA = "poster-production/review-input/v3";
+export const REVIEW_SCHEMA = "poster-production/review/v3";
 export const RELEASE_MANIFEST_SCHEMA = "poster-production/release-manifest/v2";
 
 export type PosterProfile = (typeof POSTER_PROFILES)[number];
@@ -111,27 +112,38 @@ const REQUIRED_ADVISORS = new Set([
 const REVIEW_CHECKS = [
   "hierarchy",
   "typography",
+  "scriptTypography",
   "composition",
+  "negativeSpace",
+  "focalDominance",
   "legibility",
   "clipping",
   "color",
+  "colorSystem",
+  "materialLighting",
   "copy",
   "profileFidelity",
   "assetIntegrity",
 ];
-const TITLE_MEDIA_RELATIONS = new Set([
-  "front",
-  "behind",
-  "mask",
-  "interrupt",
-  "separate",
-]);
+const TITLE_MEDIA_DEPTHS = new Set(["title-front", "media-front", "separate"]);
+const TITLE_MEDIA_MECHANISMS = new Set(["none", "mask", "interrupt"]);
 const DOMINANT_AXES = new Set([
   "horizontal",
   "vertical",
   "diagonal",
   "radial",
   "asymmetric-grid",
+]);
+const VISUAL_ROLES = new Set([
+  "background",
+  "media",
+  "overlay",
+  "decoration",
+  "title",
+  "body",
+  "metadata",
+  "brand",
+  "cta",
 ]);
 
 const sha256 = (value: BinaryLike): string =>
@@ -145,6 +157,20 @@ const isObject = (value: unknown): value is JsonRecord =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 const record = (value: unknown): JsonRecord => (isObject(value) ? value : {});
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value : []);
+const nonEmptyStringList = (value: unknown): boolean =>
+  Array.isArray(value) &&
+  value.length > 0 &&
+  value.every((entry) => typeof entry === "string" && entry.trim().length > 0);
+const normalizedRect = (value: unknown): boolean => {
+  const rect = record(value);
+  const x = Number(rect.x);
+  const y = Number(rect.y);
+  const width = Number(rect.width);
+  const height = Number(rect.height);
+  return [x, y, width, height].every(Number.isFinite) &&
+    x >= 0 && y >= 0 && width > 0 && height > 0 &&
+    x + width <= 1 && y + height <= 1;
+};
 const textOf = (value: unknown): string =>
   Buffer.isBuffer(value)
     ? value.toString("utf8")
@@ -403,6 +429,56 @@ export function posterForegroundMask(
   return { width, height, foregroundCoverage: foreground / mask.length, mask };
 }
 
+export type NormalizedRect = { x: number; y: number; width: number; height: number };
+
+export function measureMaskGeometry(mask: Uint8Array, width: number, height: number): {
+  occupancy: number;
+  bbox: NormalizedRect | null;
+  centroid: { x: number; y: number } | null;
+} {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0 || mask.length !== width * height) throw new Error("MASK_DIMENSIONS_INVALID");
+  let count = 0;
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let sumX = 0;
+  let sumY = 0;
+  for (let index = 0; index < mask.length; index += 1) {
+    if (!mask[index]) continue;
+    const x = index % width;
+    const y = Math.floor(index / width);
+    count += 1;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+    sumX += x + 0.5;
+    sumY += y + 0.5;
+  }
+  if (count === 0) return { occupancy: 0, bbox: null, centroid: null };
+  return {
+    occupancy: count / mask.length,
+    bbox: { x: minX / width, y: minY / height, width: (maxX - minX + 1) / width, height: (maxY - minY + 1) / height },
+    centroid: { x: sumX / count / width, y: sumY / count / height },
+  };
+}
+
+export function measureMaskRegionOccupancy(mask: Uint8Array, width: number, height: number, region: NormalizedRect): number {
+  if (!normalizedRect(region) || mask.length !== width * height) throw new Error("MASK_REGION_INVALID");
+  const x0 = Math.floor(region.x * width);
+  const y0 = Math.floor(region.y * height);
+  const x1 = Math.ceil((region.x + region.width) * width);
+  const y1 = Math.ceil((region.y + region.height) * height);
+  let foreground = 0;
+  let pixels = 0;
+  for (let y = y0; y < y1; y += 1) for (let x = x0; x < x1; x += 1) {
+    pixels += 1;
+    if (mask[y * width + x]) foreground += 1;
+  }
+  return pixels > 0 ? foreground / pixels : 0;
+}
+
 const PNG_CRC_TABLE = Array.from({ length: 256 }, (_, index) => {
   let value = index;
   for (let bit = 0; bit < 8; bit += 1)
@@ -579,6 +655,12 @@ function validateBase(
   const letterform = record(art.letterform);
   const composition = record(art.composition);
   const massToVoid = record(composition.massToVoidTarget);
+  const relation = record(composition.titleMediaRelation);
+  const brief = record(art.brief);
+  const constraints = record(art.constraints);
+  const material = record(art.material);
+  const lighting = record(art.lighting);
+  const quietRegions = list(composition.quietRegions).map(record);
   const artInvalid =
     art.schema !== ART_DIRECTION_SCHEMA ||
     art.profile !== profile ||
@@ -594,6 +676,12 @@ function validateBase(
         !String(art[key]).trim() ||
         /TODO/u.test(String(art[key])),
     ) ||
+    ["audience", "objective", "environment"].some(
+      (key) => typeof brief[key] !== "string" || !String(brief[key]).trim(),
+    ) ||
+    !nonEmptyStringList(constraints.mustKeep) ||
+    !nonEmptyStringList(constraints.mayChange) ||
+    !nonEmptyStringList(constraints.avoid) ||
     [
       "typeClass",
       "strokeProfile",
@@ -607,12 +695,32 @@ function validateBase(
     !DOMINANT_AXES.has(String(composition.dominantAxis)) ||
     typeof composition.focalRelationship !== "string" ||
     !composition.focalRelationship.trim() ||
-    !TITLE_MEDIA_RELATIONS.has(String(composition.titleMediaRelation)) ||
+    !TITLE_MEDIA_DEPTHS.has(String(relation.depth)) ||
+    !TITLE_MEDIA_MECHANISMS.has(String(relation.mechanism)) ||
+    (relation.depth === "separate" && relation.mechanism !== "none") ||
+    typeof composition.primaryFocalLayer !== "string" ||
+    !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(composition.primaryFocalLayer)) ||
+    !normalizedRect(composition.focalBox) ||
+    quietRegions.length === 0 ||
+    quietRegions.some((region) =>
+      typeof region.id !== "string" ||
+      !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(region.id)) ||
+      !normalizedRect(region.box) ||
+      !Number.isFinite(region.maxOccupancy) ||
+      Number(region.maxOccupancy) < 0 ||
+      Number(region.maxOccupancy) > 1
+    ) ||
     !Number.isFinite(massToVoid.min) ||
     !Number.isFinite(massToVoid.max) ||
     Number(massToVoid.min) < 0 ||
     Number(massToVoid.max) > 1 ||
     Number(massToVoid.min) >= Number(massToVoid.max) ||
+    ["primary", "surfaceResponse"].some(
+      (key) => typeof material[key] !== "string" || !String(material[key]).trim(),
+    ) ||
+    ["direction", "quality", "contrast"].some(
+      (key) => typeof lighting[key] !== "string" || !String(lighting[key]).trim(),
+    ) ||
     !Array.isArray(art.negativeRules) ||
     art.negativeRules.length === 0;
   if (artInvalid)
@@ -620,7 +728,7 @@ function validateBase(
       finding(
         "ART_DIRECTION_INVALID",
         "plan.art-direction.json",
-        "art direction must bind structured letterform, composition, void range, and negative rules",
+        "art direction must bind brief, constraints, focal and quiet regions, material, lighting, and negative rules",
       ),
     );
   const skills = record(
@@ -681,7 +789,10 @@ function validateBase(
       ),
     );
   const design = record(parseJson(files, "design.system.json", findings));
-  const colors = record(design.colors);
+  const colorSystem = record(design.colors);
+  const colors = record(colorSystem.tokens);
+  const structuralRoles = record(colorSystem.structuralRoles);
+  const colorScenarios = list(colorSystem.scenarios).map(record);
   const typography = record(design.typography);
   const fontRegistry = list(design.fontRegistry).map(record);
   const spacing = record(design.spacing);
@@ -707,30 +818,43 @@ function validateBase(
         )
       );
     });
-  const registryCoversTypography = Object.values(typography)
-    .map(record)
-    .every((role) =>
-      fontRegistry.some(
-        (font) =>
-          font.family === role.family &&
-          list(font.files)
-            .map(record)
-            .some((file) => file.weight === role.weight),
-      ),
-    );
+  const registryCoversTypography = Object.values(typography).map(record).every((role) => {
+    const families = record(role.families);
+    const scripts = role.scriptPolicy === "mixed" ? ["cjk", "latin"] : [String(role.scriptPolicy)];
+    return scripts.every((script) => fontRegistry.some((font) =>
+      font.family === families[script] &&
+      list(font.files).map(record).some((file) => file.weight === role.weight && file.script === script),
+    ));
+  });
+  const colorSystemValid =
+    Object.keys(colors).length >= 2 &&
+    Object.values(colors).every((color) => /^[a-f0-9]{6}$/iu.test(String(color))) &&
+    typeof colorSystem.core === "string" &&
+    String(colorSystem.core) in colors &&
+    ["canvas", "primaryText"].every((role) => typeof structuralRoles[role] === "string" && String(structuralRoles[role]) in colors) &&
+    Object.values(structuralRoles).every((token) => typeof token === "string" && token in colors) &&
+    colorScenarios.length > 0 &&
+    colorScenarios.every((scenario) => {
+      const roles = record(scenario.roles);
+      return typeof scenario.id === "string" && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(scenario.id) &&
+        Object.keys(structuralRoles).every((role) => typeof roles[role] === "string" && String(roles[role]) in colors) &&
+        Object.values(roles).includes(colorSystem.core);
+    });
   if (
     design.schema !== DESIGN_SYSTEM_SCHEMA ||
-    Object.keys(colors).length < 2 ||
-    Object.values(colors).some(
-      (color) => !/^[a-f0-9]{6}$/iu.test(String(color)),
-    ) ||
+    !colorSystemValid ||
     Object.keys(typography).length === 0 ||
     Object.values(typography)
       .map(record)
       .some(
         (role) =>
-          typeof role.family !== "string" ||
-          !role.family.trim() ||
+          !["cjk", "latin", "mixed"].includes(String(role.scriptPolicy)) ||
+          (role.scriptPolicy !== "latin" && (typeof record(role.families).cjk !== "string" || !String(record(role.families).cjk).trim())) ||
+          (role.scriptPolicy !== "cjk" && (typeof record(role.families).latin !== "string" || !String(record(role.families).latin).trim())) ||
+          !Number.isInteger(role.hierarchy) || Number(role.hierarchy) <= 0 ||
+          !["horizontal", "vertical"].includes(String(role.orientation)) ||
+          !["left", "center", "right"].includes(String(role.alignment)) ||
+          typeof role.trackingPolicy !== "string" || !role.trackingPolicy.trim() ||
           !Number.isInteger(role.sizePx) ||
           Number(role.sizePx) <= 0 ||
           !Number.isInteger(role.weight) ||
@@ -742,8 +866,7 @@ function validateBase(
           !Number.isFinite(role.maxWidthPx) ||
           Number(role.maxWidthPx) <= 0 ||
           !Number.isInteger(role.maxLines) ||
-          Number(role.maxLines) <= 0 ||
-          !["cjk", "latin", "mixed"].includes(String(role.scriptPolicy)),
+          Number(role.maxLines) <= 0,
       ) ||
     !registryValid ||
     !registryCoversTypography ||
@@ -763,7 +886,7 @@ function validateBase(
       finding(
         "DESIGN_SYSTEM_INVALID",
         "design.system.json",
-        "semantic colors, measurable typography roles, registered font files, spacing, and valid contrast pairs are required",
+        "role-based colors, scenarios, script-aware typography, registered font files, spacing, and valid contrast pairs are required",
       ),
     );
   const project = record(parseJson(files, "poster.project.json", findings));
@@ -801,12 +924,17 @@ function validateVariants(
     parseJson(files, "src/variants/manifest.json", findings),
   );
   const variants = list(manifest.variants).map(record);
+  const design = record(parseJson(files, "design.system.json", findings));
+  const scenarioIds = new Set(list(record(design.colors).scenarios).map((entry) => String(record(entry).id)));
+  const art = record(parseJson(files, "plan.art-direction.json", findings));
+  const artComposition = record(art.composition);
+  const typographyRoles = new Set(Object.keys(record(design.typography)));
   if (manifest.schema !== VARIANT_MANIFEST_SCHEMA || variants.length === 0)
     findings.push(
       finding(
         "VARIANT_MANIFEST_INVALID",
         "src/variants/manifest.json",
-        "at least one v2 variant is required",
+        "at least one v3 variant is required",
       ),
     );
   const seen = new Set<string>();
@@ -827,7 +955,8 @@ function validateVariants(
       width < 320 ||
       height < 320 ||
       width > 8192 ||
-      height > 8192
+      height > 8192 ||
+      !scenarioIds.has(String(variant.colorScenario))
     ) {
       findings.push(
         finding(
@@ -842,11 +971,12 @@ function validateVariants(
     const variantPath = `src/variants/${directory}/variant.json`;
     const variantConfig = record(parseJson(files, variantPath, findings));
     if (
-      variantConfig.schema !== "poster-production/variant/v2" ||
+      variantConfig.schema !== "poster-production/variant/v3" ||
       variantConfig.id !== id ||
       variantConfig.width !== width ||
       variantConfig.height !== height ||
-      variantConfig.data !== `data/${id}.json`
+      variantConfig.data !== `data/${id}.json` ||
+      variantConfig.colorScenario !== variant.colorScenario
     )
       findings.push(
         finding(
@@ -859,16 +989,19 @@ function validateVariants(
     const layersPath = `src/variants/${directory}/layers/manifest.json`;
     const layerManifest = record(parseJson(files, layersPath, findings));
     const layers = list(layerManifest.layers).map(record);
+    const layerIds = new Set(layers.map((layer) => String(layer.id)));
     if (
       layerManifest.schema !== LAYER_MANIFEST_SCHEMA ||
       layers.length === 0 ||
-      record(layers[0]).role !== "background"
+      record(layers[0]).role !== "background" ||
+      layerIds.size !== layers.length ||
+      !layerIds.has(String(artComposition.primaryFocalLayer))
     )
       findings.push(
         finding(
           "LAYER_MANIFEST_INVALID",
           layersPath,
-          "a v2 manifest beginning with background is required",
+          "a v3 manifest beginning with background and containing the declared focal layer is required",
         ),
       );
     for (const [layerOffset, layer] of layers.entries()) {
@@ -878,14 +1011,18 @@ function validateVariants(
       if (
         !sourceMatch ||
         layer.index !== layerOffset + 1 ||
+        typeof layer.id !== "string" ||
+        !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(layer.id)) ||
         sourceMatch.groups?.role !== layer.role ||
+        !VISUAL_ROLES.has(String(layer.visualRole)) ||
+        (layer.typographyRole !== undefined && !typographyRoles.has(String(layer.typographyRole))) ||
         !(sourcePath in files)
       ) {
         findings.push(
           finding(
             "LAYER_INVALID",
             sourcePath,
-            "layer filename, role, order, and source must agree",
+            "layer id, filename, visual role, typography role, order, and source must agree",
           ),
         );
         continue;
@@ -1099,12 +1236,17 @@ function compositionEvidenceCurrent(
   const art = readEvidence(model, "plan.art-direction.json");
   const composition = record(art.composition);
   const target = record(composition.massToVoidTarget);
+  const declaredRelation = record(composition.titleMediaRelation);
+  const declaredQuietRegions = list(composition.quietRegions).map(record);
   return (
     evidenceHeaderCurrent(model, evidence, COMPOSITION_EVIDENCE_SCHEMA) &&
     measurements.length === variants.length &&
     measurements.every((measurement, index) => {
       const foreground = Number(measurement.foregroundCoverage);
       const voidCoverage = Number(measurement.voidCoverage);
+      const focal = record(measurement.focal);
+      const relation = record(measurement.titleMediaRelation);
+      const quietRegions = list(measurement.quietRegions).map(record);
       return (
         measurement.id === variants[index]?.id &&
         measurement.status === "pass" &&
@@ -1113,9 +1255,24 @@ function compositionEvidenceCurrent(
         Math.abs(foreground + voidCoverage - 1) < 0.001 &&
         foreground >= Number(target.min) &&
         foreground <= Number(target.max) &&
-        measurement.titleMediaRelation === composition.titleMediaRelation &&
-        Number.isFinite(Number(measurement.overlapRatio)) &&
-        Number(measurement.overlapRatio) >= 0
+        focal.layerId === composition.primaryFocalLayer &&
+        focal.withinDeclaredBox === true &&
+        normalizedRect(focal.bbox) &&
+        isObject(focal.centroid) &&
+        Number(record(focal.centroid).x) >= 0 && Number(record(focal.centroid).x) <= 1 &&
+        Number(record(focal.centroid).y) >= 0 && Number(record(focal.centroid).y) <= 1 &&
+        relation.depth === declaredRelation.depth &&
+        relation.mechanism === declaredRelation.mechanism &&
+        Number.isFinite(Number(relation.overlapRatio)) &&
+        Number(relation.overlapRatio) >= 0 &&
+        (declaredRelation.depth === "separate" ? Number(relation.overlapRatio) <= 0.01 : Number(relation.overlapRatio) >= 0.01) &&
+        relation.orderMatches === true &&
+        quietRegions.length === declaredQuietRegions.length &&
+        quietRegions.every((region, regionIndex) =>
+          region.id === declaredQuietRegions[regionIndex]?.id &&
+          Number(region.occupancy) <= Number(declaredQuietRegions[regionIndex]?.maxOccupancy) &&
+          region.status === "pass"
+        )
       );
     })
   );
@@ -1140,7 +1297,13 @@ function reviewEvidenceCurrent(model: PosterModel | null | undefined): boolean {
             `dist/${model?.artifactId}.${String(variant.id)}.png`,
           ),
     ) &&
-    REVIEW_CHECKS.every((key) => checks[key] === "pass") &&
+    REVIEW_CHECKS.every((key) => {
+      const check = record(checks[key]);
+      return check.status === "pass" &&
+        typeof check.anchor === "string" && check.anchor.trim().length > 0 &&
+        typeof check.evidence === "string" && check.evidence.trim().length > 0 &&
+        typeof check.recovery === "string" && check.recovery.trim().length > 0;
+    }) &&
     reviewFindings.every(
       (entry) =>
         ["low", "medium", "high", "critical"].includes(
@@ -1152,7 +1315,8 @@ function reviewEvidenceCurrent(model: PosterModel | null | undefined): boolean {
         entry.evidence.trim() &&
         typeof entry.recovery === "string" &&
         entry.recovery.trim() &&
-        ["resolved", "accepted"].includes(String(entry.disposition)),
+        ["resolved", "accepted"].includes(String(entry.disposition)) &&
+        !(entry.disposition === "accepted" && ["high", "critical"].includes(String(entry.severity))),
     )
   );
 }

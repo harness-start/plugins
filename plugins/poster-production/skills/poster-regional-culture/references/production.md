@@ -4,7 +4,7 @@
 
 - Output contract
 - Prompt construction
-- Rendered poster workflow
+- Deterministic authoring handoff
 - Quality control
 
 ## Output contract
@@ -14,7 +14,7 @@ For each direction, deliver the completed analysis card before the image prompt.
 1. final generation prompt
 2. readable character deformation logic
 3. type/image interaction
-4. render-mode plan: direct generation or deterministic post-typesetting
+4. input-asset role plus deterministic-authoring handoff
 5. variants when requested
 
 ## Prompt construction
@@ -23,7 +23,7 @@ Build the prompt from the selected direction rather than copying a generic templ
 
 - region and cultural theme
 - primary structure and supporting cue
-- dominant character, but state that exact text will be typeset later if the generator is unreliable
+- dominant character logic for deterministic typography; generated imagery must remain copy-free
 - structural transformation source
 - composition and whitespace
 - material, weather, and light
@@ -36,26 +36,22 @@ Compact English scaffold:
 
 ```text
 Create a refined minimalist cultural poster for [REGION], themed [THEME].
-Build the composition around the readable Chinese character [CHARACTER], structurally informed by [PRIMARY STRUCTURE].
-Integrate [SUPPORTING CUE] through cropping, masking, negative space, layering, and material transitions.
+Create a copy-free visual input asset structurally informed by [PRIMARY STRUCTURE].
+Support later integration of [CHARACTER] and [SUPPORTING CUE] through cropping, masking, negative space, layering, and material transitions.
 Use cropped cultural structures rather than full landmarks. Strong hierarchy, generous whitespace, quiet contemporary editorial and exhibition sensibility.
 Palette: [PALETTE]. Atmosphere: [TEMPERAMENT].
-Reserve clean areas for exact post-typeset Chinese subtitle, keywords, and epigraph.
-No tourism advertising, no icon collage, no crowded traditional symbolism, no flashy red-and-gold national-trend styling, no postcard panorama.
+Honor the declared focal box and quiet regions for later deterministic typography.
+No words, glyphs, pseudo-text, tourism advertising, icon collage, crowded traditional symbolism, flashy red-and-gold national-trend styling, or postcard panorama.
 Aspect ratio [RATIO].
 ```
 
 Add model-specific syntax only when the active image tool requires it.
 
-## Select the render mode
+## Deterministic authoring handoff
 
-Prefer **direct final generation** when the active image model can render legible Chinese and integrated typography, or when the user asks for direct generation, one-shot output, no compositing, or no post-production. Read [direct-generation.md](direct-generation.md) and generate the complete flattened poster in one call.
+Read [direct-generation.md](direct-generation.md) for the generated input asset boundary. Pass the completed direction card, prompt, focal box, quiet regions, material/light contract, and registered asset to `poster-project-authoring`. That workflow owns exact copy, source layers, probes, review, and release.
 
-Use **layered production** when exact copy is contract-critical, the user requests editable typography, or direct generation fails the text gate after reasonable regeneration attempts.
-
-Do not deliver a layered repair as a direct image. If direct mode is locked, regenerate the complete image when text or glyphs fail.
-
-## Layered rendered poster workflow
+## Authoring workflow
 
 Use a layered process for stable Chinese typography:
 
@@ -65,7 +61,7 @@ Lock the theme, character, structure, supporting cue, palette, copy, and composi
 
 ### Layer 2: visual foundation
 
-Generate the spatial, architectural, material, and atmospheric foundation. Reserve the intended character and small-text regions. The image may contain an approximate glyph-shaped structural mass, but do not trust it as final text.
+Generate an optional spatial, architectural, material, or atmospheric input asset. It contains no glyphs or copy and is registered with provenance before use.
 
 ### Layer 3: exact typography
 
@@ -77,7 +73,7 @@ Use masks, clipping, partial occlusion, stroke breaks, and material overlays to 
 
 ### Layer 5: export
 
-Export a high-resolution final plus a review preview. Keep working files in the active project or host-provided output directory. For shared or public workflows, avoid hard-coded personal paths, drive letters, temporary chat folders, or private workspace locations.
+Use the plugin writers to render, probe, independently review, and release the final variants. This adviser does not export them.
 
 ## Quality control
 
@@ -95,4 +91,4 @@ Inspect at full size and thumbnail size:
 
 If any Chinese text is malformed, replace it rather than explaining the defect.
 
-For direct generation, replacement means regenerating the whole poster unless the user authorizes layered repair.
+Malformed copy is an authoring failure and must be corrected in deterministic source before review.
