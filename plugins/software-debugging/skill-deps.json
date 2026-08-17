@@ -1,5 +1,0 @@
-{
-  "skills": [
-    { "name": "systematic-debugging", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only", "allowFiles": ["SKILL.md"] }
-  ]
-}

@@ -5,7 +5,7 @@ description: Investigate and optionally fix concrete software failures with an e
 
 # Debug Workflow
 
-Before diagnosis, load the required community `systematic-debugging` Skill declared in `skill-deps.json`. Only `SKILL.md` is approved; do not execute `find-polluter.sh` or any other companion script. If the Skill is absent or unreadable, stop this orchestration and report the missing dependency. The plugin Hook remains an independent work-order and evidence gate.
+Before diagnosis, read [systematic-debugging.md](references/systematic-debugging.md). Find the root cause before proposing a fix. The plugin Hook remains an independent work-order and evidence gate.
 
 Open a Debug Work Order with the plugin CLI before changing production code. The writer is the activation signal for `software-debugging`; merely loading this Skill, or editing a markdown file, does not activate hooks.
 
