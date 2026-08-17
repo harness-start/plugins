@@ -1,6 +1,6 @@
 # Artifact delivery guards
 
-这组插件把视觉与音频产物当作可审计工程，而不是单个二进制文件。当前包含 PPTX、海报、Remotion 视频、Logo、印刷出版物和 Tone.js 音乐六个相互独立的插件；每个插件都自带 Hook、合同校验器、ESLint preset、release writer、测试与验收 fixture，不依赖共享 runtime，也不在插件安装阶段编译或下载渲染依赖。
+这组插件把视觉与音频产物当作可审计工程，而不是单个二进制文件。当前包含图表、PPTX、海报、Remotion 视频、Logo、印刷出版物和 Tone.js 音乐七个相互独立的插件；每个插件都自带 Hook、合同校验器、release writer、测试与验收 fixture，并按源码形态提供 ESLint preset 或结构化 source lint。它们不依赖共享 runtime，也不在插件安装阶段编译或下载渲染依赖。
 
 ## 共同边界
 
@@ -13,15 +13,15 @@
 
 ## ESLint 与跨文件合同
 
-每个插件的 `src/lib/eslint/preset.ts` 和 `src/lib/eslint/local-rules/` 只处理单文件 AST 能可靠表达的 owner 边界；运行时 `dist/cli/project-lint.mjs` 从 artifact 自己的 `package.json` 解析本地 `eslint` 与 `@typescript-eslint/parser`，不使用全局包或 `npx`。
+存在可执行 TS/TSX 单元的插件，用 `src/lib/eslint/preset.ts` 和 `src/lib/eslint/local-rules/` 处理单文件 AST 能可靠表达的 owner 边界；只有结构化 JSON 源的图表插件直接执行 schema、引用和密度合同。需要 ESLint 时，运行时 `dist/cli/project-lint.mjs` 从 artifact 自己的 `package.json` 解析本地依赖，不使用全局包或 `npx`。
 
 文件名、manifest 顺序、source-hash proof、跨文件依赖、最终输出和 receipt 由 `src/lib/contract.ts` 复核，并随各 entry 打入 bundle。正则合同不是 ESLint 的降级替代，而是 Hook 在没有 artifact toolchain 时仍能 fail closed 的最小闭包。
 
 ## 生成依赖与社区 Skill
 
-渲染依赖属于 artifact 工程：PptxGenJS、Satori/resvg、Remotion、React/Vivliostyle、Tone.js、Tonal、Playwright 及其版本应由项目 `package-lock.json` 固定。项目拥有的 render scripts 是受信任可执行配置；插件 writer 负责固定调用边界、测量输出并生成结构化 proof，不把脚本存在本身当作 operational evidence。音乐插件提供受控的浏览器离线渲染 wrapper；其他守卫不代替项目构建脚本。视频 writer 还要求系统提供 ffmpeg/ffprobe。
+渲染依赖属于 artifact 工程：PptxGenJS、ELK/resvg/fontsource、Satori/resvg、Remotion、React/Vivliostyle、Tone.js、Tonal、Playwright 及其版本应由项目 `package-lock.json` 固定。图表插件从语义 JSON 经确定性 Scene IR 生成自包含 SVG/HTML、PNG 与可选 draw.io，并对 Mermaid/draw.io 导入记录 fidelity ledger。项目拥有的 render scripts 是受信任可执行配置；插件 writer 负责固定调用边界、测量输出并生成结构化 proof，不把脚本存在本身当作 operational evidence。音乐插件提供受控的浏览器离线渲染 wrapper；其他守卫不代替项目构建脚本。视频 writer 还要求系统提供 ffmpeg/ffprobe。
 
-Skill 是知识层，不是效果证据。PPTX、海报与音乐插件把设计顾问和方法正文捆绑在各自 `skills/` 里。所有建议都必须重新经过对应插件的 source、proof 和 release 合同。Skill 激活、提示词质量、优化分数或“听起来不错”的文字判断都不是完整 operational evidence。
+Skill 是知识层，不是效果证据。图表、PPTX、海报与音乐插件把设计顾问和方法正文捆绑在各自 `skills/` 里。所有建议都必须重新经过对应插件的 source、proof 和 release 合同。Skill 激活、提示词质量、优化分数或“听起来不错”的文字判断都不是完整 operational evidence。
 
 ## 强度声明
 

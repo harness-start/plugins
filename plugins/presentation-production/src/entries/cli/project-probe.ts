@@ -77,6 +77,10 @@ async function main() {
   const packageInspection = inspectPptxPackage(
     await readFile(join(root, pptxPath)),
   );
+  const storyboard = record(JSON.parse(String(model.files?.["plan.storyboard.json"])));
+  const storyboardSlides = Array.isArray(storyboard.slides) ? storyboard.slides.map(record) : [];
+  const diagramDigests = storyboardSlides.filter((slide) => slide.visualType === "diagram").map((slide) => record(slide.diagram).sha256).filter((value): value is string => typeof value === "string");
+  if (diagramDigests.length && (packageInspection.externalRelationships.length || diagramDigests.some((expected) => !packageInspection.media.some(({ sha256 }) => sha256 === expected)))) throw new Error("DIAGRAM_MEDIA_MISMATCH");
   const pageCount = await pdfPageCount(join(root, pdfPath), { cwd: root });
   const design = record(
     JSON.parse(String(model.files?.["design.system.json"])),

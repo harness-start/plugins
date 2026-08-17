@@ -102,6 +102,17 @@ const GENERATED_PATH =
   /^(?:dist\/|evidence\.[^/]+\.json$|review\.[^/]+\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
 const SLIDE_OWNER_VIOLATION =
   /(?:\baddSlide\s*\(|\bnew\s+pptxgen\b|from\s+["']pptxgenjs["']|\b(?:writeFile|writeFileSync|createWriteStream|fetch|setTimeout|setInterval)\s*\(|\b(?:Date\.now|Math\.random)\s*\(|from\s+["']node:(?:fs|child_process)["'])/u;
+
+function hasUnsafeSvgReference(text: string) {
+  if (/<\s*(?:script|foreignObject|iframe|object|embed)\b|\bon\w+\s*=|@import\b/iu.test(text)) return true;
+  for (const match of text.matchAll(/(?:href|src)\s*=\s*["']([^"']*)["']/giu)) {
+    if (!/^(?:#|data:image\/(?:png|jpeg|gif|webp);base64,)/iu.test(match[1] ?? "")) return true;
+  }
+  for (const match of text.matchAll(/url\(\s*["']?([^"')\s]+)["']?\s*\)/giu)) {
+    if (!/^(?:#|data:(?:image|font)\/)/iu.test(match[1] ?? "")) return true;
+  }
+  return false;
+}
 const TEXT_EXTENSIONS = new Set([
   ".cjs",
   ".js",
@@ -454,6 +465,35 @@ function validateSourceSchemas(
         "storyboard slides must be non-empty, contiguous, and declare id, title, role, and visualType",
       ),
     );
+  for (const [index, entry] of storyboardSlides.entries()) {
+    const slide = rec(entry);
+    if (slide?.visualType !== "diagram") continue;
+    const diagram = rec(slide.diagram);
+    const path = typeof diagram?.asset === "string" ? diagram.asset : `plan.storyboard.json#slides/${index}/diagram`;
+    if (
+      !diagram ||
+      typeof diagram.asset !== "string" ||
+      !/^assets\/diagrams\/[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u.test(diagram.asset) ||
+      !/^[a-f0-9]{64}$/u.test(String(diagram.sha256 ?? "")) ||
+      !["contain", "cover"].includes(String(diagram.fit)) ||
+      typeof diagram.takeaway !== "string" ||
+      !diagram.takeaway.trim() ||
+      typeof diagram.alt !== "string" ||
+      !diagram.alt.trim()
+    ) {
+      findings.push(finding("DIAGRAM_ASSET_INVALID", path, "diagram slides require a local assets/diagrams/*.svg asset, SHA-256, contain/cover fit, takeaway, and alt text"));
+      continue;
+    }
+    const asset = files[diagram.asset];
+    if (typeof asset !== "string" || digest(Buffer.from(asset)) !== diagram.sha256) {
+      findings.push(finding("DIAGRAM_ASSET_INVALID", diagram.asset, "diagram SVG must exist and match the declared SHA-256"));
+      continue;
+    }
+    if (
+      !/^\s*(?:<\?xml[^>]*>\s*)?<svg\b/iu.test(asset) ||
+      hasUnsafeSvgReference(asset)
+    ) findings.push(finding("DIAGRAM_ASSET_UNSAFE", diagram.asset, "diagram SVG must be self-contained and contain no executable or external content"));
+  }
   const composition = schemaRecord(
     files,
     "plan.skill-composition.json",
@@ -675,6 +715,7 @@ export type PptxPackageInspection = {
   requiredParts: string[];
   externalRelationships: string[];
   unresolvedRelationships: string[];
+  media: Array<{ path: string; sha256: string }>;
 };
 
 export function inspectPptxPackage(bytes: Buffer): PptxPackageInspection {
@@ -742,6 +783,10 @@ export function inspectPptxPackage(bytes: Buffer): PptxPackageInspection {
     requiredParts,
     externalRelationships: externalRelationships.sort(),
     unresolvedRelationships: unresolvedRelationships.sort(),
+    media: [...names]
+      .filter((name) => /^ppt\/media\/[^/]+$/u.test(name))
+      .sort()
+      .map((path) => ({ path, sha256: digest(entries[path] ?? new Uint8Array()) })),
   };
 }
 
@@ -757,6 +802,7 @@ export function inspectPng(bytes: Buffer) {
 function validateRendered(
   model: PptxModel,
   slides: unknown[],
+  storyboardSlides: unknown[],
   findings: ContractFinding[],
 ) {
   const files = model.files ?? {};
@@ -775,6 +821,22 @@ function validateRendered(
           "PPTX slide count and internal relationships must match the manifest",
         ),
       );
+    const expectedDiagramDigests = storyboardSlides
+      .map((entry) => rec(rec(entry)?.diagram)?.sha256)
+      .filter((value): value is string => typeof value === "string");
+    if (
+      expectedDiagramDigests.length &&
+      (inspection.externalRelationships.length > 0 ||
+        expectedDiagramDigests.some(
+          (expected) => !inspection.media.some(({ sha256 }) => sha256 === expected),
+        ))
+    ) findings.push(
+      finding(
+        "DIAGRAM_MEDIA_MISMATCH",
+        pptxPath,
+        "every diagram slide must embed the current SVG bytes and use no external package relationship",
+      ),
+    );
   } catch (error) {
     findings.push(
       finding(
@@ -1105,7 +1167,7 @@ export function validatePptxModel(
   const { storyboardSlides } = validateSourceSchemas(current, files, findings);
   const slides = validateManifest(files, storyboardSlides, findings);
   if (stageAtLeast(currentStage, "render"))
-    validateRendered(current, slides, findings);
+    validateRendered(current, slides, storyboardSlides, findings);
   if (stageAtLeast(currentStage, "probe"))
     validateEvidence(current, slides, findings);
   if (stageAtLeast(currentStage, "review"))

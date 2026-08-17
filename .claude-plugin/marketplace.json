@@ -95,7 +95,12 @@
     {
       "name": "presentation-production",
       "source": "./plugins/presentation-production",
-      "description": "Guards PptxGenJS slide modules, source-bound previews, generated writers, and release evidence."
+      "description": "Guards PptxGenJS slide modules, hash-bound SVG diagram assets, source-bound previews, generated writers, and release evidence."
+    },
+    {
+      "name": "diagram-production",
+      "source": "./plugins/diagram-production",
+      "description": "Produces deterministic diagrams from semantic JSON or bounded Mermaid/draw.io imports, with SVG/PNG/HTML/draw.io outputs and release evidence."
     },
     {
       "name": "poster-production",

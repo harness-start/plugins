@@ -129,6 +129,7 @@ codex plugin add <name>@harness-start --json
 | `brand-logo-production` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
 | `poster-production` | 用统一编排 Skill、固定设计顾问、Satori/resvg writer、独立审查和 digest evidence 交付数字海报 |
 | `presentation-production` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
+| `diagram-production` | 从语义 JSON 或有限 Mermaid/draw.io 输入生成 SVG、PNG、自包含 HTML 与可选 draw.io，并用 probe、独立审查和摘要回执闭合交付 |
 | `print-publication-production` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
 | `video-production` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
 | `music-production` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
@@ -141,7 +142,7 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-38 个插件按职责分为八类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
+39 个插件按职责分为八类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
@@ -149,7 +150,7 @@ codex plugin add <name>@harness-start --json
 | 工程领域 | `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`kubernetes-operations`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering`、`web-frontend-engineering` | 每个领域以自建编排 Skill、捆绑业务 Skill 与本地 Hooks 组成，独立拥有语言/生态检查和依赖产物保护 |
 | 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development`、`interface-craft` | 内部 Skill 组织步骤；方法正文捆绑在插件内 |
 | 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
-| 领域生产 | `brand-logo-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
+| 领域生产 | `brand-logo-production`、`diagram-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
 | 项目与交付治理 | `project-capability-governance`、`ci-gated-delivery`、`repository-history-migration` | 管理能力采用、远端交付状态机和跨仓历史迁移 |
 | 输出治理 | `language-output` | 用平台独立 Hook 维持会话语言，不依赖其他插件 |
 | 培训赋能 | `training-program-design` | 用混合水平受众方法、同源材料、只读评审与阶段门禁闭合培训设计和改编 |

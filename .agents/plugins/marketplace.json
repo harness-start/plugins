@@ -213,6 +213,19 @@
       "category": "Productivity"
     },
     {
+      "name": "diagram-production",
+      "source": {
+        "source": "local",
+        "path": "./plugins/diagram-production"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Produces deterministic diagrams from semantic JSON or bounded Mermaid/draw.io imports, with SVG/PNG/HTML/draw.io outputs and release evidence."
+    },
+    {
       "name": "poster-production",
       "source": {
         "source": "local",

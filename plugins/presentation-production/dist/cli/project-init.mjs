@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:eac00115d6d589f256192b384bccc882c86993859a63c0e65f1233b1a34d0b4d
+// harness-source-hash: sha256:77598b487b2748ac66cf5dc8fdaed6499263586815e773d3046975c64b098581
 import {
   assertPptxProjectRoot
-} from "../chunks/chunk-MOV2C52Q.mjs";
+} from "../chunks/chunk-WPJNTGC5.mjs";
 import {
   DESIGN_SYSTEM_SCHEMA,
   PLAN_SCHEMA,
@@ -10,7 +10,7 @@ import {
   SKILL_COMPOSITION_SCHEMA,
   SLIDE_MANIFEST_SCHEMA,
   STORYBOARD_SCHEMA
-} from "../chunks/chunk-7C6MEJKD.mjs";
+} from "../chunks/chunk-AI445SP2.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -71,7 +71,7 @@ async function main() {
     "src/slides/manifest.json": `${JSON.stringify({ schema: SLIDE_MANIFEST_SCHEMA, slides: [{ index: 1, id: "opening", source: "001-opening.ts", title: "TODO", role: "opening", visualType: "hero", accessibility: { title: "TODO", altText: [], readingOrder: ["title"], colorEncoding: ["label"] } }] }, null, 2)}
 `,
     "src/slides/001-opening.ts": "export function renderSlide(slide, ctx) {\n  const display = ctx.theme.typography.roles.display;\n  slide.background = { color: ctx.theme.colors.roles.canvas };\n  slide.addText(ctx.copy.title, { x: 0.7, y: 2.1, w: 8.6, h: 1.2, fontFace: display.fontFamily, fontSize: display.fontSizePt, charSpacing: display.charSpacingPt, breakLine: false, color: ctx.theme.colors.roles.textPrimary, bold: true, margin: 0 });\n}\n",
-    "src/deck.ts": 'import { readFile } from "node:fs/promises";\nimport { resolve } from "node:path";\nimport pptxgen from "pptxgenjs";\nimport { theme } from "./theme.js";\nconst outputFlag = process.argv.indexOf("--output");\nif (outputFlag < 0 || !process.argv[outputFlag + 1]) throw new Error("OUTPUT_REQUIRED");\nconst manifest = JSON.parse(await readFile(new URL("./slides/manifest.json", import.meta.url), "utf8"));\nconst deck = new pptxgen();\ndeck.layout = "LAYOUT_WIDE";\ndeck.author = "presentation-production";\nfor (const entry of manifest.slides) { const slide = deck.addSlide(); const module = await import(`./slides/${entry.source}`); module.renderSlide(slide, { theme, copy: { title: entry.title }, entry }); }\nawait deck.writeFile({ fileName: resolve(process.argv[outputFlag + 1]) });\n'
+    "src/deck.ts": 'import { createHash } from "node:crypto";\nimport { readFile } from "node:fs/promises";\nimport { resolve } from "node:path";\nimport pptxgen from "pptxgenjs";\nimport { theme } from "./theme.js";\nconst outputFlag = process.argv.indexOf("--output");\nif (outputFlag < 0 || !process.argv[outputFlag + 1]) throw new Error("OUTPUT_REQUIRED");\nconst manifest = JSON.parse(await readFile(new URL("./slides/manifest.json", import.meta.url), "utf8"));\nconst storyboard = JSON.parse(await readFile(new URL("../plan.storyboard.json", import.meta.url), "utf8"));\nconst planned = new Map(storyboard.slides.map((entry) => [entry.id, entry]));\nfunction unsafeSvg(svg) { if (/<\\s*(?:script|foreignObject|iframe|object|embed)\\b|\\bon\\w+\\s*=|@import\\b/iu.test(svg)) return true; for (const match of svg.matchAll(/(?:href|src)\\s*=\\s*["\']([^"\']*)["\']/giu)) if (!/^(?:#|data:image\\/(?:png|jpeg|gif|webp);base64,)/iu.test(match[1] || "")) return true; for (const match of svg.matchAll(/url\\(\\s*["\']?([^"\')\\s]+)["\']?\\s*\\)/giu)) if (!/^(?:#|data:(?:image|font)\\/)/iu.test(match[1] || "")) return true; return false; }\nasync function loadDiagram(entry) { const spec = planned.get(entry.id)?.diagram; if (!spec) return undefined; const svg = await readFile(new URL(`../${spec.asset}`, import.meta.url), "utf8"); if (createHash("sha256").update(svg).digest("hex") !== spec.sha256) throw new Error(`DIAGRAM_HASH_MISMATCH:${entry.id}`); if (!/^\\s*(?:<\\?xml[^>]*>\\s*)?<svg\\b/iu.test(svg) || unsafeSvg(svg)) throw new Error(`DIAGRAM_SVG_UNSAFE:${entry.id}`); return { svg, data: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`, fit: spec.fit, takeaway: spec.takeaway, alt: spec.alt, sha256: spec.sha256 }; }\nconst deck = new pptxgen();\ndeck.layout = "LAYOUT_WIDE";\ndeck.author = "presentation-production";\nfor (const entry of manifest.slides) { const slide = deck.addSlide(); const module = await import(`./slides/${entry.source}`); module.renderSlide(slide, { theme, copy: { title: entry.title }, entry, diagram: await loadDiagram(entry) }); }\nawait deck.writeFile({ fileName: resolve(process.argv[outputFlag + 1]) });\n'
   };
   for (const [filePath, content] of Object.entries(files))
     await writeFile(join(root, filePath), content, { flag: "wx" });

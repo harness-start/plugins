@@ -1,27 +1,27 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:eac00115d6d589f256192b384bccc882c86993859a63c0e65f1233b1a34d0b4d
+// harness-source-hash: sha256:77598b487b2748ac66cf5dc8fdaed6499263586815e773d3046975c64b098581
 import {
   pdfPageCount,
   renderOfficePages,
   toolVersion
-} from "../chunks/chunk-55EFR756.mjs";
+} from "../chunks/chunk-XJYG5NDD.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-AJWS3QDK.mjs";
+} from "../chunks/chunk-VLHWQYYK.mjs";
 import {
   assertPptxProjectRoot,
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-MOV2C52Q.mjs";
+} from "../chunks/chunk-WPJNTGC5.mjs";
 import {
   RENDER_EVIDENCE_SCHEMA,
   computePptxSubjectDigest,
   inspectPptxPackage,
   loadPptxProject,
   validatePptxModel
-} from "../chunks/chunk-7C6MEJKD.mjs";
+} from "../chunks/chunk-AI445SP2.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";
@@ -54,6 +54,7 @@ async function main() {
   const findings = validatePptxModel(model, { stage: "source" });
   if (findings.length) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
   const manifest = JSON.parse(String(model.files?.["src/slides/manifest.json"]));
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
   await withWriterJournal(root, "pptx-render", async () => {
     const temp = join(root, ".tmp", "pptx-guard", `render-${process.pid}-${Date.now()}`);
     await mkdir(temp, { recursive: true });
@@ -64,6 +65,8 @@ async function main() {
       const candidateBytes = await import("node:fs/promises").then(({ readFile }) => readFile(candidate));
       const inspection = inspectPptxPackage(candidateBytes);
       if (inspection.slideCount !== manifest.slides.length || inspection.unresolvedRelationships.length) throw new Error("RENDER_PPTX_STRUCTURE_INVALID");
+      const diagramDigests = storyboard.slides.filter(({ visualType }) => visualType === "diagram").map(({ diagram }) => diagram?.sha256).filter((value) => typeof value === "string");
+      if (diagramDigests.length && (inspection.externalRelationships.length || diagramDigests.some((expected) => !inspection.media.some(({ sha256 }) => sha256 === expected)))) throw new Error("RENDER_DIAGRAM_MEDIA_MISMATCH");
       const rendered = await renderOfficePages(candidate, temp, { cwd: root });
       const pageCount = await pdfPageCount(rendered.pdfPath, { cwd: root });
       if (pageCount !== manifest.slides.length || rendered.pages.length !== manifest.slides.length) throw new Error("RENDER_PAGE_COUNT_MISMATCH");

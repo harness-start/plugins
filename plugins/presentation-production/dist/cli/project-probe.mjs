@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:eac00115d6d589f256192b384bccc882c86993859a63c0e65f1233b1a34d0b4d
+// harness-source-hash: sha256:77598b487b2748ac66cf5dc8fdaed6499263586815e773d3046975c64b098581
 import {
   pdfPageCount,
   toolVersion
-} from "../chunks/chunk-55EFR756.mjs";
+} from "../chunks/chunk-XJYG5NDD.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-AJWS3QDK.mjs";
+} from "../chunks/chunk-VLHWQYYK.mjs";
 import {
   assertPptxProjectRoot,
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-MOV2C52Q.mjs";
+} from "../chunks/chunk-WPJNTGC5.mjs";
 import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   DESIGN_EVIDENCE_SCHEMA,
@@ -22,7 +22,7 @@ import {
   inspectPptxPackage,
   loadPptxProject,
   validatePptxModel
-} from "../chunks/chunk-7C6MEJKD.mjs";
+} from "../chunks/chunk-AI445SP2.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-probe.ts
 import { readFile } from "node:fs/promises";
@@ -66,6 +66,10 @@ async function main() {
   const packageInspection = inspectPptxPackage(
     await readFile(join(root, pptxPath))
   );
+  const storyboard = record(JSON.parse(String(model.files?.["plan.storyboard.json"])));
+  const storyboardSlides = Array.isArray(storyboard.slides) ? storyboard.slides.map(record) : [];
+  const diagramDigests = storyboardSlides.filter((slide) => slide.visualType === "diagram").map((slide) => record(slide.diagram).sha256).filter((value) => typeof value === "string");
+  if (diagramDigests.length && (packageInspection.externalRelationships.length || diagramDigests.some((expected) => !packageInspection.media.some(({ sha256 }) => sha256 === expected)))) throw new Error("DIAGRAM_MEDIA_MISMATCH");
   const pageCount = await pdfPageCount(join(root, pdfPath), { cwd: root });
   const design = record(
     JSON.parse(String(model.files?.["design.system.json"]))

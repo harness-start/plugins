@@ -10,6 +10,7 @@ const expected = [
   "brand-logo-production",
   "ci-gated-delivery",
   "command-safety",
+  "diagram-production",
   "engineering-practice",
   "engineering-quality",
   "evidence-based-research",
