@@ -1,5 +1,0 @@
-{
-  "skills": [
-    { "name": "test-driven-development", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" }
-  ]
-}
