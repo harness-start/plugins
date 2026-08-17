@@ -69,7 +69,6 @@ harness-start/
 └── plugins/
     ├── session-hooks/
     │   ├── README.md
-    │   ├── skill-deps.json          # optional community skill deps
     │   ├── .claude-plugin/
     │   │   └── plugin.json
     │   ├── .codex-plugin/
@@ -1061,49 +1060,15 @@ mkdir -p plugins/audit-hooks/acceptance/cases
 5. 把可独立验证的判定放入 `scripts/checks/`，只按实际依赖增加 `scripts/lib/`。
 6. 仅在显式配置、诊断、例外或恢复需要操作指导时创建 `skills/<name>/SKILL.md`。
 7. 在 `.claude-plugin/marketplace.json` 与 `.agents/plugins/marketplace.json` 中登记同名插件。
-8. 若依赖社区公开 Skill，添加 `skill-deps.json`（见下）。
+8. 把所需方法写进本插件 `skills/`，并带上许可证/NOTICE。不要添加 `skill-deps.json`。
 9. 添加离线单测、`acceptance/README.md` 和至少一个双宿主真实会话用例。
 10. 运行仓库验证，再分别安装并做 Claude Code / Codex 新会话验收。
 
 同一个 Marketplace 内不能出现重名插件。
 
-### 16.1 社区 skill 依赖（skill-deps.json）
+### 16.1 插件必须自包含
 
-插件若依赖社区公开 skill（例如 `grilling`），在插件根目录声明：
-
-```text
-plugins/<name>/skill-deps.json
-```
-
-```json
-{
-  "skills": [
-    {
-      "name": "grilling",
-      "source": "https://github.com/mattpocock/skills",
-      "description": "optional"
-    }
-  ]
-}
-```
-
-`scripts/install-all.sh` 会汇总 catalog 内所有插件的 `skill-deps.json`，按 skill 名去重后**全局**安装/更新。宿主验收分两层：
-
-- **单插件** `scripts/acceptance/run.sh`：只装当前插件；并读取其 `skill-deps.json` 装进 case 隔离 `HOME`（缓存：`.acceptance-runs/skill-deps-cache/`）。
-- **项目级** `scripts/acceptance/run-project.sh`：对本地 checkout 执行 `install-all.sh --local <path>`，装**全部**插件与社区 skill，再跑 `acceptance/scenarios/<domain>/cases/` 场景（首例：LOGO 开放 brief e2e）。
-
-用户安装路径：
-
-```bash
-npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a codex
-```
-
-注意：
-
-- 目标是用户级全局 scope（`--global`），不是项目目录。
-- 无依赖的插件不要创建空文件；CI 在文件存在时校验 schema。
-- 离线或无 `npx` 时可使用 `--skip-skill-deps` / `HARNESS_SKIP_SKILL_DEPS=1`。
-- curl 一键安装时会从 GitHub raw 拉取各插件的 `skill-deps.json`（`HARNESS_GIT_REF` / `--ref`）。
+每个已发布插件必须捆绑自己的 Skill、脚本和双平台 Hook。禁止 `skill-deps.json`、`vendor-skills/` 和安装期 `npx skills add`。有用的社区方法应复制进该插件 `skills/` 并带上许可证/NOTICE。
 
 ## 17. CI 示例
 
@@ -1119,7 +1084,7 @@ scripts/ci/validate-plugins.sh
 
 - JSON 与 manifest 可解析；
 - 插件脚本语法；
-- 可选 `skill-deps.json` schema（`skills[].name` / `skills[].source`）；
+- 仓库中不存在 `skill-deps.json` 或 `vendor-skills/`；
 - 双平台 `plugin.json` 版本一致；
 - **`plugins/*` 与两个 `marketplace.json` 互相登记且 source 路径正确**（防止新增插件忘记发布到 marketplace）；
 - `claude plugin validate --strict`；

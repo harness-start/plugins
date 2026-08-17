@@ -34,19 +34,17 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 # 选择默认回复语言，默认仍为简体中文
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --language en-US
 
-# 跳过社区 Skill 依赖，适用于离线或没有 npx 的环境
-curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-skill-deps
 ```
 
 即使在本地 clone 中运行 `bash scripts/install-all.sh`，安装器默认仍会使用公开 GitHub Marketplace。要加载当前工作区尚未发布的修改，请使用下方的[本地开发命令](#本地开发)。
 
-要求：`bash`、可访问 GitHub 的网络，以及 Claude Code CLI 和/或 Codex CLI。建议安装 `jq`。社区 Skill 依赖还需要 Node.js 与 `npx`。
+要求：`bash`、可访问 GitHub 的网络，以及 Claude Code CLI 和/或 Codex CLI。建议安装 `jq`。
 
 安装后：
 
 - **Claude Code：** 启动新会话，或在提示时执行 `/reload-plugins`，使 Hook 生效。
 - **Codex：** 通过 `/hooks` 审查并信任插件 Hook。安装成功不表示 Hook 已受信任或正在运行。
-- **社区 Skill：** 插件可声明 `skill-deps.json`；维护者通过 `npm run vendor:skills` 更新仓库内的 `vendor-skills/`，`install-all.sh` 只从这份已准备内容安装到全局 Skill scope。
+- **Skill / Hook：** 每个已发布插件自带所需 Skill、脚本和 Hook。安装器不再下载或 `npx skills add` 社区 Skill。
 
 `--language <code>` 接受 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将语言代码写入每个已安装宿主自己的配置目录。不传时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale，并映射到支持的语言；无法映射或系统使用 `C`/`POSIX` locale 时使用 `en-US`。项目的 `.language-output.mjs` 优先于用户级安装偏好。
 
@@ -125,6 +123,7 @@ codex plugin add <name>@harness-start --json
 | `engineering-practice` | 编排社区工程方法 Skill 的当前上游版本；依赖缺失时停止对应编排，不替代 Hook 证据 |
 | `professional-writing` | 按语言与文稿类型编排社区写作 Skill 的当前上游版本；只执行经过路径与 SHA-256 审计的脚本 |
 | `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
+| `interface-craft` | 检测 UI 文件上的机械界面反模式，并提供第一方工艺底线与批判方法 |
 | `software-debugging` | 通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
 | `agent-activity-audit` | 将文件读写与 shell 命令统一记录到 `.agent-activity-audit/sessions/<session>.jsonl`，记录以 `kind` 区分 |
 | `brand-logo-production` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
@@ -141,13 +140,13 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-36 个插件按职责分为七类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。`skill-deps.json` 只声明社区 Skill 名称与上游来源，维护更新时跟随上游当前版本，用户安装时读取仓库内的 vendor 快照。
+37 个插件按职责分为七类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
 | 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`command-safety` | 对命令、写入、测试顺序与跨技术栈共享质量实施可机械验证的硬门禁 |
-| 工程领域 | `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`kubernetes-operations`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering`、`web-frontend-engineering` | 每个领域以自建编排 Skill、必需社区 Skill 与本地 Hooks 组成，独立拥有语言/生态检查和依赖产物保护 |
-| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development` | 内部 Skill 组织步骤；通用方法优先来自社区 Skill 的当前上游版本，缺失时停止对应路线 |
+| 工程领域 | `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`kubernetes-operations`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering`、`web-frontend-engineering` | 每个领域以自建编排 Skill、捆绑业务 Skill 与本地 Hooks 组成，独立拥有语言/生态检查和依赖产物保护 |
+| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development`、`interface-craft` | 内部 Skill 组织步骤；方法正文捆绑在插件内 |
 | 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
 | 领域生产 | `brand-logo-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
 | 项目与交付治理 | `project-capability-governance`、`ci-gated-delivery`、`repository-history-migration` | 管理能力采用、远端交付状态机和跨仓历史迁移 |
@@ -167,14 +166,13 @@ codex plugin add <name>@harness-start --json
 plugins/<name>/
 ├── .claude-plugin/plugin.json   # Claude manifest（指向 hooks/claude.json）
 ├── .codex-plugin/plugin.json    # Codex manifest（版本必须与 Claude 一致）
-├── hooks/claude.json            # 可选 Claude Hook 配置
-├── hooks/codex.json             # 可选 Codex Hook 配置
+├── hooks/claude.json            # 双平台 Hook 之一
+├── hooks/codex.json             # 双平台 Hook 之一
 ├── src/                         # TypeScript 源码；entries/hooks|cli|mcp 为多入口
 ├── dist/                        # 已提交的 Node ESM bundle；插件安装后直接运行
-├── skills/                      # 可选 Skill，大部分插件附带
+├── skills/                      # 捆绑编排与业务 Skill
 ├── acceptance/cases/            # 宿主验收用例（case.toml + prompt.md + expect.sh + workspace/）
-├── tests/*.test.ts              # 与源码同名或同职责的离线测试
-└── skill-deps.json              # 可选社区 Skill 依赖声明
+└── tests/*.test.ts              # 与源码同名或同职责的离线测试
 ```
 
 纯内容插件可以没有 `src/` 和 `dist/`。代码插件的运行时依赖由 esbuild 打进各自 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一插件目录即可安装和运行。
@@ -236,43 +234,6 @@ codex plugin add <plugin-name>@harness-start --json
 
 如果已从 GitHub 注册过 `harness-start`，请先删除原 Marketplace 条目再添加本地来源；Marketplace 名称不能重复。
 
-## 社区 Skill 依赖
-
-部分插件依赖公开 Agent Skill，例如 `work-reporting` → `grilling`。在插件目录声明：
-
-```text
-plugins/<name>/skill-deps.json
-```
-
-```json
-{
-  "skills": [
-    {
-      "name": "grilling",
-      "source": "https://github.com/mattpocock/skills",
-      "description": "可选说明"
-    }
-  ]
-}
-```
-
-`scripts/update-vendor-skills.sh` 按上游来源合并下载全部声明项，原子更新 `vendor-skills/`，并生成包含来源、文件清单与 SHA-256 的确定性 `vendor-skills/index.json`：
-
-```bash
-npm run vendor:skills
-npm run check:vendor-skills
-```
-
-`scripts/install-all.sh` 会收集 catalog 中的声明并核对 vendor 索引。本地 checkout 直接使用 `vendor-skills/`；curl 一键安装只下载一次本仓库归档，再把其中的 vendor 目录交给 `npx skills add`。安装阶段不会访问任何外部 Skill 仓库；内容缺失或来源不一致会直接失败，也没有网络回退。
-
-| Flag / 环境变量 | 作用 |
-| --- | --- |
-| `--skip-skill-deps` | 不安装 Skill 依赖 |
-| `HARNESS_SKIP_SKILL_DEPS=1` | 与上项相同 |
-| `--list-only` | 同时输出解析后的 `name<TAB>source` |
-
-插件没有社区 Skill 依赖时不需要 `skill-deps.json`。该文件可选，存在时 CI 会校验 schema。
-
 ## 添加插件
 
 操作步骤见 `GUIDE.md` 第 16 节。新插件必须同时登记在：
@@ -280,7 +241,7 @@ npm run check:vendor-skills
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-若插件依赖 skills.sh 或 GitHub Skill 仓库中的公开 Skill，添加 `plugins/<name>/skill-deps.json`，运行 `npm run vendor:skills` 并提交更新后的 `vendor-skills/`；安装器与宿主验收都只从这份 vendor 内容安装，不会在用户安装阶段 clone 外部仓库。
+每个插件必须自带全部所需 Skill、脚本和双平台 Hook。禁止新增 `skill-deps.json` 或 `vendor-skills/`。
 
 ## 相关文档
 
@@ -295,7 +256,7 @@ npm run check:vendor-skills
 
 ## 宿主验收：Claude Code、Codex 与 DeepSeek
 
-实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，smoke 和 live case 都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和 honesty gate 仍可直接在宿主运行。每个 live case 只启用当前插件，并同步安装其 `skill-deps.json` 中声明的社区 Skill。
+实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，smoke 和 live case 都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和 honesty gate 仍可直接在宿主运行。每个 live case 只启用当前插件；不再安装社区 Skill。
 
 验收要求 `.env` 包含 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash`：
 
@@ -304,9 +265,9 @@ npm run check:vendor-skills
 ./scripts/acceptance/run.sh                                 # 全部插件 × Claude/Codex，Docker
 ./scripts/acceptance/run.sh --plugin command-safety  # 单个插件，Docker
 ./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
-bash scripts/acceptance/test-skill-deps-install.sh          # skill-deps 安装辅助（无 API）
+bash scripts/acceptance/test-skill-deps-install.sh          # 确认仓库无 skill-deps/vendor-skills
 
-# 项目级场景：install-all 装全量插件 + 社区 skill，再跑开放 brief
+# 项目级场景：install-all 装全量插件，再跑开放 brief
 ./scripts/acceptance/run-project.sh --honesty-only
 ./scripts/acceptance/run-project.sh --case logo-design/01-goal-e2e-delivery --host claude
 ```

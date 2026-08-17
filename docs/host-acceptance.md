@@ -9,9 +9,8 @@ with the plugin installed, and assert **post-session world state / host logs**.
 This is **not** unit-testing hook scripts via stdin.
 
 Each case installs **only** the plugin under test (not the full marketplace
-catalog). If that plugin declares `skill-deps.json`, the harness also installs
-those community skills into the isolated case `HOME` so Claude Code / Codex can
-load them the same way a user install via `install-all.sh` would.
+catalog). Published plugins ship their Skills; the harness does not install
+community `skill-deps` or `vendor-skills`.
 
 ## Policy: Docker only
 
@@ -149,15 +148,10 @@ rollout's structured `<hook_prompt>` message rather than inferred from a flat
 - **Codex**: `model_provider=deepseek`, Responses API base `https://api.deepseek.com/`,
   `models.json` from `docker/host-acceptance/models.json`,
   `--dangerously-bypass-hook-trust`, marketplace install of the **single** plugin under test.
-- **skill-deps**: before each host session, `run-case.sh` reads
-  `plugins/<name>/skill-deps.json` (if present) and installs those community
-  skills into the **case-isolated HOME** from the repository's prepared
-  `vendor-skills/` tree via `npx skills add … --global`. Results are cached under
-  `.acceptance-runs/skill-deps-cache/<plugin>/` keyed by both the manifest and
-  vendor index SHA-256. Missing declarations are a no-op; invalid manifests,
-  missing vendor content, identity mismatches, or install failures fail the case
-  before the host starts. Emergency opt-out:
-  `ACCEPT_SKIP_SKILL_DEPS=1` (not for default live suites).
+- **Skills**: published plugins are self-contained. Acceptance no longer
+  installs community `skill-deps` or `vendor-skills`. `install_plugin_skill_deps`
+  is a no-op. Offline helper `test-skill-deps-install.sh` asserts the supply
+  chain is gone.
 
 Offline helper coverage (no API key):
 
@@ -194,12 +188,12 @@ Per-plugin suites install **one** plugin. Project scenarios under
 `acceptance/scenarios/` install the **entire** catalog the way users do:
 
 ```bash
-scripts/install-all.sh --local <checkout>   # all plugins + skill-deps.json skills
+scripts/install-all.sh --local <checkout>   # all marketplace plugins
 ```
 
 into an isolated HOME (cached under the run out dir), then start Claude/Codex
 **without** `--plugin-dir` / single-plugin add so every installed hook and
-community skill is active.
+bundled Skill is active.
 
 ```bash
 # honesty only (no Docker / no API)
@@ -231,7 +225,6 @@ expects judge final artifacts + quality notes, not a single scripted Write.
 | `scripts/acceptance/lib/project-common.sh` | install-all cache / seed / host skills |
 | `.acceptance-runs/project-latest/` | Default artifacts |
 
-`install-all.sh --local <path>` resolves the plugin catalog, skill-deps, and
-prepared `vendor-skills/` content from that checkout (not GitHub master). When
-`$HOME/.agents/skills` exists, the Docker wrap mounts it so domain skills (e.g.
-`logo-design`) seed into case HOME.
+`install-all.sh --local <path>` resolves the plugin catalog from that checkout
+(not GitHub master). When `$HOME/.agents/skills` exists, the Docker wrap mounts
+it so host-global skills can seed into case HOME.

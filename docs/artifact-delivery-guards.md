@@ -21,7 +21,7 @@
 
 渲染依赖属于 artifact 工程：PptxGenJS、Satori/resvg、Remotion、React/Vivliostyle、Tone.js、Tonal、Playwright 及其版本应由项目 `package-lock.json` 固定。项目拥有的 render scripts 是受信任可执行配置；插件 writer 负责固定调用边界、测量输出并生成结构化 proof，不把脚本存在本身当作 operational evidence。音乐插件提供受控的浏览器离线渲染 wrapper；其他守卫不代替项目构建脚本。视频 writer 还要求系统提供 ffmpeg/ffprobe。
 
-Skill 是知识层，不是效果证据。PPTX 与海报插件通过 `skill-deps.json` 声明跟随当前上游版本的设计顾问；音乐插件内置符号作曲与数学模型 Skill。所有建议都必须重新经过对应插件的 source、proof 和 release 合同。Skill 激活、提示词质量、优化分数或“听起来不错”的文字判断都不是完整 operational evidence。
+Skill 是知识层，不是效果证据。PPTX、海报与音乐插件把设计顾问和方法正文捆绑在各自 `skills/` 里。所有建议都必须重新经过对应插件的 source、proof 和 release 合同。Skill 激活、提示词质量、优化分数或“听起来不错”的文字判断都不是完整 operational evidence。
 
 ## 强度声明
 
