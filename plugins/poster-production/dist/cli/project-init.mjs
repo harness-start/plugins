@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:32506a579cac407f1a6a18b41904852a7d1d8853ce952b43c0971b2576dbfba8
+// harness-source-hash: sha256:1a99b67afd74c65d95d81464d3201e20bfa4123e69f24b920c1be5cb984427ad
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-P5AHGC4D.mjs";
+} from "../chunks/chunk-XLAB7OOT.mjs";
 import {
   ART_DIRECTION_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
@@ -15,7 +15,7 @@ import {
   SKILL_COMPOSITION_SCHEMA,
   VARIANT_MANIFEST_SCHEMA,
   assertPosterProjectRoot
-} from "../chunks/chunk-D7REH2YP.mjs";
+} from "../chunks/chunk-77CKVA44.mjs";
 
 // plugins/poster-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -74,10 +74,10 @@ async function main() {
     "plan.art-direction.json": `${JSON.stringify({ schema: ART_DIRECTION_SCHEMA, profile, concept: defaults.concept, visualCenter: defaults.visualCenter, hierarchy: "one focal relationship, one headline, then restrained supporting information", typographyStrategy: "deterministic Noto Sans SC typography with role-based scale and spacing", colorRationale: "high-contrast semantic palette selected for the declared communication objective", negativeRules: ["tourism-collage", "pseudo-text", "unlicensed-assets", "artist-imitation"] }, null, 2)}
 `,
     "plan.skill-composition.json": `${JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [
-      { name: "regional-culture-poster", status: "skipped" },
-      { name: "qiaomu-mondo-poster-design", status: "skipped" },
-      { name: "cvpr-2026-poster", status: "skipped" },
-      { name: "impeccable", status: "skipped" }
+      { name: "poster-regional-culture", status: "skipped" },
+      { name: "poster-mondo", status: "skipped" },
+      { name: "poster-academic", status: "skipped" },
+      { name: "poster-visual-critique", status: "skipped" }
     ] }, null, 2)}
 `,
     "plan.assets.json": `${JSON.stringify({ schema: ASSET_MANIFEST_SCHEMA, assets: [] }, null, 2)}

@@ -46,7 +46,7 @@ const SUBJECT_EXCLUDED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.poster\.json
 const SOURCE_PROOF = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
 const SOURCE_PROOF_PATH = /^src\/variants\/.+\.(?:png|svg)$/u;
 const REQUIRED_SOURCE_FILES = [".gitignore", "package.json", "package-lock.json", "src/render.ts", "src/compose.ts", "src/theme.ts"];
-const REQUIRED_ADVISORS = new Set(["regional-culture-poster", "qiaomu-mondo-poster-design", "cvpr-2026-poster", "impeccable"]);
+const REQUIRED_ADVISORS = new Set(["poster-regional-culture", "poster-mondo", "poster-academic", "poster-visual-critique"]);
 const REVIEW_CHECKS = ["hierarchy", "typography", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
 
 const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");

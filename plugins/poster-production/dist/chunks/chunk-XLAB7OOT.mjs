@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:32506a579cac407f1a6a18b41904852a7d1d8853ce952b43c0971b2576dbfba8
+// harness-source-hash: sha256:1a99b67afd74c65d95d81464d3201e20bfa4123e69f24b920c1be5cb984427ad
 import {
   assertPosterProjectRoot
-} from "./chunk-D7REH2YP.mjs";
+} from "./chunk-77CKVA44.mjs";
 
 // plugins/poster-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";

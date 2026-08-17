@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -19,16 +19,11 @@ test("plugin publishes authoring and independent review skills on both hosts", (
   assert.equal(dirname(root).endsWith("plugins"), true);
 });
 
-test("poster skill dependencies follow current sources and are read-only advisors", () => {
-  const deps = readJson("../skill-deps.json");
-  assert.deepEqual(deps.skills.map(({ name }: { name: string }) => name), [
-    "regional-culture-poster",
-    "qiaomu-mondo-poster-design",
-    "cvpr-2026-poster",
-    "impeccable",
-  ]);
-  for (const dependency of deps.skills) {
-    assert.equal(Object.hasOwn(dependency, "revision"), false);
-    assert.match(dependency.description, /read-only|只读/iu);
+test("poster first-party advisors are bundled and read-only", () => {
+  assert.equal(existsSync(new URL("../skill-deps.json", import.meta.url)), false);
+  for (const name of ["poster-regional-culture", "poster-mondo", "poster-academic", "poster-visual-critique"]) {
+    const skill = readFileSync(new URL(`../skills/${name}/SKILL.md`, import.meta.url), "utf8");
+    assert.match(skill, new RegExp(`^name:\\s*${name}$`, "mu"));
+    assert.match(skill, /no .*writer|read-only|只读|cannot write/iu);
   }
 });

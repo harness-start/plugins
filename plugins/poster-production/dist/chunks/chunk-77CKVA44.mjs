@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:32506a579cac407f1a6a18b41904852a7d1d8853ce952b43c0971b2576dbfba8
+// harness-source-hash: sha256:1a99b67afd74c65d95d81464d3201e20bfa4123e69f24b920c1be5cb984427ad
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -6433,7 +6433,7 @@ var SUBJECT_EXCLUDED_PATH = /^(?:dist\/|evidence(?:\.|\/)|review\.poster\.json$|
 var SOURCE_PROOF = /^src\/variants\/.+\.[0-9a-f]{64}\.(?:png|svg)$/u;
 var SOURCE_PROOF_PATH = /^src\/variants\/.+\.(?:png|svg)$/u;
 var REQUIRED_SOURCE_FILES = [".gitignore", "package.json", "package-lock.json", "src/render.ts", "src/compose.ts", "src/theme.ts"];
-var REQUIRED_ADVISORS = /* @__PURE__ */ new Set(["regional-culture-poster", "qiaomu-mondo-poster-design", "cvpr-2026-poster", "impeccable"]);
+var REQUIRED_ADVISORS = /* @__PURE__ */ new Set(["poster-regional-culture", "poster-mondo", "poster-academic", "poster-visual-critique"]);
 var REVIEW_CHECKS = ["hierarchy", "typography", "legibility", "clipping", "color", "copy", "profileFidelity", "assetIntegrity"];
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });

@@ -7,7 +7,7 @@
 - `$poster-project-authoring`：主编排入口，负责 profile、art direction、顾问组合、设计系统、资产、layer、渲染、探测和发布；
 - `$poster-project-review`：只能由独立 session 使用，检查全部当前 PNG，并通过受控 writer 导入 digest-bound 结论。
 
-四个外部 Skill 通过 `skill-deps.json` 跟随上游当前版本，只提供只读建议：`regional-culture-poster`、`qiaomu-mondo-poster-design`、`cvpr-2026-poster` 和 `impeccable`。它们不能运行脚本、写项目、签审查或发布；编排 Skill 必须记录每个顾问为 `used`、`skipped` 或 `unavailable`。
+四个捆绑第一方 Skill 只提供只读建议：`poster-regional-culture`、`poster-mondo`、`poster-academic` 和 `poster-visual-critique`。它们不能运行脚本、写项目、签审查或发布；编排 Skill 必须记录每个顾问为 `used`、`skipped` 或 `unavailable`。
 
 ## v2 项目模型
 
