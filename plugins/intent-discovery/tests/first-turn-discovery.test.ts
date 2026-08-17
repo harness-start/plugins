@@ -72,10 +72,7 @@ test("plugin manifests expose one bundled skill and only UserPromptSubmit", () =
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
   assert.deepEqual(skillNames, ["intent-discovery"]);
-  assert.equal(existsSync(join(ROOT, "skill-deps.json")), true);
-  const deps = JSON.parse(readFileSync(join(ROOT, "skill-deps.json"), "utf8")).skills;
-  assert.deepEqual(deps.map(({ name }) => name), ["brainstorming"]);
-  assert.deepEqual(deps[0].allowFiles, ["SKILL.md"]);
+  assert.equal(existsSync(join(ROOT, "skill-deps.json")), false);
 });
 
 test("first prompt injects discovery and the second prompt is silent", async () => {

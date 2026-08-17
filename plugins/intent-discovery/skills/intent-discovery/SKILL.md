@@ -5,7 +5,7 @@ description: Front-load intent, repository context, plausible interpretations, a
 
 # Intent Discovery
 
-Before discovery, load the required community `brainstorming` Skill declared in `skill-deps.json`. Use only its instructions. If it is absent or unreadable, stop this orchestration and report the missing dependency; do not imitate it from memory or execute companion scripts.
+Before discovery, classify the request as light, standard, or intensive using this Skill. Explore repository context first. Do not wait for user approval during this first-turn pass; continue with the lowest-risk reversible interpretation.
 
 ## The one rule
 
