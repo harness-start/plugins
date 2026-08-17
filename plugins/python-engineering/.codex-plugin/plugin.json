@@ -1,0 +1,19 @@
+{
+  "name": "python-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates Python engineering and protects package-manager state with lightweight syntax and Ruff checks.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Python Engineering",
+    "shortDescription": "Orchestrates Python engineering and protects package-manager state with lightweight syntax and Ruff checks.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $python-engineering for this task."
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "skills": [
+    {
+      "name": "java-springboot",
+      "source": "https://github.com/github/awesome-copilot",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "java-junit",
+      "source": "https://github.com/github/awesome-copilot",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "javax-to-jakarta-migration",
+      "source": "https://github.com/github/awesome-copilot",
+      "required": true,
+      "mode": "instruction-only"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:cb82ef21d08bebe50f210e4081ebccd9f01a56bb645a0f5673b507d4487f1d3f
+// harness-source-hash: sha256:9be4f5208eee01566cc0ebe0189fa68db37219b97992a934c695217b1f2a77aa
 
 // plugins/execution-discipline/src/entries/hooks/execution-discipline.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";

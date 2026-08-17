@@ -1,0 +1,10 @@
+{
+  "skills": [
+    {
+      "name": "kubernetes-skill",
+      "source": "https://github.com/LukasNiessen/kubernetes-skill",
+      "required": true,
+      "mode": "instruction-only"
+    }
+  ]
+}

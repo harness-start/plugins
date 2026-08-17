@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6677b9dd765bb82441ae71a8632b44036caf82ec96fb7bb6cad638eea33412d9
+// harness-source-hash: sha256:fe398b57c2f61b69caa8edead0ffc315113aee3ecb1e5ffa2de177a26ae219c6
 
 // plugins/engineering-quality/src/entries/hooks/engineering-quality-post.ts
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-var checks = ["line-budget-check.mjs", "markdown-check.mjs", "static-code-check.mjs"];
+var checks = ["line-budget-check.mjs", "markdown-check.mjs"];
 function runChecks(input) {
   let exitCode = 0;
   for (const check of checks) {

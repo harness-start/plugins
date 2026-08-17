@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:86f4cafbe4edaac84315112377fff0b53cff54e7f155fe4af87eb18e0f51961e
+// harness-source-hash: sha256:642531c3822157b18854fe1aadb394ce988095413721dfe864e19eba18186611
 import {
   digestText,
   inspectChange
-} from "../chunks/chunk-UGFSOFVF.mjs";
+} from "../chunks/chunk-EU7A2Y73.mjs";
 
 // plugins/spec-driven-development/src/entries/cli/spec-driven-development-validate.ts
 import { readFileSync } from "node:fs";

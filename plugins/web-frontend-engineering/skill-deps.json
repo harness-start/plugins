@@ -1,0 +1,40 @@
+{
+  "skills": [
+    {
+      "name": "vercel-react-best-practices",
+      "source": "https://github.com/vercel-labs/agent-skills",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "vercel-composition-patterns",
+      "source": "https://github.com/vercel-labs/agent-skills",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "angular-developer",
+      "source": "https://github.com/angular/skills",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "vue-best-practices",
+      "source": "https://github.com/vuejs-ai/skills",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "vue-router-best-practices",
+      "source": "https://github.com/vuejs-ai/skills",
+      "required": true,
+      "mode": "instruction-only"
+    },
+    {
+      "name": "vue-testing-best-practices",
+      "source": "https://github.com/vuejs-ai/skills",
+      "required": true,
+      "mode": "instruction-only"
+    }
+  ]
+}

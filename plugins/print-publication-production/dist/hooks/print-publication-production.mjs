@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bc6c53602af5168265a22515ff4bd80eaa8f61e4bd01fac564f676c4997e009a
+// harness-source-hash: sha256:84a40468b5f4f7a0a531dfb33c4885d8429e105cd86f3de3106a34c0cbf03296
 import {
   evaluatePrintWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
   validatePrintModel
-} from "../chunks/chunk-FDYGXMZT.mjs";
+} from "../chunks/chunk-X7QBAWZY.mjs";
 
 // plugins/print-publication-production/src/entries/hooks/print-publication-production.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";

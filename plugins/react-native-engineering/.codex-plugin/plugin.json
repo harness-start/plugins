@@ -1,0 +1,19 @@
+{
+  "name": "react-native-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates bare React Native engineering and protects generated Codegen outputs with bounded configuration checks.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "React Native Engineering",
+    "shortDescription": "Orchestrates bare React Native engineering and protects generated Codegen outputs with bounded configuration checks.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $react-native-engineering for this task."
+  }
+}

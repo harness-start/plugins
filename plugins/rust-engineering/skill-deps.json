@@ -1,0 +1,10 @@
+{
+  "skills": [
+    {
+      "name": "rust-skills",
+      "source": "https://github.com/leonardomso/rust-skills",
+      "required": true,
+      "mode": "instruction-only"
+    }
+  ]
+}

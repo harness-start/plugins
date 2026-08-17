@@ -1,7 +1,7 @@
 {
   "name": "engineering-quality",
-  "version": "0.2.0",
-  "description": "Enforces source checks, file line budgets, and Markdown structure after edits.",
+  "version": "0.3.0",
+  "description": "Enforces shared file line budgets and Markdown structure after edits.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

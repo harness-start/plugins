@@ -1,0 +1,19 @@
+{
+  "name": "go-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates Go engineering and protects Go module checksums with lightweight source checks.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Go Engineering",
+    "shortDescription": "Orchestrates Go engineering and protects Go module checksums with lightweight source checks.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $go-engineering for this task."
+  }
+}

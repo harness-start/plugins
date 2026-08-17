@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.0
+
+- Keep only cross-stack file line budgets and Markdown structure checks.
+- Move language syntax, lint, Composer validation, dependency-file protection, and delayed PHPStan ownership to the corresponding engineering domain plugins.
+- Remove the Stop hook and language-check state directory.
+
 ## 0.2.0
 
 - Store session JSON under `.engineering-quality/state/` and place the matching `.gitignore` at `.engineering-quality/.gitignore`.

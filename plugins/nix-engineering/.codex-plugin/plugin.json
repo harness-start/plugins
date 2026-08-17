@@ -1,0 +1,19 @@
+{
+  "name": "nix-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates Nix engineering and protects flake.lock with lightweight Nix parsing.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Nix Engineering",
+    "shortDescription": "Orchestrates Nix engineering and protects flake.lock with lightweight Nix parsing.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $nix-engineering for this task."
+  }
+}

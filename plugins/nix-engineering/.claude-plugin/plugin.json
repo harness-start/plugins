@@ -1,0 +1,11 @@
+{
+  "name": "nix-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates Nix engineering and protects flake.lock with lightweight Nix parsing.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

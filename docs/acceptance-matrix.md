@@ -1,7 +1,7 @@
 # 双平台真实会话验收矩阵
 
 > 记录每个插件在 Claude Code / Codex 新会话中的真实验收结果。
-> 最近一次全量验收：2026-08-06，Docker 内运行 Claude Code 2.1.170 与 Codex 0.146.0。该次结果早于本轮 26 插件职责重构；下表合并保留当前插件所继承能力的历史证据，新版本复验结果在完成后追加。
+> 最近一次全量验收：2026-08-06，Docker 内运行 Claude Code 2.1.170 与 Codex 0.146.0。该次结果早于本轮 36 插件职责重构；下表保留历史证据，新领域插件的新版本结果在完成 Docker 复验后追加。
 
 | 插件 | 平台 | 已验收版本 | 触发场景 | 结果 | 证据 | 持久化位置 | 回滚 tag |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -10,7 +10,8 @@
 | `execution-discipline` | Claude + Codex | 0.1.3 | `01-block-edit-loop` | ✅ 通过：同一源码文件在测试阈值内重复编辑后，真实 PostToolUse 阻断；状态写入 `state/`，目录内忽略规则正确，项目根 `.gitignore` 未变 | 2026-08-15 Docker 定向汇总 `2/0/0` | `.execution-discipline/state/` 中的 session/workspace 哈希计数；不保存原始路径、命令或输出 | — |
 | `agent-activity-audit` | Claude + Codex | 0.2.0 | `01-record-shell-command`、`02-deny-trail-mutation`、`03-deny-interpreter-trail`、`04-record-file-write` | ✅ 通过：`agent-activity/v1` 用 `kind` 区分 command/file；两种记录和两条审计目录硬拦截均通过 | 2026-08-16 Docker `8/0/0` | `.agent-activity-audit/sessions/`；插件本地 `.gitignore` | — |
 | `source-integrity` | Claude + Codex | 0.3.0 | `01-deny-backup-artifact`、`02-repair-utf8-bom` | ✅ 通过：一个 Pre/Post dispatcher 同时完成备份文件硬拦截与 BOM 检测修复闭环 | 2026-08-16 Docker `4/0/0` | 无持久化 | — |
-| `engineering-quality` | Claude + Codex | 0.2.0 | `01-repair-javascript-syntax`、`02-block-oversized-php`、`03-fix-heading-jump` | ✅ 通过：一个 Post dispatcher 聚合静态检查、行预算与 Markdown 检查，三条结果闭环均通过 | 2026-08-16 Docker `6/0/0` | `.engineering-quality/state/`；插件本地 `.gitignore` | — |
+| `engineering-quality` | Claude + Codex | 0.3.0 | `02-block-oversized-php`、`03-fix-heading-jump` | ✅ 通过：收缩后只保留行预算与 Markdown 闭环；语言静态检查已迁移至领域插件 | 2026-08-17 Docker `4/0/0` | 仅行预算的临时 cooldown marker；无项目语言检查状态 | — |
+| 11 个工程领域插件 | Claude + Codex | 0.1.0 | 各插件 `01-domain-guard`；React Native 另含 `02-deny-package-lockfile` | ✅ 通过：领域编排 Skill、领域本地 Pre/Post Hooks、依赖/生成产物保护和有界检查；声明的社区 Skill 均从 vendor 快照安装；React Native 在 Web 插件让出作用域后仍独立保护 JS lockfile | 2026-08-17 Docker `24/0/0` | 仅缺失工具的临时去重 marker；无项目状态 | — |
 | `command-safety` | Claude + Codex | 0.1.0 | `01-deny-cat-heredoc` | ✅ 通过：目标文件不存在，日志有真实 Cat Write Guard deny | Docker 全量汇总 `26/0/0` | 无持久化 | — |
 | `language-output` | Claude + Codex | 0.2.1 | `01-zh-cn-governance`、`02-en-us-profile`、`03-ja-jp-profile`、`04-ko-kr-profile`、`05-th-th-profile`、`06-zh-tw-profile` | ⚠️ 六种内置语言的历史验收通过。2026-08-15 的 `01` 定向复验中，新 state 布局和根 `.gitignore` 隔离在双端均正确；场景整体 `0/2`，Claude 未产生用例要求的 Stop 拦截，Codex 未按 PostToolUse 反馈修复文件 | 历史：前五种语言 Docker `10/0/0`，`zh-TW` `2/0/0`；2026-08-15 `01` 定向 Docker `0/2/0`；离线单测 `67/0` | `.language-output/state/`；`.language-output/.gitignore` 只忽略 `state/`；24h TTL | — |
 | `project-capability-governance` | Claude + Codex | 0.2.0 | `01-human-only-notice`、`02-ordinary-no-notice`、`03-parent-capture`、`06-ordinary-subagent-no-abandon` | ✅ 通过：父 agent 可直接创建 schema-valid proposal；普通 subagent 未被分配插件身份或要求放弃工具；notice 仍为 human-only、non-blocking | 2026-08-14 Docker 定向汇总 `8/0/0`；honesty `174/0`；单测 `15/0` | 工作区 `.project-capabilities/`；只存 inbox 与 notice 去重状态，不存 subagent reservation、mailbox 或 lifecycle ledger | — |

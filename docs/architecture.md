@@ -2,7 +2,7 @@
 
 > 状态：Working Architecture
 >
-> 最近核对：2026-08-14
+> 最近核对：2026-08-17
 >
 > 适用对象：插件作者、维护者和评审者
 
@@ -24,7 +24,7 @@
 
 ## 2. 当前事实
 
-截至最近核对，两个 Marketplace 各登记 26 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。
+截至最近核对，两个 Marketplace 各登记 36 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。
 
 当前实现共同体现了以下事实：
 
@@ -33,6 +33,8 @@
 - 自动门禁只用于可机械验证的条件；需要模型理解、探索或取舍的流程留在 Skill 和 agent 工作流中。
 - 业务脚本由 `src/**/*.ts` 构建为已提交、自包含的 `dist/**/*.mjs`，发布前必须校验构建摘要和产物新鲜度。
 - 插件运行时不引用另一个插件的相对路径。
+- Android、Go、iOS、Java、Kubernetes、Nix、PHP、Python、React Native、Rust 与 Web 前端各自形成独立插件；语言/生态检查和依赖产物保护归对应领域所有。
+- React Native 是独立跨端领域：不依赖 Web、Android 或 iOS 插件；其 JavaScript/TypeScript、Metro、Codegen 与原生桥接边界由自身 Skill 和 Hook 负责。
 - 仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可自然语言委派普通子 agent，父 agent 负责证据、写入、验证和最终交付。
 
 ## 3. 运行链路

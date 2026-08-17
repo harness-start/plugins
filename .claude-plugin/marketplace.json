@@ -29,17 +29,23 @@
     {
       "name": "engineering-quality",
       "source": "./plugins/engineering-quality",
-      "description": "Enforces source checks, line budgets, and Markdown structure."
+      "description": "Enforces language-neutral line budgets and Markdown structure."
     },
+    { "name": "android-engineering", "source": "./plugins/android-engineering", "description": "Android, Gradle, AGP, Compose, testing, and R8 engineering." },
+    { "name": "go-engineering", "source": "./plugins/go-engineering", "description": "Go module, service, CLI, concurrency, and test engineering." },
+    { "name": "ios-engineering", "source": "./plugins/ios-engineering", "description": "Swift, UIKit, SwiftUI, concurrency, testing, and dependency engineering." },
+    { "name": "java-engineering", "source": "./plugins/java-engineering", "description": "Java, Spring Boot, Maven, Gradle, JUnit, and Jakarta engineering." },
+    { "name": "kubernetes-operations", "source": "./plugins/kubernetes-operations", "description": "Kubernetes, Helm, Kustomize, RBAC, storage, and safe operations." },
+    { "name": "nix-engineering", "source": "./plugins/nix-engineering", "description": "Nix language, flakes, NixOS, Home Manager, and reproducible environments." },
+    { "name": "php-engineering", "source": "./plugins/php-engineering", "description": "Multi-framework PHP and Composer engineering." },
+    { "name": "python-engineering", "source": "./plugins/python-engineering", "description": "Python packaging, typing, testing, async, service, and CLI engineering." },
+    { "name": "react-native-engineering", "source": "./plugins/react-native-engineering", "description": "Bare React Native, Metro, navigation, upgrade, Codegen, and native boundary engineering." },
+    { "name": "rust-engineering", "source": "./plugins/rust-engineering", "description": "Rust ownership, errors, async, unsafe, API, test, and Cargo engineering." },
+    { "name": "web-frontend-engineering", "source": "./plugins/web-frontend-engineering", "description": "React, Vue, Angular, TypeScript, testing, and frontend performance engineering." },
     {
       "name": "test-driven-development",
       "source": "./plugins/test-driven-development",
       "description": "Requires an observed failing test before implementation and a relevant passing test before completion."
-    },
-    {
-      "name": "dependency-file-custody",
-      "source": "./plugins/dependency-file-custody",
-      "description": "Blocks direct file-tool edits to dependency lockfiles and package-manager-owned dependency directories."
     },
     {
       "name": "command-safety",

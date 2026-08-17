@@ -1,4 +1,0 @@
-id = "01-deny-protected-file-edit"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["pre-tool", "protected-file", "deny"]

@@ -1,0 +1,11 @@
+{
+  "name": "rust-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates Rust engineering and protects Cargo.lock with lightweight rustfmt checks.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

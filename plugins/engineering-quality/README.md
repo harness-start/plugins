@@ -1,87 +1,49 @@
 # engineering-quality
 
-`engineering-quality` 在 Claude Code 和 Codex 写入源码后运行有界的 JS/TS、Python 和 PHP 检查。语法或 parser 错误默认阻断继续执行；普通 lint 和静态分析结果只报告。
+`engineering-quality` 在 Claude Code 和 Codex 写入文件后执行跨技术栈共享的质量门禁：源码文件行数预算与 Markdown 结构检查。语言语法、lint、格式化、依赖文件保护和生态工具检查由对应领域插件负责。
 
 ## 默认检查
 
-| 文件 | 检查 | 默认模式 |
+| 范围 | 检查 | 默认模式 |
 | --- | --- | --- |
-| `.js`、`.cjs`、`.mjs` | `node --check` | `block` |
-| `.ts`、`.tsx`、`.mts`、`.cts` | esbuild parse | `block` |
-| JS/TS | ESLint；fatal/parser 错误强制阻断 | `report` |
-| `.py` | Python `compile()` / Ruff | `block` / `report` |
-| `.php` | `php -l` / Stop 阶段 PHPStan | `block` / `report` |
-| `composer.json` | `composer validate` | `block` |
+| 常见源码与构建文件 | 新文件/刚越线文件阻断，历史超大文件采用只减不增的 ratchet | `block` |
+| Dockerfile / Containerfile | 500 行预算 | `report` |
+| 测试、fixture、生成物、第三方与构建目录 | 不执行行数门禁 | `skip` |
+| Markdown | 标题层级、空行、空白、代码围栏、结尾换行等结构 | 多数 `block`，代码围栏语言 `report` |
 
-检查器优先从项目依赖、虚拟环境或 `vendor/bin` 发现，再查找 PATH。插件不会安装依赖、访问网络或执行配置提供的命令。工具、配置或运行环境不可用时，每个会话和工作区只报告一次。
-
-PHPStan 使用 Git 根目录的 `.engineering-quality/state/` 记录本会话修改过的 PHP 文件，在 Stop 阶段最多检查 24 个文件。`.engineering-quality/.gitignore` 会忽略该工作目录的全部内容，状态文件不会进入版本控制。
+`PostToolUse` 从文件工具和明确的 shell 写入中提取最终目标文件。Hook 不安装依赖、不访问网络，也不执行项目配置提供的命令。
 
 ## 项目配置
 
-在 Git 项目根目录创建 `.engineering-quality.mjs`：
+在 Git 根目录创建 `.engineering-quality.mjs`。行数规则按顺序匹配，项目规则先于内置规则；Markdown override 也是首个声明对应检查的匹配项生效。
 
 ```js
 export default {
+  rules: [
+    { match: /^src\/generated\//, mode: "skip" },
+    { match: /^src\/legacy\//, budget: 900, mode: "report" },
+  ],
+  settings: {
+    nearBudgetWarnRatio: 0.8,
+    warnCooldownMinutes: 30,
+    oversizeSoftGrowthLimit: 100,
+  },
   checks: {
-    javascriptSyntax: "block",
-    typescriptSyntax: "block",
-    eslint: "report",
-    pythonSyntax: "block",
-    ruff: "report",
-    phpSyntax: "block",
-    composerValidate: "block",
-    phpstan: "report",
+    fencedCodeLanguage: "report",
+    singleH1: "off",
   },
   overrides: [
     {
       match: /^fixtures\//,
-      checks: { eslint: "off", ruff: "off" },
+      checks: { trailingWhitespace: "off" },
     },
   ],
 };
 ```
 
+行数规则的 `mode` 为 `block`、`report` 或 `skip`；非 `skip` 规则必须提供正数 `budget`。Markdown 检查模式为 `block`、`report` 或 `off`。配置项非法时会报告并回退安全默认值。
+
 使用 `engineering-quality-config` Skill 可以初始化或诊断配置。
-
-## 执行与工具发现
-
-`PostToolUse` 从文件工具事件提取最终存在的目标文件，跳过第三方、生成、构建、缓存目录以及超过 2 MiB 的文件。单次最多即时检查 12 个文件，单项默认超时 10 秒，整体软截止时间不超过 50 秒。
-
-PHP 文件路径会写入 Git 根目录的 `.engineering-quality/state/`。`Stop` 按模式分组运行 PHPStan，每批最多 24 个文件，默认超时 55 秒。普通报告使用成功退出状态；只有 `block` 结果才使用宿主的阻断契约。
-
-- JavaScript 使用当前 Node.js 运行时；TypeScript 先找 `node_modules/.bin/esbuild`，再回退到 PATH。
-- ESLint 优先使用 `node_modules/.bin/eslint`，且项目必须有 flat config、eslintrc 或 `package.json#eslintConfig`。
-- Python 优先使用 `.venv/bin`、`venv/bin`，再回退到 PATH；`compile()` 不生成 `__pycache__`。
-- Ruff 优先使用虚拟环境；PHP 使用 PATH；Composer 和 PHPStan 优先使用 `vendor/bin`。
-- ESLint fatal/parser 消息始终阻断。工具缺失、配置缺失、超时和检查器执行失败只报告。
-- 所有命令都用可执行文件和参数数组启动，不经过 shell，也不接受项目自定义命令。
-
-## 配置契约
-
-插件只加载 Git 根目录的 `.engineering-quality.mjs`：
-
-```js
-{
-  checks?: Partial<Record<checkName, "block" | "report" | "off">>,
-  overrides?: Array<{
-    match: RegExp,
-    checks: Partial<Record<checkName, "block" | "report" | "off">>,
-  }>,
-  limits?: {
-    maxImmediateFiles?: number,  // 1..100
-    maxPhpstanFiles?: number,    // 1..200
-    immediateTimeoutMs?: number, // 1000..60000
-    phpstanTimeoutMs?: number,   // 1000..120000
-    maxOutputLines?: number,     // 5..500
-  },
-  missingTools?: "report-once" | "silent",
-}
-```
-
-路径统一转换为仓库相对 POSIX 路径。每项检查使用第一个为它声明配置的匹配 override。配置项非法时会逐项警告并回退默认值。
-
-状态键由工作区根目录和宿主 session id 组成，只保存已报告的缺失项和 PHP 文件列表。插件数据目录不可用时，即时检查仍会运行，依赖持久状态的 PHPStan 批处理则自然降级。
 
 ## 验证
 
@@ -90,4 +52,4 @@ npx tsx --test plugins/engineering-quality/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin engineering-quality
 ```
 
-版本：`0.2.0`
+版本：`0.3.0`

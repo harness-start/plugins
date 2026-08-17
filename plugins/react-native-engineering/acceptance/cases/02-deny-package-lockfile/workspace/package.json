@@ -1,0 +1,7 @@
+{
+  "name": "react-native-acceptance",
+  "private": true,
+  "dependencies": {
+    "react-native": "0.81.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "web-frontend-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates React, Vue, and Angular engineering and guards JavaScript package-manager state.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}

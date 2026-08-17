@@ -2,6 +2,213 @@
   "schemaVersion": 1,
   "skills": [
     {
+      "name": "angular-developer",
+      "source": "https://github.com/angular/skills",
+      "sha256": "0102bb1d673da60ea93763b99aefaa2c19dcb4f78845d741d486d45d490079b1",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1fdf5de54539a49f5bc782a311d083e9b83b38e5c2e21f1581e6b8ab0dfa3d1f",
+          "size": 10493
+        },
+        {
+          "path": "references/angular-animations.md",
+          "sha256": "f21b798ed93e27318527ef7e74e63ef8c71cb74ff2b010d70dbb429883f0dbd0",
+          "size": 3974
+        },
+        {
+          "path": "references/angular-aria.md",
+          "sha256": "5f9cc5d323034c1fe3a3290031ffa95634e721e33725c5a8a88b68d8d50d8328",
+          "size": 18433
+        },
+        {
+          "path": "references/cli.md",
+          "sha256": "39468f1be907a1abff746e79cb9fabd9675956df00c87d9b8bd1517855b9fd7d",
+          "size": 3714
+        },
+        {
+          "path": "references/component-harnesses.md",
+          "sha256": "1761d33a65ecde690ca0c57081ff9d5871cafb8ff724738ccd711b5018e2d894",
+          "size": 2808
+        },
+        {
+          "path": "references/component-styling.md",
+          "sha256": "de3351fdb72174361c6eee150940193f20d148afaceab0f22107758a3cb2d787",
+          "size": 2531
+        },
+        {
+          "path": "references/components.md",
+          "sha256": "dbfb520f2dddd017acb617369c45544374440fcb0b178d9648fab7ada0178468",
+          "size": 3422
+        },
+        {
+          "path": "references/creating-services.md",
+          "sha256": "6e4353c2263a31ad3edcefc6c33fcb0e328b9d0421b124ba121feae84972701e",
+          "size": 2867
+        },
+        {
+          "path": "references/data-resolvers.md",
+          "sha256": "6525d6f9b90d4ac6bbd58489d6bc57ab024c407673ed0e1e46364a90d0b9b5da",
+          "size": 1634
+        },
+        {
+          "path": "references/define-routes.md",
+          "sha256": "1288b38bad6cc9749e9d0fd35a294771ea2181dd712bfc2887d80e8b40fab7e6",
+          "size": 1727
+        },
+        {
+          "path": "references/defining-providers.md",
+          "sha256": "e654c23a080c642cf7031b5cc5de1101b8c75030c15256f7e3b81b0336953c6d",
+          "size": 2256
+        },
+        {
+          "path": "references/di-fundamentals.md",
+          "sha256": "ed5e4004aed214429de091d2b041cfd818c77a0ebfa24c23f01ec9bac7118a78",
+          "size": 3461
+        },
+        {
+          "path": "references/e2e-testing.md",
+          "sha256": "fd11d930ed081ca934fe83df06c9d965257ec817ebef59b918d4d814a65feca6",
+          "size": 884
+        },
+        {
+          "path": "references/effects.md",
+          "sha256": "6edf8cc05daacc38de8cf534bfb56fb507351c0d76a16711608a85d4327ac7be",
+          "size": 2777
+        },
+        {
+          "path": "references/environment-configuration.md",
+          "sha256": "5781ebc881f42fae1f15e67533b731d5913782c725ca420c32410a333d832666",
+          "size": 3318
+        },
+        {
+          "path": "references/hierarchical-injectors.md",
+          "sha256": "967e472a1208c6e1f4b95bf7ee9162165904eb78ac6dab64643c67a9d1dac264",
+          "size": 2105
+        },
+        {
+          "path": "references/host-elements.md",
+          "sha256": "5c2eb324e7b84bd81334b6d262a61b873de208640aabe4be48b73600438bdaed",
+          "size": 2190
+        },
+        {
+          "path": "references/http-client.md",
+          "sha256": "b6a6c92ae71dc98b6cd0e2b840227c7743b3edf288769da3db070fa1815c1adc",
+          "size": 5484
+        },
+        {
+          "path": "references/injection-context.md",
+          "sha256": "4435dfcec91bd9fb68d6c318802cac1b37424d4e76452e6f0f52ed0d2b6536fb",
+          "size": 1929
+        },
+        {
+          "path": "references/inputs.md",
+          "sha256": "f5dcdd2a69e7e5c0aad503b4deaea5cedb682130cc699c669128b8fadcc65ba8",
+          "size": 2504
+        },
+        {
+          "path": "references/linked-signal.md",
+          "sha256": "01f5395e4be4be7c642f4dacd5312d6cc82e641f3ff177f9283b26b79dd07e95",
+          "size": 2660
+        },
+        {
+          "path": "references/loading-strategies.md",
+          "sha256": "fa82c48573532a7f5e3ccf7eaa50dc7a2db1f23a8599638d9c18e023dbd73e2f",
+          "size": 1457
+        },
+        {
+          "path": "references/mcp.md",
+          "sha256": "38a5187f1e2e7eb9b20cd1f12d44f74faadeb8f4c71664e7f06b0c2ee65489cd",
+          "size": 3787
+        },
+        {
+          "path": "references/migrations.md",
+          "sha256": "47983ed2683dc10f692d254cdca9c97fc13dec9ad099b759f5d31886f3cbaa7a",
+          "size": 2075
+        },
+        {
+          "path": "references/navigate-to-routes.md",
+          "sha256": "ea3c3d53b5db47b4f8d8b05124330e72bea92fc908d42c06aa7edb9e652b425e",
+          "size": 1639
+        },
+        {
+          "path": "references/outputs.md",
+          "sha256": "4d6900ff9ab90168969c3d05b67d88f69bb6a46aa4b74a8a8290ba0643c6d8dd",
+          "size": 2649
+        },
+        {
+          "path": "references/pipes.md",
+          "sha256": "2dd38fbbfa3e0be3167e1ce0efb18ce4e86974f296240b8d3dca5ca8e57c18ed",
+          "size": 3935
+        },
+        {
+          "path": "references/reactive-forms.md",
+          "sha256": "edfc57c191d29a1549e9aa9b4ba0d1111a9792caa65918d62967920647717121",
+          "size": 3559
+        },
+        {
+          "path": "references/rendering-strategies.md",
+          "sha256": "329aa9aa35c85dd2048c899f26025439d3b0244067dbb508e724d291fdad7c97",
+          "size": 1828
+        },
+        {
+          "path": "references/resource.md",
+          "sha256": "2fad5a0aaf85b0b3193a492b706595962e247bc99aec1dcc1755d90d9c303545",
+          "size": 2696
+        },
+        {
+          "path": "references/route-animations.md",
+          "sha256": "eda1452f85ce05f3f28753cc77cd8c31c7a52515d7ccebbb35de0ec1e3beb374",
+          "size": 1688
+        },
+        {
+          "path": "references/route-guards.md",
+          "sha256": "491a93cb49fbcba04f7e8ffcd0f784fce7319ca3e2fe393c553f3d683a68424c",
+          "size": 1397
+        },
+        {
+          "path": "references/router-lifecycle.md",
+          "sha256": "4abc8cb8dfeb2e9f57dc11c117d5f4a5b756b39dc076910d9ced9da640effc2d",
+          "size": 1534
+        },
+        {
+          "path": "references/router-testing.md",
+          "sha256": "1b3e7f020ae7a7f335e92896089e3b8936fb767f5f906d11833ef6a8f9f61ed9",
+          "size": 3816
+        },
+        {
+          "path": "references/show-routes-with-outlets.md",
+          "sha256": "43a2ed62ea2edafa8569bf7045f20928110f8f844d5890bfb6a2f2dde45e754b",
+          "size": 1672
+        },
+        {
+          "path": "references/signal-forms.md",
+          "sha256": "5251585cadf72ab95e31377904db21a597b5e9b982c8e839dc098b48f69ac6b7",
+          "size": 28079
+        },
+        {
+          "path": "references/signals-overview.md",
+          "sha256": "da07c58fdea2ab7d82a28faf9f3d117ccb98ccaf3eec06f103b898f557791146",
+          "size": 2849
+        },
+        {
+          "path": "references/tailwind-css.md",
+          "sha256": "bdb952d0dd2d415560a796ecaf843cacff5ac20d8ef961eaaf75656fef9b9263",
+          "size": 1868
+        },
+        {
+          "path": "references/template-driven-forms.md",
+          "sha256": "52e83e576b0c6dc05f854e903c4cfda1222bcd55c50ddee07344d1e53d02c1df",
+          "size": 3752
+        },
+        {
+          "path": "references/testing-fundamentals.md",
+          "sha256": "8f48c2392d99487934edf977c0d1b87a4e83ff9761db493bbcccc10f574bcb5a",
+          "size": 2585
+        }
+      ]
+    },
+    {
       "name": "animation-principles",
       "source": "https://github.com/iart-ai/motion-design-skills",
       "sha256": "f782598830cea80f8e78d242ff78cf4ed8367507746d3b521d18a800337f3e7b",
@@ -133,17 +340,17 @@
     {
       "name": "caveman",
       "source": "https://github.com/JuliusBrussee/caveman",
-      "sha256": "807c077adf019c0d9366e07e32cce7687c655f5a5828353f2498b809e105f87a",
+      "sha256": "784110d6c3dc6d7e8d094ac998ebf811e19462ad40a9f0f2f47cbbae9c7e8753",
       "files": [
         {
           "path": "README.md",
-          "sha256": "9369b69197e5d07e0c56679f9fc346f3539f58537c17f4e804a44612f086dc73",
-          "size": 1898
+          "sha256": "e86f4b56765fc288859a8a1f3e3814c990ba920b326c40c55667b56d44c58c1e",
+          "size": 1902
         },
         {
           "path": "SKILL.md",
-          "sha256": "daf9cec496ebd039809d8236f99f17fa1b4beaadf8ce4e2d532d0da51d70afce",
-          "size": 6216
+          "sha256": "1eddf7055618153869975678d9ff36635602a3aa333f8b4cc0787f12de75b6f8",
+          "size": 6788
         }
       ]
     },
@@ -212,6 +419,108 @@
           "path": "references/palettes-and-interpolation.md",
           "sha256": "51f28597d7832ed56e8cb65992a272bdc39c35c136472dddedf228b191503a66",
           "size": 6804
+        }
+      ]
+    },
+    {
+      "name": "compose-agent",
+      "source": "https://github.com/hamen/compose_skill",
+      "sha256": "f2c13e7e9e19e9be1b6fce64e842edd3513f312911b4fa21bddba854fb79b240",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "783c66a1a8ac60cfdcf4284b9d8c1fdcaa0d15fc8bc74a55fb5b1305f166ccb3",
+          "size": 834
+        },
+        {
+          "path": ".cursor-plugin/plugin.json",
+          "sha256": "783c66a1a8ac60cfdcf4284b9d8c1fdcaa0d15fc8bc74a55fb5b1305f166ccb3",
+          "size": 834
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "7c815dc8f21e4b77f561509f080a0ead20aa5fa8b021aa7e0d38ef886e874ebf",
+          "size": 16281
+        },
+        {
+          "path": "evals/evals.json",
+          "sha256": "cbdcaa8082e29e7fc765bac346a88a4a7a696b839a58b4ba2cd91c37a76d8124",
+          "size": 6853
+        },
+        {
+          "path": "references/animation.md",
+          "sha256": "e376a543f73aa25a4e45555231e0dd519ec705ca46bcbe1247762885625688ca",
+          "size": 19185
+        },
+        {
+          "path": "references/api.md",
+          "sha256": "a9fef65dd354a38d07438e4ad1224abc909c2f116b0dfff3d7b76319171fd7dc",
+          "size": 14452
+        },
+        {
+          "path": "references/component-api.md",
+          "sha256": "bb266517eb0533322e248b908f783a9807198eb3f0c657e343ea22aba8986587",
+          "size": 13791
+        },
+        {
+          "path": "references/concurrency.md",
+          "sha256": "57de61bda9becb26ee87fe3f959c81f9dea085612149002f6dbf5ec71e4281b4",
+          "size": 9529
+        },
+        {
+          "path": "references/effects.md",
+          "sha256": "94529f4c894c7b0fc6022d844b446f3f119cd7cbd82d24ed0b6740b92ef1a8f5",
+          "size": 13670
+        },
+        {
+          "path": "references/flows.md",
+          "sha256": "3bfba49772e39fd9a8efd6b389a70362184e2e0ae4840224a32953903e5abad4",
+          "size": 24470
+        },
+        {
+          "path": "references/focus.md",
+          "sha256": "59611df00ff544f15e11c9a5f829e623ac4947c646e6e36cd846b9ba56aa8326",
+          "size": 4471
+        },
+        {
+          "path": "references/kmp.md",
+          "sha256": "171992dba14c2e085052c3d7432495b804a660b33b829eaaaa3e2f0fc29d574a",
+          "size": 5060
+        },
+        {
+          "path": "references/kotlin.md",
+          "sha256": "6557eba5462a4c1b06d9c49a9024bee2571de87a92696d5f8ab3e15cf399282e",
+          "size": 8307
+        },
+        {
+          "path": "references/modifiers.md",
+          "sha256": "c3f6532075d710646bc817983090f770b2cf0d21604f2a284a48c919be22a47e",
+          "size": 7903
+        },
+        {
+          "path": "references/navigation.md",
+          "sha256": "49d075233d8d0abe2dbaa11c67081e5225db64f2413ff5bf3609c9370030d2b9",
+          "size": 13698
+        },
+        {
+          "path": "references/paging.md",
+          "sha256": "6255568522d4c42b61bd748e422d38365bbafc1081666ac5f54d2a7925e6fb8e",
+          "size": 13781
+        },
+        {
+          "path": "references/performance.md",
+          "sha256": "e392213d7ac7f0188cc767239a48b95bfb97f4caf772a022a34dcee799d7f5dc",
+          "size": 17897
+        },
+        {
+          "path": "references/state.md",
+          "sha256": "e08def3367f19d17e7a05ef6179962ac575512315814896644c6264854942169",
+          "size": 12019
+        },
+        {
+          "path": "references/testing.md",
+          "sha256": "2b9510814c79b04010d0d7a89ebe53b79bf47dffcff3fdbd3aefcbcb9387743a",
+          "size": 4430
         }
       ]
     },
@@ -518,7 +827,7 @@
     {
       "name": "impeccable",
       "source": "https://github.com/pbakaus/impeccable",
-      "sha256": "ca8857b5e69cb902cc2e586a60f5a7b8bab1539c9b9a646225fe58383eb1bdf5",
+      "sha256": "bf0f09a583b115573b4721e0b132f88eea660622be4e8784784a1fc0ed516df6",
       "files": [
         {
           "path": "SKILL.md",
@@ -692,8 +1001,8 @@
         },
         {
           "path": "reference/new-work.md",
-          "sha256": "cb79a04d03f501893d2799abb3e6f818bb5c066da3344cc72ff0f65da9269150",
-          "size": 43653
+          "sha256": "2bf2cfa38c7adb35d4be1e1aa4da60673013b4deaf6ffd5a03d6a56a955495b8",
+          "size": 44123
         },
         {
           "path": "reference/onboard.md",
@@ -982,8 +1291,8 @@
         },
         {
           "path": "scripts/lib/surface-briefs.mjs",
-          "sha256": "abcc992d8d05475f8761b4d9147ffdf0258e17facb9abedcc0c77c7a56600e0d",
-          "size": 6206
+          "sha256": "33b35099b95d40e034b6a65657a1fd90fd011cdcb752f1c7a51e8470df37e668",
+          "size": 6110
         },
         {
           "path": "scripts/lib/target-args.mjs",
@@ -1277,13 +1586,49 @@
         },
         {
           "path": "scripts/serve-question.mjs",
-          "sha256": "5d1d4d9e078960222cf1790605aec2d8b286fcbf7e6d7a6a2106b23d362cd90a",
-          "size": 106760
+          "sha256": "6475a64fb5bdb6d8df635c67cad7d389b9898e733fcbad6e12f59fe832a944a2",
+          "size": 120005
         },
         {
           "path": "scripts/surface-brief.mjs",
           "sha256": "acd03bf38f6aef2b5d5287cefccacac018063b5b5356c99d191b3bd012f28ed3",
           "size": 2517
+        }
+      ]
+    },
+    {
+      "name": "java-junit",
+      "source": "https://github.com/github/awesome-copilot",
+      "sha256": "931994587990319b1960be1df65b5acfe67d3529ce5565a6e5f4f36535ca9ad4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "beeae246a2b1a8debffb53b005eba0e025f70923fa26a11f3c4bfefd99388fa3",
+          "size": 2981
+        }
+      ]
+    },
+    {
+      "name": "java-springboot",
+      "source": "https://github.com/github/awesome-copilot",
+      "sha256": "dfb77c16fa1ee64d6b6a3fadd10bca425c72c7da8696952fb066f59eeb10aa17",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "574898202ce298557226c49d35036a6e9e66a1cb205ea15c44db298e6d74e3bd",
+          "size": 4133
+        }
+      ]
+    },
+    {
+      "name": "javax-to-jakarta-migration",
+      "source": "https://github.com/github/awesome-copilot",
+      "sha256": "d75bcd5229bd72446adf2053c22e01eae5849a41eaa1d61165831aea68841236",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f93b85539e4f58f0254f935c053fb8a1923b1482ff17062046d884b6ed910c79",
+          "size": 2556
         }
       ]
     },
@@ -1296,6 +1641,388 @@
           "path": "SKILL.md",
           "sha256": "6e22cc54cb02a5e98ae42d06d9d7292db0c1b43894831b32879beb0166b2aea7",
           "size": 2518
+        }
+      ]
+    },
+    {
+      "name": "kubernetes-skill",
+      "source": "https://github.com/LukasNiessen/kubernetes-skill",
+      "sha256": "0e030ed069d1faef551b6244ef0f974466fe4aae3619b23717608790c21893c6",
+      "files": [
+        {
+          "path": ".claude-plugin/marketplace.json",
+          "sha256": "a4a26d58629d1a611cd3dd41986ad141b625b7aae21498f44e557988d57d20b4",
+          "size": 423
+        },
+        {
+          "path": ".github/CODEOWNERS",
+          "sha256": "a435d6c92a5961cd8d8ad3ae2fbb5e42ae77abf8003ce75106e712094b7cff53",
+          "size": 16
+        },
+        {
+          "path": ".github/FUNDING.yml",
+          "sha256": "161107059f833b33ec84b8e1dab955b09d918f4132c840647af3fa18a37f479b",
+          "size": 23
+        },
+        {
+          "path": ".github/PULL_REQUEST_TEMPLATE.md",
+          "sha256": "0e940f266e8389da2c9169ea8bd3469358a9814125ae47f17539a1d389517846",
+          "size": 921
+        },
+        {
+          "path": ".github/dependabot.yml",
+          "sha256": "883b95e3be554fbadd92b315e4a8c6ea6ca688b64924e22dd61222b07f683507",
+          "size": 118
+        },
+        {
+          "path": ".github/workflows/deploy-docs.yml",
+          "sha256": "3ab5b40104a3b6c1b415fc6af53b16e034a6850b24895168cc94c0e529796824",
+          "size": 931
+        },
+        {
+          "path": ".github/workflows/stale.yml",
+          "sha256": "6e938bcc328e8d8bc661d9eaff3ecd82e0d0e5e5d61a34e40684f191d6139d85",
+          "size": 1214
+        },
+        {
+          "path": ".github/workflows/validate.yml",
+          "sha256": "3fba84855183e39062958b6019a39e69f32aa957a919342fd6bd9a86a5a7e96d",
+          "size": 4461
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "f2ecf84a3eba443ae877883f951b25a53005a71ab5a14f15a4027b88b41c77b3",
+          "size": 28
+        },
+        {
+          "path": "CHANGELOG.md",
+          "sha256": "ef6cf593b314c6cbefb6f60e0f15bdd0a9aaed2a8e791420be2a4ca142e36dd4",
+          "size": 622
+        },
+        {
+          "path": "CODE_OF_CONDUCT.md",
+          "sha256": "9cf2fd3709005c0ea3a93ebcbe13fcd19b40cc0200662f8b7f5cf450897d0903",
+          "size": 943
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "sha256": "b201a482adc415dd75336888fb38822a27f84ea1bb61346ee029315ec0dec720",
+          "size": 1939
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "91a4167f37c7938e42348c78b085bb51fd6c356e6b9a8e81a59f91f06aeeb8ad",
+          "size": 1102
+        },
+        {
+          "path": "PHILOSOPHY.md",
+          "sha256": "0042e20e90a207f2f0435458e38e5ffcba99d3f2ad5a45594a55e6b19bd412c2",
+          "size": 11119
+        },
+        {
+          "path": "README.md",
+          "sha256": "e4c3c3349eee50b645f64525cf06de0858fb912b8065a8b94f35879079030a46",
+          "size": 22781
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "4aba65a8bd69a822314d2e2b7437bc4fbde5bdb468fb4e6ba60124eaaccf4865",
+          "size": 4747
+        },
+        {
+          "path": "assets/logo.png",
+          "sha256": "928cccfdbad6e54c0b8e065809c2e3bda5f0143201b6f84ee6f234d0e349a00d",
+          "size": 1762091
+        },
+        {
+          "path": "docs/.gitignore",
+          "sha256": "ed7cfd5067c851a0c34005e8a460ad8d83df34e9a6d6cea725fd7717cc324700",
+          "size": 21
+        },
+        {
+          "path": "docs/README.md",
+          "sha256": "028d0cea3f3db3bd0e96c41fe410d1e0213ad25f0ef8a96e463a48634a637b22",
+          "size": 1423
+        },
+        {
+          "path": "docs/SUMMARY.md",
+          "sha256": "104c7de9e9a138543b16abc5ff9190a8b7cda4a3b88a84e87574ce04cb709454",
+          "size": 1547
+        },
+        {
+          "path": "docs/advanced/token-efficiency.md",
+          "sha256": "4d155554eb5b8b6da5c5a64f5ff3e7975bc18ce6d9f5c1ad4229e31785d95c24",
+          "size": 3567
+        },
+        {
+          "path": "docs/architecture/multi-tenancy.md",
+          "sha256": "09ffa6464f6b2512f9b16200c119ae67515fe2f7433a91889150f8603e51971b",
+          "size": 6460
+        },
+        {
+          "path": "docs/architecture/storage-and-state.md",
+          "sha256": "5fae287203d39a3054dec79d21e9646ae0e32bed00bf276d665b79c17ad8de9c",
+          "size": 6152
+        },
+        {
+          "path": "docs/architecture/workload-patterns.md",
+          "sha256": "b091bd1519029d93d07361153e9d60e5411fba4e4742b2b8ffddddcc4e9404a6",
+          "size": 5979
+        },
+        {
+          "path": "docs/book.json",
+          "sha256": "309d9c89486789ce7b988463fbf0a5cfbc0b5ae9761ec045dc61452d2fe87244",
+          "size": 371
+        },
+        {
+          "path": "docs/community/changelog.md",
+          "sha256": "bc86855aa9f336e3aec20be3606a85fd3cd09b62acb5444e4cefef6e408b3dac",
+          "size": 1288
+        },
+        {
+          "path": "docs/community/contributing.md",
+          "sha256": "23cd275e1f8f68f958e406b6861e71328f96a572eada0cd22cee1e0b05276548",
+          "size": 2233
+        },
+        {
+          "path": "docs/core-concepts/failure-modes.md",
+          "sha256": "bf7c9a40f55cdb8e0c8bcc46b3ef6e73d33300ddde08db0f86ee72e4122983f7",
+          "size": 8051
+        },
+        {
+          "path": "docs/core-concepts/philosophy.md",
+          "sha256": "edbf3b7c28681519c27ddcf468543b7e5a684dc79bbd6f5241ab8f3714c019f6",
+          "size": 5783
+        },
+        {
+          "path": "docs/core-concepts/workflow.md",
+          "sha256": "a67db05b233299a974b41dcefea333b0743b11e6a1298ff8f9efc2343357961d",
+          "size": 8002
+        },
+        {
+          "path": "docs/examples/bad-patterns.md",
+          "sha256": "9633b5482449c14600217bdac4289178c07bf2daf70bbe4c67fc2de90233765c",
+          "size": 3352
+        },
+        {
+          "path": "docs/examples/do-dont-checklist.md",
+          "sha256": "d384c1f090c6ffb77240f44cfdd34e05065270fd6041ceb316b3e21ad7a4e430",
+          "size": 2201
+        },
+        {
+          "path": "docs/examples/good-patterns.md",
+          "sha256": "b53216cb575fdc3f0687ebbefe147f4ed5098e5494abadd94614670035efed7b",
+          "size": 3358
+        },
+        {
+          "path": "docs/failure-modes/api-drift.md",
+          "sha256": "d137bafb7f4ad5f8dd49769d82162ce14afcc723240e374c54d6ada352041fae",
+          "size": 6295
+        },
+        {
+          "path": "docs/failure-modes/fragile-rollouts.md",
+          "sha256": "61b7bef9930ace12faf676293929ccc03efbeba882a06c5dce3eb5e083d345dd",
+          "size": 6903
+        },
+        {
+          "path": "docs/failure-modes/insecure-workload-defaults.md",
+          "sha256": "e77807ff28c7b7609a8cef10e7d8932c84a17cf7e1fad85967078c2a1bd6a7fb",
+          "size": 6598
+        },
+        {
+          "path": "docs/failure-modes/network-exposure.md",
+          "sha256": "ed47a01e753faeac79da514f356917c3c815a175088ec33c37029dd0a087019f",
+          "size": 6318
+        },
+        {
+          "path": "docs/failure-modes/privilege-sprawl.md",
+          "sha256": "363ebee69e2e73479ff43a9a6cc39ef7e66cab3bcb9306d962815ffcaae2ca45",
+          "size": 6434
+        },
+        {
+          "path": "docs/failure-modes/resource-starvation.md",
+          "sha256": "77fd2dd7f59439fccb06b21bdbab8f9c98e380f68287ea51016789dfd0a35e85",
+          "size": 6891
+        },
+        {
+          "path": "docs/getting-started/installation.md",
+          "sha256": "ecdc304802f5e4d3771e5423601f09127702837c33888f233b9356ce0f822ed2",
+          "size": 3753
+        },
+        {
+          "path": "docs/getting-started/quick-start.md",
+          "sha256": "4c4dd7601a7d6a879fc06054ab18e83d6045c836562db3a9b381c839d1b529c5",
+          "size": 3272
+        },
+        {
+          "path": "docs/guides/helm-patterns.md",
+          "sha256": "3745847f21361940210916e6b2b7a0331d703b662904cb5cd8a3318e406be48d",
+          "size": 4641
+        },
+        {
+          "path": "docs/guides/kustomize-patterns.md",
+          "sha256": "89faf6fd5cf3048263948f6f960ba39a1d576f24992aa6254624141548b9d0c3",
+          "size": 4295
+        },
+        {
+          "path": "docs/guides/observability.md",
+          "sha256": "262f1153d0dddd21228d1db8dc18a66e13ae1386f0372fc3c0ee72c00b22460d",
+          "size": 4130
+        },
+        {
+          "path": "docs/guides/security-hardening.md",
+          "sha256": "622e0929ecdb07e5816194d61738b01981de04b85a740f72a8a93c32399df639",
+          "size": 4585
+        },
+        {
+          "path": "docs/guides/validation-and-policy.md",
+          "sha256": "85a2effe86ac396e24ca6775ae542e89551c669cf9dec358b78a88b451c7db9a",
+          "size": 3481
+        },
+        {
+          "path": "docs/integrations/mcp-integration.md",
+          "sha256": "47356aab38ba084c1607239979679f88cf09478bacacb4c80fc3c359a16020c7",
+          "size": 3244
+        },
+        {
+          "path": "docs/package-lock.json",
+          "sha256": "6afc06da684b9a0efa72874665cd95787e6b663d46aa5191088adcfb472a6ce5",
+          "size": 103548
+        },
+        {
+          "path": "docs/package.json",
+          "sha256": "cfd9e50fe92e5b870eef9814972828a752783dfae26f1418ecd9b0e492658c1f",
+          "size": 250
+        },
+        {
+          "path": "references/api-drift.md",
+          "sha256": "cc6ad18d51a4a4a9a75236911a60eda8dcf5b7dd8cd103de5a015fb724327bca",
+          "size": 11489
+        },
+        {
+          "path": "references/conditional/aks-patterns.md",
+          "sha256": "9f9943a5ff2d1067665c9878a5bc6ad58f366cfa63028cdb474a093bd8e593ac",
+          "size": 3868
+        },
+        {
+          "path": "references/conditional/eks-patterns.md",
+          "sha256": "dc5e7cdf8a6534ee58bb0ba95927921e57c8b34f0e64afe7891a07dde0751d07",
+          "size": 4266
+        },
+        {
+          "path": "references/conditional/gitops-controllers.md",
+          "sha256": "a24546c9056be09ad286d3330f13fbccb9bafcb6990b4f257350e0cf72780e8b",
+          "size": 4117
+        },
+        {
+          "path": "references/conditional/gke-patterns.md",
+          "sha256": "9caef63892d5bcd1c2caa6bc5e4741ada396ecd37e47c7182b962ff0cf348060",
+          "size": 3994
+        },
+        {
+          "path": "references/conditional/observability-stacks.md",
+          "sha256": "40ef42e664dff31b0f821339fad182f9a877ea2888dd048f117c8a3aec34fb5b",
+          "size": 4716
+        },
+        {
+          "path": "references/conditional/openshift-patterns.md",
+          "sha256": "d06cbb17386a61107240265eb2b51ca7428c6b62c79475f93c63b7e3aa3bf120",
+          "size": 3591
+        },
+        {
+          "path": "references/daemonset-operator-patterns.md",
+          "sha256": "cb3a82b79f5e300800915dc4a40c865ed34f6bd4c6d91569525d948d0dbcb0eb",
+          "size": 7130
+        },
+        {
+          "path": "references/deployment-patterns.md",
+          "sha256": "475e12e7f810150ed6d925891748ed6b60a4f606c9642ffef76c3a3aeb631436",
+          "size": 6247
+        },
+        {
+          "path": "references/do-dont-patterns.md",
+          "sha256": "54617c5f15898e88622e934e1cc08dca8da3b517b2410a07f824033a39c490a5",
+          "size": 4515
+        },
+        {
+          "path": "references/examples-bad.md",
+          "sha256": "64a4b3a013726dfe623f8d8a17a54b70778b1653ef37f8ebf50c3590a7a3c22a",
+          "size": 8336
+        },
+        {
+          "path": "references/examples-good.md",
+          "sha256": "ffb706e7b84632f261d6c08162d57252da5be886499fd2d4527de10dfa2dd714",
+          "size": 11343
+        },
+        {
+          "path": "references/fragile-rollouts.md",
+          "sha256": "1ccc56e724657de54ac51f04bf9638dcdffb5d8ffc59da123ac14b439da355dd",
+          "size": 12330
+        },
+        {
+          "path": "references/helm-patterns.md",
+          "sha256": "80cc99913ddd15b1de1c998f2be7b970552d10e23feff2fc6684ac375d02e553",
+          "size": 6059
+        },
+        {
+          "path": "references/insecure-workload-defaults.md",
+          "sha256": "dfd83ebf9a6278e9d0e0054854058005883842c3f5a3db51b266783c9f914884",
+          "size": 9440
+        },
+        {
+          "path": "references/job-patterns.md",
+          "sha256": "af6fb8b712c20877bcafa4f2a030ac78d7b4839117b501626ca4c49dcae6b06d",
+          "size": 5608
+        },
+        {
+          "path": "references/kustomize-patterns.md",
+          "sha256": "0c9fc0ed7ff45fe4ec932b533171330fc4967b08fc15e11a6df449ac39f07353",
+          "size": 5576
+        },
+        {
+          "path": "references/multi-tenancy.md",
+          "sha256": "a9f0eed68728587d38580fee0d663ba481d178f37451fb701381bcb38a677291",
+          "size": 10062
+        },
+        {
+          "path": "references/network-exposure.md",
+          "sha256": "ccef2dd0cb73abdc0534b1cdc6bd32670672e8c5b6eee85775556b4b6d2322aa",
+          "size": 14788
+        },
+        {
+          "path": "references/observability.md",
+          "sha256": "39dbd5661254dd05e7c4fa17a15482c4b821e3abe6bf3e0d16521d8fd4c410a3",
+          "size": 9589
+        },
+        {
+          "path": "references/privilege-sprawl.md",
+          "sha256": "24281ef9e5d3dd448064f00629b146f265f69d07c72233061da83433bf38d15b",
+          "size": 10092
+        },
+        {
+          "path": "references/resource-starvation.md",
+          "sha256": "f30c664182bbc633122785df7385d059c1cb1a26b1b82040e41f939466c253ec",
+          "size": 12404
+        },
+        {
+          "path": "references/security-hardening.md",
+          "sha256": "d46ce72e32487b515096f09456912795fd19894c240e30a44bc8ab3713d93330",
+          "size": 7656
+        },
+        {
+          "path": "references/stateful-patterns.md",
+          "sha256": "8fbd99884f8a1bdfac9f1a7e92d343daad92f2e012b6bf4eced178c930e05041",
+          "size": 6341
+        },
+        {
+          "path": "references/storage-and-state.md",
+          "sha256": "5aeabb7ec434f3723a984eec5e910021897bb19e99bef8ebf96f0fe9dad87ba3",
+          "size": 11018
+        },
+        {
+          "path": "references/validation-and-policy.md",
+          "sha256": "8df0d2b4c230bc7d487def3215a9b3d3bf66502c419d796834eb6a4d45a78861",
+          "size": 7542
         }
       ]
     },
@@ -1525,6 +2252,342 @@
           "path": "scripts/generate_mondo_enhanced.py",
           "sha256": "16a2065240f370d90eb82e3b2fed186702a15a68cac4f74c6ac2d11f4bb48057",
           "size": 16953
+        }
+      ]
+    },
+    {
+      "name": "r8-analyzer",
+      "source": "https://github.com/android/skills",
+      "sha256": "781decadd206b88477b4d0fbae31fe21fb158455bdcd3b34e7d4ebf381fa398e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0578f4f751591727324a52662aa50e326efaf342e89e7d1df647c6147ecda3a7",
+          "size": 4545
+        },
+        {
+          "path": "references/CONFIGURATION-ANALYZER.md",
+          "sha256": "55ef36ae964774724a44e436caca67dfef5aeb4290f2ca4e86ce15cac771d9b3",
+          "size": 17316
+        },
+        {
+          "path": "references/CONFIGURATION.md",
+          "sha256": "8de2a50246930ac04073dbf0cdc80cb57639087137fc2adc4d732f05d3e94ec4",
+          "size": 1511
+        },
+        {
+          "path": "references/KEEP-RULES-IMPACT-HIERARCHY.md",
+          "sha256": "ce21e2fd6c62bf6cc3c90af44dfcb2681ff9970f9214d5c18491e62af8698107",
+          "size": 3155
+        },
+        {
+          "path": "references/REDUNDANT-RULES.md",
+          "sha256": "04b497e86d1baab4433999cbf3210af30f377e233f819b1eca3284da2b7231fa",
+          "size": 8669
+        },
+        {
+          "path": "references/REFLECTION-GUIDE.md",
+          "sha256": "04dcad525d429fab081d8e22024fb5b0d1c095aea2e274803226dec5d59c4931",
+          "size": 4304
+        },
+        {
+          "path": "references/REPORT_FORMAT.md",
+          "sha256": "515294cd84a3cf8f0352a11e676881f814de45650092ef3bc07f2f76bc3b646f",
+          "size": 2076
+        },
+        {
+          "path": "references/android/topic/performance/app-optimization/enable-app-optimization.md",
+          "sha256": "e6532c1098a8638852052703cf207863a2e44420ea7851082c72117082455b79",
+          "size": 15981
+        },
+        {
+          "path": "references/android/training/testing/other-components/ui-automator.md",
+          "sha256": "17264db5b567a92a0260808b77a75dd121d142a1cf9fb2504e589c4262809fb9",
+          "size": 13955
+        }
+      ]
+    },
+    {
+      "name": "react-native-best-practices",
+      "source": "https://github.com/callstackincubator/agent-skills",
+      "sha256": "4d59b3710bc38c29e53121fc1a5ade82e3feb9281700d54d02033c19e9ecfce9",
+      "files": [
+        {
+          "path": "POWER.md",
+          "sha256": "7e39898ec7b7e3335fbc8d290bd3b806020435fecfbc1c5e98ebfd31b2798999",
+          "size": 8312
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "abdbb7fc34ad739420fe43632e0baa1d646a01d097c6905211aa8b5b41957bf1",
+          "size": 12348
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "13d867840f5d10f87256653bc71da8de508ad13b10fd6931e1eb29cdd8ceb9e6",
+          "size": 227
+        },
+        {
+          "path": "references/bundle-analyze-app.md",
+          "sha256": "2c43a39bdad593091b2ec6f3fb0307096feb854bf11f4187f31f237a50cf76ca",
+          "size": 5461
+        },
+        {
+          "path": "references/bundle-analyze-js.md",
+          "sha256": "4e97a27c06ea91b49cacb18230f63bad392fc949e40d348787aab39755e8da41",
+          "size": 7029
+        },
+        {
+          "path": "references/bundle-barrel-exports.md",
+          "sha256": "187ac5a80822d22dbccdf3bb07f0fa60905b494285e735b30d97e79961fdfca5",
+          "size": 5406
+        },
+        {
+          "path": "references/bundle-code-splitting.md",
+          "sha256": "4cf3cae585f9ae7f64fc55af7af71d70e5ac3acb93fa6264a3186cc79d939cd7",
+          "size": 7545
+        },
+        {
+          "path": "references/bundle-hermes-mmap.md",
+          "sha256": "5eca09ae487bce41436461cc7d8d96fa8861b39815a2b930263807591778b757",
+          "size": 4133
+        },
+        {
+          "path": "references/bundle-library-size.md",
+          "sha256": "cb87a2d8a3cddd508b524b6b627ca775f5fc5a613f29d8a0f7e037ba054e4a7e",
+          "size": 4150
+        },
+        {
+          "path": "references/bundle-native-assets.md",
+          "sha256": "766fb2d22a3cb8b5f26969fd4afc3caf1dd32fd8f2da6bf9233aac48c2bbfd42",
+          "size": 5041
+        },
+        {
+          "path": "references/bundle-r8-android.md",
+          "sha256": "9f49269531e906e25f26eeb2a77b9af76bd562065d537c3cc0155301eb7bf9c0",
+          "size": 5356
+        },
+        {
+          "path": "references/bundle-tree-shaking.md",
+          "sha256": "3033f006a07a430ca4e2381b456774e59b3ace4fe0aee38740291cd0f305e9ca",
+          "size": 5690
+        },
+        {
+          "path": "references/images/bundle-treemap-source-map-explorer.png",
+          "sha256": "280495fc828cde33b0c1a83a02031d3ab484c0af240ab6fc408a313aa445fd3b",
+          "size": 667493
+        },
+        {
+          "path": "references/images/controlled-textinput-pingpong.png",
+          "sha256": "883cc345490473110ce93536a39c224f692229f691da1203b084488569f48781",
+          "size": 127223
+        },
+        {
+          "path": "references/images/devtools-flamegraph.png",
+          "sha256": "b257c6dbf4304aa6e2ca40ec357a13441cfa2f3cb84d5653af56484861a63c94",
+          "size": 520655
+        },
+        {
+          "path": "references/images/emerge-xray-ios.png",
+          "sha256": "41d00a6e90e89bcc941daa41ad2bfc742e3817e421b4cd6e42fb7f43d304c3b2",
+          "size": 439669
+        },
+        {
+          "path": "references/images/expo-atlas-treemap.png",
+          "sha256": "3e4ef5894d949f0e6a445329b33e3346dc8bded3855e18afe500584cd4c761a2",
+          "size": 618904
+        },
+        {
+          "path": "references/images/flashlight-flatlist-vs-flashlist.png",
+          "sha256": "a9e57f2673669bed947e57c121ad85088e237f462362382008b3bb46570c72ca",
+          "size": 313215
+        },
+        {
+          "path": "references/images/fps-drop-graph.png",
+          "sha256": "bb43718e87b140307e37d66dc2a5332e882881c4f8a14629b96072913b2ca580",
+          "size": 152493
+        },
+        {
+          "path": "references/images/memory-heap-snapshot.png",
+          "sha256": "0cd36795ce16814717cad712b744ad4e523e1acef95263a3b49a8bb24ede8bad",
+          "size": 308032
+        },
+        {
+          "path": "references/images/tti-warm-start-diagram.png",
+          "sha256": "6fc7cbf22a8ce657fe8d31978e7adfec24cd88a9a58c3d2a302f86fb64ff6a8e",
+          "size": 127254
+        },
+        {
+          "path": "references/images/view-hierarchy-flattening.png",
+          "sha256": "9edaac44f464730d3f5b6c2c0ccd19d2edf24fa358b4470c6ebc4a37b61753d7",
+          "size": 2587021
+        },
+        {
+          "path": "references/images/xcode-instruments-templates.png",
+          "sha256": "5d864f068bb1dc5edf9586a557260aa0f27b2b6fc96e473d8d5a8b3c2c1e836b",
+          "size": 408360
+        },
+        {
+          "path": "references/images/xcode-thread-view.png",
+          "sha256": "f3e7b75b87ce445e36293fcac070eecdb0609557fffb98a8cd000bcbe3e1b921",
+          "size": 178440
+        },
+        {
+          "path": "references/js-animations-reanimated.md",
+          "sha256": "b0912deb98d8af8b8bf97d98789e39d467466be28cab9d96def7101b6e799b16",
+          "size": 8015
+        },
+        {
+          "path": "references/js-atomic-state.md",
+          "sha256": "6005f5ba3e46c120d3c3fa38d1ea077bbc026c8c707dea0075025c84a4ff8254",
+          "size": 5267
+        },
+        {
+          "path": "references/js-bottomsheet.md",
+          "sha256": "43eca23b45f2c100d506f51c21e56d72ae501147b5acec7b9fd1cbb92e2d08df",
+          "size": 12199
+        },
+        {
+          "path": "references/js-concurrent-react.md",
+          "sha256": "0b2bab623b62136745e34ce135148f79311c3c4487068b0b0f2fa0b1fab851f2",
+          "size": 6652
+        },
+        {
+          "path": "references/js-lists-flatlist-flashlist.md",
+          "sha256": "4d62b3a9d6325fc77cdc4fc18597d9e5d241e5afd37f9284babf0fc69ce0def7",
+          "size": 5998
+        },
+        {
+          "path": "references/js-measure-fps.md",
+          "sha256": "5efca75bfbe57ebf1ec1e38df8704909e0df2e41df856715bb425d438cb48a34",
+          "size": 5306
+        },
+        {
+          "path": "references/js-memory-leaks.md",
+          "sha256": "52d0f71f0addbd6b03e8a12e46fa7405a5ae68394f106081768e2625f1ffd838",
+          "size": 5301
+        },
+        {
+          "path": "references/js-profile-react.md",
+          "sha256": "c7a283f68320de85d84940871e58c0c40b71182d704202d49a115ba98fdca716",
+          "size": 5871
+        },
+        {
+          "path": "references/js-react-compiler.md",
+          "sha256": "70f873d84646260256e01b93f504468d645a4e57ad5f88eef5d090f63358aa1a",
+          "size": 7372
+        },
+        {
+          "path": "references/js-uncontrolled-components.md",
+          "sha256": "4c27d770d1818edcb193612f141efe62f1ec907aa3aa8fbc54d15e677ffa54e7",
+          "size": 5492
+        },
+        {
+          "path": "references/native-android-16kb-alignment.md",
+          "sha256": "d61c945db16abf89c03099138febb8be2f228187b94a534eab7c385290938806",
+          "size": 3761
+        },
+        {
+          "path": "references/native-measure-tti.md",
+          "sha256": "f27bc1de4d443a9e49d372806aea91bf793bb4c7125e693db7cae3442eff57a1",
+          "size": 6527
+        },
+        {
+          "path": "references/native-memory-leaks.md",
+          "sha256": "3b69f2545bcc541b81dde55c0e0d2803a87671dd7a64da848e041af43019b4f4",
+          "size": 5627
+        },
+        {
+          "path": "references/native-memory-patterns.md",
+          "sha256": "cecf5b6eea44e3de9544976a9077b1b88d11bf5a336bf25cd27e094988ffb17d",
+          "size": 5986
+        },
+        {
+          "path": "references/native-platform-setup.md",
+          "sha256": "767b2d7ee9889fb43eccaec15ef2601cc3e25706f85cef14f264ce052789572e",
+          "size": 3786
+        },
+        {
+          "path": "references/native-profiling.md",
+          "sha256": "7830d1fd35fc52979b34d09646b8d237e895a3894d464ad16d6fd8bb32fe80c9",
+          "size": 4358
+        },
+        {
+          "path": "references/native-sdks-over-polyfills.md",
+          "sha256": "ac9ca06c1f3a3646c4b75d2ca85039ed357cc117522d4d2de112dda5bd75cf2f",
+          "size": 6279
+        },
+        {
+          "path": "references/native-threading-model.md",
+          "sha256": "7543ae88d708a382f0ec4d8fba987e7e89d8f2d2c954586a77a26c449e246b66",
+          "size": 6882
+        },
+        {
+          "path": "references/native-turbo-modules.md",
+          "sha256": "39ca96ce0b787cbff25aa649508cb64ea8bbb1c07ddd08e10c1d6a6ac932ea41",
+          "size": 5650
+        },
+        {
+          "path": "references/native-view-flattening.md",
+          "sha256": "483a25551f4d73199156599874d21d67731dbc4d1bc241ec672f064667265c24",
+          "size": 5236
+        }
+      ]
+    },
+    {
+      "name": "react-navigation",
+      "source": "https://github.com/callstackincubator/agent-skills",
+      "sha256": "ce91e011d7dce608349f317501b4ccf8e1167c884156c39467d8e63fdaf60756",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f127331ac68f2966168c5c12bb65217eac310804b91d2210f447672d1cbd0f1c",
+          "size": 3419
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "32f012fd4338b24473fab6994ed12444ee3995b40ecdf3ee840bc21b653f3524",
+          "size": 268
+        },
+        {
+          "path": "references/bottom-tabs.md",
+          "sha256": "a3a5531fbd9e4f61801c490d5292dc69483678bf09fdac5c71c561eff529fda3",
+          "size": 13020
+        },
+        {
+          "path": "references/drawers.md",
+          "sha256": "0f23f2521852a5da0626a4ab32094c9b3db61d0d41dffca62164ebdbb1652a9a",
+          "size": 12278
+        },
+        {
+          "path": "references/form-sheet.md",
+          "sha256": "b1aa00832f512ff64930e059058c9d9cf0a320c9c44aaea093c0472f85271b12",
+          "size": 8163
+        },
+        {
+          "path": "references/header.md",
+          "sha256": "fe5a2e655f815d8d2e02fa6f9b1e2e4797d8441028014b016eebd8efa38d3a84",
+          "size": 6937
+        },
+        {
+          "path": "references/material-top-tabs.md",
+          "sha256": "8b8ab60b6c5c3a61eb6c95f10cbc9c871834a10dfce07fda2719c87ffa4e7a11",
+          "size": 11809
+        },
+        {
+          "path": "references/native-bottom-tabs.md",
+          "sha256": "365348895d64f9b5df64e2abc50edfa5ef249069960a6baab83b2157c13efd5b",
+          "size": 8925
+        },
+        {
+          "path": "references/safe-areas.md",
+          "sha256": "319c6aa77e2ae417f2e8475b3e842afbdb6bce01f546167f09609585e5428dd1",
+          "size": 3858
+        },
+        {
+          "path": "references/stacks.md",
+          "sha256": "734021ed72e83fc846e0dd19441e1ec0765db30d3cf1a21e5ba53b0ca53815aa",
+          "size": 11976
         }
       ]
     },
@@ -1773,6 +2836,1438 @@
           "path": "agents/openai.yaml",
           "sha256": "9b4c470d63221c1f68f22df70b83e2f12401b317babe0d1b7b5f24a974474d0d",
           "size": 94
+        }
+      ]
+    },
+    {
+      "name": "rust-skills",
+      "source": "https://github.com/leonardomso/rust-skills",
+      "sha256": "edc2a172fe473ec684afe109b6dbc938e2a315fb5ab282f5106d66404974eb74",
+      "files": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "968afee6f0146675bb296dd06515677a0b1fdc0916a37ba73196038593d2ae8c",
+          "size": 679
+        },
+        {
+          "path": "AGENTS.md",
+          "sha256": "5a74070e740c8aacec1264adfc537daeab14c0f629bb604943295c08fd9252e6",
+          "size": 37825
+        },
+        {
+          "path": "CHANGELOG.md",
+          "sha256": "a54170f74bb352598518df6fc6bcca15f260b485e147ff607ad959f454e8590c",
+          "size": 3377
+        },
+        {
+          "path": "CLAUDE.md",
+          "sha256": "5a74070e740c8aacec1264adfc537daeab14c0f629bb604943295c08fd9252e6",
+          "size": 37825
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "sha256": "37f9fc8ed5f9f01cbfd5f53a5dec75b925233c21e28b07ac17c59dcebfd7b8c4",
+          "size": 2595
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "663ce6f8f087dc366602ac34eefd4cf71a5d8db411359422298a1399a014a9d5",
+          "size": 1075
+        },
+        {
+          "path": "README.md",
+          "sha256": "d4b4aa637b20b3d1c7a1a7f71919de1ca293a588d5346ba29a60eec1ba0085ca",
+          "size": 10177
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "5a74070e740c8aacec1264adfc537daeab14c0f629bb604943295c08fd9252e6",
+          "size": 37825
+        },
+        {
+          "path": "checks/.gitignore",
+          "sha256": "c1f793db95a1c181222d9216462e33596e88b265f3c9f221c7efe70e24300deb",
+          "size": 68
+        },
+        {
+          "path": "checks/Cargo.lock",
+          "sha256": "3bf800d7d63a10b29de132b2916affda9ee6c29462e79408f50b35597a17ddcc",
+          "size": 42565
+        },
+        {
+          "path": "checks/Cargo.toml",
+          "sha256": "2f9cad51a6a900a401450ce26b07f47e78d16834cbe0fe7e86ddc873950382ef",
+          "size": 1127
+        },
+        {
+          "path": "checks/README.md",
+          "sha256": "1f22f46111b456dc4c88e2a9ae1161cdbdfe1a882b92dfa319970ee39b92abba",
+          "size": 2733
+        },
+        {
+          "path": "checks/analyze.py",
+          "sha256": "ac8328daadfae7a1501995e225609eae533b422891a6887a24007f11ee8e5291",
+          "size": 5821
+        },
+        {
+          "path": "checks/baseline.txt",
+          "sha256": "e57d69b478065786a9df7b4bf3e12164290af5062e1571d8dc7492f71f9fb84a",
+          "size": 8365
+        },
+        {
+          "path": "checks/check.sh",
+          "sha256": "d52bc1dcb371c2fa72d57089d97920ab9b686ca7bf9a6486a90c6f25b07d603f",
+          "size": 1223
+        },
+        {
+          "path": "checks/gen.py",
+          "sha256": "6a62c110dd1098255c069832baa7ee6bec5aeddd561a278b5ba310ecb08714dc",
+          "size": 3481
+        },
+        {
+          "path": "checks/gen_index.py",
+          "sha256": "42378d0c03aadedc8890ab3e6b07d2c3c1049c0c4d1fb75f1fa3a1108dafab93",
+          "size": 5744
+        },
+        {
+          "path": "checks/rust-toolchain.toml",
+          "sha256": "68cebd0046b0366e826207a5c87b47435a95be198b3e7c8dc103205c448e6c57",
+          "size": 218
+        },
+        {
+          "path": "checks/src/lib.rs",
+          "sha256": "299b304a91fdd5b6b70d9524ffed8cc8ee257592237c441325c0bca0598a7c1e",
+          "size": 143
+        },
+        {
+          "path": "checks/validate.py",
+          "sha256": "438ba510bee8d3d6c0d527cec09ad6810b9268e83e54852cf3b0b49cecf6f7cb",
+          "size": 2039
+        },
+        {
+          "path": "rules/anti-clone-excessive.md",
+          "sha256": "983913692f9f6a22cf0826151c410d84070b7e2a07f40ba3994bf3f68625002e",
+          "size": 2614
+        },
+        {
+          "path": "rules/anti-collect-intermediate.md",
+          "sha256": "3d8c23b528a68489b183d38aca1cddc2352d840f80cd08a4c97751485fbcbdef",
+          "size": 3230
+        },
+        {
+          "path": "rules/anti-empty-catch.md",
+          "sha256": "95f134cd9ea0f14e8991d13114acc8f3a385a097165ea6ecb992ef8e1eadea33",
+          "size": 3134
+        },
+        {
+          "path": "rules/anti-expect-lazy.md",
+          "sha256": "62208c2b6d0584b51991ffad5449fb7f6db21e65601e4f6783c07508f5cdc1f2",
+          "size": 2696
+        },
+        {
+          "path": "rules/anti-format-hot-path.md",
+          "sha256": "e9db4de4f59209fb989257133ee7abe46ac314b8362fea8f87902ec5116461d7",
+          "size": 3636
+        },
+        {
+          "path": "rules/anti-index-over-iter.md",
+          "sha256": "57e116484ffff5e5fd3ebd36281ba12a7c8c9b000d46f4bcf25f0257438d8e94",
+          "size": 2909
+        },
+        {
+          "path": "rules/anti-lock-across-await.md",
+          "sha256": "3429177799acb2baa2aa6cccb1ec22ee1605b7a531d684fd98cd5a0e14824f8a",
+          "size": 3201
+        },
+        {
+          "path": "rules/anti-over-abstraction.md",
+          "sha256": "620cb64669e9e844233f04393c9bffa4ea2e5d9d91640018fe7a2f480a8119be",
+          "size": 3147
+        },
+        {
+          "path": "rules/anti-panic-expected.md",
+          "sha256": "5f35f5e5b3447fd39f7610e8b15ef9f737ec860a53b654f6d9da77f80c71afb7",
+          "size": 3428
+        },
+        {
+          "path": "rules/anti-premature-optimize.md",
+          "sha256": "fb1678ce741683cb660670480a1c37ac00adac34594bf94145c92173df70eb2b",
+          "size": 3778
+        },
+        {
+          "path": "rules/anti-string-for-str.md",
+          "sha256": "4c1dc918ecf13227ad612246024fa7a767a54ce076e864c4636c90defab473b8",
+          "size": 2656
+        },
+        {
+          "path": "rules/anti-stringly-typed.md",
+          "sha256": "bf6d3de6138e573b9f53447e7259515370d19a63219229360735871d739563ef",
+          "size": 4182
+        },
+        {
+          "path": "rules/anti-type-erasure.md",
+          "sha256": "e0fff7b4b25fba5c5565167f1d460375da61510f4bd52f82fc959ab538b9e013",
+          "size": 3731
+        },
+        {
+          "path": "rules/anti-unwrap-abuse.md",
+          "sha256": "5a01b900c39611b0a3bc7ea840dd1ef7ea5925fa40cb1f3132393892ca7a2690",
+          "size": 3423
+        },
+        {
+          "path": "rules/anti-vec-for-slice.md",
+          "sha256": "a2c2613b01d4d6c4202ef611abf2f27de45cfdbca29d934a179a00e2d9fd4fbd",
+          "size": 2530
+        },
+        {
+          "path": "rules/api-builder-must-use.md",
+          "sha256": "2fc7eed1a0c7a505dfbcf1b5c3ed8893951d06ea517cd35aa706c04ac428edaf",
+          "size": 3931
+        },
+        {
+          "path": "rules/api-builder-pattern.md",
+          "sha256": "ef6da2925a5c3bd8190a5fbaee35cdc08d326c59bc45b01f273bf1a245feade6",
+          "size": 4673
+        },
+        {
+          "path": "rules/api-common-traits.md",
+          "sha256": "94a006d41066115beaf9a0bfeffd1cc5e1e074a969888902d5e478c1aef103fa",
+          "size": 4369
+        },
+        {
+          "path": "rules/api-default-impl.md",
+          "sha256": "7afc2bf93eb62f1f1a85ae8d6086e47ee3a54c902f22f294608a847ca9926b76",
+          "size": 4122
+        },
+        {
+          "path": "rules/api-extension-trait.md",
+          "sha256": "259b0bca3c6d40f0f9b7caff9a36648ec79ba463aca7b1f9f37f0daa5b6ee543",
+          "size": 3872
+        },
+        {
+          "path": "rules/api-from-not-into.md",
+          "sha256": "21baad5a4fd92743b91c93f0f63eb02aba768a133e90e8257c38f251a8a444e2",
+          "size": 3393
+        },
+        {
+          "path": "rules/api-impl-asref.md",
+          "sha256": "5b6768f706333dc6f58709f65160683cda564de0455a7c951a1d3454d89686e7",
+          "size": 3539
+        },
+        {
+          "path": "rules/api-impl-fromiterator.md",
+          "sha256": "cb8da222b375e0ef6f1919d4d2edb1f43acf015130ae586e8de8a43c2d710bae",
+          "size": 3484
+        },
+        {
+          "path": "rules/api-impl-into.md",
+          "sha256": "f33eb54c4637184b79bab795a3e6c038cb671b077d11ade768f3e316c8b4d778",
+          "size": 4094
+        },
+        {
+          "path": "rules/api-must-use.md",
+          "sha256": "713d5fe166dfff22e893a821ec7ca2046efb8d54f12c45b1f9ae57064bb9eee2",
+          "size": 3579
+        },
+        {
+          "path": "rules/api-newtype-safety.md",
+          "sha256": "3af731fed522a13c7b8db89f1b26f5c60f743547377480e08869fbd572db44e9",
+          "size": 4028
+        },
+        {
+          "path": "rules/api-non-exhaustive.md",
+          "sha256": "d8d168df3a1bd779bd693e2f5c7a4c277a5885e42da9c5e8cdcb69dc94ee38f3",
+          "size": 3975
+        },
+        {
+          "path": "rules/api-operator-overload.md",
+          "sha256": "0413c8eb0b3db94c4b710bed9e7c18e53d0fbdf6e8f987245bb7e36d95389bec",
+          "size": 3383
+        },
+        {
+          "path": "rules/api-parse-dont-validate.md",
+          "sha256": "d701e99ea070aff336113afd443a6f812e5e15319b8481754fe6137876515d8a",
+          "size": 4424
+        },
+        {
+          "path": "rules/api-sealed-trait.md",
+          "sha256": "9dce70e82b02d48e364bf23b601485a017f9ccdd969af48920e2906c74a40f3e",
+          "size": 4641
+        },
+        {
+          "path": "rules/api-serde-optional.md",
+          "sha256": "67f8c80bf848aebe20c58e72cc204f4587af374d208132bc03da9980e09bebd8",
+          "size": 4305
+        },
+        {
+          "path": "rules/api-typestate.md",
+          "sha256": "3db0bd349c144609dc61327029958244db2a16337780655596f9c4a04f7e4f2a",
+          "size": 4992
+        },
+        {
+          "path": "rules/async-async-fn-bounds.md",
+          "sha256": "376fcab276d65b81aa8a9300b1149b03947153377227e85c6c1f21de9a1421b9",
+          "size": 3454
+        },
+        {
+          "path": "rules/async-bounded-channel.md",
+          "sha256": "99e2fbafa1f88fa55de2e37e34c8d8cfc26eed3c9e4136f9a1d8480c0d901e68",
+          "size": 4608
+        },
+        {
+          "path": "rules/async-broadcast-pubsub.md",
+          "sha256": "60ec09e2fbcc1aa3a3a09337147e813ac2d1743a5cc768c16848efa90fe77786",
+          "size": 4149
+        },
+        {
+          "path": "rules/async-cancel-safety.md",
+          "sha256": "bc86cde4fa4c70562cdf3c456331ce76d07f785286896f219074e2feba4689e4",
+          "size": 4438
+        },
+        {
+          "path": "rules/async-cancellation-token.md",
+          "sha256": "5c64c67d952470e61fedab7fb2d78e58b0422fb3b4d365570a2ebe903e27c5c2",
+          "size": 4913
+        },
+        {
+          "path": "rules/async-clone-before-await.md",
+          "sha256": "0b18c24466d6394fb0800e25bccd2ba9d4f09f8a2e805061eca125bf6fb5e686",
+          "size": 4079
+        },
+        {
+          "path": "rules/async-fn-in-trait.md",
+          "sha256": "ad92f77e431f6e0e825755b9f334c83cba7e4c7709e456d06fd173a042b1a4c3",
+          "size": 3691
+        },
+        {
+          "path": "rules/async-join-parallel.md",
+          "sha256": "a2beabe51163a6780241a675f4c54b02629ae6e6cf319ac243741d2abeb5abb8",
+          "size": 4103
+        },
+        {
+          "path": "rules/async-joinset-structured.md",
+          "sha256": "10d2eeed25d370b002741d9b14914ff2dd3c5deae1d214c704aa2867a563c1d4",
+          "size": 4620
+        },
+        {
+          "path": "rules/async-mpsc-queue.md",
+          "sha256": "bb53b571f6bded40ef69c1b8612950b8c67a1539b0fbf83d90d01df8d7e14aa6",
+          "size": 4015
+        },
+        {
+          "path": "rules/async-no-lock-await.md",
+          "sha256": "c83093b164ee511801dddbe5d1297e9ef0e73ccecdbc7c835d5d356078676196",
+          "size": 4059
+        },
+        {
+          "path": "rules/async-oneshot-response.md",
+          "sha256": "7ea9db323cf845435797ed4ed07da7033916e5579ae74e3343ec267ea9e2eff7",
+          "size": 4567
+        },
+        {
+          "path": "rules/async-select-racing.md",
+          "sha256": "27000a7081eb0fc396ac03f031466bfe835d96d017f87c9af28d682d4c18b036",
+          "size": 4673
+        },
+        {
+          "path": "rules/async-spawn-blocking.md",
+          "sha256": "398a926fe15f08ae831d4058695e4910c624460d7262bd6d6248f517eabea51b",
+          "size": 3717
+        },
+        {
+          "path": "rules/async-tokio-fs.md",
+          "sha256": "29ee1a563ee1c204e6240074c2542b8dceba8fa08e51fb0abb06ce3649f6b4f8",
+          "size": 4175
+        },
+        {
+          "path": "rules/async-tokio-runtime.md",
+          "sha256": "fbdfd8a78e12df7f7cb724a7992e4ac20628fd72a9ce926021d7acdddb8813b6",
+          "size": 4576
+        },
+        {
+          "path": "rules/async-try-join.md",
+          "sha256": "95802f2aeee7dc96555db783b826fc0df69a1d828257857e254b542dde330f51",
+          "size": 4429
+        },
+        {
+          "path": "rules/async-watch-latest.md",
+          "sha256": "b6fff522604f17454a73b696fe22292a96aa357866a683552b01725940778837",
+          "size": 4623
+        },
+        {
+          "path": "rules/closure-disjoint-capture.md",
+          "sha256": "14058ce4714e4f7758024c9736af13ce476d5cce74f90f71e3c5b3254e8ff60c",
+          "size": 3590
+        },
+        {
+          "path": "rules/closure-fn-trait-bounds.md",
+          "sha256": "adfe85d835223da1f0934e94a31259f13b22b5ede93ade6b0292fd3d7c4f8559",
+          "size": 2931
+        },
+        {
+          "path": "rules/closure-impl-fn-return.md",
+          "sha256": "66b5ed8a8d45ac65a5cb1b2d0bb36b731b2b2cc5909ddf5fc84f03fcd8e10162",
+          "size": 2848
+        },
+        {
+          "path": "rules/closure-move-capture.md",
+          "sha256": "e6edf52ec7955b4719cd9bd19ca55593b185bafdeb82390196202b9df71f5902",
+          "size": 2920
+        },
+        {
+          "path": "rules/closure-static-vs-dyn.md",
+          "sha256": "c1dcc10f8358580a76248f0e9950c20572aa3e77b8fe3ce07d737915c4813f72",
+          "size": 3271
+        },
+        {
+          "path": "rules/coll-binaryheap.md",
+          "sha256": "d45bb133abf0e9f1a1526e72e3e157909c0ddb319f749b1643f7eee0ed909544",
+          "size": 3594
+        },
+        {
+          "path": "rules/coll-map-choice.md",
+          "sha256": "7854a0470c0dc09e48a15eaba629144e3605cc00341e70821415c101c0b72cf8",
+          "size": 3707
+        },
+        {
+          "path": "rules/coll-seq-choice.md",
+          "sha256": "8ed03c3f481148712dd3268ff79c612221efa5bf1a0f30f85c383bef4fdd9eca",
+          "size": 2987
+        },
+        {
+          "path": "rules/coll-set-membership.md",
+          "sha256": "b645928c78212e1dec8b0b15a0be0559fbdf923eb3b6e270343450cc2c8631d6",
+          "size": 3209
+        },
+        {
+          "path": "rules/conc-atomic-ordering.md",
+          "sha256": "261df660bde33ab0c76ea6d73abaec3ee1525822c05c02fde375a725d562bdde",
+          "size": 3585
+        },
+        {
+          "path": "rules/conc-rayon-par-iter.md",
+          "sha256": "cc7bff57ccbb530e6dbdca607fc0dd048bb42abb11890971252f68037f0b27a0",
+          "size": 2467
+        },
+        {
+          "path": "rules/conc-scoped-threads.md",
+          "sha256": "4b19dcecc0d54989c9892b1d9cf5df66518aa6cb7eebea62ff69e75db313205a",
+          "size": 2805
+        },
+        {
+          "path": "rules/conc-thread-local.md",
+          "sha256": "bbbb870a59f85af120888692c4f44592d912fc92b4380f82fda9c2706c8bd86c",
+          "size": 2637
+        },
+        {
+          "path": "rules/const-block.md",
+          "sha256": "8f78ce809fe59ba8b9f5a452ba100566fbd35c64aebb137373afdf762a1a3cfb",
+          "size": 2962
+        },
+        {
+          "path": "rules/const-fn.md",
+          "sha256": "eab5b82ee3c486a9b26cd5a377dda6f93cb867226f8448e48e80b3441584774c",
+          "size": 2186
+        },
+        {
+          "path": "rules/const-generics.md",
+          "sha256": "d999587775d4f7b73de55e834eb6c96fff8e6dc714173fab520a275369b0a291",
+          "size": 2784
+        },
+        {
+          "path": "rules/const-vs-static.md",
+          "sha256": "cc528ca115cc4bd3fcf1d5b82cabd04ba42eb5252d3f0033492017b27155e752",
+          "size": 2829
+        },
+        {
+          "path": "rules/conv-asmut-mutable.md",
+          "sha256": "5da738305828c80e6ea3e37ab1977a15f4ce16b72b9742353ffe2654a130c75b",
+          "size": 2151
+        },
+        {
+          "path": "rules/conv-fromstr-parsing.md",
+          "sha256": "3760a9495cb1d5ca3c1c68ec005ac335a29bf00ea6e9785cd02008c445f8aa24",
+          "size": 2591
+        },
+        {
+          "path": "rules/conv-tryfrom-fallible.md",
+          "sha256": "2f781769f99e16e32b79d2e61542b5696a73b4c142c14c6bb091a09d45ed493f",
+          "size": 2341
+        },
+        {
+          "path": "rules/doc-all-public.md",
+          "sha256": "3ce223d43e18875184d0b8ff7c97cb31ef174934660c8e2cf976e9736d2221b5",
+          "size": 2730
+        },
+        {
+          "path": "rules/doc-cargo-metadata.md",
+          "sha256": "62d0946aa9085af41b4054176b9815ad39eec2126cab8d71dd7ece6e3c3cc948",
+          "size": 3236
+        },
+        {
+          "path": "rules/doc-crate-readme.md",
+          "sha256": "959b42ee2632de15edfab908a466965979d0b037f0c13ecb776cf280bd5a972c",
+          "size": 2137
+        },
+        {
+          "path": "rules/doc-errors-section.md",
+          "sha256": "32bff3e8f672cd812c6237565cbf73efa84b758e66b248e9815754426b7808ba",
+          "size": 3319
+        },
+        {
+          "path": "rules/doc-examples-section.md",
+          "sha256": "e3b614a89fedf4caf16b33925e86ebbbba37c4d2e723ac9cceb1a82fb9a40077",
+          "size": 2925
+        },
+        {
+          "path": "rules/doc-hidden-setup.md",
+          "sha256": "dfa8a8c02094019919742bbb5ffde5f62908c2043f31f04bf47487363380f306",
+          "size": 3631
+        },
+        {
+          "path": "rules/doc-intra-links.md",
+          "sha256": "acd7610ae0fc1aa3e57ca95927397bebc17c5dd5d21764d9137d9cd8cfee98dd",
+          "size": 3423
+        },
+        {
+          "path": "rules/doc-link-types.md",
+          "sha256": "04e310bfbc9eddc87663d81a6d14e2aaf59f657155a292e53ab7cbdcb4c9a8ff",
+          "size": 3887
+        },
+        {
+          "path": "rules/doc-module-inner.md",
+          "sha256": "c29a2a6eaa504274a7b82568865a491ae13e5180743c955c95b785227a09dc0c",
+          "size": 2852
+        },
+        {
+          "path": "rules/doc-panics-section.md",
+          "sha256": "e59101cdcfb1b2bb7f03bff86d40a18b4fdbd4d8ff86ec6149ce018f6d93908f",
+          "size": 3171
+        },
+        {
+          "path": "rules/doc-question-mark.md",
+          "sha256": "a621c16fa2d53c9b582132cc1267ff10157260c9fe67f66a69acf6d0e268b470",
+          "size": 3227
+        },
+        {
+          "path": "rules/doc-safety-section.md",
+          "sha256": "9f3da270ef3c7e55392bee3372c567f079e6a3ec0b930f89e66ca1ba4123d436",
+          "size": 3925
+        },
+        {
+          "path": "rules/err-anyhow-app.md",
+          "sha256": "9ca754780a6c8cbfffeaab761f23c58621bbddc23f907fc0b57e1e25f597c831",
+          "size": 4266
+        },
+        {
+          "path": "rules/err-context-chain.md",
+          "sha256": "7485b4ca0f82bdf031aac3c3e20d289ce4110fc92ba8096d482a9eb9c2d3ac41",
+          "size": 3538
+        },
+        {
+          "path": "rules/err-custom-type.md",
+          "sha256": "20fdae092f4b86a10b8c140801950f1ee39ffc76340a860697a98fa979c2aa25",
+          "size": 4080
+        },
+        {
+          "path": "rules/err-doc-errors.md",
+          "sha256": "18025097119b1dd1986f43e870c6f44296a1a54d955f7b26c770f070cf8e4599",
+          "size": 3928
+        },
+        {
+          "path": "rules/err-expect-bugs-only.md",
+          "sha256": "b8f1b475e7f016c679ea5c64bfb8c70dddf302e5c2838554b31c8ba924eb5a7a",
+          "size": 3829
+        },
+        {
+          "path": "rules/err-from-impl.md",
+          "sha256": "a828e81c58f7bc67721e01af7c8bd49996ab610f59ea7703351b35dafff36f6a",
+          "size": 3955
+        },
+        {
+          "path": "rules/err-lowercase-msg.md",
+          "sha256": "99eae0ae9d567f2b32c739648b58dd8f648833ad26f56d6d2cbc37c5eba778e4",
+          "size": 3365
+        },
+        {
+          "path": "rules/err-no-unwrap-prod.md",
+          "sha256": "b8ba7f86cdf68b408cf22218af2420b52279999ee15e946ca0f25b7f49ad6671",
+          "size": 3209
+        },
+        {
+          "path": "rules/err-question-mark.md",
+          "sha256": "d1b8ad7240c10d8683ba26140fc911aa694c260705a8b2f5ca6add7a60a74fdd",
+          "size": 3383
+        },
+        {
+          "path": "rules/err-result-over-panic.md",
+          "sha256": "63d66e846d4f783feb21eaffc5b258691dbecd341b535180bc4ade144f28c15a",
+          "size": 3482
+        },
+        {
+          "path": "rules/err-source-chain.md",
+          "sha256": "31e3f29a51794c8f06621b9c073093cc3938771aedc7cdb4983b39fe32fb893e",
+          "size": 3893
+        },
+        {
+          "path": "rules/err-thiserror-lib.md",
+          "sha256": "fd6c025b335b3a8cbef8390d9d606eaeab584c8f81e4f088f24b33f0e266e866",
+          "size": 4187
+        },
+        {
+          "path": "rules/lint-cargo-metadata.md",
+          "sha256": "b83fb6f6304a9614720223fddccf46ace83653348e7b7cf815fb0b32a26e31d3",
+          "size": 2880
+        },
+        {
+          "path": "rules/lint-cfg-check.md",
+          "sha256": "fcdbea5c7f2a7f4318a815fc292e69d506e694a084e48d363487e33b0dc29efb",
+          "size": 2475
+        },
+        {
+          "path": "rules/lint-clippy-nursery-selected.md",
+          "sha256": "761e2aac35e778c92ac2dbc8740bd6509904d17743b7beeb1f430fe2072968e6",
+          "size": 2665
+        },
+        {
+          "path": "rules/lint-deny-correctness.md",
+          "sha256": "4c7c029fe826c7a3bc8cd01d6ec22ea63ce0393c3cc679b4033662010a49581f",
+          "size": 2289
+        },
+        {
+          "path": "rules/lint-missing-docs.md",
+          "sha256": "ab1cd1aee1a3af6537ca081f1cd3e5ab25871808ee2762a9b5bd8fd154451dfd",
+          "size": 3004
+        },
+        {
+          "path": "rules/lint-pedantic-selective.md",
+          "sha256": "e421399a4671021725d1cb5913d585fb84e646ffa056a5627c7df1e2ba0293fa",
+          "size": 3178
+        },
+        {
+          "path": "rules/lint-rustfmt-check.md",
+          "sha256": "487bd0343b985e0b8791140b01da95b9fb236831535e64acaaf6bc1712626c9f",
+          "size": 2791
+        },
+        {
+          "path": "rules/lint-unsafe-doc.md",
+          "sha256": "57db005a20a1f5f50bfe84a170d2060b55bf6249c22ba53ffb28f7568f9351f8",
+          "size": 3177
+        },
+        {
+          "path": "rules/lint-warn-complexity.md",
+          "sha256": "fde6ab1d1cf1ea3d3375c29ce305e5b1eaa585c52e57d514549c5f560393476f",
+          "size": 3030
+        },
+        {
+          "path": "rules/lint-warn-perf.md",
+          "sha256": "28711ddf0e20df6b304a40955a6526f917bb3e59754f44145ca4e8b1346f829e",
+          "size": 3236
+        },
+        {
+          "path": "rules/lint-warn-style.md",
+          "sha256": "215b87b1262d7616cf43d4ce76f3b4dbc0ff204aa31591fb6b953f07021bd209",
+          "size": 2944
+        },
+        {
+          "path": "rules/lint-warn-suspicious.md",
+          "sha256": "bbf029550c6f5f3ba426959cca73799616aa9a12d24af62813cd877d55e9bc38",
+          "size": 2987
+        },
+        {
+          "path": "rules/lint-workspace-lints.md",
+          "sha256": "6fc509559776fe6b97f34408e919bed7e68daeaf56adac8e4bf0b8038258f5ea",
+          "size": 3644
+        },
+        {
+          "path": "rules/macro-export-crate-path.md",
+          "sha256": "74008ade9c0cb83f2b90cad5cc122927b301d4f16bce208767d3a9e58d2a5d9b",
+          "size": 2618
+        },
+        {
+          "path": "rules/macro-fragment-specifiers.md",
+          "sha256": "e9f4ce18312a94a8d3a2b5b93e5652f3fc21396dfc38e14b47f9eca25de3e19a",
+          "size": 3003
+        },
+        {
+          "path": "rules/macro-prefer-functions.md",
+          "sha256": "f8f89e40a69bc547311708e35ea42fcf9e250cd3ece1791dd37089891a596d0a",
+          "size": 2132
+        },
+        {
+          "path": "rules/macro-private-helpers.md",
+          "sha256": "73cace5447b2083f521cce08aa64b52224650fb88d7b37f0a0b5070fd6f7af2e",
+          "size": 3035
+        },
+        {
+          "path": "rules/macro-proc-error-spans.md",
+          "sha256": "6e73e2ace34efb58f48feca16c7a23b788d42c4d084b5c8fef708641b2353842",
+          "size": 3816
+        },
+        {
+          "path": "rules/macro-proc-syn-quote.md",
+          "sha256": "a880da74f52469d92e6f71262772d2852c98675227758c9586d3eff19af53d02",
+          "size": 3537
+        },
+        {
+          "path": "rules/macro-proc-two-crate.md",
+          "sha256": "e30f2e5034b63a1c9e1fa17e61246551fa67d28f5ff901bf4128bd99a59c980b",
+          "size": 3884
+        },
+        {
+          "path": "rules/macro-rules-hygiene.md",
+          "sha256": "acf4977b06bea149a042e11f4a8263f1b8a3c81d4e9e3206a5a6a4e571b691c4",
+          "size": 2853
+        },
+        {
+          "path": "rules/mem-arena-allocator.md",
+          "sha256": "3027217813a2d8a996591a96676abeefdff87a3462486316b58a54e621912f65",
+          "size": 4555
+        },
+        {
+          "path": "rules/mem-arrayvec.md",
+          "sha256": "8114ceb52948d2aad3e320c47a096f351dc24099fb514f79acb0fb1b8e332f82",
+          "size": 3706
+        },
+        {
+          "path": "rules/mem-assert-type-size.md",
+          "sha256": "288396b8bd1324d71ab3304c12322d087a0b9db70de79949b4899e7dcb66334b",
+          "size": 3874
+        },
+        {
+          "path": "rules/mem-avoid-format.md",
+          "sha256": "73aeda367c72ab290024d38ce90cfef726500e9d548a854ec9b9a05579d2d325",
+          "size": 3608
+        },
+        {
+          "path": "rules/mem-box-large-variant.md",
+          "sha256": "fd3a95b28488ba01475c9da9a5dd89cbba1124e3c394b45ffd0dcfebf3d47081",
+          "size": 3815
+        },
+        {
+          "path": "rules/mem-boxed-slice.md",
+          "sha256": "1e8b1023efd305bbe2046cfc1c877b0cae1e7f06be00a05c76570576a8ac22b1",
+          "size": 3589
+        },
+        {
+          "path": "rules/mem-clone-from.md",
+          "sha256": "48e93c36a55b0a4c801b621f951aa1102126f4e0bcac5ef8dad8405775d7863e",
+          "size": 3536
+        },
+        {
+          "path": "rules/mem-compact-string.md",
+          "sha256": "a3e001e5cda9e4f8f9de8d1fc1857a299e9a7744b733bb879452f81d7217fb5c",
+          "size": 3798
+        },
+        {
+          "path": "rules/mem-drop-order.md",
+          "sha256": "03828e4267fe3df947b8ae9bb7b16a067f6fcb68f1e3d115e209678833b22923",
+          "size": 4581
+        },
+        {
+          "path": "rules/mem-reuse-collections.md",
+          "sha256": "e930bc6b880a073141ab50dcb9af3181dd0e403a745b0558c584c246614e8a88",
+          "size": 4318
+        },
+        {
+          "path": "rules/mem-smaller-integers.md",
+          "sha256": "23723a89cbde43591708293f2459094069ca7751410ce42f7cc4102a721ab68c",
+          "size": 3993
+        },
+        {
+          "path": "rules/mem-smallvec.md",
+          "sha256": "a0556de953d23a2f0670098c013550fb3290c2af9a7c807c1d5923a4ef310571",
+          "size": 3452
+        },
+        {
+          "path": "rules/mem-take-replace.md",
+          "sha256": "d8c396f4acff5cf1e01d103404d2d5a5d2925373af5e1aba50b20e9ea38baa9b",
+          "size": 3626
+        },
+        {
+          "path": "rules/mem-thinvec.md",
+          "sha256": "50cf1f0cc9b78d2eb8bb48739cc05026176722e5f62b8b5aeb4fdb1de5f8a462",
+          "size": 3311
+        },
+        {
+          "path": "rules/mem-with-capacity.md",
+          "sha256": "2bb5ff99287414a60458c687ef925d595414f07bbf26f3a3f5194107a4ac4478",
+          "size": 3835
+        },
+        {
+          "path": "rules/mem-write-over-format.md",
+          "sha256": "370491b9cd639f9d7d2e0a1e4fc58fe5e13cdd54b17750d45000885ac839b7b1",
+          "size": 4393
+        },
+        {
+          "path": "rules/mem-zero-copy.md",
+          "sha256": "0128bf291e401d615032c1c1c5543a3791dc63c249e800e71c2e2012a2681a13",
+          "size": 4116
+        },
+        {
+          "path": "rules/name-acronym-word.md",
+          "sha256": "adf757646953837175f3e8edf19359cb5bf648c534c8c1c04f998efde53ff786",
+          "size": 2859
+        },
+        {
+          "path": "rules/name-as-free.md",
+          "sha256": "62ab9a56b679a3352c3e1159d4b090ea0cd1a7b98d2699ba55069ad9b4116efe",
+          "size": 2340
+        },
+        {
+          "path": "rules/name-consts-screaming.md",
+          "sha256": "b3a94463e11d6bf4694848370bf019727120df003ef808ef79491e44e93ea844",
+          "size": 2255
+        },
+        {
+          "path": "rules/name-crate-no-rs.md",
+          "sha256": "d2aaf1f2fdb570883146caf1599f1461d1227d72abe7dffe293dd6a71a68cad6",
+          "size": 2063
+        },
+        {
+          "path": "rules/name-funcs-snake.md",
+          "sha256": "6f88da65a474590629b487474f7d16669e2bc85f42deec234bbb4561bce53c25",
+          "size": 1981
+        },
+        {
+          "path": "rules/name-into-ownership.md",
+          "sha256": "fe5908c4ac4dd5a746c9433a168b850093a607d7b49e9d4fd1c18fa3732f757b",
+          "size": 2801
+        },
+        {
+          "path": "rules/name-is-has-bool.md",
+          "sha256": "b6c6809beea29b05c0e6a2dd40b386c624bfa1427b5383d0bced556356b528d7",
+          "size": 3240
+        },
+        {
+          "path": "rules/name-iter-convention.md",
+          "sha256": "c73310b518aaaf38384e8beaad5ed224eac3a88de2022bac771bbc66477aa324",
+          "size": 3368
+        },
+        {
+          "path": "rules/name-iter-method.md",
+          "sha256": "ba0d5411ef4f07de3fa1e17e88ce39a4c9585971b894c2d817a2d025b7aae603",
+          "size": 3376
+        },
+        {
+          "path": "rules/name-iter-type-match.md",
+          "sha256": "121958603d75c2c69e5aa74bd0fb729030e9832ee245007ee9667f0c9096072b",
+          "size": 3648
+        },
+        {
+          "path": "rules/name-lifetime-short.md",
+          "sha256": "6b41b7a418c68a79a8d013d4fdeb9a5141818f5d0d6231f163680f2bb0358423",
+          "size": 2360
+        },
+        {
+          "path": "rules/name-no-get-prefix.md",
+          "sha256": "161062d503bfc0a54defa2c4e7ec12e204c866166fddd09bef0724a63b8bd277",
+          "size": 3117
+        },
+        {
+          "path": "rules/name-to-expensive.md",
+          "sha256": "4f9fccabab1d14c4466c0430c2e6585db902696c4ada7c8e8dfc7b3241df3300",
+          "size": 2998
+        },
+        {
+          "path": "rules/name-type-param-single.md",
+          "sha256": "e1b5083bb60dc80ba2f1666ee303ddb57a6a160cddc1427a867362d727c0a341",
+          "size": 2347
+        },
+        {
+          "path": "rules/name-types-camel.md",
+          "sha256": "73321d6f5ed12a3ff23c5051e2faeb7e70ebf0446436c72d3f7862ec2f3b56ed",
+          "size": 1798
+        },
+        {
+          "path": "rules/name-variants-camel.md",
+          "sha256": "a113c2363310dafe26a45db0f0f4a3ff41cfb85ede8a99a19c8f51c6781778e8",
+          "size": 1814
+        },
+        {
+          "path": "rules/num-cast-try-from.md",
+          "sha256": "2cec97a24fbf09dba01cbc4cb5b7a904398439163bdbb1d407e536ebe9140195",
+          "size": 3154
+        },
+        {
+          "path": "rules/num-float-compare.md",
+          "sha256": "0af0ed600acab59edfe8ff7f7a49eb0091d06ce581e051550fe33f7e4d50468a",
+          "size": 3230
+        },
+        {
+          "path": "rules/num-nonzero.md",
+          "sha256": "66a09b6d3e59806e80c403aa76eb69c9a1f94614c0784756a6cabac68b30e1a9",
+          "size": 3444
+        },
+        {
+          "path": "rules/num-overflow-explicit.md",
+          "sha256": "e472eefad4531bbacd02622af4904f3f903ed9f21761563b218cb6d41ba00cde",
+          "size": 2759
+        },
+        {
+          "path": "rules/num-saturating-clamp.md",
+          "sha256": "13094dcb7e52a5136a459080f589799b20d75ebe9c5ca3a1137efc9a1a24e147",
+          "size": 3150
+        },
+        {
+          "path": "rules/obs-error-chain.md",
+          "sha256": "bf9431c478a78c013b1f900f7e462747fac32aa80bb115044ba244765eec8507",
+          "size": 3464
+        },
+        {
+          "path": "rules/obs-instrument-spans.md",
+          "sha256": "26192ab33b9afa7f62ba3ffb0b4c247e8b13749c94ef9746e61ca8b3409bfa12",
+          "size": 3301
+        },
+        {
+          "path": "rules/obs-levels-filter.md",
+          "sha256": "79ddf7b046683c10fa77034ea44c293c32fa3b7726b1f97383e0b84018df369d",
+          "size": 3441
+        },
+        {
+          "path": "rules/obs-library-facade.md",
+          "sha256": "e19123adc6b31ef2d332df48f2c61a91d72a0d60ae4de2a10928b5680ae53dcb",
+          "size": 2712
+        },
+        {
+          "path": "rules/obs-no-sensitive-data.md",
+          "sha256": "0c5159885993839cb43267926ede588efcbe0ec907468c5c240903f301ca689c",
+          "size": 3576
+        },
+        {
+          "path": "rules/obs-structured-fields.md",
+          "sha256": "98f91c169f11499e831358c27b241102f530df9a6dbd03a82b04c9fe43aa0b0f",
+          "size": 2740
+        },
+        {
+          "path": "rules/obs-tracing-over-log.md",
+          "sha256": "6fd7d2fd40f59d2f5f7a692450b16d70a0b07ce9bcbda9ca11e265bfc931df56",
+          "size": 2204
+        },
+        {
+          "path": "rules/opt-bounds-check.md",
+          "sha256": "1d104897ea1fc911c14828ef72547350610144c9fbf047715a80f9e285e72bd7",
+          "size": 4247
+        },
+        {
+          "path": "rules/opt-cache-friendly.md",
+          "sha256": "1751b422b51311c83492f6b2b089143923ad9ea8d7ba9c651f068a9b9d65f686",
+          "size": 4652
+        },
+        {
+          "path": "rules/opt-codegen-units.md",
+          "sha256": "6978c8c3d757efce2e2b7201fbc990dbcc51504f037b3093cbeb524aa45250e7",
+          "size": 3387
+        },
+        {
+          "path": "rules/opt-cold-unlikely.md",
+          "sha256": "59dd0ac875cb7fc34f4f6a642c726e504f9dfd7717c8b444d0a1c8d850dadd69",
+          "size": 3577
+        },
+        {
+          "path": "rules/opt-inline-always-rare.md",
+          "sha256": "c803bdf268d59bfc55dca1877c2a84913c752649b0e15ce139c6ce8a59c23d81",
+          "size": 3391
+        },
+        {
+          "path": "rules/opt-inline-never-cold.md",
+          "sha256": "ac8fc899f5153a7cd52b0455aded1a30cb98697142608ae37d3dd0561ec6bc8d",
+          "size": 4448
+        },
+        {
+          "path": "rules/opt-inline-small.md",
+          "sha256": "0eb6bcf8e09b7227ad6bf163b6ab401729ba91ef26b8a48380ec7275936d0df1",
+          "size": 3947
+        },
+        {
+          "path": "rules/opt-likely-hint.md",
+          "sha256": "8d2b906ffe918718ea55848f438d3f11b672f5c733a6f220e64ba80d20c5431f",
+          "size": 4297
+        },
+        {
+          "path": "rules/opt-lto-release.md",
+          "sha256": "3f8b28fd8e752f9dee874a5c6cc28b17a5a3fe1feba7f291f8606d43ec46c9b9",
+          "size": 3343
+        },
+        {
+          "path": "rules/opt-pgo-profile.md",
+          "sha256": "5272b2b55268462ed2072a63d202eb0d3b7858485be76d67676d15fc9ffe49f0",
+          "size": 4182
+        },
+        {
+          "path": "rules/opt-simd-portable.md",
+          "sha256": "31717432b5a9136e24d1adc4cfb4dd516306b404d411059f0f87bd57f40221d2",
+          "size": 4097
+        },
+        {
+          "path": "rules/opt-target-cpu.md",
+          "sha256": "437e6cc771ec258de5560c755f4cb4e567e145a8257fac40fbe1fc0c4c817cf2",
+          "size": 3878
+        },
+        {
+          "path": "rules/own-arc-shared.md",
+          "sha256": "62bfe5de6a545bd572042b2199599d37cca472d7a20192ecc00ee7148930ca2a",
+          "size": 3480
+        },
+        {
+          "path": "rules/own-borrow-over-clone.md",
+          "sha256": "495bbffcdbdd58230585d802b43b28808058e7e9e24a1602427250822a84253b",
+          "size": 2445
+        },
+        {
+          "path": "rules/own-clone-explicit.md",
+          "sha256": "d6c9b7da0eba4e167694fc410e76d93d344bc6ec586469920e09fcc2a0b3b5a4",
+          "size": 3447
+        },
+        {
+          "path": "rules/own-copy-small.md",
+          "sha256": "30b6c640b9f9ab49e2604046392070d255476fe5afd7606e800654873c7cfbdf",
+          "size": 3033
+        },
+        {
+          "path": "rules/own-cow-conditional.md",
+          "sha256": "9f7961785309d5f73a98ebf73e7f9b0ca3977b44aa7d50133b9af65d432e707b",
+          "size": 3631
+        },
+        {
+          "path": "rules/own-lifetime-elision.md",
+          "sha256": "65d60b8beef3fbff885028b0d235d0b94bee2f84b5bbbff45db30e100771a65c",
+          "size": 3215
+        },
+        {
+          "path": "rules/own-move-large.md",
+          "sha256": "e1688804ddd6dd56dfae625dd110c6a3f94e8c152a06fbca348af0008f93f866",
+          "size": 3466
+        },
+        {
+          "path": "rules/own-mutex-interior.md",
+          "sha256": "d071f58d4e763740eeaba48f5f7821522170b5791698abfba22c3c6b8cc5da21",
+          "size": 2829
+        },
+        {
+          "path": "rules/own-rc-single-thread.md",
+          "sha256": "ccfb12f6547c1d42092df685b3d441b128898b355b827c9b12e63eb40c13f91e",
+          "size": 3412
+        },
+        {
+          "path": "rules/own-refcell-interior.md",
+          "sha256": "85993378fbd8cefbe53d75b32eda36295f6ccfce388b141597e1735afb150269",
+          "size": 3013
+        },
+        {
+          "path": "rules/own-rwlock-readers.md",
+          "sha256": "04bb52563a0a472d03f211493ec4e0a80b74b13485bb538d119bd03ebb90d920",
+          "size": 3242
+        },
+        {
+          "path": "rules/own-slice-over-vec.md",
+          "sha256": "2602c6d319a2dd4926950cd11c4c980fa9ce3766f58d0a1ed2720c88cfbb019a",
+          "size": 2724
+        },
+        {
+          "path": "rules/pat-at-bindings.md",
+          "sha256": "562ec8fa2c151524cf53a21aed57f400506a888a37d4da7aae595c39d5ba3ecf",
+          "size": 2972
+        },
+        {
+          "path": "rules/pat-exhaustive-enum.md",
+          "sha256": "42184c0f7140afdaf9d5377d0f64d027cb1fa5fa2ec30c9f320114168013e34d",
+          "size": 2737
+        },
+        {
+          "path": "rules/pat-if-let-chains.md",
+          "sha256": "3ce1ed93221bbf0d74311120a0dc2b754ecc6e9573670dfedcd6e323bfef346c",
+          "size": 2210
+        },
+        {
+          "path": "rules/pat-let-else.md",
+          "sha256": "da56508174af078b040e6e713943a9fb184d388b1d55e0bf43514a9a92287002",
+          "size": 2065
+        },
+        {
+          "path": "rules/pat-matches-macro.md",
+          "sha256": "33f9535fee4966692998d83e52450b81832ddcef30eda5b317cc763fb52e34f6",
+          "size": 2697
+        },
+        {
+          "path": "rules/perf-ahash.md",
+          "sha256": "62c03be18979a894006baa4d8f5705a411c5e53abda2f78fff0455fc2a8e665e",
+          "size": 3327
+        },
+        {
+          "path": "rules/perf-black-box-bench.md",
+          "sha256": "1d605b2ab9bfa2a6a4d8dcc10941cf88c2e065b46d7b6139a71683e54f9d9090",
+          "size": 3772
+        },
+        {
+          "path": "rules/perf-chain-avoid.md",
+          "sha256": "c83e1ef0e198ddaee171f1ebd281284ffcc0233f6024f84702a965a05e0dd6a9",
+          "size": 3190
+        },
+        {
+          "path": "rules/perf-collect-into.md",
+          "sha256": "3fe3419b1cdb577125f0605917a0bf6b67471dcc68a694c258e70b2587a91def",
+          "size": 3533
+        },
+        {
+          "path": "rules/perf-collect-once.md",
+          "sha256": "82fee7d56af575e982276a9b30f0aae6d8deb8ddb2d48478747eb07bc086e2ad",
+          "size": 2783
+        },
+        {
+          "path": "rules/perf-drain-reuse.md",
+          "sha256": "9eafa0e5a8f39c0150bc8c063f8a600aa6f7fee55e6f8601cfc4d7702690216e",
+          "size": 3518
+        },
+        {
+          "path": "rules/perf-entry-api.md",
+          "sha256": "327790871f3a46571549e9967aeaeb51525fb8632f258a5f80dbbd9d910d324c",
+          "size": 3516
+        },
+        {
+          "path": "rules/perf-extend-batch.md",
+          "sha256": "cb1ee0834562f18f638c1d57c2081f5506850f894ad221c17f5735316f585b27",
+          "size": 3488
+        },
+        {
+          "path": "rules/perf-io-buffering.md",
+          "sha256": "e79c82449d5b0805b882a6c3b90def0dbec831c081077458897582ff76cbc8aa",
+          "size": 3861
+        },
+        {
+          "path": "rules/perf-iter-lazy.md",
+          "sha256": "2c26bdc7dcb28b2d320719f1e35737e565de5830927a1b6a318e60ee88b050f9",
+          "size": 3045
+        },
+        {
+          "path": "rules/perf-iter-over-index.md",
+          "sha256": "3c199c371b338812298813075710a04be75bc705ac76013316e7429f84c73e2f",
+          "size": 2748
+        },
+        {
+          "path": "rules/perf-profile-first.md",
+          "sha256": "19c1e3658dbd4346b298c9ec6d06adb1f5dc4d3f3e607055351711b17ad9d5d4",
+          "size": 4046
+        },
+        {
+          "path": "rules/perf-release-profile.md",
+          "sha256": "2092294d1d844a3cba3f37ab81b49016c2daf932b4f1b6175b5f94329c9d3960",
+          "size": 3347
+        },
+        {
+          "path": "rules/proj-bin-dir.md",
+          "sha256": "d3ec76960da1ee68963b49fecbeb81dac0d0d904fa3d688474b0e35950eb493d",
+          "size": 2965
+        },
+        {
+          "path": "rules/proj-build-rs-minimal.md",
+          "sha256": "0cd0a49c2cb2e4e1589978219d70b1a1a7b4bc4feb1f8903eb5282df90bae384",
+          "size": 3141
+        },
+        {
+          "path": "rules/proj-feature-additive.md",
+          "sha256": "e6f90553463f23206b89156ea780f7ab81b8b5f9d64427d618396db47b73ab86",
+          "size": 2260
+        },
+        {
+          "path": "rules/proj-flat-small.md",
+          "sha256": "4a0335ef126fa30d6ad96f5e3c591a6130fbdbb6300e5914a6bc85c1d43229ee",
+          "size": 2760
+        },
+        {
+          "path": "rules/proj-lib-main-split.md",
+          "sha256": "839dd04878f9190d209332efde1a751a0f4d255595e82703ae7f8551e002a541",
+          "size": 3244
+        },
+        {
+          "path": "rules/proj-mod-by-feature.md",
+          "sha256": "fc8180f6fa7867c15a41137d5e36d0c48d9dfdc3b403e17a2d58ded814db63f3",
+          "size": 3333
+        },
+        {
+          "path": "rules/proj-mod-rs-dir.md",
+          "sha256": "1714485aeb998ee22d2f19d9f612fbb89524ccf963ad3b584f298725423e335e",
+          "size": 2776
+        },
+        {
+          "path": "rules/proj-msrv-declare.md",
+          "sha256": "6a1cfb6620570248e132d6dc792c839c16a672d6ff427825582720c94331accb",
+          "size": 2125
+        },
+        {
+          "path": "rules/proj-prelude-module.md",
+          "sha256": "33f82f80234eec337be0f126da6433177bd7392009e908c06a7d5c84259f0654",
+          "size": 3308
+        },
+        {
+          "path": "rules/proj-pub-crate-internal.md",
+          "sha256": "8e3f147828685dda0956b8860419a3dbc5235e36ba4f7677a0483e8bb8911787",
+          "size": 3214
+        },
+        {
+          "path": "rules/proj-pub-super-parent.md",
+          "sha256": "dc87e711a4988d16e705999a5dcad718af982d8acde2ea0db449d5122669fb6c",
+          "size": 2924
+        },
+        {
+          "path": "rules/proj-pub-use-reexport.md",
+          "sha256": "64f7d524b4fd31079cd156151ea1d09a97af4d24bd9e302792d0072522d9cc24",
+          "size": 3062
+        },
+        {
+          "path": "rules/proj-workspace-deps.md",
+          "sha256": "708e66dd25799f6b82520c327916d5cb9e4067a481256374a87262905a99fedb",
+          "size": 3824
+        },
+        {
+          "path": "rules/proj-workspace-large.md",
+          "sha256": "eba7f6546fea1ae4d617cf331775e54b21529360377367a225d12e25a4214716",
+          "size": 3391
+        },
+        {
+          "path": "rules/serde-custom-with.md",
+          "sha256": "332c49af356fb5c0d4a50c00658c66ae6218dd3a710a7eef975a20e7f84b5c33",
+          "size": 3029
+        },
+        {
+          "path": "rules/serde-default-compat.md",
+          "sha256": "463a0533f6afbefc8b0ce78ad19986c7f4071b9262094e675ce7576f5d705b8b",
+          "size": 2829
+        },
+        {
+          "path": "rules/serde-deny-unknown-fields.md",
+          "sha256": "b127f0548708d21e1f4eceaf4bc33410b169167e1ceadcc85dadb3c276bc7fc3",
+          "size": 2720
+        },
+        {
+          "path": "rules/serde-enum-representation.md",
+          "sha256": "d5cd9860b8da7ba5653e231fd356a3e149a872b80839ea183a2d28f5a9359d7e",
+          "size": 3265
+        },
+        {
+          "path": "rules/serde-flatten.md",
+          "sha256": "0d8a09e5afad99e18487f7ea4254c3293618f2b1ab2e21114fdc0b9906b2aa11",
+          "size": 3035
+        },
+        {
+          "path": "rules/serde-rename-all.md",
+          "sha256": "d01831a463257716360783347589f6d8e9ca03e37d65b476e35cc9a00af80017",
+          "size": 2186
+        },
+        {
+          "path": "rules/serde-skip-empty.md",
+          "sha256": "d02963950e9293dc038ea7a69a9074d0f1b10376ee814e395bd9c174c5f960f7",
+          "size": 2821
+        },
+        {
+          "path": "rules/serde-try-from-validate.md",
+          "sha256": "148c1ae58b75e955dc7d3d49160d8367299d3831622fe34d0f7438c94cb09a61",
+          "size": 4027
+        },
+        {
+          "path": "rules/test-arrange-act-assert.md",
+          "sha256": "4daca01e870bca5ec7b36e57fc6f0e06ef61800ca034e131a801e50848ac531f",
+          "size": 3710
+        },
+        {
+          "path": "rules/test-cfg-test-module.md",
+          "sha256": "2084ab59f12fb797cbede297ad09e953585d7abd7500d2ce420520da78be8cf3",
+          "size": 2972
+        },
+        {
+          "path": "rules/test-criterion-bench.md",
+          "sha256": "f3c06a4d90266a9d689732d836d157aa670fdad8bea5e2df1c530ac39d2ee459",
+          "size": 3730
+        },
+        {
+          "path": "rules/test-descriptive-names.md",
+          "sha256": "4ff666c26eb922f24510c69276395ba5c7f8a65664889eee1e0498b1fb32513b",
+          "size": 2698
+        },
+        {
+          "path": "rules/test-doctest-examples.md",
+          "sha256": "da10cb635ca404442050a05a52b66d253ba74e122308691209793ec0fc0c3fe0",
+          "size": 3245
+        },
+        {
+          "path": "rules/test-fixture-raii.md",
+          "sha256": "31bb3387870ab5dd1c8bf727bef82057722051b50e8550d509d3e82540c36c89",
+          "size": 3638
+        },
+        {
+          "path": "rules/test-integration-dir.md",
+          "sha256": "66f2c347ee954ed2b4895165fece70d12dcd8cba43accbe691d4f55552b704e9",
+          "size": 3056
+        },
+        {
+          "path": "rules/test-loom-concurrency.md",
+          "sha256": "3b0c6184d623b767c152728170f07742999dac5cae8b1030a64bdafb2df9d842",
+          "size": 3409
+        },
+        {
+          "path": "rules/test-mock-traits.md",
+          "sha256": "8048818116513292350d5839e5d0e937b8391558956c5c1afa2d511e9b51b2b6",
+          "size": 4582
+        },
+        {
+          "path": "rules/test-mockall-mocking.md",
+          "sha256": "2e35181ef1ad9df518453d0bac75c969006d110005e99a34a2c99b6c0f7b2617",
+          "size": 4584
+        },
+        {
+          "path": "rules/test-proptest-properties.md",
+          "sha256": "5ce67a89328f52a06b792b889482e68ecb68f7c61e34c5023c8438cb85950531",
+          "size": 3514
+        },
+        {
+          "path": "rules/test-should-panic.md",
+          "sha256": "e8fe40303c56fa7bada350c562a3a7b34a5e30d2ee03ac84b1d3bdfb9bd4b6ed",
+          "size": 2894
+        },
+        {
+          "path": "rules/test-snapshot-testing.md",
+          "sha256": "f63a289fbadc531754620571e4a8aa31aef6d514d5dfe4764fd0a9e0704b86cb",
+          "size": 3169
+        },
+        {
+          "path": "rules/test-tokio-async.md",
+          "sha256": "e861ad78c2a8cedae3bb05866993b5a4c38d807dd1010b3303f367f97c8058fe",
+          "size": 3430
+        },
+        {
+          "path": "rules/test-use-super.md",
+          "sha256": "f4b898b762887c3d7682f5bc9b11b898c9de38d6a50fdc97ccc9559c8e9643c9",
+          "size": 2653
+        },
+        {
+          "path": "rules/trait-associated-type-vs-generic.md",
+          "sha256": "d7b6f4d8374908db94e5293f7782aee279c85b507f6d50061ed2b1e15a0de082",
+          "size": 4017
+        },
+        {
+          "path": "rules/trait-blanket-impl.md",
+          "sha256": "f7ca3c2d845949872141f16567ba821b3ec63e50443012e60b0b51cb292d479c",
+          "size": 3353
+        },
+        {
+          "path": "rules/trait-coherence-newtype.md",
+          "sha256": "2b83200c3bf2ffee547ac8633322096eef159e9046f70459055b6284e6339cac",
+          "size": 3622
+        },
+        {
+          "path": "rules/trait-default-methods.md",
+          "sha256": "49b37f36353fde6fe1ed07f203cce0ea7398bef9cf9b575951b9b2ca38deb578",
+          "size": 4217
+        },
+        {
+          "path": "rules/trait-dyn-vs-generic.md",
+          "sha256": "eebcf9ff7f642734a151d59491b2c1db30899567ddecbe2d45240923baf4eec8",
+          "size": 3546
+        },
+        {
+          "path": "rules/trait-object-safety.md",
+          "sha256": "f5b6f7a18f8fd23c85593659c59ee365ca98db7b21caf89f19d2fdee049a13d4",
+          "size": 3738
+        },
+        {
+          "path": "rules/type-deref-coercion.md",
+          "sha256": "deff96ce81f5db9e39e9f05975902af2ff801797766aac04d55f667beb8107d9",
+          "size": 2586
+        },
+        {
+          "path": "rules/type-display-vs-debug.md",
+          "sha256": "09a1ae18299dae852b5218181b2e722e63bcfa2c2ac9a1386ee3064097a39781",
+          "size": 2782
+        },
+        {
+          "path": "rules/type-enum-states.md",
+          "sha256": "5f93957ca56e0a03050e7852ef9df857cefe3d9c8a7b41ce489852d9d4463bcb",
+          "size": 4106
+        },
+        {
+          "path": "rules/type-generic-bounds.md",
+          "sha256": "c196af7099dfdb7499000d761e214c29b50bc0a93fdae9ea119b8f7c5a741e61",
+          "size": 3468
+        },
+        {
+          "path": "rules/type-never-diverge.md",
+          "sha256": "5bd9a078025c64642538a77cae49f184b20998f30720e3ba7dfaa03e0dad98c6",
+          "size": 3233
+        },
+        {
+          "path": "rules/type-newtype-ids.md",
+          "sha256": "d3b64fa3536caaf7d77dc22a88b40bbe6ddae1c296c6d3abfe0b370cb26e9f82",
+          "size": 3659
+        },
+        {
+          "path": "rules/type-newtype-validated.md",
+          "sha256": "41e458dd0adcab22fb32be189fe4e90ae9a07e344c8f4ef49dda97ee88f4133f",
+          "size": 3718
+        },
+        {
+          "path": "rules/type-no-stringly.md",
+          "sha256": "23a8dc86e5778c1d5c96b4eea1c98ec432387a62f708cc014d3fcdeedf024061",
+          "size": 3258
+        },
+        {
+          "path": "rules/type-numeric-fmt.md",
+          "sha256": "f4ba074a4904f14ca434aa297eb82a0ae6b4409418d5afb6134e80d852b4a32e",
+          "size": 2733
+        },
+        {
+          "path": "rules/type-option-nullable.md",
+          "sha256": "fef313793530de5b3bd2539f5e42bdca997f8c0784dfc275944e09f99b68e3b0",
+          "size": 3235
+        },
+        {
+          "path": "rules/type-phantom-marker.md",
+          "sha256": "4016cfcd272db697a578c3ba133a452ddc414f29982cc329f764bbe624a029d5",
+          "size": 3824
+        },
+        {
+          "path": "rules/type-repr-transparent.md",
+          "sha256": "8e601b0963b5c32201dec7e01e652835d7e5427f71f4e7e94956d7a54db13d27",
+          "size": 3225
+        },
+        {
+          "path": "rules/type-result-fallible.md",
+          "sha256": "079b48f3c5d6cb141443169968528395bcf81ef880c2abdb2eb61ba5a974faee",
+          "size": 3423
+        },
+        {
+          "path": "rules/unsafe-extern-block.md",
+          "sha256": "bc876c2a529ef454218aec7f2c78a9dc2d430b5db79119d712ff921daa20aba3",
+          "size": 3383
+        },
+        {
+          "path": "rules/unsafe-maybeuninit.md",
+          "sha256": "d5fbbb609229c22546e4795fe663b94aeb11b95d696362e98b005858966ff03a",
+          "size": 3725
+        },
+        {
+          "path": "rules/unsafe-minimize-scope.md",
+          "sha256": "19d39cc40dbf83bbe2c53073cdcbf1e9406b13b1d24e452c9ba1a1a91ba307b6",
+          "size": 3539
+        },
+        {
+          "path": "rules/unsafe-miri-ci.md",
+          "sha256": "7ded95c281d210623c7ec9046479423e2abd100651b3fface5bb47a83bec2728",
+          "size": 2934
+        },
+        {
+          "path": "rules/unsafe-no-mangle-unsafe.md",
+          "sha256": "429ffbd81bcf9f749614472a06c9ea2c14f3d242294318797ba5e30d7d559cd7",
+          "size": 2865
+        },
+        {
+          "path": "rules/unsafe-safety-comment.md",
+          "sha256": "4892500c59f446eb8031fcf2cc98bf64f3323276abee0355409f4af53cbdcaab",
+          "size": 2963
+        },
+        {
+          "path": "rules/unsafe-send-sync-manual.md",
+          "sha256": "106ca8ba1843ec8dfe9658c5db41fd99d106bcf2b8b4ece41e8db1dd347372f2",
+          "size": 4313
         }
       ]
     },
@@ -2234,6 +4729,377 @@
       ]
     },
     {
+      "name": "swift-concurrency-pro",
+      "source": "https://github.com/twostraws/Swift-Concurrency-Agent-Skill",
+      "sha256": "fdc32fbb247508d1405fcf38a19d1142b971c425b007e3024133c083b05327ed",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "2f3669516dfa9bcdb47b49abdcc1f9ba2d90fbdab576cefadb288439c707a56b",
+          "size": 417
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "95d3098b038a38f163259cb7404070f786fed846a5e8b864e6b34fa7600247f9",
+          "size": 5493
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "c9aeb1a570575ef05eecfabf4657236591081f7c13cb832d6029981f7d72e0dc",
+          "size": 380
+        },
+        {
+          "path": "assets/swift-concurrency-pro-icon.png",
+          "sha256": "f1552e2844ae6382bd2575f40c48e0f199db2b42574aa1bdcb87ec92ddc901a1",
+          "size": 2790
+        },
+        {
+          "path": "assets/swift-concurrency-pro-icon.svg",
+          "sha256": "da92910ec6329966729d6e9bcd27bb2be8c079d95b779c1081641dd9b64a344a",
+          "size": 1515
+        },
+        {
+          "path": "references/actors.md",
+          "sha256": "7a77a0f06d0040a6813ec02cd4b1360df4bcfa501f93710bfb4296de9911d64f",
+          "size": 5505
+        },
+        {
+          "path": "references/async-streams.md",
+          "sha256": "589ba0dad544b28b158702e239fe6a4077b6d1484c83b8fd51290192bf1ffc9a",
+          "size": 2107
+        },
+        {
+          "path": "references/bridging.md",
+          "sha256": "c8eb60dcdd90f67cb3b8b1213fc55a56dd5c4a04f465d7aff7fdbd5c451e0498",
+          "size": 3009
+        },
+        {
+          "path": "references/bug-patterns.md",
+          "sha256": "2233f58e784a9b6cf13620133485fcf7e3150192a40e713369ebbddc820dec85",
+          "size": 4182
+        },
+        {
+          "path": "references/cancellation.md",
+          "sha256": "c83b4134b44ea5a0ee06e785bd0cb85616234469833f9677297b6fcddea1e1fa",
+          "size": 3661
+        },
+        {
+          "path": "references/diagnostics.md",
+          "sha256": "cc2debc6f430ed13fc3be3a7ce942e55bb1cf02a9804ebfb272f295b502c9569",
+          "size": 4501
+        },
+        {
+          "path": "references/hotspots.md",
+          "sha256": "199a9fa4beea4a550b3f63e07cddd441d72fd41d1e17e6f3255071a661ce1e6d",
+          "size": 2333
+        },
+        {
+          "path": "references/interop.md",
+          "sha256": "b86cd716bd22b38d718e86b37b3d7dd1225b5ce93a53f88842ff6993e93ca566",
+          "size": 3728
+        },
+        {
+          "path": "references/new-features.md",
+          "sha256": "c721a187b57e9d94112972c9685c57f7129187df2d36add4df1a9c9e9aa9e541",
+          "size": 7889
+        },
+        {
+          "path": "references/structured.md",
+          "sha256": "1655b610fd1dafb7cf42b61457ff8229117c06879d0e9cc40460f437ba97895b",
+          "size": 3058
+        },
+        {
+          "path": "references/testing.md",
+          "sha256": "4a1fc1aefb572bbdbd75a502a74df795af7e2212eec6836a4f353f9b725abffc",
+          "size": 8315
+        },
+        {
+          "path": "references/unstructured.md",
+          "sha256": "d8063edf18bbe5abc9c628548b0100c4dd8defe3340c017d6fa4936eca17c456",
+          "size": 2473
+        },
+        {
+          "path": "skills/swift-concurrency-pro/SKILL.md",
+          "sha256": "809362b3e932b3bbf9b3f2f79953bae617573e3e24ea135576bbc1b020d89ce0",
+          "size": 6003
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/actors.md",
+          "sha256": "7a77a0f06d0040a6813ec02cd4b1360df4bcfa501f93710bfb4296de9911d64f",
+          "size": 5505
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/async-streams.md",
+          "sha256": "589ba0dad544b28b158702e239fe6a4077b6d1484c83b8fd51290192bf1ffc9a",
+          "size": 2107
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/bridging.md",
+          "sha256": "c8eb60dcdd90f67cb3b8b1213fc55a56dd5c4a04f465d7aff7fdbd5c451e0498",
+          "size": 3009
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/bug-patterns.md",
+          "sha256": "2233f58e784a9b6cf13620133485fcf7e3150192a40e713369ebbddc820dec85",
+          "size": 4182
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/cancellation.md",
+          "sha256": "c83b4134b44ea5a0ee06e785bd0cb85616234469833f9677297b6fcddea1e1fa",
+          "size": 3661
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/diagnostics.md",
+          "sha256": "cc2debc6f430ed13fc3be3a7ce942e55bb1cf02a9804ebfb272f295b502c9569",
+          "size": 4501
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/hotspots.md",
+          "sha256": "199a9fa4beea4a550b3f63e07cddd441d72fd41d1e17e6f3255071a661ce1e6d",
+          "size": 2333
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/interop.md",
+          "sha256": "b86cd716bd22b38d718e86b37b3d7dd1225b5ce93a53f88842ff6993e93ca566",
+          "size": 3728
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/new-features.md",
+          "sha256": "c721a187b57e9d94112972c9685c57f7129187df2d36add4df1a9c9e9aa9e541",
+          "size": 7889
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/structured.md",
+          "sha256": "1655b610fd1dafb7cf42b61457ff8229117c06879d0e9cc40460f437ba97895b",
+          "size": 3058
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/testing.md",
+          "sha256": "4a1fc1aefb572bbdbd75a502a74df795af7e2212eec6836a4f353f9b725abffc",
+          "size": 8315
+        },
+        {
+          "path": "skills/swift-concurrency-pro/references/unstructured.md",
+          "sha256": "d8063edf18bbe5abc9c628548b0100c4dd8defe3340c017d6fa4936eca17c456",
+          "size": 2473
+        }
+      ]
+    },
+    {
+      "name": "swift-testing-pro",
+      "source": "https://github.com/twostraws/Swift-Testing-Agent-Skill",
+      "sha256": "7b5f0ec4baf6aec3465a5591ae18ceb69c11da5bf73966a83a7fd4592763e2ef",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "ce277427d557d776102a6768d85432fbfdc4a6930ee20ddef0a9418fe9351f84",
+          "size": 393
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "ad4f1bff44b5b7fce20b282481e651876efce024d13b16cb969bc433036ac059",
+          "size": 4302
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "f7a35b0befd4eb136cf87047543379a63efebb4f0f7eb4490489325d09383c4f",
+          "size": 360
+        },
+        {
+          "path": "assets/swift-testing-pro-icon.png",
+          "sha256": "13cbe2849191cc3fda400fc065d5fe6afa5b78f09e347d783bfa2b6d852a2b66",
+          "size": 3094
+        },
+        {
+          "path": "assets/swift-testing-pro-icon.svg",
+          "sha256": "92d3d0b2855da2404beaacd3ea574b79a26535c9d99a0739edfd5e35d764a9e0",
+          "size": 1515
+        },
+        {
+          "path": "references/async-tests.md",
+          "sha256": "bc6e0eabd10377b5796e9e554a4965a78b7d1aaba8f11021c2a63b6e8a9e669a",
+          "size": 8535
+        },
+        {
+          "path": "references/core-rules.md",
+          "sha256": "2271efdca6c2b7b3365501172147884b6e786bcee7bef680fb4f4718929d6180",
+          "size": 4032
+        },
+        {
+          "path": "references/migrating-from-xctest.md",
+          "sha256": "35b64812402ad1d15b496993e1721daaf4e80672bf9cce47078f772fd271f93f",
+          "size": 2072
+        },
+        {
+          "path": "references/new-features.md",
+          "sha256": "988df5cb556893c789f9aecdc4c8773fdbbda787ab1dad766bf1182a7b9a4819",
+          "size": 10202
+        },
+        {
+          "path": "references/writing-better-tests.md",
+          "sha256": "25da3455f6cec4f10d3dff0bf3e8e1372568c75691916541b4d517f451cb8bf1",
+          "size": 11008
+        },
+        {
+          "path": "skills/swift-testing-pro/SKILL.md",
+          "sha256": "36e6c3d59bbec2f8b4ce95644df8519f2c66dcbff55138964be4ad9d60c07781",
+          "size": 4532
+        },
+        {
+          "path": "skills/swift-testing-pro/references/async-tests.md",
+          "sha256": "bc6e0eabd10377b5796e9e554a4965a78b7d1aaba8f11021c2a63b6e8a9e669a",
+          "size": 8535
+        },
+        {
+          "path": "skills/swift-testing-pro/references/core-rules.md",
+          "sha256": "2271efdca6c2b7b3365501172147884b6e786bcee7bef680fb4f4718929d6180",
+          "size": 4032
+        },
+        {
+          "path": "skills/swift-testing-pro/references/migrating-from-xctest.md",
+          "sha256": "35b64812402ad1d15b496993e1721daaf4e80672bf9cce47078f772fd271f93f",
+          "size": 2072
+        },
+        {
+          "path": "skills/swift-testing-pro/references/new-features.md",
+          "sha256": "988df5cb556893c789f9aecdc4c8773fdbbda787ab1dad766bf1182a7b9a4819",
+          "size": 10202
+        },
+        {
+          "path": "skills/swift-testing-pro/references/writing-better-tests.md",
+          "sha256": "25da3455f6cec4f10d3dff0bf3e8e1372568c75691916541b4d517f451cb8bf1",
+          "size": 11008
+        }
+      ]
+    },
+    {
+      "name": "swiftui-pro",
+      "source": "https://github.com/twostraws/SwiftUI-Agent-Skill",
+      "sha256": "e589014e6afa2a5b465f16826678b3904a1fe0bcae568157b93270635b3abc10",
+      "files": [
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "65bec2a4bc9d5519a4c7474c29ee491d71b84d3ce46d8786580a9510f757de33",
+          "size": 378
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "8b58a171afc1dcf9c42d85414af2dc506c8c92bf2c77527adb4d52b884f4d715",
+          "size": 4145
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "429c39b71692d4dc86e2b616f28b7e7f56207361c5b5a0b06df4746af96d5fa3",
+          "size": 330
+        },
+        {
+          "path": "assets/swiftui-pro-icon.png",
+          "sha256": "51a28a5834e6d251def3c562712db1e2124e6d67b62be89fe4c1ca628e37a70a",
+          "size": 3117
+        },
+        {
+          "path": "assets/swiftui-pro-icon.svg",
+          "sha256": "a15c0a3030f08ffcc442aed9b7f2f19840877e43f980ad4dfdef515e9aeb44b3",
+          "size": 1533
+        },
+        {
+          "path": "references/accessibility.md",
+          "sha256": "708d09a35c950fd4c118bbb3cfcab13bb146e7d02084615307bbabc19e00a0e3",
+          "size": 2377
+        },
+        {
+          "path": "references/api.md",
+          "sha256": "12fa73d65a19c9d08224f925801db8eec914b1cedf5b2f86a38cdda04a66377a",
+          "size": 3090
+        },
+        {
+          "path": "references/data.md",
+          "sha256": "5cc50484c525f748839e12174c065f7ea5fdd4380ce04b6885a906ecd6e6a318",
+          "size": 2987
+        },
+        {
+          "path": "references/design.md",
+          "sha256": "03e35d46865cc6807255f3c8481cdbac7b3b0f61924185af84c1913d6c983c69",
+          "size": 2683
+        },
+        {
+          "path": "references/hygiene.md",
+          "sha256": "91d96f45f3ffa02f5553c288415f3c3d5f317cab7d8d9c6c60240ea6c44a2b01",
+          "size": 1082
+        },
+        {
+          "path": "references/navigation.md",
+          "sha256": "a3adb302455993aff85bbb6b5845ed2fcffa137c8b2ded99c937f3e4b7fcd77b",
+          "size": 1300
+        },
+        {
+          "path": "references/performance.md",
+          "sha256": "1b503e3807e216d6b34b45f18bfba89214cea2fa1b88dd7ae8f482ebf0f03616",
+          "size": 2781
+        },
+        {
+          "path": "references/swift.md",
+          "sha256": "8c31c5f5f99b3fa9586f0260cd1a4b1688dc7bda5e8de2891eb3f9d6a791125a",
+          "size": 4138
+        },
+        {
+          "path": "references/views.md",
+          "sha256": "79a166f6507e86744c0f73cfb583100f61a5da37e313ef4586b3b31136a73627",
+          "size": 3240
+        },
+        {
+          "path": "skills/swiftui-pro/SKILL.md",
+          "sha256": "b8a892d4819494ef79f1db68ffee7a940f20304589ce38032c853dadff168199",
+          "size": 4531
+        },
+        {
+          "path": "skills/swiftui-pro/references/accessibility.md",
+          "sha256": "708d09a35c950fd4c118bbb3cfcab13bb146e7d02084615307bbabc19e00a0e3",
+          "size": 2377
+        },
+        {
+          "path": "skills/swiftui-pro/references/api.md",
+          "sha256": "12fa73d65a19c9d08224f925801db8eec914b1cedf5b2f86a38cdda04a66377a",
+          "size": 3090
+        },
+        {
+          "path": "skills/swiftui-pro/references/data.md",
+          "sha256": "5cc50484c525f748839e12174c065f7ea5fdd4380ce04b6885a906ecd6e6a318",
+          "size": 2987
+        },
+        {
+          "path": "skills/swiftui-pro/references/design.md",
+          "sha256": "03e35d46865cc6807255f3c8481cdbac7b3b0f61924185af84c1913d6c983c69",
+          "size": 2683
+        },
+        {
+          "path": "skills/swiftui-pro/references/hygiene.md",
+          "sha256": "91d96f45f3ffa02f5553c288415f3c3d5f317cab7d8d9c6c60240ea6c44a2b01",
+          "size": 1082
+        },
+        {
+          "path": "skills/swiftui-pro/references/navigation.md",
+          "sha256": "a3adb302455993aff85bbb6b5845ed2fcffa137c8b2ded99c937f3e4b7fcd77b",
+          "size": 1300
+        },
+        {
+          "path": "skills/swiftui-pro/references/performance.md",
+          "sha256": "1b503e3807e216d6b34b45f18bfba89214cea2fa1b88dd7ae8f482ebf0f03616",
+          "size": 2781
+        },
+        {
+          "path": "skills/swiftui-pro/references/swift.md",
+          "sha256": "8c31c5f5f99b3fa9586f0260cd1a4b1688dc7bda5e8de2891eb3f9d6a791125a",
+          "size": 4138
+        },
+        {
+          "path": "skills/swiftui-pro/references/views.md",
+          "sha256": "79a166f6507e86744c0f73cfb583100f61a5da37e313ef4586b3b31136a73627",
+          "size": 3240
+        }
+      ]
+    },
+    {
       "name": "systematic-debugging",
       "source": "https://github.com/obra/superpowers",
       "sha256": "b405a1cf9f35d855dbc5fbe324a84efd339ed0342c018d5ecaebc0b11b287f87",
@@ -2263,6 +5129,539 @@
       ]
     },
     {
+      "name": "testing-setup",
+      "source": "https://github.com/android/skills",
+      "sha256": "24cec34b495667af0dff39b652e989b2010e75c4e0c0139ea16f7e6d9d10f1e8",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "acc74408bd4775f32b47dd8b01a85234dbf5741dadba01dd364c55c3389edfa7",
+          "size": 9159
+        },
+        {
+          "path": "references/android/develop/ui/compose/testing/common-patterns.md",
+          "sha256": "e6d91f067217ea6598e559fab757a8ade09b891fd11d1e95b6eeeaaf876257ae",
+          "size": 10788
+        },
+        {
+          "path": "references/android/studio/preview/compose-screenshot-testing.md",
+          "sha256": "e4fb77a61be457ecd39a2edc90dd78f3dbbdc9e4d05d7790fb7b5cf51c7fbefd",
+          "size": 11622
+        },
+        {
+          "path": "references/android/training/dependency-injection/hilt-testing.md",
+          "sha256": "0978c43a3599f2032b668f34f14c96a93c563cc7f31eceea57e0b4e44c11244e",
+          "size": 14862
+        }
+      ]
+    },
+    {
+      "name": "upgrading-react-native",
+      "source": "https://github.com/callstackincubator/agent-skills",
+      "sha256": "3c047b31a18c7ca34681bcb463aa57ca18dc64caf4bcc2f80e9d021295c20d18",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "5d81737d25e48a320ec56b12bca4be3fa99166ddd3186374ec31ca31d8417930",
+          "size": 4210
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "e939f5552cd297e567fd2d7327cecc747c0f07524e4ff902ae3178a467f409aa",
+          "size": 248
+        },
+        {
+          "path": "references/expo-sdk-upgrade.md",
+          "sha256": "7e3e9ba33ab2f906e282815a4e4fb4338b5f1b1d56090929f37ab9c4f107665d",
+          "size": 2579
+        },
+        {
+          "path": "references/monorepo-singlerepo-targeting.md",
+          "sha256": "8c9e1d6f2204316da6b72bf52b846f649eb41ece2da297233c5257611f636ddd",
+          "size": 1074
+        },
+        {
+          "path": "references/react.md",
+          "sha256": "b69b8f74bd1cb6bd87bbb77873c65d417f754209c37561bc7009d8aad7e044f3",
+          "size": 1582
+        },
+        {
+          "path": "references/upgrade-helper-core.md",
+          "sha256": "21f637047d96bd91a5d6ec184351abf29cd16ccd2978af7aa0efcd6e84158d95",
+          "size": 6607
+        },
+        {
+          "path": "references/upgrade-verification.md",
+          "sha256": "5d28d2d3f5bfba88bec3d160bf782978f22438a4357870bccc33ed6778b6b250",
+          "size": 2486
+        },
+        {
+          "path": "references/upgrading-dependencies.md",
+          "sha256": "31dc910dff7df54b6f6de010b06fb715c316f0f2c3d4c60804fd2cc62ed37f4a",
+          "size": 2244
+        },
+        {
+          "path": "references/upgrading-react-native.md",
+          "sha256": "286e9284da759e1243cd71e6b2612a439fe609b0ca0ee9173b36e06df6855c34",
+          "size": 2807
+        }
+      ]
+    },
+    {
+      "name": "vercel-composition-patterns",
+      "source": "https://github.com/vercel-labs/agent-skills",
+      "sha256": "3cd4aa7d860d423d99b28d811839188505c68c2108c10388d6183772eee0df98",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "89e3ddd58fcf99a53a50e25dfd21b8cde1be5f10b7df6bacd3dfa6796932f516",
+          "size": 22627
+        },
+        {
+          "path": "README.md",
+          "sha256": "85915a43a6f0b4efe525e3cf6398dd866166da2025837c4460468a24a940da94",
+          "size": 2140
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "e38e0eaa609316b10423a9a138ed95e35099accd3f735585295c8a8f165c28a3",
+          "size": 2886
+        },
+        {
+          "path": "rules/_sections.md",
+          "sha256": "a174213b87e6911e2b766995a2cbaf8d1534057076e82fb79fe3f0ecb38047df",
+          "size": 829
+        },
+        {
+          "path": "rules/_template.md",
+          "sha256": "587f7d16b0660eb61fee4a4d3d7df2b3077d6835de170602c7d6e60bee559131",
+          "size": 329
+        },
+        {
+          "path": "rules/architecture-avoid-boolean-props.md",
+          "sha256": "007555ebb020f4d552582a2c4db194db71a1fd33094012e5187bcfa4f8c392d5",
+          "size": 2267
+        },
+        {
+          "path": "rules/architecture-compound-components.md",
+          "sha256": "f246af13dc269b521cf20eb8ad99a0cb645beac381c8c9b117262c34612c8457",
+          "size": 2600
+        },
+        {
+          "path": "rules/patterns-children-over-render-props.md",
+          "sha256": "7c45a0d21b3c4126a32cba916ee31adeae195386ad1dbbe6634aedb7457aa0ad",
+          "size": 1886
+        },
+        {
+          "path": "rules/patterns-explicit-variants.md",
+          "sha256": "8c19e596e61807549d01ce8c6954c6358199f97a8511c0c02c625ec0efda8c0e",
+          "size": 2395
+        },
+        {
+          "path": "rules/react19-no-forwardref.md",
+          "sha256": "881830adb7534c4b2d70db426556646ad9837f5478f744f35641f635ada22227",
+          "size": 953
+        },
+        {
+          "path": "rules/state-context-interface.md",
+          "sha256": "09e73afbf9285fa416679cc864a287b9e8b821d0969272ab784295386d8c9bc3",
+          "size": 4974
+        },
+        {
+          "path": "rules/state-decouple-implementation.md",
+          "sha256": "76a8c1eb29a70d8996ab3f71260345af2f7bc89deab815a421d6c87c6591a9c3",
+          "size": 2699
+        },
+        {
+          "path": "rules/state-lift-state.md",
+          "sha256": "74c54038a6c554c748fe31cec673b80861b5d920b7553cf78cdf10d18b4b759b",
+          "size": 3224
+        }
+      ]
+    },
+    {
+      "name": "vercel-react-best-practices",
+      "source": "https://github.com/vercel-labs/agent-skills",
+      "sha256": "128d96a65f72bb9577b6cd61659b0ec9657f3a9964f459bb9c1b5d28a4c66fbb",
+      "files": [
+        {
+          "path": "AGENTS.md",
+          "sha256": "fc93e7421177bbf869cce892bc60a6c83a4517d974bc3bf65c4e2c1e58a6ccf6",
+          "size": 108261
+        },
+        {
+          "path": "README.md",
+          "sha256": "9eafb2123d3b8b2aef41fba0db2648a3f4f49996f8c7c8bb2c86263befd8b48a",
+          "size": 3360
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "71ed7794962fa6e803ee83030517b5b93a9f70fbfeb431ec4535c5480a8d8355",
+          "size": 7251
+        },
+        {
+          "path": "rules/_sections.md",
+          "sha256": "01c59969e4e867f0708c8f8ef9c6d87fab9a07d0586244f429ff84013db8a115",
+          "size": 1554
+        },
+        {
+          "path": "rules/_template.md",
+          "sha256": "99df2a3ea088c6c22de2484ddc7e964d0e9923846f44c63380343ecc64455442",
+          "size": 631
+        },
+        {
+          "path": "rules/advanced-effect-event-deps.md",
+          "sha256": "55ed8f9f27a1bff803d6fa55828176207714b02123cbb97ddb8a90d88024a723",
+          "size": 1802
+        },
+        {
+          "path": "rules/advanced-event-handler-refs.md",
+          "sha256": "a3097edeecfb2ff6851cd66ed8cdf0617c3c88180504bee824aa6e75a215bbbc",
+          "size": 1483
+        },
+        {
+          "path": "rules/advanced-init-once.md",
+          "sha256": "3e4dc22173eb0e2b6dcf583e3babd862b8696328f8f59aee7c4d746c5bc05f6c",
+          "size": 958
+        },
+        {
+          "path": "rules/advanced-use-latest.md",
+          "sha256": "8a3f64dfe5a77d1564248faf17fe662ae75b55d497a243cb30b38eb07ccbbf9a",
+          "size": 1072
+        },
+        {
+          "path": "rules/async-api-routes.md",
+          "sha256": "523338540d73427dc14c0cbb19f2741ebccdf8b105a7b2c1b33d2905cf237a42",
+          "size": 1125
+        },
+        {
+          "path": "rules/async-cheap-condition-before-await.md",
+          "sha256": "03107c1f70a293cd58a8abc5474c5548e20ea4efdf01b6d45aae7ad0ac1cb32c",
+          "size": 1220
+        },
+        {
+          "path": "rules/async-defer-await.md",
+          "sha256": "f3c142d090615abdcc99d31c123be37b31f0f1ed8d9ec9f7789a3bc6883ae0fb",
+          "size": 2208
+        },
+        {
+          "path": "rules/async-dependencies.md",
+          "sha256": "16ef469f877e30c6b8e1e1b4bc3e527312fa3c6318cb785a4eca186ea236131a",
+          "size": 1293
+        },
+        {
+          "path": "rules/async-parallel.md",
+          "sha256": "6d2f841896279e976dfcdc1ac89e70771ac188baadfd43c096b5706cb838b961",
+          "size": 654
+        },
+        {
+          "path": "rules/async-suspense-boundaries.md",
+          "sha256": "de05fedac2eb7ae563b887b5a424464ec3dfaf84e5b7797467ebe2a796ac8afc",
+          "size": 2510
+        },
+        {
+          "path": "rules/bundle-analyzable-paths.md",
+          "sha256": "62090b5c815fd71bf1133dce754f51abc16a9456d0ccd025fd627de27726e92a",
+          "size": 2382
+        },
+        {
+          "path": "rules/bundle-barrel-imports.md",
+          "sha256": "e648f6d54525f07a691357040ca5bff6ea3424788a91ff63812adb29622a671b",
+          "size": 2795
+        },
+        {
+          "path": "rules/bundle-conditional.md",
+          "sha256": "09c8259c3efb04fc0abb8e412ccbda217c222ae8118516283e571c995fe3a7d4",
+          "size": 949
+        },
+        {
+          "path": "rules/bundle-defer-third-party.md",
+          "sha256": "3719fb47b191e8db4fe22686ec88448ad5af9e6838585425abbe103d0b642e37",
+          "size": 920
+        },
+        {
+          "path": "rules/bundle-dynamic-imports.md",
+          "sha256": "401817a7369f315fc5a68a1095742ff7d53d0461906880dc9d64a41495ee1986",
+          "size": 791
+        },
+        {
+          "path": "rules/bundle-preload.md",
+          "sha256": "d1f7cc28da7cd5ab249acd287edc5b761afcfb194e9cb62cd44c5f3543db2de2",
+          "size": 1149
+        },
+        {
+          "path": "rules/client-event-listeners.md",
+          "sha256": "242a873349febc1ce685e85617994784dbab92c2eaa68aed7fed5a83e7680e93",
+          "size": 1969
+        },
+        {
+          "path": "rules/client-localstorage-schema.md",
+          "sha256": "0fb7cdf9dc93fdf22f87e3669f953fb9d4ac9b0be42eec4a29fe9a2560610b88",
+          "size": 1950
+        },
+        {
+          "path": "rules/client-passive-event-listeners.md",
+          "sha256": "1f35016f9053de69e884ee9be00654e37979c2ca85f5e57764dc2626ff7acb4b",
+          "size": 1644
+        },
+        {
+          "path": "rules/client-swr-dedup.md",
+          "sha256": "644652c39c6cc00de8d1c77a7273612e868dc3f7edda30764164c12ec0f764a3",
+          "size": 1159
+        },
+        {
+          "path": "rules/js-batch-dom-css.md",
+          "sha256": "480b891b9eaf96e929dc1e964274a4828e3a78009b7d00ccd965a0d425215959",
+          "size": 3266
+        },
+        {
+          "path": "rules/js-cache-function-results.md",
+          "sha256": "3daaa11d24f4295cb6be8bc6f407f2ce83cc7b5bd1f0e68891ea8ab835721dc7",
+          "size": 1949
+        },
+        {
+          "path": "rules/js-cache-property-access.md",
+          "sha256": "73e47431e74878a927061bf0ddc7cd91a7556cb35d2573f3421e82300d9ae311",
+          "size": 532
+        },
+        {
+          "path": "rules/js-cache-storage.md",
+          "sha256": "11b826b0433898c1ece2d3547010d8e77db9fb240185748c45db91493de9b6cc",
+          "size": 1651
+        },
+        {
+          "path": "rules/js-combine-iterations.md",
+          "sha256": "71add08aeeb43091d4ff4c0b2842cce8b4bdef8ad3e732cc034bb5a84827e746",
+          "size": 753
+        },
+        {
+          "path": "rules/js-early-exit.md",
+          "sha256": "925ce5ce87f3347186ca62212f29cc6baa2b8c85a96d2720ad07c3d0abf781c0",
+          "size": 1133
+        },
+        {
+          "path": "rules/js-flatmap-filter.md",
+          "sha256": "9e5b166a41914d975bef7635467f8fb32cd98b5c3126c0bc6f163490812fb5f0",
+          "size": 1411
+        },
+        {
+          "path": "rules/js-hoist-regexp.md",
+          "sha256": "f9e9aef2f7c2307dd7310f283df85dcada45fc43e9bb941b0c3aa414dec21ec4",
+          "size": 1028
+        },
+        {
+          "path": "rules/js-index-maps.md",
+          "sha256": "5df1bdc2cfabb2c98abd55d26762e5c18189535c2e686184f426082e62920391",
+          "size": 837
+        },
+        {
+          "path": "rules/js-length-check-first.md",
+          "sha256": "8b54a311c826b299272f29187fc58bc55772a04c4a72eeb29456ee96dc9fc624",
+          "size": 1747
+        },
+        {
+          "path": "rules/js-min-max-loop.md",
+          "sha256": "87dfb67e2f39df6ad8bcfb5b78c5fb364d3c07554ad188a202408d99f3763421",
+          "size": 2290
+        },
+        {
+          "path": "rules/js-request-idle-callback.md",
+          "sha256": "ee08f83905b4011abbc33d594033157d77561b5bbd9b36b04f0f409581ffec32",
+          "size": 2647
+        },
+        {
+          "path": "rules/js-set-map-lookups.md",
+          "sha256": "a7fd781a6ba9ad49065961b6f9a90ef486bf6b648390e1a08704025f98e1642b",
+          "size": 532
+        },
+        {
+          "path": "rules/js-tosorted-immutable.md",
+          "sha256": "d0a5e1b0fec48a0a81397957e2f068e224329f7c42cb5feeed8aae6fa64025e8",
+          "size": 1782
+        },
+        {
+          "path": "rules/rendering-activity.md",
+          "sha256": "1e5e7eaf3555e61d6a2e900089c676527d26259501db5594f59544b6c664f85a",
+          "size": 564
+        },
+        {
+          "path": "rules/rendering-animate-svg-wrapper.md",
+          "sha256": "9c6ae0ca7a51434e803887c64cded760956579a1452ccb80a461a03f9c937c77",
+          "size": 1185
+        },
+        {
+          "path": "rules/rendering-conditional-render.md",
+          "sha256": "2ec2fa23c4148285144687050c52369adba3da2fbe3d486f8d3e0aad8f06f2bc",
+          "size": 980
+        },
+        {
+          "path": "rules/rendering-content-visibility.md",
+          "sha256": "64eee6d5b916fe74df33363994b27fc7f71bea3bcedc7ee04bda23107ca3e6e4",
+          "size": 815
+        },
+        {
+          "path": "rules/rendering-hoist-jsx.md",
+          "sha256": "93b229560fae92005ed9a2a829064607b39b2e984e92d221d05b2d41df2b7c0e",
+          "size": 1039
+        },
+        {
+          "path": "rules/rendering-hydration-no-flicker.md",
+          "sha256": "dc7ab358c67c177bca6e6f360fbc935ebe4efa928c0ba3ebd3f9f3d9e2000ca3",
+          "size": 2308
+        },
+        {
+          "path": "rules/rendering-hydration-suppress-warning.md",
+          "sha256": "915bacb934e2927d84b37a3f3d225a47b309ac8f9e494ed2bcb66ce07c5676a2",
+          "size": 872
+        },
+        {
+          "path": "rules/rendering-resource-hints.md",
+          "sha256": "351b1095d641717b930f1b2253282b7120af3023bc74e06c17675168d4286864",
+          "size": 2549
+        },
+        {
+          "path": "rules/rendering-script-defer-async.md",
+          "sha256": "4cea07b7875ba7fc2c7465ff23b63a2bb334f90aaf2d9293d38d67b05fdb32ab",
+          "size": 1868
+        },
+        {
+          "path": "rules/rendering-svg-precision.md",
+          "sha256": "ed468533f6e95f622859c884b122cf21f9f593ed6bb3d500a54de4b9f9bcb9fb",
+          "size": 588
+        },
+        {
+          "path": "rules/rendering-usetransition-loading.md",
+          "sha256": "3a1249c3f13026b6f54ab5712c388df219d6af01b12aa542749acd99a46f4bc1",
+          "size": 2074
+        },
+        {
+          "path": "rules/rerender-defer-reads.md",
+          "sha256": "234050a77faf50cb306be10a9e15bd4421134ab5907e75f13e6d78e2bd262dc9",
+          "size": 973
+        },
+        {
+          "path": "rules/rerender-dependencies.md",
+          "sha256": "17eb5830956fb56486fd3cfc7431f5849d39751730c05ad9e77dd4f0c27169c5",
+          "size": 824
+        },
+        {
+          "path": "rules/rerender-derived-state-no-effect.md",
+          "sha256": "cb11ec76f50aa7b6847269f02d79b120c889a30d9ecd2c1d578f75144419c77a",
+          "size": 1201
+        },
+        {
+          "path": "rules/rerender-derived-state.md",
+          "sha256": "1c326bb67b01fb084eb00c8911b0a7cff54681c2315b629f88e49b64eaa6481d",
+          "size": 728
+        },
+        {
+          "path": "rules/rerender-functional-setstate.md",
+          "sha256": "5e68df6b2ae8058e67f476ff1ac67bde159f5a9d18df439e46eabcdeb7b52e58",
+          "size": 2968
+        },
+        {
+          "path": "rules/rerender-lazy-state-init.md",
+          "sha256": "4ae844740f266fc8cbf050701230286624a2440ec5be67b9a63d9edc3c580573",
+          "size": 2016
+        },
+        {
+          "path": "rules/rerender-memo-with-default-value.md",
+          "sha256": "81c47476564ad8a79fc68fc442734255ca7d6829424359464503fda0a9f9a0dd",
+          "size": 1173
+        },
+        {
+          "path": "rules/rerender-memo.md",
+          "sha256": "1f258990c2f27ff6256b3cc5c43300631bb3f0d81f749aed08d07fcdcc131dd1",
+          "size": 1148
+        },
+        {
+          "path": "rules/rerender-move-effect-to-event.md",
+          "sha256": "abc2cbf167bee056743023351e96806a411d3398da8802093620aecf0721f029",
+          "size": 1268
+        },
+        {
+          "path": "rules/rerender-no-inline-components.md",
+          "sha256": "1cc32907a770272524ba682eef9e7efdd8ad4533b6f89b718a1fcd7d1d0eb6a3",
+          "size": 2135
+        },
+        {
+          "path": "rules/rerender-simple-expression-in-memo.md",
+          "sha256": "5bdcf2d1558ba5204e643c887b7b4060f89630969425651eb68e96427d97f800",
+          "size": 1018
+        },
+        {
+          "path": "rules/rerender-split-combined-hooks.md",
+          "sha256": "6f45d703343484ef9acef9388397f3642966ae6a5a258899a0cf1f9977cfbf6c",
+          "size": 1844
+        },
+        {
+          "path": "rules/rerender-transitions.md",
+          "sha256": "60f4033909a62df5e5b8c601494f9e50a562e2f8c1c2d81eac24f38142265f1c",
+          "size": 1055
+        },
+        {
+          "path": "rules/rerender-use-deferred-value.md",
+          "sha256": "8c3579576a61a949884167745dcfaf1d5426ba305cc61fd0a79602d70fda4909",
+          "size": 1846
+        },
+        {
+          "path": "rules/rerender-use-ref-transient-values.md",
+          "sha256": "f1a649af9d1d0b5c762f6c9c4c1c70c90d7df82aa10296ee87aadb78c1b76c54",
+          "size": 1742
+        },
+        {
+          "path": "rules/server-after-nonblocking.md",
+          "sha256": "d0b8d24a3db9f0f65f9e2bddbf230b0e03a5f60e1229d93a4a18f5e7a991c7c2",
+          "size": 2012
+        },
+        {
+          "path": "rules/server-auth-actions.md",
+          "sha256": "a2ca8aa102839251c7971ec784560fab943c20b36fe6f80365d4110c13260c23",
+          "size": 2649
+        },
+        {
+          "path": "rules/server-cache-lru.md",
+          "sha256": "1924b64561841923b88a657085097a0aeba3e0ba2d5470b9f5c15cc10d6ae70f",
+          "size": 1353
+        },
+        {
+          "path": "rules/server-cache-react.md",
+          "sha256": "fddeea6c870bb3da4134b61d54b7d09b83d2603f929b7547cd3dc1dc269edd5c",
+          "size": 2228
+        },
+        {
+          "path": "rules/server-dedup-props.md",
+          "sha256": "c2747424cdac46be62f835f245a0aa887b0090b416d28e2ac8676702645eeb37",
+          "size": 2060
+        },
+        {
+          "path": "rules/server-hoist-static-io.md",
+          "sha256": "5abea4dd882b13661bd5f7dfb93f9e547d5f08176c61c448ade91b210ed5d49f",
+          "size": 4423
+        },
+        {
+          "path": "rules/server-no-shared-module-state.md",
+          "sha256": "4d869bf1cd2f1632e5ca4c0e64b1cf0e71c5f5a0f940bc8a22174d205e735ed7",
+          "size": 1766
+        },
+        {
+          "path": "rules/server-parallel-fetching.md",
+          "sha256": "569a2e9fc04f9606686cd75c5894ef8781b502786a7fffe241396846c7733472",
+          "size": 1554
+        },
+        {
+          "path": "rules/server-parallel-nested-fetching.md",
+          "sha256": "ad5d9656984d4a959997a2367bf59cc6632297b4634a1dd13a087939d83f30b3",
+          "size": 992
+        },
+        {
+          "path": "rules/server-serialization.md",
+          "sha256": "f4c7d68b29c82381baad059c4a7f09e868e71ec9c3115a26ad3ae7d24c0dfe1f",
+          "size": 996
+        }
+      ]
+    },
+    {
       "name": "verification-before-completion",
       "source": "https://github.com/obra/superpowers",
       "sha256": "d8a53168f152b6163bd3447f7d4c20b6b4cddf6bd907f9aa5856b514c032db0e",
@@ -2271,6 +5670,247 @@
           "path": "SKILL.md",
           "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
           "size": 3646
+        }
+      ]
+    },
+    {
+      "name": "vue-best-practices",
+      "source": "https://github.com/vuejs-ai/skills",
+      "sha256": "15f1f00fd1c815dfa4efd680db308270a5e7ed694630eb105b382793caea8dfc",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "05b373713e6bbd216fb3ee9709289b68bcdeb9eac8ffea477e35bdbd8e0f9acd",
+          "size": 8803
+        },
+        {
+          "path": "references/animation-class-based-technique.md",
+          "sha256": "d37e4ae4f124454fc5dfa54d23816edb16d337228641a77ec04c8ee9fe5a32fe",
+          "size": 5026
+        },
+        {
+          "path": "references/animation-state-driven-technique.md",
+          "sha256": "9a17a15356b32c8cd8669c3ede28dd890e9a48c03101047738a5c6dec7c716d6",
+          "size": 5829
+        },
+        {
+          "path": "references/component-async.md",
+          "sha256": "e20036c6622a1647d9e1c23f1fe871b2465cf4bab434422e17eb05710c8878f3",
+          "size": 2532
+        },
+        {
+          "path": "references/component-data-flow.md",
+          "sha256": "81277341d7dfe240721c2324548b9d404354d3ce270515acb130e8ac0c7396aa",
+          "size": 6956
+        },
+        {
+          "path": "references/component-fallthrough-attrs.md",
+          "sha256": "62d291508df9997d3b6c5adfde251d6c722926ecf5f7168dea0272564f119919",
+          "size": 4047
+        },
+        {
+          "path": "references/component-keep-alive.md",
+          "sha256": "8738608665ad42baa6d2d7548d46b3ecd318a85f4ec3a0afac5f728948ade3ca",
+          "size": 3487
+        },
+        {
+          "path": "references/component-slots.md",
+          "sha256": "726fdac036fcdb6071e669f1ed90af5b3bdc5fc150ad82ff41afa0af5e39f481",
+          "size": 4469
+        },
+        {
+          "path": "references/component-suspense.md",
+          "sha256": "6a5a98dcc6a2093f038f877eb6fefeedb199aba058a5dea71b139017c557bdd1",
+          "size": 5367
+        },
+        {
+          "path": "references/component-teleport.md",
+          "sha256": "4e48748842262df50c293ab23857c22c107e3e8360c87da482d23f0eb88b2c3f",
+          "size": 2921
+        },
+        {
+          "path": "references/component-transition-group.md",
+          "sha256": "cfdd76e2466a8c0ef8a965674a74924e5cf25e538e75ce97d02213472442ccb2",
+          "size": 3004
+        },
+        {
+          "path": "references/component-transition.md",
+          "sha256": "bc59a19f2e8eed7a228bdb6383d423a57c6dd75704ae11c9596018c9fb1cac42",
+          "size": 2722
+        },
+        {
+          "path": "references/composables.md",
+          "sha256": "8fcb3ede4ecb13f8dc7e4c7db07561652f6d306c85a91bc6736fda4fae2b624d",
+          "size": 7011
+        },
+        {
+          "path": "references/directives.md",
+          "sha256": "70d4c68ea15a961eec6471c42b4c44d37adfeb094f694b6811fb718eab7b2cf7",
+          "size": 3803
+        },
+        {
+          "path": "references/perf-avoid-component-abstraction-in-lists.md",
+          "sha256": "a5fb787065cbaa4731a12d3ab2f40284d058a4d6a45972b48b3052931e4f80da",
+          "size": 4683
+        },
+        {
+          "path": "references/perf-v-once-v-memo-directives.md",
+          "sha256": "066a45e60f6faa702cb75b76724c391d7e560aa6805c9bc379c06f2c64d97677",
+          "size": 4769
+        },
+        {
+          "path": "references/perf-virtualize-large-lists.md",
+          "sha256": "69712f1f296cf03401c47f936e1a9c32481bfd82623f536b1fe08d05c846bada",
+          "size": 5002
+        },
+        {
+          "path": "references/plugins.md",
+          "sha256": "b1583522aca059c4295708517ba987530dd6a13134f6046aed9fd7327fb9c936",
+          "size": 3882
+        },
+        {
+          "path": "references/reactivity.md",
+          "sha256": "48c97831e72f0b82bfae0344cf02a181c7723e1ee4a29a58a85009aab7d60a4b",
+          "size": 8452
+        },
+        {
+          "path": "references/render-functions.md",
+          "sha256": "01b35e671f7890939fa5acda52c5cf0a50b398e153d80cc9fc9f74c19e460357",
+          "size": 3866
+        },
+        {
+          "path": "references/sfc.md",
+          "sha256": "dfe09f28869a2bc44e618068c3b6269f55d925d096714df25e253d2bbb58c28f",
+          "size": 6216
+        },
+        {
+          "path": "references/state-management.md",
+          "sha256": "9e98a1c6d9009c0c8ef7228b6b3bcf10d30be6b713ffcef448ab7db3b419a851",
+          "size": 3380
+        },
+        {
+          "path": "references/updated-hook-performance.md",
+          "sha256": "ded08ce93f9b23082538846f84e8d159d84af757c27b2c6b43a9283df803a32b",
+          "size": 4618
+        }
+      ]
+    },
+    {
+      "name": "vue-router-best-practices",
+      "source": "https://github.com/vuejs-ai/skills",
+      "sha256": "28f4bf9e0be2877757ebd795fb597a622d226c6421b47d843fe5016de0537999",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "33889faf631e80bf112a096dfe3e76029447f05f99d6d5c0aea2daddff186d7c",
+          "size": 1492
+        },
+        {
+          "path": "reference/router-beforeenter-no-param-trigger.md",
+          "sha256": "8cf2bd4e3f40cf24b14962ea0b33b31d736d56db891aafdd721e4ca68d82c6ad",
+          "size": 4916
+        },
+        {
+          "path": "reference/router-beforerouteenter-no-this.md",
+          "sha256": "c525231bb699cacb2764e804312df2c601ba9f23d7b81936bbaf418b015d1ced",
+          "size": 5022
+        },
+        {
+          "path": "reference/router-guard-async-await-pattern.md",
+          "sha256": "97521c582a7495e5540c93975737562c41d0eb3aa99c2fb3a6acaa2411ecd69e",
+          "size": 5899
+        },
+        {
+          "path": "reference/router-navigation-guard-infinite-loop.md",
+          "sha256": "38749bac69bc717cb99539f61fa4994c9294acbb795b5b93c80e1775b0c5b2cf",
+          "size": 5491
+        },
+        {
+          "path": "reference/router-navigation-guard-next-deprecated.md",
+          "sha256": "81dee3b480c31f72456fc4a81a67a717c1f96b798fcafb938ac18b92bb7bf8c0",
+          "size": 4277
+        },
+        {
+          "path": "reference/router-param-change-no-lifecycle.md",
+          "sha256": "8813b065391b5467e878935d196eb014d5dd27ee599a128b5194a0dc0da1b557",
+          "size": 5061
+        },
+        {
+          "path": "reference/router-simple-routing-cleanup.md",
+          "sha256": "3ff3b3d102f0312fe53da77d3c54c0a1e938e511ec2588bcc53bc02f35b99374",
+          "size": 5349
+        },
+        {
+          "path": "reference/router-use-vue-router-for-production.md",
+          "sha256": "4212de1b50d1f53d5f831ca6945d53994e8e2cfbfb11b0a0c232bc53c032c8a1",
+          "size": 5323
+        }
+      ]
+    },
+    {
+      "name": "vue-testing-best-practices",
+      "source": "https://github.com/vuejs-ai/skills",
+      "sha256": "332a2f291b11b4524f790febbf1e8c80a82697f1137f8e37402b059c0c1cd846",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "376fd21d6adfd37f7d102fa17ca099abddef16943389f37588405b013cef23b8",
+          "size": 2129
+        },
+        {
+          "path": "reference/async-component-testing.md",
+          "sha256": "75b1c7b3949a5f0211824c525fd7b3f8a6b2cdd4933592ada65f37ecaa4146d3",
+          "size": 4896
+        },
+        {
+          "path": "reference/teleport-testing-complexity.md",
+          "sha256": "5a42ce8eb5497b5165b09cd758b647ddf4bb537be9cf808a84bee7ae8c3aca39",
+          "size": 4136
+        },
+        {
+          "path": "reference/testing-async-await-flushpromises.md",
+          "sha256": "2dd5099b32cf2626d19aab2ef4b365cc26102cfb5a0aedc5667efc06d2070cab",
+          "size": 5254
+        },
+        {
+          "path": "reference/testing-browser-vs-node-runners.md",
+          "sha256": "ffc13da105aadfca0bded6d955f79f9c02c5548ee699f274ff5976cb7484ac98",
+          "size": 5623
+        },
+        {
+          "path": "reference/testing-component-blackbox-approach.md",
+          "sha256": "16ac94d67addf1cb60177a81a5c5c01318daa310216261ffb2d60b396112f86d",
+          "size": 4753
+        },
+        {
+          "path": "reference/testing-composables-helper-wrapper.md",
+          "sha256": "57af3ae779cf0770ed53034575d783463d2b9e790c29fbc9bb80f166be3255bd",
+          "size": 6119
+        },
+        {
+          "path": "reference/testing-e2e-playwright-recommended.md",
+          "sha256": "d415a403c6851cb57666b9143cb3acec6eba53af269cf765918c108dd0c96355",
+          "size": 6581
+        },
+        {
+          "path": "reference/testing-no-snapshot-only.md",
+          "sha256": "d541b490b8c9c0f822a2ca0d8184d7325b07918e76124d717fb480bc7a488995",
+          "size": 6283
+        },
+        {
+          "path": "reference/testing-pinia-store-setup.md",
+          "sha256": "005a375c587bd33d1eb3a1b7fe1c89e42daf4c115014e49cf327ab5af5d0ed4e",
+          "size": 6249
+        },
+        {
+          "path": "reference/testing-suspense-async-components.md",
+          "sha256": "12307929380fcf0e8bcbd6be23a6bc1710904c9462cec945f80ce4b5aa0b7f12",
+          "size": 6448
+        },
+        {
+          "path": "reference/testing-vitest-recommended-for-vue.md",
+          "sha256": "acfa0b3986e092f43d4cd8090864860cff07ffa3aaa62a10c5a622770ccaeb6b",
+          "size": 5039
         }
       ]
     },

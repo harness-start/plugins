@@ -1,0 +1,19 @@
+{
+  "name": "kubernetes-operations",
+  "version": "0.1.0",
+  "description": "Orchestrates Kubernetes operations and guards Helm-owned dependency state with bounded manifest validation.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Kubernetes Operations",
+    "shortDescription": "Orchestrates Kubernetes operations and guards Helm-owned dependency state with bounded manifest validation.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $kubernetes-operations for this task."
+  }
+}

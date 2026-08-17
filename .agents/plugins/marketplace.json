@@ -64,25 +64,24 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "description": "Enforces source checks, line budgets, and Markdown structure."
+      "description": "Enforces language-neutral line budgets and Markdown structure."
     },
+    { "name": "android-engineering", "source": { "source": "local", "path": "./plugins/android-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "go-engineering", "source": { "source": "local", "path": "./plugins/go-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "ios-engineering", "source": { "source": "local", "path": "./plugins/ios-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "java-engineering", "source": { "source": "local", "path": "./plugins/java-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "kubernetes-operations", "source": { "source": "local", "path": "./plugins/kubernetes-operations" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "nix-engineering", "source": { "source": "local", "path": "./plugins/nix-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "php-engineering", "source": { "source": "local", "path": "./plugins/php-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "python-engineering", "source": { "source": "local", "path": "./plugins/python-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "react-native-engineering", "source": { "source": "local", "path": "./plugins/react-native-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "rust-engineering", "source": { "source": "local", "path": "./plugins/rust-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
+    { "name": "web-frontend-engineering", "source": { "source": "local", "path": "./plugins/web-frontend-engineering" }, "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" }, "category": "Productivity" },
     {
       "name": "test-driven-development",
       "source": {
         "source": "local",
         "path": "./plugins/test-driven-development"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    },
-    {
-      "name": "dependency-file-custody",
-      "source": {
-        "source": "local",
-        "path": "./plugins/dependency-file-custody"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -106,10 +106,20 @@ codex plugin add <name>@harness-start --json
 | `execution-discipline` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
 | `source-integrity` | 写入前阻断备份产物与明显 replacement character，写入后校验严格 UTF-8 与 BOM |
 | `git-delivery` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
-| `engineering-quality` | 用一个 Post 分发器执行源码检查、文件行数预算与 Markdown 结构检查，并在 Stop 执行延迟静态分析 |
+| `engineering-quality` | 执行跨技术栈共享的文件行数预算与 Markdown 结构检查；语言和生态检查由领域插件负责 |
 | `test-driven-development` | 先记录测试文件变化，再按 FQCN、module/package 身份或完整目录镜像允许 PHP、Python、JS、TS、Rust、Go 实现写入；已有对应测试时必须先改那些文件 |
-| `dependency-file-custody` | 阻断文件工具直接修改依赖 lockfile 和包管理器拥有的第三方依赖目录 |
 | `command-safety` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
+| `android-engineering` | 编排 Android 工程方法，保护 Gradle lock/cache，并校验 Manifest、资源 XML 与关键 JSON |
+| `go-engineering` | 编排 Go 工程方法，保护 `go.sum`，并对修改后的 Go 源码运行有界 `gofmt` 检查 |
+| `ios-engineering` | 编排 iOS、SwiftUI、并发与测试方法，保护 SwiftPM/CocoaPods 状态并校验 Swift 与 plist |
+| `java-engineering` | 编排 JVM、Spring Boot、JUnit 与 Jakarta 迁移，保护 Gradle 状态并校验 Maven XML |
+| `kubernetes-operations` | 编排 Kubernetes/Helm 运维，保护 Helm 依赖产物并执行有界 dry-run、lint 与 JSON 校验 |
+| `nix-engineering` | 编排 Nix 工程，保护 `flake.lock` 并执行有界 Nix 解析与 JSON 校验 |
+| `php-engineering` | 编排 PHP 工程，保护 Composer lock/vendor 并执行 PHP 语法与 Composer 声明校验 |
+| `python-engineering` | 编排 Python 工程，保护包管理器 lock/环境并执行语法、Ruff 与 JSON 校验 |
+| `react-native-engineering` | 独立编排 bare React Native、导航与升级，保护 Codegen 产物并校验 Metro/TS/JSON |
+| `rust-engineering` | 编排 Rust 工程，保护 `Cargo.lock` 并对修改后的 Rust 源码运行有界 `rustfmt` 检查 |
+| `web-frontend-engineering` | 编排 React、Vue、Angular 与 TypeScript，保护 JS lock/node_modules 并执行语法、ESLint、JSON 校验 |
 | `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
 | `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；按复杂度并发只读 subagent，汇总后直接继续 |
 | `engineering-practice` | 编排社区工程方法 Skill 的当前上游版本；依赖缺失时停止对应编排，不替代 Hook 证据 |
@@ -131,11 +141,12 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-26 个插件按职责分为六类。每个插件可独立安装，不声明或读取其他本项目插件；`skill-deps.json` 只声明社区 Skill 名称与上游来源，维护更新时跟随上游当前版本，用户安装时读取仓库内的 vendor 快照。
+36 个插件按职责分为七类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。`skill-deps.json` 只声明社区 Skill 名称与上游来源，维护更新时跟随上游当前版本，用户安装时读取仓库内的 vendor 快照。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
-| 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`dependency-file-custody`、`command-safety` | 对命令、写入、测试顺序与源码质量实施可机械验证的硬门禁 |
+| 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`command-safety` | 对命令、写入、测试顺序与跨技术栈共享质量实施可机械验证的硬门禁 |
+| 工程领域 | `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`kubernetes-operations`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering`、`web-frontend-engineering` | 每个领域以自建编排 Skill、必需社区 Skill 与本地 Hooks 组成，独立拥有语言/生态检查和依赖产物保护 |
 | 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development` | 内部 Skill 组织步骤；通用方法优先来自社区 Skill 的当前上游版本，缺失时停止对应路线 |
 | 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
 | 领域生产 | `brand-logo-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |

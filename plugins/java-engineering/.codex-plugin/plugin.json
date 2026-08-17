@@ -1,0 +1,19 @@
+{
+  "name": "java-engineering",
+  "version": "0.1.0",
+  "description": "Orchestrates Java and Spring Boot engineering and guards Gradle-owned dependency state.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Java Engineering",
+    "shortDescription": "Orchestrates Java and Spring Boot engineering and guards Gradle-owned dependency state.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Use $java-engineering for this task."
+  }
+}
