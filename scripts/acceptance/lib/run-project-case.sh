@@ -88,7 +88,7 @@ if ! seed_project_install_home "${CACHE_HOME}" "${HOME}"; then
   exit 1
 fi
 
-if ! assert_project_install_ready "${HOME}"; then
+if ! assert_project_install_ready "${HOME}" "${REPO_ROOT}"; then
   printf 'RESULT=FAIL\n' >"${STATUS_FILE}"
   printf 'install_all=not_ready\n' >>"${STATUS_FILE}"
   printf 'FAIL %s (install readiness)\n' "${RUN_ID}" >&2

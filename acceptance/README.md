@@ -9,6 +9,11 @@ Unlike `plugins/*/acceptance/` (single-plugin, tightly scripted tool probes),
 project scenarios use open-ended briefs and judge **final
 world state + quality**, not a prescribed single tool call.
 
+Workflow logs, Skill activation, and plugin receipts remain useful diagnostics,
+but they are not project-level success criteria. A case passes only when its
+requested artifacts, behavior, and repository scope pass the case's independent
+checks.
+
 ## Layout
 
 ```text
@@ -62,3 +67,15 @@ The Docker wrap auto-mounts `$HOME/.agents/skills` when present.
 | Domain | Case | Intent |
 | --- | --- | --- |
 | `logo-design` | `01-goal-e2e-delivery` | open logo brief → observe logo artifact tree and quality notes |
+| `software-change` | `01-fix-retry-delay` | failing regression → passing behavior with production-only scope |
+| `research` | `01-rollout-decision-brief` | local evidence → sourced decision brief with explicit limitations |
+| `configuration-change` | `01-update-retry-policy` | constrained request → exact config update with unrelated values preserved |
+
+The normal CI validation runs scenario structure checks, gate self-tests, and
+the inert-log honesty gate without model calls. Run the full command before a
+release to execute every scenario against both installed hosts inside
+`docker/host-acceptance`:
+
+```bash
+./scripts/acceptance/run-project.sh
+```

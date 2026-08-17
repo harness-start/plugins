@@ -217,6 +217,10 @@ acceptance/scenarios/<domain>/cases/<case-id>/
 
 CLI case id is `<domain>/<case-id>`. Prompts should be realistic open briefs;
 expects judge final artifacts + quality notes, not a single scripted Write.
+The project suite currently covers logo delivery, a software regression repair,
+a local-evidence research brief, and a constrained configuration change. Hook
+or Skill traces may explain a failure, but only the resulting files, behavior,
+citations, and change scope determine the case result.
 
 | Path | Meaning |
 | --- | --- |

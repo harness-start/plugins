@@ -193,18 +193,36 @@ seed_project_install_home() {
   return 0
 }
 
-# Assert install-all left a usable full catalog for logo project scenarios.
+# Assert install-all completed with every plugin in the current marketplace.
 assert_project_install_ready() {
   local dest_home="$1"
+  local repo_root="${2:-$(project_acceptance_root)}"
   local install_log="${dest_home}/install-all.log"
+  local catalog="${repo_root}/.claude-plugin/marketplace.json"
+  local plugin
+  local -a expected_plugins=()
 
   if [ ! -s "${install_log}" ]; then
     printf 'project-accept: missing install-all.log under %s\n' "${dest_home}" >&2
     return 1
   fi
-  if ! grep -Eq 'brand-logo-production' "${install_log}"; then
-    printf 'project-accept: install-all log does not mention brand-logo-production\n' >&2
+  if [ ! -s "${catalog}" ]; then
+    printf 'project-accept: missing marketplace catalog: %s\n' "${catalog}" >&2
     return 1
   fi
+
+  mapfile -t expected_plugins < <(jq -r '.plugins[]?.name // empty' "${catalog}")
+  if [ "${#expected_plugins[@]}" -eq 0 ]; then
+    printf 'project-accept: marketplace catalog contains no plugins\n' >&2
+    return 1
+  fi
+
+  for plugin in "${expected_plugins[@]}"; do
+    if ! grep -Eq "(^|[[:space:]])${plugin}([[:space:]]|$)" "${install_log}"; then
+      printf 'project-accept: install-all log is missing catalog plugin %s\n' \
+        "${plugin}" >&2
+      return 1
+    fi
+  done
   return 0
 }

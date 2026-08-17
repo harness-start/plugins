@@ -1,0 +1,1 @@
+Update `config/runtime.json` for the next staged rollout: set `retry.maxAttempts` to 5, set `retry.baseDelayMs` to 500, and enable `features.adaptiveBackoff`. Preserve every other setting exactly. Make no source-code, test, or package changes, add no dependencies, and run the existing validation test before finishing.

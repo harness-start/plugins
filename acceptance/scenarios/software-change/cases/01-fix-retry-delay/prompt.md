@@ -1,0 +1,1 @@
+The retry-delay module has a regression: the first retry waits twice the configured base delay. Diagnose the failure reported by `npm test`, make the smallest production-code fix, and run the existing tests. Preserve the public API and input validation. Do not edit tests or package metadata, and do not add dependencies.

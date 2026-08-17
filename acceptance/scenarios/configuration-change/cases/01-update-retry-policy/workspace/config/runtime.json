@@ -1,0 +1,15 @@
+{
+  "retry": {
+    "maxAttempts": 3,
+    "baseDelayMs": 250,
+    "maxDelayMs": 4000,
+    "jitter": true
+  },
+  "timeouts": {
+    "requestMs": 8000
+  },
+  "features": {
+    "adaptiveBackoff": false,
+    "requestCoalescing": true
+  }
+}

@@ -1,0 +1,2 @@
+hosts = ["claude", "codex"]
+timeout_sec = 900

@@ -150,27 +150,42 @@ copy_workspace() {
 configure_claude_home() {
   local home_dir="$1"
   local model="$2"
+  local settings_file tmp_file
   mkdir -p "${home_dir}/.claude"
-  # Trust all projects under workspace copies (settings)
-  cat > "${home_dir}/.claude/settings.json" <<EOF
-{
-  "hasTrustDialogAccepted": true,
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.deepseek.com/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "${DEEPSEEK_API_KEY}",
-    "ANTHROPIC_MODEL": "${model}",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "${model}",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "${model}",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "${model}",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "${model}",
-    "CLAUDE_CODE_EFFORT_LEVEL": "low"
-  },
-  "permissions": {
-    "defaultMode": "bypassPermissions",
-    "allow": ["*"]
-  }
-}
-EOF
+  settings_file="${home_dir}/.claude/settings.json"
+  tmp_file="${settings_file}.tmp.$$"
+
+  if [ ! -s "${settings_file}" ] \
+    || ! jq -e 'type == "object"' "${settings_file}" >/dev/null 2>&1; then
+    printf '{}\n' >"${settings_file}"
+  fi
+
+  # Merge the model and permission settings into the installer's settings.
+  # Project acceptance seeds enabledPlugins and extraKnownMarketplaces before
+  # this function runs; replacing the file would silently disable the catalog.
+  jq \
+    --arg api_key "${DEEPSEEK_API_KEY}" \
+    --arg model "${model}" \
+    '
+      . * {
+        hasTrustDialogAccepted: true,
+        env: ((.env // {}) + {
+          ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic",
+          ANTHROPIC_AUTH_TOKEN: $api_key,
+          ANTHROPIC_MODEL: $model,
+          ANTHROPIC_DEFAULT_OPUS_MODEL: $model,
+          ANTHROPIC_DEFAULT_SONNET_MODEL: $model,
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: $model,
+          CLAUDE_CODE_SUBAGENT_MODEL: $model,
+          CLAUDE_CODE_EFFORT_LEVEL: "low"
+        }),
+        permissions: ((.permissions // {}) + {
+          defaultMode: "bypassPermissions",
+          allow: ["*"]
+        })
+      }
+    ' "${settings_file}" >"${tmp_file}"
+  mv "${tmp_file}" "${settings_file}"
 }
 
 configure_codex_home() {

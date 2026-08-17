@@ -217,6 +217,65 @@ check_acceptance_suites() {
   rm -rf -- "${honesty_dir}"
 }
 
+check_project_acceptance_suites() {
+  log "Checking full-system outcome acceptance contracts"
+
+  local scenarios_root="acceptance/scenarios"
+  local case_dir hosts required found_case=0
+  while IFS= read -r case_dir; do
+    found_case=1
+    for required in case.toml prompt.md expect.sh; do
+      if [ ! -s "${case_dir}/${required}" ]; then
+        printf 'Project acceptance file missing or empty: %s/%s\n' \
+          "${case_dir}" "${required}" >&2
+        exit 1
+      fi
+    done
+    if [ ! -d "${case_dir}/workspace" ]; then
+      printf 'Project acceptance workspace missing: %s/workspace\n' \
+        "${case_dir}" >&2
+      exit 1
+    fi
+    hosts="$(
+      sed -n 's/.*hosts[[:space:]]*=[[:space:]]*\[\(.*\)\].*/\1/p' \
+        "${case_dir}/case.toml" | tr -d '" ' | tr ',' '\n' \
+        | tr '[:upper:]' '[:lower:]'
+    )"
+    if ! printf '%s\n' "${hosts}" | grep -Fxq claude \
+      || ! printf '%s\n' "${hosts}" | grep -Fxq codex; then
+      printf 'Project acceptance case must declare both hosts: %s\n' \
+        "${case_dir}/case.toml" >&2
+      exit 1
+    fi
+    bash -n "${case_dir}/expect.sh"
+  done < <(
+    find "${scenarios_root}" -mindepth 3 -maxdepth 3 \
+      -type d -path '*/cases/*' | sort
+  )
+
+  if [ "${found_case}" -eq 0 ]; then
+    printf 'No project acceptance cases found under %s\n' "${scenarios_root}" >&2
+    exit 1
+  fi
+
+  bash -n scripts/acceptance/run-project.sh
+  bash -n scripts/acceptance/lib/project-common.sh
+  bash -n scripts/acceptance/lib/run-project-case.sh
+  bash -n scripts/acceptance/test-project-common.sh
+  bash -n scripts/acceptance/test-project-outcome-gates.sh
+  bash scripts/acceptance/test-project-common.sh
+  bash scripts/acceptance/test-project-outcome-gates.sh
+
+  local honesty_dir
+  honesty_dir="$(mktemp -d)"
+  if ! bash scripts/acceptance/run-project.sh \
+    --honesty-only --out "${honesty_dir}"; then
+    rm -rf -- "${honesty_dir}"
+    exit 1
+  fi
+  rm -rf -- "${honesty_dir}"
+}
+
 check_manifest_versions() {
   log "Checking dual-platform manifest versions"
   require_cmd jq
@@ -493,6 +552,7 @@ main() {
   check_scripts
   check_unit_tests
   check_acceptance_suites
+  check_project_acceptance_suites
   check_manifest_versions
   check_skill_deps
   check_marketplace_registration
