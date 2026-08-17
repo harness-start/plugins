@@ -11,8 +11,6 @@
     "build": "tsx scripts/build-plugins.ts",
     "check:dist": "tsx scripts/build-plugins.ts --check",
     "ensure:dist": "tsx scripts/build-plugins.ts --ensure",
-    "vendor:skills": "bash scripts/update-vendor-skills.sh",
-    "check:vendor-skills": "node scripts/vendor-skills-index.mjs verify --root .",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern core/src core/hooks core/tests .claude/hooks .codex/hooks plugins/*/src plugins/*/tests scripts/*.ts",
     "test": "tsx --test core/tests/**/*.test.ts plugins/*/tests/*.test.ts",
