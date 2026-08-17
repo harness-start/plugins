@@ -3,7 +3,6 @@
 Orchestrates Java and Spring Boot engineering and guards Gradle-owned dependency state.
 
 - Skill: `java-engineering`
-- Required community Skills: `java-springboot`、`java-junit`、`javax-to-jakarta-migration`
 - PreToolUse: domain-owned dependency/generated state
 - PostToolUse: bounded syntax/configuration checks
 - Config: `.java-engineering.mjs`
