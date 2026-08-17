@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f5933154946393b0d4aa5c0cc6f1d5fd7bc482125fc2739650e29527eac9b8f3
+// harness-source-hash: sha256:abda40c03962ce7cc589cb67d34da2c5c248df06fe99444e7cafa55783ce844e
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-OL64RGLS.mjs";
+} from "../chunks/chunk-KZPMIDC2.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -24,7 +24,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-LUVAJB6K.mjs";
+} from "../chunks/chunk-KD52YZCK.mjs";
 
 // plugins/evidence-based-research/src/entries/hooks/evidence-based-research.ts
 import { join as join4, resolve as resolve3 } from "node:path";
@@ -298,8 +298,8 @@ var MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_discover|sour
 var SESSION_CONTEXT = [
   "[Research Provenance Guard] Research entry routing",
   "For research, investigation of APIs/docs/specs/facts, source-backed findings, or multi-source evidence work, invoke research-evidence-workflow first and open a project run under .research/runs/.",
-  "Do not start such tasks by invoking standalone firecrawl, research, or arxiv-search skills. Use them only as phase techniques under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
-  "Invoke handoff only after the run is sealed and handoffs/outbound files exist.",
+  "Do not start such tasks by invoking standalone Firecrawl CLI or unanchored candidate-search helpers. Use the bundled primary-source and academic-discovery methods under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
+  "Invoke the bundled handoff method only after the run is sealed and handoffs/outbound files exist.",
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open\u2014not because this SessionStart text appeared.",
   "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence."
 ].join("\n");

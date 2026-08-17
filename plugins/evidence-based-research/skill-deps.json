@@ -1,8 +1,0 @@
-{
-  "skills": [
-    { "name": "research", "source": "https://github.com/mattpocock/skills", "required": true, "mode": "instruction-only", "description": "Primary-source candidate discovery only; recapture evidence through the plugin MCP boundary." },
-    { "name": "firecrawl", "source": "https://github.com/firecrawl/cli", "required": true, "mode": "instruction-only", "description": "Search and scrape strategy only; direct CLI execution remains outside the evidence boundary." },
-    { "name": "arxiv-search", "source": "https://github.com/langchain-ai/deepagents", "required": true, "mode": "instruction-only", "description": "Academic candidate discovery only; returned metadata is not final evidence." },
-    { "name": "handoff", "source": "https://github.com/mattpocock/skills", "required": true, "mode": "instruction-only", "description": "Post-seal outbound handoff orchestration." }
-  ]
-}

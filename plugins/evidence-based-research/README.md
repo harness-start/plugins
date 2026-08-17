@@ -4,8 +4,8 @@
 
 ## 入口和工作顺序
 
-1. 安装插件，以及可选的 `research`、`firecrawl`、`arxiv-search`、`handoff` Skill 依赖。
-2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，不能直接从裸 `firecrawl`、`research` 或 `arxiv-search` 开始。
+1. 安装插件。方法正文捆绑在 `research-evidence-workflow` 的 references 中。
+2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，不能直接跑 Firecrawl CLI 或把未锚定候选当证据。
 3. orchestrator 在 `.research/runs/<run-id>/workflow.json` 下创建持久运行。
 4. 只有该运行处于 open 时，Firecrawl CLI 阻断、`Stop` seal 校验和 outbound 门禁等硬行为才生效。
 
@@ -27,7 +27,7 @@
   -> Hook 写入 `complete`，或精确用户指令触发 `aborted`
 ```
 
-Hook 被调用、`SessionStart` 打了字、装了 skill-deps，或多走几轮模型，都不算研究做完。真正看的是 workflow phase、anchor 能不能解析、claim 状态规则、正式产物是否生成、哈希能不能重算、回执是否对得上，以及最后一次看得见的修改之后证据还新不新。
+Hook 被调用、`SessionStart` 打了字，或多走几轮模型，都不算研究做完。真正看的是 workflow phase、anchor 能不能解析、claim 状态规则、正式产物是否生成、哈希能不能重算、回执是否对得上，以及最后一次看得见的修改之后证据还新不新。
 
 捕获内容和 hook 事件写在当前工作目录的 `.research/state/`。`.research/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。`.mcp.json` 不得用 `CLAUDE_PLUGIN_DATA` 占位符覆盖平台环境；工作区路径由 MCP workspace root 解析。
 
@@ -68,7 +68,7 @@ Research-Seal: sha256:<digest>
 
 ## 对外交接
 
-seal 后使用 workflow CLI 的 `handoff-outbound`，记录 `handoffs/outbound/handoff.md` 和保存完整 prompt 的 `prompt.md`，之后可选调用社区 `handoff` Skill。直接写 outbound 路径会被阻断。这项 CLI 转换只记录 lifecycle metadata，不会使已经不可变的 evidence seal 过期。
+seal 后使用 workflow CLI 的 `handoff-outbound`，记录 `handoffs/outbound/handoff.md` 和保存完整 prompt 的 `prompt.md`，之后按捆绑的 handoff 方法整理跨会话摘要。直接写 outbound 路径会被阻断。这项 CLI 转换只记录 lifecycle metadata，不会使已经不可变的 evidence seal 过期。
 
 父会话拥有 MCP capture/anchor、claim 判定、seal 和 outbound handoff。它可以用自然语言把候选发现或长文阅读交给普通只读 subagent，但必须亲自打开其引用来源并通过 MCP 捕获、锚定；subagent prose 不是证据，也不能创建 seal receipt。
 
@@ -87,12 +87,12 @@ node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/re
 
 ## Skill 组合
 
-`skill-deps.json` 安装的是阶段 worker，不是替代入口：
+捆绑方法是阶段技术，不是替代入口：
 
-- `research`：供父 agent 或可选普通 helper 使用的发现/阅读方法；返回内容只是待核实线索；
-- `firecrawl`：只提供发现策略，硬运行仍使用 MCP `source_discover` / `source_capture`；
-- `arxiv-search`：固定到已审计的 `deepagents==0.7.5` 版本，只用于学术候选发现；标题和摘要是不可信线索，必须解析到权威论文页面并经 MCP 捕获、锚定；
-- `handoff`：seal 后跨会话交接，精确 prompt 必须写入项目 `outbound/prompt.md`。
+- 一手来源方法：供父 agent 或可选普通 helper 使用的发现/阅读方法；返回内容只是待核实线索；
+- 发现策略：硬运行仍使用 MCP `source_discover` / `source_capture`，直接 Firecrawl CLI 会被 Hook 拒绝；
+- 学术候选：只用于候选发现；标题和摘要是不可信线索，必须解析到权威论文页面并经 MCP 捕获、锚定；
+- handoff 方法：seal 后跨会话交接，精确 prompt 必须写入项目 `outbound/prompt.md`。
 
 ## 状态、并发与信任边界
 

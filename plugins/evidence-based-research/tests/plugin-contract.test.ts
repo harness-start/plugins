@@ -1,24 +1,23 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const pluginFile = (relativePath) => new URL(`../${relativePath}`, import.meta.url);
+const pluginFile = (relativePath: string) => new URL(`../${relativePath}`, import.meta.url);
 
-test("skill dependency manifest follows the current arxiv-search source", async () => {
-  const dependencies = JSON.parse(await readFile(pluginFile("skill-deps.json"), "utf8"));
-  const arxiv = dependencies.skills.find(({ name }) => name === "arxiv-search");
-
-  assert.ok(arxiv, "arxiv-search must be declared as a community skill dependency");
-  assert.equal(
-    arxiv.source,
-    "https://github.com/langchain-ai/deepagents",
-  );
-  assert.equal(Object.hasOwn(arxiv, "revision"), false);
-  assert.equal(Object.hasOwn(arxiv, "subpath"), false);
-  assert.match(arxiv.description, /candidate discovery only/iu);
+test("plugin is self-contained with no community skill-deps", async () => {
+  assert.equal(existsSync(pluginFile("skill-deps.json")), false);
+  const notice = await readFile(pluginFile("licenses/mattpocock/NOTICE.md"), "utf8");
+  assert.match(notice, /mattpocock/iu);
+  for (const relative of [
+    "skills/research-evidence-workflow/references/primary-source-method.md",
+    "skills/research-evidence-workflow/references/handoff-method.md",
+  ]) {
+    assert.equal(existsSync(pluginFile(relative)), true, relative);
+  }
 });
 
-test("orchestrator keeps arxiv-search output outside the evidence boundary", async () => {
+test("orchestrator keeps untrusted candidates outside the evidence boundary", async () => {
   const skill = await readFile(pluginFile("skills/research-evidence-workflow/SKILL.md"), "utf8");
   const composition = await readFile(
     pluginFile("skills/research-evidence-workflow/references/skill-composition.md"),
@@ -26,9 +25,11 @@ test("orchestrator keeps arxiv-search output outside the evidence boundary", asy
   );
   const contract = `${skill}\n${composition}`;
 
-  assert.match(contract, /arxiv-search/iu);
+  assert.doesNotMatch(contract, /skill-deps\.json/u);
   assert.match(contract, /candidate discovery only/iu);
   assert.match(contract, /source_capture.*source_anchor/isu);
+  assert.match(contract, /primary-source-method\.md/u);
+  assert.match(contract, /handoff-method\.md/u);
 });
 
 test("academic discovery degrades without installing packages or losing paper versions", async () => {
@@ -41,7 +42,7 @@ test("academic discovery degrades without installing packages or losing paper ve
     "utf8",
   );
 
-  assert.match(composition, /exits with no stdout/iu);
   assert.match(composition, /do not loop or install packages/iu);
   assert.match(discovery, /\/abs\/<id>vN/iu);
+  assert.match(discovery, /MCP `source_discover`/u);
 });
