@@ -3,7 +3,6 @@
 Orchestrates mixed-framework PHP engineering and protects Composer-owned state with lightweight PHP checks.
 
 - Skill: `php-engineering`
-- Required community Skills: none
 - PreToolUse: domain-owned dependency/generated state
 - PostToolUse: bounded syntax/configuration checks
 - Config: `.php-engineering.mjs`
