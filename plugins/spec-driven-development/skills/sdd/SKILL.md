@@ -5,7 +5,7 @@ description: Guide a repository change through the lightweight spec, plan, tasks
 
 # SDD
 
-Load the required community `spec-driven-development` Skill declared in `skill-deps.json` before starting this route. If it is absent or unreadable, stop orchestration and report the dependency gap. Internal Skills organize project artifacts; the Hook independently validates current spec, plan, and task evidence.
+Read [specify-method.md](references/specify-method.md) for the specify/plan/tasks/implement method. Internal Skills organize project artifacts under `.specs/`; the Hook independently validates current spec, plan, and task evidence.
 
 Keep one durable change at `.specs/<NNN>-<slug>/`. The user only needs `$sdd`; route internally to `$sdd-specify`, `$sdd-plan`, `$sdd-tasks`, then `$sdd-build`.
 
