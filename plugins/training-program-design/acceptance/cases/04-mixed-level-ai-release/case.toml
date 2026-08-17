@@ -1,0 +1,4 @@
+id = "04-mixed-level-ai-release"
+hosts = ["claude", "codex"]
+timeout_sec = 480
+tags = ["training", "skill", "workflow", "release", "outcome"]
