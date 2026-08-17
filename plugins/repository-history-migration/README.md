@@ -2,7 +2,7 @@
 
 `repository-history-migration` 提供一个公开 Skill 和两个确定性 CLI：先只读预检并密封 source head 与计划摘要，再在目标父目录的临时 clone 中执行过滤，最后原子发布为新的本地 Git 仓库。
 
-插件只支持干净的本地 source worktree 和尚不存在的 target path。它不会修改 source refs/worktree，不会创建远端仓库、push、归档或删除仓库，也不注册 Hook。执行依赖 `git-filter-repo`。
+插件只支持干净的本地 source worktree 和尚不存在的 target path。它不会修改 source refs/worktree，不会创建远端仓库、push、归档或删除仓库。PreToolUse 拒绝 agent 直接对源仓运行 `git filter-repo`、`git reset --hard` 和 force-push；真正的过滤只允许通过插件 `dist/cli/git-history-migration-execute.mjs`。执行依赖 `git-filter-repo`。
 
 ## 安全模型
 

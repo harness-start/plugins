@@ -11,19 +11,21 @@ function json(path) {
   return JSON.parse(readFileSync(join(ROOT, path), "utf8"));
 }
 
-test("plugin exposes one migration skill and no hooks", () => {
+test("plugin exposes one migration skill and dual-platform source-protect Hooks", () => {
   const codex = json(".codex-plugin/plugin.json");
   const claude = json(".claude-plugin/plugin.json");
 
   assert.equal(codex.name, "repository-history-migration");
   assert.equal(claude.name, codex.name);
-  assert.equal(codex.version, "0.2.0");
+  assert.equal(codex.version, "0.3.0");
   assert.equal(claude.version, codex.version);
   assert.equal(codex.skills, "./skills/");
   assert.equal(claude.skills, codex.skills);
-  assert.equal(Object.hasOwn(codex, "hooks"), false);
-  assert.equal(Object.hasOwn(claude, "hooks"), false);
-  assert.equal(existsSync(join(ROOT, "hooks")), false);
+  assert.equal(codex.hooks, "./hooks/codex.json");
+  assert.equal(claude.hooks, "./hooks/claude.json");
+  assert.equal(existsSync(join(ROOT, "hooks", "claude.json")), true);
+  assert.equal(existsSync(join(ROOT, "hooks", "codex.json")), true);
+  assert.equal(existsSync(join(ROOT, "src", "entries", "hooks", "repository-history-migration.ts")), true);
 
   const skillNames = readdirSync(join(ROOT, "skills"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())

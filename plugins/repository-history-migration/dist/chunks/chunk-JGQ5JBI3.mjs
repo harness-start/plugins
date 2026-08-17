@@ -1,4 +1,7 @@
-// harness-source-hash: sha256:65b3af3deca0fe21ee900378a4e11a07a3333f562f18a62fb58909d12aae3ea2
+// harness-source-hash: sha256:b18a978060669f5ef42bc3352f4fd0ae98d1fc18839397bb918c5ccd930fb3a9
+import {
+  isRecord
+} from "./chunk-HBSPX2W5.mjs";
 
 // plugins/repository-history-migration/src/lib/history-migration.ts
 import { createHash } from "node:crypto";
@@ -13,13 +16,6 @@ import {
   rmSync
 } from "node:fs";
 import { basename, dirname, isAbsolute, relative, resolve, sep } from "node:path";
-
-// core/src/hook-event.ts
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-// plugins/repository-history-migration/src/lib/history-migration.ts
 function run(command, args, options = {}) {
   try {
     return execFileSync(command, [...args], {

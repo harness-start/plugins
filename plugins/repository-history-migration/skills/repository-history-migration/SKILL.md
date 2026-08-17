@@ -7,7 +7,7 @@ description: Move selected paths from one local Git repository into a new reposi
 
 Create a new filtered repository from selected paths without modifying the source repository. The bundled tools use a two-command protocol: a read-only preflight returns `sourceHead` and `planDigest`; execute accepts exactly those values and aborts if the source or plan changed.
 
-This Skill does not install hooks. A prompt-time hook cannot reliably prove Git history or filesystem atomicity. The deterministic scripts enforce the safety boundary at the mutation point, while the Skill owns scope decisions and evidence review.
+The plugin PreToolUse Hook refuses agent-issued `git filter-repo`, `git reset --hard`, and force-push against the source. It cannot prove Git history or filesystem atomicity. The deterministic scripts remain the mutation authority; execute only through `dist/cli/git-history-migration-execute.mjs`.
 
 ## Workflow
 

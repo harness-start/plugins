@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/repository-history-migration.mjs\"",
+            "statusMessage": "Protecting history-migration source repository",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}
