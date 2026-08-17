@@ -99,11 +99,10 @@ async function main() {
       schema: "music-production/skill-composition/v2",
       artifactId: id,
       workers: [
-        { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
-        { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
-        { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
-        { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, or preview guidance." },
-        { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select in the independent review phase for audio QC guidance." }
+        { name: "music-composition-method", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
+        { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
+        { name: "music-reference-profile", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
+        { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, preview, or review QC guidance." },
       ],
     }),
     writeJson(join(root, "music.project.json"), {

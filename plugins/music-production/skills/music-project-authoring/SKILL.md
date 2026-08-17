@@ -19,11 +19,10 @@ Build music as reviewable source code and establish a causal chain from brief to
 
 Use `plan.skill-composition.json` to select the current-source bilingual adviser pool. Keep at most three active in any phase and give every used adviser a distinct evidence artifact.
 
-- `music-composition`: composition, harmony, form, and orchestration.
-- `miaoxiang-music`: Chinese genre, ambience, guofeng, and scene vocabulary.
-- `musical-dna`: reference identity expressed as techniques rather than artist imitation.
-- `workflow-audio-production`: arrangement, balance, dynamics, and space.
-- `workflow-analysis-quality`: reserved for preview/review QC.
+- `music-composition-method`: composition, harmony, form, and orchestration.
+- `music-genre-reference`: Chinese genre, ambience, guofeng, and scene vocabulary.
+- `music-reference-profile`: reference identity expressed as techniques rather than artist imitation.
+- `music-mix-qc`: arrangement, balance, dynamics, and space.
 
 External skills are reference-only advisers. Do not run their scripts, network calls, generators, or publishing steps. They cannot write the project. Put each structured result outside the project and admit recommendations through:
 
@@ -38,7 +37,7 @@ The payload must bind the current subject digest and declare recommendations plu
   "schema": "music-production/advice-input/v1",
   "artifactId": "<id>",
   "subjectDigest": "<64-hex>",
-  "skillName": "music-composition",
+  "skillName": "music-composition-method",
   "ecosystem": "en",
   "mode": "adviser",
   "phase": "composition",
@@ -51,7 +50,7 @@ The payload must bind the current subject digest and declare recommendations plu
 
 ## Analyze references before direction
 
-Use `reference.mode: "none"` when no reference intent exists and `"traits"` when the user already supplied name-free technical traits. If the request names artists or tracks, use `"source-analysis"`; `musical-dna` then becomes mandatory before editing direction, arrangement, composition, or instruments.
+Use `reference.mode: "none"` when no reference intent exists and `"traits"` when the user already supplied name-free technical traits. If the request names artists or tracks, use `"source-analysis"`; `music-reference-profile` then becomes mandatory before editing direction, arrangement, composition, or instruments.
 
 Prepare a 3–5 item source manifest outside the project. Each item needs a stable kebab-case id, artist, title, and an honest `observationBasis`: `auditioned`, `documented-analysis`, or `user-described`. Put the SHA-256 of the exact manifest bytes in `plan.brief.json.reference.sourceSetSha256`. Do not claim audition when only metadata or written analysis was available.
 
@@ -82,9 +81,9 @@ Prepare a 3–5 item source manifest outside the project. Each item needs a stab
 }
 ```
 
-After adding the source digest to the brief, calculate the SHA-256 of the exact `plan.brief.json` bytes. Mark the `musical-dna` worker `used` and set its `evidencePath` to `evidence/reference-profile.<briefSha256>.json` before invoking the writer.
+After adding the source digest to the brief, calculate the SHA-256 of the exact `plan.brief.json` bytes. Mark the `music-reference-profile` worker `used` and set its `evidencePath` to `evidence/reference-profile.<briefSha256>.json` before invoking the writer.
 
-Run the installed current-source `musical-dna` skill and prepare a separate profile input. Cover rhythmic foundation, harmonic architecture, instrumental techniques, production aesthetics, genre fusion, and energy architecture. Every trait must state whether it was observed, inferred, or user-described and cite one or more manifest ids. Distill 5–10 name-free descriptors, map the result to rhythm/tempo, harmony/voicing, timbre/effects, space/dynamics, and form/energy, and reject traits that v1 synthesis cannot implement. Set all three anti-imitation assertions only after removing artist names, signature material, and imitation prompts.
+Run the bundled `music-reference-profile` skill and prepare a separate profile input. Cover rhythmic foundation, harmonic architecture, instrumental techniques, production aesthetics, genre fusion, and energy architecture. Every trait must state whether it was observed, inferred, or user-described and cite one or more manifest ids. Distill 5–10 name-free descriptors, map the result to rhythm/tempo, harmony/voicing, timbre/effects, space/dynamics, and form/energy, and reject traits that v1 synthesis cannot implement. Set all three anti-imitation assertions only after removing artist names, signature material, and imitation prompts.
 
 ```json
 {
@@ -92,7 +91,7 @@ Run the installed current-source `musical-dna` skill and prepare a separate prof
   "artifactId": "<id>",
   "briefSha256": "<64-hex>",
   "sourceSetSha256": "<64-hex>",
-  "skillName": "musical-dna",
+  "skillName": "music-reference-profile",
   "ecosystem": "en",
   "mode": "reference-only",
   "phase": "reference-analysis",
@@ -130,7 +129,7 @@ node "${PLUGIN_ROOT}/dist/cli/project-reference.mjs" \
   "/absolute/path/to/reference-profile.json"
 ```
 
-The writer stores only `evidence/reference-profile.<briefSha256>.json`; it rejects source identities in admitted content. If `musical-dna` is unavailable, stop and repair the declared skill dependency. Do not replace it with current-session knowledge or fabricate a compatible payload. Changing the brief or source manifest repeats reference-analysis; changing direction keeps the brief-bound profile current but invalidates downstream subject-bound evidence.
+The writer stores only `evidence/reference-profile.<briefSha256>.json`; it rejects source identities in admitted content. If `music-reference-profile` is missing, the plugin package is corrupt; stop. Do not fabricate a compatible payload. Do not replace it with current-session knowledge or fabricate a compatible payload. Changing the brief or source manifest repeats reference-analysis; changing direction keeps the brief-bound profile current but invalidates downstream subject-bound evidence.
 
 ## Initialize
 

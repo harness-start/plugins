@@ -13,7 +13,7 @@ brief → reference-analysis（按需）→ direction → composition → arrang
 - `$music-project-authoring` 负责 brief、创意方向、外部知识编排、作曲、配器、优化、渲染、预览、返工与 release。
 - `$music-project-review` 必须在没有生成当前 render 的独立 session 中运行。它只能听审当前 mix/stems 并通过受控 writer 提交 `approved` 或 `changes_requested`，不能修改作品或发布。
 
-外部顾问通过 `skill-deps.json` 跟随上游当前版本：英文 `music-composition`、`musical-dna`、`workflow-audio-production`、`workflow-analysis-quality`，以及中文生态 `miaoxiang-music`。它们只有 adviser/reference 权限，禁止执行外部脚本、生成器、网络发布或直接写项目。`musical-dna` 的 `SKILL.md` 在审查时声明 MIT；本插件只声明依赖与来源，不 vendoring 上游内容。
+第一方顾问捆绑在本插件内：`music-composition-method`、`music-genre-reference`、`music-reference-profile`、`music-mix-qc`。它们只有 adviser/reference 权限，禁止执行外部脚本、生成器、网络发布或直接写项目。作曲方法来自 SJY051/music-composition（CC-BY-4.0，见 `licenses/music-composition/NOTICE.md`）。
 
 ## 快速开始
 
@@ -27,14 +27,14 @@ node "$PLUGIN_ROOT/dist/cli/project-render.mjs" "artifacts/music/demo-track"
 node "$PLUGIN_ROOT/dist/cli/project-preview.mjs" "artifacts/music/demo-track"
 ```
 
-初始化会建立 `plan.brief.json`、`plan.direction.json`、`plan.arrangement.json`、`plan.skill-composition.json`、`music.project.json` 和可审查的 `src/**`。若使用外部顾问，将当前 digest 绑定的结构化结果写在项目目录外，再通过受控 writer 准入：
+初始化会建立 `plan.brief.json`、`plan.direction.json`、`plan.arrangement.json`、`plan.skill-composition.json`、`music.project.json` 和可审查的 `src/**`。若使用顾问，将当前 digest 绑定的结构化结果写在项目目录外，再通过受控 writer 准入：
 
 ```bash
 node "$PLUGIN_ROOT/dist/cli/project-advice.mjs" \
   "artifacts/music/demo-track" "/absolute/path/to/advice.json"
 ```
 
-brief 只有抽象技术 traits 时使用 `reference.mode: "traits"`。给出艺人或参考曲时改为 `source-analysis`，在项目外准备 3–5 项来源清单和 `musical-dna` 六维画像，再准入匿名画像：
+brief 只有抽象技术 traits 时使用 `reference.mode: "traits"`。给出艺人或参考曲时改为 `source-analysis`，在项目外准备 3–5 项来源清单和 `music-reference-profile` 六维画像，再准入匿名画像：
 
 ```bash
 node "$PLUGIN_ROOT/dist/cli/project-reference.mjs" \
@@ -43,7 +43,7 @@ node "$PLUGIN_ROOT/dist/cli/project-reference.mjs" \
   "/absolute/path/to/reference-profile.json"
 ```
 
-来源清单保留艺人名和曲名，但不会复制进项目。准入画像只保留节奏、和声、演奏/音色、制作审美、风格融合、能量结构、5–10 个描述词、Tone.js 映射和明确不支持的 traits。brief 或来源摘要变化会令画像失效；缺少 `musical-dna` 时应重新安装 `skill-deps.json`，不能伪造降级结果。
+来源清单保留艺人名和曲名，但不会复制进项目。准入画像只保留节奏、和声、演奏/音色、制作审美、风格融合、能量结构、5–10 个描述词、Tone.js 映射和明确不支持的 traits。brief 或来源摘要变化会令画像失效；缺少 `music-reference-profile` 表示插件包损坏，不能伪造降级结果。
 
 ## Evidence 与 Review
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:887b4a2926bbe70ab8f31ca6dc6367e82cd92ee0004b90175bb81f3b750b3358
+// harness-source-hash: sha256:11905057cbb1b275db5f6927fb0745d272f604049486b95a83bcdc19a9521265
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-5U2LBAJX.mjs";
+} from "../chunks/chunk-ZACLZYKN.mjs";
 
 // plugins/music-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -101,11 +101,10 @@ init\0${root}`).digest("hex");
       schema: "music-production/skill-composition/v2",
       artifactId: id,
       workers: [
-        { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
-        { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
-        { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
-        { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, or preview guidance." },
-        { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select in the independent review phase for audio QC guidance." }
+        { name: "music-composition-method", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "Select when external composition advice is needed." },
+        { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for Chinese-ecosystem genre or scene vocabulary." },
+        { name: "music-reference-profile", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "skipped", reason: "Required only when reference.mode is source-analysis." },
+        { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "Select for arrangement, mix, preview, or review QC guidance." }
       ]
     }),
     writeJson(join(root, "music.project.json"), {

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:887b4a2926bbe70ab8f31ca6dc6367e82cd92ee0004b90175bb81f3b750b3358
+// harness-source-hash: sha256:11905057cbb1b275db5f6927fb0745d272f604049486b95a83bcdc19a9521265
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";
@@ -55,17 +55,15 @@ var LEGACY_REVIEW_SCHEMA = "music-production/review/v1";
 var REVIEW_SCHEMA = "music-production/review/v2";
 var PROJECT_SCHEMA = "music-production/project/v1";
 var LEGACY_EXTERNAL_SKILLS = [
-  { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
-  { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
-  { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview"] },
-  { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["preview", "review"] }
+  { name: "music-composition-method", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
+  { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
+  { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview", "review"] }
 ];
 var EXTERNAL_SKILLS = [
   LEGACY_EXTERNAL_SKILLS[0],
   LEGACY_EXTERNAL_SKILLS[1],
-  { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
-  LEGACY_EXTERNAL_SKILLS[2],
-  LEGACY_EXTERNAL_SKILLS[3]
+  { name: "music-reference-profile", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
+  LEGACY_EXTERNAL_SKILLS[2]
 ];
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });
@@ -113,7 +111,7 @@ function validateMusicReferenceProfile(model) {
   const mappingsValid = TONEJS_MAPPINGS.every((key) => Array.isArray(mapping[key]) && mapping[key].length > 0 && mapping[key].every((item) => typeof item === "string" && item.trim().length > 0));
   const descriptors = Array.isArray(profile.descriptors) ? profile.descriptors : [];
   const unsupportedTraits = Array.isArray(profile.unsupportedTraits) ? profile.unsupportedTraits : [];
-  if (profile.schema !== REFERENCE_PROFILE_SCHEMA || profile.plugin !== "music-production" || profile.artifactId !== model.artifactId || profile.briefSha256 !== musicBriefSha256(model) || profile.sourceSetSha256 !== reference.sourceSetSha256 || profile.skillName !== "musical-dna" || Object.hasOwn(profile, "revision") || profile.ecosystem !== "en" || profile.mode !== "reference-only" || profile.phase !== "reference-analysis" || !Number.isInteger(profile.referenceCount) || Number(profile.referenceCount) < 3 || Number(profile.referenceCount) > 5 || !traitsValid || !mappingsValid || descriptors.length < 5 || descriptors.length > 10 || descriptors.some((item) => typeof item !== "string" || !item.trim()) || unsupportedTraits.some((item) => !isRecord(item) || !nonEmptyString(item, "trait") || !nonEmptyString(item, "reason")) || antiImitation.artistNamesRemoved !== true || antiImitation.signatureMaterialExcluded !== true || antiImitation.imitationPromptExcluded !== true) {
+  if (profile.schema !== REFERENCE_PROFILE_SCHEMA || profile.plugin !== "music-production" || profile.artifactId !== model.artifactId || profile.briefSha256 !== musicBriefSha256(model) || profile.sourceSetSha256 !== reference.sourceSetSha256 || profile.skillName !== "music-reference-profile" || Object.hasOwn(profile, "revision") || profile.ecosystem !== "en" || profile.mode !== "reference-only" || profile.phase !== "reference-analysis" || !Number.isInteger(profile.referenceCount) || Number(profile.referenceCount) < 3 || Number(profile.referenceCount) > 5 || !traitsValid || !mappingsValid || descriptors.length < 5 || descriptors.length > 10 || descriptors.some((item) => typeof item !== "string" || !item.trim()) || unsupportedTraits.some((item) => !isRecord(item) || !nonEmptyString(item, "trait") || !nonEmptyString(item, "reason")) || antiImitation.artistNamesRemoved !== true || antiImitation.signatureMaterialExcluded !== true || antiImitation.imitationPromptExcluded !== true) {
     findings.push(finding("REFERENCE_PROFILE_INVALID", path, "reference profile must bind the current brief and source manifest, cover all six dimensions, map implementable Tone.js traits, and exclude imitation"));
   }
   return findings;
@@ -267,7 +265,7 @@ function validatePlanning(model, findings) {
     }
   }
   if (composition.schema === SKILL_COMPOSITION_SCHEMA) {
-    const musicalDna = workers.find((entry) => entry.name === "musical-dna");
+    const musicalDna = workers.find((entry) => entry.name === "music-reference-profile");
     if (referenceMode === "source-analysis" ? musicalDna?.status !== "used" : musicalDna?.status !== "skipped") valid = false;
   }
   for (const phase of ["brief", "reference-analysis", "direction", "composition", "arrangement", "render", "preview", "review"]) {

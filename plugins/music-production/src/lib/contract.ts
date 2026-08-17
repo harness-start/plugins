@@ -27,18 +27,16 @@ export const REVIEW_SCHEMA = "music-production/review/v2";
 export const PROJECT_SCHEMA = "music-production/project/v1";
 
 export const LEGACY_EXTERNAL_SKILLS = [
-  { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
-  { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
-  { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview"] },
-  { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["preview", "review"] },
+  { name: "music-composition-method", ecosystem: "en", mode: "adviser", artifactKind: "advice", phases: ["brief", "direction", "composition", "arrangement"] },
+  { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", phases: ["brief", "direction", "arrangement"] },
+  { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", artifactKind: "advice", phases: ["arrangement", "render", "preview", "review"] },
 ] as const;
 
 export const EXTERNAL_SKILLS = [
   LEGACY_EXTERNAL_SKILLS[0],
   LEGACY_EXTERNAL_SKILLS[1],
-  { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
+  { name: "music-reference-profile", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", phases: ["brief", "reference-analysis", "direction", "arrangement"] },
   LEGACY_EXTERNAL_SKILLS[2],
-  LEGACY_EXTERNAL_SKILLS[3],
 ] as const;
 
 export type MusicFinding = {
@@ -141,7 +139,7 @@ export function validateMusicReferenceProfile(model: MusicModel) {
   const unsupportedTraits = Array.isArray(profile.unsupportedTraits) ? profile.unsupportedTraits : [];
   if (profile.schema !== REFERENCE_PROFILE_SCHEMA || profile.plugin !== "music-production" || profile.artifactId !== model.artifactId
     || profile.briefSha256 !== musicBriefSha256(model) || profile.sourceSetSha256 !== reference.sourceSetSha256
-    || profile.skillName !== "musical-dna" || Object.hasOwn(profile, "revision")
+    || profile.skillName !== "music-reference-profile" || Object.hasOwn(profile, "revision")
     || profile.ecosystem !== "en" || profile.mode !== "reference-only" || profile.phase !== "reference-analysis"
     || !Number.isInteger(profile.referenceCount) || Number(profile.referenceCount) < 3 || Number(profile.referenceCount) > 5
     || !traitsValid || !mappingsValid || descriptors.length < 5 || descriptors.length > 10
@@ -334,7 +332,7 @@ function validatePlanning(model: MusicModel, findings: MusicFinding[]) {
     }
   }
   if (composition.schema === SKILL_COMPOSITION_SCHEMA) {
-    const musicalDna = workers.find((entry) => entry.name === "musical-dna");
+    const musicalDna = workers.find((entry) => entry.name === "music-reference-profile");
     if (referenceMode === "source-analysis" ? musicalDna?.status !== "used" : musicalDna?.status !== "skipped") valid = false;
   }
   for (const phase of ["brief", "reference-analysis", "direction", "composition", "arrangement", "render", "preview", "review"]) {

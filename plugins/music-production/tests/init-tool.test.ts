@@ -39,7 +39,7 @@ test("initializes a code-managed mathematical music project without installing w
     assert.equal(brief.schema, "music-production/brief/v2");
     assert.equal(direction.artifactId, "study");
     assert.equal(arrangement.artifactId, "study");
-    assert.equal(skillComposition.workers.length, 5);
+    assert.equal(skillComposition.workers.length, 4);
     assert.match(composition, /tonejs-composition\/v1/u);
   } finally {
     await rm(workspace, { recursive: true, force: true });

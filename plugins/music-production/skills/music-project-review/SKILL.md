@@ -17,7 +17,7 @@ Use this skill in a session that did not create the current render. It is a revi
 
 ## Review gate
 
-Audition the exact digest-bound mix and every stem. Cover brief alignment, melodic and harmonic coherence, rhythm and groove, form and arrangement, timbre and orchestration, balance/space/dynamics, and technical integrity. For a source-analysis brief, also compare the audible result with the anonymous profile under `reference-profile-alignment`; do not recover artist identities or rerun `musical-dna`. Every finding needs a stable id, severity, exact evidence path and SHA-256, a verifiable fix, status, and recheck evidence for blocker or major findings that are marked verified.
+Audition the exact digest-bound mix and every stem. Cover brief alignment, melodic and harmonic coherence, rhythm and groove, form and arrangement, timbre and orchestration, balance/space/dynamics, and technical integrity. For a source-analysis brief, also compare the audible result with the anonymous profile under `reference-profile-alignment`; do not recover artist identities or rerun `music-reference-profile`. Every finding needs a stable id, severity, exact evidence path and SHA-256, a verifiable fix, status, and recheck evidence for blocker or major findings that are marked verified.
 
 Use `changes_requested` while any blocker or major finding remains open. Use `approved` only when the current artifacts meet the brief and all required checks pass. The writer binds your decision to the current subject, mix, stems, preview, session, and payload digest.
 

@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:887b4a2926bbe70ab8f31ca6dc6367e82cd92ee0004b90175bb81f3b750b3358
+// harness-source-hash: sha256:11905057cbb1b275db5f6927fb0745d272f604049486b95a83bcdc19a9521265
 import {
   atomicWriteMusicJson,
   musicSessionMetadata,
   withMusicJournal
-} from "../chunks/chunk-YJIVBOU3.mjs";
+} from "../chunks/chunk-5CJUNFMY.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-EJFXP7QY.mjs";
+} from "../chunks/chunk-QWZU5K47.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-5U2LBAJX.mjs";
+} from "../chunks/chunk-ZACLZYKN.mjs";
 import {
   BRIEF_SCHEMA,
   EXTERNAL_SKILLS,
@@ -22,7 +22,7 @@ import {
   computeMusicSubjectDigest,
   musicBriefSha256,
   musicReferenceProfilePath
-} from "../chunks/chunk-CBHHVFPS.mjs";
+} from "../chunks/chunk-5JISRK3J.mjs";
 
 // plugins/music-production/src/entries/cli/project-reference.ts
 import { createHash } from "node:crypto";
@@ -74,10 +74,10 @@ async function main() {
   if (grant.subjectDigest !== subjectDigest || sources.artifactId !== model.artifactId || payload.artifactId !== model.artifactId || brief.schema !== BRIEF_SCHEMA || reference.mode !== "source-analysis" || reference.sourceSetSha256 !== sourceSetSha256 || payload.schema !== REFERENCE_PROFILE_INPUT_SCHEMA || payload.briefSha256 !== briefSha256 || payload.sourceSetSha256 !== sourceSetSha256) {
     throw new Error("REFERENCE_BINDING_INVALID");
   }
-  const expected = EXTERNAL_SKILLS.find((entry) => entry.name === "musical-dna");
+  const expected = EXTERNAL_SKILLS.find((entry) => entry.name === "music-reference-profile");
   const composition = parseJson(Buffer.from(model.files?.["plan.skill-composition.json"] ?? ""), "REFERENCE_COMPOSITION_INVALID");
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
-  const worker = workers.find((entry) => entry.name === "musical-dna");
+  const worker = workers.find((entry) => entry.name === "music-reference-profile");
   const evidencePath = musicReferenceProfilePath(model);
   if (!expected || composition.schema !== SKILL_COMPOSITION_SCHEMA || worker?.status !== "used" || worker.artifactKind !== "reference-profile" || worker.evidencePath !== evidencePath || payload.skillName !== expected.name || payload.ecosystem !== expected.ecosystem || payload.mode !== expected.mode || payload.phase !== "reference-analysis") throw new Error("REFERENCE_WORKER_NOT_SELECTED");
   if (Object.hasOwn(payload, "revision")) throw new Error("REFERENCE_INPUT_INVALID");

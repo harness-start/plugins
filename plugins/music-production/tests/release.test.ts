@@ -26,10 +26,9 @@ test("releases only a reviewed current mix and writes digest-bound evidence", as
     "plan.direction.json": JSON.stringify({ schema: "music-production/direction/v1", artifactId: "study", tonalCenter: "C major", tempo: "120 BPM", meter: "4/4", coreMotif: "triad", soundPalette: ["triangle"], rationale: "Clear tonal cue." }),
     "plan.arrangement.json": JSON.stringify({ schema: "music-production/arrangement/v1", artifactId: "study", sections: [{ id: "main" }], instrumentRoles: [{ id: "lead" }], dynamicsIntent: "steady energy", spaceIntent: "centered lead", mixIntent: "clean headroom" }),
     "plan.skill-composition.json": JSON.stringify({ schema: "music-production/skill-composition/v1", artifactId: "study", workers: [
-      { name: "music-composition", ecosystem: "en", mode: "adviser", status: "skipped", reason: "fixture" },
-      { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "fixture" },
-      { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "fixture" },
-      { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "fixture" },
+      { name: "music-composition-method", ecosystem: "en", mode: "adviser", status: "skipped", reason: "fixture" },
+      { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "fixture" },
+      { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "fixture" },
     ] }),
     "music.project.json": JSON.stringify({ schema: "music-production/project/v1", artifactId: "study", sampleRate: 48000, channels: 2, tailSeconds: 1, quality: { maxPeakDbfs: -0.5, minRmsDbfs: -60, maxAbsDcOffset: 0.01, maxClippedSamples: 0 }, tracks: [{ index: 1, id: "lead", role: "melody", instrument: "src/instruments/lead.mjs" }] }),
     "src/composition.mjs": "export default {};\n",

@@ -30,19 +30,18 @@ test("admits only selected current-source external advice bound to the current s
   try {
     await writeFile(join(root, "music.project.json"), JSON.stringify({ schema: "music-production/project/v1", artifactId: "study", tracks: [] }));
     await writeFile(join(root, "plan.skill-composition.json"), JSON.stringify({ schema: "music-production/skill-composition/v1", artifactId: "study", workers: [
-      { name: "music-composition", ecosystem: "en", mode: "adviser", status: "used", reason: "Need form advice.", advicePath: "evidence/skills/music-composition.json" },
-      { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "Not needed." },
-      { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "Not needed." },
-      { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "Reserved for review." },
+      { name: "music-composition-method", ecosystem: "en", mode: "adviser", status: "used", reason: "Need form advice.", advicePath: "evidence/skills/music-composition-method.json" },
+      { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "Not needed." },
+      { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "Not needed." },
     ] }));
     const model = await collectMusicModel(root);
     const subjectDigest = computeMusicSubjectDigest(model);
-    await writeFile(input, JSON.stringify({ schema: "music-production/advice-input/v1", artifactId: "study", subjectDigest, skillName: "music-composition", ecosystem: "en", mode: "adviser", phase: "composition", summary: "Strengthen the four-bar question and answer form.", recommendations: ["Reserve the last bar for a response."], adopted: ["Question and answer phrasing."], rejected: ["Longer form exceeds duration."] }));
+    await writeFile(input, JSON.stringify({ schema: "music-production/advice-input/v1", artifactId: "study", subjectDigest, skillName: "music-composition-method", ecosystem: "en", mode: "adviser", phase: "composition", summary: "Strengthen the four-bar question and answer form.", recommendations: ["Reserve the last bar for a response."], adopted: ["Question and answer phrasing."], rejected: ["Longer form exceeds duration."] }));
     const argv = [ENTRY, root, input];
     await issueMusicWriterCapability({ root, capability: "music-advice", argv, subjectDigest, sessionId: "advice-session", triggerFrom: "test" });
     const result = await run(argv);
     assert.equal(result.code, 0, result.stderr);
-    const evidence = JSON.parse(await readFile(join(root, "evidence", "skills", "music-composition.json"), "utf8"));
+    const evidence = JSON.parse(await readFile(join(root, "evidence", "skills", "music-composition-method.json"), "utf8"));
     assert.equal(evidence.subjectDigest, subjectDigest);
     assert.equal(Object.hasOwn(evidence, "revision"), false);
     assert.equal(evidence.sessionId, "advice-session");

@@ -24,10 +24,9 @@ function validModel() {
       "plan.direction.json": JSON.stringify({ schema: "music-production/direction/v1", artifactId: "four-chord-study", tonalCenter: "C major", tempo: "120 BPM", meter: "4/4", coreMotif: "triad", soundPalette: ["triangle"], rationale: "Clear tonal cue." }),
       "plan.arrangement.json": JSON.stringify({ schema: "music-production/arrangement/v1", artifactId: "four-chord-study", sections: [{ id: "main" }], instrumentRoles: [{ id: "lead" }], dynamicsIntent: "steady energy", spaceIntent: "centered lead", mixIntent: "clean headroom" }),
       "plan.skill-composition.json": JSON.stringify({ schema: "music-production/skill-composition/v1", artifactId: "four-chord-study", workers: [
-        { name: "music-composition", ecosystem: "en", mode: "adviser", status: "skipped", reason: "fixture" },
-        { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "fixture" },
-        { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "fixture" },
-        { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "fixture" },
+        { name: "music-composition-method", ecosystem: "en", mode: "adviser", status: "skipped", reason: "fixture" },
+        { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", status: "skipped", reason: "fixture" },
+        { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", status: "skipped", reason: "fixture" },
       ] }),
       "music.project.json": "{}\n",
       "src/composition.mjs": "export default { schema: 'tonejs-composition/v1' };\n",
@@ -116,11 +115,10 @@ function referenceDesignModel() {
     schema: "music-production/skill-composition/v2",
     artifactId: model.artifactId,
     workers: [
-      { name: "music-composition", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "fixture" },
-      { name: "miaoxiang-music", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
-      { name: "musical-dna", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "used", reason: "source analysis", evidencePath: profilePath },
-      { name: "workflow-audio-production", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
-      { name: "workflow-analysis-quality", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "music-composition-method", ecosystem: "en", mode: "adviser", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "music-genre-reference", ecosystem: "zh", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
+      { name: "music-reference-profile", ecosystem: "en", mode: "reference-only", artifactKind: "reference-profile", status: "used", reason: "source analysis", evidencePath: profilePath },
+      { name: "music-mix-qc", ecosystem: "en", mode: "reference-only", artifactKind: "advice", status: "skipped", reason: "fixture" },
     ],
   });
   const trait = [{ trait: "syncopated pulse", basis: "observed", referenceIds: ["r1"] }];
@@ -131,7 +129,7 @@ function referenceDesignModel() {
     briefSha256: musicBriefSha256(model),
     sourceSetSha256: "a".repeat(64),
     referenceCount: 3,
-    skillName: "musical-dna",
+    skillName: "music-reference-profile",
     ecosystem: "en",
     mode: "reference-only",
     phase: "reference-analysis",

@@ -74,10 +74,10 @@ async function main() {
     throw new Error("REFERENCE_BINDING_INVALID");
   }
 
-  const expected = EXTERNAL_SKILLS.find((entry) => entry.name === "musical-dna");
+  const expected = EXTERNAL_SKILLS.find((entry) => entry.name === "music-reference-profile");
   const composition = parseJson(Buffer.from(model.files?.["plan.skill-composition.json"] ?? ""), "REFERENCE_COMPOSITION_INVALID");
   const workers = Array.isArray(composition.workers) ? composition.workers.map(record) : [];
-  const worker = workers.find((entry) => entry.name === "musical-dna");
+  const worker = workers.find((entry) => entry.name === "music-reference-profile");
   const evidencePath = musicReferenceProfilePath(model);
   if (!expected || composition.schema !== SKILL_COMPOSITION_SCHEMA || worker?.status !== "used" || worker.artifactKind !== "reference-profile"
     || worker.evidencePath !== evidencePath || payload.skillName !== expected.name
