@@ -1,0 +1,5 @@
+Use the bundled `$training-program-design` workflow to create and release `artifacts/training/ai-workflow-foundations`.
+
+The audience is twelve operations colleagues: four have never used an LLM, six use chat tools occasionally, and two have built a Dify workflow. They all understand the same customer-support intake process. Design a 90-minute, in-person, Chinese training in `design` mode. The common performance task is: build and verify a small Dify-based intake assistant that uses an approved knowledge source, handles one ambiguous request, and does not expose personal data. Include LLM and DeepSeek as concepts that participants must distinguish from the Dify application layer; do not claim current versions, prices, or capabilities. Include a short diagnostic, entry supports, stretch extensions, observable assessment criteria, facilitator moves, and a one-week transfer action.
+
+Use registered plugin CLI wrappers for init, lint, render, review, and release. The review input must be outside the governed project. Resolve every blocking finding. Do not hand-write generated files or evidence. Finish only after the release-stage validator passes.

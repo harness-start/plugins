@@ -39,6 +39,7 @@ const expected = [
   "source-integrity",
   "spec-driven-development",
   "test-driven-development",
+  "training-program-design",
   "video-production",
   "web-frontend-engineering",
   "work-reporting",

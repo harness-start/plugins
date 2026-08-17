@@ -331,6 +331,19 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity"
+    },
+    {
+      "name": "training-program-design",
+      "source": {
+        "source": "local",
+        "path": "./plugins/training-program-design"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity",
+      "description": "Designs and guards evidence-bound training packages for audiences with varied starting levels."
     }
   ]
 }

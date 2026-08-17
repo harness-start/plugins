@@ -137,10 +137,11 @@ codex plugin add <name>@harness-start --json
 | `spec-driven-development` | 编排社区 SDD 方法的当前上游版本，并由 Hook 独立校验当前 spec、plan 与 tasks |
 | `ci-gated-delivery` | 编排短生命周期分支、独立审查、远端 CI、合并与合并后验证 |
 | `repository-history-migration` | 在源仓只读、提交封存和目标验证约束下迁移 Git 历史 |
+| `training-program-design` | 为起点差异明显的受众编排 brief、课程设计、材料生成、质量评审与摘要绑定的发布闭包 |
 
 ## 插件分类与设计
 
-37 个插件按职责分为七类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
+38 个插件按职责分为八类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
@@ -151,6 +152,7 @@ codex plugin add <name>@harness-start --json
 | 领域生产 | `brand-logo-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
 | 项目与交付治理 | `project-capability-governance`、`ci-gated-delivery`、`repository-history-migration` | 管理能力采用、远端交付状态机和跨仓历史迁移 |
 | 输出治理 | `language-output` | 用平台独立 Hook 维持会话语言，不依赖其他插件 |
+| 培训赋能 | `training-program-design` | 用混合水平受众方法、同源材料、只读评审与阶段门禁闭合培训设计和改编 |
 
 ### Subagent 原则
 

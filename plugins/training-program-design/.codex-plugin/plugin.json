@@ -1,0 +1,20 @@
+{
+  "name": "training-program-design",
+  "version": "1.0.0",
+  "description": "Designs, adapts, reviews, and releases evidence-bound training packages for audiences with varied starting levels.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
+  "interface": {
+    "displayName": "Training Program Design",
+    "shortDescription": "Design and guard training for mixed-level audiences.",
+    "longDescription": "Provides a bundled training-design method, a read-only review method, and stage gates that bind audience evidence, outcomes, practice, assessment, materials, review, and release.",
+    "developerName": "Harness Start",
+    "category": "Productivity",
+    "defaultPrompt": "Use $training-program-design to design or adapt a training package for an audience with varied starting levels.",
+    "capabilities": ["skills", "hooks"]
+  }
+}
