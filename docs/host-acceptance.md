@@ -151,19 +151,18 @@ rollout's structured `<hook_prompt>` message rather than inferred from a flat
   `--dangerously-bypass-hook-trust`, marketplace install of the **single** plugin under test.
 - **skill-deps**: before each host session, `run-case.sh` reads
   `plugins/<name>/skill-deps.json` (if present) and installs those community
-  skills into the **case-isolated HOME** via `npx skills add … --global`
-  (same sources as `install-all.sh`). Results are cached under
-  `.acceptance-runs/skill-deps-cache/<plugin>/` keyed by the manifest SHA-256.
-  Missing `skill-deps.json` is a no-op; invalid manifests or install failures
-  fail the case before the host starts. Emergency opt-out:
+  skills into the **case-isolated HOME** from the repository's prepared
+  `vendor-skills/` tree via `npx skills add … --global`. Results are cached under
+  `.acceptance-runs/skill-deps-cache/<plugin>/` keyed by both the manifest and
+  vendor index SHA-256. Missing declarations are a no-op; invalid manifests,
+  missing vendor content, identity mismatches, or install failures fail the case
+  before the host starts. Emergency opt-out:
   `ACCEPT_SKIP_SKILL_DEPS=1` (not for default live suites).
 
 Offline helper coverage (no API key):
 
 ```bash
 bash scripts/acceptance/test-skill-deps-install.sh
-# optional live npx install smoke:
-ACCEPT_TEST_NETWORK=1 bash scripts/acceptance/test-skill-deps-install.sh
 ```
 
 ## Adding a case
@@ -232,6 +231,7 @@ expects judge final artifacts + quality notes, not a single scripted Write.
 | `scripts/acceptance/lib/project-common.sh` | install-all cache / seed / host skills |
 | `.acceptance-runs/project-latest/` | Default artifacts |
 
-`install-all.sh --local <path>` resolves the plugin catalog and skill-deps from
-that checkout (not GitHub master). When `$HOME/.agents/skills` exists, the
-Docker wrap mounts it so domain skills (e.g. `logo-design`) seed into case HOME.
+`install-all.sh --local <path>` resolves the plugin catalog, skill-deps, and
+prepared `vendor-skills/` content from that checkout (not GitHub master). When
+`$HOME/.agents/skills` exists, the Docker wrap mounts it so domain skills (e.g.
+`logo-design`) seed into case HOME.

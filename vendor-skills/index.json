@@ -1,0 +1,2302 @@
+{
+  "schemaVersion": 1,
+  "skills": [
+    {
+      "name": "animation-principles",
+      "source": "https://github.com/iart-ai/motion-design-skills",
+      "sha256": "f782598830cea80f8e78d242ff78cf4ed8367507746d3b521d18a800337f3e7b",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "21637766f8ae115f427ab086ec903106b3dfa5eac7fdf05d9926e4b557bff892",
+          "size": 8527
+        },
+        {
+          "path": "references/easing-curves.md",
+          "sha256": "0eb670fbd2b456f0bc90d52a2ba7365452b3061857cd52dc6ab579422d21b11b",
+          "size": 5317
+        },
+        {
+          "path": "references/easing-graph-editor.md",
+          "sha256": "97f8cb0a5488a449850dda02bc6aff9327a97273ac39ca46d7e275673405184d",
+          "size": 9406
+        },
+        {
+          "path": "references/twelve-principles.md",
+          "sha256": "5198dde91aa694e411de476ea811d555c7a665b7d72233fa7d80c3bd9f88b9b8",
+          "size": 4534
+        }
+      ]
+    },
+    {
+      "name": "arxiv-search",
+      "source": "https://github.com/langchain-ai/deepagents",
+      "sha256": "1760bf902857c2eacc35bd079649b4e46e014414f113609237e0438c82c45986",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "403df19c354ada9be0db0287ec7b5c3fd6bd8a8fbda3cb318299ff6f94c3f908",
+          "size": 1007
+        },
+        {
+          "path": "arxiv_search.py",
+          "sha256": "da0f7e8d7642fa931faa482588eecaf650d4e607e0afe8838d0d6570e0c874ac",
+          "size": 1653
+        }
+      ]
+    },
+    {
+      "name": "beat-sync-editing",
+      "source": "https://github.com/iart-ai/motion-design-skills",
+      "sha256": "903ed5af7cce8bb26cabde4724dabcae8c9c829f10b6b58fae81baa4eb86c836",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "92118cd6a5821974aa084a9838f263b46ee65fa1f48aaded8e676861f8c2de28",
+          "size": 13926
+        },
+        {
+          "path": "references/editing-techniques.md",
+          "sha256": "2f0b969b8080b261acf4847fbedc45fd54e0db75517d2e933c7180a016d85824",
+          "size": 6451
+        }
+      ]
+    },
+    {
+      "name": "brag-sheet",
+      "source": "https://github.com/github/awesome-copilot/tree/main/skills/brag-sheet",
+      "sha256": "448544fc2670e06a4c7791c7b32aa49135cd9814f7613f14981df290e0699101",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "b7c9b04c81fdedbbd5d9dfcd09235e3122523be52c2bc4482590dd7b2945b4a4",
+          "size": 11976
+        }
+      ]
+    },
+    {
+      "name": "brainstorming",
+      "source": "https://github.com/obra/superpowers",
+      "sha256": "af332241f2a7eedbe2f5c5e0dc39946bf3a0462c68381ed2aa638ebd07193c99",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "74edf03ea6d24ef53db48677b93558d14a979bdf052ca3f57ecdca0c66791608",
+          "size": 15456
+        }
+      ]
+    },
+    {
+      "name": "brand-identity",
+      "source": "https://github.com/arnabbagxd/Brand-building-skills",
+      "sha256": "b790f32dc4f25927f6e907e5594681c742dac3da4ec62398ba9855e55a4bf633",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "742cb206e15529d25975f9f47afa24dc83babb83524922c7c2b6e816046af326",
+          "size": 5125
+        }
+      ]
+    },
+    {
+      "name": "caption-animation",
+      "source": "https://github.com/iart-ai/tiktok-video-skills",
+      "sha256": "cccffbb955a77583d8d938cd49470d15783f32d7cbfe7edd2e9fa3ed128b1922",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "1bd0909c0183a0f673f39a4eca0283cbdb72e18a2c09520b5265b442c4eece4d",
+          "size": 1426
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "734b05774507cf841836293c1673984cd10159c5e15cf7e6d4fe3217bd7829be",
+          "size": 9937
+        },
+        {
+          "path": "references/word-timed-captions.md",
+          "sha256": "3220a11e570e184238c49aa68f22923a166419ce159b3a2d696dc8a0f99653a7",
+          "size": 10180
+        }
+      ]
+    },
+    {
+      "name": "caveman",
+      "source": "https://github.com/JuliusBrussee/caveman",
+      "sha256": "807c077adf019c0d9366e07e32cce7687c655f5a5828353f2498b809e105f87a",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "9369b69197e5d07e0c56679f9fc346f3539f58537c17f4e804a44612f086dc73",
+          "size": 1898
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "daf9cec496ebd039809d8236f99f17fa1b4beaadf8ce4e2d532d0da51d70afce",
+          "size": 6216
+        }
+      ]
+    },
+    {
+      "name": "chengfeng-cut",
+      "source": "https://github.com/Agentchengfeng/chengfeng-videocut-skills",
+      "sha256": "15fc1f78a71cf5150418998c9fd2cdf0a62b1062ac0d8518580e627f2eedc49a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "56322f1f988785167a6aca73eecc73ec5a672c9861532d0ba4ef8e2d1e796a75",
+          "size": 16550
+        }
+      ]
+    },
+    {
+      "name": "chengfeng-subtitle",
+      "source": "https://github.com/Agentchengfeng/chengfeng-videocut-skills",
+      "sha256": "31627bcec24811d7847e040df68d22a8c7d2be6ed5a5e2fe1587ba58fe440c5a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "5ec0144f9ec9ec855c0e7d238ca1c10bb1e1038f6659b562859e86c87b2735a8",
+          "size": 10746
+        }
+      ]
+    },
+    {
+      "name": "color-expert",
+      "source": "https://github.com/meodai/skill.color-expert",
+      "sha256": "765d9440ebee339462641074a266aeb0fb46316f288877592b0f40c88b3a2fe9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "38adfb695edb75f891f23869d4c35de65eeeb8a7bbdff9621f08dabdcf7b092b",
+          "size": 30415
+        },
+        {
+          "path": "references/INDEX.md",
+          "sha256": "0edc99674ce7349783c49de1b4d80d6af30ca6b79ec9b78e1d9f3ddc060ac944",
+          "size": 110179
+        }
+      ]
+    },
+    {
+      "name": "color-motion",
+      "source": "https://github.com/iart-ai/motion-design-skills",
+      "sha256": "855b5af085d8770cfffd6e9cd09ab2537270cac5df967574d16c7c2c15bac89c",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "8c7fcf06c25eee669756f4d7e9213875aa0b59a9e4f7c23611c0a1c086ab796c",
+          "size": 11924
+        },
+        {
+          "path": "references/color-management.md",
+          "sha256": "8c2d35dee66b16da36d6e0b17457a417dd8cef24146c74832b4a45677028262c",
+          "size": 11767
+        },
+        {
+          "path": "references/palettes-and-interpolation.md",
+          "sha256": "51f28597d7832ed56e8cb65992a272bdc39c35c136472dddedf228b191503a66",
+          "size": 6804
+        }
+      ]
+    },
+    {
+      "name": "cvpr-2026-poster",
+      "source": "https://github.com/yunyiliu/cvpr-2026-poster-skill",
+      "sha256": "546618953632a431834780e57ec25e6a506a5203a65cc3061012618df497531a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "319bc2b70842af189410e0e99237f55acf276b72a4096d7a0149b9a27ed5a4c2",
+          "size": 8440
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "73e3fbd56957fcc05f639425148eec827cfcf268cea526f7a9bea0287af400a2",
+          "size": 255
+        },
+        {
+          "path": "assets/editor/editable-poster-template.html",
+          "sha256": "4d54cc57be0ed582cf76d04529917676f04013cc104056e3d37db216fad0521f",
+          "size": 24671
+        },
+        {
+          "path": "assets/export/bake_and_export.sh",
+          "sha256": "087635e00a405a13fce8bcd766dfc5d8baaab641bf2e8ba1d755e15dde32d016",
+          "size": 1731
+        },
+        {
+          "path": "assets/export/export_pdf.sh",
+          "sha256": "3cb514b496246340938cf64816ba09292838c7ff95e4a0c1c8f5355e8221708d",
+          "size": 1085
+        },
+        {
+          "path": "assets/official/logos/.gitkeep",
+          "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+          "size": 1
+        },
+        {
+          "path": "assets/official/logos/CVPR_Logo1_Denver_2026_Color.png",
+          "sha256": "ff97c875be5372a78b31c4cb9a0672e9c31f0e7e1dee535621b44b01e8af521a",
+          "size": 47275
+        },
+        {
+          "path": "assets/official/logos/CVPR_Logo2_Denver 2026_Color.eps",
+          "sha256": "97c5deb93a184d79a3dfd373c16fca11cfe7632ed17ae20ecf66e10dc1067583",
+          "size": 1283406
+        },
+        {
+          "path": "assets/official/logos/CVPR_Logo2_Denver_2026_Color.jpg",
+          "sha256": "7ffedd80a40fa4e0cc74fa0406a7855753bc338d2ef60c0f8a43020a58cf28a8",
+          "size": 853400
+        },
+        {
+          "path": "assets/official/templates/CVPR MAIN & FINDINGS Poster Template.pptx",
+          "sha256": "5f41681b8d299542e9a109a3596c393b2789ac8c6d6d4b50ecead94bb689e2c8",
+          "size": 1764120
+        },
+        {
+          "path": "assets/official/templates/CVPR Workshop ONLY Poster Template.pptx",
+          "sha256": "0040b7d6c819f9c805c6841062a57f7c0e9ce1227401edf07e6b00993092b502",
+          "size": 1767033
+        },
+        {
+          "path": "references/cvpr-2026-spec.md",
+          "sha256": "5c076b74f68da6ae7477013700cc06f63a1e6545925654fafbe728cba1d7efd2",
+          "size": 2660
+        },
+        {
+          "path": "references/poster-brief-template.md",
+          "sha256": "852860b2aa4d8280aee3d0ef39c7b2d090d9d08591f21cc92b7ebddcc55fbe2e",
+          "size": 1321
+        },
+        {
+          "path": "references/print-checklist.md",
+          "sha256": "125c09f8dc02ac2c2d938f3cb07a22642df0ecdcd3be893a766e212be5335803",
+          "size": 1125
+        },
+        {
+          "path": "scripts/fetch_institution_logos.py",
+          "sha256": "39ab9b800719952fe809af25ef174eed071f1db85438f73f8a8a0159ca33d9f2",
+          "size": 13412
+        },
+        {
+          "path": "scripts/fill_brief_from_latex.py",
+          "sha256": "fcdadff9a359d00bc35809a8848a33c6b2a1cdd2855ca5144a91f3ef936482c0",
+          "size": 19219
+        },
+        {
+          "path": "scripts/init_poster_project.py",
+          "sha256": "47b935e277ef88c67bdab3b2222f950df284b0ba38e7afb40dbbd7503b5c6957",
+          "size": 14969
+        },
+        {
+          "path": "scripts/optimize_poster_layout.py",
+          "sha256": "d033f5a35f3f239f17aaec898f9736fa770b3b0bc47a03fea681082d9b308c8d",
+          "size": 6017
+        },
+        {
+          "path": "scripts/poster_image_utils.py",
+          "sha256": "c48afc4e3e7b992bcb7bcc648c93d639f1e6d6b5e7039860e05057946f224032",
+          "size": 3612
+        },
+        {
+          "path": "scripts/sync_poster_from_brief.py",
+          "sha256": "177e5be7dfe760daaad54484e1e8c699c6b80cd935016d7a1d4c04bf3e604670",
+          "size": 16697
+        }
+      ]
+    },
+    {
+      "name": "explainer-video",
+      "source": "https://github.com/iart-ai/explainer-video-skills",
+      "sha256": "461e69b827774948108d66a7625690b12666365bfeac04b9b28cc35983f3dd58",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "d1c0e3147550c492790250f2d2d11b44b10ed3e46bd269a3bab03b0d25659f6a",
+          "size": 10013
+        },
+        {
+          "path": "references/script-to-screen-workflow.md",
+          "sha256": "1aa910bd3c5775bddea56af5bc5530c8a2db1cd923a228d6c9d0af90f8bd553a",
+          "size": 6710
+        }
+      ]
+    },
+    {
+      "name": "finishing-a-development-branch",
+      "source": "https://github.com/obra/superpowers",
+      "sha256": "1da9182001d887c0fb8c62aeee35c8f65b438b32a30b79104baedcca9e0ebef6",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8db5a922b242dd4e1bf824cb91c13b3e8d8e8a86d6ceaf7f0774eb9cce909d65",
+          "size": 7781
+        }
+      ]
+    },
+    {
+      "name": "firecrawl",
+      "source": "https://github.com/firecrawl/cli",
+      "sha256": "6e1523e6aa3e071eeeba114618977da168195c1703d79385815ef175a84e6b14",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "bd1f3eb9211721d71b4bd932f322a65f418f2bdc5bd6d7b587dad3ab4449a918",
+          "size": 18255
+        },
+        {
+          "path": "rules/install.md",
+          "sha256": "e8675643b85744cb5b40e43600d85fe86b412d1863c501b0ecba1e11a6eae9c4",
+          "size": 2230
+        },
+        {
+          "path": "rules/security.md",
+          "sha256": "ca9bf923a60147f5c4852ad04de37c5deb46e53e954da5ccf4982531a59d0ccb",
+          "size": 1395
+        }
+      ]
+    },
+    {
+      "name": "gemini-tts",
+      "source": "https://github.com/memex-lab/product-launch-video-skill",
+      "sha256": "afde8aef0c3e05566063870887c106168969702e3e5c812fd52cc0fac41d8676",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "619c3c999c9e0e7715f204322e296a451793db084a2edfb9fc4c88dfb4a863d7",
+          "size": 7364
+        }
+      ]
+    },
+    {
+      "name": "grilling",
+      "source": "https://github.com/mattpocock/skills",
+      "sha256": "1bdadd4e2b0ed98757860456e6f94f932100e71a8892d2d559ec0f85311a5ddd",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d2498125dd20a0d3a27f03e0ebcc8e681cf42be468e2d3e3c9e8f5dadcae8d47",
+          "size": 1857
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "1411d7df7d99b7e621a1ff8283c8133cc2464be63d064e52d8ce169c6800ee9b",
+          "size": 113
+        }
+      ]
+    },
+    {
+      "name": "growth-log",
+      "source": "https://github.com/affaan-m/ecc",
+      "sha256": "8984af16190a48ffba871e6941823ecdbce9d0990612d00c3866a666b8720580",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8f90db7c9e84a570f68480a32075026fd98dc4c0dbc7ead0af8357e756274cee",
+          "size": 6766
+        }
+      ]
+    },
+    {
+      "name": "handoff",
+      "source": "https://github.com/mattpocock/skills",
+      "sha256": "fe287d0ae54ed66c99522e272af1020323ba4d4698ef60fe1fa63f042dffd313",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7c62de979fdc7ac32fb5ddb2146156c917f80ee070d30fadc9d40343c4b6ed25",
+          "size": 894
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "5c479fd562c691851690e8b18c8501045bef0943c10743d636b2fae26add1d28",
+          "size": 141
+        }
+      ]
+    },
+    {
+      "name": "humanizer",
+      "source": "https://github.com/blader/humanizer",
+      "sha256": "7aaa98397673fcd4573e76078f98bfdc7d219b2e0ff62781268da8040fa69435",
+      "files": [
+        {
+          "path": ".claude-plugin/marketplace.json",
+          "sha256": "141736822a343ca0b605d7a9298fef4b692a69368215338df76efb876af442e4",
+          "size": 622
+        },
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "f31bf57f37eabb0d4e2eab4deb4f69bf64cc4db164d4809cc57f8c9502aa4eb8",
+          "size": 578
+        },
+        {
+          "path": ".github/workflows/validate.yml",
+          "sha256": "4ee5852335371388b4a621e2a1e5d0115b3046d214ff2b43377a2422e77a4185",
+          "size": 707
+        },
+        {
+          "path": "AGENTS.md",
+          "sha256": "9394319b85795f13527b6462ac660d8e59ac43dd0e84f2bb2c3a1891e62ad402",
+          "size": 2671
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "4ac4810254ab36d45419141aeb8e69bf50652cfafe5b2dab947d06d44e5cbf96",
+          "size": 1066
+        },
+        {
+          "path": "README.md",
+          "sha256": "cb771a5ac98040b72ea1479f25bedec9e619c85f8b1493c205105a3b714a9d86",
+          "size": 13938
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "70938f3cce25970e1ded5fdd194b755c03f1e4e4fa76820958ce78f86b677b1a",
+          "size": 29632
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "7b4289413ca3de49c7efc2798ac230e7ae563a6bd7eadf799ee5b2d75c261d25",
+          "size": 207
+        },
+        {
+          "path": "scripts/validate-package.py",
+          "sha256": "d2c5496ca73a8ce2d3f0cad6681724170d8566bef54d36dfc1e5d3972597b614",
+          "size": 1952
+        }
+      ]
+    },
+    {
+      "name": "humanizer-zh",
+      "source": "https://github.com/op7418/Humanizer-zh",
+      "sha256": "5839d1bc92383d71b4099da898c9bd0155215a900bdfe4d964597f96e67c631a",
+      "files": [
+        {
+          "path": ".gitignore",
+          "sha256": "e52aac198acd71945e1730f45cafba41fffda4e2a0d7d6a38175880aae8eabea",
+          "size": 41
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "aa00e74769e1b9d8e7fa7094dbfcca9b129a0ded6dce1cf4da050b99146d2fa7",
+          "size": 1063
+        },
+        {
+          "path": "README.md",
+          "sha256": "60cd3ed8b4753837ca8f8fcebf6076a38591a269d91ea1791aa7448e5a1b1b58",
+          "size": 7799
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "e0edbdbc9008644263d5573fb59beac95794e188fd99c35012bfd79e9ae4beeb",
+          "size": 18898
+        }
+      ]
+    },
+    {
+      "name": "impeccable",
+      "source": "https://github.com/pbakaus/impeccable",
+      "sha256": "ca8857b5e69cb902cc2e586a60f5a7b8bab1539c9b9a646225fe58383eb1bdf5",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "9d124382509eb15da0862f145bca0e53be00aaddb05272e4efc9a0832de048a9",
+          "size": 10662
+        },
+        {
+          "path": "agents/impeccable_asset_producer.toml",
+          "sha256": "d2be0f7b066b1af4f52a9c61539e4c50deaf4b0673e2bf2b7ea429e4c02c830f",
+          "size": 9931
+        },
+        {
+          "path": "agents/impeccable_documenter.toml",
+          "sha256": "d5922228b571900e21a47855d7de9e081c2246fc9cec6c6235b1a6da31098896",
+          "size": 3243
+        },
+        {
+          "path": "agents/impeccable_finish_reviewer.toml",
+          "sha256": "59efadb3b5a0209e052fb0d3671a633aed6c6be3cbb61db034b9a7fc12bae692",
+          "size": 13793
+        },
+        {
+          "path": "agents/impeccable_manual_edit_applier.toml",
+          "sha256": "7c519ed4a94aa01677b741afa9ae56c71d3b9bc19f48f4166d87b1e4579613ed",
+          "size": 7018
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "cbd8bd68fa00935dd0f179adb169252629cf7ee443ea9dc7db77e7ef2cf77446",
+          "size": 235
+        },
+        {
+          "path": "reference/adapt.md",
+          "sha256": "bead87679caad7c537dd7c04c3bb78be56ac7eec279ad6aad7322f48ff2df2d9",
+          "size": 10307
+        },
+        {
+          "path": "reference/adapt.native.md",
+          "sha256": "6acc0bf221a4ddc6e5c6438348920b2ca2393b29c4314dbde2cdc23f2b1a9639",
+          "size": 3910
+        },
+        {
+          "path": "reference/android.md",
+          "sha256": "058f81f256134841875fd3183e06b37a023de0c877fd2b9eecd97011640791fe",
+          "size": 4093
+        },
+        {
+          "path": "reference/animate.md",
+          "sha256": "d658c48ffbe0031e8e3b318996cad6ceafe29e40aa50d5bb25e4bf1d6839dc7c",
+          "size": 5236
+        },
+        {
+          "path": "reference/audit.md",
+          "sha256": "910461b1c1f8216155165955c860a884a1e2f557cb38f21ef512ea90ef6503c2",
+          "size": 7873
+        },
+        {
+          "path": "reference/audit.native.md",
+          "sha256": "1b10f9ad3d3a1494ee1bbdf35bb6aa453e98defa6e1ae99177b167795054a4f1",
+          "size": 8357
+        },
+        {
+          "path": "reference/bolder.md",
+          "sha256": "f964506c0fae87b3c2c1db7016ddc9be9ef970bbcf5548d684b997b5d5991586",
+          "size": 3564
+        },
+        {
+          "path": "reference/clarify.md",
+          "sha256": "173dd66abe65633910dcb04a51f40d6ff2a793f87088f022a02fc4cad24dd133",
+          "size": 4590
+        },
+        {
+          "path": "reference/colorize.md",
+          "sha256": "bc5f71f1129d0f2c310d913d07c8dc609a1d25644121bd78c308f42d52a0b9e9",
+          "size": 4537
+        },
+        {
+          "path": "reference/craft-floor.md",
+          "sha256": "e802e4f7bdc89050a9c0f2ca506e1d493a2316e6e810c0336c57aa073717ef3e",
+          "size": 5500
+        },
+        {
+          "path": "reference/craft.md",
+          "sha256": "9205e222bc6565b37fb504ceec93233c2d2a456802b69d16e6b1c44723907c4c",
+          "size": 555
+        },
+        {
+          "path": "reference/critique.md",
+          "sha256": "869932e7b8d22e251b5af97bfba8c1c01c41ddfaeff66ee0151e9ddcef91bd9c",
+          "size": 45710
+        },
+        {
+          "path": "reference/degraded/asset-producer.md",
+          "sha256": "e28c0d9e42b127ebf09762ae160b9e94a376576f66fb1d66888871467fb11884",
+          "size": 10093
+        },
+        {
+          "path": "reference/degraded/documenter.md",
+          "sha256": "97a09e350c383cb2f6bba027b83bedffd12a23b1b439ad4a045a48953eb19365",
+          "size": 3365
+        },
+        {
+          "path": "reference/degraded/finish-reviewer.md",
+          "sha256": "c70d4bd77fe9142bbe7e3b412d3ca44443e0914bdb323577dc2acb59e8d72078",
+          "size": 13893
+        },
+        {
+          "path": "reference/degraded/manual-edit-applier.md",
+          "sha256": "9aae8d5bfb72a8cf3473dca74d5046e28002c0b43a7f9b3c14cd0f1a06c8deb4",
+          "size": 7182
+        },
+        {
+          "path": "reference/delight.md",
+          "sha256": "098a891028ce59c212b747d3c70468dd750aff7053a703d1336045ed31e0da7c",
+          "size": 3716
+        },
+        {
+          "path": "reference/distill.md",
+          "sha256": "ea8432c90c30ecb0426662a681ead5c0941113079704e1a766cda09e85b15b4f",
+          "size": 5717
+        },
+        {
+          "path": "reference/doctor.md",
+          "sha256": "c7a439efd70bdc232da970d0695c60502525e5b7e882ad9d5b1f4794b00dd260",
+          "size": 5463
+        },
+        {
+          "path": "reference/document.md",
+          "sha256": "3673248740bcdd1122ccc610093ba2fe52f3943a61ce0b7170b74dc49e5b6098",
+          "size": 27521
+        },
+        {
+          "path": "reference/extract.md",
+          "sha256": "31b90048c0b540daec46762a10c2b6b6434737a89af005054d8b848d829d003b",
+          "size": 3433
+        },
+        {
+          "path": "reference/harden.md",
+          "sha256": "b31ff29c7a1ea979c6d039f7e8d17007410697ab49536690dca109f0af3f20f8",
+          "size": 8539
+        },
+        {
+          "path": "reference/hooks.md",
+          "sha256": "bf83d84025e4af80c6aa13f872c0bf9cd5fb227f98d828f2fff4c3848cf06fd0",
+          "size": 12729
+        },
+        {
+          "path": "reference/init.md",
+          "sha256": "09edecac88d50cd6046c8a43e741685c0f845cf59254116bc85f543a6aa81384",
+          "size": 11491
+        },
+        {
+          "path": "reference/ios.md",
+          "sha256": "40c87038b5f75147a5952a96237acf312a327bf70c1bcd8e0a5f064625ae9668",
+          "size": 3812
+        },
+        {
+          "path": "reference/layout.md",
+          "sha256": "2d5eba1b9493f85c149a197fe6c4e9d015f5e68c49f24f5210a237cee4e44348",
+          "size": 5159
+        },
+        {
+          "path": "reference/live-setup.md",
+          "sha256": "d649665aaead9e8ac4ccba57bbc7726d276c5bcb464130eb914f6c08cd79d711",
+          "size": 7422
+        },
+        {
+          "path": "reference/live.md",
+          "sha256": "2b4b05cae6d54fe0f9633e79cfc5bc58262548de89c25225b7a7728221ca64be",
+          "size": 35841
+        },
+        {
+          "path": "reference/new-work.md",
+          "sha256": "cb79a04d03f501893d2799abb3e6f818bb5c066da3344cc72ff0f65da9269150",
+          "size": 43653
+        },
+        {
+          "path": "reference/onboard.md",
+          "sha256": "ef2dde00030580ed2765cbf7be9b2ea4a6f64cb915b804fd6f6abcf38051c7b9",
+          "size": 7740
+        },
+        {
+          "path": "reference/operate.md",
+          "sha256": "a9d2203acd45ca33a13d5c68b02b23ed512425ac15f0e8438318ed124b43729d",
+          "size": 4145
+        },
+        {
+          "path": "reference/optimize.md",
+          "sha256": "f672ef8251a3ed4051a053d30819664951b17540b2899acd27d20e500c234abc",
+          "size": 7614
+        },
+        {
+          "path": "reference/overdrive.md",
+          "sha256": "fce6688138d2ceb1e3d2cde5231f54b1d8dc8748b4c95a7919aa83b6f924cf96",
+          "size": 9178
+        },
+        {
+          "path": "reference/polish.md",
+          "sha256": "e6bbc05a9e1f905811d19401c1e6c7b97588375454e1462dbd811f803d239b07",
+          "size": 5592
+        },
+        {
+          "path": "reference/quieter.md",
+          "sha256": "190a4e642ca362d7499f3c3ab123e21f18f75457d11f072b545a183f296e6495",
+          "size": 4952
+        },
+        {
+          "path": "reference/routing.md",
+          "sha256": "b2fda1126e4a05d127f656d878d9baa593860bd8bc7f70186f8e13c5474c14cc",
+          "size": 2915
+        },
+        {
+          "path": "reference/shape.md",
+          "sha256": "a55f016c046cb6a27c55bd7f346375aeb506a755c4fbca19a5f92dbd42309c23",
+          "size": 3547
+        },
+        {
+          "path": "reference/typeset.md",
+          "sha256": "6d803447fb419ee718012f6263d2685ad462a14dc08c338392e28b79823a0553",
+          "size": 5254
+        },
+        {
+          "path": "reference/visualize.md",
+          "sha256": "1a0a68caa14cb16fbcabba663e3603ffd3337aaec4f2679f72b279bad8ce4a08",
+          "size": 16644
+        },
+        {
+          "path": "scripts/command-metadata.json",
+          "sha256": "6bdbc3f745ceee15e10b050f109ce42bbeb53ab3c3b5239257de1d596654dee7",
+          "size": 7934
+        },
+        {
+          "path": "scripts/concept-seed.mjs",
+          "sha256": "8ea706b9aedaa2a5c8cac88cf5cf5a2252bd90ff9430f0e7c1e79bddfa50fa17",
+          "size": 39651
+        },
+        {
+          "path": "scripts/context-signals.mjs",
+          "sha256": "c7c70735fae0834576636fb9b9c32504a7f08efc95fdc4db97a469f6ca4dd2c4",
+          "size": 14033
+        },
+        {
+          "path": "scripts/context.mjs",
+          "sha256": "74261ab4799140e12770ab52789105e708bd60f7e30d44007c2338376356d8a1",
+          "size": 64324
+        },
+        {
+          "path": "scripts/critique-storage.mjs",
+          "sha256": "17c14fc03d9c53f7f48dfe6e8ef2a15d2a35c9b8f341ddb25720e01cc1ca68e9",
+          "size": 8485
+        },
+        {
+          "path": "scripts/detect-csp.mjs",
+          "sha256": "2d80520bef13cb93107699714bc0d2be5a2787a9aa079ecec91b94508a8125a4",
+          "size": 6761
+        },
+        {
+          "path": "scripts/detect.mjs",
+          "sha256": "f5dfd05ca1e314acd8ed79c6301a20a1b844f2eb6691bd63e04116a8e7efb187",
+          "size": 620
+        },
+        {
+          "path": "scripts/detector/browser/injected/index.mjs",
+          "sha256": "636c59afe083227d6f7d03613a60bd2ac5fe5092b2efc4f4ff52cb6dd4ab79dd",
+          "size": 84211
+        },
+        {
+          "path": "scripts/detector/cli/main.mjs",
+          "sha256": "a319e56a41da58b1f6cccff8ca77dbc1f090fadce693fbc057276a315f53891f",
+          "size": 18913
+        },
+        {
+          "path": "scripts/detector/design-system.mjs",
+          "sha256": "52d854090acb933bff492b17ed42ffd8032f705851aae381032572c54d5527fc",
+          "size": 40911
+        },
+        {
+          "path": "scripts/detector/detect-antipatterns-browser.js",
+          "sha256": "5fa3b211e05d77e015c1443117f9b41074f65bf9eb49c23e1f9a2d960b2815fc",
+          "size": 390381
+        },
+        {
+          "path": "scripts/detector/detect-antipatterns.mjs",
+          "sha256": "c48465e64d390d97e7a3891fbe443e2abe45c3c6da58b5df26cb847bb88018cc",
+          "size": 1868
+        },
+        {
+          "path": "scripts/detector/engines/browser/detect-url.mjs",
+          "sha256": "a972cb4fc1390ba131e6cd9707b4b20aa2730ad04c43b0a9551321777c04c8e9",
+          "size": 14431
+        },
+        {
+          "path": "scripts/detector/engines/regex/detect-text.mjs",
+          "sha256": "799ac535620096cf497ee9ab8cf81010d65749586644f7152a2dea95496528ac",
+          "size": 48637
+        },
+        {
+          "path": "scripts/detector/engines/static-html/css-cascade.mjs",
+          "sha256": "547276511d46916f17a3239b5390350c4b874fe11b219fbd1ff751dc2b005308",
+          "size": 44513
+        },
+        {
+          "path": "scripts/detector/engines/static-html/detect-html.mjs",
+          "sha256": "481b584ccdf3ac28065dbab11f65d638e3e7a35e14c7e62bc5da3d59d2a7efd7",
+          "size": 13351
+        },
+        {
+          "path": "scripts/detector/engines/visual/screenshot-contrast.mjs",
+          "sha256": "b4520b3f001079bd175bf20d46c5197b1b8ec5fb98fdf72c50a24c0b6598ee99",
+          "size": 6529
+        },
+        {
+          "path": "scripts/detector/findings.mjs",
+          "sha256": "8b8af7212c8515d6791a8af1375d0619a9f9a707a881e6fbd850e4216b3f8eca",
+          "size": 766
+        },
+        {
+          "path": "scripts/detector/node/file-system.mjs",
+          "sha256": "a6369b2573cf8af096a5f38f85a9cf4ee3af68817846a0ec9047534cbe05d05e",
+          "size": 7740
+        },
+        {
+          "path": "scripts/detector/profile/profiler.mjs",
+          "sha256": "5e201f3557360bd368a3977fecf925f376fd95f8a4dd6c4cc63fbd62848cda43",
+          "size": 4550
+        },
+        {
+          "path": "scripts/detector/registry/antipatterns.mjs",
+          "sha256": "4544ccca3d7c341d878b941fbe20620750dbf9d29dd6d15e063128a1e390b345",
+          "size": 27900
+        },
+        {
+          "path": "scripts/detector/rules/checks.mjs",
+          "sha256": "fd02ff7e5af0ab13cdcf3ce7ac4bc7c2f937d408ce853c25e387841819bf45b6",
+          "size": 254881
+        },
+        {
+          "path": "scripts/detector/shared/color.mjs",
+          "sha256": "3e10dc8c3d8f19c6c76ac53d4a129ae1500f0a544d23e4c7d67c83c56b2a454d",
+          "size": 23222
+        },
+        {
+          "path": "scripts/detector/shared/constants.mjs",
+          "sha256": "606f50159d56b5e972724c13933e63220696636215292e5316846426f3e12896",
+          "size": 4675
+        },
+        {
+          "path": "scripts/detector/shared/fonts.mjs",
+          "sha256": "869c297295a10082d87988f31c136c5df9ddad84da0c2bbba2e85e1261e320a6",
+          "size": 852
+        },
+        {
+          "path": "scripts/detector/shared/inline-ignores.mjs",
+          "sha256": "74c80303e25f017b4671ae299b9fca424a5f7714203d19207a8d8896dfd2eecc",
+          "size": 6194
+        },
+        {
+          "path": "scripts/detector/shared/page.mjs",
+          "sha256": "b4cef5548d84fa90d15e6b42b20be9ef74ed05e4e6e46076ec5acc61b343315c",
+          "size": 252
+        },
+        {
+          "path": "scripts/doctor.mjs",
+          "sha256": "859c3450436106252957c2f7481e368751dfe6383fc7a78ab87d405c39bad182",
+          "size": 11963
+        },
+        {
+          "path": "scripts/embed-prompt.mjs",
+          "sha256": "4614260ccaa091bea10a6096027d2aca306160e1764765ce155aadcbe674dbc5",
+          "size": 7843
+        },
+        {
+          "path": "scripts/generate-image.mjs",
+          "sha256": "0994c7ab8bc280b9b09676bc0296ca9eea8609b00b1a48eb783486f145c0f338",
+          "size": 11462
+        },
+        {
+          "path": "scripts/hook-admin.mjs",
+          "sha256": "7985b9e77049bf747e5d9b7a11a143c69e9568109e52e408327ae3ddb9fa279d",
+          "size": 31302
+        },
+        {
+          "path": "scripts/hook-before-edit.mjs",
+          "sha256": "49224a98a9addbeaca554b648c3973cb0250ba4cf9dfb56a1b4469c56d98dccc",
+          "size": 20029
+        },
+        {
+          "path": "scripts/hook-lib.mjs",
+          "sha256": "0c710385ccfe5e58b045e7f88c8c5fdaae35d5c4441133c2939c910d93c2d88c",
+          "size": 95214
+        },
+        {
+          "path": "scripts/hook.mjs",
+          "sha256": "4e3629e60d2672258ab98ae382325096a237f100cb0f430d9f692b6d5b93cc7e",
+          "size": 2687
+        },
+        {
+          "path": "scripts/lib/artifact-schema.mjs",
+          "sha256": "ad0a72e96c74be09490b1aea095478e307f45d707b15021c922cbd4466619359",
+          "size": 3896
+        },
+        {
+          "path": "scripts/lib/composition-catalog.mjs",
+          "sha256": "a733122589e5bf6dbfcfbc2f9d016d6f54db0e4cebf278ac7f6a9cea374c9916",
+          "size": 10249
+        },
+        {
+          "path": "scripts/lib/concept-catalog.mjs",
+          "sha256": "43fa911f54d6f36384c727a62b4bfead8a7b282d0d7ad56230fdd59d1be2ac01",
+          "size": 19897
+        },
+        {
+          "path": "scripts/lib/design-parser.mjs",
+          "sha256": "94d3a97903157c54d3c7a41f929ef5059c29b11d736f7cb52db82a55488ad76f",
+          "size": 28484
+        },
+        {
+          "path": "scripts/lib/impeccable-config.mjs",
+          "sha256": "7297e323a700ef8f819641169ebb1c1ae09e7f730d947eaf77a83dd415c2e3fd",
+          "size": 22272
+        },
+        {
+          "path": "scripts/lib/impeccable-paths.mjs",
+          "sha256": "276ec7ac47e3c250e76616755d83cca4846f0f951b51c29f985ec84b51282aa2",
+          "size": 4976
+        },
+        {
+          "path": "scripts/lib/is-generated.mjs",
+          "sha256": "2d6c37f821cb42161264068b81c4c97629a653b661403cedadb5eb23099d0acc",
+          "size": 2502
+        },
+        {
+          "path": "scripts/lib/open-system-browser.mjs",
+          "sha256": "3785ef4ba47bbbe176469e2536e8ef29e885f955970404f46ff34763f831bf11",
+          "size": 848
+        },
+        {
+          "path": "scripts/lib/provider.mjs",
+          "sha256": "998c57324fdab98a0bfbd01a6099eadac7276038da961697d6069bbdeb0e5856",
+          "size": 327
+        },
+        {
+          "path": "scripts/lib/roll-selection.mjs",
+          "sha256": "769cf0d4f8ea8aaee78ae29c7ee9ec27a18070b2137e0ee18adff862c84634e5",
+          "size": 17803
+        },
+        {
+          "path": "scripts/lib/staleness-deep.mjs",
+          "sha256": "c6ea09855e346a3b3bdb9601bbe843db07cbd25e9ebac67d93bc75e14a372725",
+          "size": 21403
+        },
+        {
+          "path": "scripts/lib/staleness-notice.mjs",
+          "sha256": "2770f3360119836822a5823d08248976e327d49adbb06caee1492493e257c8c4",
+          "size": 6706
+        },
+        {
+          "path": "scripts/lib/staleness.mjs",
+          "sha256": "bd1164f90403275180ac522e4d76167ded94e8b090275c3976a894f88156641b",
+          "size": 23167
+        },
+        {
+          "path": "scripts/lib/surface-briefs.mjs",
+          "sha256": "abcc992d8d05475f8761b4d9147ffdf0258e17facb9abedcc0c77c7a56600e0d",
+          "size": 6206
+        },
+        {
+          "path": "scripts/lib/target-args.mjs",
+          "sha256": "8f8b902d9ec7dbad0431226bb8aea935cd67d68878d19d95a605be0585056f31",
+          "size": 1145
+        },
+        {
+          "path": "scripts/lib/target-slug.mjs",
+          "sha256": "dbc2670ad1461658d1b43fe15778ac220bc0db57af1f3fd8ccb6251b5ca5a2a4",
+          "size": 1075
+        },
+        {
+          "path": "scripts/lib/template-extensions.mjs",
+          "sha256": "1a3808237835998f3fea600424c64ab1775beac7e0c344d6b23f472ffc2a3e64",
+          "size": 5457
+        },
+        {
+          "path": "scripts/live/accept-css.mjs",
+          "sha256": "b72ea8f2cfc445598e8948f55e1625f5045ff1c5b968c246b92dbc839d4b6f1e",
+          "size": 22505
+        },
+        {
+          "path": "scripts/live/accept-verify.mjs",
+          "sha256": "fcb04462d65b664f6d663a4fe993acd41921dea7d3c387b7755332290f951580",
+          "size": 2739
+        },
+        {
+          "path": "scripts/live/browser-script-parts.mjs",
+          "sha256": "74e9d7cdfb5851eb827770e6c44ec4eac532522c54f51999be7a42676f6e234e",
+          "size": 3185
+        },
+        {
+          "path": "scripts/live/completion.mjs",
+          "sha256": "d7821979aec5fbc2028a6d98aa3d0abe34b88b0e2527f6df4e4f71e5782430bd",
+          "size": 1444
+        },
+        {
+          "path": "scripts/live/event-validation.mjs",
+          "sha256": "ef06987cfc2c8d8cde0e292fafec4a1aeba9fb43d84dffe2526fac803668c598",
+          "size": 9579
+        },
+        {
+          "path": "scripts/live/frameworks/astro.mjs",
+          "sha256": "9bc679fd9e2f2800e97519bd16f36af7afb696d61391a08f7c9bbc687f03e87d",
+          "size": 1725
+        },
+        {
+          "path": "scripts/live/frameworks/detect-utils.mjs",
+          "sha256": "c69d859d73574784c33e6ac81e537022d619dbaf7f6f2d3637317a3df41b30f8",
+          "size": 2102
+        },
+        {
+          "path": "scripts/live/frameworks/index.mjs",
+          "sha256": "54936fa60f0abb9483fbaac59ba9797c4173e9a77f504ff3df9a32b208ae1bab",
+          "size": 5847
+        },
+        {
+          "path": "scripts/live/frameworks/journal.mjs",
+          "sha256": "536535b977a063fe220447a78cdd351fbc224ac1bfb1bdd1f0827577ad4a5954",
+          "size": 7182
+        },
+        {
+          "path": "scripts/live/frameworks/nextjs.mjs",
+          "sha256": "a724f8fd9be4ef0c58c268c81e0ff651da4ee6c5a7a7a96258932aaab0d3842e",
+          "size": 1732
+        },
+        {
+          "path": "scripts/live/frameworks/nuxt.mjs",
+          "sha256": "8f243e1e91f59b1a61036c0adf45ba4ea49e78983ee56d4634a6d567dfa7d263",
+          "size": 5242
+        },
+        {
+          "path": "scripts/live/frameworks/script-src.mjs",
+          "sha256": "3594a9941214bcea837f2807bd1e77aca33aeb5cea5f4212f5c03f802e6d7f26",
+          "size": 699
+        },
+        {
+          "path": "scripts/live/frameworks/static-html.mjs",
+          "sha256": "4521a21f9b2d171d78a923d4e2c000b729549055f1f82ca1f1725be9455c10f1",
+          "size": 656
+        },
+        {
+          "path": "scripts/live/frameworks/sveltekit.mjs",
+          "sha256": "4f4cb04e6c584f7f179933c79f75514f2c7086a29205527667ba214a60022c2b",
+          "size": 1801
+        },
+        {
+          "path": "scripts/live/frameworks/tag-strategy.mjs",
+          "sha256": "deb03caaaaef15da569c7453d7a6839dc9a47cf504d5c6c74f1127a84d23c4eb",
+          "size": 10866
+        },
+        {
+          "path": "scripts/live/frameworks/tanstack-start.mjs",
+          "sha256": "be7b9135a7b934f29f119c301cf3572b622045120d65ec47444ee58ca51acd62",
+          "size": 1646
+        },
+        {
+          "path": "scripts/live/frameworks/vite-generic.mjs",
+          "sha256": "63fadafbecf340f037e9d52912483774aa9a41761b1680b9c8cf9c2e5bba30b3",
+          "size": 1324
+        },
+        {
+          "path": "scripts/live/generation-preflight.mjs",
+          "sha256": "d98806a798bc0425c204e3dcbbf40071fe9ab46a95bcfb3624f36740b6a0f1da",
+          "size": 5937
+        },
+        {
+          "path": "scripts/live/insert-ui.mjs",
+          "sha256": "c86839fc9be98eadc0ff6afaa6ab010a7539e9af77e8deeba898cb93f7f311f4",
+          "size": 15664
+        },
+        {
+          "path": "scripts/live/instructions.mjs",
+          "sha256": "9bebb2689fbf4f454b3c3afb2b58e1bcb70705113b05041f959f67caa5c802e1",
+          "size": 13216
+        },
+        {
+          "path": "scripts/live/manual-apply.mjs",
+          "sha256": "c0e7fc5c3d4a7d6e1d6a8e6f85cbe005e5dc01d77b16fd0735605f287c4c8b66",
+          "size": 34898
+        },
+        {
+          "path": "scripts/live/manual-edit-routes.mjs",
+          "sha256": "5517c40db7c91a5b24b134f79cb0f87c90e307b2f7831b1de670d60e529557c0",
+          "size": 14933
+        },
+        {
+          "path": "scripts/live/manual-edits-buffer.mjs",
+          "sha256": "bbd1aba1b9bc891cba771ee8b891d344542119967ae4666e7147da59de5485fd",
+          "size": 5112
+        },
+        {
+          "path": "scripts/live/poll-lanes.mjs",
+          "sha256": "a516bc942c55b66be915619794f4ec79aadf94d6966c6fc7aee24f1fbaa60ab3",
+          "size": 759
+        },
+        {
+          "path": "scripts/live/roots.mjs",
+          "sha256": "715e9658cb28746c126faf24bbd3cd949e1ebc5dd189eb455887544ae4efbf12",
+          "size": 20887
+        },
+        {
+          "path": "scripts/live/session-store.mjs",
+          "sha256": "03217be8aad575f3ce44c1a634c40a013ca18edeefa81894450637af2603c411",
+          "size": 22916
+        },
+        {
+          "path": "scripts/live/source-lock.mjs",
+          "sha256": "2919dd7641a5ff2320a01a1bf9f9adcff6e7e2f2b3ccb1b48cdf0b5c091b3803",
+          "size": 3707
+        },
+        {
+          "path": "scripts/live/source-search.mjs",
+          "sha256": "429dcbcf21785df225fa97a24906dec11b5170e76df6ed0a2b098fa2c2057de2",
+          "size": 4349
+        },
+        {
+          "path": "scripts/live/svelte-ast.mjs",
+          "sha256": "11feee00b0637e5960c2045f3dca290eb00ceef00f9a09e3fbf3458abfa8779d",
+          "size": 39160
+        },
+        {
+          "path": "scripts/live/svelte-component.mjs",
+          "sha256": "234dae2735aae9385716416a4e958d6890ec7cb42dec2e158fe128e8856eaf97",
+          "size": 52297
+        },
+        {
+          "path": "scripts/live/sveltekit-adapter.mjs",
+          "sha256": "b12650fd2b9801331fe13d4a2af60197e248954142aa2c09a7508c2a698e0e39",
+          "size": 11395
+        },
+        {
+          "path": "scripts/live/tanstack-adapter.mjs",
+          "sha256": "e0265a317130051f51ff85c51fcd48056ac37dcd8665caa366cbd3fab6865690",
+          "size": 9756
+        },
+        {
+          "path": "scripts/live/ui-surfaces.mjs",
+          "sha256": "eccf5853861fd2df44a094037b9fa9302f7de8035e53c956bf8cbac7cd6c4baa",
+          "size": 3614
+        },
+        {
+          "path": "scripts/live/vocabulary.mjs",
+          "sha256": "f1765c853a8894074f511f7b34bda815552e45ea6458babee0ace97416c652ed",
+          "size": 7191
+        },
+        {
+          "path": "scripts/live-accept.mjs",
+          "sha256": "f823b4f71a6ae21ffb8b52aa3a78768f0bee551329cf76ad4144e4680a05c154",
+          "size": 35874
+        },
+        {
+          "path": "scripts/live-browser-dom.js",
+          "sha256": "bcfa4022e741f8034b841aed76b9ea3f6a64a8e08e4dfa43ba99f8be65a73393",
+          "size": 4250
+        },
+        {
+          "path": "scripts/live-browser-session.js",
+          "sha256": "dddcb8b941f7460aa6a134f7d456b1820747172c12e01de36dab3265b1065cff",
+          "size": 3297
+        },
+        {
+          "path": "scripts/live-browser.js",
+          "sha256": "0a22b857f473c2bf38f69c278ab82b7c69c6621ea102a76b699030a1b74327f5",
+          "size": 500663
+        },
+        {
+          "path": "scripts/live-commit-manual-edits.mjs",
+          "sha256": "f179372ebcd34723cfca72bf718853beb5cfa05ea3a02e9137508d585eb94aa9",
+          "size": 42166
+        },
+        {
+          "path": "scripts/live-complete.mjs",
+          "sha256": "28db300c3a5b42ee01d4250a664020523d2b85158fa987d92c403cab19ae030c",
+          "size": 4808
+        },
+        {
+          "path": "scripts/live-copy-edit-agent.mjs",
+          "sha256": "e33514592d56b8e8416f3e7c58ee11a2416047ad559c096c3f16c4e9fc57c41c",
+          "size": 33453
+        },
+        {
+          "path": "scripts/live-discard-manual-edits.mjs",
+          "sha256": "fa967fe27e442dd6c9b467713dd4a05c5d2189af03ad76b98bae9f6642cda545",
+          "size": 1687
+        },
+        {
+          "path": "scripts/live-inject.mjs",
+          "sha256": "0e1bc4e9a43b74d4b4571ff2191f813b8716346a4bcafe7d42bd84a47397d92e",
+          "size": 18536
+        },
+        {
+          "path": "scripts/live-insert.mjs",
+          "sha256": "057c81807b2f02d565edd41456fb10a43fb01209cb60a541b58f653e480f8991",
+          "size": 10081
+        },
+        {
+          "path": "scripts/live-manual-edit-evidence.mjs",
+          "sha256": "c5a36c361c435fc023e17be16a78aaf672adb48a6a74e8177cfa775592502638",
+          "size": 11857
+        },
+        {
+          "path": "scripts/live-poll.mjs",
+          "sha256": "ae7529597d53b5a11cd3a53b5b54f377ccb92968f521acaa08a1744ebd14dc14",
+          "size": 16099
+        },
+        {
+          "path": "scripts/live-resume.mjs",
+          "sha256": "b5c9e4b1c27ea2dbbf95b563df7314ddb77c6aa75ce2c760cde15f7082ccbec0",
+          "size": 6132
+        },
+        {
+          "path": "scripts/live-server.mjs",
+          "sha256": "40b1b93948c46f85d1397443730efc3f01474949f5cc0414f45c154fb6ba74c2",
+          "size": 68283
+        },
+        {
+          "path": "scripts/live-status.mjs",
+          "sha256": "12ce152c6aec4ea2c938bd629b8406de0ee9926586e5af9fe550ab06bba88639",
+          "size": 2626
+        },
+        {
+          "path": "scripts/live-target.mjs",
+          "sha256": "7f18323b89167804c2d9005d4766b159c81268c9f21daab9fdec24f513f25eb0",
+          "size": 934
+        },
+        {
+          "path": "scripts/live-wrap.mjs",
+          "sha256": "f0c5845155c76cd01422a5de92e15e1bb81bb531a2c2985edb21965c5ad38c0a",
+          "size": 39116
+        },
+        {
+          "path": "scripts/live.mjs",
+          "sha256": "d59eb657dfb142fcb3fc9c159efd7ec50d62f2294eabecc6134c6cabda6d3996",
+          "size": 13617
+        },
+        {
+          "path": "scripts/modern-screenshot.umd.js",
+          "sha256": "bb36665889124a0b6e15f16045265737449c3bdcf2712cdb08af3cfa01563e2b",
+          "size": 29290
+        },
+        {
+          "path": "scripts/palette.mjs",
+          "sha256": "6e09e15188033bfb8fe1f8de66f667c2b8b13d48cb55b1f50808330856e5fe16",
+          "size": 56787
+        },
+        {
+          "path": "scripts/pin.mjs",
+          "sha256": "82c50a1bcabc9dda6487b1dd61bf74a8c2d67befd387aba6a0e283a2dd5ab144",
+          "size": 6673
+        },
+        {
+          "path": "scripts/serve-question.mjs",
+          "sha256": "5d1d4d9e078960222cf1790605aec2d8b286fcbf7e6d7a6a2106b23d362cd90a",
+          "size": 106760
+        },
+        {
+          "path": "scripts/surface-brief.mjs",
+          "sha256": "acd03bf38f6aef2b5d5287cefccacac018063b5b5356c99d191b3bd012f28ed3",
+          "size": 2517
+        }
+      ]
+    },
+    {
+      "name": "karpathy-guidelines",
+      "source": "https://github.com/szkocot/andrej-karpathy-skills",
+      "sha256": "5e8a1677df986d47abaf3d42f1ce0c7427ea030f50370c52baf9ba1e2c7c3db9",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "6e22cc54cb02a5e98ae42d06d9d7292db0c1b43894831b32879beb0166b2aea7",
+          "size": 2518
+        }
+      ]
+    },
+    {
+      "name": "logo-design",
+      "source": "https://github.com/seb1n/awesome-ai-agent-skills",
+      "sha256": "4b90dd27f7900a4e857a7610aa4762c14201a0d9cdbced0d6df0ce82e483063e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "a1f12dfe44cbfdc21b5f7d265785da8c2cc356c705dc8347e60355d71115b261",
+          "size": 8325
+        }
+      ]
+    },
+    {
+      "name": "logo-generator",
+      "source": "https://github.com/op7418/logo-generator-skill",
+      "sha256": "b5484cf7a13886079a2266906f847416a2476cd7690ca17700c3fed239be477f",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "dc4dfeca98af6f4f6ceeb599187e2cfd9e77db128be7a9ac886a13094dbdbe5c",
+          "size": 7357
+        },
+        {
+          "path": "references/design_patterns.md",
+          "sha256": "f45e34afd9dfa79aa1ec7ed3e40202516f8890ae1ea4d6ec1bfeaac331e919b5",
+          "size": 28795
+        }
+      ]
+    },
+    {
+      "name": "miaoxiang-music",
+      "source": "https://github.com/all666666all/miaoxiang-music.skill",
+      "sha256": "8cc3bb6cf8bc6e747dbcef573ccc5c4f14b2ec32894dc7e7d254cf46bd4820a1",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "223f9d919a10f8479424246cf5652e18bbe11eb1233d276c210528b258f24cc9",
+          "size": 8753
+        },
+        {
+          "path": "references/genres.md",
+          "sha256": "59c3d85187a15947ab5f6fd884b7107c25d146d14b9445c68a57b0fc81a6c3d1",
+          "size": 12219
+        }
+      ]
+    },
+    {
+      "name": "model-selector",
+      "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit",
+      "sha256": "e2f10573e79cf60c06cb37c70bee10486a95d98631daa9462f701c041f987c4b",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "fc6cbc5fd0337ade6bfc37157684912eb5ab206b7ff11b6889efa1040c30a18b",
+          "size": 7815
+        }
+      ]
+    },
+    {
+      "name": "motion-art-direction",
+      "source": "https://github.com/iart-ai/motion-design-skills",
+      "sha256": "4418094c81777f498517bb4fc4e1b19643a9392c271e987acf15ea60d3454e5b",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "0337edf7c93b8e130bd7658e3d43f546c46f333cacbb2bb970613d65d340c5de",
+          "size": 7581
+        },
+        {
+          "path": "references/direction-playbook.md",
+          "sha256": "c8f4b8b71ac9781c36d4e84451998766e8d4000786d1a3e05e354b29eaa1df98",
+          "size": 9116
+        }
+      ]
+    },
+    {
+      "name": "music-composition",
+      "source": "https://github.com/SJY051/music-composition",
+      "sha256": "ce098fada4b5b6de9f5462fd32cb7f388a02d873e0e586d1081448edad90e3f8",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "f1ec2b43337c5e99de44635b169d65ff8f41f5bc441245e70ce684732598317a",
+          "size": 13875
+        }
+      ]
+    },
+    {
+      "name": "musical-dna",
+      "source": "https://github.com/jwynia/agent-skills/tree/main/skills/creative/music/musical-dna",
+      "sha256": "d26f7aed62bd54dd11a90470ef1c562d76c1c932aad8cb7bc25b87756818768a",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "44ac2d49116264d969bc5d81fa4f725301ebd1b70070e00c087e65e596eb9aa0",
+          "size": 11543
+        }
+      ]
+    },
+    {
+      "name": "performance-review-writer",
+      "source": "https://github.com/github/awesome-copilot/tree/main/skills/performance-review-writer",
+      "sha256": "7d4b459d924d27b1e724d01a13cf19fff2da8d0d2045f5706d8da09116b2f67e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "0bec62e91b3698d3fb2089fd853d3ada8e07b6cbd4c355ae85e09bfd6ea34bc6",
+          "size": 8850
+        }
+      ]
+    },
+    {
+      "name": "pptx-generator",
+      "source": "https://github.com/minimax-ai/skills",
+      "sha256": "7c0503326c0aabb04cb667aaef0775cc0240ec74a5431d53203203e220ec782f",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "6eeb36239fdef35ab133ca462e1ec4674cb96dd9c5cd63da39c29151899bda10",
+          "size": 7930
+        },
+        {
+          "path": "references/design-system.md",
+          "sha256": "8a225af2ebd3bfa979616da74b7ec34395712fe1a8195e5613214aa291211996",
+          "size": 16159
+        },
+        {
+          "path": "references/editing.md",
+          "sha256": "5385ef88e7d081c43ee488ca308174743678314d53f6afc5df9b932390dcb3bf",
+          "size": 6577
+        },
+        {
+          "path": "references/pitfalls.md",
+          "sha256": "247a8eb1860524fdd0d8a3365a791490c162d4a58677eb3f329d4dd682ce0257",
+          "size": 3849
+        },
+        {
+          "path": "references/pptxgenjs.md",
+          "sha256": "4b66df00dd581c2eeadb140fd9bbad71daea6fb48b424f97b993f8521e41d470",
+          "size": 12752
+        },
+        {
+          "path": "references/slide-types.md",
+          "sha256": "fa2c0da76d420463990317dc5932e607cea5e126389ca391e3e5718629b0cb38",
+          "size": 15790
+        }
+      ]
+    },
+    {
+      "name": "product-launch-video",
+      "source": "https://github.com/memex-lab/product-launch-video-skill",
+      "sha256": "ae2b8f46ce3233acc10ba8b94c86c162329cb34f9d426ffd9f5317a973f3b8e4",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "7608467709e563fe201ae9e4f4e32d7515c9605b91510dc8baaefccb5f16ee85",
+          "size": 48618
+        }
+      ]
+    },
+    {
+      "name": "prompt-translator",
+      "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit",
+      "sha256": "9a43c3840bc668f8b6e549b99247bb6c3cf89da01f22250641045686eec51519",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "93f461a728233c43ca0c54c56f7f904edaa1dee579ff5eaa3789c047eeab6633",
+          "size": 11786
+        }
+      ]
+    },
+    {
+      "name": "qiaomu-mondo-poster-design",
+      "source": "https://github.com/joeseesun/qiaomu-mondo-poster-design",
+      "sha256": "5496929385a82804dac089bed1e19708a304e9c702645f1409d789fc91b75c05",
+      "files": [
+        {
+          "path": "LICENSE",
+          "sha256": "54ab321ca83fe9c9a853974adfe70aff9b74f9038c4cd9adc7c670052b5dbfc3",
+          "size": 1066
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "ea2ca31e2b8287718e082c1ae3d8fb96f69575f98e68594a365db60d1b758018",
+          "size": 16822
+        },
+        {
+          "path": "references/artist-styles.md",
+          "sha256": "3808dc88c5267d6b51ea87d182050143d53636815795f1c3d9726c7459f88ea2",
+          "size": 15370
+        },
+        {
+          "path": "references/book-covers.md",
+          "sha256": "0290b7dc852ce271689ceb8155926d9e1d50bff1b14322705f247b9577092f94",
+          "size": 14913
+        },
+        {
+          "path": "references/composition-patterns.md",
+          "sha256": "2185b7ee4b9812bcdb7030b06c1565160dfa8d3701782950a56b3021201498cb",
+          "size": 13428
+        },
+        {
+          "path": "references/genre-templates.md",
+          "sha256": "a4370246192fbfafbd9d5679d9f4d4b6d28ea5ea3982b478f6a847ab1f933a21",
+          "size": 12922
+        },
+        {
+          "path": "requirements.txt",
+          "sha256": "dd6294c039c243555155242eee4d40efffb4fe0c268b6476e7cb31c29a81ca8e",
+          "size": 258
+        },
+        {
+          "path": "scripts/generate_mondo.py",
+          "sha256": "eb9872afab3cae8a6544bec4d8792be116ff5a992093fe0b15e04bebc228c7bf",
+          "size": 9710
+        },
+        {
+          "path": "scripts/generate_mondo_enhanced.py",
+          "sha256": "16a2065240f370d90eb82e3b2fed186702a15a68cac4f74c6ac2d11f4bb48057",
+          "size": 16953
+        }
+      ]
+    },
+    {
+      "name": "regional-culture-poster",
+      "source": "https://github.com/dacnay816y62-hub/regional-culture-poster",
+      "sha256": "28066555081b39e54f944dce5e1faafc483ef19431c376011c33790114cc4dea",
+      "files": [
+        {
+          "path": ".gitattributes",
+          "sha256": "56aa9de55e23834991c6c16e30e966ba445b7cdcb92c832961a163a1d2886d06",
+          "size": 175
+        },
+        {
+          "path": ".github/workflows/validate.yml",
+          "sha256": "f38af37728c7a5a56ced89245baeceb5ff83a8552b6dc884b84c594410ff5b5e",
+          "size": 376
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "396fd26187368d7308908020d739e3cd5d8d05dec5e352888b1bb7756dafbaec",
+          "size": 467
+        },
+        {
+          "path": "CHANGELOG.md",
+          "sha256": "2f6abad595dd38ca9976874b5037fe859b03c339f5f173185d7085aebe966ecf",
+          "size": 865
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "960f9722c137f45175e1520c08d51976af68dca116174867e66d436ba065fda8",
+          "size": 1076
+        },
+        {
+          "path": "README.md",
+          "sha256": "de413593b83d3c1dabfc0e8c6a1e5fa5bc9870b13097cb49d257193b2b51d621",
+          "size": 8866
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "b9af32e8af78f286199dc373cf092dc9aafff8e3d120ac3cbc282f4bf3b0fda4",
+          "size": 16116
+        },
+        {
+          "path": "VERSION",
+          "sha256": "2d2454ef0edeb462a6ce8b25d387aaa74df08093d5cea0428a10ce55510c6326",
+          "size": 6
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "34a58a157d04b0a2d1b7b007acc9be50d2f6e31074be7718a4395979f2f80607",
+          "size": 358
+        },
+        {
+          "path": "assets/examples/beijing.jpg",
+          "sha256": "e5b31b25b3f4472bfacc9cb91428b83e6065cd7441a9d998960640cb38d2d8d3",
+          "size": 56461
+        },
+        {
+          "path": "assets/examples/changsha.jpg",
+          "sha256": "4a1f0a4687f3af0038f88c00b8e178df219ab22373cdae75ac3c48c2c9039b99",
+          "size": 62445
+        },
+        {
+          "path": "assets/examples/chengdu.jpg",
+          "sha256": "037762dc16f52f2eedd73f2ac97417a62b1a147486569a10d21d83597165e6e8",
+          "size": 53490
+        },
+        {
+          "path": "assets/examples/chongqing.jpg",
+          "sha256": "7930e069ac5956196b2a199bf3cf76fc1cec249add22cd65690a4f9b62152543",
+          "size": 49440
+        },
+        {
+          "path": "assets/examples/dali.jpg",
+          "sha256": "427a7c1562b7f130505e6cca892b3fe2e794c2cb7c08b7a3a3b9f62febc6cf34",
+          "size": 42499
+        },
+        {
+          "path": "assets/examples/dalian.jpg",
+          "sha256": "c4acdb3c65549a26a353925403512be5d4f25ded5d9c1632c51970f72a1ea83c",
+          "size": 36668
+        },
+        {
+          "path": "assets/examples/foshan.jpg",
+          "sha256": "99eb3e84819ee33fc9ada80fe625818110367803109a3875af4c7535fb110ce3",
+          "size": 44790
+        },
+        {
+          "path": "assets/examples/guilin.jpg",
+          "sha256": "a40bdacd8a2eb2762986887d197aebc65ca68ce398b5adffc32034d771ad24bc",
+          "size": 53105
+        },
+        {
+          "path": "assets/examples/guiyang.jpg",
+          "sha256": "2bc8f7e5e56f47fd40692c46abc13ff37bbfe42f86b1086971856588879dc206",
+          "size": 52898
+        },
+        {
+          "path": "assets/examples/hangzhou.jpg",
+          "sha256": "e235a002ee71609b716b9691b0c46a1a7d511c349cf335cdd92ac1e556588b83",
+          "size": 36132
+        },
+        {
+          "path": "assets/examples/hohhot.jpg",
+          "sha256": "bd9c33ce0342fed79523ceaeb0141d58a72d18fc3f1276ffd613f34ef876dc99",
+          "size": 40052
+        },
+        {
+          "path": "assets/examples/jiaxing-redboat.jpg",
+          "sha256": "312902810af887e7038d97720e6b382fe604362b2ae2ec595c6a5f1fd4680683",
+          "size": 50516
+        },
+        {
+          "path": "assets/examples/jingdezhen.jpg",
+          "sha256": "65f26fe0f6ccf997c83be243805e5d441609cbd7b89501964790c3f8f5927e0a",
+          "size": 46853
+        },
+        {
+          "path": "assets/examples/kunming.jpg",
+          "sha256": "28444e874f963a1f75127e1b1754f49fa8b8d4fd5c6348ad6b4af84829a88422",
+          "size": 45287
+        },
+        {
+          "path": "assets/examples/shanghai.jpg",
+          "sha256": "aee1a3a1a1c87eaf50aaccc4fe10dada2b899281f312a2d754623c3aecb09197",
+          "size": 46936
+        },
+        {
+          "path": "assets/examples/shaoxing.jpg",
+          "sha256": "5e43ee0aa812ea9023d52a57db56444d6428619208bbf7a00be9b6172870f091",
+          "size": 51038
+        },
+        {
+          "path": "assets/examples/shenyang.jpg",
+          "sha256": "4fa8dcc3f97521600ebd7a2596c5f9080876133ddd9648f037f38234eea25fa5",
+          "size": 42838
+        },
+        {
+          "path": "assets/examples/suzhou.jpg",
+          "sha256": "99156925d6d3aa234ee93dcdad888895457faa94c98ddecfb2f600b7ca6a6548",
+          "size": 40977
+        },
+        {
+          "path": "assets/examples/urumqi.jpg",
+          "sha256": "fc343d73899a50b5b89211e34a667f1c02c15f523e78b1e468d94991b496249c",
+          "size": 65630
+        },
+        {
+          "path": "assets/examples/xian.jpg",
+          "sha256": "6869240c91428773687271e808be57090a868b9eef8a57a42fce31460ed7b41c",
+          "size": 52723
+        },
+        {
+          "path": "references/cultural-analysis.md",
+          "sha256": "fb9588a910813f4363da1efb9a23c516abd707f4f15da3ccea66a94d85cccfc1",
+          "size": 4155
+        },
+        {
+          "path": "references/direct-generation.md",
+          "sha256": "26e0171e97a18a7a9a51da9516cf90d8fdbd9e485f1e762a89764eb92f6fbbad",
+          "size": 9570
+        },
+        {
+          "path": "references/mode-b-editorial.md",
+          "sha256": "12591184ab8a1aac0f48eab14ba191fc242b5122ac5b53d8ec202feb63244967",
+          "size": 27865
+        },
+        {
+          "path": "references/production.md",
+          "sha256": "48f5486d7aedd402a162a72148defee034c4d28b7617d64d9db5c7274e31b033",
+          "size": 4374
+        },
+        {
+          "path": "references/series-and-examples.md",
+          "sha256": "372622b69fab0b1fdde304b3a3b1ceb5e24e1e12d05d501fdddb5ef1956ecfbd",
+          "size": 3193
+        },
+        {
+          "path": "references/visual-system.md",
+          "sha256": "0e6814c565da073d0bf64b0aba98d60bf511c5a99d997a7af8034b13e844b5bf",
+          "size": 7410
+        },
+        {
+          "path": "scripts/validate_public_repo.py",
+          "sha256": "9229012b9b978b9caa3c6a6cb15d79f63b942d66eb144390cd542f44051f6b01",
+          "size": 4386
+        }
+      ]
+    },
+    {
+      "name": "remove-ai-style",
+      "source": "https://github.com/zc277584121/marketing-skills",
+      "sha256": "35491c18adebbbf476462c4d6be6d35f7b3cf98d645bb5bfd85289d188e52ded",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "34fdb2d80086c30df5ced91da8db9894c2c03df5ba4281909b8b2a1be9390ec2",
+          "size": 5241
+        },
+        {
+          "path": "references/chinese.md",
+          "sha256": "b6f93af5be4c4620719b3a398cfb5dea5ff8d57dd7ac1db3d078526570d880d2",
+          "size": 4548
+        },
+        {
+          "path": "references/english.md",
+          "sha256": "3265b22d5ab49686bab30f7114b9ebc38e7122ec4b4ae13c1fff23d3e0558c83",
+          "size": 5652
+        },
+        {
+          "path": "scripts/analyze_ai_style.py",
+          "sha256": "b1f0fa7af66072f23723f52fde09db05f0d3a3bcdaeab8194a14cf2cbce04bf7",
+          "size": 28405
+        }
+      ]
+    },
+    {
+      "name": "requesting-code-review",
+      "source": "https://github.com/obra/superpowers",
+      "sha256": "f6b7bba1eac5267f0c317cf9e9bbfea3ab7ead130b1285cc79f66611232cd96f",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d71cc01ba56d2325cf8af5f7c11837819b63ecd57de0bfdb812f7f3ff7751df8",
+          "size": 2956
+        },
+        {
+          "path": "code-reviewer.md",
+          "sha256": "5eca5fcfd48a50e0a526ce5ffd64bf625d6b81bb46d11795274dae451fe6ffd4",
+          "size": 5669
+        }
+      ]
+    },
+    {
+      "name": "research",
+      "source": "https://github.com/mattpocock/skills",
+      "sha256": "6d02c11a6a7192f3e6058533e1cc310060cfceddd118623ea53e6d1da605d659",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "af378829f015775a3bcd65ff466826722e99359017ae6bae227ca4c9bd14049c",
+          "size": 799
+        },
+        {
+          "path": "agents/openai.yaml",
+          "sha256": "9b4c470d63221c1f68f22df70b83e2f12401b317babe0d1b7b5f24a974474d0d",
+          "size": 94
+        }
+      ]
+    },
+    {
+      "name": "seedance-storyboard",
+      "source": "https://github.com/cclank/lanshu-awesome-ai-video-kit",
+      "sha256": "02975d67daace07901d1f781b98cd419a236c8699732db84c1abd69848e08a0d",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "1192dedb090e5ace273376343e5a236ec0d5e001097eb39a57ff7cdb1ae75601",
+          "size": 6207
+        }
+      ]
+    },
+    {
+      "name": "short-form-video",
+      "source": "https://github.com/iart-ai/tiktok-video-skills",
+      "sha256": "8aeaf1a05ce72f1699ef2ad8b19879299c3895fe30d996b23bd4605452ce4430",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "70b13e673a73d68fc2235bcd86681229c02159aae24439ba56d4d0e09ccf3e27",
+          "size": 1377
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "27a55d05cded4d39efad74220e8a17aed22cf4b5cac0804f50754f307283ce15",
+          "size": 11079
+        },
+        {
+          "path": "references/retention-pacing.md",
+          "sha256": "6cd820af4467c3e933bd5e444caca656a7b85f34170be23068f54385543525c1",
+          "size": 9910
+        }
+      ]
+    },
+    {
+      "name": "shot-composition",
+      "source": "https://github.com/iart-ai/motion-design-skills",
+      "sha256": "78b32ef00a3953384f76ffdbf81e3b324c62831cfbb3130c5ea0d887e870b47e",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "size": 0
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "c2bbedc1d615ba9969755054bae4fb9d6733df17226b8010b02e064e7838f0c1",
+          "size": 12995
+        },
+        {
+          "path": "references/camera-and-grids.md",
+          "sha256": "03983f4e2d76226c23ffb60207e6d23bfc021359150d1dae1e5439149db99e88",
+          "size": 6264
+        }
+      ]
+    },
+    {
+      "name": "shuorenhua",
+      "source": "https://github.com/MrGeDiao/shuorenhua",
+      "sha256": "fd70d3ae3b457615393e123c9a83ba4e36db9801583b40130e28cadd78104cc0",
+      "files": [
+        {
+          "path": ".claude-plugin/marketplace.json",
+          "sha256": "53694e3b9254dc469ff140bcd92984cff0abc677264f2247218379c77f153749",
+          "size": 441
+        },
+        {
+          "path": ".claude-plugin/plugin.json",
+          "sha256": "c637a100bcda506a4452a473d75298c8f007fd0810f4fe3599297d6da9a66360",
+          "size": 509
+        },
+        {
+          "path": ".github/ISSUE_TEMPLATE/bad-case.md",
+          "sha256": "7ca399a2f000ab02c914c5cd4b4758475804863b13711630b20ef04801a20a5b",
+          "size": 995
+        },
+        {
+          "path": ".github/workflows/check.yml",
+          "sha256": "f2a1971d5417bcdb7e908b75b3ecb47e516fe12268ce2a2f47b4607e271330f8",
+          "size": 194
+        },
+        {
+          "path": ".github/workflows/star-history.yml",
+          "sha256": "44dcef683991361cde9a3dc1ee111cf97c333a22ca93ace6f19feb572f71df8a",
+          "size": 1028
+        },
+        {
+          "path": ".gitignore",
+          "sha256": "00a9070dff36d3563a75da5140b39ff05b923fcf85f9e496311bd0bfd380e3d0",
+          "size": 30
+        },
+        {
+          "path": "AGENTS.md",
+          "sha256": "f55cb3cbf4a70c143e3feed5aa155db6fe61689c48dc39e625cbf9a897222987",
+          "size": 1263
+        },
+        {
+          "path": "CHANGELOG.md",
+          "sha256": "a5b289f0d4f14a3f1b4320c1bf37a74978a341551e9be6f9ef997502df761a61",
+          "size": 86414
+        },
+        {
+          "path": "CLAUDE.md",
+          "sha256": "f55cb3cbf4a70c143e3feed5aa155db6fe61689c48dc39e625cbf9a897222987",
+          "size": 1263
+        },
+        {
+          "path": "CONTRIBUTING.md",
+          "sha256": "b41a34f719992c3f2910f589070a84f7c9cc3e6e0a25aa4193849c80b5eb9fe2",
+          "size": 7833
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "d26eebf6104e9770ca097771022767da18fc07ca73a542469d2748b2e3186878",
+          "size": 1065
+        },
+        {
+          "path": "README.md",
+          "sha256": "ff586831bf849e12a904559c748fb4b5c59009b062f9fcf888c5d67e60aa498e",
+          "size": 20498
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "8d8cb41171f8a6c39978967194800f0bb8ed4a997ab16ff76ea71c576c0c9f3a",
+          "size": 26351
+        },
+        {
+          "path": "assets/banner-dark.svg",
+          "sha256": "d9fd22cc8363b951bef1f3c93c49680e05ef9d598f728dbaf3be52f2ff9732ea",
+          "size": 49295
+        },
+        {
+          "path": "assets/banner-light.svg",
+          "sha256": "04b4f9657ff154364ac72fc55c1af4cdaf507ce14b9e16898db3fead8a0a2919",
+          "size": 49295
+        },
+        {
+          "path": "assets/icon-hd.png",
+          "sha256": "22e890ed882dfd2c51926ebd1708bdd5d13eef7f7d4f8a1cb772b9576cd4c848",
+          "size": 1032386
+        },
+        {
+          "path": "assets/icon.png",
+          "sha256": "ecfc94e393f1908d89b25b3f8be6e28aab8a1da0d231f6ddf24c4d0688bdec91",
+          "size": 304613
+        },
+        {
+          "path": "assets/readme-logo.png",
+          "sha256": "b89fe4c516344bfdd35471c69df4a728eb24cfa26a97c8fb4e9c5dcdd5e55252",
+          "size": 175768
+        },
+        {
+          "path": "assets/social-card.png",
+          "sha256": "d3a9cd154b01861d893620cbda3f1ee9ce08a40ca389f3b7ddbc2ecd7cd35439",
+          "size": 85203
+        },
+        {
+          "path": "automation/README.md",
+          "sha256": "0e7ac64c1da9600ba0c2d551422c2c01d06c7c7b0428014af7eab6e8be3cfc5f",
+          "size": 4909
+        },
+        {
+          "path": "automation/check_repo.py",
+          "sha256": "9f847ea433be4c74d8a4aabfc9b0b0071d65a81824b471f78e2fd7c2bfd02a29",
+          "size": 17016
+        },
+        {
+          "path": "automation/eval/README.md",
+          "sha256": "ce6baae7f9dd3e3ca7d75d7de47c125714f1522ac6fcd6a6de88e1d81523edfe",
+          "size": 12149
+        },
+        {
+          "path": "automation/eval/hard_metrics.py",
+          "sha256": "951555da31bb80e2c2a98fada5b91230551f3caabeb2a57caaa0faa540c73d9b",
+          "size": 48531
+        },
+        {
+          "path": "automation/eval/judge-prompt.md",
+          "sha256": "1822c7fb36c193ec01681e330bf87d723c6c0756f85a880f2301d7459c8954b8",
+          "size": 4737
+        },
+        {
+          "path": "automation/eval/make_blind.py",
+          "sha256": "5721d7dd1061ca5a3e9ceda73e2c023678d47a48cadfeaef0bfd9a79c48d59cb",
+          "size": 6181
+        },
+        {
+          "path": "automation/eval/rewrite-prompt.md",
+          "sha256": "df611269aeb6dc70be422e0bed641ff4b4bc6e16b0d3e5c4743a306e94d5ec2e",
+          "size": 5219
+        },
+        {
+          "path": "automation/gen_star_history.py",
+          "sha256": "28c88fe76af5dfecee9fe34b9b4acd7cb368b01f9047bad84be48511fa0061d0",
+          "size": 6038
+        },
+        {
+          "path": "automation/intake-prompt.md",
+          "sha256": "7b8b3679921c1b15b1ec1e20dcca6dabb6444a5e1adec5032e8195cf84f3a1c5",
+          "size": 2956
+        },
+        {
+          "path": "automation/intake.md",
+          "sha256": "38c1630bd8c2dc87723684e239314f3eaea486819450c49e5464c81e30cf32ba",
+          "size": 4453
+        },
+        {
+          "path": "evals/benchmark-blind.md",
+          "sha256": "db35cfd33e191d7ad1907c249852a4bd35e1f0669d681116b392d847c0147fdb",
+          "size": 29265
+        },
+        {
+          "path": "evals/benchmark-map.md",
+          "sha256": "ea8c60c7ff3b3d1505f4911a45cb9eb64549e322970e8d9fe805dc3262a05d00",
+          "size": 3784
+        },
+        {
+          "path": "evals/benchmark-tiers.md",
+          "sha256": "0715e17101e187bcea4388fadbc2c86d6f03185e18d095873cbaf0c071d94c68",
+          "size": 4564
+        },
+        {
+          "path": "evals/benchmark.md",
+          "sha256": "07d8b62760704b0b9db998bc3c3d5775d3d7868d756dc13dc4019ab2642c504b",
+          "size": 81470
+        },
+        {
+          "path": "evals/real-samples.md",
+          "sha256": "c3b7a60e5ba2e9840dfc21c096660314a698ef81614ca47547780d54052f88b1",
+          "size": 39475
+        },
+        {
+          "path": "evals/results-v1.3.0.md",
+          "sha256": "3eba7ddce50e58a362b3b23fb410fe5aca8f21cc29e8c6b75397f9cbed9e74d5",
+          "size": 3587
+        },
+        {
+          "path": "evals/results-v1.4.3.md",
+          "sha256": "d53c874c146f71242fb961d32df96a3c722a907ac9a890ccf312c82213bd646c",
+          "size": 4325
+        },
+        {
+          "path": "evals/results-v1.5.0.md",
+          "sha256": "ec759c237569da6a5616620a8351be6400f6d96a008011b057d7c36314c672c9",
+          "size": 5562
+        },
+        {
+          "path": "evals/results-v1.7.1.md",
+          "sha256": "41f28a77469609cf6101148f381d6e2cfed900e588894d925323fb874600158f",
+          "size": 6959
+        },
+        {
+          "path": "evals/results-v1.7.4.md",
+          "sha256": "e3761e643c9a11bbc363f89eaa066fa3fbcc13179414aac8db9dc32e3b66aa5d",
+          "size": 10405
+        },
+        {
+          "path": "evals/results-v1.8.0.md",
+          "sha256": "d691ff37de041b5924d176358344ebb12a79b37a8d8fc08096d55d4bde065aab",
+          "size": 3540
+        },
+        {
+          "path": "evals/results-v1.8.3.md",
+          "sha256": "635cb79aae2b17d59912ac6f2443996da6a3e18d218afe639bd192f410260a4d",
+          "size": 3382
+        },
+        {
+          "path": "evals/results-v1.8.5.md",
+          "sha256": "92ec15c1ab4b33dd131c66d155c70d8cd9bda6ac9c833d07ab1c88717737cbfd",
+          "size": 4213
+        },
+        {
+          "path": "evals/results-v1.8.6.md",
+          "sha256": "8d2e7fb72cd67d5678457c39783219fed95aa6f0e011a88dd9a972673d0341aa",
+          "size": 3970
+        },
+        {
+          "path": "evals/results-v1.9.0.md",
+          "sha256": "f264107e766d15d4bc40d459404c82067efe7fed9369f4506fc384655dea1831",
+          "size": 6950
+        },
+        {
+          "path": "evals/results-v1.9.1.md",
+          "sha256": "9e8a77d5331b0f325e0e68ef85a549ffa56c106b4cb4aaa59202926d76845706",
+          "size": 4150
+        },
+        {
+          "path": "evals/results-v1.9.2.md",
+          "sha256": "c627954ac48f844561da5682c2376339fce75453005190189e4616db48c0bec6",
+          "size": 3607
+        },
+        {
+          "path": "evals/results-v2.1.0.md",
+          "sha256": "1ed1f5cac272d48f5572960af70493754132f5af9a871ae9da40d096f63e71bc",
+          "size": 12024
+        },
+        {
+          "path": "evals/results-v2.2.1.md",
+          "sha256": "15edaa33a3f085f0a94e73dc503d6cb13c3a9075786917175fafa793e6e7f407",
+          "size": 10227
+        },
+        {
+          "path": "evals/results-v2.3.0.md",
+          "sha256": "aeb4cbbd526a4a5b3eb0c540dcae1d803b380bc8fe6d9133129a209328d90547",
+          "size": 13297
+        },
+        {
+          "path": "evals/run-eval.md",
+          "sha256": "1cbc7af022b197e2961438dd08bd331d703c29ae5593d9286d04b944073ab826",
+          "size": 10130
+        },
+        {
+          "path": "evals/run-manifest.md",
+          "sha256": "27746764d962d35299648c7bd6463d5f1504dff41bff1c5696b517062c531a2b",
+          "size": 16825
+        },
+        {
+          "path": "install/chatgpt-gpt-instructions.md",
+          "sha256": "755a0ede1b1dbc5487de60b1f8a12dc39a81a0256bd8b312ca6b9f1c5528fe29",
+          "size": 1973
+        },
+        {
+          "path": "install/chatgpt.md",
+          "sha256": "d2bc2992aec7a7ada58300f19f29577b896340f15c3066dd6ed2ae3909ed5116",
+          "size": 4398
+        },
+        {
+          "path": "install/claude-code.md",
+          "sha256": "7bb94db048c58bd6f4c2adab0acc44506fd62da523da182cebfbff7c8d56351e",
+          "size": 4222
+        },
+        {
+          "path": "install/codex.md",
+          "sha256": "44f5f90ec3efb1c590709588525b27888ea91a98e0bd16a537be29b46b6fd63b",
+          "size": 3727
+        },
+        {
+          "path": "install/cursor.md",
+          "sha256": "5853478e7660c92f918f3678f8a4f449260266987f74ce221d31b9aea9673a0d",
+          "size": 2805
+        },
+        {
+          "path": "install/openclaw.md",
+          "sha256": "59350bca14ca7a360bbc1dd303bc33ea5f9af18963bd90e4385a451fe533573a",
+          "size": 3118
+        },
+        {
+          "path": "references/boundary-cases.md",
+          "sha256": "ced39bcc6e36aaf8589a52e43e3555ee80a62a38f5a3e05aeb1eb01f4d1c90fc",
+          "size": 8984
+        },
+        {
+          "path": "references/examples.md",
+          "sha256": "cde7fa907d1740124bf191ad85013ff00942186bc89408469c6a8ca18c541e0f",
+          "size": 13770
+        },
+        {
+          "path": "references/operation-manual.md",
+          "sha256": "ea933cc9c19c494479b091a1e6083f6e2ac9c39feb3474d0ccabfc0521af5480",
+          "size": 28393
+        },
+        {
+          "path": "references/phrases-en.md",
+          "sha256": "b4d526a5178249c1ec9552eddd7ea7293c38f9d177425b1a7a5c2bf18b7b8639",
+          "size": 4386
+        },
+        {
+          "path": "references/phrases-zh.md",
+          "sha256": "8a8cbaa3907fc4ca84321239ddb30912c2ae3180c7b426c9890a04b853b6a55c",
+          "size": 14561
+        },
+        {
+          "path": "references/positive-style.md",
+          "sha256": "2a471f0dc310f3b45175f0da5cc2794407bac7988f331440dc7a0d03f4f7f29a",
+          "size": 9102
+        },
+        {
+          "path": "references/protected-spans.md",
+          "sha256": "b04439ea6b761bf87919bb73dbf7b2aff0607d5116733f46d9e61e8e6fe497e0",
+          "size": 4800
+        },
+        {
+          "path": "references/scene-guardrails.md",
+          "sha256": "56703a71ac88cbd9911d50a71bf4bfc56f5c59f23359701f8ae94372a5788bbe",
+          "size": 3846
+        },
+        {
+          "path": "references/scene-packs.md",
+          "sha256": "1a669ca2598f4b5f162e2124dc1a9507254043ce39cab5c7c124f0699c97c0d0",
+          "size": 6043
+        },
+        {
+          "path": "references/severity.md",
+          "sha256": "b691d2c40589be64d5551b1a37a771d45b41aed851296bf93ce350f7e3e39f6a",
+          "size": 5095
+        },
+        {
+          "path": "references/structures.md",
+          "sha256": "a995cd01df4293770ff7c2644eacc277a80d18401879e1bdb8e2042e513127fe",
+          "size": 19009
+        }
+      ]
+    },
+    {
+      "name": "spec-driven-development",
+      "source": "https://github.com/addyosmani/agent-skills",
+      "sha256": "78280eeb6945cf6d041348b99fbbf6c2d73764ea551a0c9c9b15aa4630da17bb",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "615ff006266af06f36195a46e7db864512fc9b272fcb653bb51d601214701d04",
+          "size": 12163
+        }
+      ]
+    },
+    {
+      "name": "stop-slop",
+      "source": "https://github.com/hardikpandya/stop-slop",
+      "sha256": "0e05fe5751bcb04c66083508be9d0772b9437016a8b2ad9785be49a65c49e11d",
+      "files": [
+        {
+          "path": "CHANGELOG.md",
+          "sha256": "fe2f1484ef02abf22efc09def89bac186a2235831fd0da13d4895edb19cc6dd0",
+          "size": 895
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "2e2b2beaf41cc0ce28485455a62aed81777cdcdf68702e142427aef1cd720f2c",
+          "size": 1070
+        },
+        {
+          "path": "README.md",
+          "sha256": "d5c699e712e62d286aa4314e6b4ba02cde7a9da36ce56102660f98d1a8ceebba",
+          "size": 1894
+        },
+        {
+          "path": "SKILL.md",
+          "sha256": "7432a1d9ebdd42b27666da8458af252edf549f723fb14bcd4791425103930310",
+          "size": 2629
+        },
+        {
+          "path": "references/examples.md",
+          "sha256": "49c592899eb4457f95d0767e15e3143569e2cef50f2927c3174e62432984cd3d",
+          "size": 1686
+        },
+        {
+          "path": "references/phrases.md",
+          "sha256": "4ca1b7e97123b5c67eff3dc97e5e977332e0b24021265c1553888a93ec33fa93",
+          "size": 2915
+        },
+        {
+          "path": "references/structures.md",
+          "sha256": "ffbf1316c7fb5aaf552de005609a64a9639b546ecd76bfb0e482864d5bbe6f58",
+          "size": 5255
+        }
+      ]
+    },
+    {
+      "name": "systematic-debugging",
+      "source": "https://github.com/obra/superpowers",
+      "sha256": "b405a1cf9f35d855dbc5fbe324a84efd339ed0342c018d5ecaebc0b11b287f87",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "808fc5717aa88ad65efff312b11c186294d3e6ee301afb584e2f86599b137787",
+          "size": 9465
+        }
+      ]
+    },
+    {
+      "name": "test-driven-development",
+      "source": "https://github.com/obra/superpowers",
+      "sha256": "0ff8639af929add22342c8fbd7accfd26529c64c9998e2b65e78dfe73e19b48c",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "bf1b8216e523851a411e91d429a7c1c2a173e79d88957bc78e348218d50edd54",
+          "size": 9015
+        },
+        {
+          "path": "writing-good-tests.md",
+          "sha256": "51471c853306ff92ca8bb41dcaea05f31c0e46b03651f8f3c99754b7172f4ae1",
+          "size": 8268
+        }
+      ]
+    },
+    {
+      "name": "verification-before-completion",
+      "source": "https://github.com/obra/superpowers",
+      "sha256": "d8a53168f152b6163bd3447f7d4c20b6b4cddf6bd907f9aa5856b514c032db0e",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "2befe7fc55bcadaa3d97dd9e8efeb633d2561c0ebe74c5a8b17c4d9e7e4520b3",
+          "size": 3646
+        }
+      ]
+    },
+    {
+      "name": "workflow-analysis-quality",
+      "source": "https://github.com/damionrashford/media-os",
+      "sha256": "e28d14390f04ae1bc14e242f533fe47bad8e072df8a2496d2e1df430327cf095",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "8fde22c8516e0fec5bb09a57c8343b37985cde46676bedf766b100d91fe88735",
+          "size": 7072
+        }
+      ]
+    },
+    {
+      "name": "workflow-audio-production",
+      "source": "https://github.com/damionrashford/media-os",
+      "sha256": "6d9a6e0e0a7b0c6d4b008ffd22b227437119a8859280b6d93c1cc465ef3ba1f2",
+      "files": [
+        {
+          "path": "SKILL.md",
+          "sha256": "d25b8c199eed655193ca452369254ef8d500390fbcdab3856840dfad3bb1ca3d",
+          "size": 6206
+        }
+      ]
+    }
+  ]
+}

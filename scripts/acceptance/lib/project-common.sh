@@ -91,6 +91,8 @@ project_install_fingerprint() {
       | while IFS= read -r f; do
           sha256sum "${f}"
         done
+    printf 'vendor-skills\n'
+    sha256sum "${repo_root}/vendor-skills/index.json" | awk '{print $1}'
     printf 'plugin-manifests\n'
     find "${repo_root}/plugins" \
       \( -path '*/.claude-plugin/plugin.json' \

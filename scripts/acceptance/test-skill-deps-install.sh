@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Offline + optional network checks for acceptance skill-deps helpers.
+# Offline checks for acceptance skill-deps helpers.
 # Usage:
 #   bash scripts/acceptance/test-skill-deps-install.sh
-#   ACCEPT_TEST_NETWORK=1 bash scripts/acceptance/test-skill-deps-install.sh
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -70,6 +69,12 @@ assert_ok "installer does not run Git for community Skills" \
   sh -c '! grep -Eq "git (clone|fetch|checkout)" "$1"' sh "${REPO_ROOT}/scripts/install-all.sh"
 assert_ok "acceptance helper does not run Git for community Skills" \
   sh -c '! grep -Eq "git (clone|fetch|checkout)" "$1"' sh "${REPO_ROOT}/scripts/acceptance/lib/common.sh"
+assert_ok "vendor updater exists and is executable" \
+  test -x "${REPO_ROOT}/scripts/update-vendor-skills.sh"
+assert_ok "installer declares vendor-only Skill installation" \
+  grep -Fq 'vendor-skills' "${REPO_ROOT}/scripts/install-all.sh"
+assert_ok "installer verifies the prepared vendor index before installation" \
+  grep -Fq 'node "${verifier}" verify' "${REPO_ROOT}/scripts/install-all.sh"
 
 empty_json='{"skills":[]}'
 got="$(parse_skill_deps_json "${empty_json}" "empty.json" || true)"
@@ -154,48 +159,75 @@ printf '{"skills":[{"name":"x"}]}\n' >"${plugin_bad}/skill-deps.json"
 assert_fail "install fails closed on invalid skill-deps" \
   install_plugin_skill_deps "${plugin_bad}" "${dest_home}" "${tmp}/cache-bad" "claude"
 
+# --- install source: local vendor only ---------------------------------------
+vendor_root="${tmp}/vendor-market/vendor-skills"
+vendor_home="${tmp}/vendor-home"
+fake_bin="${tmp}/fake-bin"
+fake_npx_log="${tmp}/fake-npx.log"
+mkdir -p "${vendor_root}/demo-skill" "${vendor_home}" "${fake_bin}"
+printf '%s\n' '---' 'name: demo-skill' 'description: synthetic test skill' '---' '# Demo' \
+  >"${vendor_root}/demo-skill/SKILL.md"
+printf '{"schemaVersion":1,"skills":[{"name":"demo-skill","source":"https://example.com/upstream"}]}\n' \
+  >"${vendor_root}/index.json"
+cat >"${fake_bin}/npx" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$@" >"${FAKE_NPX_LOG}"
+source_path=""
+skill_name=""
+previous=""
+for arg in "$@"; do
+  if [ "${previous}" = "add" ] && [ -z "${source_path}" ]; then source_path="${arg}"; fi
+  if [ "${previous}" = "--skill" ] && [ -z "${skill_name}" ]; then skill_name="${arg}"; fi
+  previous="${arg}"
+done
+mkdir -p "${HOME}/.agents/skills/${skill_name}" "${HOME}/.claude/skills/${skill_name}"
+if [ -f "${source_path}/${skill_name}/SKILL.md" ]; then
+  cp "${source_path}/${skill_name}/SKILL.md" "${HOME}/.agents/skills/${skill_name}/SKILL.md"
+  cp "${source_path}/${skill_name}/SKILL.md" "${HOME}/.claude/skills/${skill_name}/SKILL.md"
+else
+  printf '%s\n' '---' "name: ${skill_name}" 'description: synthetic acquired skill' '---' '# Demo' \
+    >"${HOME}/.agents/skills/${skill_name}/SKILL.md"
+  cp "${HOME}/.agents/skills/${skill_name}/SKILL.md" "${HOME}/.claude/skills/${skill_name}/SKILL.md"
+fi
+EOF
+chmod +x "${fake_bin}/npx"
+
+update_root="${tmp}/update-market"
+mkdir -p "${update_root}/.claude-plugin" "${update_root}/plugins/demo"
+printf '{"plugins":[]}\n' >"${update_root}/.claude-plugin/marketplace.json"
+printf '{"skills":[{"name":"demo-skill","source":"https://example.com/upstream"}]}\n' \
+  >"${update_root}/plugins/demo/skill-deps.json"
+assert_ok "vendor updater acquires declared Skills and writes an index" \
+  env PATH="${fake_bin}:${PATH}" FAKE_NPX_LOG="${fake_npx_log}" \
+    bash "${REPO_ROOT}/scripts/update-vendor-skills.sh" --root "${update_root}"
+assert_ok "vendor updater writes acquired SKILL.md" \
+  test -f "${update_root}/vendor-skills/demo-skill/SKILL.md"
+assert_ok "vendor updater index records declared identity" \
+  jq -e '.schemaVersion == 1 and (.skills | length == 1) and .skills[0].name == "demo-skill" and .skills[0].source == "https://example.com/upstream"' \
+    "${update_root}/vendor-skills/index.json"
+assert_ok "vendor updater index verifies against content" \
+  node "${REPO_ROOT}/scripts/vendor-skills-index.mjs" verify --root "${update_root}"
+printf '\nTampered\n' >>"${update_root}/vendor-skills/demo-skill/SKILL.md"
+assert_fail "vendor index verification rejects content drift" \
+  node "${REPO_ROOT}/scripts/vendor-skills-index.mjs" verify --root "${update_root}"
+
+assert_ok "acceptance installs a declared Skill from local vendor" \
+  env PATH="${fake_bin}:${PATH}" HOME="${vendor_home}" FAKE_NPX_LOG="${fake_npx_log}" \
+    ACCEPT_VENDOR_SKILLS_DIR="${vendor_root}" \
+    bash -c '. "$1"; install_skill_into_home "demo-skill" "https://example.com/upstream" "both"' \
+    bash "${REPO_ROOT}/scripts/acceptance/lib/common.sh"
+if [ -f "${fake_npx_log}" ]; then
+  got="$(sed -n '4p' "${fake_npx_log}")"
+else
+  got=""
+fi
+assert_eq "acceptance passes vendor root to skills CLI" "${got}" "${vendor_root}"
+
 ACCEPT_SKIP_SKILL_DEPS=1 assert_ok "ACCEPT_SKIP_SKILL_DEPS skips valid deps" \
   install_plugin_skill_deps "${REPO_ROOT}/plugins/work-reporting" \
   "${tmp}/skip-home" "${tmp}/skip-cache" "claude"
 unset ACCEPT_SKIP_SKILL_DEPS
-
-# --- optional network install (real npx skills) ------------------------------
-if [ "${ACCEPT_TEST_NETWORK:-0}" = "1" ]; then
-  net_plugin="${tmp}/plugin-net"
-  net_home="${tmp}/net-home"
-  net_cache="${tmp}/net-cache"
-  mkdir -p "${net_plugin}" "${net_home}"
-  cat >"${net_plugin}/skill-deps.json" <<'EOF'
-{
-  "skills": [
-    {
-      "name": "grilling",
-      "source": "https://github.com/mattpocock/skills"
-    }
-  ]
-}
-EOF
-  if install_plugin_skill_deps "${net_plugin}" "${net_home}" "${net_cache}" "both"; then
-    if [ -f "${net_home}/.agents/skills/grilling/SKILL.md" ]; then
-      pass "network install seeds grilling into isolated HOME"
-    else
-      fail "network install did not produce grilling SKILL.md"
-    fi
-    # Second call should hit cache (fingerprint match) and still seed.
-    net_home2="${tmp}/net-home-2"
-    mkdir -p "${net_home2}"
-    if install_plugin_skill_deps "${net_plugin}" "${net_home2}" "${net_cache}" "both" \
-      && [ -f "${net_home2}/.agents/skills/grilling/SKILL.md" ]; then
-      pass "cached skill-deps re-seed works"
-    else
-      fail "cached skill-deps re-seed failed"
-    fi
-  else
-    fail "network install_plugin_skill_deps failed"
-  fi
-else
-  printf 'SKIP network install (set ACCEPT_TEST_NETWORK=1 to enable)\n'
-fi
 
 printf '\n==== skill-deps helper tests: passed=%s failed=%s ====\n' "${passed}" "${failed}"
 if [ "${failed}" -ne 0 ]; then

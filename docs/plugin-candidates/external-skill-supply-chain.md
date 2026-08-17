@@ -16,7 +16,7 @@
 ## 最小产品合同
 
 - `PreToolUse` 拒绝 agent 发起的全局 `skills add/install`、`gh skill install`，以及 shell/文件工具直接写入 Claude Code 或 Codex 的全局 Skill 目录。
-- 不给任意 URL 做“可信来源白名单”。允许的持久安装必须先写入项目 `skill-deps.json`，声明 Skill 名称与 source，再由用户在 agent 会话外运行现有安装器。安装器跟随上游当前版本，不接受 revision 锁定。
+- 不给任意 URL 做“可信来源白名单”。允许的持久安装必须先写入项目 `skill-deps.json`，声明 Skill 名称与 source，再由维护者在 agent 会话外运行 vendor 更新脚本。更新时跟随上游当前版本且不接受 revision 锁定；用户安装器只读取已提交的 `vendor-skills/`，不接触外部来源。
 - 插件内置 `external-skill-static-audit`：只把候选拉取到 `mktemp -d`，解析 resolved commit，生成文件清单和 SHA-256，检查 `SKILL.md`、hooks、脚本、package lifecycle、二进制、大文件、符号链接和越界路径。
 - 审计器不得执行候选脚本、包管理器 lifecycle 或候选提供的命令。静态扫描通过只表示“已检查且未命中已知规则”，不表示安全认证。
 - `audit begin` 由插件自带工具创建绑定 workspace、session、隔离目录和 resolved revision 的可信激活状态；只有这个状态能让 Hooks 识别审计边界。

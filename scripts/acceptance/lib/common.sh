@@ -219,7 +219,8 @@ install_codex_plugin() {
 # Live acceptance uses an isolated HOME per case. Community skills declared in
 # plugins/<name>/skill-deps.json must be installed into that HOME so Claude Code
 # and Codex see the same deps install-all.sh would place in the user global
-# scope. Missing skill-deps.json is a no-op; present-but-invalid fails closed.
+# scope. Installation reads only the repository's prepared vendor-skills tree;
+# missing manifests, vendor content, or identity mismatches fail closed.
 
 plugin_skill_deps_file() {
   local plugin_dir="$1"
@@ -342,12 +343,40 @@ skill_deps_cache_scope() {
   esac
 }
 
+acceptance_vendor_skills_root() {
+  local root
+  root="${ACCEPT_VENDOR_SKILLS_DIR:-$(acceptance_root)/vendor-skills}"
+  if [ ! -d "${root}" ] || [ ! -f "${root}/index.json" ]; then
+    printf 'skill-deps: prepared vendor-skills tree or index missing: %s\n' "${root}" >&2
+    return 1
+  fi
+  (cd "${root}" && pwd)
+}
+
+validate_vendored_skill_identity() {
+  local vendor_root="$1"
+  local name="$2"
+  local source="$3"
+  if [ ! -f "${vendor_root}/${name}/SKILL.md" ]; then
+    printf 'skill-deps: vendored SKILL.md missing for %s under %s\n' \
+      "${name}" "${vendor_root}" >&2
+    return 1
+  fi
+  if ! jq -e --arg name "${name}" --arg source "${source}" \
+    '.schemaVersion == 1 and any(.skills[]?; .name == $name and .source == $source)' \
+    "${vendor_root}/index.json" >/dev/null; then
+    printf 'skill-deps: vendor index identity mismatch for %s <= %s\n' \
+      "${name}" "${source}" >&2
+    return 1
+  fi
+}
+
 # Install one community skill into the current HOME (global user scope for that HOME).
 install_skill_into_home() {
   local name="$1"
   local source="$2"
   local host="${3:-both}"
-  local agent
+  local agent vendor_root
   local -a agent_args=()
 
   if ! command -v npx >/dev/null 2>&1; then
@@ -364,13 +393,18 @@ install_skill_into_home() {
     agent_args=(-a claude-code -a codex)
   fi
 
-  printf 'skill-deps: install %s from current %s (HOME=%s agents=%s)\n' \
-    "${name}" "${source}" "${HOME}" "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
+  vendor_root="$(acceptance_vendor_skills_root)" || return 1
+  validate_vendored_skill_identity "${vendor_root}" "${name}" "${source}" || return 1
+
+  printf 'skill-deps: install %s from prepared vendor %s (upstream=%s HOME=%s agents=%s)\n' \
+    "${name}" "${vendor_root}" "${source}" "${HOME}" \
+    "$(skill_deps_agents_for_host "${host}" | tr '\n' ' ')" >&2
 
   # Always re-run add so cache rebuilds and prior partial installs are overwritten.
   # Route CLI noise to stderr: callers capture stdout for the cache path only.
-  if ! npx --yes skills add "${source}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
-    printf 'skill-deps: failed to install %s from %s\n' "${name}" "${source}" >&2
+  if ! npx --yes skills add "${vendor_root}" --skill "${name}" --global --yes "${agent_args[@]}" >&2; then
+    printf 'skill-deps: failed to install %s from prepared vendor %s\n' \
+      "${name}" "${vendor_root}" >&2
     return 1
   fi
 
@@ -436,11 +470,16 @@ populate_skill_deps_cache_home() {
 
 skill_deps_fingerprint() {
   local deps_file="$1"
+  local vendor_root
   if [ ! -f "${deps_file}" ]; then
     printf 'none\n'
     return 0
   fi
-  sha256sum "${deps_file}" | awk '{print $1}'
+  vendor_root="$(acceptance_vendor_skills_root)" || return 1
+  {
+    sha256sum "${deps_file}"
+    sha256sum "${vendor_root}/index.json"
+  } | sha256sum | awk '{print $1}'
 }
 
 # Ensure a durable per-plugin skill-deps cache exists under cache_root.
@@ -471,7 +510,11 @@ ensure_plugin_skill_deps_cache() {
     while IFS= read -r line; do deps+=("${line}"); done <<<"${deps_lines}"
   fi
   # Empty skills[] is valid; still create a stamp so we do not re-parse forever.
-  fp="$(skill_deps_fingerprint "${deps_file}")"
+  if [ "${#deps[@]}" -eq 0 ]; then
+    fp="$(sha256sum "${deps_file}" | awk '{print $1}')"
+  else
+    fp="$(skill_deps_fingerprint "${deps_file}")" || return 1
+  fi
   mkdir -p "${cache_root}"
   cache_scope="$(skill_deps_cache_scope "${host}")"
   cache_home="$(cd "${cache_root}" && pwd)/${plugin_name}-${cache_scope}"

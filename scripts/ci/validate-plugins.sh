@@ -380,6 +380,9 @@ check_skill_deps() {
     printf 'Community Skill names resolve to multiple identities:\n%s\n' "${conflicts}" >&2
     exit 1
   fi
+
+  log "Checking prepared vendor-skills content and deterministic index"
+  node scripts/vendor-skills-index.mjs verify --root "${ROOT_DIR}"
 }
 
 check_marketplace_registration() {

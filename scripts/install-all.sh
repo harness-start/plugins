@@ -6,9 +6,10 @@
 # logs the diff vs the desired catalog, uninstalls previous marketplace
 # plugins, then installs the current catalog (remove-then-install).
 #
-# Also installs/updates community Agent Skills declared by each plugin in
-# plugins/<name>/skill-deps.json into the *global* skills scope via:
-#   npx skills add <source> --skill <name> --global --yes ...
+# Also installs community Agent Skills declared by each plugin in
+# plugins/<name>/skill-deps.json from this repository's prepared vendor-skills/
+# tree into the *global* skills scope. Consumer installs never contact the
+# external Skill repositories.
 #
 # Public source (only): https://github.com/harness-start/plugins
 #
@@ -25,6 +26,7 @@ GIT_REF="${HARNESS_GIT_REF:-master}"
 GITHUB_HTTPS_URL="https://github.com/harness-start/plugins.git"
 MARKETPLACE_JSON_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/.claude-plugin/marketplace.json"
 SKILL_DEPS_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/plugins/%s/skill-deps.json"
+VENDOR_ARCHIVE_URL_TEMPLATE="https://codeload.github.com/harness-start/plugins/tar.gz/%s"
 
 DO_CLAUDE=1
 DO_CODEX=1
@@ -35,6 +37,15 @@ FAIL_FAST=0
 SKIP_SKILL_DEPS=0
 CLAUDE_SCOPE="user"
 LANGUAGE_PROFILE="${HARNESS_LANGUAGE_PROFILE:-}"
+VENDOR_SKILLS_TMP=""
+RESOLVED_VENDOR_SKILLS_ROOT=""
+
+cleanup_vendor_skills_tmp() {
+  if [ -n "${VENDOR_SKILLS_TMP}" ] && [ -d "${VENDOR_SKILLS_TMP}" ]; then
+    rm -rf -- "${VENDOR_SKILLS_TMP}"
+  fi
+}
+trap cleanup_vendor_skills_tmp EXIT HUP INT TERM
 
 usage() {
   cat <<'EOF'
@@ -49,8 +60,8 @@ Strategy (per host):
   3. Log the diff (remove / keep-in-catalog / add)
   4. Uninstall every previously installed marketplace plugin
   5. Install the current catalog fresh
-  6. Install/update community skills declared in each plugin's skill-deps.json
-     (global scope via npx skills add … --global)
+  6. Install community skills declared in each plugin's skill-deps.json from
+     the prepared vendor-skills/ tree (global scope via npx skills add)
 
 Options:
   --claude-only           Only Claude Code
@@ -290,6 +301,19 @@ fetch_url() {
     curl -fsSL --max-time 30 "${url}"
   elif have_cmd wget; then
     wget -qO- --timeout=30 "${url}"
+  else
+    return 1
+  fi
+}
+
+download_url() {
+  local url="$1"
+  local destination="$2"
+  if have_cmd curl; then
+    curl -fsSL --retry 2 --connect-timeout 15 --max-time 300 \
+      -o "${destination}" "${url}"
+  elif have_cmd wget; then
+    wget -q --timeout=300 -O "${destination}" "${url}"
   else
     return 1
   fi
@@ -873,10 +897,8 @@ write_language_profile() {
 #     ]
 #   }
 #
-# Install target is always *global* user scope:
-#   npx --yes skills add <source> --skill <name> --global --yes -a <agents...>
-#
-# Re-running add updates/overwrites an existing global install.
+# Install target is always *global* user scope. The source passed to the Skills
+# CLI is always this repository's prepared vendor-skills directory.
 
 local_repo_root() {
   local script_dir
@@ -1102,9 +1124,100 @@ skill_install_agents() {
   printf '%s\n' "${agents[@]}"
 }
 
-# Install or update community skills from one source into the global scope.
+resolve_vendor_skills_root() {
+  local checkout_root archive_url archive_path extracted candidate vendor_repo_root verifier
+
+  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
+    candidate="${LOCAL_MARKETPLACE_PATH}/vendor-skills"
+  else
+    checkout_root="$(local_repo_root)"
+    if [ -f "${checkout_root}/vendor-skills/index.json" ]; then
+      candidate="${checkout_root}/vendor-skills"
+    else
+      if ! have_cmd tar; then
+        err "tar is required to unpack the prepared vendor-skills archive"
+        return 1
+      fi
+      if ! have_cmd curl && ! have_cmd wget; then
+        err "curl or wget is required to download the prepared vendor-skills archive"
+        return 1
+      fi
+      VENDOR_SKILLS_TMP="$(mktemp -d)"
+      archive_path="${VENDOR_SKILLS_TMP}/plugins.tar.gz"
+      extracted="${VENDOR_SKILLS_TMP}/checkout"
+      mkdir -p "${extracted}"
+      # shellcheck disable=SC2059
+      archive_url="$(printf "${VENDOR_ARCHIVE_URL_TEMPLATE}" "${GIT_REF}")"
+      log "Skills: downloading one prepared marketplace archive (ref=${GIT_REF})"
+      if ! download_url "${archive_url}" "${archive_path}"; then
+        err "Failed to download prepared vendor-skills archive: ${archive_url}"
+        return 1
+      fi
+      if ! tar -xzf "${archive_path}" -C "${extracted}"; then
+        err "Failed to unpack prepared vendor-skills archive"
+        return 1
+      fi
+      candidate="$(find "${extracted}" -mindepth 2 -maxdepth 2 -type d -name vendor-skills -print -quit)"
+    fi
+  fi
+
+  if [ -z "${candidate:-}" ] || [ ! -d "${candidate}" ] || [ ! -f "${candidate}/index.json" ]; then
+    err "Prepared vendor-skills tree or index is missing: ${candidate:-<not found>}"
+    return 1
+  fi
+  vendor_repo_root="$(cd "${candidate}/.." && pwd)"
+  verifier="${vendor_repo_root}/scripts/vendor-skills-index.mjs"
+  if ! have_cmd node || [ ! -f "${verifier}" ]; then
+    err "Prepared vendor verifier is unavailable: ${verifier}"
+    return 1
+  fi
+  if ! node "${verifier}" verify --root "${vendor_repo_root}" --vendor "${candidate}" >/dev/null; then
+    err "Prepared vendor-skills content failed deterministic index verification"
+    return 1
+  fi
+  RESOLVED_VENDOR_SKILLS_ROOT="$(cd "${candidate}" && pwd)"
+}
+
+validate_vendored_skill_identity() {
+  local vendor_root="$1"
+  local name="$2"
+  local source="$3"
+  local index_json
+
+  if [ ! -f "${vendor_root}/${name}/SKILL.md" ]; then
+    err "Vendored SKILL.md missing for ${name}: ${vendor_root}/${name}/SKILL.md"
+    return 1
+  fi
+  index_json="$(cat "${vendor_root}/index.json")"
+  if have_cmd jq; then
+    if ! printf '%s' "${index_json}" | jq -e --arg name "${name}" --arg source "${source}" \
+      '.schemaVersion == 1 and any(.skills[]?; .name == $name and .source == $source)' >/dev/null; then
+      err "Vendor index identity mismatch for ${name} <= ${source}"
+      return 1
+    fi
+  elif have_cmd python3; then
+    if ! printf '%s' "${index_json}" | python3 -c '
+import json, sys
+name, source = sys.argv[1:]
+data = json.load(sys.stdin)
+ok = data.get("schemaVersion") == 1 and any(
+    item.get("name") == name and item.get("source") == source
+    for item in data.get("skills", []) if isinstance(item, dict)
+)
+sys.exit(0 if ok else 1)
+' "${name}" "${source}"; then
+      err "Vendor index identity mismatch for ${name} <= ${source}"
+      return 1
+    fi
+  else
+    err "need jq or python3 to validate vendor-skills/index.json"
+    return 1
+  fi
+}
+
+# Install all requested community skills from the prepared vendor tree.
 install_global_skills() {
-  local source="$1"
+  local vendor_root="$1"
   shift
   local -a names=("$@")
   local -a agents=()
@@ -1116,11 +1229,9 @@ install_global_skills() {
     agent_args+=(-a "${agent}")
   done
 
-  log "Skills: install/update global ${names[*]} from current ${source} (agents: ${agents[*]})"
-  # Always re-run add: updates/overwrites existing global install; works even when
-  # the skill was previously copied outside the skills CLI lockfile.
-  if ! run_cmd npx --yes skills add "${source}" --skill "${names[@]}" --global --yes "${agent_args[@]}"; then
-    err "Failed to install global skills ${names[*]} from ${source}"
+  log "Skills: install global ${names[*]} from prepared vendor ${vendor_root} (agents: ${agents[*]})"
+  if ! run_cmd npx --yes skills add "${vendor_root}" --skill "${names[@]}" --global --yes "${agent_args[@]}"; then
+    err "Failed to install global skills ${names[*]} from prepared vendor ${vendor_root}"
     return 1
   fi
   return 0
@@ -1130,11 +1241,9 @@ install_global_skills() {
 sync_skill_deps() {
   local -a plugins=("$@")
   local failures=0
-  local deps_lines line name source
+  local deps_lines line name source vendor_root
   local -a dep_arr=()
-  local -a sources=()
-  local -a source_names=()
-  local -A names_by_source=()
+  local -a names=()
 
   if [ "${SKIP_SKILL_DEPS}" = "1" ]; then
     log "Skills: skipped (--skip-skill-deps / HARNESS_SKIP_SKILL_DEPS=1)"
@@ -1181,30 +1290,22 @@ sync_skill_deps() {
   fi
 
   read_lines_into dep_arr <<<"${deps_lines}"
-  log "Skills: ${#dep_arr[@]} unique community skill(s) to install/update globally"
+  log "Skills: ${#dep_arr[@]} unique community skill(s) to install globally"
+  resolve_vendor_skills_root || return 1
+  vendor_root="${RESOLVED_VENDOR_SKILLS_ROOT}"
 
   for line in "${dep_arr[@]}"; do
     name="${line%%$'\t'*}"
     source="${line#*$'\t'}"
-    if [ -z "${names_by_source[${source}]+x}" ]; then
-      sources+=("${source}")
-      names_by_source["${source}"]=""
-    fi
-    names_by_source["${source}"]+="${name}"$'\n'
+    validate_vendored_skill_identity "${vendor_root}" "${name}" "${source}" || return 1
+    names+=("${name}")
   done
 
-  log "Skills: ${#sources[@]} upstream source group(s)"
-  for source in "${sources[@]}"; do
-    read_lines_into source_names <<<"${names_by_source[${source}]}"
-    set +e
-    install_global_skills "${source}" "${source_names[@]}"
-    local rc=$?
-    set -e
-    if [ "${rc}" -ne 0 ]; then
-      failures=$((failures + 1))
-      [ "${FAIL_FAST}" = "1" ] && return "${failures}"
-    fi
-  done
+  set +e
+  install_global_skills "${vendor_root}" "${names[@]}"
+  local rc=$?
+  set -e
+  if [ "${rc}" -ne 0 ]; then failures=$((failures + 1)); fi
 
   return "${failures}"
 }
@@ -1336,7 +1437,7 @@ EOF
     printf '         Install success does not mean hooks are trusted or executing.\n'
   fi
   if [ "${SKIP_SKILL_DEPS}" != "1" ]; then
-    printf '  Skills: community skill-deps install to global scope (~/.agents/skills via npx skills).\n'
+    printf '  Skills: prepared vendor-skills installed to global scope (~/.agents/skills via npx skills).\n'
   fi
 
   local total_fail=$((claude_fail + codex_fail + skill_fail))

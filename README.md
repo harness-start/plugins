@@ -46,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 
 - **Claude Code：** 启动新会话，或在提示时执行 `/reload-plugins`，使 Hook 生效。
 - **Codex：** 通过 `/hooks` 审查并信任插件 Hook。安装成功不表示 Hook 已受信任或正在运行。
-- **社区 Skill：** 插件可声明 `skill-deps.json`；`install-all.sh` 会把这些依赖安装或更新到全局 Skill scope，即执行 `npx skills add … --global`。
+- **社区 Skill：** 插件可声明 `skill-deps.json`；维护者通过 `npm run vendor:skills` 更新仓库内的 `vendor-skills/`，`install-all.sh` 只从这份已准备内容安装到全局 Skill scope。
 
 `--language <code>` 接受 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。传入后，安装器会将语言代码写入每个已安装宿主自己的配置目录。不传时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale，并映射到支持的语言；无法映射或系统使用 `C`/`POSIX` locale 时使用 `en-US`。项目的 `.language-output.mjs` 优先于用户级安装偏好。
 
@@ -131,7 +131,7 @@ codex plugin add <name>@harness-start --json
 
 ## 插件分类与设计
 
-26 个插件按职责分为六类。每个插件可独立安装，不声明或读取其他本项目插件；`skill-deps.json` 只声明社区 Skill 名称与上游来源，安装时跟随上游当前版本。
+26 个插件按职责分为六类。每个插件可独立安装，不声明或读取其他本项目插件；`skill-deps.json` 只声明社区 Skill 名称与上游来源，维护更新时跟随上游当前版本，用户安装时读取仓库内的 vendor 快照。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
@@ -245,11 +245,14 @@ plugins/<name>/skill-deps.json
 }
 ```
 
-`scripts/install-all.sh` 会收集 catalog 中每个插件的 `skill-deps.json`。本地 clone 直接读取文件，curl 一键安装则从 GitHub raw 读取；随后按 Skill 名称去重，并执行：
+`scripts/update-vendor-skills.sh` 按上游来源合并下载全部声明项，原子更新 `vendor-skills/`，并生成包含来源、文件清单与 SHA-256 的确定性 `vendor-skills/index.json`：
 
 ```bash
-npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a codex
+npm run vendor:skills
+npm run check:vendor-skills
 ```
+
+`scripts/install-all.sh` 会收集 catalog 中的声明并核对 vendor 索引。本地 checkout 直接使用 `vendor-skills/`；curl 一键安装只下载一次本仓库归档，再把其中的 vendor 目录交给 `npx skills add`。安装阶段不会访问任何外部 Skill 仓库；内容缺失或来源不一致会直接失败，也没有网络回退。
 
 | Flag / 环境变量 | 作用 |
 | --- | --- |
@@ -266,7 +269,7 @@ npx --yes skills add <source> --skill <name> --global --yes -a claude-code -a co
 - `.claude-plugin/marketplace.json`
 - `.agents/plugins/marketplace.json`
 
-若插件依赖 skills.sh 或 GitHub Skill 仓库中的公开 Skill，添加 `plugins/<name>/skill-deps.json`，让 `install-all.sh` 将其安装到全局 scope；宿主验收 (`scripts/acceptance`) 在跑每个 live case 时也会按同一清单把 skill-deps 装进 case 隔离的 `HOME`。
+若插件依赖 skills.sh 或 GitHub Skill 仓库中的公开 Skill，添加 `plugins/<name>/skill-deps.json`，运行 `npm run vendor:skills` 并提交更新后的 `vendor-skills/`；安装器与宿主验收都只从这份 vendor 内容安装，不会在用户安装阶段 clone 外部仓库。
 
 ## 相关文档
 

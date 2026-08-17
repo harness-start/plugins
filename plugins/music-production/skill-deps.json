@@ -22,7 +22,7 @@
     },
     {
       "name": "musical-dna",
-      "source": "https://github.com/jwynia/agent-skills",
+      "source": "https://github.com/jwynia/agent-skills/tree/main/skills/creative/music/musical-dna",
       "ecosystem": "en",
       "license": "MIT (declared in SKILL.md when this dependency was reviewed)",
       "mode": "reference-only",
