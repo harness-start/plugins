@@ -114,6 +114,18 @@
       "category": "Productivity"
     },
     {
+      "name": "interface-craft",
+      "source": {
+        "source": "local",
+        "path": "./plugins/interface-craft"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "intent-discovery",
       "source": {
         "source": "local",

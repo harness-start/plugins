@@ -63,6 +63,11 @@
       "description": "Front-loads first-turn repository context and bounded adversarial review, then continues without an interview gate."
     },
     {
+      "name": "interface-craft",
+      "source": "./plugins/interface-craft",
+      "description": "Detects mechanical interface anti-patterns on UI files and supplies first-party craft-floor and critique methods."
+    },
+    {
       "name": "engineering-practice",
       "source": "./plugins/engineering-practice",
       "description": "Orchestrates current-source community engineering methods."
