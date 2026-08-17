@@ -11,18 +11,17 @@ function warn(message: string): void {
 
 export function professionalWritingContext(): string {
   const loading = process.env.HARNESS_HOST === "codex"
-    ? "Codex: read each selected community Skill at `$HOME/.agents/skills/<name>/SKILL.md` and the bundled `ai-flavor-remover` Skill before editing prose."
-    : "Claude: invoke each selected Skill through the native Skill tool before editing prose.";
+    ? "Codex: read each selected Skill from this plugin's `skills/<name>/SKILL.md` before editing prose."
+    : "Claude: invoke each selected plugin Skill through the native Skill tool before editing prose.";
   return [
     "[Professional Writing] Selective writing Skill orchestration",
     loading,
-    "Use `caveman` only for an explicit terse-output request.",
-    "For English prose, require `humanizer` and `stop-slop`.",
-    "For Chinese prose, require `humanizer-zh`, `shuorenhua`, and bundled `ai-flavor-remover`.",
-    "For human-readable Markdown prose, also require `remove-ai-style`. Before every analyzer run, SHA-256 `scripts/analyze_ai_style.py` and require `b1f0fa7af66072f23723f52fde09db05f0d3a3bcdaeab8194a14cf2cbce04bf7`; never execute a mismatched file.",
+    "Use `writing-terse-output` only for an explicit terse-output request.",
+    "For English prose, require `writing-english-prose`.",
+    "For Chinese prose, require `writing-chinese-prose` and bundled `ai-flavor-remover`.",
+    "For human-readable Markdown prose, also require `writing-markdown-ai-style`. Locate signals with `node <plugin>/dist/cli/analyze-ai-style.mjs <file>`; the report is evidence, not an automatic rewrite.",
     "For substantial mixed-language prose, use both language routes; isolated foreign terms follow the main language.",
     "Exclude code, commands, configuration, machine output, quotations, and exact short replies. Preserve facts, numbers, URLs, identifiers, citations, and Markdown structure.",
-    "If any Skill required by the selected route is absent or unreadable, stop the route and report the dependency gap. Do not imitate it from memory.",
   ].join("\n");
 }
 
