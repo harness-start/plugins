@@ -48,5 +48,5 @@ Router for React Native upgrade workflows. Start with core Upgrade Helper instru
 
 ## Related Skills
 
-- [native-platform-setup.md](../../react-native-best-practices/references/native-platform-setup.md) - Tooling and native dependency basics
-- [native-android-16kb-alignment.md](../../react-native-best-practices/references/native-android-16kb-alignment.md) - Third-party library alignment for Google Play
+- [native-platform-setup.md](../../react-native-practices/references/native-platform-setup.md) - Tooling and native dependency basics
+- [native-android-16kb-alignment.md](../../react-native-practices/references/native-android-16kb-alignment.md) - Third-party library alignment for Google Play

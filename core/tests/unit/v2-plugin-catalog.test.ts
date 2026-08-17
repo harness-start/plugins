@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { dirname, extname, relative, resolve } from "node:path";
 import { test } from "node:test";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -158,6 +158,101 @@ function unresolvedPluginSkillReferences(pluginRoot: string): string[] {
   return [...findings].toSorted();
 }
 
+const COMPANION_EXT = /\.(?:md|mdx|ya?ml|json|mjs|cjs|js|ts|py|sh|svg|png|txt)$/iu;
+const CONSUMER_PREFIX = /^(?:\.agents|\.claude|\.codex|\.research|\.ai-experts|\.antigravity|\.cursor|\.gemini|\.vscode|tmp|src|handoffs|evidence|dist|slides|output|outputs)\//u;
+
+function stripHref(href: string): string {
+  return href.replace(/[?#].*$/u, "").trim();
+}
+
+function skipCompanionHref(href: string): boolean {
+  if (!href) return true;
+  if (/^(?:https?:|mailto:|#|\$\{)/iu.test(href)) return true;
+  if (/[<>{}~]/.test(href)) return true;
+  if (href.startsWith("/") || href.startsWith("~/")) return true;
+  if (CONSUMER_PREFIX.test(href)) return true;
+  return false;
+}
+
+function looksLikeCompanionTarget(href: string): boolean {
+  if (href.endsWith("/")) return /(?:^|\/)(?:references|scripts|assets|templates|evals)(?:\/|$)/u.test(href);
+  if (COMPANION_EXT.test(href)) return true;
+  return /(?:^|\/)(?:references|scripts|assets|templates|evals)$/u.test(href);
+}
+
+export function extractSkillLocalCompanions(text: string): Array<{ href: string; line: number }> {
+  const found: Array<{ href: string; line: number }> = [];
+  const add = (raw: string, line: number) => {
+    const href = stripHref(raw);
+    if (skipCompanionHref(href) || !looksLikeCompanionTarget(href)) return;
+    found.push({ href, line });
+  };
+
+  let supportingTechniques = false;
+  text.split(/\r?\n/u).forEach((line, index) => {
+    const lineNumber = index + 1;
+    if (/^#{1,3}\s/u.test(line)) {
+      supportingTechniques = /supporting techniques|available in this directory/iu.test(line);
+    }
+    if (/available in this directory/iu.test(line)) supportingTechniques = true;
+
+    for (const match of line.matchAll(/\[(?:[^\]]*)\]\(([^)]+)\)/gu)) {
+      if (match[1]) add(match[1], lineNumber);
+    }
+    for (const match of line.matchAll(/^\s*\[[^\]]+\]:\s+(\S+)/gu)) {
+      if (match[1]) add(match[1], lineNumber);
+    }
+    for (const match of line.matchAll(/`((?:references|scripts|assets|templates)\/[^`\s]+)`/gu)) {
+      if (match[1]) add(match[1], lineNumber);
+    }
+    if (/in this directory/iu.test(line) || supportingTechniques) {
+      for (const match of line.matchAll(/`([^`\s]+\.md)`/gu)) {
+        if (match[1]) add(match[1], lineNumber);
+      }
+    }
+  });
+  return found;
+}
+
+function companionExists(target: string, href: string): boolean {
+  if (!existsSync(target)) return false;
+  const stat = statSync(target);
+  if (href.endsWith("/") || extname(target) === "") {
+    if (!stat.isDirectory()) return false;
+    return filesBelow(target).length > 0;
+  }
+  return stat.isFile() && stat.size > 0;
+}
+
+function skillRootFor(path: string, pluginRoot: string): string {
+  let current = dirname(path);
+  while (current.startsWith(pluginRoot)) {
+    if (existsSync(resolve(current, "SKILL.md"))) return current;
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return dirname(path);
+}
+
+function unresolvedSkillLocalCompanions(pluginRoot: string): string[] {
+  const findings = new Set<string>();
+  for (const path of filesBelow(resolve(pluginRoot, "skills"))) {
+    if (!/\.(?:md|ya?ml)$/u.test(path)) continue;
+    const text = readFileSync(path, "utf8");
+    const skillRoot = skillRootFor(path, pluginRoot);
+    for (const { href, line } of extractSkillLocalCompanions(text)) {
+      const candidates = [resolve(dirname(path), href), resolve(skillRoot, href)];
+      const hit = candidates.find((target) => {
+        const rel = relative(pluginRoot, target);
+        return rel !== "" && !rel.startsWith("..") && companionExists(target, href);
+      });
+      if (!hit) findings.add(`${path.slice(pluginRoot.length + 1)}:${line} -> ${href}`);
+    }
+  }
+  return [...findings].toSorted();
+}
+
 test("v2 publishes exactly the responsibility-oriented catalog", () => {
   const actual = readdirSync(resolve(root, "plugins"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -188,6 +283,14 @@ test("published plugin instructions resolve only same-plugin Skills", () => {
   const findings = expected.flatMap((plugin) => {
     const pluginRoot = resolve(root, "plugins", plugin);
     return unresolvedPluginSkillReferences(pluginRoot).map((finding) => `${plugin}: ${finding}`);
+  });
+  assert.deepEqual(findings, []);
+});
+
+test("published plugin Skill bodies resolve same-plugin local companions", () => {
+  const findings = expected.flatMap((plugin) => {
+    const pluginRoot = resolve(root, "plugins", plugin);
+    return unresolvedSkillLocalCompanions(pluginRoot).map((finding) => `${plugin}: ${finding}`);
   });
   assert.deepEqual(findings, []);
 });
