@@ -1,7 +1,0 @@
-{
-  "skills": [
-    { "name": "requesting-code-review", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" },
-    { "name": "verification-before-completion", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" },
-    { "name": "finishing-a-development-branch", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" }
-  ]
-}

@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/ci-gated-delivery.mjs\" session-start",
+            "statusMessage": "Loading CI-gated delivery loop",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/ci-gated-delivery.mjs\" pre",
+            "statusMessage": "Checking default-branch publish SHA binding",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,19 +1,20 @@
 {
   "name": "ci-gated-delivery",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Guides code and configuration changes through a bounded branch, review, CI, merge, and post-merge delivery loop.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "CI-gated Delivery",
     "shortDescription": "Close branch, review, CI, merge, and cleanup loops.",
     "longDescription": "One delivery workflow for short-lived branches, local verification, review, structured remote CI supervision, merge gating, post-merge verification, and workspace cleanup.",
     "developerName": "Harness Start",
     "category": "Productivity",
-    "capabilities": ["skills"],
+    "capabilities": ["skills", "hooks"],
     "defaultPrompt": [
       "Use $ci-gated-mr-workflow to deliver this change through CI and merge."
     ]
