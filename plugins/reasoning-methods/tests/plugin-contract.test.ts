@@ -39,9 +39,15 @@ test("plugin publishes two focused skills without the legacy workflow machinery"
     assert.doesNotMatch(skill, /\.reasoning-methods|\.first-principles|ledger|workflow\.md|completionReceipt/iu);
   }
 
-  for (const path of ["scripts", "hooks", ".reasoning-methods", ".first-principles"]) {
+  for (const path of ["scripts", ".reasoning-methods", ".first-principles"]) {
     assert.equal(existsSync(join(ROOT, path)), false, path);
   }
+
+  assert.equal(codex.hooks, "./hooks/codex.json");
+  assert.equal(claude.hooks, "./hooks/claude.json");
+  assert.equal(existsSync(join(ROOT, "hooks", "claude.json")), true);
+  assert.equal(existsSync(join(ROOT, "hooks", "codex.json")), true);
+  assert.equal(existsSync(join(ROOT, "src", "entries", "hooks", "reasoning-methods.ts")), true);
 });
 
 test("skills select an adaptive reasoning structure and a direct evidence-bound output", () => {

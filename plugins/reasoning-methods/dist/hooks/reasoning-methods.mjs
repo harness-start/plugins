@@ -1,0 +1,71 @@
+#!/usr/bin/env node
+// harness-source-hash: sha256:8f7c8c1dd088729e9a867dcec871baed89d507e9b666109035c5c9ccdbb8a57c
+
+// plugins/reasoning-methods/src/entries/hooks/reasoning-methods.ts
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+async function readStdinJson(input = process.stdin) {
+  let raw = "";
+  for await (const chunk of input) raw += chunk.toString();
+  if (!raw.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : { __parseError: true };
+  } catch {
+    return { __parseError: true };
+  }
+}
+
+// core/src/hook-output.ts
+function additionalContext(hookEventName, context, options = {}) {
+  if (options.echoStderr) process.stderr.write(`${context}
+`);
+  if (options.suppressJson) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext: context
+    }
+  };
+}
+function writeJson(value) {
+  if (value !== null && value !== void 0) {
+    process.stdout.write(`${JSON.stringify(value)}
+`);
+  }
+}
+
+// plugins/reasoning-methods/src/session-context.ts
+function reasoningMethodsContext() {
+  return [
+    "[Reasoning Methods] Selective first-principles and verification routing",
+    "For exact, causal, decision, or factual work whose answer can be wrong, load this plugin's `reasoning-methods` or `first-principles` Skill before answering.",
+    "Use the cheapest structure that can falsify the conclusion. Extra model turns are not evidence.",
+    "Keep easy lookups, translations, and already-determined implementation tasks direct."
+  ].join("\n");
+}
+
+// plugins/reasoning-methods/src/entries/hooks/reasoning-methods.ts
+function warn(message) {
+  process.stderr.write(`[reasoning-methods] ${message}
+`);
+}
+async function runSessionStart() {
+  const event = await readStdinJson();
+  if (event.__parseError) return warn("invalid hook input; advisory context was skipped");
+  writeJson(additionalContext("SessionStart", reasoningMethodsContext()));
+}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  runSessionStart().catch((error) => {
+    warn(error instanceof Error ? error.message : String(error));
+    process.exit(0);
+  });
+}
+export {
+  runSessionStart
+};

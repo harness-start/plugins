@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/reasoning-methods.mjs\"",
+            "statusMessage": "Loading reasoning method routes",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  }
+}

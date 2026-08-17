@@ -7,13 +7,14 @@
     "email": "devtools@example.com"
   },
   "skills": "./skills/",
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Reasoning Discipline",
     "shortDescription": "Adaptive reasoning methods with honest limits.",
     "longDescription": "Rebuild unclear problems from essential constraints, choose a task-specific reasoning structure, and verify the load-bearing condition without forcing a universal ceremony.",
     "developerName": "Harness Start",
     "category": "Productivity",
-    "capabilities": ["skills"],
+    "capabilities": ["skills", "hooks"],
     "defaultPrompt": [
       "Explain this from first principles.",
       "Solve this with an adaptive reasoning discipline.",

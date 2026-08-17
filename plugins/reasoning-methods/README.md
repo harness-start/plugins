@@ -7,11 +7,11 @@
 
 The plugin does not create reasoning artifacts, hold a session open, or block file writes. A short answer may remain short. A difficult answer earns more work only when that work can change the conclusion.
 
-## Why there is no reasoning Hook
+## Hooks
 
-A candidate `Stop` nudge was rejected. It could prove that another model turn occurred, but not that the conclusion improved; without independent evidence, forced self-correction can preserve an error or replace a correct answer. It would also tax easy tasks and recreate the ceremony this plugin removes.
+SessionStart injects a short route: exact, causal, decision, or factual work should load this plugin's `reasoning-methods` or `first-principles` Skill. Easy lookups stay direct.
 
-Hooks remain appropriate for deterministic, externally observable invariants such as preventing an unsafe write or validating a produced artifact. This plugin has no such side effect to guard. Its acceptance cases therefore test outcomes and real Skill loading instead of counting turns or receipts.
+A `Stop` nudge remains rejected. It could prove that another model turn occurred, but not that the conclusion improved; without independent evidence, forced self-correction can preserve an error or replace a correct answer.
 
 ## Use
 
