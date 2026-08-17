@@ -8,7 +8,7 @@
 
 本文记录 Harness Start 当前的架构方向，不把仍在验证的选择写成已经稳定的规范。文中的“当前事实”可由仓库代码和配置核对；“工作默认”用于指导新设计；“开放问题”需要证据后再决定是否固化。
 
-插件库存以 [Claude Code Marketplace](../.claude-plugin/marketplace.json) 和 [Codex Marketplace](../.agents/plugins/marketplace.json) 为准。本文不替代各插件自己的 README、DESIGN 或验收材料。
+插件库存以 [Claude Code Marketplace](../.claude-plugin/marketplace.json) 和 [Codex Marketplace](../.agents/plugins/marketplace.json) 为准。本文不替代各插件自己的 README、DESIGN 或验收材料。Skill 与 Hook 的协作准则见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
 
 ## 1. 目标
 
@@ -24,7 +24,7 @@
 
 ## 2. 当前事实
 
-截至最近核对，两个 Marketplace 各登记 36 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。
+截至最近核对，两个 Marketplace 各登记 37 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。Skill / Hook 协作的规范性要求见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
 
 当前实现共同体现了以下事实：
 
@@ -54,7 +54,7 @@ explicit user or agent intent
       -> same documented invariant and state model
 ```
 
-自动路径和显式路径可以共享同一套配置、纯函数或状态模型，但不能各自实现一份相互漂移的规则。
+自动路径和显式路径可以共享同一套配置、纯函数或状态模型，但不能各自实现一份相互漂移的规则。允许的协作模式与必须遵守的不变量见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
 
 ## 4. 职责边界
 

@@ -69,7 +69,7 @@ codex plugin add <name>@harness-start --json
 
 ## 架构
 
-本仓库由可独立安装的插件组成。Hook 只负责生命周期中可机械验证的触发、门禁、反馈和状态推进；开放式推理、配置、诊断与恢复由 Skill 或普通 agent 工作流承接。插件内脚本保持确定、可测试和自包含。具体边界、取舍与开放问题见[工作架构](docs/architecture.md)。
+本仓库由可独立安装的插件组成。Hook 只负责生命周期中可机械验证的触发、门禁、反馈和状态推进；开放式推理、配置、诊断与恢复由 Skill 或普通 agent 工作流承接。插件内脚本保持确定、可测试和自包含。具体边界、取舍与开放问题见[工作架构](docs/architecture.md)。Skill / Hook 协作准则见 [Skill 与 Hook 协作准则](docs/skill-hook-collaboration.md)。
 
 ## 仓库结构
 
@@ -246,6 +246,7 @@ codex plugin add <plugin-name>@harness-start --json
 ## 相关文档
 
 - [工作架构](docs/architecture.md)
+- [Skill 与 Hook 协作准则](docs/skill-hook-collaboration.md)
 - [仓库初始化与插件开发指南](GUIDE.md)
 - [双宿主验收](docs/host-acceptance.md)
 - [验收矩阵](docs/acceptance-matrix.md)
