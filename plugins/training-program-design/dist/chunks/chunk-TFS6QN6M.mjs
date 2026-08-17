@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:d7eb5c2e7a5ba266f54cb3397eb35423cd022d76328738efc026c1b3670efbc7
+// harness-source-hash: sha256:82b866c7d3b51d72095e45f1a30009667174e9050a9833b7b09138310da2bc80
 import {
   MATERIAL_PATHS,
   RENDER_EVIDENCE_SCHEMA,
@@ -6,7 +6,7 @@ import {
   REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
   computeTrainingSubjectDigest
-} from "./chunk-OJGCC4JJ.mjs";
+} from "./chunk-2NHL3CWH.mjs";
 
 // plugins/training-program-design/src/lib/pipeline.ts
 import { createHash } from "node:crypto";
