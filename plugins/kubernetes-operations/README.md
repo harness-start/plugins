@@ -3,7 +3,6 @@
 Orchestrates Kubernetes operations and guards Helm-owned dependency state with bounded manifest validation.
 
 - Skill: `kubernetes-operations`
-- Required community Skills: `kubernetes-skill`
 - PreToolUse: domain-owned dependency/generated state
 - PostToolUse: bounded syntax/configuration checks
 - Config: `.kubernetes-operations.mjs`
