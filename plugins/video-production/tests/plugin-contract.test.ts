@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { VIDEO_PROFILES, VIDEO_STAGES } from "../src/lib/contract.js";
@@ -40,13 +40,17 @@ test("video v2 contract publishes six production profiles and the staged deliver
   ]);
 });
 
-test("video skill dependencies follow current sources without revision pins", () => {
-  const deps = readJson("../skill-deps.json") as { skills?: Array<Record<string, unknown>> };
-
-  assert.ok(Array.isArray(deps.skills));
-  assert.ok(deps.skills.length >= 10);
-  for (const dependency of deps.skills) {
-    assert.equal(Object.hasOwn(dependency, "revision"), false);
-    assert.ok(["advisor", "external-runner"].includes(String(dependency.mode)));
+test("video first-party workers are bundled and drop Key/URL runners", () => {
+  const root = new URL("..", import.meta.url);
+  assert.equal(existsSync(new URL("skill-deps.json", root)), false);
+  for (const name of ["video-motion-direction", "video-format-playbooks", "video-visual-critique", "video-media-import"]) {
+    const skill = readFileSync(new URL(`skills/${name}/SKILL.md`, root), "utf8");
+    assert.match(skill, new RegExp(`^name:\\s*${name}$`, "mu"));
+  }
+  const authoring = readFileSync(new URL("../skills/video-project-authoring/SKILL.md", import.meta.url), "utf8");
+  const composition = readFileSync(new URL("../skills/video-project-authoring/references/skill-composition.md", import.meta.url), "utf8");
+  const body = `${authoring}\n${composition}`;
+  for (const banned of ["gemini-tts", "chengfeng-cut", "chengfeng-subtitle", "seedance-storyboard", "model-selector", "prompt-translator"]) {
+    assert.doesNotMatch(body, new RegExp(banned, "u"));
   }
 });

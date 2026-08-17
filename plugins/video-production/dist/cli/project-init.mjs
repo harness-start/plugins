@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ef8a7f7a48f56fc9e57b22de909b6de2dc81c1a9553ed48b059482da5022bb67
+// harness-source-hash: sha256:176c672fb1ccc5b2d4cacdc40f3f5b7135aa822e2c9643592ccd92403c1d355c
 import {
   APPROVALS_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
@@ -14,10 +14,10 @@ import {
   VIDEO_PROFILES,
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-DRURZ3ZN.mjs";
+} from "../chunks/chunk-JYYBMUVW.mjs";
 import {
   assertVideoProjectRoot
-} from "../chunks/chunk-ZBHJ52CR.mjs";
+} from "../chunks/chunk-DPIYBJ4M.mjs";
 
 // plugins/video-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -33,22 +33,10 @@ var PROFILE_DEFAULTS = {
   "micro-drama": { width: 1080, height: 1920, fps: 30, durationInFrames: 1800, platform: "short-form" }
 };
 var WORKERS = [
-  ["motion-art-direction", "advisor"],
-  ["animation-principles", "advisor"],
-  ["beat-sync-editing", "advisor"],
-  ["color-motion", "advisor"],
-  ["shot-composition", "advisor"],
-  ["explainer-video", "advisor"],
-  ["short-form-video", "advisor"],
-  ["caption-animation", "advisor"],
-  ["product-launch-video", "advisor"],
-  ["gemini-tts", "external-runner"],
-  ["chengfeng-cut", "external-runner"],
-  ["chengfeng-subtitle", "external-runner"],
-  ["model-selector", "advisor"],
-  ["prompt-translator", "advisor"],
-  ["seedance-storyboard", "advisor"],
-  ["impeccable", "advisor"]
+  ["video-motion-direction", "advisor"],
+  ["video-format-playbooks", "advisor"],
+  ["video-visual-critique", "advisor"],
+  ["video-media-import", "external-runner"]
 ];
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var json = (value) => `${JSON.stringify(value, null, 2)}

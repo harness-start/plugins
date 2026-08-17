@@ -93,7 +93,7 @@ test("admission copies a declared external asset and records declared provenance
     writeFileSync(planPath, JSON.stringify(plan));
     const compositionPath = join(root, "plan.skill-composition.json");
     const composition = JSON.parse(readFileSync(compositionPath, "utf8"));
-    composition.workers.find((worker: { name: string }) => worker.name === "gemini-tts").status = "used";
+    composition.workers.find((worker: { name: string }) => worker.name === "video-media-import").status = "used";
     writeFileSync(compositionPath, JSON.stringify(composition));
     const script = JSON.stringify({ schema: "video-production/script/v1", beats: [{ id: "hook", narration: "Hook" }, { id: "body", narration: "Body" }], claims: [] });
     const storyboard = JSON.stringify({ schema: "video-production/storyboard/v2", beats: [{ index: 1, id: "hook", startFrame: 0, endFrame: 90, narrativeJob: "hook", movingObject: "title", stateChange: "reveals", cameraMotion: "push", textRole: "headline", assetIds: [], pptRisk: "static title" }, { index: 2, id: "body", startFrame: 90, endFrame: 900, narrativeJob: "explain", movingObject: "waveform", stateChange: "expands", cameraMotion: "track", textRole: "label", assetIds: ["voice"], pptRisk: "static card" }] });
@@ -108,7 +108,7 @@ test("admission copies a declared external asset and records declared provenance
     write(candidate, "WAV-CANDIDATE");
     const digest = createHash("sha256").update("WAV-CANDIDATE").digest("hex");
     const manifest = join(sandbox, "tts-1.json");
-    const runManifest = { schema: "video-production/external-run/v1", artifactId: "demo", runId: "tts-1", skill: { name: "gemini-tts", mode: "external-runner" }, provider: { name: "fixture", model: "voice-1" }, cost: { currency: "USD", amount: 5 }, outputs: [{ assetId: "voice", path: candidate, sha256: digest }] };
+    const runManifest = { schema: "video-production/external-run/v1", artifactId: "demo", runId: "tts-1", skill: { name: "video-media-import", mode: "external-runner" }, provider: { name: "fixture", model: "voice-1" }, cost: { currency: "USD", amount: 5 }, outputs: [{ assetId: "voice", path: candidate, sha256: digest }] };
     write(manifest, JSON.stringify(runManifest));
     const args = [root, manifest];
     await authorize("project-admit.mjs", args, sandbox, "admission-session");

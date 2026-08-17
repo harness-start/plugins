@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:ef8a7f7a48f56fc9e57b22de909b6de2dc81c1a9553ed48b059482da5022bb67
+// harness-source-hash: sha256:176c672fb1ccc5b2d4cacdc40f3f5b7135aa822e2c9643592ccd92403c1d355c
 import {
   assertVideoProjectRoot
-} from "./chunk-ZBHJ52CR.mjs";
+} from "./chunk-DPIYBJ4M.mjs";
 
 // plugins/video-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
@@ -159,22 +159,10 @@ var REQUIRED_PROJECT_PATHS = [
   "src/captions/manifest.json"
 ];
 var REQUIRED_ADVISORS = /* @__PURE__ */ new Set([
-  "motion-art-direction",
-  "animation-principles",
-  "beat-sync-editing",
-  "color-motion",
-  "shot-composition",
-  "explainer-video",
-  "short-form-video",
-  "caption-animation",
-  "product-launch-video",
-  "gemini-tts",
-  "chengfeng-cut",
-  "chengfeng-subtitle",
-  "model-selector",
-  "prompt-translator",
-  "seedance-storyboard",
-  "impeccable"
+  "video-motion-direction",
+  "video-format-playbooks",
+  "video-visual-critique",
+  "video-media-import"
 ]);
 var BASE_REVIEW_CHECKS = [
   "narrative",

@@ -9,7 +9,7 @@
 - `$video-project-authoring`：手动触发，或由 motion explainer、产品宣传、短视频、口播、参考视频复刻、微短剧等创作请求自动触发。主 agent 始终拥有项目文件和交付判断。
 - `$video-project-review`：只在独立宿主会话中触发；只读检查最终媒体和证据，不修改项目源文件。
 
-authoring Skill 会根据 `motion-explainer`、`product-promo`、`short-form`、`talking-head`、`reference-led` 或 `micro-drama` profile 选择顾问组合。外部 Skill 默认只提供建议；需要调用外部模型的 worker 必须在 artifact 外运行，再通过准入 writer 导入。所有 worker 均跟随 `skill-deps.json` 声明来源的当前版本，并在 `plan.skill-composition.json` 如实记录 `used`、`skipped` 或 `unavailable`。
+authoring Skill 会根据 `motion-explainer`、`product-promo`、`short-form`、`talking-head`、`reference-led` 或 `micro-drama` profile 选择顾问组合。捆绑顾问默认只提供建议；用户磁盘上的媒体通过 `video-media-import` 和准入 writer 导入。不调用需要 API Key 或供应商 URL 的 worker。每个 worker 在 `plan.skill-composition.json` 如实记录 `used`、`skipped` 或 `unavailable`。
 
 ## 最小流程
 

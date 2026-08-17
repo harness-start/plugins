@@ -1,7 +1,12 @@
 # Skill composition
 
-The orchestrator owns decisions and project files. Advisors return recommendations, rationale, risks, and measurable checks. External runners work only in an artifact-external directory and have no evidence, reviewer, or release authority.
+The orchestrator owns decisions and project files. First-party advisors return recommendations, rationale, risks, and measurable checks.
 
-Use motion-design advisors across profiles. Add explainer, short-form, product-launch, Chengfeng, or Lanshu companions only when their declared phase applies. `gemini-tts`, `chengfeng-cut`, and `chengfeng-subtitle` describe external-runner contracts; their community bundles are instruction-only (`SKILL.md`). Do not execute bundled scripts or plugin binaries. Use an authorized host/provider tool outside the artifact, then admit outputs through the internal writer. All other current-source workers are advisors.
+| Worker | Mode | Contribution |
+|---|---|---|
+| `video-motion-direction` | advisor | motion thesis, animation principles, shot language, color motion |
+| `video-format-playbooks` | advisor | explainer, short-form, product-launch, caption pacing |
+| `video-visual-critique` | advisor | hierarchy, contrast, craft notes |
+| `video-media-import` | external-runner | admit user-provided media already on disk |
 
-OpenMontage and repositories without a confirmed compatible license are research references, not installed workers. Do not copy their text or code. Social-platform collection and full external orchestrators are outside this plugin's execution boundary.
+`video-media-import` does not call a vendor API or require a provider key. Place media outside the artifact, then admit it with `project-admit.mjs`. Do not execute community generators. Record each worker as `used`, `skipped`, or `unavailable`.

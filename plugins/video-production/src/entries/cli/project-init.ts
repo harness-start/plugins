@@ -23,7 +23,7 @@ const PROFILE_DEFAULTS: Record<VideoProfile, { width: number; height: number; fp
 };
 
 const WORKERS = [
-  ["motion-art-direction", "advisor"], ["animation-principles", "advisor"], ["beat-sync-editing", "advisor"], ["color-motion", "advisor"], ["shot-composition", "advisor"], ["explainer-video", "advisor"], ["short-form-video", "advisor"], ["caption-animation", "advisor"], ["product-launch-video", "advisor"], ["gemini-tts", "external-runner"], ["chengfeng-cut", "external-runner"], ["chengfeng-subtitle", "external-runner"], ["model-selector", "advisor"], ["prompt-translator", "advisor"], ["seedance-storyboard", "advisor"], ["impeccable", "advisor"],
+  ["video-motion-direction", "advisor"], ["video-format-playbooks", "advisor"], ["video-visual-critique", "advisor"], ["video-media-import", "external-runner"],
 ] as const;
 
 const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");

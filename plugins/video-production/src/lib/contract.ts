@@ -128,9 +128,7 @@ const REQUIRED_PROJECT_PATHS = [
   "src/visual/manifest.json", "src/audio/manifest.json", "src/captions/manifest.json",
 ];
 const REQUIRED_ADVISORS = new Set([
-  "motion-art-direction", "animation-principles", "beat-sync-editing", "color-motion", "shot-composition",
-  "explainer-video", "short-form-video", "caption-animation", "product-launch-video", "gemini-tts",
-  "chengfeng-cut", "chengfeng-subtitle", "model-selector", "prompt-translator", "seedance-storyboard", "impeccable",
+  "video-motion-direction", "video-format-playbooks", "video-visual-critique", "video-media-import",
 ]);
 const BASE_REVIEW_CHECKS = [
   "narrative", "pacing", "motionContinuity", "shotComposition", "typography", "color",

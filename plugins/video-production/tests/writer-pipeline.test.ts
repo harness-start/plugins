@@ -40,7 +40,7 @@ function fixture(sandbox) {
   const storyboard = JSON.stringify({ schema: "video-production/storyboard/v2", beats: [{ index: 1, id: "demo", startFrame: 0, endFrame: 10, narrativeJob: "demonstrate", movingObject: "signal", stateChange: "moves across the frame", cameraMotion: "stable", textRole: "label", assetIds: ["bed"], pptRisk: "static card" }] });
   const assets = JSON.stringify({ schema: "video-production/assets/v2", assets: [{ id: "bed", kind: "audio", source: "user", path: "public/audio/bed.wav", rights: "owned" }] });
   const workers = [
-    ["motion-art-direction", "advisor"], ["animation-principles", "advisor"], ["beat-sync-editing", "advisor"], ["color-motion", "advisor"], ["shot-composition", "advisor"], ["explainer-video", "advisor"], ["short-form-video", "advisor"], ["caption-animation", "advisor"], ["product-launch-video", "advisor"], ["gemini-tts", "external-runner"], ["chengfeng-cut", "external-runner"], ["chengfeng-subtitle", "external-runner"], ["model-selector", "advisor"], ["prompt-translator", "advisor"], ["seedance-storyboard", "advisor"], ["impeccable", "advisor"],
+    ["video-motion-direction", "advisor"], ["video-format-playbooks", "advisor"], ["video-visual-critique", "advisor"], ["video-media-import", "external-runner"],
   ].map(([name, mode]) => ({ name, mode, status: "skipped" }));
   const storyboardDigest = sha256(`plan.script.json\0${sha256(script)}\nplan.storyboard.json\0${sha256(storyboard)}\n`);
   const files = {
