@@ -6,14 +6,15 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "skills": "./skills/",
   "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "工程实践",
     "shortDescription": "按工程任务加载必要的方法 Skill。",
-    "longDescription": "为实现、调试与完成前验证选择社区 Skill 的当前上游版本；缺失时停止对应编排。",
+    "longDescription": "为实现、调试与完成前验证选择本插件的方法 Skill。",
     "developerName": "Harness Start",
     "category": "Productivity",
-    "capabilities": ["hooks"],
+    "capabilities": ["hooks", "skills"],
     "defaultPrompt": [
       "用工程师思维处理这个代码任务。",
       "先建立可复现证据，再修复这个问题。",

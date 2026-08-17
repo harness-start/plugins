@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 
@@ -11,14 +11,10 @@ test("publishes a standalone engineering-practice plugin", () => {
     const manifest = json(host);
     assert.equal(manifest.name, "engineering-practice");
     assert.equal("dependencies" in manifest, false);
+    assert.equal(manifest.skills, "./skills/");
   }
-  assert.equal("skills" in json(".claude-plugin/plugin.json"), false);
-});
-
-test("declares only current-source engineering community Skills", () => {
-  const deps = json("skill-deps.json").skills;
-  assert.deepEqual(deps.map((item: { name: string }) => item.name), [
-    "karpathy-guidelines", "systematic-debugging", "verification-before-completion",
-  ]);
-  assert.ok(deps.every((item: { required: boolean }) => !Object.hasOwn(item, "revision") && item.required));
+  assert.equal(existsSync(resolve(root, "skill-deps.json")), false);
+  for (const skill of ["engineering-practice", "engineering-judgment", "engineering-debugging", "engineering-verification"]) {
+    assert.equal(existsSync(resolve(root, "skills", skill, "SKILL.md")), true, skill);
+  }
 });

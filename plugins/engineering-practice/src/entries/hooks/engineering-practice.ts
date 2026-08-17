@@ -11,15 +11,14 @@ function warn(message: string): void {
 
 export function engineeringPracticeContext(): string {
   const loading = process.env.HARNESS_HOST === "codex"
-    ? "Codex: read each selected community Skill at `$HOME/.agents/skills/<name>/SKILL.md` before acting."
-    : "Claude: invoke each selected community Skill through the native Skill tool before acting.";
+    ? "Codex: read each selected Skill from this plugin's `skills/<name>/SKILL.md` before acting."
+    : "Claude: invoke each selected plugin Skill through the native Skill tool before acting.";
   return [
     "[Engineering Practice] Selective engineering Skill orchestration",
     loading,
-    "For non-trivial implementation, review, or refactoring, require `karpathy-guidelines`.",
-    "For bugs, failures, regressions, or unexpected behavior, require `systematic-debugging` before proposing a fix.",
-    "Before a completion, fixed, passing, commit, or PR claim, require `verification-before-completion` and fresh command evidence.",
-    "If a required Skill is absent or unreadable, stop this orchestration route and report the missing dependency. Do not imitate it from memory.",
+    "For non-trivial implementation, review, or refactoring, require `engineering-judgment`.",
+    "For bugs, failures, regressions, or unexpected behavior, require `engineering-debugging` before proposing a fix.",
+    "Before a completion, fixed, passing, commit, or PR claim, require `engineering-verification` and fresh command evidence.",
     "Load only Skills selected by the current engineering task. Hooks remain independent enforcement and are not completion evidence.",
   ].join("\n");
 }

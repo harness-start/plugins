@@ -1,7 +1,0 @@
-{
-  "skills": [
-    { "name": "karpathy-guidelines", "source": "https://github.com/szkocot/andrej-karpathy-skills", "required": true, "mode": "instruction-only" },
-    { "name": "systematic-debugging", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only", "allowFiles": ["SKILL.md"] },
-    { "name": "verification-before-completion", "source": "https://github.com/obra/superpowers", "required": true, "mode": "instruction-only" }
-  ]
-}
