@@ -1,0 +1,11 @@
+{
+  "name": "interface-craft",
+  "version": "0.1.0",
+  "description": "General interface visual craft: hierarchy, contrast, anti-pattern detection on UI files.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "skills": "./skills/",
+  "hooks": "./hooks/claude.json"
+}
