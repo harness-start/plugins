@@ -19,18 +19,16 @@ test("both manifests expose the bundled authoring and independent review skills"
   assert.equal(existsSync(join(ROOT, "skills/logo-project-review/SKILL.md")), true);
 });
 
-test("external skill pool follows public current sources and remains bilingual and authority-free", () => {
-  const dependencies = json("skill-deps.json").skills;
-  assert.deepEqual(dependencies.map(({ name }: { name: string }) => name), ["brand-identity", "logo-design", "color-expert", "logo-generator"]);
-  assert.ok(dependencies.every((dependency: Record<string, unknown>) => !Object.hasOwn(dependency, "revision")));
-  assert.deepEqual(new Set(dependencies.map(({ ecosystem }: { ecosystem: string }) => ecosystem)), new Set(["en", "zh"]));
-  for (const dependency of dependencies) {
-    assert.match(dependency.source, /^https:\/\/github\.com\//u);
-    assert.match(dependency.description, /no .*review.*release authority/iu);
+test("first-party adviser pool is bundled, bilingual, and authority-free", () => {
+  assert.equal(existsSync(join(ROOT, "skill-deps.json")), false);
+  const names = ["logo-brand-direction", "logo-form-language", "logo-color-accessibility"];
+  for (const name of names) {
+    const skill = text(`skills/${name}/SKILL.md`);
+    assert.match(skill, new RegExp(`^name:\\s*${name}$`, "mu"));
+    assert.match(skill, /no .*writer|read-only|只读|cannot write|no .*review.*release authority/iu);
   }
-  const chineseLogo = dependencies.find(({ name }: { name: string }) => name === "logo-generator");
-  assert.equal(chineseLogo.mode, "reference-only");
-  assert.deepEqual(chineseLogo.allowFiles, ["SKILL.md", "references/design_patterns.md"]);
+  assert.equal(existsSync(join(ROOT, "licenses", "color-expert", "NOTICE.md")), true);
+  assert.match(text("licenses/color-expert/NOTICE.md"), /CC-BY-4\.0/u);
 });
 
 test("orchestrator declares the complete phase chain and registered writers", () => {

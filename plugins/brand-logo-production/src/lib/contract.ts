@@ -116,10 +116,9 @@ const FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 const PHI = 1.618033988749895;
 const AESTHETIC_CRITERIA = ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"];
 export const EXTERNAL_SKILLS = [
-  { name: "brand-identity", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
-  { name: "logo-design", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
-  { name: "color-expert", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
-  { name: "logo-generator", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] },
+  { name: "logo-brand-direction", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
+  { name: "logo-form-language", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
+  { name: "logo-color-accessibility", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
 ] as const;
 
 export const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");

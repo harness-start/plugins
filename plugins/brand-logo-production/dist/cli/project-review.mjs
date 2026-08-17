@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5495677f25b774987233f02ff15e4fdbd05805590c66a1ced3c39455a5baad3c
+// harness-source-hash: sha256:73a2f211ecb1ba886fe67eb7ee4f072b280d0b2687abaa8fb22a1ee92e7816cd
 import {
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-UNDX3V2W.mjs";
+} from "../chunks/chunk-DDYREITI.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-KVONBVUC.mjs";
+} from "../chunks/chunk-7OERXMLI.mjs";
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-L3BPLNQF.mjs";
+} from "../chunks/chunk-4MD7QWTM.mjs";
 import {
   REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
@@ -20,7 +20,7 @@ import {
   masterSubjectDigest,
   reviewArtifactPaths,
   validateLogoModel
-} from "../chunks/chunk-RXJ5KREI.mjs";
+} from "../chunks/chunk-SZ65BSAQ.mjs";
 
 // plugins/brand-logo-production/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";

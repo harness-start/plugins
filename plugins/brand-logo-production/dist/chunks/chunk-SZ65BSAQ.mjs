@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:5495677f25b774987233f02ff15e4fdbd05805590c66a1ced3c39455a5baad3c
+// harness-source-hash: sha256:73a2f211ecb1ba886fe67eb7ee4f072b280d0b2687abaa8fb22a1ee92e7816cd
 
 // plugins/brand-logo-production/src/lib/contract.ts
 import { createHash } from "node:crypto";
@@ -37,10 +37,9 @@ var FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 var PHI = 1.618033988749895;
 var AESTHETIC_CRITERIA = ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"];
 var EXTERNAL_SKILLS = [
-  { name: "brand-identity", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
-  { name: "logo-design", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
-  { name: "color-expert", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
-  { name: "logo-generator", ecosystem: "zh", mode: "reference-only", phases: ["concept", "master", "preview"] }
+  { name: "logo-brand-direction", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
+  { name: "logo-form-language", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
+  { name: "logo-color-accessibility", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] }
 ];
 var sha256 = (value) => createHash("sha256").update(value).digest("hex");
 var finding = (code, path, message) => ({ code, path, message });

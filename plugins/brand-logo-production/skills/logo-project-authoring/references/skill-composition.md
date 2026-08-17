@@ -4,10 +4,9 @@ Select dynamically from the bilingual public pool; do not force one worker from 
 
 | Worker | Source policy | Mode | Contribution |
 |---|---|---|---|
-| `brand-identity` | current upstream | adviser | brief and initial visual direction |
-| `logo-design` | current upstream | reference-only | concept diversity, master refinement, variants, and small-size preview checks |
-| `color-expert` | current upstream | reference-only | color space, gamut, contrast, and accessibility |
-| `logo-generator` | current upstream | reference-only | Chinese-ecosystem pattern diversity, restrained geometric concepts, and small-size preview critique |
+| `logo-brand-direction` | bundled first-party | adviser | brief and initial visual direction |
+| `logo-form-language` | bundled first-party | reference-only | concept diversity, bilingual pattern language, master refinement, variants, and small-size preview checks |
+| `logo-color-accessibility` | bundled first-party | reference-only | color space, gamut, contrast, and accessibility |
 
 For a used worker, create its Result Card outside the project and admit it with `project-advice.mjs <project-root> <external-json>`. Never execute a reference-only dependency or read files outside its allowlist. Retry a transient unavailable worker once; otherwise mark it unavailable and continue only when its phase is non-critical.
 
@@ -29,4 +28,4 @@ Use this external Result Card shape, replacing placeholders with current values:
 }
 ```
 
-`ecosystem`, `mode`, and `phase` must match the selected row in `plan.skill-composition.json`; `brand-identity` uses mode `adviser`. Regenerate the card whenever the subject digest changes.
+`ecosystem`, `mode`, and `phase` must match the selected row in `plan.skill-composition.json`; `logo-brand-direction` uses mode `adviser`. Regenerate the card whenever the subject digest changes.

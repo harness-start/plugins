@@ -10,7 +10,7 @@ Keep the main agent responsible for user intent, source integration, gate decisi
 Follow exactly: `brief → concept → master → construction → variants → preview → review → release`.
 
 1. Freeze `plan.brief.json`, `plan.contract.json`, asset provenance, and the dynamic bilingual worker selection.
-2. Use at most three external companions. External Skills have no project writer, review, or release authority. Admit each used Result Card with `project-advice.mjs`; integrate or reject its recommendations explicitly.
+2. Use at most three bundled companions. External Skills have no project writer, review, or release authority. Admit each used Result Card with `project-advice.mjs`; integrate or reject its recommendations explicitly.
 3. Create multiple source concepts, select exactly one, and derive the Mark, Wordmark, and Lockup masters from it.
 4. Bind the standard grid, geometry primitives, Fibonacci construction, and construction sheets to current master hashes.
 5. Define primary, mono, and reverse variants. Run `project-lint.mjs`, then `project-render.mjs` for render-owned outputs only.

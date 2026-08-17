@@ -40,11 +40,11 @@ test("advice writer admits one selected current-source worker result and consume
     await writeModel(project, model);
     const loaded = await loadLogoProject(project);
     const subjectDigest = computeLogoSubjectDigest(loaded);
-    await writeFile(input, JSON.stringify({ schema: SKILL_ADVICE_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, skillName: "brand-identity", ecosystem: "en", mode: "adviser", phase: "brief", summary: "Clarified a distinctive geometric positioning.", recommendations: ["Use one orbital memory point"], adopted: ["Use one orbital memory point"], rejected: [] }));
+    await writeFile(input, JSON.stringify({ schema: SKILL_ADVICE_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, skillName: "logo-brand-direction", ecosystem: "en", mode: "adviser", phase: "brief", summary: "Clarified a distinctive geometric positioning.", recommendations: ["Use one orbital memory point"], adopted: ["Use one orbital memory point"], rejected: [] }));
     await issueWriterCapability({ root: project, capability: "logo-advice", argv: [ADVICE_ENTRY, project, input], subjectDigest, sessionId: "advice-session" });
     const admitted = await run(ADVICE_ENTRY, [project, input]);
     assert.equal(admitted.code, 0, admitted.stderr);
-    assert.equal(JSON.parse(admitted.stdout).skillName, "brand-identity");
+    assert.equal(JSON.parse(admitted.stdout).skillName, "logo-brand-direction");
     assert.equal(validateLogoModel(await loadLogoProject(project), { stage: "source" }).length, 0);
     const replay = await run(ADVICE_ENTRY, [project, input]);
     assert.equal(replay.code, 2);

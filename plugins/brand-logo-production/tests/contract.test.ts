@@ -31,6 +31,14 @@ test("limits active advisers to three and requires digest-bound advice evidence"
   const model = validLogoModel({ stage: "source" });
   const composition = JSON.parse(String(model.files["plan.skill-composition.json"]));
   for (const worker of composition.workers) worker.status = "used";
+  composition.workers.push({
+    name: "overflow-adviser",
+    ecosystem: "en",
+    mode: "adviser",
+    status: "used",
+    reason: "exceeds the active-adviser cap",
+    advicePath: "evidence/skills/overflow-adviser.json",
+  });
   model.files["plan.skill-composition.json"] = JSON.stringify(composition);
   assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "SKILL_COMPOSITION_ACTIVE_LIMIT"));
 
