@@ -36,5 +36,6 @@ test("orchestrator declares the complete phase chain and registered writers", ()
   assert.match(skill, /brief[^\n]*concept[^\n]*master[^\n]*construction[^\n]*variants[^\n]*preview[^\n]*review[^\n]*release/iu);
   for (const writer of ["project-advice.mjs", "project-render.mjs", "project-preview.mjs", "project-review.mjs", "project-release.mjs"]) assert.match(skill, new RegExp(writer.replace(".", "\\."), "u"));
   assert.match(skill, /at most three|最多 3/iu);
-  assert.match(skill, /external.*no.*writer.*review.*release authority/iu);
+  assert.match(skill, /bundled companion Skills.*no project writer, review, or release authority/iu);
+  assert.match(skill, /Never substitute a similarly named Skill exposed by the runtime/iu);
 });

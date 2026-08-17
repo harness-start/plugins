@@ -18,14 +18,6 @@ Write accepted capabilities into the current repository's host-native configurat
 
 Do not make one host execute files from the other host's directory. Preserve existing JSON fields and Hook registrations. If the installed Codex runtime cannot demonstrate that a repository `.codex/hooks.json` is loaded, keep the application blocked instead of changing user-level configuration.
 
-For a dual-host community Skill, run the project-scoped Skills CLI with both hosts selected:
-
-```bash
-DISABLE_TELEMETRY=1 npx --yes skills add <source> \
-  --skill <skill-id> \
-  --agent claude-code \
-  --agent codex \
-  --yes
-```
+For a dual-host project Skill, author the confirmed project-owned content directly under both host paths. Do not search for, download, install, or invoke a Skill from the current session or an external catalog. Verify both copies have the intended platform projection before closing the proposal.
 
 Run it from the Git root. Confirm only repository paths and the project lockfile changed. Any proposal to install the capability for the user account is a separate human decision outside this workflow.

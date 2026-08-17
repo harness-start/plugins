@@ -34,7 +34,7 @@ useEffect(() => {
 
 - `react-native-performance` library (recommended)
 
-> **Note**: This skill involves visual timeline diagrams and profiler output. Use `agent-device` for cold-start evidence; install it through the environment's approved/trusted path or ask the user if verification needs it and it is missing. Timeline interpretation may still require exported metrics or human review. Record concrete marker names, durations, device tier, and startup type in text when asking an agent to reason about them.
+> **Note**: This Skill involves visual timeline diagrams and profiler output. Capture cold-start evidence with the project's documented workflow or manual validation. Timeline interpretation may require exported metrics or human review. Record concrete marker names, durations, device tier, and startup type.
 
 ## Understanding TTI
 

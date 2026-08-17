@@ -6,7 +6,6 @@ description: >
   error handling, async patterns, concurrency, unsafe code, API design, memory
   optimization, performance, numeric safety, conversions, serde, pattern
   matching, macros, closures, observability, testing, and common anti-patterns.
-  Invoke with /rust-skills.
 license: MIT
 metadata:
   author: leonardomso

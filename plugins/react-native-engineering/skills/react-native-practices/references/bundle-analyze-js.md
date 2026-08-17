@@ -31,7 +31,7 @@ EXPO_UNSTABLE_ATLAS=true npx expo export --platform ios && npx expo-atlas
 - Investigating startup time issues
 - Before/after optimization comparison
 
-> **Note**: This skill involves visual treemap output (source-map-explorer, Expo Atlas). When regression checks include device flows, use `agent-device` for app evidence; install it through the environment's approved/trusted path or ask the user if verification needs it and it is missing. Treemap analysis itself may still require exported reports, browser screenshots, or human review. Record the largest modules and before/after bundle sizes in text when asking an agent to reason about them.
+> **Note**: This Skill involves visual treemap output (source-map-explorer and Expo Atlas). When regression checks include device flows, use the project's documented workflow or manual validation. Treemap analysis may require exported reports, browser screenshots, or human review. Record the largest modules and before/after bundle sizes.
 
 ## Understanding Hermes Bytecode
 

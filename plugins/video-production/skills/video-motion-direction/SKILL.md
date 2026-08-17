@@ -1,6 +1,6 @@
 ---
 name: video-motion-direction
-description: This skill should be used when the user asks to "direct a motion graphics video", "do creative/art direction for a video", "define a motion language", "set the tone and pacing", "make the animation feel consistent", "decide what to animate (and what not to)", "turn a brief/brand into motion choices", or needs the senior creative judgment that sits above specific techniques (gsap/lottie/shader). Covers motion language, tone & energy, pacing/rhythm, motion hierarchy, restraint, and cross-shot consistency.
+description: This Skill should be used when the user asks to "direct a motion graphics video", "do creative/art direction for a video", "define a motion language", "set the tone and pacing", "make the animation feel consistent", "decide what to animate (and what not to)", "turn a brief/brand into motion choices", or needs senior creative judgment above animation implementation details. Covers motion language, tone and energy, pacing and rhythm, motion hierarchy, restraint, and cross-shot consistency.
 version: 0.1.0
 ---
 
@@ -12,7 +12,7 @@ Make the creative decisions for a motion piece before anyone animates a frame. D
 
 - Starting any piece — explainer, launch film, UI demo, data story, loop — and the look/feel isn't decided yet.
 - Animation feels "busy", "cheap", or "inconsistent" and the cause is decisions, not craft.
-- Orchestrating other skills (gsap/lottie/shader/three.js): direction sets the rules they execute.
+- Defining implementation-neutral rules that the project's chosen animation stack can execute.
 - Translating a brand or brief into directable, written choices a team (or an agent) can follow.
 
 ## The one rule
@@ -44,7 +44,7 @@ Pick one cell and commit. Mixing cells within a piece is the most common cause o
 
 ## Motion personality (named presets)
 
-The tone matrix tells you *where* the piece sits; a **motion personality** is the named, numeric preset you hand to whoever animates. Pick ONE per project and apply it everywhere. This is shared vocabulary — other skills (e.g. `gsap-web`, `micro-interaction`, the video packs) can just say "use the Premium personality."
+The tone matrix tells you *where* the piece sits; a **motion personality** is the named, numeric preset you hand to whoever animates. Pick ONE per project and apply it everywhere. This is shared vocabulary for downstream animation work: for example, a caller can say "use the Premium personality."
 
 | Personality | Duration | Signature easing | Overshoot | Reads as |
 |---|---|---|---|---|

@@ -207,7 +207,7 @@ Not scored here, but the component API guidelines make these hard requirements:
 
 ## Dark Mode Correctness — Hard-Coded Colors On Theme Backgrounds
 
-A cross-cutting rule the skill enforces even though full theming scoring defers to the `material-3` skill: **never pair a hard-coded text / icon color with a theme-derived background**. The two resolve independently, so "looks fine in light mode" is not a guarantee for dark mode.
+A cross-cutting rule this plugin enforces even though it does not provide full theming scoring: **never pair a hard-coded text / icon color with a theme-derived background**. The two resolve independently, so "looks fine in light mode" is not a guarantee for dark mode.
 
 ```kotlin
 // Wrong — background shifts in dark mode; text stays black and becomes unreadable

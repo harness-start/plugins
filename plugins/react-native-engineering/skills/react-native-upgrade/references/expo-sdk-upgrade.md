@@ -21,10 +21,9 @@ cd "$APP_DIR" && npx expo-doctor
 - `expo` or `expo-updates` is present in the target app package
 - RN upgrade is paired with Expo SDK upgrade
 
-## Official Expo Reference
+## Expo Reference Boundary
 
-- Follow Expo's official upgrade skill as a primary guide:
-  - [Expo Upgrading Expo Skill][expo-upgrading-expo-skill]
+- Use Expo release notes, the target app's installed SDK metadata, `npx expo install --fix`, and `npx expo-doctor` as evidence; do not load an external upgrade Skill.
 - Important for this workflow: skip `app.json` changes, because this is not an Expo Managed project.
 
 ## Pre-Upgrade Audit (Required)
@@ -59,7 +58,5 @@ cd "$APP_DIR" && npx expo-doctor
 - [upgrading-react-native.md](upgrading-react-native.md) - Routing and mode selection
 - [upgrade-helper-core.md](upgrade-helper-core.md) - Base upgrade workflow
 - [react.md](react.md) - React and React 19 alignment
-- [upgrade-verification.md](upgrade-verification.md) - Post-upgrade validation, including agent-device-assisted checks
+- [upgrade-verification.md](upgrade-verification.md) - Post-upgrade validation, including manual device checks
 - [monorepo-singlerepo-targeting.md](monorepo-singlerepo-targeting.md) - Repo/app selection and command scoping
-
-[expo-upgrading-expo-skill]: https://github.com/expo/skills/blob/main/plugins/upgrading-expo/skills/upgrading-expo/SKILL.md

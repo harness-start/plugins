@@ -6,7 +6,7 @@ tags: memory, leaks, profiling, cleanup
 
 # Skill: Hunt JS Memory Leaks
 
-Find and fix JavaScript memory leaks using the React Native DevTools Memory tab, with `agent-device react-devtools` for related component context.
+Find and fix JavaScript memory leaks using the React Native DevTools Memory tab and exported profiles for related component context.
 
 ## Quick Pattern
 
@@ -38,14 +38,14 @@ useEffect(() => {
 ## Prerequisites
 
 - React Native DevTools Memory tab or exported memory profile available
-- `agent-device react-devtools` for related component ownership/render debugging
+- React Native DevTools Components and Profiler tabs for related ownership and render debugging
 - App running in development mode
 
 ## Step-by-Step Instructions
 
-React Native DevTools supports heap snapshots, allocation instrumentation on timeline, and allocation sampling. Use allocation timeline to isolate leaks; use allocation sampling for lower-overhead long-running allocation profiling. Use `agent-device react-devtools` when you need token-efficient component tree, props, state, hooks, ownership, or render-cause context while investigating the leak.
+React Native DevTools supports heap snapshots, allocation instrumentation on timeline, and allocation sampling. Use allocation timeline to isolate leaks; use allocation sampling for lower-overhead long-running allocation profiling. Capture component tree, props, state, hooks, ownership, or render-cause context in the visual DevTools UI or an exported profile while investigating the leak.
 
-`agent-device react-devtools` does not replace the Memory tab. Use it only for related component context; heap snapshots and allocation timelines require the React Native DevTools Memory UI or an exported memory profile.
+Heap snapshots and allocation timelines require the React Native DevTools Memory UI or an exported memory profile. If the agent cannot inspect that surface, request the exported evidence or human observations explicitly.
 
 ### 1. Open Memory Profiler
 

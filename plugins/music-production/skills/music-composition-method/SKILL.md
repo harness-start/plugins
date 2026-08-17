@@ -7,7 +7,7 @@ description: Use this skill whenever the user asks for help with music compositi
 
 This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 
-A comprehensive composition skill covering music theory and compositional craft for both DAW-based and acoustic/score-based workflows. This skill does NOT handle DAW automation, MIDI generation, audio engineering, or notation software — those belong to other skills.
+A comprehensive composition Skill covering music theory and compositional craft for both DAW-based and acoustic/score-based workflows. This Skill does NOT handle DAW automation, MIDI generation, audio engineering, or notation software; those tasks are outside its scope.
 
 ## Core philosophy
 
@@ -23,7 +23,7 @@ Composition is a series of decisions, not a list of rules to follow. When advisi
 
 ## What this skill does NOT cover
 
-- **DAW operation** — keyboard shortcuts, plugin parameters, automation lanes (separate skill).
+- **DAW operation** — keyboard shortcuts, plugin parameters, and automation lanes.
 - **MIDI file generation or direct manipulation** — handled elsewhere.
 - **Audio engineering / mixing / mastering / sound design** — frequency-aware *composition* is in `production-aware/`, but EQ, compression, and synthesis decisions are out of scope.
 - **Music history trivia** unconnected to composition technique. (Stylistic conventions of a period ARE in scope.)

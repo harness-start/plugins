@@ -76,6 +76,88 @@ function hookCommands(value: unknown): string[] {
   ];
 }
 
+function pluginSkillNames(pluginRoot: string): Set<string> {
+  const names = new Set<string>();
+  for (const path of filesBelow(resolve(pluginRoot, "skills"))) {
+    if (!path.endsWith("/SKILL.md")) continue;
+    const match = readFileSync(path, "utf8").match(/^name:\s*["']?([^"'\r\n]+)["']?\s*$/mu);
+    if (match?.[1]) names.add(match[1]);
+  }
+  return names;
+}
+
+function unresolvedPluginSkillReferences(pluginRoot: string): string[] {
+  const localNames = pluginSkillNames(pluginRoot);
+  const findings = new Set<string>();
+  const action = /\b(?:use|load|read|invoke|call|follow|route|recommend|consult|delegate|search)\b|使用|加载|调用|路由|推荐|遵循|委派|搜索|可选调用/iu;
+  const relationship = /\b(?:other|sibling|community|official|suggested) skills?\b/iu;
+  const skillWord = /(?<![-\w])skills?\b/iu;
+  const negativeInstruction = /\b(?:do not|never)\b|禁止|不得/iu;
+  const files = [
+    ...filesBelow(resolve(pluginRoot, "skills")),
+    ...filesBelow(resolve(pluginRoot, "src")),
+    ...filesBelow(resolve(pluginRoot, "hooks")),
+    resolve(pluginRoot, "README.md"),
+  ].filter((path) => existsSync(path) && /\.(?:c?js|mjs|ts|json|md|ya?ml)$/u.test(path));
+
+  const report = (path: string, lineNumber: number, reference: string) => {
+    if (reference !== reference.toLowerCase()) return;
+    if (!localNames.has(reference)) {
+      findings.add(`${path.slice(pluginRoot.length + 1)}:${lineNumber} -> ${reference}`);
+    }
+  };
+
+  for (const path of files) {
+    const lines = readFileSync(path, "utf8").split(/\r?\n/u);
+    lines.forEach((line, index) => {
+      const lineNumber = index + 1;
+      for (const match of line.matchAll(/(?:\.agents|\.claude)\/skills\/([a-z][a-z0-9-]*)/gu)) {
+        if (match[1]) report(path, lineNumber, match[1]);
+      }
+      for (const match of line.matchAll(/skills\/([a-z][a-z0-9-]*)\/SKILL\.md/gu)) {
+        if (match[1]) report(path, lineNumber, match[1]);
+      }
+      const positiveSkillContext = !negativeInstruction.test(line)
+        && ((skillWord.test(line) && action.test(line)) || relationship.test(line));
+      if (positiveSkillContext) {
+        for (const match of line.matchAll(/\$([a-z][a-z0-9-]{2,})/gu)) {
+          if (match[1]) report(path, lineNumber, match[1]);
+        }
+        for (const match of line.matchAll(/\b([a-z][a-z0-9-]*:[a-z][a-z0-9-]*)\b/gu)) {
+          if (match[1]) report(path, lineNumber, match[1]);
+        }
+        for (const match of line.matchAll(/`([a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?)`\s+(?:Skills?|技能)/gu)) {
+          if (match[1]) report(path, lineNumber, match[1]);
+        }
+        for (const match of line.matchAll(/(?:Skills?|技能)\s*(?:(?:named|called)\s+|[:：]\s*)?`([a-z][a-z0-9-]*(?::[a-z][a-z0-9-]*)?)`/gu)) {
+          if (match[1]) report(path, lineNumber, match[1]);
+        }
+        for (const match of line.matchAll(/\b(?:invoke|call|use)\s+(?:with\s+)?\/([a-z][a-z0-9-]*)/giu)) {
+          if (match[1]) report(path, lineNumber, match[1]);
+        }
+      }
+      if (!negativeInstruction.test(line)) {
+        for (const match of line.matchAll(/(?:\b(?:load|invoke|call|route|recommend|consult|search)\b|加载|调用|路由|推荐|搜索|可选调用)[^$\n]{0,80}`?\$([a-z][a-z0-9-]{2,})/giu)) {
+          if (match[1]) report(path, lineNumber, match[1]);
+        }
+      }
+      if (/https?:\/\/\S+\/(?:skills|plugins)\/\S*SKILL\.md/iu.test(line)) {
+        findings.add(`${path.slice(pluginRoot.length + 1)}:${lineNumber} -> remote SKILL.md`);
+      }
+      if (/\b(?:android\s+skills\s+add|npx\s+(?:--yes\s+)?skills\s+add)\b/iu.test(line)) {
+        findings.add(`${path.slice(pluginRoot.length + 1)}:${lineNumber} -> external Skill installer`);
+      }
+      if (/\bpublic Skills CLI\b|\bcommunity `[^`]+` skill\b|\bsuggested skills\b/iu.test(line)) {
+        findings.add(`${path.slice(pluginRoot.length + 1)}:${lineNumber} -> unresolved Skill discovery`);
+      }
+      if (/\bskills?\b[^\n]{0,240}\b(?:may|can) be (?:used|loaded|invoked|consulted|called|recommended)\b[^\n]{0,160}\b(?:runtime|session|environment)\b/iu.test(line)) {
+        findings.add(`${path.slice(pluginRoot.length + 1)}:${lineNumber} -> runtime-provided Skill exception`);
+      }
+    });
+  }
+  return [...findings].toSorted();
+}
+
 test("v2 publishes exactly the responsibility-oriented catalog", () => {
   const actual = readdirSync(resolve(root, "plugins"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
@@ -100,6 +182,14 @@ test("published plugins are self-contained: no skill-deps, no vendor-skills, dua
     assert.equal(existsSync(resolve(pluginRoot, "hooks", "claude.json")), true, `${plugin} must ship hooks/claude.json`);
     assert.equal(existsSync(resolve(pluginRoot, "hooks", "codex.json")), true, `${plugin} must ship hooks/codex.json`);
   }
+});
+
+test("published plugin instructions resolve only same-plugin Skills", () => {
+  const findings = expected.flatMap((plugin) => {
+    const pluginRoot = resolve(root, "plugins", plugin);
+    return unresolvedPluginSkillReferences(pluginRoot).map((finding) => `${plugin}: ${finding}`);
+  });
+  assert.deepEqual(findings, []);
 });
 
 test("plugin runtime, Hooks, and internal Skills never address a sibling plugin", () => {

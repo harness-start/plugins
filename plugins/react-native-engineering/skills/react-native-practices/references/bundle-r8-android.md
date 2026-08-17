@@ -216,7 +216,7 @@ jadx android/app/build/outputs/apk/release/app-release.apk
 
 ### Verify Runtime Behavior
 
-Use `agent-device` to install or open the release build, navigate critical flows, capture snapshots/screenshots, and collect logs. If it is missing and release verification is needed, install it through the environment's approved/trusted path or ask the user to install or enable it. Read the `agent-device` skill or CLI help when available before writing exact commands.
+Install or open the release build with the repository's documented Android workflow, navigate critical flows, capture snapshots or screenshots, and collect logs. If the agent cannot operate the target device, request explicit human validation and record the gap instead of installing an external Skill or CLI.
 
 ## Common Pitfalls
 

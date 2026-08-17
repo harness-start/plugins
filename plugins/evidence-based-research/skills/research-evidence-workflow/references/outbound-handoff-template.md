@@ -32,4 +32,4 @@ Do not re-research sealed claims unless the user expands scope.
 Next goal: <user-stated downstream goal>.
 ```
 
-Then run `research-workflow.mjs handoff-outbound` and optionally the community `handoff` skill for OS-temp compaction.
+Then run this plugin's bundled `research-workflow.mjs handoff-outbound`; it owns OS-temp compaction for this workflow.

@@ -1,14 +1,8 @@
 <br />
 
-## Android skills
+## R8 Analyzer
 
-[View on GitHub](https://github.com/android/skills/tree/main/performance/r8-analyzer)
-
-### R8 Analyzer
-
-Use the R8 Analyzer [Android skill](https://developer.android.com/tools/agents/android-skills) to analyze build files and identify redundant, broad, or subsumed [keep rules](https://developer.android.com/topic/performance/app-optimization/keep-rules-overview). To install the skill from the [Android CLI](https://developer.android.com/tools/agents/android-cli), run:
-
-    android skills add --skill r8-analyzer
+Use this plugin's bundled `android-r8` Skill and its local scripts to analyze build files and identify redundant, broad, or subsumed [keep rules](https://developer.android.com/topic/performance/app-optimization/keep-rules-overview). Do not install or substitute an analyzer from the current session.
 
 <br />
 

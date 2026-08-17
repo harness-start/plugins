@@ -36,14 +36,14 @@ metadata:
 ### Path A: Standalone Gradle task (AGP \>= 9.3.0)
 
 - **Step 1: Run standalone task** : Run `./gradlew :app:analyzeReleaseR8Config` to evaluate the R8 configuration. You MUST wait for this command to finish before proceeding.
-- **Step 2: Convert to JSON** : The report is generated at `app/build/reports/r8/r8-config-analyzer-release.pb`. You MUST explicitly run the conversion script by executing: `python3 .agents/skills/r8-analyzer/scripts/convert_pb_to_json.py`. Wait for this command to finish.
-- **Step 3: Analyze** : You MUST explicitly run the analysis script by executing: `python3 .agents/skills/r8-analyzer/scripts/analyze.py`. This outputs `tmp/keepradius/analysis_result.txt`. Wait for this command to finish.
+- **Step 2: Resolve bundled scripts** : Set `R8_PLUGIN_ROOT="${ANDROID_ENGINEERING_ROOT:-${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}"` and require `test -n "$R8_PLUGIN_ROOT"`. The report is generated at `app/build/reports/r8/r8-config-analyzer-release.pb`.
+- **Step 3: Convert and analyze** : Run `python3 "$R8_PLUGIN_ROOT/skills/android-r8/scripts/convert_pb_to_json.py" app/build/reports/r8/r8-config-analyzer-release.pb tmp/r8analysis/keepruleradius.json`, wait for it to finish, then run `python3 "$R8_PLUGIN_ROOT/skills/android-r8/scripts/analyze.py" tmp/r8analysis/keepruleradius.json tmp/r8analysis/analysis_result.txt`. Do not substitute a similarly named Skill or script discovered elsewhere.
 
 ### Path B: Quantitative data generation (R8 \>= 9.3.7-dev and AGP \< 9.3.0)
 
 - **Step 1: Check requirements** : Python and `protobuf` package are mandatory.
 - **Step 2: Generate and analyze** : You MUST run the shell commands described in [references/CONFIGURATION-ANALYZER.md](references/CONFIGURATION-ANALYZER.md) to generate the proto file using R8 configuration analyzer, convert it to JSON and analyze the result.
-- **Step 3: Analyze** : You MUST ensure the analysis produces `tmp/keepradius/analysis_result.txt` for scores and rule impact metrics.
+- **Step 3: Analyze** : You MUST ensure the analysis produces `tmp/r8analysis/analysis_result.txt` for scores and rule impact metrics.
 
 ### Path C: Heuristic evaluation and recommendation (R8 \< 9.3.7-dev)
 
@@ -57,7 +57,7 @@ metadata:
 ## Step 3. Report generation
 
 - **Format** : Follow [references/REPORT_FORMAT.md](references/REPORT_FORMAT.md) strictly.
-- **Input**: Extract metrics (Scores, Impacts, Example Classes) directly from generated file analysis.txt if using Path A, or from manual findings if using Path B.
+- **Input**: Extract metrics (Scores, Impacts, Example Classes) directly from `tmp/r8analysis/analysis_result.txt` for quantitative paths, or from manual findings for Path C.
 - **Output** : Output ONLY the raw Markdown report in the chat. Do NOT output conversational filler (for example, "Here is your report..."). Do NOT provide recommendations, next steps, or any other text outside of the sections defined in [references/REPORT_FORMAT.md](references/REPORT_FORMAT.md) Do NOT mention the path used for analysis of the configuration
 
 ## Constraints

@@ -151,10 +151,10 @@ If any answer is no and there is no deliberate reason, fix it before returning t
 
 ## What This Skill Does Not Cover
 
-Out of scope in v1 — delegate elsewhere or scope down explicitly:
+Out of scope in v1 — scope down explicitly instead of routing to an unbundled Skill:
 
-- **Material 3 compliance, theming, and design tokens** — use the `material-3` skill.
-- **Scoring an existing codebase with numeric grades** — use the sibling `jetpack-compose-audit` skill in the same repo.
+- **Material 3 compliance, theming, and design tokens** — report that this plugin covers only the concrete color and API guardrails in its bundled references.
+- **Scoring an existing codebase with numeric grades** — provide evidence-backed findings without inventing a numeric audit contract.
 - **Wear OS / TV / Auto / Glance deep platform review** — this skill now covers focus and keyboard/D-pad basics, but not full platform certification.
 - **Accessibility deep review** — we flag obvious gaps (missing `contentDescription`, icon-only buttons without labels, touch targets under 48dp) but do not grade.
 
@@ -180,7 +180,7 @@ If the user needs any of the above, narrow the scope and say so.
 
 ## Acceptance Evals
 
-`evals/evals.json` holds write-mode acceptance cases — prompts that ask this skill to *write* Compose, plus the expectations the produced code must satisfy. Cases 0–2 mirror the `jetpack-compose-audit` scoring rules 1:1 (cross-phase back-writes, Strong Skipping false leads, snapshot self-invalidation) — `bin/ci` keeps them in lockstep so the authoring path can't drift from the audit path; cases 3–4 add foundational phase-correct reads and lifecycle-aware Flow collection. Run a model with this skill loaded against each prompt and check every expectation.
+`evals/evals.json` holds write-mode acceptance cases — prompts that ask this Skill to write Compose, plus expectations for cross-phase back-writes, Strong Skipping false leads, snapshot self-invalidation, phase-correct reads, and lifecycle-aware Flow collection. Run a model with this Skill loaded against each prompt and check every expectation.
 
 ## Primary Sources
 

@@ -129,9 +129,9 @@ its cited evidence and owns the final decision.
 
 One host must not execute files from the other host's directory. If `CLAUDE.md`
 is a relative symlink to canonical `AGENTS.md`, edit only the allowed managed
-block in `AGENTS.md`. Audit community Skills under
-`.project-capabilities/scratch/<run-id>/` and install accepted assets only into
-project-owned paths.
+block in `AGENTS.md`. Project Skills must be authored directly from confirmed
+requirements and repository evidence. The workflow does not search, download,
+install, or invoke Skills exposed by the current session or an external catalog.
 
 ## Lifecycle commands and recovery
 

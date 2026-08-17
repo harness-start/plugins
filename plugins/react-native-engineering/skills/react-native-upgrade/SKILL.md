@@ -55,7 +55,7 @@ Reference these guidelines when:
 | [upgrading-dependencies.md][upgrading-dependencies] | Dependency compatibility checks and migration planning |
 | [react.md][react] | React and React 19 upgrade alignment rules |
 | [expo-sdk-upgrade.md][expo-sdk-upgrade] | Expo SDK-specific upgrade layer (conditional) |
-| [upgrade-verification.md][upgrade-verification] | Post-upgrade verification checklist, including agent-device-assisted checks |
+| [upgrade-verification.md][upgrade-verification] | Post-upgrade verification checklist, including manual device checks |
 | [monorepo-singlerepo-targeting.md][monorepo-singlerepo-targeting] | Monorepo and single-repo app targeting and command scoping |
 
 ## Problem → Skill Mapping

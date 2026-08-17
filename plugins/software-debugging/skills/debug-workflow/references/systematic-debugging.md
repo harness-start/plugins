@@ -174,7 +174,7 @@ You MUST complete each phase before proceeding to the next.
    - Automated test if possible
    - One-off test script if no framework
    - MUST have before fixing
-   - Use the `superpowers:test-driven-development` skill for writing proper failing tests
+   - Write the smallest public-seam failing test and observe it fail before changing production code
 
 2. **Implement Single Fix**
    - Address the root cause identified
@@ -186,7 +186,7 @@ You MUST complete each phase before proceeding to the next.
    - Test passes now?
    - No other tests broken?
    - Issue actually resolved?
-   - Use the `superpowers:verification-before-completion` skill before claiming success
+   - Run the exact task and regression verification commands, read their complete output, and bind the fresh evidence to the work order before claiming success
 
 4. **If Fix Doesn't Work**
    - STOP

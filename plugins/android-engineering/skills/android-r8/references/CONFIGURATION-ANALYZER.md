@@ -32,7 +32,13 @@ Run the R8 enabled build with the system property "-Dcom.android.tools.r8.dumpke
 
 ### 5. Convert to JSON
 
-To convert the generated protobuf files in `{project_root}/tmp/r8analysis` into json, run the following script. The json must be generated in `{project_root}/tmp/r8analysis`. Ensure `keep_radius_pb2.py` (from Step 10) is in the same directory.
+Resolve the installed plugin root as `R8_PLUGIN_ROOT="${ANDROID_ENGINEERING_ROOT:-${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-}}}"`, require it to be non-empty, and run the bundled converter:
+
+    python3 "$R8_PLUGIN_ROOT/skills/android-r8/scripts/convert_pb_to_json.py" \
+      tmp/r8analysis/<generated-report>.pb \
+      tmp/r8analysis/keepruleradius.json
+
+The implementation below documents the bundled algorithm. Do not recreate it in the project or substitute a script exposed by the current session.
 
     import sys
     import os
@@ -84,7 +90,13 @@ To convert the generated protobuf files in `{project_root}/tmp/r8analysis` into 
 
 ### 6. Analyze
 
-Run the following analysis script on the generated JSON to get the impact of the keep rules and sort it.
+Run the bundled analyzer to calculate scores, high-impact rules, and subsumed rules in one pass:
+
+    python3 "$R8_PLUGIN_ROOT/skills/android-r8/scripts/analyze.py" \
+      tmp/r8analysis/keepruleradius.json \
+      tmp/r8analysis/analysis_result.txt
+
+The implementation below documents the scoring algorithm.
 
     import json, sys
 
@@ -140,7 +152,7 @@ Outputs `analysis_result.txt` containing scores and rule impacts.
 
 ### 7. Report impactful rules
 
-Identify the keep rules with the highest impact and the subsumed rules using the following script.
+The bundled `skills/android-r8/scripts/analyze.py` command from Step 6 already appends the five highest-impact rules and all subsumed rules. The implementation below documents that portion of the algorithm; do not run it as a separate session-local script.
 
     import json, sys
 
@@ -202,7 +214,7 @@ After the final report and analysis results are generated, remove the intermedia
 
 ### 10. Protobuf Python bindings
 
-The following script `keep_radius_pb2.py` is required by the conversion script in Step 5.
+The converter imports the bundled `skills/android-r8/scripts/keep_radius_pb2.py` binding. The generated implementation below is retained for provenance; do not create another copy in the project.
 
     from google.protobuf import descriptor as _descriptor
     from google.protobuf import descriptor_pool as _descriptor_pool

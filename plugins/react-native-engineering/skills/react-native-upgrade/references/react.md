@@ -26,9 +26,7 @@ React-specific upgrade rules to run when `react` changes during a React Native o
 ## React 19 Rules
 
 1. Upgrade `@testing-library/react-native` to `v13+`.
-2. Follow:
-   - [Expo React 19 Reference][expo-react-19-reference]
-   - [RNTL LLM Docs][rntl-llm-docs]
+2. Follow the installed Expo SDK compatibility metadata, Expo release notes, and [RNTL LLM Docs][rntl-llm-docs].
 3. Expect type-level breakages from deprecated API removals; fix code and mocks accordingly.
 
 ## Related Skills
@@ -36,7 +34,6 @@ React-specific upgrade rules to run when `react` changes during a React Native o
 - [upgrade-helper-core.md](upgrade-helper-core.md) - Core RN upgrade workflow
 - [upgrading-dependencies.md](upgrading-dependencies.md) - Dependency compatibility triage
 - [expo-sdk-upgrade.md](expo-sdk-upgrade.md) - Expo-specific upgrade layer
-- [upgrade-verification.md](upgrade-verification.md) - Post-upgrade validation, including agent-device-assisted checks
+- [upgrade-verification.md](upgrade-verification.md) - Post-upgrade validation, including manual device checks
 
-[expo-react-19-reference]: https://github.com/expo/skills/blob/main/plugins/upgrading-expo/skills/upgrading-expo/references/react-19.md
 [rntl-llm-docs]: https://oss.callstack.com/react-native-testing-library/llms.txt

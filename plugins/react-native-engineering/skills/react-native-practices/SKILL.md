@@ -63,21 +63,10 @@ If metrics did not improve, revert and try the next suggested fix.
 ### Critical: FPS & Re-renders
 
 **Profile first:**
-```bash
-agent-device react-devtools status
-agent-device react-devtools wait --connected
-agent-device react-devtools profile start
-agent-device react-devtools profile stop
-agent-device react-devtools profile slow --limit 5
-agent-device react-devtools profile rerenders --limit 5
-agent-device react-devtools profile timeline --limit 20
-```
 
-Drive the target interaction with normal `agent-device` commands between `profile start` and `profile stop`.
+Open React Native DevTools from Metro (`j`) or the Dev Menu, select the Profiler tab, start recording immediately before the target interaction, stop immediately afterward, and record commit times, re-render counts, slow components, and the heaviest commit. If the agent cannot inspect the visual result, export the profiler data or ask the user for those concrete measurements instead of assuming an external automation Skill or CLI.
 
-Manual fallback when `agent-device` is unavailable: open React Native DevTools from Metro (`j`) or the Dev Menu, use the Profiler tab, and record the same interaction.
-
-For release-build React component profiling, connect [`@callstack/inspector`](https://github.com/callstackincubator/inspector#inspector) first so React DevTools can attach to the release app, then run the `agent-device react-devtools` flow above.
+For release-build React component profiling, connect [`@callstack/inspector`](https://github.com/callstackincubator/inspector#inspector) first so React DevTools can attach to the release app, then use the same bounded visual or exported-profile workflow.
 
 **Common fixes:**
 - Replace ScrollView with FlatList/FlashList/Legend List for long lists
@@ -147,7 +136,7 @@ Full documentation with code examples in [references/][references]:
 | File | Impact | Description |
 |------|--------|-------------|
 | [js-lists-flatlist-flashlist.md][js-lists-flatlist-flashlist] | CRITICAL | Replace ScrollView with virtualized lists |
-| [js-profile-react.md][js-profile-react] | MEDIUM | `agent-device react-devtools` profiling |
+| [js-profile-react.md][js-profile-react] | MEDIUM | React Native DevTools profiling |
 | [js-measure-fps.md][js-measure-fps] | HIGH | FPS monitoring and measurement |
 | [js-memory-leaks.md][js-memory-leaks] | MEDIUM | JS memory leak hunting |
 | [js-atomic-state.md][js-atomic-state] | HIGH | Jotai/Zustand patterns |

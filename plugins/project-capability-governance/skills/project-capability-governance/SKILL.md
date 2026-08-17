@@ -1,6 +1,6 @@
 ---
 name: project-capability-governance
-description: Review and resolve project capability proposals only when a human explicitly invokes `$project-capability-governance`; interview the human one question at a time, audit existing or community Skills, and land accepted instructions, Skills, Scripts, or Hooks in the current project's Claude Code and Codex configuration.
+description: Review and resolve project capability proposals only when a human explicitly invokes `$project-capability-governance`; interview the human one question at a time and land accepted project-owned instructions, Skills, Scripts, or Hooks in the current project's Claude Code and Codex configuration.
 ---
 
 # Project Capability Governance
@@ -30,14 +30,13 @@ Apply the grilling protocol directly; do not ask the human to invoke another Ski
 Use this order:
 
 1. Reuse an existing project capability.
-2. Search for a community Skill with `$find-skill` when available; otherwise use the public Skills CLI search flow.
-3. Update the managed block in `AGENTS.md` when a short stable instruction is sufficient.
-4. Create a project Skill.
-5. Create a project Skill plus a deterministic Script.
-6. Create a Hook only when its event and predicate form a credible causal chain to the target outcome.
-7. Reject the proposal when future value is not established.
+2. Update the managed block in `AGENTS.md` when a short stable instruction is sufficient.
+3. Create a project Skill directly from confirmed requirements and repository evidence; do not load, invoke, copy, or recommend any Skill outside this plugin while doing so.
+4. Create a project Skill plus a deterministic Script.
+5. Create a Hook only when its event and predicate form a credible causal chain to the target outcome.
+6. Reject the proposal when future value is not established.
 
-Audit external candidates under `.project-capabilities/scratch/<run-id>/`. Install an accepted community Skill into the current project for both applicable hosts; never install it into user-level directories.
+Do not search the current session, global Skill directories, community catalogs, or remote repositories for a candidate. If a proposal requires an external Skill source, defer it until the capability can be specified and implemented as project-owned content without that dependency.
 
 ## Project runtime targets
 

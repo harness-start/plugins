@@ -15,7 +15,7 @@ Build music as reviewable source code and establish a causal chain from brief to
 4. Read [mathematical-model.md](references/mathematical-model.md) before changing composition or optimization logic.
 5. Read [project-contract.md](references/project-contract.md) before creating files, invoking advisers, rendering, or releasing.
 
-## Compose external expertise
+## Compose bundled expertise
 
 Use `plan.skill-composition.json` to select the current-source bilingual adviser pool. Keep at most three active in any phase and give every used adviser a distinct evidence artifact.
 
@@ -24,7 +24,7 @@ Use `plan.skill-composition.json` to select the current-source bilingual adviser
 - `music-reference-profile`: reference identity expressed as techniques rather than artist imitation.
 - `music-mix-qc`: arrangement, balance, dynamics, and space.
 
-External skills are reference-only advisers. Do not run their scripts, network calls, generators, or publishing steps. They cannot write the project. Put each structured result outside the project and admit recommendations through:
+These bundled companion Skills are reference-only advisers. Do not run scripts, network calls, generators, or publishing steps from any similarly named runtime capability. The advisers cannot write the project. Put each structured result outside the project and admit recommendations through:
 
 ```bash
 node "${PLUGIN_ROOT}/dist/cli/project-advice.mjs" "artifacts/music/<id>" "/absolute/path/to/advice.json"

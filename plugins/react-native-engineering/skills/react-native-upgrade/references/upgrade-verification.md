@@ -13,15 +13,14 @@ Manual and agent-assisted validation checklist after React Native and/or Expo up
 - Focus on behavior and UX regressions that static diffs cannot prove.
 - Keep checks small, repeatable, and tied to critical user flows.
 
-## Agent-Assisted Checks
+## Runnable App Checks
 
-Use `agent-device` for runnable app verification. If it is missing and device verification is needed, install it through the environment's approved/trusted path or ask the user to install or enable it.
+Use project-owned test commands, platform-native simulator/device tools already documented by the repository, or explicit manual validation. Do not install or rely on a Skill or CLI merely because the current agent environment exposes it.
 
-1. If the agent environment exposes an `agent-device` skill, read it before planning exact commands.
-2. If the `agent-device` CLI is available, follow its `agent-device help workflow` guidance.
-3. Open or install the upgraded app, drive each critical scenario, and verify with UI snapshots.
-4. Capture screenshots, logs, and pass/fail evidence for changed flows.
-5. Fall back to human validation for credentials, physical-device-only hardware, or profiler surfaces the agent cannot inspect.
+1. Open or install the upgraded app with the repository's documented workflow.
+2. Drive each critical scenario and verify it with UI snapshots or recorded observations.
+3. Capture screenshots, logs, and pass/fail evidence for changed flows.
+4. Use human validation for credentials, physical-device-only hardware, or profiler surfaces the agent cannot inspect.
 
 ## Behavior Checks (Required)
 

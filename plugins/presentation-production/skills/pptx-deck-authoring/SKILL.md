@@ -40,4 +40,4 @@ Use exact standalone wrapper commands. Do not chain them with redirects, pipes, 
 - After any source or design change, restart at lint. After only a review-input correction, restart at review. Release never repairs upstream artifacts.
 - Allow at most two producer/reviewer rounds. If major findings remain, return to storyboard or design rather than accepting them silently.
 
-Never copy the proprietary Anthropic presentation Skill into this plugin or claim it as a dependency. It may be consulted separately as a design reference only when the runtime lawfully provides it.
+Use only the Skills and references bundled with this plugin. A similarly named presentation Skill exposed by the runtime is neither a dependency nor an allowed design-reference substitute.

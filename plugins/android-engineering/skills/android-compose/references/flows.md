@@ -333,7 +333,7 @@ A short index of operator-shape mistakes worth flagging on review. Each one has 
 
 ## Common LLM Mistakes
 
-- **Exposing `MutableStateFlow` publicly.** Use the private/`asStateFlow()` shape above. The audit skill flags this; the compose-agent should fix it.
+- **Exposing `MutableStateFlow` publicly.** Use the private/`asStateFlow()` shape above; this bundled reference treats the public mutable shape as a finding.
 - **Calling `stateIn(scope)` when exposing ViewModel UI state.** That is the suspending overload, not the usual property-initializer shape. Use `stateIn(scope, started, initialValue)` and pass `WhileSubscribed(5_000)` unless you have a documented reason to choose otherwise.
 - **Omitting `initialValue` on `stateIn`.** The compiler will catch it on the three-argument overload, but LLMs sometimes write `.stateIn(scope, started = WhileSubscribed(5_000))` and add `?` to the type to compensate. Model loading explicitly instead.
 - **Using bare `flatMap` (= `flatMapConcat`) where `flatMapLatest` is needed.** Search inputs, route changes, user-id swaps — all want cancellation-on-new-input.

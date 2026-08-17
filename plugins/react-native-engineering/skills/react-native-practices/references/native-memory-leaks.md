@@ -124,7 +124,7 @@ Repeat navigation and configuration-change flows, then check whether old activit
 
 React Native note: RN opts out via `android:configChanges` in manifest, but native code might not.
 
-Use `agent-device` to repeat rotation/navigation scenarios, capture snapshots/screenshots, and collect device evidence. If it is missing and device verification is needed, install it through the environment's approved/trusted path or ask the user to install or enable it. Read the `agent-device` skill or CLI help when available before writing exact commands.
+Repeat rotation and navigation scenarios with the repository's documented device workflow or manually, then capture snapshots, screenshots, logs, and retained-instance evidence. If the agent cannot operate the required device surface, request human validation and record the gap instead of installing an external Skill or CLI.
 
 ## Debugging Workflow
 
