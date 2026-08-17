@@ -1,0 +1,60 @@
+import { open, lstat, mkdir, rename, unlink, writeFile } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
+
+import { isTrainingProjectRoot, resolveWorkspaceRoot } from "./contract.js";
+
+export type WriterSessionGrant = { sessionId?: string; triggerFrom?: string };
+
+export function assertTrainingProjectRoot(value: string | undefined, { allowMissing = false } = {}) {
+  const root = resolve(value ?? "");
+  const workspaceRoot = resolveWorkspaceRoot(allowMissing ? resolve(root, "../../..") : root);
+  if (!isTrainingProjectRoot(root, workspaceRoot)) throw new Error("PROJECT_ROOT_OUT_OF_SCOPE");
+  return root;
+}
+
+export function sessionMetadata(capability: string, grant: WriterSessionGrant = {}) {
+  return {
+    createdAt: new Date().toISOString(),
+    sessionId: grant.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? "unknown",
+    triggerFrom: grant.triggerFrom ?? process.env.AI_EXPERTS_TRIGGER_FROM ?? "unknown",
+    capability,
+  };
+}
+
+export async function atomicWriteText(root: string, relativePath: string, content: string) {
+  const target = join(root, relativePath);
+  const temporaryDirectory = join(root, ".tmp", "training-guard");
+  await mkdir(temporaryDirectory, { recursive: true });
+  const temporary = join(temporaryDirectory, `${basename(relativePath)}.${process.pid}.${Date.now()}.tmp`);
+  await writeFile(temporary, content, { flag: "wx" });
+  await mkdir(dirname(target), { recursive: true });
+  try {
+    const metadata = await lstat(target);
+    if (metadata.isSymbolicLink()) throw new Error("TARGET_SYMLINK_REJECTED");
+  } catch (error) {
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  }
+  await rename(temporary, target);
+}
+
+export async function atomicWriteJson(root: string, relativePath: string, payload: unknown) {
+  await atomicWriteText(root, relativePath, `${JSON.stringify(payload, null, 2)}\n`);
+}
+
+export async function withWriterJournal<T>(root: string, capability: string, callback: () => Promise<T>, grant: WriterSessionGrant = {}) {
+  const journalPath = join(root, ".training-delivery-journal.json");
+  const handle = await open(journalPath, "wx");
+  try {
+    await handle.writeFile(`${JSON.stringify({ schemaVersion: 1, plugin: "training-program-design", operation: capability, artifactId: basename(root), ...sessionMetadata(capability, grant) })}\n`);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  const result = await callback();
+  await unlink(journalPath).catch((error: unknown) => {
+    const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
+  });
+  return result;
+}
