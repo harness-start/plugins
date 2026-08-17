@@ -26,10 +26,12 @@ test("orchestrator declares the complete writer sequence and strict worker bound
   assert.equal(existsSync(join(ROOT, "skills/pptx-deck-review/SKILL.md")), true);
 });
 
-test("external dependencies follow current sources and have no release authority", () => {
-  const dependencies = json("skill-deps.json").skills;
-  assert.deepEqual(dependencies.map(({ name }: { name: string }) => name), ["pptx-generator", "impeccable"]);
-  assert.ok(dependencies.every((dependency: Record<string, unknown>) => !Object.hasOwn(dependency, "revision")));
-  for (const dependency of dependencies) assert.match(dependency.description, /no .*release authority/iu);
-  assert.doesNotMatch(JSON.stringify(dependencies), /anthropic/iu);
+test("first-party advisors are bundled and have no release authority", () => {
+  assert.equal(existsSync(join(ROOT, "skill-deps.json")), false);
+  for (const name of ["presentation-storyboard", "presentation-visual-critique"]) {
+    const skill = text(`skills/${name}/SKILL.md`);
+    assert.match(skill, new RegExp(`^name:\\s*${name}$`, "mu"));
+    assert.match(skill, /no .*writer|read-only|只读|cannot write|no .*release authority/iu);
+  }
+  assert.doesNotMatch(text("skills/pptx-deck-authoring/references/skill-composition.md"), /anthropic/iu);
 });

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:3102b227942dc863a3af4990953aaf9a95592ffeefcf629e2c8b629f2cd733ed
+// harness-source-hash: sha256:adab3d19358121ab54fbb7e6659a0cd2f43f4f6ea5089c010cbc8eafeb6eed41
 import {
   assertPptxProjectRoot
-} from "../chunks/chunk-PL74L2T5.mjs";
+} from "../chunks/chunk-MPA7GP34.mjs";
 import {
   DESIGN_SYSTEM_SCHEMA,
   PLAN_SCHEMA,
@@ -10,7 +10,7 @@ import {
   SKILL_COMPOSITION_SCHEMA,
   SLIDE_MANIFEST_SCHEMA,
   STORYBOARD_SCHEMA
-} from "../chunks/chunk-FS3UDLLJ.mjs";
+} from "../chunks/chunk-G3LR6ILA.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";
@@ -47,7 +47,7 @@ async function main() {
 `,
     "plan.storyboard.json": `${JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "TODO", role: "opening", visualType: "hero" }] }, null, 2)}
 `,
-    "plan.skill-composition.json": `${JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "pptx-generator", status: "skipped" }, { name: "impeccable", status: "skipped" }] }, null, 2)}
+    "plan.skill-composition.json": `${JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "presentation-storyboard", status: "skipped" }, { name: "presentation-visual-critique", status: "skipped" }] }, null, 2)}
 `,
     "design.system.json": `${JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F5F7FA", textPrimary: "17202A", textSecondary: "4B5563", accent: "0067C5", success: "237B4B", warning: "9A6700", error: "B42318" }, charts: { categorical: ["0067C5", "D97706", "237B4B", "7C3AED"] } }, typography: { roles: { display: { fontFamily: "Arial", fontSizePt: 36 }, title: { fontFamily: "Arial", fontSizePt: 30 }, section: { fontFamily: "Arial", fontSizePt: 24 }, body: { fontFamily: "Arial", fontSizePt: 22 }, caption: { fontFamily: "Arial", fontSizePt: 14 }, numeric: { fontFamily: "Arial", fontSizePt: 28 } }, fallbacks: ["Arial", "Calibri"] }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.1, blockGapIn: 0.3 }, shape: { radiusIn: 0.08 }, antiPatterns: ["color-only-encoding", "text-only-slide", "repeated-layout"] }, null, 2)}
 `,

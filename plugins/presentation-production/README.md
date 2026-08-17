@@ -4,13 +4,12 @@
 
 v1 不编辑现有 PPTX，也不套用外部模板。最终闭包包含同一源生成的 `.pptx`、`.pdf`、逐页 PNG、source-hash 预览、结构/设计/无障碍证据、独立审查、release manifest 与 receipt。
 
-## 编排与外部 Skill
+## 编排与第一方顾问
 
-`pptx-deck-authoring` 是唯一编排入口。它保持用户目标、项目源文件、门禁决策和最终交付责任；外部 Skill 只是阶段 worker：
+`pptx-deck-authoring` 是唯一编排入口。它保持用户目标、项目源文件、门禁决策和最终交付责任；捆绑 Skill 只是阶段 worker：
 
-- MiniMax `pptx-generator` 跟随上游当前版本，只提供 storyboard 与 PptxGenJS source 建议。
-- Impeccable 跟随上游当前版本，只提供层级、排版、间距和颜色系统建议。
-- Anthropic `pptx` 只作为专有参考，不是本插件依赖，也不复制或再分发其内容。
+- `presentation-storyboard` 只提供 storyboard 与 PptxGenJS source 建议。
+- `presentation-visual-critique` 只提供层级、排版、间距和颜色系统建议。
 
 worker 的 `used` / `skipped` / `unavailable` 状态写入 `plan.skill-composition.json`。worker 不能写 `dist/`、预览、evidence、review、manifest 或 receipt。
 

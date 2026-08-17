@@ -65,7 +65,7 @@ export function sourceModel(artifactId = "deck"): PptxModel {
     "package-lock.json": "{}\n",
     "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "release", audience: "leadership", objective: "inform", language: "zh-CN" }),
     "plan.storyboard.json": JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "Opening", role: "opening", visualType: "statement" }] }),
-    "plan.skill-composition.json": JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "minimax-pptx-generator", status: "used" }, { name: "impeccable", status: "used" }] }),
+    "plan.skill-composition.json": JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "presentation-storyboard", status: "used" }, { name: "presentation-visual-critique", status: "used" }] }),
     "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F4F6F8", textPrimary: "111827", textSecondary: "374151", accent: "1D4ED8", success: "15803D", warning: "A16207", error: "B91C1C" } }, typography: { roles: Object.fromEntries(["display", "title", "section", "body", "caption", "numeric"].map((role) => [role, { fontFamily: "Noto Sans CJK SC", fontSizePt: role === "body" ? 22 : 28 }])) }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.125 } }),
     "pptx.project.json": JSON.stringify({ schema: PROJECT_SCHEMA, artifactId, layout: "LAYOUT_16X9", entry: "src/deck.ts", slideManifest: "src/slides/manifest.json", designSystem: "design.system.json" }),
     "src/deck.ts": "const deck = new pptxgen();\ndeck.addSlide();\n",
