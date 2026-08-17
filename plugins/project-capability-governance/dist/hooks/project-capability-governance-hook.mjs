@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:71dcb81bd1e9d92c1db577645d7b528f0db9c10f335cfbaef1e7974ece6b215c
+// harness-source-hash: sha256:0a8d9ffd84da28b3f80565ae1d91bf3a47c3a9169a252033c41c1c5aef7ae86b
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
@@ -13,7 +13,7 @@ import {
   readStdinJson,
   renderHumanNotice,
   validateProposalDocument
-} from "../chunks/chunk-2Z6V52AJ.mjs";
+} from "../chunks/chunk-TYKAUFBA.mjs";
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 import { execFileSync } from "node:child_process";

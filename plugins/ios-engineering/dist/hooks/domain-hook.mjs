@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:49316932c37697ac9c277de3fe26b28cbb0d87a42aae8f9dc6fdeb2e0ac5d3aa
+// harness-source-hash: sha256:d23ef8d13392723140167d4f85f17391ecc8f7d63b44013fd152ea916b762640
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;

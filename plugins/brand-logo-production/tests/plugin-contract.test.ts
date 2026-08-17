@@ -11,7 +11,7 @@ const text = (path: string) => readFileSync(join(ROOT, path), "utf8");
 test("both manifests expose the bundled authoring and independent review skills", () => {
   for (const platform of [".claude-plugin", ".codex-plugin"]) {
     const manifest = json(`${platform}/plugin.json`);
-    assert.equal(manifest.version, "0.4.0");
+    assert.equal(manifest.version, "0.5.0");
     assert.equal(manifest.skills, "./skills/");
   }
   assert.deepEqual(json(".codex-plugin/plugin.json").interface.capabilities, ["skills", "hooks"]);
@@ -19,13 +19,16 @@ test("both manifests expose the bundled authoring and independent review skills"
   assert.equal(existsSync(join(ROOT, "skills/logo-project-review/SKILL.md")), true);
 });
 
-test("first-party adviser pool is bundled, bilingual, and authority-free", () => {
+test("first-party role adviser pool is bundled, bilingual, authority-free, and reference-complete", () => {
   assert.equal(existsSync(join(ROOT, "skill-deps.json")), false);
-  const names = ["logo-brand-direction", "logo-form-language", "logo-color-accessibility"];
+  const names = ["logo-brand-direction", "logo-form-language", "logo-color-accessibility", "logo-presentation-system"];
   for (const name of names) {
     const skill = text(`skills/${name}/SKILL.md`);
     assert.match(skill, new RegExp(`^name:\\s*${name}$`, "mu"));
     assert.match(skill, /no .*writer|read-only|只读|cannot write|no .*review.*release authority/iu);
+    for (const match of skill.matchAll(/\]\((references\/[^)#]+)(?:#[^)]+)?\)/gu)) {
+      assert.equal(existsSync(join(ROOT, `skills/${name}`, match[1])), true, `${name} has missing local reference ${match[1]}`);
+    }
   }
   assert.equal(existsSync(join(ROOT, "licenses", "color-expert", "NOTICE.md")), true);
   assert.match(text("licenses/color-expert/NOTICE.md"), /CC-BY-4\.0/u);
@@ -38,4 +41,7 @@ test("orchestrator declares the complete phase chain and registered writers", ()
   assert.match(skill, /at most three|最多 3/iu);
   assert.match(skill, /bundled companion Skills.*no project writer, review, or release authority/iu);
   assert.match(skill, /Never substitute a similarly named Skill exposed by the runtime/iu);
+  assert.match(skill, /six|六/iu);
+  assert.match(skill, /Fibonacci.*optional|斐波那契.*可选/iu);
+  assert.match(skill, /Figma.*fallback|Figma.*回退/iu);
 });

@@ -29,4 +29,10 @@ coverage/
 __pycache__/
 *.py[cod]
 
+# Local benchmark environments and artifacts
+/benchmarks/swe-bench/.cache/
+/benchmarks/swe-bench/.pytest_cache/
+/benchmarks/swe-bench/.venv/
+/benchmarks/swe-bench/runs/
+
 .tmp

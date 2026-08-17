@@ -5,9 +5,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" session",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", "session"],
             "statusMessage": "Discovering Logo artifact projects",
-            "timeout": 10000
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", "subagent"],
+            "statusMessage": "Establishing Logo reviewer identity",
+            "timeout": 10
           }
         ]
       }
@@ -18,9 +32,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" pre",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", "pre"],
             "statusMessage": "Checking Logo artifact writer boundaries",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
@@ -31,9 +46,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" post",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", "post"],
             "statusMessage": "Revalidating Logo artifact evidence",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
@@ -44,9 +60,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" failure",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", "failure"],
             "statusMessage": "Checking partial Logo mutations",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }
@@ -56,21 +73,10 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" stop",
+            "command": "node",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", "stop"],
             "statusMessage": "Validating Logo artifact closure",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" stop",
-            "statusMessage": "Validating Logo artifact closure",
-            "timeout": 10000
+            "timeout": 10
           }
         ]
       }

@@ -46,6 +46,11 @@ export function eventSessionId(event: HookEvent): string {
   );
 }
 
+export function eventAgentId(event: HookEvent): string {
+  const context = nestedRecord(event, "context");
+  return firstString(event.agent_id, event.agentId, context?.agent_id, context?.agentId);
+}
+
 export function eventCwd(event: HookEvent): string {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }

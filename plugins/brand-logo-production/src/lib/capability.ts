@@ -12,7 +12,7 @@ const errorCode = (error: unknown) => typeof error === "object" && error !== nul
 
 export async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, triggerFrom }: { root: string; capability: string; argv: unknown; subjectDigest: string; sessionId: string; triggerFrom?: string }) {
   const root = await assertLogoProjectRoot(rawRoot);
-  if (!/^logo-(?:advice|render|preview|stage|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+  if (!/^logo-(?:advice|lock|render|preview|stage|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
   const directory = join(root, ".tmp", "logo-guard");

@@ -1,17 +1,69 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { computeLogoSubjectDigest } from "../src/lib/contract.js";
+import { loadLogoProject } from "../src/lib/project.js";
+import { validLogoModel, writeModel } from "./helpers/logo-fixture.js";
+
 const ENTRY = fileURLToPath(new URL("../dist/hooks/brand-logo-production.mjs", import.meta.url));
 
-test("Codex canonical hook discovery file matches the maintained codex hook manifest", () => {
-  const canonical = readFileSync(fileURLToPath(new URL("../hooks/hooks.json", import.meta.url)), "utf8");
-  const platform = readFileSync(fileURLToPath(new URL("../hooks/codex.json", import.meta.url)), "utf8");
-  assert.deepEqual(JSON.parse(canonical), JSON.parse(platform));
+test("hook discovery stays platform-scoped without a mixed generic manifest", () => {
+  const hookRoot = fileURLToPath(new URL("../hooks", import.meta.url));
+  assert.equal(existsSync(join(hookRoot, "hooks.json")), false);
+  assert.equal(existsSync(join(hookRoot, "claude.json")), true);
+  assert.equal(existsSync(join(hookRoot, "codex.json")), true);
+  const claude = JSON.parse(readFileSync(join(hookRoot, "claude.json"), "utf8"));
+  const expectedModes = new Map([
+    ["SessionStart", "session"],
+    ["SubagentStart", "subagent"],
+    ["PreToolUse", "pre"],
+    ["PostToolUse", "post"],
+    ["PostToolUseFailure", "failure"],
+    ["Stop", "stop"],
+  ]);
+  for (const [event, mode] of expectedModes) {
+    const commands = claude.hooks[event].flatMap((entry) => entry.hooks ?? []);
+    assert.equal(commands.length, 1, `${event} must have one command hook`);
+    assert.equal(commands[0].command, "node", `${event} must use portable exec form`);
+    assert.deepEqual(commands[0].args, ["${CLAUDE_PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs", mode]);
+    assert.equal(commands[0].timeout, 10, `${event} timeout must use Claude's seconds unit`);
+  }
+  assert.equal(Object.hasOwn(claude.hooks, "SubagentStop"), false, "review subagents must be able to return evidence before main-session closure");
+  const codex = JSON.parse(readFileSync(join(hookRoot, "codex.json"), "utf8"));
+  assert.equal(Object.hasOwn(codex.hooks, "SubagentStop"), false, "Codex review subagents must not inherit main-session closure");
+});
+
+test("Claude review subagents receive and use an agent-scoped reviewer identity", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-review-agent-"));
+  const project = join(root, "artifacts", "logo", "orbit-logo");
+  const input = join(root, "review.json");
+  try {
+    const model = validLogoModel();
+    delete model.files["review.logo.json"];
+    delete model.files["release.manifest.json"];
+    delete model.files["receipt.release.json"];
+    await writeModel(project, model);
+    const loaded = await loadLogoProject(project);
+    const subjectDigest = computeLogoSubjectDigest(loaded);
+
+    const started = await runHook("subagent", { cwd: root, session_id: "parent-session", agent_id: "review-agent", agent_type: "general-purpose" });
+    assert.equal(started.code, 0, started.stderr);
+    assert.match(JSON.parse(started.stdout).hookSpecificOutput.additionalContext, /parent-session:agent:review-agent/u);
+
+    const wrapper = fileURLToPath(new URL("../dist/cli/project-review.mjs", import.meta.url));
+    const command = `node ${wrapper} ${project} ${input}`;
+    const allowed = await runHook("pre", { cwd: root, session_id: "parent-session", agent_id: "review-agent", agent_type: "general-purpose", tool_name: "Bash", tool_input: { command } });
+    assert.equal(allowed.code, 0, allowed.stderr);
+    assert.equal(allowed.stdout, "");
+    const grant = JSON.parse(readFileSync(join(project, ".tmp", "logo-guard", "capability.logo-review.json"), "utf8"));
+    assert.equal(grant.subjectDigest, subjectDigest);
+    assert.equal(grant.sessionId, "parent-session:agent:review-agent");
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
 function runHook(mode, event, raw = null) {
@@ -81,6 +133,19 @@ test("pre hook allows only an exact registered render invocation for the project
     const result = await runHook("pre", { cwd: root, session_id: "hook-render-session", tool_name: "Bash", tool_input: { command: `node ${wrapper} artifacts/logo/orbit release` } });
     assert.equal(result.code, 0);
     assert.equal(result.stdout, "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("pre hook allows only the exact registered package-lock writer invocation", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-lock-allow-"));
+  try {
+    mkdirSync(join(root, "artifacts", "logo", "orbit"), { recursive: true });
+    const wrapper = fileURLToPath(new URL("../dist/cli/project-lock.mjs", import.meta.url));
+    const allowed = await runHook("pre", { cwd: root, session_id: "hook-lock-session", tool_name: "Bash", tool_input: { command: `node ${wrapper} artifacts/logo/orbit` } });
+    assert.equal(allowed.code, 0);
+    assert.equal(allowed.stdout, "");
+    const extraArgument = await runHook("pre", { cwd: root, session_id: "hook-lock-session", tool_name: "Bash", tool_input: { command: `node ${wrapper} artifacts/logo/orbit --unsafe` } });
+    assert.equal(JSON.parse(extraArgument.stdout).hookSpecificOutput.permissionDecision, "deny");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

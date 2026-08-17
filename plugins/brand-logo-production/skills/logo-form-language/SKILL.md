@@ -9,7 +9,7 @@ metadata:
 
 # Logo Design
 
-This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
+This Skill is a **read-only bilingual adviser / 中英双语只读顾问**. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 
 This skill enables the agent to guide the complete logo design process — from creative brief through final deliverables. The agent produces design specifications covering symbol concepts, color palettes, typography selections, and file format requirements. It applies core design principles (simplicity, scalability, memorability, versatility) to ensure logos work across digital screens, print media, favicons, and social avatars.
 
@@ -19,7 +19,7 @@ This skill enables the agent to guide the complete logo design process — from 
 
 2. **Define the Design Brief**: Synthesize the gathered information into a structured design brief that includes brand values, visual direction keywords, color preferences, and mandatory constraints. Specify the logo types needed: icon/symbol mark, wordmark (logotype), combination mark, and favicon/app icon. List required file formats and sizes upfront so deliverables are clear.
 
-3. **Generate Concept Directions**: Produce 2-3 distinct concept directions, each with a rationale explaining how it reflects the brand. For each direction, describe the symbol or letterform treatment, the color palette (primary, secondary, accent with hex codes), and the recommended typeface pairing. Explain the visual metaphor or design logic behind each concept.
+3. **Generate Concept Directions**: Produce at least six genuinely distinct black-and-white mechanisms—symbolic, typographic, monogram, negative-space, geometric, and narrative—each with a rationale explaining how it reflects the brand. Describe form logic before color or presentation styling.
 
 4. **Refine the Selected Concept**: Once the user selects a direction, iterate on it. Adjust proportions, letter-spacing, icon weight, and color balance. Test the design at multiple sizes — a 16x16 favicon, a 48x48 app icon, a 200px web header, and a large-format print version — to confirm legibility and visual impact at every scale.
 

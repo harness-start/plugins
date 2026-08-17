@@ -1,0 +1,1 @@
+Use the Agent tool exactly once with a general-purpose subagent. Ask it to report the trusted Logo reviewer principal injected into its context, without reading or changing files and without running shell commands. After it returns, reply with `AGENT_RETURNED` followed by that exact principal.

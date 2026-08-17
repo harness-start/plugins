@@ -226,9 +226,10 @@ citations, and change scope determine the case result.
 | --- | --- |
 | `acceptance/README.md` | Suite overview |
 | `scripts/acceptance/run-project.sh` | Runner (Docker-wrap + honesty) |
-| `scripts/acceptance/lib/project-common.sh` | install-all cache / seed / host skills |
+| `scripts/acceptance/lib/project-common.sh` | install-all cache and clean case-HOME seed |
 | `.acceptance-runs/project-latest/` | Default artifacts |
 
 `install-all.sh --local <path>` resolves the plugin catalog from that checkout
-(not GitHub master). When `$HOME/.agents/skills` exists, the Docker wrap mounts
-it so host-global skills can seed into case HOME.
+(not GitHub master). The Docker wrapper never mounts host-global Skills into a
+project case; acceptance therefore measures the published catalog in a clean
+consumer HOME.

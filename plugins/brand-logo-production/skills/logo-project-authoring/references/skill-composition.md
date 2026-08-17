@@ -1,12 +1,13 @@
 # Skill composition
 
-Select dynamically from the bilingual public pool; do not force one worker from each ecosystem. Use at most three workers with distinct advice artifacts.
+Select dynamically by needed role from the bundled bilingual pool. Do not require every candidate and use at most three workers with distinct advice artifacts.
 
-| Worker | Source policy | Mode | Contribution |
+| Worker | Role | Mode | Contribution |
 |---|---|---|---|
-| `logo-brand-direction` | bundled first-party | adviser | brief and initial visual direction |
-| `logo-form-language` | bundled first-party | reference-only | concept diversity, bilingual pattern language, master refinement, variants, and small-size preview checks |
-| `logo-color-accessibility` | bundled first-party | reference-only | color space, gamut, contrast, and accessibility |
+| `logo-brand-direction` | brand-direction | adviser | brief, context, and initial visual direction |
+| `logo-form-language` | vector-production | reference-only | six concept mechanisms, custom form, variants, and small-size checks |
+| `logo-color-accessibility` | color-accessibility | reference-only | mono/reverse, gamut, contrast, and print color risk |
+| `logo-presentation-system` | presentation | reference-only | specimen/mockup, export profile, print notes, and Figma fallback |
 
 For a used worker, create its Result Card outside the project and admit it with `project-advice.mjs <project-root> <external-json>`. Never execute a reference-only dependency or read files outside its allowlist. Retry a transient unavailable worker once; otherwise mark it unavailable and continue only when its phase is non-critical.
 
@@ -18,7 +19,7 @@ Use this external Result Card shape, replacing placeholders with current values:
   "artifactId": "<artifact-id>",
   "subjectDigest": "<current-subject-sha256>",
   "skillName": "<selected-worker>",
-  "ecosystem": "en",
+  "ecosystem": "bilingual",
   "mode": "reference-only",
   "phase": "concept",
   "summary": "<bounded contribution>",
@@ -28,4 +29,4 @@ Use this external Result Card shape, replacing placeholders with current values:
 }
 ```
 
-`ecosystem`, `mode`, and `phase` must match the selected row in `plan.skill-composition.json`; `logo-brand-direction` uses mode `adviser`. Regenerate the card whenever the subject digest changes.
+`ecosystem`, `mode`, and `phase` must match the selected bundled registry row; `logo-brand-direction` uses mode `adviser`. Regenerate the card whenever the subject digest changes.

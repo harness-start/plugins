@@ -4,7 +4,7 @@ import { access } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventSessionId, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { eventAgentId, eventCwd, eventSessionId, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, type HookEventName } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 import { computeLogoSubjectDigest, evaluateLogoWrite, validateLogoModel, type ContractFinding } from "../../lib/contract.js";
@@ -15,6 +15,12 @@ import { evaluateLogoShell } from "../../lib/shell-policy.js";
 const inputOf = (event: HookEvent) => eventToolInput(event);
 const nameOf = (event: HookEvent) => eventToolName(event);
 const cwdOf = (event: HookEvent) => resolve(eventCwd(event));
+
+function principalId(event: HookEvent): string {
+  const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+  const agentId = eventAgentId(event);
+  return agentId ? `${sessionId}:agent:${agentId}` : sessionId;
+}
 
 function targetsOf(event: HookEvent): string[] {
   const input = inputOf(event);
@@ -84,7 +90,7 @@ async function main() {
       else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
       else if (result.writer && result.projectRoot && result.argv) {
         try {
-          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown", triggerFrom: `brand-logo-production:pre:${result.writer}` });
+          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), triggerFrom: `brand-logo-production:pre:${result.writer}` });
         } catch (error) { process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`))}\n`); }
       }
     }
@@ -93,6 +99,11 @@ async function main() {
   if (mode === "session") {
     const { roots } = await findLogoProjects(cwd);
     if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s). Use $logo-project-authoring; advice, render, preview, review, stage, and release require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`))}\n`);
+    return;
+  }
+  if (mode === "subagent") {
+    const agentId = eventAgentId(event);
+    if (agentId) process.stdout.write(`${JSON.stringify(context("SubagentStart", `[Logo Project Delivery Guard] trusted subagent principal=${principalId(event)}. When this subagent is explicitly assigned the independent logo review, use this exact value as reviewer.sessionId in the external review input, inspect the current digest-bound artifacts, and invoke project-review.mjs from this subagent only.`))}\n`);
     return;
   }
   const { findings } = await findingsFor(cwd);

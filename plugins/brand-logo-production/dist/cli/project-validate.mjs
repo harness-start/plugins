@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:73a2f211ecb1ba886fe67eb7ee4f072b280d0b2687abaa8fb22a1ee92e7816cd
+// harness-source-hash: sha256:5255d8fceb7d5d0f23a7cade4becece0e00325c93aa0c46337bcb9c50185d83d
 import {
   validateLogoModel
-} from "../chunks/chunk-SZ65BSAQ.mjs";
+} from "../chunks/chunk-2F62VZWO.mjs";
 
 // plugins/brand-logo-production/src/entries/cli/project-validate.ts
 import { createHash } from "node:crypto";
@@ -62,8 +62,8 @@ async function main() {
 `);
     for (const f of findings) process.stderr.write(`- [${f.code}] ${f.path}: ${f.message}
 `);
-    process.exitCode = 2;
   }
+  if (findings.length > 0) process.exitCode = 2;
 }
 main().catch((error) => {
   process.stderr.write(`[logo-project-validate] ${error instanceof Error ? error.message : String(error)}

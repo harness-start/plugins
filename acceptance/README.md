@@ -52,15 +52,7 @@ Case id on the CLI is `<domain>/<case-id>`, e.g.
 Artifacts: `.acceptance-runs/project-latest/`
 Install cache: under that out dir (`project-install-cache/`).
 
-Optional: mount host Agent Skills so design skills (logo-design, etc.) are
-available inside the case HOME:
-
-```bash
-ACCEPT_HOST_SKILLS_DIR="$HOME/.agents/skills" \
-  ./scripts/acceptance/run-project.sh --case logo-design/01-goal-e2e-delivery
-```
-
-The Docker wrap auto-mounts `$HOME/.agents/skills` when present.
+Project cases intentionally receive only capabilities installed from this checkout. Host-global Agent Skills are not mounted or seeded; a published plugin must pass in a clean consumer environment using its own declared bundle.
 
 ## Current scenarios
 

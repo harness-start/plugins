@@ -7,8 +7,8 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
 const TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
-const WRITERS = new Set(["project-advice.mjs", "project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
-const MUTATING_WRITERS = new Set(["project-advice.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
+const WRITERS = new Set(["project-advice.mjs", "project-lint.mjs", "project-lock.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
+const MUTATING_WRITERS = new Set(["project-advice.mjs", "project-lock.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
 const READ_ONLY = new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
 
 export function parseShellWords(command: unknown): string[] | null {
@@ -55,6 +55,7 @@ function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: s
   const projectRoot = isAbsolute(third) ? resolve(third) : resolve(cwd, third);
   if (dirname(projectRoot) !== resolve(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
+  if (name === "project-lock.mjs" && words.length !== 3) return null;
   if (["project-advice.mjs", "project-review.mjs"].includes(name) && words.length !== 4) return null;
   if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3] ?? ""))) return null;
   if (name === "project-stage.mjs" && (words.length !== 4 || words[3] !== "release")) return null;

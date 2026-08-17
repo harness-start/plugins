@@ -166,6 +166,23 @@ test("classifies fixed test and implementation patterns for six languages", () =
   assert.deepEqual(classifyPath("README.md"), { kind: "ignored", language: null });
 });
 
+test("public pre hook ignores executable sources in the artifacts delivery namespace", async () => {
+  const fx = fixture("test-driven-development-artifacts-");
+  try {
+    const result = await runHook("pre", writeEvent(
+      fx.root,
+      "artifacts/logo/northline/src/render.ts",
+      "export const render = () => 'northline';\n",
+      "artifact-source-1",
+    ), hookEnv(fx.data));
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "");
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("extracts a real test identity and referenced implementation symbol", () => {
   const evidence = extractTestEvidence("php", [
     "<?php",

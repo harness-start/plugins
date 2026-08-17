@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:73a2f211ecb1ba886fe67eb7ee4f072b280d0b2687abaa8fb22a1ee92e7816cd
+// harness-source-hash: sha256:5255d8fceb7d5d0f23a7cade4becece0e00325c93aa0c46337bcb9c50185d83d
 import {
   issueWriterCapability
-} from "../chunks/chunk-7OERXMLI.mjs";
-import {
-  findLogoProjects,
-  loadLogoProject,
-  resolveWorkspaceRoot
-} from "../chunks/chunk-4MD7QWTM.mjs";
+} from "../chunks/chunk-L27GW2C3.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-SZ65BSAQ.mjs";
+} from "../chunks/chunk-2F62VZWO.mjs";
+import {
+  findLogoProjects,
+  loadLogoProject,
+  resolveWorkspaceRoot
+} from "../chunks/chunk-Z3XVMBVP.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
@@ -54,6 +54,10 @@ function eventSessionId(event) {
     event.conversationId,
     context2?.session_id
   );
+}
+function eventAgentId(event) {
+  const context2 = nestedRecord(event, "context");
+  return firstString(event.agent_id, event.agentId, context2?.agent_id, context2?.agentId);
 }
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
@@ -233,8 +237,8 @@ var PLUGIN_DIRECTORY = resolve2(
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
 var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
-var WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-lint.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
-var MUTATING_WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
+var WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-lint.mjs", "project-lock.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
+var MUTATING_WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-lock.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
 function parseShellWords(command) {
   const words = [];
@@ -297,6 +301,7 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
   if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
+  if (name === "project-lock.mjs" && words.length !== 3) return null;
   if (["project-advice.mjs", "project-review.mjs"].includes(name) && words.length !== 4) return null;
   if (name === "project-render.mjs" && (words.length !== 4 || !["source", "release"].includes(words[3] ?? ""))) return null;
   if (name === "project-stage.mjs" && (words.length !== 4 || words[3] !== "release")) return null;
@@ -352,6 +357,11 @@ function evaluateLogoShell({
 var inputOf = (event) => eventToolInput(event);
 var nameOf = (event) => eventToolName(event);
 var cwdOf = (event) => resolve3(eventCwd(event));
+function principalId(event) {
+  const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+  const agentId = eventAgentId(event);
+  return agentId ? `${sessionId}:agent:${agentId}` : sessionId;
+}
 function targetsOf(event) {
   const input = inputOf(event);
   const extras = [];
@@ -428,7 +438,7 @@ async function main() {
 `);
       else if (result.writer && result.projectRoot && result.argv) {
         try {
-          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown", triggerFrom: `brand-logo-production:pre:${result.writer}` });
+          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), triggerFrom: `brand-logo-production:pre:${result.writer}` });
         } catch (error) {
           process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`))}
 `);
@@ -440,6 +450,12 @@ async function main() {
   if (mode === "session") {
     const { roots } = await findLogoProjects(cwd);
     if (roots.length > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Logo Project Delivery Guard] discovered ${roots.length} project(s). Use $logo-project-authoring; advice, render, preview, review, stage, and release require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`))}
+`);
+    return;
+  }
+  if (mode === "subagent") {
+    const agentId = eventAgentId(event);
+    if (agentId) process.stdout.write(`${JSON.stringify(context("SubagentStart", `[Logo Project Delivery Guard] trusted subagent principal=${principalId(event)}. When this subagent is explicitly assigned the independent logo review, use this exact value as reviewer.sessionId in the external review input, inspect the current digest-bound artifacts, and invoke project-review.mjs from this subagent only.`))}
 `);
     return;
   }

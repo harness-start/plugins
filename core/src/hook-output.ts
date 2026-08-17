@@ -4,7 +4,8 @@ export type HookEventName =
   | "PostToolUseFailure"
   | "UserPromptSubmit"
   | "Stop"
-  | "SessionStart";
+  | "SessionStart"
+  | "SubagentStart";
 
 export type AdditionalContextOptions = {
   echoStderr?: boolean;

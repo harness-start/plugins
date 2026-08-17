@@ -56,8 +56,8 @@ async function main() {
   } else {
     process.stderr.write(`INVALID: ${findings.length} finding(s) at stage=${stage}\n`);
     for (const f of findings) process.stderr.write(`- [${f.code}] ${f.path}: ${f.message}\n`);
-    process.exitCode = 2;
   }
+  if (findings.length > 0) process.exitCode = 2;
 }
 
 main().catch((error: unknown) => {

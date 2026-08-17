@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computeLogoSubjectDigest, masterSubjectDigest, reviewArtifactPaths, validateLogoModel, type JsonRecord } from "../../lib/contract.js";
+import { AESTHETIC_CRITERIA, REVIEW_CHECKS, REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computeLogoSubjectDigest, masterSubjectDigest, reviewArtifactPaths, validateLogoModel, type JsonRecord } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertLogoProjectRoot, loadLogoProject } from "../../lib/project.js";
 import { atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
@@ -34,9 +34,9 @@ async function main() {
   const expectedPaths = reviewArtifactPaths(model);
   if (coverage.length !== expectedPaths.length || coverage.some((entry, index) => entry.path !== expectedPaths[index] || entry.sha256 !== model.digests[expectedPaths[index] ?? ""])) throw new Error("REVIEW_COVERAGE_INVALID");
   const checks = Array.isArray(payload.checks) ? payload.checks.map(record) : [];
-  if (!["geometry", "legibility", "variants"].every((id) => checks.some((entry) => entry.id === id && entry.status === "pass"))) throw new Error("REVIEW_CHECKS_INCOMPLETE");
+  if (!REVIEW_CHECKS.every((id) => checks.some((entry) => entry.id === id && entry.status === "pass"))) throw new Error("REVIEW_CHECKS_INCOMPLETE");
   const criteria = record(payload.criteria);
-  for (const id of ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"]) {
+  for (const id of AESTHETIC_CRITERIA) {
     const row = record(criteria[id]);
     const requiredMin = Number(row.requiredMin);
     if (!Number.isFinite(row.score) || !Number.isFinite(requiredMin) || requiredMin < 2 || Number(row.score) < requiredMin || typeof row.note !== "string" || row.note.trim().length < 8) throw new Error("REVIEW_CRITERIA_INCOMPLETE");

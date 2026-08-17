@@ -1,6 +1,8 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { inflateSync } from "node:zlib";
 
+import { decodePngToRgba } from "./png-decode.js";
+
 export type FileContent = string | Buffer;
 export type FileMap = Record<string, FileContent>;
 export type DigestMap = Record<string, string>;
@@ -84,6 +86,11 @@ type PathCommand = keyof typeof PATH_ARITY;
 
 export const PLAN_SCHEMA = "brand-logo-production/plan/v1";
 export const BRIEF_SCHEMA = "brand-logo-production/brief/v1";
+export const BRAND_CONTEXT_SCHEMA = "brand-logo-production/brand-context/v1";
+export const ASSET_PLAN_SCHEMA = "brand-logo-production/assets/v1";
+export const DELIVERY_PROFILE_SCHEMA = "brand-logo-production/delivery-profile/v1";
+export const INTEGRATION_PLAN_SCHEMA = "brand-logo-production/integration/v1";
+export const CONCEPT_SELECTION_SCHEMA = "brand-logo-production/concept-selection/v1";
 export const SKILL_COMPOSITION_SCHEMA = "brand-logo-production/skill-composition/v2";
 export const SKILL_ADVICE_SCHEMA = "brand-logo-production/skill-advice/v1";
 export const SKILL_ADVICE_INPUT_SCHEMA = "brand-logo-production/skill-advice-input/v1";
@@ -103,7 +110,9 @@ const PLUGIN = "brand-logo-production";
 const STAGES = new Set(["source", "release"]);
 const ROLES = ["mark", "wordmark", "lockup"];
 const VARIANTS = ["primary", "mono", "reverse"];
-const SHEETS = ["standard", "geometry", "fibonacci"];
+const BASE_SHEETS = ["standard", "geometry"];
+const CONSTRUCTION_METHODS = new Set(["modular-grid", "geometric", "typographic", "optical", "fibonacci"]);
+const CONCEPT_BUCKETS = ["symbolic", "typographic", "monogram", "negative-space", "geometric", "narrative"];
 const CONCEPT_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.logo\.tsx$/u;
 const CONCEPT_PROOF_PATH = /^src\/concepts\/.+\.[0-9a-f]{64}\.png$/u;
 const GENERATED_PATH = /^(?:build\/|dist\/|evidence(?:\.|\/)|review\.logo\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.logo-delivery-journal\.json$)/u;
@@ -114,11 +123,13 @@ const SVG_TAGS = new Set(["svg", "g", "path", "circle", "ellipse", "rect", "line
 const PRIMITIVE_TYPES = new Set(["circle", "ellipse", "rect", "line", "arc", "polygon", "path"]);
 const FIB_SEQUENCE = [1, 1, 2, 3, 5, 8, 13];
 const PHI = 1.618033988749895;
-const AESTHETIC_CRITERIA = ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"];
+const AESTHETIC_CRITERIA = ["structureConsistency", "opticalCorrection", "singleMemoryPoint", "semanticIntegration", "markWordmarkSystem", "restraint"];
+export const REVIEW_CHECKS = ["brief-fidelity", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"];
 export const EXTERNAL_SKILLS = [
-  { name: "logo-brand-direction", ecosystem: "en", mode: "adviser", phases: ["brief", "concept"] },
-  { name: "logo-form-language", ecosystem: "en", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
-  { name: "logo-color-accessibility", ecosystem: "en", mode: "reference-only", phases: ["variants", "preview"] },
+  { name: "logo-brand-direction", role: "brand-direction", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "adviser", phases: ["brief", "concept"] },
+  { name: "logo-form-language", role: "vector-production", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "reference-only", phases: ["concept", "master", "variants", "preview"] },
+  { name: "logo-color-accessibility", role: "color-accessibility", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "reference-only", phases: ["variants", "preview"] },
+  { name: "logo-presentation-system", role: "presentation", languages: ["en", "zh-CN"], ecosystem: "bilingual", mode: "reference-only", phases: ["preview", "release"] },
 ] as const;
 
 export const sha256 = (value: BinaryLike): string => createHash("sha256").update(value).digest("hex");
@@ -180,10 +191,21 @@ function conceptPreviewPaths(model: LogoModel | null | undefined): string[] {
   } catch { return []; }
 }
 
+function constructionMethod(model: LogoModel | null | undefined): string {
+  try {
+    const config: unknown = JSON.parse(textOf(model?.files?.["src/construction/construction.json"]));
+    return isObject(config) && typeof config.method === "string" ? config.method : "fibonacci";
+  } catch { return "fibonacci"; }
+}
+
+function constructionSheetNames(model: LogoModel | null | undefined): string[] {
+  return constructionMethod(model) === "fibonacci" ? [...BASE_SHEETS, "fibonacci"] : [...BASE_SHEETS];
+}
+
 export function constructionPaths(model: LogoModel | null | undefined): string[] {
   const digest = masterSubjectDigest(model);
   return [
-    ...SHEETS.flatMap((sheet) => ["svg", "png"].map((extension) => `evidence/construction/${sheet}.${digest}.${extension}`)),
+    ...constructionSheetNames(model).flatMap((sheet) => ["svg", "png"].map((extension) => `evidence/construction/${sheet}.${digest}.${extension}`)),
     `evidence/construction/manifest.${digest}.json`,
   ];
 }
@@ -192,6 +214,14 @@ function finalOutputPaths(): string[] {
   return [
     ...VARIANTS.flatMap((variant) => ROLES.map((role) => `dist/${variant}/${role}.svg`)),
     ...ROLES.map((role) => `dist/primary/${role}.png`),
+    "dist/primary/lockup-stacked.svg",
+    ...[64, 128, 256, 512].map((size) => `dist/exports/mark-${size}.png`),
+    ...[16, 32].map((size) => `dist/icons/favicon-${size}.png`),
+    "dist/icons/app-icon-512.png",
+    "dist/presentation/specimen.png",
+    "dist/presentation/application-mockup.png",
+    "dist/print/production-notes.json",
+    "dist/integration/figma-import.json",
     "evidence.render.json", "evidence.accessibility.json", "review.logo.json", "release.manifest.json",
   ];
 }
@@ -222,7 +252,7 @@ export function logoDeliveryPaths(model: LogoModel | null | undefined, { stage =
 
 export function createConstructionManifest(model: LogoModel | null | undefined): ConstructionManifest {
   const masterDigest = masterSubjectDigest(model);
-  const sheets = Object.fromEntries(SHEETS.map((sheet) => [sheet, Object.fromEntries(["svg", "png"].map((extension) => {
+  const sheets = Object.fromEntries(constructionSheetNames(model).map((sheet) => [sheet, Object.fromEntries(["svg", "png"].map((extension) => {
     const path = `evidence/construction/${sheet}.${masterDigest}.${extension}`;
     return [extension, { path, sha256: fileDigest(model, path) }];
   }))]));
@@ -323,10 +353,11 @@ function expectedRatio(larger: number, smaller: number): number | null {
 
 function validateRequired(files: FileMap, findings: ContractFinding[]): void {
   for (const filePath of [
-    ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.brief.json", "plan.skill-composition.json", "plan.assets.json",
+    ".gitignore", "package.json", "package-lock.json", "plan.contract.json", "plan.brief.json", "plan.context.json", "plan.skill-composition.json", "plan.assets.json",
+    "plan.concept-selection.json", "plan.delivery-profile.json", "plan.integration.json",
     "logo.project.json", "src/render.ts", "src/concepts/manifest.json", "src/master/Mark.logo.tsx",
     "src/master/Wordmark.logo.tsx", "src/master/Lockup.logo.tsx", "src/construction/construction.json",
-    "src/construction/standard-grid.json", "src/construction/geometry.json", "src/construction/fibonacci.json",
+    "src/construction/standard-grid.json", "src/construction/geometry.json",
     "src/variants/manifest.json", "build/master/mark.svg", "build/master/wordmark.svg", "build/master/lockup.svg",
   ]) if (!Object.prototype.hasOwnProperty.call(files, filePath)) findings.push(finding(filePath === "plan.contract.json" ? "PLAN_CONTRACT_MISSING" : "REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
 }
@@ -339,17 +370,55 @@ function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFi
     findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind the project and declare audience, positioning, language, constraints, prohibited directions, and success criteria"));
   }
 
+  const context = rec(parseJson(model.files, "plan.context.json", findings, "BRAND_CONTEXT_INVALID"));
+  const referenceRows = asList(context?.references);
+  const references = referenceRows.map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  if (!context || context.schema !== BRAND_CONTEXT_SCHEMA || context.artifactId !== model.artifactId
+    || ["brandStory", "market", "differentiation"].some((key) => typeof context[key] !== "string" || String(context[key]).trim().length < 8)
+    || !Array.isArray(context.competitors) || references.length === 0 || references.length !== referenceRows.length
+    || references.some((entry) => typeof entry.id !== "string" || !entry.id || typeof entry.source !== "string" || !entry.source || !["provided", "licensed", "public-reference"].includes(String(entry.provenance)))) {
+    findings.push(finding("BRAND_CONTEXT_INVALID", "plan.context.json", "brand context must bind story, market, differentiation, competitors, and traceable reference provenance"));
+  }
+
+  const assets = rec(parseJson(model.files, "plan.assets.json", findings, "ASSET_PLAN_INVALID"));
+  const rawAssetRows = asList(assets?.assets);
+  const assetRows = rawAssetRows.map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  if (!assets || assets.schema !== ASSET_PLAN_SCHEMA || assets.artifactId !== model.artifactId || !Array.isArray(assets.assets)
+    || assetRows.length !== rawAssetRows.length
+    || assetRows.some((entry) => typeof entry.id !== "string" || !entry.id || typeof entry.kind !== "string" || !entry.kind
+      || typeof entry.source !== "string" || !entry.source || !["provided", "licensed", "generated", "none"].includes(String(entry.provenance)))) {
+    findings.push(finding("ASSET_PLAN_INVALID", "plan.assets.json", "asset plan must be valid JSON and record source/provenance for every input asset"));
+  }
+
+  const delivery = rec(parseJson(model.files, "plan.delivery-profile.json", findings, "DELIVERY_PROFILE_INVALID"));
+  const transparentSizes = asList(delivery?.transparentPngSizes).map(Number);
+  const faviconSizes = asList(delivery?.faviconSizes).map(Number);
+  if (!delivery || delivery.schema !== DELIVERY_PROFILE_SCHEMA || delivery.artifactId !== model.artifactId
+    || ![64, 128, 256, 512].every((size) => transparentSizes.includes(size)) || ![16, 32].every((size) => faviconSizes.includes(size))
+    || delivery.secondaryLayout !== "stacked" || delivery.specimen !== true || delivery.applicationMockup !== true
+    || rec(delivery.print)?.guidance !== "CMYK-and-spot-color") {
+    findings.push(finding("DELIVERY_PROFILE_INVALID", "plan.delivery-profile.json", "delivery profile must cover transparent PNG sizes, icons, secondary layout, specimen/mockup, and print guidance"));
+  }
+
+  const integration = rec(parseJson(model.files, "plan.integration.json", findings, "INTEGRATION_PLAN_INVALID"));
+  const figma = rec(integration?.figma);
+  if (!integration || integration.schema !== INTEGRATION_PLAN_SCHEMA || integration.artifactId !== model.artifactId
+    || !["not-configured", "export-only", "writeback"].includes(String(figma?.mode)) || figma?.fallback !== "svg-import-package"
+    || (figma?.mode === "writeback" && (typeof figma.receiptPath !== "string" || !figma.receiptPath || !hasFile(model, figma.receiptPath)))) {
+    findings.push(finding("INTEGRATION_PLAN_INVALID", "plan.integration.json", "Figma integration must declare capability mode and the svg-import-package fallback; writeback also needs a receipt path"));
+  }
+
   const composition = rec(parseJson(model.files, "plan.skill-composition.json", findings, "SKILL_COMPOSITION_INVALID"));
   const workers = asList(composition?.workers).map(rec).filter((worker): worker is JsonRecord => worker !== undefined);
-  const byName = new Map(workers.map((worker) => [String(worker.name), worker]));
-  let valid = composition?.schema === SKILL_COMPOSITION_SCHEMA && composition?.selectionPolicy === "dynamic-bilingual-pool" && workers.length === EXTERNAL_SKILLS.length;
-  for (const expected of EXTERNAL_SKILLS) {
-    const worker = byName.get(expected.name);
+  let valid = composition?.schema === SKILL_COMPOSITION_SCHEMA && composition?.selectionPolicy === "dynamic-role-pool"
+    && workers.length > 0 && new Set(workers.map((worker) => worker.name)).size === workers.length;
+  for (const worker of workers) {
+    const expected = EXTERNAL_SKILLS.find((entry) => entry.name === worker.name);
     const status = String(worker?.status ?? "");
-    if (!worker || Object.hasOwn(worker, "revision") || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
+    if (!expected || Object.hasOwn(worker, "revision") || worker.role !== expected.role || JSON.stringify(worker.languages) !== JSON.stringify(expected.languages) || worker.ecosystem !== expected.ecosystem || worker.mode !== expected.mode
       || !["used", "skipped", "unavailable"].includes(status) || typeof worker.reason !== "string" || !worker.reason.trim()
-      || worker.advicePath !== `evidence/skills/${expected.name}.json`) valid = false;
-    if (status === "used" && worker) {
+      || worker.advicePath !== `evidence/skills/${expected?.name ?? worker.name}.json`) valid = false;
+    if (status === "used" && expected) {
       const advicePath = String(worker.advicePath);
       let advice: JsonRecord | undefined;
       try { advice = rec(JSON.parse(textOf(model.files?.[advicePath]))); } catch { advice = undefined; }
@@ -361,7 +430,7 @@ function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFi
       }
     }
   }
-  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must declare the current bilingual pool with truthful statuses, reasons, modes, and advice paths"));
+  if (!valid) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "composition must select a truthful role-based subset of bundled bilingual advisers"));
   const used = workers.filter((worker) => worker.status === "used");
   if (used.length > 3) findings.push(finding("SKILL_COMPOSITION_ACTIVE_LIMIT", "plan.skill-composition.json", "at most three external workers may be used"));
   if (new Set(used.map((worker) => worker.advicePath)).size !== used.length) findings.push(finding("SKILL_COMPOSITION_INVALID", "plan.skill-composition.json", "used workers require distinct advice artifacts"));
@@ -451,6 +520,24 @@ function pngValid(model: LogoModel, filePath: string): boolean {
     for (let row = 0; row < height; row += 1) if ((inflated[row * rowBytes] ?? 0) > 4) return false;
     return true;
   } catch { return false; }
+}
+
+function pngInfo(model: LogoModel, filePath: string): { width: number; height: number; alpha: boolean; hasInk: boolean; hasTransparency: boolean } | null {
+  if (!pngValid(model, filePath)) return null;
+  const bytes = rawBytes(model, filePath);
+  const alpha = [4, 6].includes(bytes.readUInt8(25));
+  try {
+    const decoded = decodePngToRgba(bytes);
+    let hasInk = false;
+    let hasTransparency = false;
+    for (let offset = 3; offset < decoded.rgba.length; offset += 4) {
+      const value = decoded.rgba[offset] ?? 0;
+      if (value > 0) hasInk = true;
+      if (value < 255) hasTransparency = true;
+      if (hasInk && hasTransparency) break;
+    }
+    return { width: decoded.width, height: decoded.height, alpha, hasInk, hasTransparency };
+  } catch { return null; }
 }
 
 function svgWellFormed(svg: string): boolean {
@@ -618,12 +705,15 @@ function validateConcepts(model: LogoModel, findings: ContractFinding[]): void {
   const selectedConcept = rec(project)?.selectedConcept;
   const ids = concepts.map((entry) => rec(entry)?.id);
   const sources = concepts.map((entry) => rec(entry)?.source);
+  const buckets = concepts.map((entry) => rec(entry)?.bucket);
   if (concepts.length === 0 || new Set(ids).size !== ids.length || new Set(sources).size !== sources.length || concepts.filter((entry) => rec(entry)?.id === selectedConcept).length !== 1) findings.push(finding("CONCEPT_MANIFEST_INVALID", "src/concepts/manifest.json", "concept ids and sources must be unique, ordered, and select exactly the project concept"));
+  if (concepts.length < CONCEPT_BUCKETS.length || !CONCEPT_BUCKETS.every((bucket) => buckets.includes(bucket))) findings.push(finding("CONCEPT_DIVERGENCE_INSUFFICIENT", "src/concepts/manifest.json", `at least six concepts must cover distinct buckets: ${CONCEPT_BUCKETS.join(", ")}`));
   concepts.forEach((entry, offset) => {
     const item = rec(entry);
     const match = typeof item?.source === "string" ? item.source.match(CONCEPT_SOURCE) : null;
     const sourcePath = `src/concepts/${item?.source ?? "manifest.json"}`;
-    if (!match || typeof item?.id !== "string" || !item.id || item.index !== offset + 1 || Number(match.groups?.index) !== item.index) {
+    if (!match || typeof item?.id !== "string" || !item.id || item.index !== offset + 1 || Number(match.groups?.index) !== item.index
+      || !CONCEPT_BUCKETS.includes(String(item.bucket)) || typeof item.rationale !== "string" || item.rationale.trim().length < 12) {
       findings.push(finding("CONCEPT_SEQUENCE_INVALID", sourcePath, "concepts must use ids and contiguous NNN-slug.logo.tsx sources"));
       return;
     }
@@ -632,6 +722,16 @@ function validateConcepts(model: LogoModel, findings: ContractFinding[]): void {
     if (!hasFile(model, preview)) findings.push(finding("CONCEPT_PREVIEW_MISSING", preview, "current source-hash concept preview is required"));
     else if (!pngValid(model, preview)) findings.push(finding("CONCEPT_PREVIEW_INVALID", preview, "concept preview must be a decodable PNG header with positive dimensions"));
   });
+
+  const selection = rec(parseJson(model.files, "plan.concept-selection.json", findings, "CONCEPT_SELECTION_EVIDENCE_INVALID"));
+  const rounds = asList(selection?.rounds).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  const firstIds = asList(rounds[0]?.conceptIds);
+  const lastIds = asList(rounds.at(-1)?.conceptIds);
+  if (!selection || selection.schema !== CONCEPT_SELECTION_SCHEMA || selection.artifactId !== model.artifactId || selection.selectedConcept !== selectedConcept
+    || rounds.length < 2 || rounds.some((round, index) => round.round !== index + 1 || typeof round.feedback !== "string" || round.feedback.trim().length < 12)
+    || ids.some((id) => !firstIds.includes(id)) || !lastIds.includes(selectedConcept)) {
+    findings.push(finding("CONCEPT_SELECTION_EVIDENCE_INVALID", "plan.concept-selection.json", "selection evidence must record at least two ordered feedback rounds from all divergent concepts to the selected concept"));
+  }
 }
 
 function validateMaster(model: LogoModel, findings: ContractFinding[]): void {
@@ -889,9 +989,12 @@ function validateConstruction(model: LogoModel, findings: ContractFinding[]): vo
   const construction = parseJson(model.files, "src/construction/construction.json", findings);
   const standard = parseJson(model.files, "src/construction/standard-grid.json", findings);
   const geometry = parseJson(model.files, "src/construction/geometry.json", findings);
-  const fibonacci = parseJson(model.files, "src/construction/fibonacci.json", findings);
+  const method = rec(construction)?.method;
+  const fibonacci = method === "fibonacci" ? parseJson(model.files, "src/construction/fibonacci.json", findings) : null;
   const digest = masterSubjectDigest(model);
-  if (!isObject(construction) || construction.schema !== CONSTRUCTION_SCHEMA || !(Number(construction.tolerance) >= 0) || !(Number(construction.maxOpticalCorrection) >= 0)) findings.push(finding("CONSTRUCTION_CONFIG_INVALID", "src/construction/construction.json", "construction config must declare schema and non-negative tolerances"));
+  if (!isObject(construction) || construction.schema !== CONSTRUCTION_SCHEMA || !CONSTRUCTION_METHODS.has(String(construction.method))
+    || typeof construction.rationale !== "string" || construction.rationale.trim().length < 12
+    || !(Number(construction.tolerance) >= 0) || !(Number(construction.maxOpticalCorrection) >= 0)) findings.push(finding("CONSTRUCTION_CONFIG_INVALID", "src/construction/construction.json", "construction config must declare a supported method, rationale, and non-negative tolerances"));
   if (!isObject(standard) || standard.schema !== STANDARD_GRID_SCHEMA || standard.masterDigest !== digest || !(Number(standard.unit) > 0) || !(Number(standard.clearSpace) > 0) || !(Number(standard.minimumPixels) > 0)) findings.push(finding("STANDARD_GRID_INVALID", "src/construction/standard-grid.json", "standard grid must bind current master and use positive unit, clear space, and minimum size"));
 
   const geometryRec = rec(geometry);
@@ -921,20 +1024,22 @@ function validateConstruction(model: LogoModel, findings: ContractFinding[]): vo
   if (ROLES.some((role) => !mappings.some((mapping) => rec(mapping)?.role === role))) geometryValid = false;
   if (!geometryValid) findings.push(finding("GEOMETRY_MAPPING_INVALID", "src/construction/geometry.json", "geometry must bind current master ids to unique, numeric stable primitives for every role"));
 
-  const sequence = [1, 1, 2, 3, 5, 8, 13];
-  const anchors = asList(rec(fibonacci)?.anchors);
-  const anchorIds = new Set<string>();
-  let fibonacciValid = isObject(fibonacci) && fibonacci.schema === FIBONACCI_SCHEMA && fibonacci.masterDigest === digest && JSON.stringify(fibonacci.sequence) === JSON.stringify(sequence) && new Set(["structural", "optical-reference"]).has(fibonacci.usage as string);
-  for (const anchor of anchors) {
-    const item = rec(anchor);
-    const key = `${item?.role}:${item?.pathId}`;
-    if (!item || typeof item.id !== "string" || !item.id || anchorIds.has(item.id) || !mappingKeys.has(key) || !mappingPrimitives.get(key)?.has(item.primitiveId) || !["outline", "negative-space", "turn"].includes(item.kind as string) || !Number.isFinite(item.x) || !Number.isFinite(item.y) || !sequence.includes(item.sequenceValue as number)) fibonacciValid = false;
-    else anchorIds.add(item.id);
+  if (method === "fibonacci") {
+    const sequence = [1, 1, 2, 3, 5, 8, 13];
+    const anchors = asList(rec(fibonacci)?.anchors);
+    const anchorIds = new Set<string>();
+    let fibonacciValid = isObject(fibonacci) && fibonacci.schema === FIBONACCI_SCHEMA && fibonacci.masterDigest === digest && JSON.stringify(fibonacci.sequence) === JSON.stringify(sequence) && new Set(["structural", "optical-reference"]).has(fibonacci.usage as string);
+    for (const anchor of anchors) {
+      const item = rec(anchor);
+      const key = `${item?.role}:${item?.pathId}`;
+      if (!item || typeof item.id !== "string" || !item.id || anchorIds.has(item.id) || !mappingKeys.has(key) || !mappingPrimitives.get(key)?.has(item.primitiveId) || !["outline", "negative-space", "turn"].includes(item.kind as string) || !Number.isFinite(item.x) || !Number.isFinite(item.y) || !sequence.includes(item.sequenceValue as number)) fibonacciValid = false;
+      else anchorIds.add(item.id);
+    }
+    if (anchors.filter((anchor) => rec(anchor)?.kind === "outline").length < 2 || anchors.filter((anchor) => rec(anchor)?.kind === "negative-space" || rec(anchor)?.kind === "turn").length < 1) fibonacciValid = false;
+    if (!fibonacciValid) findings.push(finding("FIBONACCI_ANCHORS_INVALID", "src/construction/fibonacci.json", "Fibonacci anchors must bind coordinates and sequence values to mapped current-master paths"));
   }
-  if (anchors.filter((anchor) => rec(anchor)?.kind === "outline").length < 2 || anchors.filter((anchor) => rec(anchor)?.kind === "negative-space" || rec(anchor)?.kind === "turn").length < 1) fibonacciValid = false;
-  if (!fibonacciValid) findings.push(finding("FIBONACCI_ANCHORS_INVALID", "src/construction/fibonacci.json", "Fibonacci anchors must bind coordinates and sequence values to mapped current-master paths"));
 
-  for (const sheet of SHEETS) for (const extension of ["svg", "png"]) {
+  for (const sheet of constructionSheetNames(model)) for (const extension of ["svg", "png"]) {
     const filePath = `evidence/construction/${sheet}.${digest}.${extension}`;
     if (!hasFile(model, filePath)) findings.push(finding("CONSTRUCTION_SHEET_MISSING", filePath, `${sheet} ${extension.toUpperCase()} sheet must bind the current master digest`));
     else if (extension === "svg" ? !svgValid(model.files?.[filePath], { sheet, masterDigest: digest }) : !pngValid(model, filePath)) findings.push(finding("CONSTRUCTION_SHEET_INVALID", filePath, `${sheet} sheet must be a valid bound ${extension.toUpperCase()}`));
@@ -942,7 +1047,7 @@ function validateConstruction(model: LogoModel, findings: ContractFinding[]): vo
   const manifestPath = `evidence/construction/manifest.${digest}.json`;
   if (!hasFile(model, manifestPath)) findings.push(finding("CONSTRUCTION_MANIFEST_MISSING", manifestPath, "construction manifest is required"));
   else if (!exactJson(model.files?.[manifestPath], createConstructionManifest(model))) findings.push(finding("CONSTRUCTION_MANIFEST_INVALID", manifestPath, "construction manifest must bind current master and sheet bytes"));
-  validateFibonacciConstruction(model, findings);
+  if (method === "fibonacci") validateFibonacciConstruction(model, findings);
 }
 
 function samplesFromManifest(manifest: unknown): PreviewSample[] {
@@ -1018,6 +1123,7 @@ function validatePreviewAndAesthetic(model: LogoModel, findings: ContractFinding
     if (reviewRec?.masterDigest !== digest) findings.push(finding("REVIEW_MASTER_STALE", "review.logo.json", "review masterDigest must match current masters"));
     if (reviewRec?.autoStamped === true || reviewRec?.source === "project-preview-default") findings.push(finding("AESTHETIC_SCORES_AUTOSTAMPED", "review.logo.json", "aesthetic criteria must not be auto-stamped"));
     const criteria = rec(reviewRec?.criteria);
+    if (!criteria || AESTHETIC_CRITERIA.some((key) => !isObject(criteria[key]))) findings.push(finding("AESTHETIC_CRITERIA_INCOMPLETE", "review.logo.json", `review must independently score every required criterion: ${AESTHETIC_CRITERIA.join(", ")}`));
     for (const key of AESTHETIC_CRITERIA) {
       const row = rec(criteria?.[key]);
       const score = Number(row?.score);
@@ -1055,6 +1161,26 @@ function validateRelease(model: LogoModel, findings: ContractFinding[]): void {
     const filePath = `dist/primary/${role}.png`;
     if (hasFile(model, filePath) && !pngValid(model, filePath)) findings.push(finding("RELEASE_PNG_INVALID", filePath, "primary PNG must have a valid PNG header and positive dimensions"));
   }
+  for (const size of [64, 128, 256, 512]) {
+    const filePath = `dist/exports/mark-${size}.png`;
+    const info = hasFile(model, filePath) ? pngInfo(model, filePath) : null;
+    if (hasFile(model, filePath) && (!info || info.width !== size || info.height !== size || !info.alpha || !info.hasInk || !info.hasTransparency)) findings.push(finding("DELIVERY_PNG_PROFILE_INVALID", filePath, `${size}px mark export must be an exact square PNG with visible ink and real transparency`));
+  }
+  for (const size of [16, 32]) {
+    const filePath = `dist/icons/favicon-${size}.png`;
+    const info = hasFile(model, filePath) ? pngInfo(model, filePath) : null;
+    if (hasFile(model, filePath) && (!info || info.width !== size || info.height !== size || !info.alpha || !info.hasInk || !info.hasTransparency)) findings.push(finding("DELIVERY_ICON_PROFILE_INVALID", filePath, `${size}px favicon must be an exact square PNG with visible ink and real transparency`));
+  }
+  const appIcon = hasFile(model, "dist/icons/app-icon-512.png") ? pngInfo(model, "dist/icons/app-icon-512.png") : null;
+  if (hasFile(model, "dist/icons/app-icon-512.png") && (!appIcon || appIcon.width !== 512 || appIcon.height !== 512)) findings.push(finding("DELIVERY_ICON_PROFILE_INVALID", "dist/icons/app-icon-512.png", "app icon must be an exact 512px square PNG"));
+  for (const filePath of ["dist/presentation/specimen.png", "dist/presentation/application-mockup.png"]) {
+    if (hasFile(model, filePath) && !pngValid(model, filePath)) findings.push(finding("PRESENTATION_ARTIFACT_INVALID", filePath, "presentation evidence must be a valid rendered PNG"));
+  }
+  if (hasFile(model, "dist/primary/lockup-stacked.svg") && !svgValid(model.files?.["dist/primary/lockup-stacked.svg"])) findings.push(finding("RELEASE_SVG_INVALID", "dist/primary/lockup-stacked.svg", "secondary lockup must be a self-contained vector"));
+  const printNotes = rec(parseJson(model.files, "dist/print/production-notes.json", findings, "PRINT_GUIDANCE_INVALID"));
+  if (printNotes && (printNotes.colorMode !== "CMYK" || typeof printNotes.conversionGuidance !== "string" || printNotes.conversionGuidance.trim().length < 12 || !Array.isArray(printNotes.spotColors))) findings.push(finding("PRINT_GUIDANCE_INVALID", "dist/print/production-notes.json", "print notes must document CMYK conversion guidance and spot-color decisions"));
+  const figmaImport = rec(parseJson(model.files, "dist/integration/figma-import.json", findings, "FIGMA_FALLBACK_INVALID"));
+  if (figmaImport && (figmaImport.mode !== "svg-import-package" || !Array.isArray(figmaImport.files) || !["dist/primary/mark.svg", "dist/primary/wordmark.svg", "dist/primary/lockup.svg"].every((path) => asList(figmaImport.files).includes(path)))) findings.push(finding("FIGMA_FALLBACK_INVALID", "dist/integration/figma-import.json", "Figma fallback must enumerate the import-ready primary SVG family"));
   validateEvidenceRecord(model, "evidence.accessibility.json", ACCESSIBILITY_SCHEMA, ["minimum-size", "contrast"], "ACCESSIBILITY_EVIDENCE_INVALID", findings);
   const render = rec(parseJson(model.files, "evidence.render.json", findings, "RENDER_EVIDENCE_INVALID"));
   const renderOutputs = asList(render?.outputs).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
@@ -1063,11 +1189,13 @@ function validateRelease(model: LogoModel, findings: ContractFinding[]): void {
     || renderOutputs.some((entry) => typeof entry.path !== "string" || entry.sha256 !== fileDigest(model, String(entry.path)))) {
     findings.push(finding("RENDER_EVIDENCE_INVALID", "evidence.render.json", "render evidence must bind the current subject, renderer session, and every declared output digest"));
   }
-  const review = rec(validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, ["geometry", "legibility", "variants"], "REVIEW_INVALID", findings));
+  const review = rec(validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, REVIEW_CHECKS, "REVIEW_INVALID", findings));
   const reviewer = rec(review?.reviewer);
   if (review?.decision !== "approved") findings.push(finding("REVIEW_INVALID", "review.logo.json", "logo review decision must be approved"));
   const reviewFindings = asList(review?.findings).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
   const expectedReviewPaths = reviewArtifactPaths(model);
+  const reviewCoverage = asList(review?.coverage).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
+  if (review && (reviewCoverage.length !== expectedReviewPaths.length || reviewCoverage.some((entry, index) => entry.path !== expectedReviewPaths[index] || entry.sha256 !== fileDigest(model, String(entry.path))))) findings.push(finding("REVIEW_COVERAGE_INVALID", "review.logo.json", "independent review must cover every current visual artifact path and digest in lexical order"));
   if (reviewFindings.some((entry) => !["blocker", "major", "minor", "info"].includes(String(entry.severity)) || typeof entry.findingId !== "string" || !entry.findingId.trim() || typeof entry.evidenceAnchor !== "string" || !expectedReviewPaths.includes(entry.evidenceAnchor) || entry.artifactDigest !== fileDigest(model, entry.evidenceAnchor) || typeof entry.fix !== "string" || !entry.fix.trim() || !["open", "fixed_pending_recheck", "verified"].includes(String(entry.status)) || (["blocker", "major"].includes(String(entry.severity)) && (entry.status !== "verified" || typeof entry.recheckEvidence !== "string" || !entry.recheckEvidence.trim())))) findings.push(finding("REVIEW_FINDINGS_INVALID", "review.logo.json", "findings require stable ids, current anchors and digests; blocker/major findings must be independently verified"));
   if (review && (!["human", "independent-agent"].includes(reviewer?.kind as string) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId)) {
     findings.push(finding("REVIEWER_INVALID", "review.logo.json", "logo review must name an independent reviewer kind and sessionId"));

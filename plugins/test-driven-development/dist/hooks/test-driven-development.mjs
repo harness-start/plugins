@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:736b3ae4625a2d4dfefe353a61e598028ad663625a117439e30dc4f5f096faf8
+// harness-source-hash: sha256:6cb36af978c9d44f3841e41045e8d3df680897351d856c20323adb1732c6a3fd
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -354,7 +354,7 @@ import { join, relative as relative3, resolve as resolve3 } from "node:path";
 // plugins/test-driven-development/src/lib/patterns.ts
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, posix, relative as relative2, resolve as resolve2 } from "node:path";
-var SKIPPED = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|\.venv|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
+var SKIPPED = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|\.venv|__generated__|artifacts|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 var TEST_DIRECTORY = /(?:^|\/)(?:test|tests|spec|specs|__tests__)(?:\/|$)/iu;
 var TEST_ROOTS = /* @__PURE__ */ new Set(["test", "tests", "spec", "specs"]);
 var SOURCE_ROOTS = /* @__PURE__ */ new Set(["app", "lib", "src"]);

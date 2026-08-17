@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   BRIEF_SCHEMA,
+  CONCEPT_SELECTION_SCHEMA,
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   createLogoReceipt,
@@ -25,6 +26,82 @@ test("requires a decision-complete brief and the exact bilingual skill pool", ()
   const codes = new Set(validateLogoModel(model, { stage: "source" }).map(({ code }) => code));
   assert.ok(codes.has("BRIEF_INVALID"));
   assert.ok(codes.has("SKILL_COMPOSITION_INVALID"));
+});
+
+test("requires parsed brand context, reference provenance, asset provenance, and delivery integration plans", () => {
+  const model = validLogoModel({ stage: "source" });
+  model.files["plan.assets.json"] = "not-json";
+  delete model.files["plan.context.json"];
+  delete model.files["plan.delivery-profile.json"];
+  delete model.files["plan.integration.json"];
+
+  const codes = new Set(validateLogoModel(model, { stage: "source" }).map(({ code }) => code));
+  assert.ok(codes.has("ASSET_PLAN_INVALID"));
+  assert.ok(codes.has("BRAND_CONTEXT_INVALID"));
+  assert.ok(codes.has("DELIVERY_PROFILE_INVALID"));
+  assert.ok(codes.has("INTEGRATION_PLAN_INVALID"));
+});
+
+test("requires six divergent concept buckets and an auditable selection round", () => {
+  const model = validLogoModel({ stage: "source" });
+  const manifest = JSON.parse(model.files["src/concepts/manifest.json"]);
+  manifest.concepts = manifest.concepts.slice(0, 1);
+  model.files["src/concepts/manifest.json"] = JSON.stringify(manifest);
+  model.project.selectedConcept = manifest.concepts[0].id;
+  model.files["logo.project.json"] = JSON.stringify(model.project);
+  model.files["plan.concept-selection.json"] = JSON.stringify({ schema: CONCEPT_SELECTION_SCHEMA, artifactId: model.artifactId, selectedConcept: manifest.concepts[0].id, rounds: [] });
+  const codes = new Set(validateLogoModel(model, { stage: "source" }).map(({ code }) => code));
+  assert.ok(codes.has("CONCEPT_DIVERGENCE_INSUFFICIENT"));
+  assert.ok(codes.has("CONCEPT_SELECTION_EVIDENCE_INVALID"));
+});
+
+test("accepts a role-based subset of bundled advisers instead of an exact fixed pool", () => {
+  const model = validLogoModel({ stage: "source" });
+  model.files["plan.skill-composition.json"] = JSON.stringify({
+    schema: SKILL_COMPOSITION_SCHEMA,
+    selectionPolicy: "dynamic-role-pool",
+    workers: [{
+      name: "logo-brand-direction",
+      role: "brand-direction",
+      languages: ["en", "zh-CN"],
+      ecosystem: "bilingual",
+      mode: "adviser",
+      status: "skipped",
+      reason: "brief is already decision-complete",
+      advicePath: "evidence/skills/logo-brand-direction.json",
+    }],
+  });
+  const codes = validateLogoModel(model, { stage: "source" }).map(({ code }) => code);
+  assert.equal(codes.includes("SKILL_COMPOSITION_INVALID"), false);
+});
+
+test("does not require Fibonacci evidence when a different construction method is declared", () => {
+  const model = validLogoModel({ stage: "source" });
+  model.files["src/construction/construction.json"] = JSON.stringify({
+    schema: "brand-logo-production/construction/v1",
+    method: "modular-grid",
+    tolerance: 0.5,
+    maxOpticalCorrection: 2,
+    rationale: "The rectangular mark is refined on a modular grid; optical corrections take precedence.",
+  });
+  delete model.files["src/construction/fibonacci.json"];
+  for (const path of Object.keys(model.files)) {
+    if (path.includes("/fibonacci.")) delete model.files[path];
+  }
+  const codes = validateLogoModel(model, { stage: "source" }).map(({ code }) => code);
+  assert.equal(codes.some((code) => code.startsWith("FIBONACCI") || code === "REQUIRED_PATH_MISSING"), false);
+});
+
+test("requires the complete outcome-level visual rubric and delivery checks", () => {
+  const model = validLogoModel();
+  const review = JSON.parse(model.files["review.logo.json"]);
+  delete review.criteria.semanticIntegration;
+  review.checks = review.checks.filter(({ id }) => id !== "scene-application");
+  model.files["review.logo.json"] = JSON.stringify(review);
+
+  const codes = new Set(validateLogoModel(model, { stage: "release" }).map(({ code }) => code));
+  assert.ok(codes.has("AESTHETIC_CRITERIA_INCOMPLETE"));
+  assert.ok(codes.has("REVIEW_INVALID"));
 });
 
 test("limits active advisers to three and requires digest-bound advice evidence", () => {
@@ -127,6 +204,12 @@ test("rejects a signature-only pseudo PNG without valid IDAT, CRC, and IEND", ()
   model.files["dist/primary/mark.png"] = pseudo;
 
   assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code, path }) => code === "RELEASE_PNG_INVALID" && path === "dist/primary/mark.png"));
+});
+
+test("rejects blank transparent delivery PNGs even when their container is valid", () => {
+  const model = validLogoModel();
+  model.files["dist/exports/mark-64.png"] = minimalPng(64, 64, false);
+  assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code, path }) => code === "DELIVERY_PNG_PROFILE_INVALID" && path === "dist/exports/mark-64.png"));
 });
 
 test("rejects incomplete variant, accessibility, review, and release manifest semantics", () => {
@@ -247,7 +330,7 @@ test("release requires measured squint evidence and passing aesthetic scores", (
 
   const selfReview = validLogoModel();
   const self = JSON.parse(selfReview.files["review.logo.json"]);
-  self.reviewer.sessionId = "unknown";
+  self.reviewer.sessionId = process.env.AI_EXPERTS_SESSION_ID || "unknown";
   selfReview.files["review.logo.json"] = JSON.stringify(self);
   assert.ok(validateLogoModel(selfReview, { stage: "release" }).some(({ code }) => code === "REVIEW_SELF"));
 });

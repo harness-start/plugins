@@ -1,156 +1,89 @@
 #!/usr/bin/env bash
-# Project logo e2e: full install-all + open brief → final artifacts + quality notes.
+# Outcome-level logo gate: isolated install + release contract + independent visual evidence.
 set -euo pipefail
 
-# acceptance/scenarios/<domain>/cases/<id>/expect.sh → repo root is 5 levels up
 REPO="${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}"
 . "${REPO}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
 
 notes="${ACCEPT_OUT}/quality-notes.md"
+validation="${ACCEPT_OUT}/logo-validation.json"
 : >"${notes}"
-{
-  echo "# Quality notes — logo-design/01-goal-e2e-delivery"
-  echo
-  echo "- host: ${ACCEPT_HOST:-}"
-  echo "- workspace: ${ACCEPT_WORKSPACE:-}"
-  echo "- generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  echo
-} >>"${notes}"
+printf '# Logo outcome evidence\n\n- host: %s\n- workspace: %s\n\n' "${ACCEPT_HOST:-}" "${ACCEPT_WORKSPACE:-}" >>"${notes}"
 
 fail=0
-score=0
-
 note() { printf '%s\n' "$*" | tee -a "${notes}" >&2; }
 ok() { note "- PASS: $*"; }
 bad() { note "- FAIL: $*"; fail=$((fail + 1)); }
-soft() { note "- NOTE: $*"; }
 
-# --- install-all stack -------------------------------------------------------
-if [ -z "${HOME:-}" ] || [ ! -s "${HOME}/install-all.log" ]; then
-  bad "missing install-all.log under HOME"
-else
-  ok "install-all.log present"
-fi
 if [ -s "${HOME}/install-all.log" ] && grep -Eq 'brand-logo-production' "${HOME}/install-all.log"; then
-  ok "catalog includes brand-logo-production"
+  ok "clean install catalog contains brand-logo-production"
 else
-  bad "install-all did not install brand-logo-production"
+  bad "install-all evidence for brand-logo-production is missing"
 fi
-# --- logo artifacts ----------------------------------------------------------
+
 logo_root="${ACCEPT_WORKSPACE}/artifacts/logo"
 mapfile -t logo_ids < <(find "${logo_root}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort || true)
-
 if [ "${#logo_ids[@]}" -eq 0 ]; then
-  bad "no artifacts/logo/<id>/ directory created"
-else
-  ok "logo project dir(s): ${logo_ids[*]}"
-  score=$((score + 2))
+  bad "no artifacts/logo/<id> project was delivered"
 fi
 
+validator="${REPO}/plugins/brand-logo-production/dist/cli/project-validate.mjs"
 for id in "${logo_ids[@]:-}"; do
   [ -n "${id}" ] || continue
   base="${logo_root}/${id}"
-  soft "inspecting ${base}"
-
-  # Structural inventory; the contract probe below is the release hard gate.
-  for rel in \
-    plan.contract.json \
-    plan.brief.json \
-    plan.skill-composition.json \
-    logo.project.json \
-    src/master/Mark.logo.tsx \
-    src/master/Wordmark.logo.tsx \
-    src/master/Lockup.logo.tsx \
-    build/master/mark.svg \
-    src/concepts/manifest.json
-  do
-    if [ -f "${base}/${rel}" ]; then
-      soft "present: ${rel}"
-      score=$((score + 1))
-    else
-      soft "missing: ${rel}"
-    fi
-  done
-
-  # Vector craft sniff: master TSX/SVG should not be pure placeholders if present.
-  if [ -f "${base}/src/master/Mark.logo.tsx" ]; then
-    if grep -Eq '<\s*svg\b' "${base}/src/master/Mark.logo.tsx"; then
-      ok "Mark.logo.tsx contains SVG markup"
-      score=$((score + 1))
-    else
-      soft "Mark.logo.tsx lacks <svg>"
-    fi
-    if grep -Eiq 'Arial|Helvetica|sans-serif|思源|Source Han|system-ui' "${base}/src/master/Mark.logo.tsx"; then
-      soft "possible system-font smell in Mark.logo.tsx (quality concern)"
-    fi
+  stage="$(jq -r '.targetStage // "source"' "${base}/plan.contract.json" 2>/dev/null || printf source)"
+  if [ "${stage}" != "release" ]; then
+    bad "${id} stopped at ${stage}; release closure is required"
+    continue
   fi
 
-  if [ -f "${base}/build/master/mark.svg" ]; then
-    if grep -Eq 'viewBox=' "${base}/build/master/mark.svg"; then
-      ok "build/master/mark.svg has viewBox"
-      score=$((score + 1))
-    else
-      soft "build/master/mark.svg missing viewBox"
-    fi
-  fi
-done
-
-# Contract probe via the shipped validator. Prefer formal Fib findings.
-validate_js="${REPO}/plugins/brand-logo-production/dist/cli/project-validate.mjs"
-if [ "${#logo_ids[@]}" -gt 0 ] && [ -f "${validate_js}" ] && command -v node >/dev/null 2>&1; then
-  id="${logo_ids[0]}"
-  target_stage="$(jq -r '.targetStage // "source"' "${logo_root}/${id}/plan.contract.json" 2>/dev/null || printf source)"
-  if [ "${target_stage}" != "release" ]; then
-    bad "target stage is ${target_stage}; full orchestration must reach release"
-  fi
   set +e
-  node "${validate_js}" "${logo_root}/${id}" --stage "${target_stage}" --json >>"${notes}" 2>&1
+  node "${validator}" "${base}" --stage release --json >"${validation}" 2>>"${notes}"
   probe_rc=$?
   set -e
-  if [ "${probe_rc}" -eq 0 ]; then
-    ok "${target_stage} contract validate clean for ${id}"
-    score=$((score + 2))
+  if [ "${probe_rc}" -eq 0 ] && jq -e '.ok == true and (.findings | length == 0)' "${validation}" >/dev/null 2>&1; then
+    ok "${id} passes the shipped release validator with JSON exit semantics"
   else
-    bad "${target_stage} contract still has findings for ${id} (see quality-notes.md)"
+    bad "${id} has release-contract findings"
+    jq -r '.findings[]? | "  - [\(.code)] \(.path): \(.message)"' "${validation}" >>"${notes}" 2>/dev/null || true
   fi
-  # Formal construction signal: fibonacci.json should declare circles when present
-  fib="${logo_root}/${id}/src/construction/fibonacci.json"
-  if [ -f "${fib}" ] && jq -e '.circles | length >= 3' "${fib}" >/dev/null 2>&1; then
-    ok "fibonacci.json declares ≥3 formal circles"
-    score=$((score + 1))
+
+  review="${base}/review.logo.json"
+  if [ ! -s "${review}" ]; then
+    bad "${id} is missing independent review.logo.json"
+    continue
+  fi
+  if jq -e '
+    . as $review
+    | .schema == "brand-logo-production/review/v2"
+    and .decision == "approved"
+    and (.reviewer.kind == "human" or .reviewer.kind == "independent-agent")
+    and (.reviewer.sessionId | type == "string" and length > 0)
+    and (["brief-fidelity","concept-divergence","vector-craft","mono-reverse","scene-application","delivery-profile"]
+      | all(. as $id | any($review.checks[]?; .id == $id and .status == "pass")))
+    and (["structureConsistency","opticalCorrection","singleMemoryPoint","semanticIntegration","markWordmarkSystem","restraint"]
+      | all(. as $id | ($review.criteria[$id].score == 2 and $review.criteria[$id].requiredMin >= 2 and ($review.criteria[$id].note | type == "string" and length >= 8))))
+    and (.coverage | type == "array" and length > 0 and all(.[]; (.path | type == "string" and length > 0) and (.sha256 | test("^[a-f0-9]{64}$"))))
+    and all(.findings[]?; ((.severity == "blocker" or .severity == "major") | not) or (.status == "verified" and (.recheckEvidence | type == "string" and length > 0)))
+  ' "${review}" >/dev/null 2>&1; then
+    ok "${id} has complete independent outcome checks, per-criterion scores, digest coverage, and finding recovery"
   else
-    soft "fibonacci formal circles not present yet"
+    bad "${id} independent visual evidence is incomplete or below a required criterion"
   fi
-fi
 
-{
-  echo
-  echo "## Rubric score (heuristic)"
-  echo "- auto_score_points: ${score}"
-  echo "- structural_fail_count: ${fail}"
-  echo "- see quality-rubric.md in case dir for human dimensions"
-  echo
-  echo "## Host log tail"
-  echo '```'
-  tail -n 40 "${ACCEPT_LOG}" 2>/dev/null || true
-  echo '```'
-} >>"${notes}"
+  for rel in dist/presentation/specimen.png dist/presentation/application-mockup.png dist/integration/figma-import.json dist/print/production-notes.json; do
+    if [ -s "${base}/${rel}" ]; then ok "${id} delivered ${rel}"; else bad "${id} missing ${rel}"; fi
+  done
 
-note "quality-notes written to ${notes} (score=${score} fails=${fail})"
+  {
+    echo
+    echo "## ${id} reviewer observations"
+    jq -r '.criteria | to_entries[] | "- \(.key): score=\(.value.score), note=\(.value.note)"' "${review}" 2>/dev/null || true
+    jq -r '.findings[]? | "- [\(.severity)] \(.findingId): \(.status) — \(.fix)"' "${review}" 2>/dev/null || true
+  } >>"${notes}"
+done
 
-# Hard gate: install stack, complete release contract, and substantive logo artifacts.
-if [ "${fail}" -ne 0 ]; then
-  exit 1
-fi
-if [ "${#logo_ids[@]}" -eq 0 ]; then
-  exit 1
-fi
-if [ "${score}" -lt 4 ]; then
-  note "FAIL: auto score ${score} < 4 (too little delivery signal)"
-  exit 1
-fi
-
-echo "OK project logo e2e: structural bar met; review ${notes} for quality"
-exit 0
+note "quality evidence written to ${notes}; failures=${fail}"
+[ "${fail}" -eq 0 ]

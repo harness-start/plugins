@@ -53,11 +53,6 @@ OUT_DIR="$(cd "${OUT_DIR}" && pwd)"
 SUMMARY="${OUT_DIR}/summary.txt"
 REPORT="${OUT_DIR}/project-acceptance.log"
 
-# Default host skills mount for logo/design scenarios.
-if [ -z "${ACCEPT_HOST_SKILLS_DIR:-}" ] && [ -d "${HOME}/.agents/skills" ]; then
-  export ACCEPT_HOST_SKILLS_DIR="${HOME}/.agents/skills"
-fi
-
 log() {
   printf '%s\n' "$*" | tee -a "${REPORT}"
 }
@@ -199,17 +194,11 @@ if [ "${USE_DOCKER}" -eq 1 ]; then
     -e HOME=/out/.container-home
     -e USER="${USER:-acceptance}"
     -v "${REPO_ROOT}:/marketplace:ro"
+    --tmpfs /marketplace/.acceptance-runs:rw,noexec,nosuid,nodev,size=16m,mode=1777
     -v "${OUT_DIR}:/out"
     -w /marketplace
     --entrypoint /bin/bash
   )
-  # Mount host Agent Skills so logo-design etc. are available inside the case HOME.
-  if [ -n "${ACCEPT_HOST_SKILLS_DIR:-}" ] && [ -d "${ACCEPT_HOST_SKILLS_DIR}" ]; then
-    docker_args+=(-e ACCEPT_HOST_SKILLS_DIR=/opt/host-skills)
-    docker_args+=(-v "${ACCEPT_HOST_SKILLS_DIR}:/opt/host-skills:ro")
-    log "Mounting host skills from ${ACCEPT_HOST_SKILLS_DIR}"
-  fi
-
   docker run "${docker_args[@]}" \
     "${IMAGE}" \
     /marketplace/scripts/acceptance/run-project.sh "${args[@]}"

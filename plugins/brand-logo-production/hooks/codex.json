@@ -49,18 +49,6 @@
           }
         ]
       }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"brand-logo-production:subagent-stop\" node \"${PLUGIN_ROOT}/dist/hooks/brand-logo-production.mjs\" stop",
-            "statusMessage": "Validating Logo artifact closure",
-            "timeout": 10000
-          }
-        ]
-      }
     ]
   }
 }

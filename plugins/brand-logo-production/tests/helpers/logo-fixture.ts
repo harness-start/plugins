@@ -4,8 +4,13 @@ import { dirname, join } from "node:path";
 import { deflateSync } from "node:zlib";
 
 import {
+  ASSET_PLAN_SCHEMA,
   BRIEF_SCHEMA,
+  BRAND_CONTEXT_SCHEMA,
+  CONCEPT_SELECTION_SCHEMA,
+  DELIVERY_PROFILE_SCHEMA,
   EXTERNAL_SKILLS,
+  INTEGRATION_PLAN_SCHEMA,
   RENDER_EVIDENCE_SCHEMA,
   REVIEW_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
@@ -14,6 +19,7 @@ import {
   createLogoReleaseManifest,
   createLogoReceipt,
   masterSubjectDigest,
+  reviewArtifactPaths,
 } from "../../src/lib/contract.js";
 
 export const sha256 = (value) => createHash("sha256").update(value).digest("hex");
@@ -39,7 +45,7 @@ function pngChunk(type, data = Buffer.alloc(0)) {
   return chunk;
 }
 
-export function minimalPng(width = 1, height = 1) {
+export function minimalPng(width = 1, height = 1, ink = true) {
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0);
   header.writeUInt32BE(height, 4);
@@ -47,6 +53,11 @@ export function minimalPng(width = 1, height = 1) {
   header[9] = 6;
   const rows = Buffer.alloc((width * 4 + 1) * height);
   for (let row = 0; row < height; row += 1) rows[row * (width * 4 + 1)] = 0;
+  if (ink) {
+    const x = Math.floor(width / 2);
+    const y = Math.floor(height / 2);
+    rows[y * (width * 4 + 1) + 1 + x * 4 + 3] = 255;
+  }
   return Buffer.concat([
     Buffer.from("89504e470d0a1a0a", "hex"),
     pngChunk("IHDR", header),
@@ -68,34 +79,52 @@ function component(role, width) {
 }
 
 export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } = {}) {
-  const concept = "export function Concept(){return <svg viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"50\" r=\"40\"/></svg>;}";
+  const concepts = [
+    ["symbolic-beacon", "symbolic", "A beacon abstracts guidance into one directional signal."],
+    ["typographic-cut", "typographic", "A custom letter cut turns the name into proprietary form."],
+    ["monogram-link", "monogram", "Interlocked initials express connection without extra symbols."],
+    ["negative-space-path", "negative-space", "A hidden path creates a restrained discovery moment."],
+    ["geometric-orbit", "geometric", "An orbital module expresses a stable connected system."],
+    ["narrative-horizon", "narrative", "A horizon sequence tells a compact progress story."],
+  ].map(([id, bucket, rationale], offset) => {
+    const index = offset + 1;
+    const source = `${String(index).padStart(3, "0")}-${id}.logo.tsx`;
+    const code = `export function Concept(){return <svg viewBox="0 0 100 100"><circle cx="${20 + index * 5}" cy="50" r="${12 + index * 3}"/></svg>;}`;
+    return { index, id, bucket, rationale, source, code };
+  });
   const files = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": JSON.stringify({ scripts: { "logo:render": "node render-fixture.mjs" } }),
     "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "": {} } }),
     "plan.contract.json": JSON.stringify({ schema: "brand-logo-production/plan/v1", artifactId, targetStage: stage }),
     "plan.brief.json": JSON.stringify({ schema: BRIEF_SCHEMA, artifactId, audience: "brand customers", brandPositioning: "distinctive geometric identity", language: "en", constraints: ["native vector"], prohibitedDirections: ["generic template"], successCriteria: ["legible at 16px"] }),
+    "plan.context.json": JSON.stringify({ schema: BRAND_CONTEXT_SCHEMA, artifactId, brandStory: "A connected service that guides customers through complex work.", market: "Professional B2B workflow software", differentiation: "One calm connected system instead of a fragmented tool stack.", competitors: ["generic suite", "point solution"], references: [{ id: "provided-brief", source: "workspace/README.md", provenance: "provided" }] }),
     "plan.skill-composition.json": JSON.stringify({
       schema: SKILL_COMPOSITION_SCHEMA,
-      selectionPolicy: "dynamic-bilingual-pool",
+      selectionPolicy: "dynamic-role-pool",
       workers: EXTERNAL_SKILLS.map((worker) => ({ ...worker, status: "skipped", reason: "fixture uses bundled contracts", advicePath: `evidence/skills/${worker.name}.json` })),
     }),
-    "plan.assets.json": JSON.stringify({ assets: [] }),
+    "plan.assets.json": JSON.stringify({ schema: ASSET_PLAN_SCHEMA, artifactId, assets: [{ id: "brief", kind: "document", source: "workspace/README.md", provenance: "provided" }] }),
+    "plan.concept-selection.json": JSON.stringify({ schema: CONCEPT_SELECTION_SCHEMA, artifactId, selectedConcept: "geometric-orbit", rounds: [{ round: 1, conceptIds: concepts.map(({ id }) => id), feedback: "Compare six distinct mechanisms in black and white against the frozen brief." }, { round: 2, conceptIds: ["geometric-orbit", "negative-space-path"], feedback: "Select the orbital system for stronger recognition and clearer product fit." }] }),
+    "plan.delivery-profile.json": JSON.stringify({ schema: DELIVERY_PROFILE_SCHEMA, artifactId, transparentPngSizes: [64, 128, 256, 512], faviconSizes: [16, 32], secondaryLayout: "stacked", specimen: true, applicationMockup: true, print: { guidance: "CMYK-and-spot-color" } }),
+    "plan.integration.json": JSON.stringify({ schema: INTEGRATION_PLAN_SCHEMA, artifactId, figma: { mode: "not-configured", fallback: "svg-import-package" } }),
     "logo.project.json": JSON.stringify({ schema: "brand-logo-production/project/v1", artifactId, selectedConcept: "geometric-orbit" }),
     "src/render.ts": "export const rendererContract = 'logo:render';\n",
     "render-fixture.mjs": RENDER_FIXTURE_SCRIPT,
-    "src/concepts/manifest.json": JSON.stringify({ concepts: [{ index: 1, id: "geometric-orbit", source: "001-geometric-orbit.logo.tsx" }] }),
-    "src/concepts/001-geometric-orbit.logo.tsx": concept,
-    [`src/concepts/001-geometric-orbit.${sha256(concept)}.png`]: minimalPng(100, 100),
+    "src/concepts/manifest.json": JSON.stringify({ concepts: concepts.map(({ code: _code, ...entry }) => entry) }),
     "src/master/Mark.logo.tsx": component("Mark", 100),
     "src/master/Wordmark.logo.tsx": component("Wordmark", 200),
     "src/master/Lockup.logo.tsx": component("Lockup", 300),
-    "src/construction/construction.json": JSON.stringify({ schema: "brand-logo-production/construction/v1", tolerance: 0.5, maxOpticalCorrection: 2 }),
+    "src/construction/construction.json": JSON.stringify({ schema: "brand-logo-production/construction/v1", method: "fibonacci", rationale: "The orbital mark uses a verified Fibonacci circle construction after optical exploration.", tolerance: 0.5, maxOpticalCorrection: 2 }),
     "src/variants/manifest.json": JSON.stringify({ roles: ["mark", "wordmark", "lockup"], variants: ["primary", "mono", "reverse"] }),
     "build/master/mark.svg": vector("mark", 100),
     "build/master/wordmark.svg": vector("wordmark", 200),
     "build/master/lockup.svg": vector("lockup", 300),
   };
+  for (const entry of concepts) {
+    files[`src/concepts/${entry.source}`] = entry.code;
+    files[`src/concepts/${entry.source.slice(0, -9)}.${sha256(entry.code)}.png`] = minimalPng(100, 100);
+  }
   const model = { artifactId, files, plan: JSON.parse(files["plan.contract.json"]), project: JSON.parse(files["logo.project.json"]) };
   const masterDigest = masterSubjectDigest(model);
   files["src/construction/standard-grid.json"] = JSON.stringify({ schema: "brand-logo-production/standard-grid/v1", masterDigest, unit: 8, clearSpace: 16, minimumPixels: 16 });
@@ -150,6 +179,14 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     for (const [role, width] of [["mark", 100], ["wordmark", 200], ["lockup", 300]]) files[`dist/${variant}/${role}.svg`] = vector(role, width);
   }
   for (const role of ["mark", "wordmark", "lockup"]) files[`dist/primary/${role}.png`] = minimalPng(100, 100);
+  files["dist/primary/lockup-stacked.svg"] = vector("lockup", 300);
+  for (const size of [64, 128, 256, 512]) files[`dist/exports/mark-${size}.png`] = minimalPng(size, size);
+  for (const size of [16, 32]) files[`dist/icons/favicon-${size}.png`] = minimalPng(size, size);
+  files["dist/icons/app-icon-512.png"] = minimalPng(512, 512);
+  files["dist/presentation/specimen.png"] = minimalPng(800, 600);
+  files["dist/presentation/application-mockup.png"] = minimalPng(800, 600);
+  files["dist/print/production-notes.json"] = JSON.stringify({ colorMode: "CMYK", conversionGuidance: "Convert from the approved sRGB master with a documented press profile and verify a physical proof.", spotColors: [] });
+  files["dist/integration/figma-import.json"] = JSON.stringify({ mode: "svg-import-package", files: ["dist/primary/mark.svg", "dist/primary/wordmark.svg", "dist/primary/lockup.svg"] });
   const stripPath = `evidence/preview/strip.${masterDigest}.png`;
   const stripManifestPath = `evidence/preview/strip.${masterDigest}.manifest.json`;
   const squintPath = `evidence/preview/squint.${masterDigest}.json`;
@@ -192,12 +229,16 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     squintStripDigest: stripDigest,
     decision: "approved",
     reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: "logo-review-session" },
+    coverage: reviewArtifactPaths(model).map((path) => ({ path, sha256: sha256(files[path]) })),
     findings: [],
-    checks: [{ id: "geometry", status: "pass" }, { id: "legibility", status: "pass" }, { id: "variants", status: "pass" }],
+    checks: ["brief-fidelity", "concept-divergence", "vector-craft", "mono-reverse", "scene-application", "delivery-profile"].map((id) => ({ id, status: "pass" })),
     criteria: {
+      structureConsistency: { score: 2, requiredMin: 2, note: "stable proportions across every role" },
+      opticalCorrection: { score: 2, requiredMin: 2, note: "measured optical balance at target sizes" },
       singleMemoryPoint: { score: 2, requiredMin: 2, note: "single orbital silhouette" },
-      opticalCraft: { score: 2, requiredMin: 2, note: "measured optical balance" },
+      semanticIntegration: { score: 2, requiredMin: 2, note: "connection meaning is integrated into the form" },
       markWordmarkSystem: { score: 2, requiredMin: 2, note: "shared geometric language" },
+      restraint: { score: 2, requiredMin: 2, note: "one controlled gesture without decorative noise" },
     },
   });
   files["release.manifest.json"] = JSON.stringify(createLogoReleaseManifest(model));

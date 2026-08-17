@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, posix, relative, resolve } from "node:path";
 
-const SKIPPED = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|\.venv|__generated__|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
+const SKIPPED = /(?:^|\/)(?:\.git|\.cache|\.next|\.nuxt|\.venv|__generated__|artifacts|build|coverage|dist|generated|node_modules|target|vendor)(?:\/|$)/iu;
 const TEST_DIRECTORY = /(?:^|\/)(?:test|tests|spec|specs|__tests__)(?:\/|$)/iu;
 const TEST_ROOTS = new Set(["test", "tests", "spec", "specs"]);
 const SOURCE_ROOTS = new Set(["app", "lib", "src"]);

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fe5ec748ad17194faa3a78be45a17a33a1bf553e9a40156cf31b6308b1cb38f8
+// harness-source-hash: sha256:260e491d8369ec89a3a058ab4b294ee5f3647ef8edb2e23c18fca630ff5fec27
 import {
   runCli
-} from "../chunks/chunk-4ZWUJXNY.mjs";
-import "../chunks/chunk-ALDQ5R4Y.mjs";
+} from "../chunks/chunk-33GKL4ST.mjs";
+import "../chunks/chunk-7V3B2FH3.mjs";
 
 // plugins/work-reporting/src/entries/cli/work-summary-report-prepare.ts
 process.exitCode = await runCli("summary", "prepare");

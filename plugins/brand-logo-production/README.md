@@ -1,16 +1,16 @@
 # Logo Project Delivery Guard
 
-`brand-logo-production` 管 Logo 工程，不管整套 VI。v0.4 通过 `$logo-project-authoring` 串联 `brief → concept → master → construction → variants → preview → review → release`，并用 `$logo-project-review` 做独立终审。只改文件名、交空图、交 schema 桩、伪造外部 Skill 使用记录或伪造 wrapper，过不了。
+`brand-logo-production` 管 Logo 工程，不管整套 VI。v0.5 串联 `brief/context → 六类概念 → 反馈选择 → master → 合适的构图法 → variants/delivery → preview → 独立 review → release`。只改文件名、交空图、交 schema 桩、伪造外部 Skill 使用记录或伪造 wrapper，过不了。
 
-Fibonacci / φ 检查的是：构造关系能按当前 master 复算。它不说黄金比例一定更好看，也不等于商标能注册。
+Fibonacci / φ 只是可选构图法：仅当 `construction.method=fibonacci` 时才要求并复算；网格、几何、字形与光学校正也是合法选择。任何构图法都不等于更好看，也不等于商标能注册。
 
 ## 工程契约
 
-`plan.contract.json` 必须绑定项目和 `source` 或 `release` 阶段。`plan.brief.json` 固化受众、品牌定位、语言、约束、禁用方向和成功标准。`plan.skill-composition.json` 保存捆绑的第一方顾问池、真实状态和选择理由。概念文件使用 `NNN-slug.logo.tsx`，concept id 与 source 必须唯一，`logo.project.json` 必须精确选择其中一个概念。注册 renderer 生成带 source SHA-256 的真实 PNG。
+`plan.contract.json` 必须绑定项目和 `source` 或 `release` 阶段。Brief、品牌上下文、参考/资产来源、概念选择轮次、交付 profile 与 Figma capability/fallback 都有独立 JSON 契约。必须先给出 symbolic、typographic、monogram、negative-space、geometric、narrative 六类黑白概念及至少两轮反馈，再精确选择一个。注册 renderer 生成带 source SHA-256 的真实 PNG。
 
 ## 第一方顾问编排
 
-候选池是捆绑 Skill：`logo-brand-direction`、`logo-form-language`、`logo-color-accessibility`。每个项目动态择优，最多使用 3 个且 advice artifact 必须互不相同。
+候选池是捆绑 Skill：`logo-brand-direction`、`logo-form-language`、`logo-color-accessibility`、`logo-presentation-system`。按品牌方向、矢量生产、色彩可访问性、呈现交付角色动态择优，不强制加载完整名单；最多使用 3 个且 advice artifact 必须互不相同。
 
 方法来源与归因见 `licenses/`：brand-identity（MIT）、logo-design（MIT）、color-expert（CC-BY-4.0，`licenses/color-expert/NOTICE.md`）、logo-generator 的 pattern 摘录（MIT）。安装本插件即自带这些 Skill，不再读取 `skill-deps.json`。
 
@@ -22,27 +22,28 @@ master 固定为 `Mark.logo.tsx`、`Wordmark.logo.tsx`、`Lockup.logo.tsx`，每
 
 - `standard-grid.json` 绑定当前 master digest，并声明正 unit、clear space 与 minimumPixels。
 - `geometry.json` 为三个 master role 映射实际 SVG primitive id；mapping 和 primitive id 必须唯一，参数必须是有限数值。
-- `fibonacci.json` 使用 `[1,1,2,3,5,8,13]`，保留与 mapped primitive 绑定的 anchor，并声明正 `unit`、至少 3 个命名 circles、相邻 Fibonacci 半径、非同心且几何相接的 `fibonacci-quarter-arcs` spiral，以及 outline/negative-space/turn path bindings。
+- 仅在 `construction.method=fibonacci` 时，`fibonacci.json` 才使用 `[1,1,2,3,5,8,13]` 并证明 circles、spiral、anchor 与实际 master 的关系；其他方法不得为了过门而伪造黄金比例。
 - mark SVG 必须实际实现声明圆的圆心或圆周关系。
-- standard、geometry、fibonacci 三套 SVG/PNG construction sheet 绑定当前 master digest；PNG 会校验 signature、chunk CRC、IDAT 解压长度与 IEND。
+- standard、geometry 以及所选方法需要的 construction sheet 绑定当前 master digest；PNG 会校验 signature、chunk CRC、IDAT 解压长度与 IEND。
 - construction manifest 绑定全部制图页原始字节。
 
 ### Release 阶段
 
 Release 在 Source 闭包之上还必须包含：
 
-- primary/mono/reverse 的 mark、wordmark、lockup SVG，以及 primary PNG；
+- primary/mono/reverse 的 mark、wordmark、lockup SVG、stacked lockup、透明 64/128/256/512 PNG、16/32 favicon 与 512 app icon；
+- specimen、application mockup、CMYK/spot-color 生产说明，以及可导入 Figma 的 SVG fallback manifest；
 - accessibility、approved review 与 release manifest；
 - 绑定 master digest 的 preview strip 和 manifest，覆盖 16/32/64、black/mono 与 reverse；
 - squint JSON 使用实测 `box-blur-threshold-connected-components`，绑定 strip digest、真实 bbox 和每格指标；
-- `singleMemoryPoint`、`opticalCraft`、`markWordmarkSystem` 的 `requiredMin` 不得低于 2，分数均达到阈值并记录实质说明；
+- brief fidelity、concept divergence、vector craft、mono/reverse、scene application、delivery profile 六项检查全部通过；六项审美标准逐项为 2 且有当前 artifact/digest 覆盖，不能用总分平均掩盖短板；
 - receipt 同时绑定 source、master、construction、preview、review 和最终输出。
 
 ## 注册工具工作流
 
 项目 `package.json` 必须提供 `logo:render`。这是项目自有、受信任的可执行配置边界；它可以读取项目源码并生成文件，但输出仍须通过格式、关系、manifest 和 digest 校验。
 
-按顺序使用 `project-advice.mjs`、`project-render.mjs`、`project-validate.mjs`、`project-preview.mjs`、`project-stage.mjs`、`project-review.mjs`、`project-release.mjs` 完成建议准入、生成、实测预览、单调升级、独立评审和 receipt 签发。
+按顺序使用 `project-advice.mjs`、`project-lock.mjs`、`project-render.mjs`、`project-validate.mjs`、`project-preview.mjs`、`project-stage.mjs`、`project-review.mjs`、`project-release.mjs` 完成建议准入、锁文件生成、生成、实测预览、单调升级、独立评审和 receipt 签发。`project-lock.mjs` 以 `--package-lock-only --ignore-scripts` 调用 npm，只允许 `package-lock.json` 变化，并拒绝新增 `node_modules/` 或其他项目写入。
 
 `project-preview.mjs` 在插件内构建多尺寸黑稿/反白稿条带，通过 FFmpeg 栅格化为真实 PNG，再做 squint 分析；它不查找外部 Skill，也不能写 `review.logo.json`。运行环境需提供支持 SVG 输入的 FFmpeg；非标准安装位置可通过 `LOGO_PREVIEW_RENDERER` 指定可执行文件。仓库规定的 host-acceptance 容器已包含该运行时。
 
@@ -52,7 +53,7 @@ Release 在 Source 闭包之上还必须包含：
 
 ## Hook 与边界
 
-Hook 采用 fail-closed shell policy：Logo scope 只允许窄化的只读命令，或参数形状精确匹配的 `project-advice`、`project-lint`、`project-render`、`project-stage`、`project-preview`、`project-review`、`project-validate`、`project-release`。
+Hook 采用 fail-closed shell policy：Logo scope 只允许窄化的只读命令，或参数形状精确匹配的 `project-advice`、`project-lint`、`project-lock`、`project-render`、`project-stage`、`project-preview`、`project-review`、`project-validate`、`project-release`。
 
 注册工具只能指向 workspace 内已发现、非 symlink 的 Logo 项目实体目录。路径伪装的同名二进制、`rg --pre`、可写 `sed`/`find`、wrapper 路径仅作为普通参数、`node -e`、compound shell 和畸形 hook JSON 都不会放行。没有 Logo 项目的普通会话不受这组 shell allowlist 影响。
 

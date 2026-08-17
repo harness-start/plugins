@@ -120,4 +120,28 @@ printf '%s\n' \
   >"${research_tamper}/workspace/deliverables/rollout-decision.md"
 expect_fail "${research_case}" "${research_tamper}"
 
+logo_case="logo-design/01-goal-e2e-delivery"
+logo_theater="$(prepare_case "${logo_case}" logo-theater)"
+mkdir -p "${logo_theater}/home" "${logo_theater}/bin" \
+  "${logo_theater}/workspace/artifacts/logo/theater/src/master" \
+  "${logo_theater}/workspace/artifacts/logo/theater/src/concepts" \
+  "${logo_theater}/workspace/artifacts/logo/theater/build/master"
+printf '%s\n' 'installed brand-logo-production' >"${logo_theater}/home/install-all.log"
+for rel in plan.contract.json plan.brief.json plan.skill-composition.json logo.project.json src/concepts/manifest.json; do
+  printf '%s\n' '{}' >"${logo_theater}/workspace/artifacts/logo/theater/${rel}"
+done
+printf '%s\n' '{"targetStage":"release"}' >"${logo_theater}/workspace/artifacts/logo/theater/plan.contract.json"
+for role in Mark Wordmark Lockup; do
+  printf '%s\n' 'export function Logo(){return <svg viewBox="0 0 1 1"><path d="M0 0H1V1Z"/></svg>}' \
+    >"${logo_theater}/workspace/artifacts/logo/theater/src/master/${role}.logo.tsx"
+done
+printf '%s\n' '<svg viewBox="0 0 1 1"><path d="M0 0H1V1Z"/></svg>' \
+  >"${logo_theater}/workspace/artifacts/logo/theater/build/master/mark.svg"
+printf '%s\n' '#!/usr/bin/env bash' 'printf "{\\"ok\\":true,\\"findings\\":[]}\\n"' >"${logo_theater}/bin/node"
+chmod +x "${logo_theater}/bin/node"
+if HOME="${logo_theater}/home" PATH="${logo_theater}/bin:${PATH}" run_gate "${logo_case}" "${logo_theater}" >/dev/null 2>&1; then
+  printf 'logo outcome gate accepted file-complete theater without independent visual evidence\n' >&2
+  exit 1
+fi
+
 printf 'project outcome gate tests passed\n'

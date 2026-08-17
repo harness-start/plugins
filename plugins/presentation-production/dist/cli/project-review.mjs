@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:adab3d19358121ab54fbb7e6659a0cd2f43f4f6ea5089c010cbc8eafeb6eed41
+// harness-source-hash: sha256:768ee076d5a3e64ee844ad7f658eedb612e9687692899e4dc7dbee5d4de6bf9d
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-KY6GHVYH.mjs";
+} from "../chunks/chunk-3PMW2URV.mjs";
 import {
   assertPptxProjectRoot,
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-MPA7GP34.mjs";
+} from "../chunks/chunk-O7WMS4OZ.mjs";
 import {
   REVIEW_SCHEMA,
   computePptxSubjectDigest,
   loadPptxProject,
   validatePptxModel
-} from "../chunks/chunk-G3LR6ILA.mjs";
+} from "../chunks/chunk-OIEUSLY6.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";

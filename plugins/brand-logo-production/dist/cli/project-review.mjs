@@ -1,26 +1,28 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:73a2f211ecb1ba886fe67eb7ee4f072b280d0b2687abaa8fb22a1ee92e7816cd
+// harness-source-hash: sha256:5255d8fceb7d5d0f23a7cade4becece0e00325c93aa0c46337bcb9c50185d83d
 import {
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-DDYREITI.mjs";
+} from "../chunks/chunk-DF7NMKGN.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-7OERXMLI.mjs";
+} from "../chunks/chunk-L27GW2C3.mjs";
 import {
-  assertLogoProjectRoot,
-  loadLogoProject
-} from "../chunks/chunk-4MD7QWTM.mjs";
-import {
+  AESTHETIC_CRITERIA,
+  REVIEW_CHECKS,
   REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
   computeLogoSubjectDigest,
   masterSubjectDigest,
   reviewArtifactPaths,
   validateLogoModel
-} from "../chunks/chunk-SZ65BSAQ.mjs";
+} from "../chunks/chunk-2F62VZWO.mjs";
+import {
+  assertLogoProjectRoot,
+  loadLogoProject
+} from "../chunks/chunk-Z3XVMBVP.mjs";
 
 // plugins/brand-logo-production/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";
@@ -57,9 +59,9 @@ async function main() {
   const expectedPaths = reviewArtifactPaths(model);
   if (coverage.length !== expectedPaths.length || coverage.some((entry, index) => entry.path !== expectedPaths[index] || entry.sha256 !== model.digests[expectedPaths[index] ?? ""])) throw new Error("REVIEW_COVERAGE_INVALID");
   const checks = Array.isArray(payload.checks) ? payload.checks.map(record) : [];
-  if (!["geometry", "legibility", "variants"].every((id) => checks.some((entry) => entry.id === id && entry.status === "pass"))) throw new Error("REVIEW_CHECKS_INCOMPLETE");
+  if (!REVIEW_CHECKS.every((id) => checks.some((entry) => entry.id === id && entry.status === "pass"))) throw new Error("REVIEW_CHECKS_INCOMPLETE");
   const criteria = record(payload.criteria);
-  for (const id of ["singleMemoryPoint", "opticalCraft", "markWordmarkSystem"]) {
+  for (const id of AESTHETIC_CRITERIA) {
     const row = record(criteria[id]);
     const requiredMin = Number(row.requiredMin);
     if (!Number.isFinite(row.score) || !Number.isFinite(requiredMin) || requiredMin < 2 || Number(row.score) < requiredMin || typeof row.note !== "string" || row.note.trim().length < 8) throw new Error("REVIEW_CRITERIA_INCOMPLETE");

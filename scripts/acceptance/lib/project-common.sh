@@ -39,41 +39,6 @@ project_case_dir() {
   printf '%s/%s/cases/%s\n' "${scenarios_root}" "${domain}" "${id}"
 }
 
-# Seed selected host Agent Skills into case HOME. Missing source dir is a
-# soft no-op.
-seed_host_skills_into_home() {
-  local dest_home="$1"
-  local skills_src="${ACCEPT_HOST_SKILLS_DIR:-}"
-  local name
-  # Logo e2e companions; copy only if present on the host/mount.
-  local -a wanted=(
-    logo-design
-    logo-audit
-    lettering-design
-    visual-brief-concretizer
-    design-accessibility-governance
-    design-review
-    color-system-design
-    font-selection
-  )
-
-  if [ -z "${skills_src}" ] || [ ! -d "${skills_src}" ]; then
-    printf 'project-accept: no ACCEPT_HOST_SKILLS_DIR; skipping host skill seed\n' >&2
-    return 0
-  fi
-  mkdir -p "${dest_home}/.agents/skills" "${dest_home}/.claude/skills"
-  for name in "${wanted[@]}"; do
-    if [ -d "${skills_src}/${name}" ]; then
-      rm -rf "${dest_home}/.agents/skills/${name}"
-      cp -a "${skills_src}/${name}" "${dest_home}/.agents/skills/"
-      # Claude often discovers skills under ~/.claude/skills as symlink.
-      ln -sfn "../../.agents/skills/${name}" "${dest_home}/.claude/skills/${name}"
-      printf 'project-accept: seeded host skill %s\n' "${name}" >&2
-    fi
-  done
-  return 0
-}
-
 # Fingerprint for install-all cache invalidation (catalog + runtime payload + installer).
 project_install_fingerprint() {
   local repo_root="$1"

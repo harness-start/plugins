@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:642531c3822157b18854fe1aadb394ce988095413721dfe864e19eba18186611
+// harness-source-hash: sha256:a253367f553aac073dcbbefc3051c85316c56bf135fbead38a5016e45d81a71a
 import {
   eventCwd,
   eventToolInput,
@@ -7,7 +7,7 @@ import {
   formatFindings,
   inspectChange,
   isRecord
-} from "../chunks/chunk-EU7A2Y73.mjs";
+} from "../chunks/chunk-3BGVZG3Q.mjs";
 
 // plugins/spec-driven-development/src/entries/hooks/spec-driven-development-hook.ts
 import { existsSync, realpathSync } from "node:fs";

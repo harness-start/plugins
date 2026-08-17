@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:11905057cbb1b275db5f6927fb0745d272f604049486b95a83bcdc19a9521265
+// harness-source-hash: sha256:ea0ad845b5b54a4eb87506c1850434e5f55bb4ce422aa89f81138b7732fb56f7
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-ZACLZYKN.mjs";
+} from "../chunks/chunk-Y34W5BCD.mjs";
 
 // plugins/music-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";

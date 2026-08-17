@@ -7,7 +7,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { REVIEW_INPUT_SCHEMA, SKILL_ADVICE_INPUT_SCHEMA, computeLogoSubjectDigest, reviewArtifactPaths, validateLogoModel } from "../src/lib/contract.js";
+import { AESTHETIC_CRITERIA, REVIEW_CHECKS, REVIEW_INPUT_SCHEMA, SKILL_ADVICE_INPUT_SCHEMA, computeLogoSubjectDigest, reviewArtifactPaths, validateLogoModel } from "../src/lib/contract.js";
 import { issueWriterCapability } from "../src/lib/capability.js";
 import { loadLogoProject } from "../src/lib/project.js";
 import { validLogoModel, writeModel } from "./helpers/logo-fixture.js";
@@ -40,7 +40,7 @@ test("advice writer admits one selected current-source worker result and consume
     await writeModel(project, model);
     const loaded = await loadLogoProject(project);
     const subjectDigest = computeLogoSubjectDigest(loaded);
-    await writeFile(input, JSON.stringify({ schema: SKILL_ADVICE_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, skillName: "logo-brand-direction", ecosystem: "en", mode: "adviser", phase: "brief", summary: "Clarified a distinctive geometric positioning.", recommendations: ["Use one orbital memory point"], adopted: ["Use one orbital memory point"], rejected: [] }));
+    await writeFile(input, JSON.stringify({ schema: SKILL_ADVICE_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, skillName: "logo-brand-direction", ecosystem: "bilingual", mode: "adviser", phase: "brief", summary: "Clarified a distinctive geometric positioning.", recommendations: ["Use one orbital memory point"], adopted: ["Use one orbital memory point"], rejected: [] }));
     await issueWriterCapability({ root: project, capability: "logo-advice", argv: [ADVICE_ENTRY, project, input], subjectDigest, sessionId: "advice-session" });
     const admitted = await run(ADVICE_ENTRY, [project, input]);
     assert.equal(admitted.code, 0, admitted.stderr);
@@ -69,12 +69,8 @@ test("review writer requires an independent session and complete current-hash co
       schema: REVIEW_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, decision: "approved",
       reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: "review-session" },
       coverage,
-      checks: [{ id: "geometry", status: "pass" }, { id: "legibility", status: "pass" }, { id: "variants", status: "pass" }],
-      criteria: {
-        singleMemoryPoint: { score: 2, requiredMin: 2, note: "one orbital silhouette" },
-        opticalCraft: { score: 2, requiredMin: 2, note: "balanced optical weight" },
-        markWordmarkSystem: { score: 2, requiredMin: 2, note: "shared geometric language" },
-      },
+      checks: REVIEW_CHECKS.map((id) => ({ id, status: "pass" })),
+      criteria: Object.fromEntries(AESTHETIC_CRITERIA.map((id) => [id, { score: 2, requiredMin: 2, note: `${id} has substantive visual evidence` }])),
       findings: [{ findingId: "visual-001", severity: "major", evidenceAnchor: coverage[0].path, artifactDigest: coverage[0].sha256, fix: "adjusted and rerendered", status: "verified", recheckEvidence: "current digest rechecked" }],
     };
     await writeFile(input, JSON.stringify(payload));

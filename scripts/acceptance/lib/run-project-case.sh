@@ -95,8 +95,6 @@ if ! assert_project_install_ready "${HOME}" "${REPO_ROOT}"; then
   exit 1
 fi
 
-# Design / domain skills live outside plugin skill-deps; seed when available.
-seed_host_skills_into_home "${HOME}" || true
 printf 'install_all=ok\n' >"${STATUS_FILE}"
 
 HOST_EXIT=0

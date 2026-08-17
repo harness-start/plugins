@@ -73,5 +73,11 @@ test("render writer restores and rejects downstream review mutation", async () =
     assert.equal(rendered.code, 2);
     assert.match(rendered.stderr, /RENDER_DOWNSTREAM_MUTATION:review\.logo\.json/u);
     assert.equal(await readFile(join(project, "review.logo.json"), "utf8"), original);
+
+    await issueWriterCapability({ root: project, capability: "logo-render", argv: [RENDER_ENTRY, project, "source"], subjectDigest: computeLogoSubjectDigest(await loadLogoProject(project)), sessionId: "render-boundary-session" });
+    const retried = await run(RENDER_ENTRY, [project, "source"], { cwd: sandbox, env: process.env, stdio: ["ignore", "pipe", "pipe"] });
+    assert.equal(retried.code, 2);
+    assert.match(retried.stderr, /RENDER_DOWNSTREAM_MUTATION:review\.logo\.json/u);
+    assert.doesNotMatch(retried.stderr, /EEXIST/u);
   } finally { rmSync(sandbox, { recursive: true, force: true }); }
 });

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:706dd287c82b92c2d7500957e14e22757efac5518725927cdfc1847667f7c5b7
+// harness-source-hash: sha256:ae8c7ca331ef77a5d8487cd79d37d1b802b29b8203e69d0e9eb2e12b880840af
 
 // plugins/intent-discovery/src/entries/hooks/intent-discovery.ts
 import { resolve } from "node:path";
