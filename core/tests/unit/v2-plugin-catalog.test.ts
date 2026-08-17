@@ -17,6 +17,7 @@ const expected = [
   "git-delivery",
   "go-engineering",
   "intent-discovery",
+  "interface-craft",
   "ios-engineering",
   "java-engineering",
   "kubernetes-operations",
@@ -88,32 +89,16 @@ test("v2 publishes exactly the responsibility-oriented catalog", () => {
   }
 });
 
-test("every declared community Skill follows its current source and no plugin declares another plugin", () => {
+test("published plugins are self-contained: no skill-deps, no vendor-skills, dual-platform Hooks", () => {
+  assert.equal(existsSync(resolve(root, "vendor-skills")), false, "vendor-skills/ must be removed");
   for (const plugin of expected) {
     const pluginRoot = resolve(root, "plugins", plugin);
     const manifest = JSON.parse(readFileSync(resolve(pluginRoot, ".claude-plugin/plugin.json"), "utf8"));
     assert.equal(manifest.name, plugin);
     assert.equal("dependencies" in manifest, false, `${plugin} must not declare plugin dependencies`);
-
-    try {
-      const deps = JSON.parse(readFileSync(resolve(pluginRoot, "skill-deps.json"), "utf8"));
-      for (const skill of deps.skills) {
-        assert.match(skill.source, /^https:\/\//u, `${plugin}:${skill.name} must be an external Skill source`);
-        assert.equal("revision" in skill, false, `${plugin}:${skill.name} cannot lock an external Skill revision`);
-        assert.equal("subpath" in skill, false, `${plugin}:${skill.name} cannot bypass source-native Skill discovery`);
-        if (skill.mode === "audited-executable") {
-          assert.equal(skill.execution?.approved, true, `${plugin}:${skill.name} executable must be approved`);
-          assert.ok(skill.execution.paths.length > 0, `${plugin}:${skill.name} executable needs approved paths`);
-          for (const executable of skill.execution.paths) {
-            assert.match(executable.sha256, /^[0-9a-f]{64}$/u, `${plugin}:${skill.name}:${executable.path} needs SHA-256`);
-          }
-        } else {
-          assert.equal("execution" in skill, false, `${plugin}:${skill.name} cannot declare executable paths in ${skill.mode ?? "default"} mode`);
-        }
-      }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
+    assert.equal(existsSync(resolve(pluginRoot, "skill-deps.json")), false, `${plugin} must not declare skill-deps.json`);
+    assert.equal(existsSync(resolve(pluginRoot, "hooks", "claude.json")), true, `${plugin} must ship hooks/claude.json`);
+    assert.equal(existsSync(resolve(pluginRoot, "hooks", "codex.json")), true, `${plugin} must ship hooks/codex.json`);
   }
 });
 
@@ -134,12 +119,10 @@ test("plugin runtime, Hooks, and internal Skills never address a sibling plugin"
     }
 
     const codexHookPath = resolve(pluginRoot, "hooks/codex.json");
-    if (existsSync(codexHookPath)) {
-      const codexHooks = JSON.parse(readFileSync(codexHookPath, "utf8"));
-      for (const command of hookCommands(codexHooks)) {
-        assert.match(command, /AI_EXPERTS_SESSION_ID=/u, `${owner} Codex hook must carry session provenance`);
-        assert.match(command, /AI_EXPERTS_TRIGGER_FROM=/u, `${owner} Codex hook must carry trigger provenance`);
-      }
+    const codexHooks = JSON.parse(readFileSync(codexHookPath, "utf8"));
+    for (const command of hookCommands(codexHooks)) {
+      assert.match(command, /AI_EXPERTS_SESSION_ID=/u, `${owner} Codex hook must carry session provenance`);
+      assert.match(command, /AI_EXPERTS_TRIGGER_FROM=/u, `${owner} Codex hook must carry trigger provenance`);
     }
   }
 });
@@ -156,16 +139,13 @@ test("required method Skills fail closed in plugin-local orchestration while Hoo
   ];
   for (const plugin of orchestrators) {
     const pluginRoot = resolve(root, "plugins", plugin);
-    const deps = JSON.parse(readFileSync(resolve(pluginRoot, "skill-deps.json"), "utf8"));
     const orchestration = ["src", "skills"]
       .flatMap((area) => filesBelow(resolve(pluginRoot, area)))
       .map((path) => readFileSync(path, "utf8"))
       .join("\n");
-    for (const skill of deps.skills.filter((item: { required?: boolean }) => item.required === true)) {
-      assert.match(orchestration, new RegExp(`\\b${skill.name}\\b`, "u"), `${plugin} must route ${skill.name}`);
-    }
-    assert.match(orchestration, /absent|unreadable|missing|缺失|不可读/u, `${plugin} must detect a missing required Skill`);
-    assert.match(orchestration, /stop|停止/u, `${plugin} must stop the affected orchestration route`);
+    assert.match(orchestration, /ci-gated-mr-workflow|debug-workflow|intent-discovery|sdd|test-driven-development|engineering-|writing-/u, `${plugin} must keep first-party orchestration`);
+    assert.doesNotMatch(orchestration, /\$HOME\/\.agents\/skills/u, `${plugin} must not load global community Skills`);
+    assert.doesNotMatch(orchestration, /skill-deps\.json|vendor-skills/u, `${plugin} must not name the removed community supply chain`);
   }
 });
 
@@ -180,20 +160,11 @@ test("every engineering domain plugin exposes a same-named orchestrator and both
   }
 });
 
-test("domain orchestrators name every required external Skill and fail closed when it is missing", () => {
+test("domain orchestrators stay first-party and do not load community Skills", () => {
   for (const plugin of domainPlugins) {
     const rootPath = resolve(root, "plugins", plugin);
     const skillText = readFileSync(resolve(rootPath, "skills", plugin, "SKILL.md"), "utf8");
-    const depsPath = resolve(rootPath, "skill-deps.json");
-    if (!existsSync(depsPath)) continue;
-    const deps = JSON.parse(readFileSync(depsPath, "utf8"));
-    for (const skill of deps.skills) {
-      assert.equal(skill.required, true, `${plugin}:${skill.name} must be required`);
-      assert.equal(skill.mode, "instruction-only", `${plugin}:${skill.name} must be instruction-only`);
-      assert.match(skillText, new RegExp(`\\b${skill.name}\\b`, "u"), `${plugin} must route ${skill.name}`);
-    }
-    assert.match(skillText, /缺失|不可读/u, `${plugin} must detect missing required Skills`);
-    assert.match(skillText, /停止/u, `${plugin} must stop the affected route`);
+    assert.doesNotMatch(skillText, /skill-deps\.json|npx skills add|\$HOME\/\.agents\/skills/u, `${plugin} must not install community Skills`);
   }
 });
 
