@@ -910,6 +910,28 @@ test("common shell redirection cannot create implementation before a test", asyn
   }
 });
 
+test("public pre hook ignores shell writes outside the workspace", async () => {
+  const fx = fixture("test-driven-development-external-write-");
+  try {
+    const externalPath = join(fx.root, "..", "repro.py");
+    const result = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "external-shell-1",
+      tool_input: {
+        cmd: `cat > ${externalPath} <<'EOF'\nprint('diagnostic')\nEOF`,
+      },
+    }, hookEnv(fx.data));
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "");
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("interpreter write cannot create implementation before a test", async () => {
   const fx = fixture("test-driven-development-python-");
   try {

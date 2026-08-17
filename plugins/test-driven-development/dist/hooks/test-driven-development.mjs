@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6cb36af978c9d44f3841e41045e8d3df680897351d856c20323adb1732c6a3fd
+// harness-source-hash: sha256:6e90cfab27e8b1b04d9e99000de5dbe3826cf883ea65f5fec90f8822fcb4b137
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
-import { resolve as resolve6 } from "node:path";
+import { isAbsolute as isAbsolute2, relative as relative4, resolve as resolve6, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // core/src/hook-event.ts
@@ -1115,8 +1115,12 @@ function errorMessage(error) {
 function isActiveTarget(target) {
   return target.kind !== "ignored" && target.language !== null;
 }
+function isInsideRoot(root, path) {
+  const value = relative4(resolve6(root), resolve6(path));
+  return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute2(value);
+}
 function targetsFor(event, root) {
-  return extractTargets(event).map((absolutePath) => {
+  return extractTargets(event).filter((absolutePath) => isInsideRoot(root, absolutePath)).map((absolutePath) => {
     const path = relativePath(root, absolutePath);
     return { absolutePath, path, ...classifyPath(path) };
   }).filter(isActiveTarget);
@@ -1133,8 +1137,8 @@ function namedTestPaths(command, root) {
   const found = [];
   for (const match of normalized.matchAll(TEST_FILE_IN_COMMAND)) {
     const captured = match[1] ?? "";
-    const relative4 = relativePath(root, resolve6(root, captured.replace(/^\.\//u, "")));
-    if (classifyPath(relative4).kind === "test") found.push(relative4);
+    const relative5 = relativePath(root, resolve6(root, captured.replace(/^\.\//u, "")));
+    if (classifyPath(relative5).kind === "test") found.push(relative5);
   }
   return [...new Set(found)];
 }

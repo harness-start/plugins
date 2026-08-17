@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { HookEvent } from "@harness/core/hook-event";
@@ -73,8 +73,13 @@ function isActiveTarget(target: ClassifiedTarget): target is ActiveTarget {
   return target.kind !== "ignored" && target.language !== null;
 }
 
+function isInsideRoot(root: string, path: string): boolean {
+  const value = relative(resolve(root), resolve(path));
+  return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute(value);
+}
+
 function targetsFor(event: HookEvent, root: string): ActiveTarget[] {
-  return extractTargets(event).map((absolutePath) => {
+  return extractTargets(event).filter((absolutePath) => isInsideRoot(root, absolutePath)).map((absolutePath) => {
     const path = relativePath(root, absolutePath);
     return { absolutePath, path, ...classifyPath(path) };
   }).filter(isActiveTarget);
