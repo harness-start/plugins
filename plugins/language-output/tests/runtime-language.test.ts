@@ -14,6 +14,7 @@ const DETECTOR_ONLY_LINES = new Map([
   ["plugins/intent-discovery/src/lib/policy.ts", ["const IMPLEMENT_CLAIM", "/(?:开始实现"]],
   ["plugins/language-output/src/lib/intent.ts", ["const TRANSLATION_CUE", "const RESPONSE_CUE", "const GENERIC_CHINESE"]],
   ["plugins/language-output/src/lib/profiles.ts", ["aliases:"]],
+  ["plugins/professional-writing/src/analyze-ai-style.ts", ['id: "zh-meta-transition"', 'id: "zh-assistant-residue"', 'id: "zh-marketing-abstraction"']],
 ]);
 
 function filesUnder(path) {

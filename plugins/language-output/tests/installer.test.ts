@@ -41,7 +41,7 @@ test("installer fails closed when no marketplace catalog can be resolved", () =>
   }
 
   try {
-    const result = spawnSync("bash", [detachedInstaller, "--list-only", "--skip-skill-deps"], {
+    const result = spawnSync("bash", [detachedInstaller, "--list-only", ], {
       cwd: fixture,
       encoding: "utf8",
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
@@ -75,7 +75,7 @@ test("installer writes host-scoped language preferences", () => {
 
   try {
     const claude = runInstaller(
-      ["--claude-only", "--skip-skill-deps", "--language", "en-US"],
+      ["--claude-only",  "--language", "en-US"],
       env,
     );
     assert.equal(claude.status, 0, claude.stderr);
@@ -83,7 +83,7 @@ test("installer writes host-scoped language preferences", () => {
     assert.deepEqual(JSON.parse(readFileSync(claudePath, "utf8")), { defaultProfile: "en-US" });
 
     const codex = runInstaller(
-      ["--codex-only", "--skip-skill-deps", "--language", "ja-JP"],
+      ["--codex-only",  "--language", "ja-JP"],
       env,
     );
     assert.equal(codex.status, 0, codex.stderr);
@@ -116,7 +116,7 @@ exit 1
 `);
 
   try {
-    const result = runInstaller(["--claude-only", "--skip-skill-deps"], {
+    const result = runInstaller(["--claude-only", ], {
       PATH: `${bin}:${process.env.PATH}`,
       CLAUDE_CONFIG_DIR: claudeRoot,
       LC_ALL: "en_US.UTF-8",
@@ -142,7 +142,7 @@ test("installer uses a supported system locale when language is omitted", () => 
   executable(join(bin, "codex"), "#!/bin/sh\nprintf '[]\\n'\n");
 
   try {
-    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+    const result = runInstaller(["--codex-only", ], {
       PATH: `${bin}:${process.env.PATH}`,
       CODEX_HOME: codexRoot,
       LC_ALL: "zh_TW.UTF-8",
@@ -167,7 +167,7 @@ test("installer falls back to English when the system locale is unsupported", ()
   executable(join(bin, "claude"), "#!/bin/sh\nprintf '[]\\n'\n");
 
   try {
-    const result = runInstaller(["--claude-only", "--skip-skill-deps"], {
+    const result = runInstaller(["--claude-only", ], {
       PATH: `${bin}:${process.env.PATH}`,
       CLAUDE_CONFIG_DIR: claudeRoot,
       LC_ALL: "fr_FR.UTF-8",
@@ -218,7 +218,7 @@ test("installer re-adds a local Codex marketplace instead of aborting on upgrade
   }, null, 2));
 
   try {
-    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+    const result = runInstaller(["--codex-only", ], {
       PATH: `${bin}:${process.env.PATH}`,
       CODEX_HOME: join(fixture, "codex"),
     });
@@ -263,7 +263,7 @@ esac
 `);
 
   try {
-    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+    const result = runInstaller(["--codex-only", ], {
       PATH: `${bin}:${process.env.PATH}`,
       CODEX_HOME: join(fixture, "codex"),
     });
@@ -308,7 +308,7 @@ esac
 `);
 
   try {
-    const result = runInstaller(["--codex-only", "--skip-skill-deps"], {
+    const result = runInstaller(["--codex-only", ], {
       PATH: `${bin}:${process.env.PATH}`,
       CODEX_HOME: join(fixture, "codex"),
     });

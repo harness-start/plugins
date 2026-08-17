@@ -81,7 +81,7 @@ exit 0
   try {
     const result = runInstaller(
       fixture,
-      ["--local", marketplace, "--claude-only", "--skip-skill-deps", "--language", "en-US"],
+      ["--local", marketplace, "--claude-only",  "--language", "en-US"],
       { CLAUDE_CONFIG_DIR: claudeRoot },
     );
 
@@ -131,7 +131,7 @@ exit 0
   try {
     const result = runInstaller(
       fixture,
-      ["--local", marketplace, "--codex-only", "--skip-skill-deps", "--language", "en-US"],
+      ["--local", marketplace, "--codex-only",  "--language", "en-US"],
       { CODEX_HOME: codexRoot },
     );
 
