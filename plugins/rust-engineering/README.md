@@ -3,7 +3,6 @@
 Orchestrates Rust engineering and protects Cargo.lock with lightweight rustfmt checks.
 
 - Skill: `rust-engineering`
-- Required community Skills: `rust-skills`
 - PreToolUse: domain-owned dependency/generated state
 - PostToolUse: bounded syntax/configuration checks
 - Config: `.rust-engineering.mjs`
