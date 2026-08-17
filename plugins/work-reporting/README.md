@@ -5,10 +5,10 @@
 ## 统一入口
 
 - `$work-report-authoring`：daily / weekly / summary 的统一编排入口，可手动调用，也由 `UserPromptSubmit` 对明确的日报、周报、阶段总结意图自动提示。
+- `$work-report-interview`：一次一问的证据补缺，daily 最多 3 问，weekly/summary 最多 5 问。
 - `$work-report-review`：TL 的只读复核入口，校验报告/ledger、证据等级、承诺和待核事项。
-- `$work-report-authoring`：唯一写作编排入口，根据请求选择日报、周报或日期范围，不提供旧名称适配器。
 
-外部 `$grilling`、`$brag-sheet`、`$growth-log`、`$performance-review-writer` 均跟随上游当前版本，且是阶段限定、`required:false` 的 advisor。插件忽略其工具调用和保存指令，只接纳经过本地证据复核的建议；依赖不可用时使用编排 Skill 内置方法继续。
+归纳、改进和 TL 验证方法捆绑在 authoring references 中。插件忽略外部工具调用和保存指令，只接纳经过本地证据复核的建议。
 
 ## 证据边界
 

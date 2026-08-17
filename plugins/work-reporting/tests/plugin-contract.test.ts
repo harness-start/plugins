@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -36,23 +36,21 @@ test("dual-host manifests expose the same plugin and platform-scoped hooks", () 
   }
 });
 
-test("plugin exposes one orchestrator, one review skill, and current-source optional advisors", () => {
+test("plugin exposes one orchestrator, interview method, review skill, and no community deps", () => {
   const skillNames = readdirSync(join(ROOT, "skills"), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
-  assert.deepEqual(skillNames, ["work-report-authoring", "work-report-review"]);
-  const dependencies = json("skill-deps.json").skills;
-  assert.deepEqual(dependencies.map((skill) => skill.name).sort(), ["brag-sheet", "grilling", "growth-log", "performance-review-writer"]);
-  for (const dependency of dependencies) {
-    assert.equal(dependency.required, false);
-    assert.equal(Object.hasOwn(dependency, "revision"), false);
-    assert.equal(Array.isArray(dependency.stages), true);
-  }
+  assert.deepEqual(skillNames, ["work-report-authoring", "work-report-interview", "work-report-review"]);
+  assert.equal(existsSync(join(ROOT, "skill-deps.json")), false);
   for (const skill of skillNames) {
     const content = readFileSync(join(ROOT, "skills", skill, "SKILL.md"), "utf8");
     assert.doesNotMatch(content, /--mode\b/u);
+    assert.match(content, new RegExp(`^name:\\s*${skill}$`, "mu"));
   }
   const orchestrator = readFileSync(join(ROOT, "skills/work-report-authoring/SKILL.md"), "utf8");
   assert.match(orchestrator, /EvidenceBundleV2/u);
   assert.match(orchestrator, /WorkReportContractV2/u);
   assert.match(orchestrator, /prepared.*acknowledged.*saved/su);
-  assert.match(orchestrator, /advisor.*optional/iu);
+  assert.match(orchestrator, /work-report-interview/u);
+  assert.doesNotMatch(orchestrator, /\$(?:grilling|brag-sheet|growth-log|performance-review-writer)/u);
+  const interview = readFileSync(join(ROOT, "skills/work-report-interview/SKILL.md"), "utf8");
+  assert.match(interview, /one question|一次一问/iu);
 });

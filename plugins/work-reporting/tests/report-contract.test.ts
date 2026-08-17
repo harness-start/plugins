@@ -30,7 +30,7 @@ function contract(): WorkReportContractV2 {
     commitments: [{ id: "A1", findingIds: ["G1"], action: "实现完成后立即记录验收", due: "2026-08-23", successSignal: "连续三次同日记录", verificationMethod: "TL 检查提交与验收时间" }],
     employeeDispositions: [{ findingId: "G1", status: "accepted", commitmentIds: ["A1"] }],
     tlVerification: [{ subjectId: "A1", method: "检查提交与验收时间", owner: "TL", due: "2026-08-24", status: "pending" }],
-    advisorRuns: [{ skill: "growth-log", stage: "improvement-analysis", inputDigest: "b".repeat(64), outputDigest: "c".repeat(64), decision: "accepted" }],
+    advisorRuns: [{ skill: "work-report-authoring", stage: "improvement-analysis", inputDigest: "b".repeat(64), outputDigest: "c".repeat(64), decision: "accepted" }],
     dataGaps: ["remote skipped"],
   };
 }
