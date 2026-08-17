@@ -39,8 +39,8 @@ project_case_dir() {
   printf '%s/%s/cases/%s\n' "${scenarios_root}" "${domain}" "${id}"
 }
 
-# Seed selected host Agent Skills into case HOME (design skills are not always
-# in plugin skill-deps.json). Missing source dir is a soft no-op.
+# Seed selected host Agent Skills into case HOME. Missing source dir is a
+# soft no-op.
 seed_host_skills_into_home() {
   local dest_home="$1"
   local skills_src="${ACCEPT_HOST_SKILLS_DIR:-}"
@@ -85,14 +85,6 @@ project_install_fingerprint() {
     if [ -f "${repo_root}/.agents/plugins/marketplace.json" ]; then
       sha256sum "${repo_root}/.agents/plugins/marketplace.json" | awk '{print $1}'
     fi
-    printf 'skill-deps\n'
-    find "${repo_root}/plugins" -mindepth 2 -maxdepth 2 -name skill-deps.json -type f \
-      | sort \
-      | while IFS= read -r f; do
-          sha256sum "${f}"
-        done
-    printf 'vendor-skills\n'
-    sha256sum "${repo_root}/vendor-skills/index.json" | awk '{print $1}'
     printf 'plugin-manifests\n'
     find "${repo_root}/plugins" \
       \( -path '*/.claude-plugin/plugin.json' \
@@ -212,16 +204,6 @@ assert_project_install_ready() {
   fi
   if ! grep -Eq 'brand-logo-production' "${install_log}"; then
     printf 'project-accept: install-all log does not mention brand-logo-production\n' >&2
-    return 1
-  fi
-  # Community skills from catalog skill-deps must land under isolated HOME.
-  # grilling is declared by work-reporting and is a stable canary.
-  # skills CLI may install to ~/.agents/skills (universal) and/or ~/.claude/skills
-  # depending on -a agents (claude-only often copies into ~/.claude/skills only).
-  if [ ! -f "${dest_home}/.agents/skills/grilling/SKILL.md" ] \
-    && [ ! -f "${dest_home}/.claude/skills/grilling/SKILL.md" ]; then
-    printf 'project-accept: skill-deps canary grilling missing under %s (.agents or .claude skills)\n' \
-      "${dest_home}" >&2
     return 1
   fi
   return 0

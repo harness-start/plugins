@@ -587,11 +587,12 @@ seed_skill_deps_into_home() {
   return 0
 }
 
-# Install skill-deps for plugin_dir into dest_home (isolated acceptance HOME).
-# Uses cache_root to avoid re-downloading on every case.
-# No skill-deps.json → success no-op.
-# ACCEPT_SKIP_SKILL_DEPS=1 → skip with warning (not for default live suites).
+# Community skill-deps are gone. Keep the name so case runners stay compatible.
 install_plugin_skill_deps() {
+  return 0
+}
+
+_retired_install_plugin_skill_deps() {
   local plugin_dir="$1"
   local dest_home="$2"
   local cache_root="$3"

@@ -2,7 +2,7 @@
 
 End-to-end **scenarios** that install the full catalog the way a user would
 (`scripts/install-all.sh --local <checkout>` → every marketplace plugin + every
-`skill-deps.json` community skill), then run a real Claude Code / Codex session
+bundled Skills), then run a real Claude Code / Codex session
 against a workspace fixture.
 
 Unlike `plugins/*/acceptance/` (single-plugin, tightly scripted tool probes),

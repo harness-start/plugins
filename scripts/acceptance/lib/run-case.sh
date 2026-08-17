@@ -66,8 +66,7 @@ mkdir -p "${CLAUDE_PLUGIN_DATA}" "${PLUGIN_DATA}" "${HOME}/.harness-start/hook-s
 
 printf '==> %s / %s / %s (timeout=%ss)\n' "${PLUGIN}" "${CASE_ID}" "${HOST}" "${TIMEOUT_SEC}"
 
-# Community skill-deps must land in the isolated case HOME before the host
-# session starts (same deps install-all.sh would install globally for users).
+# install_plugin_skill_deps is a no-op; keep the call so case runners stay compatible.
 SKILL_DEPS_CACHE="${ACCEPT_SKILL_DEPS_CACHE:-${OUT_DIR}/skill-deps-cache}"
 if ! install_plugin_skill_deps "${PLUGIN_DIR}" "${HOME}" "${SKILL_DEPS_CACHE}" "${HOST}"; then
   printf 'skill-deps install failed for %s\n' "${PLUGIN}" >&2

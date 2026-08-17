@@ -38,14 +38,6 @@ if [ -s "${HOME}/install-all.log" ] && grep -Eq 'brand-logo-production' "${HOME}
 else
   bad "install-all did not install brand-logo-production"
 fi
-if [ -f "${HOME}/.agents/skills/grilling/SKILL.md" ] \
-  || [ -f "${HOME}/.claude/skills/grilling/SKILL.md" ]; then
-  ok "skill-deps canary grilling present"
-  score=$((score + 1))
-else
-  bad "community skill-deps not installed (grilling missing under .agents or .claude skills)"
-fi
-
 # --- logo artifacts ----------------------------------------------------------
 logo_root="${ACCEPT_WORKSPACE}/artifacts/logo"
 mapfile -t logo_ids < <(find "${logo_root}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort || true)

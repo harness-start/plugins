@@ -256,133 +256,18 @@ check_manifest_versions() {
 }
 
 check_skill_deps() {
-  log "Checking current-source, non-conflicting community skill-deps.json manifests"
-  require_cmd jq
-
-  local plugin name deps_file count
-  local found=0
-  local identity_rows=""
-
-  for plugin in plugins/*; do
-    [ -d "${plugin}" ] || continue
-    name="$(basename "${plugin}")"
-    deps_file="${plugin}/skill-deps.json"
-    [ -f "${deps_file}" ] || continue
-    found=$((found + 1))
-
-    printf 'Validating %s\n' "${deps_file}"
-    jq empty "${deps_file}"
-
-    if ! jq -e 'type == "object" and (.skills | type == "array")' "${deps_file}" >/dev/null; then
-      printf 'skill-deps.json must be an object with a skills array: %s\n' \
-        "${deps_file}" >&2
-      exit 1
-    fi
-
-    count="$(jq '.skills | length' "${deps_file}")"
-    if [ "${count}" -eq 0 ]; then
-      printf 'skill-deps.json skills array is empty (omit the file instead): %s\n' \
-        "${deps_file}" >&2
-      exit 1
-    fi
-
-    if ! jq -e '
-      .skills
-      | all(
-          type == "object"
-          and (.name | type == "string" and test("^[A-Za-z0-9._-]+$"))
-          and (.source | type == "string" and test("^https://"))
-        )
-    ' "${deps_file}" >/dev/null; then
-      printf 'Each skills[] entry needs a safe name and HTTPS source: %s\n' \
-        "${deps_file}" >&2
-      exit 1
-    fi
-
-    # Optional description must be a string when present.
-    if ! jq -e '
-      .skills
-      | all(
-          (has("description") | not)
-          or (.description | type == "string")
-        )
-    ' "${deps_file}" >/dev/null; then
-      printf 'skills[].description must be a string when present: %s\n' \
-        "${deps_file}" >&2
-      exit 1
-    fi
-
-    if ! jq -e '.skills | all((has("revision") | not) and (has("subpath") | not))' "${deps_file}" >/dev/null; then
-      printf 'skills[] must follow the current source and cannot declare revision or subpath: %s\n' \
-        "${deps_file}" >&2
-      exit 1
-    fi
-
-    if ! jq -e '
-      .skills | all(
-        ((has("required") | not) or (.required | type == "boolean"))
-        and ((has("mode") | not) or (.mode | type == "string" and length > 0))
-        and ((has("allowFiles") | not) or (
-          (.allowFiles | type == "array" and length > 0)
-          and (.allowFiles | all(
-            type == "string" and test("^[A-Za-z0-9._/-]+$")
-            and (startswith("/") | not) and (contains("\\") | not)
-            and (split("/") | all(length > 0 and . != "." and . != ".." and (startswith("-") | not)))
-          ))
-        ))
-        and ((has("execution") | not) or (
-          .mode == "audited-executable"
-          and (.execution | type == "object")
-          and .execution.approved == true
-          and (.execution.paths | type == "array" and length > 0)
-          and (.execution.paths | all(
-            type == "object"
-            and (.path | type == "string" and test("^[A-Za-z0-9._/-]+$") and (startswith("/") | not) and (contains("\\") | not))
-            and (.path | split("/") | all(length > 0 and . != "." and . != ".." and (startswith("-") | not)))
-            and (.sha256 | type == "string" and test("^[0-9a-f]{64}$"))
-          ))
-        ))
-        and ((.mode // "") != "audited-executable" or has("execution"))
-      )
-    ' "${deps_file}" >/dev/null; then
-      printf 'skills[] optional fields or audited executable declaration are invalid: %s\n' \
-        "${deps_file}" >&2
-      exit 1
-    fi
-
-    while IFS=$'\t' read -r dep_name dep_source; do
-      [ -n "${dep_name}" ] || continue
-      identity_rows+="${dep_name}"$'\t'"${dep_source}"$'\n'
-    done < <(jq -r '.skills[] | [.name, .source] | @tsv' "${deps_file}")
-
-    printf '%s: %s skill-dep(s)\n' "${name}" "${count}"
-    jq -r '.skills[] | "  - \(.name) <= \(.source)"' "${deps_file}"
-  done
-
-  if [ "${found}" -eq 0 ]; then
-    printf 'No skill-deps.json files present (optional)\n'
-  else
-    printf 'Validated %s skill-deps.json file(s)\n' "${found}"
-  fi
-
-  local conflicts
-  conflicts="$(
-    printf '%s' "${identity_rows}" | sort -u | awk -F '\t' '
-      NF >= 2 {
-        identity = $2
-        if (($1 in seen) && seen[$1] != identity) conflict[$1] = 1
-        else seen[$1] = identity
-      }
-      END { for (name in conflict) print name }
-    ' | sort
-  )"
-  if [ -n "${conflicts}" ]; then
-    printf 'Community Skill names resolve to multiple identities:\n%s\n' "${conflicts}" >&2
+  log "Checking that community skill-deps and vendor-skills are gone"
+  local leftover
+  leftover="$(find plugins -name skill-deps.json -type f 2>/dev/null || true)"
+  if [ -n "${leftover}" ]; then
+    printf 'skill-deps.json is forbidden; plugins must ship bundled Skills:\n%s\n' "${leftover}" >&2
     exit 1
   fi
-
-  log "Checking prepared vendor-skills content and deterministic index"
-  node scripts/vendor-skills-index.mjs verify --root "${ROOT_DIR}"
+  if [ -d vendor-skills ] || [ -f scripts/update-vendor-skills.sh ] || [ -f scripts/vendor-skills-index.mjs ]; then
+    printf 'vendor-skills supply chain files must be removed\n' >&2
+    exit 1
+  fi
+  printf 'No skill-deps.json or vendor-skills supply chain\n'
 }
 
 check_marketplace_registration() {

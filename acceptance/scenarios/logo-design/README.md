@@ -1,6 +1,6 @@
 # Scenario: logo design (project acceptance)
 
-Open-ended logo delivery under a **full** plugin + skill-deps install, driven by
+Open-ended logo delivery under a **full** plugin install, driven by
 a client brief rather than a single prescribed Write path.
 
 ## Cases

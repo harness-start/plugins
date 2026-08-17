@@ -2,7 +2,7 @@
 # Project-level host acceptance: full catalog via install-all.sh + scenario cases.
 #
 # Unlike per-plugin acceptance (single --plugin-dir / single plugin add), project
-# cases install every marketplace plugin and all skill-deps.json community skills
+# cases install every marketplace plugin
 # through scripts/install-all.sh --local <checkout>, then run real Claude/Codex
 # sessions against a workspace fixture using open-ended briefs.
 #
