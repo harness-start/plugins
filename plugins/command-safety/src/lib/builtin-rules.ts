@@ -25,9 +25,19 @@ export type SafetyRule = {
   observedFacts?: string | undefined;
   harm?: string | undefined;
   unblockWhen?: string | undefined;
-  formatMessage?: ((command: string) => string) | undefined;
+  formatMessage?: ((command: string, host?: string | undefined) => string) | undefined;
   sensitive?: boolean | undefined;
 };
+
+function fileAwareEditRecovery(host?: string): string {
+  if (host === "codex") {
+    return "Use apply_patch for new or existing files so path guards and verification hooks can observe the change.";
+  }
+  if (host === "claude") {
+    return "Use Write for new files or Edit for existing files so path guards and verification hooks can observe the change.";
+  }
+  return "Use the host's file-aware editing tool so path guards and verification hooks can observe the change.";
+}
 
 const SQL_CLIENTS = new Set([
   "mysql",
@@ -293,12 +303,12 @@ export const BUILTIN_RULES: SafetyRule[] = [
         !isCatTmpRedirect(command),
     },
     reason: "Writing a file through a Bash cat heredoc bypasses all PostToolUse hooks",
-    recovery: "Use Write for new files and Edit/apply_patch for existing files.",
+    recovery: "Use the host's file-aware editing tool.",
     observedFacts: "The Bash input contains a cat heredoc redirected to a non-temporary file.",
     harm: "The write bypasses file-aware target checks, change hooks, and post-write verification.",
     unblockWhen:
       "The heredoc is used only as pipeline input, writes only to an allowed temporary directory, or is replaced with a file-aware editing tool.",
-    formatMessage: (command) =>
+    formatMessage: (command, host) =>
       [
         "[Cat Write Guard] cat heredoc file write blocked",
         "",
@@ -310,13 +320,13 @@ export const BUILTIN_RULES: SafetyRule[] = [
         "",
         `Command: ${command}`,
         "",
-        "Alternative: use Write for new files and Edit/apply_patch for existing files.",
+        `Alternative: ${fileAwareEditRecovery(host)}`,
         "",
         "blockingContract:",
         "  observedFacts: The Bash input contains a cat heredoc redirected to a non-temporary file.",
         "  harm: The write bypasses file-aware target checks, change hooks, and post-write verification.",
         "  unblockWhen: The heredoc is used only as pipeline input, writes only to an allowed temporary directory, or is replaced with a file-aware editing tool.",
-        "  recovery: Apply content with Write, Edit, or apply_patch so path guards and verification hooks can observe the change.",
+        `  recovery: ${fileAwareEditRecovery(host)}`,
       ].join("\n"),
   },
   {
@@ -330,13 +340,13 @@ export const BUILTIN_RULES: SafetyRule[] = [
         isCatTmpRedirect(command),
     },
     reason: "Writing a temporary file with a Bash cat heredoc does not trigger file-aware PostToolUse checks",
-    recovery: "Temporary scripts may proceed, but prefer the Write tool.",
-    formatMessage: (command) =>
+    recovery: "Temporary scripts may proceed, but prefer the host's file-aware editing tool.",
+    formatMessage: (command, host) =>
       [
         "[Cat Write Guard] cat heredoc temporary-file write detected",
         "",
         "Writing a file with a Bash cat heredoc does not trigger file-aware PostToolUse checks.",
-        "Temporary scripts may proceed, but prefer the Write tool.",
+        `Temporary scripts may proceed. ${fileAwareEditRecovery(host)}`,
         `Command: ${command}`,
       ].join("\n"),
   },

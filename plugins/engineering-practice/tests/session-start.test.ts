@@ -5,11 +5,15 @@ import { test } from "node:test";
 
 const entry = resolve(import.meta.dirname, "../dist/hooks/engineering-practice.mjs");
 
-test("routes implementation, review, and verification without claiming debugging ownership", () => {
+test("offers engineering methods without making Skill loading an outcome prerequisite", () => {
   const result = spawnSync(process.execPath, [entry], { input: JSON.stringify({ cwd: process.cwd() }), encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
   assert.match(context, /engineering-judgment.*engineering-review.*engineering-verification/isu);
+  assert.match(context, /optional.*not.*(?:prerequisite|completion evidence)/isu);
+  assert.match(context, /fresh command evidence/iu);
+  assert.match(context, /P0-P3 severity.*exact file:line.*concrete evidence.*verifiable fix/isu);
+  assert.doesNotMatch(context, /before acting|\brequire\b/iu);
   assert.doesNotMatch(context, /engineering-debugging|debug-workflow|humanizer|stop-slop|shuorenhua|\$HOME\/\.agents\/skills/iu);
 });
 

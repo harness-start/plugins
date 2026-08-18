@@ -155,6 +155,8 @@ npx tsx --test plugins/command-safety/tests/*.test.ts
 
 单元测试只执行纯检查和本地 Node.js Hook 子进程。Claude Code 与 Codex 的实时验收仅在 Docker 中运行，并要求仓库 `.env` 提供 [host acceptance](../../docs/host-acceptance.md) 所述配置。
 
+拒绝信息中的恢复建议按宿主能力生成：Claude Code 使用 `Write` / `Edit`，Codex 使用 `apply_patch`；两端共享相同的风险判定与放行条件。
+
 版本：`0.5.0`
 
 ## 版本沿革

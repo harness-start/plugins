@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'Engineering Practice.*Selective engineering Skill orchestration'
+require_session_context_signal 'Engineering Practice.*Optional engineering method guidance'
 require_exact_model_reply 'MINDSET-DIRECT-OK'
 
 if [ "${ACCEPT_HOST}" = "claude" ]; then

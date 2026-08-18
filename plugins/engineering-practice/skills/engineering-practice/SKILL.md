@@ -5,7 +5,7 @@ description: Route implementation, read-only code review, and completion-time ve
 
 # Engineering Practice
 
-Load only the Skills this task needs:
+Use only the optional method guides that help this task; working directly is valid:
 
 | Situation | Skill |
 |---|---|
@@ -13,4 +13,4 @@ Load only the Skills this task needs:
 | Read-only code review | `engineering-review` |
 | About to claim complete, fixed, passing, commit, or PR | `engineering-verification` |
 
-Hooks remain independent enforcement. Loading a Skill or injecting SessionStart context is not completion evidence.
+Hooks remain independent enforcement. Loading a Skill or injecting SessionStart context is neither a prerequisite nor completion evidence. Completion claims need fresh verification against the changed public behavior.

@@ -12,7 +12,9 @@
 
 实现发生变化后，Stop 会卡住直到相关测试跑绿（GREEN）。把实现恢复成 HEAD 内容会清掉这道屏障，避免无法回退。另写一份新测试不能用来绕过 HEAD 里已经存在的对应测试。
 
-插件不会自行启动测试进程；缺少明确退出状态或可识别测试结果时不会记作 RED/GREEN。测试文件仍须通过语言实体绑定或完整目录镜像指向实现文件。会话状态只保存 RED/GREEN 回执，写在当前工作目录的 `.test-driven-development/state/`。`.test-driven-development/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。
+插件不会自行启动测试进程。RED 必须同时具备可识别的测试 runner、能绑定到测试文件的命令范围，以及测试框架报告的失败；命令不存在、依赖缺失、权限错误和其他基础设施失败不会算作 RED。GREEN 要求成功退出且没有相矛盾的失败摘要，因此 `pytest ... | tail` 一类管道即使末端退出码为 0，也不能把输出中的失败记成 GREEN。除常见框架命令外，插件支持 `runtests.py` / `run_tests.py` 与 `manage.py test`，并把 `expressions.tests` 这类 Python 点号 selector 绑定到工作区测试路径。缺少明确退出状态或可识别测试结果时不会记作 RED/GREEN。
+
+测试文件仍须通过语言实体绑定或完整目录镜像指向实现文件。会话状态只保存 RED/GREEN 回执，写在当前工作目录的 `.test-driven-development/state/`。`.test-driven-development/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。
 
 ## 工作流程
 

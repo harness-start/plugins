@@ -210,9 +210,13 @@ function resolveReason(rule: SafetyRule, command: string): string {
 }
 
 /** Format a deny/report message for a matched rule. */
-export function formatFinding(rule: SafetyRule, command: string): string {
+export function formatFinding(
+  rule: SafetyRule,
+  command: string,
+  options: { host?: string | undefined } = {},
+): string {
   if (typeof rule.formatMessage === "function") {
-    return rule.formatMessage(command);
+    return rule.formatMessage(command, options.host);
   }
 
   const title = rule.title || rule.id || "Command Safety";

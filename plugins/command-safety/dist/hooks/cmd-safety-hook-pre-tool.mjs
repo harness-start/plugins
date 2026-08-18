@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:a5dff611141c6124950dab985387a109a002279a4a08a3d6460fe443bb7387ba
+// harness-source-hash: sha256:507c6b14c3aeae075a0448e1c63e4171e5bc9c9b1dd268f9317a31404174d828
 import {
   additionalContextOutput,
   commandInvocation,
@@ -19,7 +19,7 @@ import {
   splitShellLogicalLines,
   tokenizeShell,
   writeJson
-} from "../chunks/chunk-YFPU27WO.mjs";
+} from "../chunks/chunk-B2ET46FL.mjs";
 
 // plugins/command-safety/src/lib/matchers.ts
 var SHELL_TOOLS = /^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i;
@@ -535,12 +535,12 @@ async function main() {
     if (hit.mode === "allow") process.exit(0);
     if (hit.mode === "deny") {
       recordDeny(event, command, hit.id || "command-rule");
-      writeJson(preToolDeny(formatFinding(hit, command)));
+      writeJson(preToolDeny(formatFinding(hit, command, { host: process.env.HARNESS_HOST })));
       process.exit(0);
     }
     if (hit.mode === "report") {
       writeJson(
-        additionalContextOutput("PreToolUse", formatFinding(hit, command))
+        additionalContextOutput("PreToolUse", formatFinding(hit, command, { host: process.env.HARNESS_HOST }))
       );
       process.exit(0);
     }

@@ -6,10 +6,16 @@ require_host_session_started
 if [ "${ACCEPT_HOST}" != "codex" ]; then
   require_guard_hook_signal '\[TDD Guard\] Recorded test structure.*RED'
 fi
-state_file="$(find "${ACCEPT_WORKSPACE}/.test-driven-development/state" -name '*.json' -type f -print -quit)"
+state_file=""
+for candidate in "${ACCEPT_WORKSPACE}/.test-driven-development/state"/*.json; do
+  if [ -f "${candidate}" ] && jq -e '.version == 3 and .lastRed != null and (.tests[] | select(.path == "test/price-calculator.test.mjs"))' "${candidate}" >/dev/null; then
+    state_file="${candidate}"
+    break
+  fi
+done
 test -n "${state_file}"
 test ! -d "${ACCEPT_WORKSPACE}/.test-driven-development/.state"
-test "$(cat "${ACCEPT_WORKSPACE}/.test-driven-development/.gitignore")" = "state/"
+test "$(cat "${ACCEPT_WORKSPACE}/.test-driven-development/.gitignore")" = "*"
 test "$(cat "${ACCEPT_WORKSPACE}/.gitignore")" = "vendor/"
 jq -e '.version == 3 and .lastRed != null and (.tests[] | select(.path == "test/price-calculator.test.mjs" and .evidence.valid == true and (.evidence.targets | index("javascript-module:src/price-calculator"))))' "${state_file}" >/dev/null
 node --test "${ACCEPT_WORKSPACE}/test/price-calculator.test.mjs"

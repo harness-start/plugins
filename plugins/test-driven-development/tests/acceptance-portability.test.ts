@@ -53,6 +53,9 @@ test("TDD live cases follow the version 3 RED-GREEN contract", () => {
   assert.match(allowExpect, /ACCEPT_WORKSPACE.*\.test-driven-development\/state/su);
   assert.match(allowExpect, /\.version == 3/u);
   assert.match(allowExpect, /\.lastRed != null/u);
+  assert.match(allowExpect, /for candidate in .*state.*\.json/su);
+  assert.doesNotMatch(allowExpect, /-print -quit/u);
+  assert.match(allowExpect, /\.test-driven-development\/\.gitignore.*= "\*"/su);
   assert.doesNotMatch(allowPrompt + allowExpect, /do not run tests|codex-home\/plugins\/data|\.version == 2/iu);
   assert.match(identityPrompt, /node --test.*fail.*RED.*wrong.*blocked.*correct.*pass.*GREEN/isu);
   assert.match(identityExpect, /src\/shipping\/order-service\.mjs/u);

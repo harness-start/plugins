@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6e90cfab27e8b1b04d9e99000de5dbe3826cf883ea65f5fec90f8822fcb4b137
+// harness-source-hash: sha256:b620fff3494710dbe1af7ec7d6a78cc8ca8523f3262beb1e11e424f527b4bd2b
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -172,24 +172,25 @@ function responseText(response) {
   return "";
 }
 function inferOutcome(event, forceFailure = false) {
-  if (forceFailure) return "failure";
   const response = responseOf(event);
-  if (isRecord(response)) {
-    if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
-    const code = response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code;
-    if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
-    if (response.success === false) return "failure";
-    if (response.success === true) return "success";
-  }
   const text = responseText(response);
-  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
-  if (exitLine?.[1] !== void 0) return Number(exitLine[1]) === 0 ? "success" : "failure";
+  const transportFailure = isRecord(response) && (response.is_error === true || response.isError === true || Boolean(response.error) || response.interrupted === true);
+  if (/(?:command not found|permission denied|could not find executable|is not recognized as an internal or external command)/iu.test(text)) {
+    return "unknown";
+  }
   const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (failed?.[1] && Number(failed[1]) > 0) return "failure";
+  if (failed?.[1] && Number(failed[1]) > 0 || /(?:^|\n)(?:not ok\s+[0-9]+\b|--- FAIL:)|\b[1-9][0-9]*\s+failures?\b|\b[1-9][0-9]*\s+failed\b|FAILED\s*\([^\n]*(?:failures?|errors?)\s*=\s*[1-9]/iu.test(text)) return "failure";
+  if (transportFailure) return "unknown";
+  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
+  const responseCode = isRecord(response) ? response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code : void 0;
+  const code = Number.isFinite(Number(responseCode)) ? Number(responseCode) : exitLine?.[1] !== void 0 ? Number(exitLine[1]) : null;
+  if (code !== null && code !== 0) return "unknown";
+  if (forceFailure) return "unknown";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
   if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
-  if (/(?:^|\n)not ok\s+[0-9]+\b|\b[1-9][0-9]*\s+failures?\b/iu.test(text)) return "failure";
   if (/\b0\s+failures?\b/iu.test(text)) return "success";
+  if (isRecord(response) && response.success === false) return "unknown";
+  if (code === 0 || isRecord(response) && response.success === true) return "success";
   return "unknown";
 }
 function stripQuotes(value) {
@@ -1129,9 +1130,10 @@ function mixedWriteFinding() {
   return "[TDD Guard] A single tool call cannot mix test and implementation files. Use separate tool calls: write the test first, let the hook record it, then write implementation files.";
 }
 function testCommand(command) {
-  return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(String(command ?? ""));
+  const value = String(command ?? "");
+  return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(value) || /(?:^|[;&|]\s*)(?:python(?:3)?\s+)?["']?(?:\.\/|\/)?[^\s;&|"']*(?:runtests|run[-_]?tests?)\.py\b/iu.test(value) || /(?:^|[;&|]\s*)python(?:3)?\s+(?:\.\/)?manage\.py\s+test\b/iu.test(value);
 }
-var TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|test_[^/\s"']+\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
+var TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
 function namedTestPaths(command, root) {
   const normalized = String(command ?? "").replaceAll("\\", "/");
   const found = [];
@@ -1142,8 +1144,30 @@ function namedTestPaths(command, root) {
   }
   return [...new Set(found)];
 }
+function selectorTestPaths(command, root, state) {
+  const tokens = String(command).match(/[A-Za-z_][A-Za-z0-9_.]*/gu) ?? [];
+  const found = /* @__PURE__ */ new Set();
+  const recorded = (state.tests ?? []).map((record) => record.path);
+  for (const token of tokens) {
+    if (!token.includes(".")) continue;
+    const parts = token.split(".");
+    for (let length = parts.length; length >= 2; length -= 1) {
+      const selector = parts.slice(0, length).join(".");
+      const selectorPath = `${selector.replaceAll(".", "/")}.py`;
+      const candidates = [selectorPath, `tests/${selectorPath}`, ...recorded.filter((path) => {
+        const module = path.replace(/\.py$/u, "").replaceAll("/", ".").replace(/^tests?\./u, "");
+        return selector === module || selector.startsWith(`${module}.`);
+      })];
+      for (const candidate of candidates) {
+        if (!existsSync4(resolve6(root, candidate))) continue;
+        if (classifyPath(candidate).kind === "test") found.add(candidate);
+      }
+    }
+  }
+  return [...found];
+}
 function coveredOutcomePaths(command, root, state, outcome) {
-  const named = namedTestPaths(command, root);
+  const named = [.../* @__PURE__ */ new Set([...namedTestPaths(command, root), ...selectorTestPaths(command, root, state)])];
   if (named.length > 0) {
     if (outcome === "success" && state.needsGreen?.testPaths?.length) {
       return named.filter((path) => state.needsGreen?.testPaths.includes(path));

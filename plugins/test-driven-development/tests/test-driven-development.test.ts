@@ -1400,13 +1400,80 @@ test("git-dirty Node test plus named node --test RED allows the matching module"
   }
 });
 
+test("a project test runner binds a dotted selector to the edited Python test", async () => {
+  const fx = fixture("test-driven-development-project-runner-");
+  try {
+    gitInit(fx.root);
+    mkdirSync(join(fx.root, "tests", "expressions"), { recursive: true });
+    const testPath = "tests/expressions/tests.py";
+    writeFileSync(join(fx.root, testPath), [
+      "from expressions import normalize",
+      "def test_normalize():",
+      "    assert normalize() == 1",
+      "",
+    ].join("\n"));
+    const sourceWrite = writeEvent(
+      fx.root,
+      "src/expressions.py",
+      "def normalize():\n    return 1\n",
+      "project-runner-source",
+    );
+    await runHook("failure", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "project-runner-missing",
+      tool_input: { cmd: "./tests/runtests.py --verbosity 2 expressions.tests" },
+      tool_response: { exit_code: 127, stderr: "./tests/runtests.py: command not found" },
+    }, hookEnv(fx.data));
+    const blocked = await runHook("pre", sourceWrite, hookEnv(fx.data));
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "project-runner-mentioned",
+      tool_input: { cmd: "printf './tests/runtests.py expressions.tests\\n1 failure\\n'" },
+      tool_response: { exit_code: 0, stdout: "./tests/runtests.py expressions.tests\n1 failure" },
+    }, hookEnv(fx.data));
+    const stillBlocked = await runHook("pre", sourceWrite, hookEnv(fx.data));
+    assert.equal(JSON.parse(stillBlocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+
+    await runHook("failure", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "project-runner-red",
+      tool_input: { cmd: "./tests/runtests.py --verbosity 2 expressions.tests" },
+      tool_response: { exit_code: 1, stdout: "FAILED (failures=1)" },
+    }, hookEnv(fx.data));
+
+    const allowed = await runHook(
+      "pre",
+      sourceWrite,
+      hookEnv(fx.data),
+    );
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("inferOutcome classifies Claude, Codex, and string test payloads", () => {
   const rows = [
     ["claude tap pass object", { tool_response: { stdout: "ok 1\n# pass 1\n# fail 0\n", stderr: "", interrupted: false } }, "success"],
     ["claude tap fail object", { tool_response: { stdout: "not ok 1\n# pass 0\n# fail 1\n", stderr: "", interrupted: false } }, "failure"],
-    ["claude interrupted", { tool_response: { stdout: "ok 1\n# pass 1\n", stderr: "", interrupted: true } }, "failure"],
+    ["claude interrupted", { tool_response: { stdout: "ok 1\n# pass 1\n", stderr: "", interrupted: true } }, "unknown"],
     ["codex exit 0", { tool_response: { exit_code: 0, stdout: "1 test, 0 failures" } }, "success"],
     ["codex exit 1", { tool_response: { exit_code: 1, stdout: "1 test, 1 failure" } }, "failure"],
+    ["pipeline exit 0 with failed tests", { tool_response: { exit_code: 0, stdout: "1 passed, 2 failed" } }, "failure"],
+    ["missing implementation reported by the test framework", { tool_response: { exit_code: 1, stdout: "not ok 1 - test/price.test.mjs", stderr: "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'src/price.mjs'" } }, "failure"],
+    ["Go test failure", { tool_response: { exit_code: 1, stdout: "--- FAIL: TestNormalize (0.00s)\nFAIL\texample.test/pkg" } }, "failure"],
+    ["missing test executable", { tool_response: { exit_code: 127, stderr: "pytest: command not found" } }, "unknown"],
+    ["runner dependency failure", { tool_response: { exit_code: 1, stderr: "ModuleNotFoundError: No module named 'framework'" } }, "unknown"],
+    ["transport failure without test result", { tool_response: { is_error: true, stderr: "sandbox stopped the command" } }, "unknown"],
     ["string exit 0", { tool_response: "ok 1\n# pass 1\nExit code: 0\n" }, "success"],
     ["empty string", { tool_response: "" }, "unknown"],
     ["empty object", { tool_response: {} }, "unknown"],

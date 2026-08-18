@@ -90,10 +90,15 @@ function mixedWriteFinding(): string {
 }
 
 function testCommand(command: string | null | undefined): boolean {
-  return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(String(command ?? ""));
+  const value = String(command ?? "");
+  return (
+    /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(value) ||
+    /(?:^|[;&|]\s*)(?:python(?:3)?\s+)?["']?(?:\.\/|\/)?[^\s;&|"']*(?:runtests|run[-_]?tests?)\.py\b/iu.test(value) ||
+    /(?:^|[;&|]\s*)python(?:3)?\s+(?:\.\/)?manage\.py\s+test\b/iu.test(value)
+  );
 }
 
-const TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|test_[^/\s"']+\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
+const TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
 
 function namedTestPaths(command: string, root: string): string[] {
   const normalized = String(command ?? "").replaceAll("\\", "/");
@@ -106,8 +111,31 @@ function namedTestPaths(command: string, root: string): string[] {
   return [...new Set(found)];
 }
 
+function selectorTestPaths(command: string, root: string, state: GuardState): string[] {
+  const tokens = String(command).match(/[A-Za-z_][A-Za-z0-9_.]*/gu) ?? [];
+  const found = new Set<string>();
+  const recorded = (state.tests ?? []).map((record) => record.path);
+  for (const token of tokens) {
+    if (!token.includes(".")) continue;
+    const parts = token.split(".");
+    for (let length = parts.length; length >= 2; length -= 1) {
+      const selector = parts.slice(0, length).join(".");
+      const selectorPath = `${selector.replaceAll(".", "/")}.py`;
+      const candidates = [selectorPath, `tests/${selectorPath}`, ...recorded.filter((path) => {
+        const module = path.replace(/\.py$/u, "").replaceAll("/", ".").replace(/^tests?\./u, "");
+        return selector === module || selector.startsWith(`${module}.`);
+      })];
+      for (const candidate of candidates) {
+        if (!existsSync(resolve(root, candidate))) continue;
+        if (classifyPath(candidate).kind === "test") found.add(candidate);
+      }
+    }
+  }
+  return [...found];
+}
+
 function coveredOutcomePaths(command: string, root: string, state: GuardState, outcome: CommandOutcome): string[] {
-  const named = namedTestPaths(command, root);
+  const named = [...new Set([...namedTestPaths(command, root), ...selectorTestPaths(command, root, state)])];
   if (named.length > 0) {
     if (outcome === "success" && state.needsGreen?.testPaths?.length) {
       return named.filter((path) => state.needsGreen?.testPaths.includes(path));

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d0bfade33e3c4aa9bf35bdf2cabcf892d8017c445f558b1972a080fc13cd86ae
+// harness-source-hash: sha256:d5195f087dfa8b5ff1ea7b8f2d59ceb8fe1b7413c496cf9ec5c24847fd76eecb
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
@@ -46,14 +46,13 @@ function warn(message) {
 `);
 }
 function engineeringPracticeContext() {
-  const loading = process.env.HARNESS_HOST === "codex" ? "Codex: read each selected Skill from this plugin's `skills/<name>/SKILL.md` before acting." : "Claude: invoke each selected plugin Skill through the native Skill tool before acting.";
   return [
-    "[Engineering Practice] Selective engineering Skill orchestration",
-    loading,
-    "For non-trivial implementation or refactoring, require `engineering-judgment`.",
-    "For read-only code review, require `engineering-review`; findings need severity, file:line, evidence, and a verifiable fix or recovery path.",
-    "Before a completion, fixed, passing, commit, or PR claim, require `engineering-verification` and fresh command evidence.",
-    "Load only Skills selected by the current engineering task. Hooks remain independent enforcement and are not completion evidence."
+    "[Engineering Practice] Optional engineering method guidance",
+    "Skills are optional method guides, not Hook prerequisites or completion evidence.",
+    "For non-trivial implementation or refactoring, `engineering-judgment` can help control scope and tradeoffs.",
+    "`engineering-review` is optional guidance; every read-only review finding still needs a P0-P3 severity, exact file:line, concrete evidence, and a verifiable fix or recovery path.",
+    "Completion, fixed, passing, commit, or PR claims need fresh command evidence; `engineering-verification` can help select the checks.",
+    "Use only helpful methods, or work directly. Hooks remain independent enforcement."
   ].join("\n");
 }
 async function runSessionStart() {

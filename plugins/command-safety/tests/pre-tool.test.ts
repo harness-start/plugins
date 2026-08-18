@@ -267,9 +267,10 @@ test("dangerous-rm deny message contains the complete blocking contract", () => 
   }
 });
 
-function runHook(event) {
+function runHook(event, env = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [PRE], {
+      env: { ...process.env, ...env },
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
@@ -334,6 +335,23 @@ test("entry denies cat heredoc for lowercase Codex shell tool", async () => {
     output.hookSpecificOutput.permissionDecisionReason,
     /Cat Write Guard/,
   );
+});
+
+test("cat heredoc recovery names only the current host's file-aware tools", async () => {
+  const event = {
+    cwd: CWD,
+    tool_name: "exec_command",
+    tool_input: { cmd: "cat > src/a.txt <<'EOF'\nx\nEOF" },
+  };
+  const codex = JSON.parse((await runHook(event, { HARNESS_HOST: "codex" })).stdout)
+    .hookSpecificOutput.permissionDecisionReason;
+  const claude = JSON.parse((await runHook(event, { HARNESS_HOST: "claude" })).stdout)
+    .hookSpecificOutput.permissionDecisionReason;
+
+  assert.match(codex, /apply_patch/u);
+  assert.doesNotMatch(codex, /(?:Alternative:|recovery:)[^\n]*(?:\bWrite\b|\bEdit\b)/u);
+  assert.match(claude, /\bWrite\b.*\bEdit\b/su);
+  assert.doesNotMatch(claude, /apply_patch/u);
 });
 
 test("entry denies bare sed in-place edits", async () => {

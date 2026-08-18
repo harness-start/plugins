@@ -56,24 +56,37 @@ function responseText(response: unknown): string {
 }
 
 export function inferOutcome(event: HookEvent, forceFailure = false): CommandOutcome {
-  if (forceFailure) return "failure";
   const response = responseOf(event);
-  if (isRecord(response)) {
-    if (response.is_error === true || response.isError === true || response.error || response.interrupted === true) return "failure";
-    const code = response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code;
-    if (Number.isFinite(Number(code))) return Number(code) === 0 ? "success" : "failure";
-    if (response.success === false) return "failure";
-    if (response.success === true) return "success";
-  }
   const text = responseText(response);
-  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
-  if (exitLine?.[1] !== undefined) return Number(exitLine[1]) === 0 ? "success" : "failure";
+  const transportFailure = isRecord(response) && (
+    response.is_error === true ||
+    response.isError === true ||
+    Boolean(response.error) ||
+    response.interrupted === true
+  );
+  if (/(?:command not found|permission denied|could not find executable|is not recognized as an internal or external command)/iu.test(text)) {
+    return "unknown";
+  }
   const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (failed?.[1] && Number(failed[1]) > 0) return "failure";
+  if (
+    (failed?.[1] && Number(failed[1]) > 0) ||
+    /(?:^|\n)(?:not ok\s+[0-9]+\b|--- FAIL:)|\b[1-9][0-9]*\s+failures?\b|\b[1-9][0-9]*\s+failed\b|FAILED\s*\([^\n]*(?:failures?|errors?)\s*=\s*[1-9]/iu.test(text)
+  ) return "failure";
+  if (transportFailure) return "unknown";
+  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
+  const responseCode = isRecord(response)
+    ? response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code
+    : undefined;
+  const code = Number.isFinite(Number(responseCode))
+    ? Number(responseCode)
+    : exitLine?.[1] !== undefined ? Number(exitLine[1]) : null;
+  if (code !== null && code !== 0) return "unknown";
+  if (forceFailure) return "unknown";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
   if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
-  if (/(?:^|\n)not ok\s+[0-9]+\b|\b[1-9][0-9]*\s+failures?\b/iu.test(text)) return "failure";
   if (/\b0\s+failures?\b/iu.test(text)) return "success";
+  if (isRecord(response) && response.success === false) return "unknown";
+  if (code === 0 || (isRecord(response) && response.success === true)) return "success";
   return "unknown";
 }
 

@@ -98,12 +98,12 @@ async function main() {
     if (hit.mode === "allow") process.exit(0);
     if (hit.mode === "deny") {
       recordDeny(event, command, hit.id || "command-rule");
-      writeJson(preToolDeny(formatFinding(hit, command)));
+      writeJson(preToolDeny(formatFinding(hit, command, { host: process.env.HARNESS_HOST })));
       process.exit(0);
     }
     if (hit.mode === "report") {
       writeJson(
-        additionalContextOutput("PreToolUse", formatFinding(hit, command)),
+        additionalContextOutput("PreToolUse", formatFinding(hit, command, { host: process.env.HARNESS_HOST })),
       );
       process.exit(0);
     }
