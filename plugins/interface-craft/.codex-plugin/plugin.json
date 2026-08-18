@@ -1,7 +1,7 @@
 {
   "name": "interface-craft",
-  "version": "0.1.0",
-  "description": "General interface visual craft: hierarchy, contrast, anti-pattern detection on UI files.",
+  "version": "0.2.0",
+  "description": "General interface visual craft: direction, design-system continuity, responsive review, and mechanical UI checks.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -10,8 +10,8 @@
   "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Interface Craft",
-    "shortDescription": "Mechanical UI craft checks plus critique methods.",
-    "longDescription": "Detects mechanical interface anti-patterns on UI files after edits, and supplies first-party craft-floor and critique methods. It does not write posters, decks, Remotion, or logos, and it does not replace web-frontend syntax or lockfile gates.",
+    "shortDescription": "Interface direction, systems, rendered critique, and mechanical checks.",
+    "longDescription": "Supplies first-party methods for visual direction, design-system continuity, motion, craft floors, and rendered responsive critique, with mechanical anti-pattern checks after edits. It does not write posters, decks, Remotion, or logos, and it does not replace web-frontend syntax or lockfile gates.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],

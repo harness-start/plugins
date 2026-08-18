@@ -677,6 +677,7 @@ _run_claude_session_core() {
   local prompt_file="$3"
   local log_file="$4"
   local timeout_sec="$5"
+  local continuation="${6:-false}"
   local model="${DEEPSEEK_MODEL}"
 
   export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"
@@ -710,6 +711,9 @@ _run_claude_session_core() {
     --debug
     --debug-file "${debug_file}"
   )
+  if [ "${continuation}" = "true" ]; then
+    claude_args+=(--continue)
+  fi
   if [ -n "${plugin_dir}" ]; then
     claude_args+=(--plugin-dir "${plugin_dir}")
   fi
@@ -739,6 +743,15 @@ run_claude_session() {
   _run_claude_session_core "${workspace}" "${plugin_dir}" "${prompt_file}" "${log_file}" "${timeout_sec}"
 }
 
+run_claude_continuation() {
+  local workspace="$1"
+  local plugin_dir="$2"
+  local prompt_file="$3"
+  local log_file="$4"
+  local timeout_sec="$5"
+  _run_claude_session_core "${workspace}" "${plugin_dir}" "${prompt_file}" "${log_file}" "${timeout_sec}" true
+}
+
 # Project acceptance: marketplace plugins already installed under HOME.
 run_claude_session_installed() {
   local workspace="$1"
@@ -753,20 +766,25 @@ _run_codex_session_core() {
   local prompt_file="$2"
   local log_file="$3"
   local timeout_sec="$4"
+  local continuation="${5:-false}"
   local model="${DEEPSEEK_MODEL}"
 
   local prompt
   prompt="$(cat "${prompt_file}")"
 
+  local -a codex_args=(
+    --skip-git-repo-check
+    --dangerously-bypass-approvals-and-sandbox
+    --dangerously-bypass-hook-trust
+    -m "${model}"
+  )
   (
     cd "${workspace}"
-    timeout "${timeout_sec}" codex exec \
-      --skip-git-repo-check \
-      --dangerously-bypass-approvals-and-sandbox \
-      --dangerously-bypass-hook-trust \
-      -m "${model}" \
-      -C "${workspace}" \
-      "${prompt}"
+    if [ "${continuation}" = "true" ]; then
+      timeout "${timeout_sec}" codex exec resume --last "${codex_args[@]}" "${prompt}"
+    else
+      timeout "${timeout_sec}" codex exec "${codex_args[@]}" -C "${workspace}" "${prompt}"
+    fi
   ) >"${log_file}" 2>&1 || {
     local code=$?
     printf '\n[accept] codex exit=%s\n' "${code}" >>"${log_file}"
@@ -784,6 +802,14 @@ run_codex_session() {
 
   install_codex_plugin "${marketplace}" "${plugin}"
   _run_codex_session_core "${workspace}" "${prompt_file}" "${log_file}" "${timeout_sec}"
+}
+
+run_codex_continuation() {
+  local workspace="$1"
+  local prompt_file="$2"
+  local log_file="$3"
+  local timeout_sec="$4"
+  _run_codex_session_core "${workspace}" "${prompt_file}" "${log_file}" "${timeout_sec}" true
 }
 
 # Project acceptance: full catalog already installed via install-all.sh.

@@ -1,11 +1,17 @@
 ---
 name: intent-discovery
-description: Front-load intent, repository context, plausible interpretations, and adversarial checks before acting on the first user request. Use only when hook context marks a first-turn discovery pass, or when the user explicitly asks to explore context and assumptions up front without pausing for clarification. Keep simple requests direct; use bounded generic subagents only when independent evidence can change the approach.
+description: Front-load intent, repository context, plausible interpretations, and adversarial checks before acting on a first request or a materially new task. Use when hook context marks a first-turn discovery pass, when the same conversation starts a new outcome or deliverable, or when the user explicitly asks to explore context and assumptions up front. Do not rerun for continuations, follow-ups, or corrections. Keep simple requests direct; use bounded generic subagents only when independent evidence can change the approach.
 ---
 
 # Intent Discovery
 
-Before discovery, classify the request as light, standard, or intensive using this Skill. Explore repository context first. Do not wait for user approval during this first-turn pass; continue with the lowest-risk reversible interpretation.
+Before discovery, classify the request as light, standard, or intensive using this Skill. Explore repository context first. Do not wait for user approval during an eligible discovery pass; continue with the lowest-risk reversible interpretation.
+
+## Route at task boundaries
+
+Run the full discovery pass for the first request in a session, or later when the user starts a materially new task: a new outcome, deliverable, target system, or scope whose interpretation needs fresh evidence. The first-turn Hook is only a one-time mechanical injection; later eligibility comes from normal Skill routing and requires no persisted conversation state.
+
+Do not rerun full discovery for a continuation, follow-up, correction, status request, or request to keep working on the current outcome. Reuse the current working intent and inspect only the new evidence needed for that delta.
 
 ## The one rule
 

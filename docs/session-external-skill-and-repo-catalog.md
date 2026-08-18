@@ -49,7 +49,7 @@
 | `tdd` | [mattpocock/skills/tdd](https://www.skills.sh/mattpocock/skills/tdd) | 先指定为验证方案的社区对照 | 未声明。随后被 Superpowers TDD 替换 |
 | `verification-before-completion` | [obra/superpowers](https://github.com/obra/superpowers) | 与 TDD、本仓库 verification 插件一起规划硬流程 | 已声明并 vendor：`engineering-practice`、`ci-gated-delivery` |
 | `test-driven-development` | [obra/superpowers/test-driven-development](https://www.skills.sh/obra/superpowers/test-driven-development) | 明确要求改用这一套，不要再用 mattpocock 的 TDD | 已声明并 vendor：`test-driven-development` |
-| `systematic-debugging` | [obra/superpowers/systematic-debugging](https://www.skills.sh/obra/superpowers/systematic-debugging) | 语言无关调试插件的主参考 | 已声明并 vendor：`software-debugging`、`engineering-practice` |
+| `systematic-debugging` | [obra/superpowers/systematic-debugging](https://www.skills.sh/obra/superpowers/systematic-debugging) | 语言无关调试插件的主参考 | 调试工作流现仅由 `software-debugging` 承担；`engineering-practice` 不再发布调试 Skill |
 | `debug` | [anthropics/knowledge-work-plugins/debug](https://www.skills.sh/anthropics/knowledge-work-plugins/debug) | 调试插件对照 | 未声明 |
 | `debugging-strategies` | [wshobson/agents/debugging-strategies](https://www.skills.sh/wshobson/agents/debugging-strategies) | 调试插件对照 | 未声明 |
 | `subagent-driven-development` | [obra/superpowers/subagent-driven-development](https://www.skills.sh/obra/superpowers/subagent-driven-development) | 完善当时的 `subagent-discipline` | 未以同名声明。同主题后来也看过 neolabhq 版本 |

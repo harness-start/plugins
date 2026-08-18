@@ -158,6 +158,9 @@ test("bundled skill defines adaptive fan-out, evidence cards, and no-pause fallb
   assert.match(skill, /Do not ask the user/iu);
   assert.match(skill, /single-agent/iu);
   assert.match(skill, /private token-by-token reasoning/iu);
+  assert.match(skill, /materially new task/iu);
+  assert.match(skill, /continuation|follow-up/iu);
+  assert.match(skill, /do not.*full discovery/iu);
 
   const openai = readFileSync(
     join(ROOT, "skills", "intent-discovery", "agents", "openai.yaml"),

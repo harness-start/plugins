@@ -1,7 +1,7 @@
 {
   "name": "engineering-practice",
-  "version": "1.1.0",
-  "description": "Orchestrates community engineering methods for implementation, debugging, and verification.",
+  "version": "2.0.0",
+  "description": "Orchestrates first-party engineering methods for implementation, read-only review, and verification.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

@@ -1,6 +1,6 @@
 ---
 name: engineering-judgment
-description: Reduce common coding mistakes with explicit assumptions, surgical edits, and verifiable success criteria. Use for non-trivial implementation, review, or refactoring.
+description: Reduce common coding mistakes with explicit assumptions, surgical edits, and verifiable success criteria. Use for non-trivial implementation or refactoring. Do not use for read-only code review or concrete software failures.
 ---
 
 # Karpathy Guidelines

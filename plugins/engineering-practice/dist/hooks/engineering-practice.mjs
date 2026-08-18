@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b4f3f38fe39f401bde18e9aae00d05906ca53d4bf61fda58a2df69517db72a2b
+// harness-source-hash: sha256:d0bfade33e3c4aa9bf35bdf2cabcf892d8017c445f558b1972a080fc13cd86ae
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
@@ -50,8 +50,8 @@ function engineeringPracticeContext() {
   return [
     "[Engineering Practice] Selective engineering Skill orchestration",
     loading,
-    "For non-trivial implementation, review, or refactoring, require `engineering-judgment`.",
-    "For bugs, failures, regressions, or unexpected behavior, require `engineering-debugging` before proposing a fix.",
+    "For non-trivial implementation or refactoring, require `engineering-judgment`.",
+    "For read-only code review, require `engineering-review`; findings need severity, file:line, evidence, and a verifiable fix or recovery path.",
     "Before a completion, fixed, passing, commit, or PR claim, require `engineering-verification` and fresh command evidence.",
     "Load only Skills selected by the current engineering task. Hooks remain independent enforcement and are not completion evidence."
   ].join("\n");

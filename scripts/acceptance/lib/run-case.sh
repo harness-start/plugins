@@ -47,11 +47,13 @@ copy_workspace "${CASE_DIR}" "${CASE_OUT}/workspace"
 TIMEOUT_SEC="$(read_case_timeout "${CASE_DIR}")"
 ALLOWED_HOST_EXITS="$(read_case_allowed_host_exits "${CASE_DIR}" "${HOST}")"
 LOG_FILE="${CASE_OUT}/host.log"
+CONTINUATION_LOG="${CASE_OUT}/continuation.log"
 STATUS_FILE="${CASE_OUT}/status.txt"
 
 export ACCEPT_WORKSPACE="${CASE_OUT}/workspace"
 export ACCEPT_HOST="${HOST}"
 export ACCEPT_LOG="${LOG_FILE}"
+export ACCEPT_LOG_SECOND="${CONTINUATION_LOG}"
 export ACCEPT_PLUGIN="${PLUGIN}"
 export ACCEPT_CASE="${CASE_ID}"
 export ACCEPT_OUT="${CASE_OUT}"
@@ -121,7 +123,38 @@ else
   exit 2
 fi
 
+CONTINUATION_HOST_EXIT="n/a"
+if [ "${HOST_EXIT}" -eq 0 ] && [ -f "${CASE_DIR}/prompt-2.md" ]; then
+  CONTINUATION_HOST_EXIT=0
+  set +e
+  if [ "${HOST}" = "claude" ]; then
+    run_claude_continuation \
+      "${ACCEPT_WORKSPACE}" \
+      "${PLUGIN_DIR}" \
+      "${CASE_DIR}/prompt-2.md" \
+      "${CONTINUATION_LOG}" \
+      "${TIMEOUT_SEC}"
+    CONTINUATION_HOST_EXIT=$?
+  else
+    run_codex_continuation \
+      "${ACCEPT_WORKSPACE}" \
+      "${CASE_DIR}/prompt-2.md" \
+      "${CONTINUATION_LOG}" \
+      "${TIMEOUT_SEC}"
+    CONTINUATION_HOST_EXIT=$?
+  fi
+  set -e
+  {
+    printf '\n===== continuation =====\n'
+    cat "${CONTINUATION_LOG}"
+  } >>"${LOG_FILE}"
+  if [ "${CONTINUATION_HOST_EXIT}" -ne 0 ]; then
+    HOST_EXIT="${CONTINUATION_HOST_EXIT}"
+  fi
+fi
+
 printf 'host_exit=%s\n' "${HOST_EXIT}" >"${STATUS_FILE}"
+printf 'continuation_host_exit=%s\n' "${CONTINUATION_HOST_EXIT}" >>"${STATUS_FILE}"
 printf 'allowed_host_exits=%s\n' "${ALLOWED_HOST_EXITS}" >>"${STATUS_FILE}"
 printf 'skill_deps=ok\n' >>"${STATUS_FILE}"
 printf 'model=%s\n' "${DEEPSEEK_MODEL}" >>"${STATUS_FILE}"

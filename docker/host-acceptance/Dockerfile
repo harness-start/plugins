@@ -8,6 +8,7 @@ FROM node:20-bookworm
 
 ARG CLAUDE_CODE_VERSION=2.1.170
 ARG CODEX_VERSION=0.147.0
+ARG CHROMIUM_VERSION=151.0.7922.137-1~deb12u1
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -27,6 +28,13 @@ RUN apt-get update \
        fonts-noto-core \
        libreoffice-impress \
        poppler-utils \
+  && rm -rf /var/lib/apt/lists/*
+
+# Fixed browser for rendered responsive interface acceptance.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+       chromium="${CHROMIUM_VERSION}" \
+  && chromium --version \
   && rm -rf /var/lib/apt/lists/*
 
 RUN npm install --global \

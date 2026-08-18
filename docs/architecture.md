@@ -24,7 +24,7 @@
 
 ## 2. 当前事实
 
-截至最近核对，两个 Marketplace 各登记 37 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。Skill / Hook 协作的规范性要求见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
+截至最近核对，两个 Marketplace 各登记 39 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。Skill / Hook 协作的规范性要求见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
 
 当前实现共同体现了以下事实：
 

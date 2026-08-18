@@ -1,7 +1,7 @@
 {
   "name": "engineering-practice",
-  "version": "1.1.0",
-  "description": "Orchestrates community engineering methods for implementation, debugging, and verification.",
+  "version": "2.0.0",
+  "description": "Orchestrates first-party engineering methods for implementation, read-only review, and verification.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -11,13 +11,13 @@
   "interface": {
     "displayName": "工程实践",
     "shortDescription": "按工程任务加载必要的方法 Skill。",
-    "longDescription": "为实现、调试与完成前验证选择本插件的方法 Skill。",
+    "longDescription": "为实现、只读代码审查与完成前验证选择本插件的方法 Skill。",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["hooks", "skills"],
     "defaultPrompt": [
       "用工程师思维处理这个代码任务。",
-      "先建立可复现证据，再修复这个问题。",
+      "只读审查当前改动并给出有证据的分级发现。",
       "完成前运行直接相关的验证并给出证据。"
     ]
   }

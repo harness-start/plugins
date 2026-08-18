@@ -123,7 +123,8 @@
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "category": "Productivity"
+      "category": "Productivity",
+      "description": "Supplies visual direction, design-system continuity, motion, rendered critique, and mechanical interface checks."
     },
     {
       "name": "intent-discovery",
@@ -135,7 +136,8 @@
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL"
       },
-      "category": "Productivity"
+      "category": "Productivity",
+      "description": "Front-loads first-turn context and bounded adversarial review, and can be routed again for a materially new task without an interview gate."
     },
     {
       "name": "engineering-practice",
@@ -148,7 +150,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "description": "Orchestrates current-source community engineering methods."
+      "description": "Orchestrates first-party implementation, read-only review, and completion-verification methods."
     },
     {
       "name": "professional-writing",

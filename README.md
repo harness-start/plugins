@@ -119,12 +119,12 @@ codex plugin add <name>@harness-start --json
 | `rust-engineering` | 编排 Rust 工程，保护 `Cargo.lock` 并对修改后的 Rust 源码运行有界 `rustfmt` 检查 |
 | `web-frontend-engineering` | 编排 React、Vue、Angular 与 TypeScript，保护 JS lock/node_modules 并执行语法、ESLint、JSON 校验 |
 | `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
-| `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；按复杂度并发只读 subagent，汇总后直接继续 |
-| `engineering-practice` | 编排社区工程方法 Skill 的当前上游版本；依赖缺失时停止对应编排，不替代 Hook 证据 |
+| `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；遇到实质新任务可由原生 Skill 路由复用，继续与纠正不重复探索 |
+| `engineering-practice` | 提供第一方实现判断、只读代码审查与完成前验证方法；具体故障调试归 `software-debugging` |
 | `professional-writing` | 按语言与文稿类型编排社区写作 Skill 的当前上游版本；只执行经过路径与 SHA-256 审计的脚本 |
 | `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
-| `interface-craft` | 检测 UI 文件上的机械界面反模式，并提供第一方工艺底线与批判方法 |
-| `software-debugging` | 通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
+| `interface-craft` | 提供视觉方向、设计系统连续性、动效、工艺底线与渲染批判方法，并检测 UI 文件上的机械反模式 |
+| `software-debugging` | 作为具体软件故障的唯一工作流，通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
 | `agent-activity-audit` | 将文件读写与 shell 命令统一记录到 `.agent-activity-audit/sessions/<session>.jsonl`，记录以 `kind` 区分 |
 | `brand-logo-production` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
 | `poster-production` | 用统一编排 Skill、固定设计顾问、Satori/resvg writer、独立审查和 digest evidence 交付数字海报 |

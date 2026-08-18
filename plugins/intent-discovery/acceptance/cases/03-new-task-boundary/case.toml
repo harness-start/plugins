@@ -1,0 +1,4 @@
+id = "03-new-task-boundary"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["intent-discovery", "skill", "multi-turn", "task-boundary"]

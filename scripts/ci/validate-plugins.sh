@@ -158,6 +158,9 @@ check_unit_tests() {
 check_acceptance_suites() {
   log "Checking dual-host acceptance suites and expect honesty"
 
+  bash -n scripts/acceptance/test-multi-turn-contract.sh
+  bash scripts/acceptance/test-multi-turn-contract.sh
+
   local plugin name cases_dir case_dir hosts
   local found_case
   for plugin in plugins/*; do

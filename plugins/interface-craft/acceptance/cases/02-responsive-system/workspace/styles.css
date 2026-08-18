@@ -1,0 +1,31 @@
+body {
+  margin: 0;
+  color: #0b1f3a;
+  font-family: Arial, sans-serif;
+}
+
+.account {
+  width: 1040px;
+  margin: 60px auto;
+}
+
+header {
+  padding: 32px;
+  background: #0b1f3a;
+  color: white;
+}
+
+a {
+  color: #08a89a;
+}
+
+dl {
+  display: flex;
+  gap: 12px;
+}
+
+dl div {
+  width: 340px;
+  padding: 16px;
+  border: 1px solid #0b1f3a;
+}

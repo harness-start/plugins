@@ -1,7 +1,7 @@
 {
   "name": "interface-craft",
-  "version": "0.1.0",
-  "description": "General interface visual craft: hierarchy, contrast, anti-pattern detection on UI files.",
+  "version": "0.2.0",
+  "description": "General interface visual craft: direction, design-system continuity, responsive review, and mechanical UI checks.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

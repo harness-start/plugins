@@ -60,17 +60,17 @@
     {
       "name": "intent-discovery",
       "source": "./plugins/intent-discovery",
-      "description": "Front-loads first-turn repository context and bounded adversarial review, then continues without an interview gate."
+      "description": "Front-loads first-turn context and bounded adversarial review, and can be routed again for a materially new task without an interview gate."
     },
     {
       "name": "interface-craft",
       "source": "./plugins/interface-craft",
-      "description": "Detects mechanical interface anti-patterns on UI files and supplies first-party craft-floor and critique methods."
+      "description": "Supplies visual direction, design-system continuity, motion, rendered critique, and mechanical interface checks."
     },
     {
       "name": "engineering-practice",
       "source": "./plugins/engineering-practice",
-      "description": "Orchestrates current-source community engineering methods."
+      "description": "Orchestrates first-party implementation, read-only review, and completion-verification methods."
     },
     {
       "name": "professional-writing",

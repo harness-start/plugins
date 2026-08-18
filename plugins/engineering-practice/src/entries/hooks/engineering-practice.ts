@@ -16,8 +16,8 @@ export function engineeringPracticeContext(): string {
   return [
     "[Engineering Practice] Selective engineering Skill orchestration",
     loading,
-    "For non-trivial implementation, review, or refactoring, require `engineering-judgment`.",
-    "For bugs, failures, regressions, or unexpected behavior, require `engineering-debugging` before proposing a fix.",
+    "For non-trivial implementation or refactoring, require `engineering-judgment`.",
+    "For read-only code review, require `engineering-review`; findings need severity, file:line, evidence, and a verifiable fix or recovery path.",
     "Before a completion, fixed, passing, commit, or PR claim, require `engineering-verification` and fresh command evidence.",
     "Load only Skills selected by the current engineering task. Hooks remain independent enforcement and are not completion evidence.",
   ].join("\n");

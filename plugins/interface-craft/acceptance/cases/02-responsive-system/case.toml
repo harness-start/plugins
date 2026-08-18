@@ -1,0 +1,4 @@
+id = "02-responsive-system"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["ui", "render", "responsive", "outcome"]

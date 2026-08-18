@@ -15,6 +15,18 @@ test("typography floor is script-aware and responsive instead of using one unive
   assert.doesNotMatch(skill, /body measure 65–75ch/iu);
 });
 
+test("orchestrator covers direction, design-system continuity, motion, and rendered review without new top-level Skills", () => {
+  const orchestrator = text("skills/interface-craft/SKILL.md");
+  for (const reference of ["visual-direction.md", "design-system.md", "motion.md"]) {
+    assert.equal(existsSync(join(ROOT, "skills", "interface-craft", "references", reference)), true, reference);
+    assert.match(orchestrator, new RegExp(reference.replace(".", "\\."), "u"));
+  }
+  assert.match(orchestrator, /existing.*(?:token|component|brand)/isu);
+  assert.match(orchestrator, /render|screenshot/iu);
+  assert.match(text("skills/interface-visual-critique/SKILL.md"), /render|screenshot/iu);
+  assert.match(text("skills/interface-craft-floor/SKILL.md"), /reduced-motion/iu);
+});
+
 function text(path: string) {
   return readFileSync(join(ROOT, path), "utf8");
 }
@@ -57,4 +69,11 @@ test("both marketplaces publish the plugin once", () => {
     const entries = marketplace.plugins.filter((entry: { name: string }) => entry.name === "interface-craft");
     assert.equal(entries.length, 1, path);
   }
+});
+
+test("acceptance includes a rendered responsive interface outcome", () => {
+  const caseRoot = join(ROOT, "acceptance", "cases", "02-responsive-system");
+  assert.equal(existsSync(join(caseRoot, "case.toml")), true);
+  assert.equal(existsSync(join(caseRoot, "prompt.md")), true);
+  assert.equal(existsSync(join(caseRoot, "expect.sh")), true);
 });

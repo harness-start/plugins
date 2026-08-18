@@ -1,6 +1,6 @@
 # intent-discovery
 
-`intent-discovery` 在 Claude Code 和 Codex 收到会话首个用户 prompt 时，先注入一次短小的发现协议。主 agent 随后加载插件自带的 `intent-discovery` Skill，前置查找项目事实、展开真正会改变行动的解释，并按任务复杂度选择是否并发只读 subagent。
+`intent-discovery` 在 Claude Code 和 Codex 收到会话首个用户 prompt 时，先注入一次短小的发现协议。主 agent 随后加载插件自带的 `intent-discovery` Skill，前置查找项目事实、展开真正会改变行动的解释，并按任务复杂度选择是否并发只读 subagent。同一会话后来出现新的结果、交付物、目标系统或范围时，也可通过宿主的正常 Skill 路由再次使用；继续执行、追问、纠正或状态请求不会重跑完整发现流程。
 
 这个插件不会开启访谈、等待 `done`、阻断业务写入或要求用户批准方案。探索结束后，agent 以有界、可逆的合理假设继续原请求；只有宿主自身的安全、权限或不可逆操作规则仍可能要求确认。
 
@@ -15,6 +15,10 @@ first UserPromptSubmit
 
 later UserPromptSubmit
   -> silent
+
+later materially new task
+  -> native Skill routing (no Hook reinjection)
+  -> bounded discovery for the new task only
 ```
 
 | 深度 | 适用 | 并发行为 |
@@ -27,7 +31,7 @@ worker 只返回带 `Evidence`、`Assumptions` 和 `Gaps` 的 Result Card。父 
 
 ## Hook 与状态
 
-插件只注册 `UserPromptSubmit`。Hook 不判断开放式意图，也不生成方案；它只机械保证本会话的首轮协议最多注入一次。
+插件只注册 `UserPromptSubmit`。Hook 不判断开放式意图，也不生成方案；它只机械保证本会话的首轮协议最多注入一次。新任务边界由 Skill 描述和宿主原生路由判断，不增加第二套 Hook 状态。
 
 - Claude 状态位于 `CLAUDE_PLUGIN_DATA/intent-discovery/first-prompts/`。
 - Codex 状态位于 `PLUGIN_DATA/intent-discovery/first-prompts/`。
