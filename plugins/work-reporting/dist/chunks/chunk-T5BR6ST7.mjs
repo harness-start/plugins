@@ -1,10 +1,10 @@
-// harness-source-hash: sha256:260e491d8369ec89a3a058ab4b294ee5f3647ef8edb2e23c18fca630ff5fec27
+// harness-source-hash: sha256:5b90d89c646be1b9e7284f1ae23f34868119cca95eac1fc1607f03459c3e97a5
 import {
   buildReportWindow,
   collectTranscriptActivity,
   isRecord,
   scanTranscripts
-} from "./chunk-7V3B2FH3.mjs";
+} from "./chunk-DUTGSILQ.mjs";
 
 // plugins/work-reporting/src/lib/report-integrity.ts
 import { createHash } from "node:crypto";

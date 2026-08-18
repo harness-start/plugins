@@ -1,16 +1,16 @@
-import { realpath } from "node:fs/promises";
+import { readFile, realpath } from "node:fs/promises";
 import { homedir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { isRecord, type HookEvent } from "@harness/core/hook-event";
+import { commandInvocation, shellCommandInvocations, type ShellInvocation } from "@harness/core/shell-parse";
 
 import { extractCwd, extractFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "./hook-io.js";
 import { parseReportArgs, type ReportAction, type ReportArgs, type ReportKind } from "./report-cli.js";
 import type { ReportHookState } from "./hook-state.js";
 import { isProtectedReportPath, reportPath } from "./report-store.js";
 import { sha256 } from "./report-integrity.js";
-import { readFile } from "node:fs/promises";
 import { readReportCandidate } from "./report-candidate.js";
 
 export type OfficialCommandError = {
@@ -141,13 +141,116 @@ async function protectedCandidate(path: string, home: string): Promise<boolean> 
   return isProtectedReportPath(physical, home);
 }
 
-function shellMutates(command: unknown): boolean {
+const DIRECT_MUTATORS = new Set([
+  "chmod",
+  "chown",
+  "cp",
+  "dd",
+  "install",
+  "mkdir",
+  "mv",
+  "rm",
+  "rsync",
+  "shred",
+  "tee",
+  "touch",
+  "truncate",
+  "unlink",
+]);
+const SCRIPT_RUNTIMES = new Set(["node", "nodejs", "perl", "python", "python2", "python3", "ruby"]);
+const SHELL_RUNTIMES = new Set(["bash", "dash", "sh", "zsh"]);
+
+function sedMutates(args: readonly string[]): boolean {
+  return args.some((argument) => argument === "--in-place" || argument.startsWith("--in-place=") || /^-[A-Za-z]*i[A-Za-z]*$/u.test(argument));
+}
+
+function nestedFindCommands(args: readonly string[]): ShellInvocation[] {
+  const nested: ShellInvocation[] = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== "-exec" && args[index] !== "-execdir") continue;
+    const end = args.findIndex((argument, candidate) => candidate > index && (argument === ";" || argument === "+"));
+    const words = args.slice(index + 1, end < 0 ? undefined : end);
+    const invocation = commandInvocation(words);
+    if (invocation) nested.push(invocation);
+    if (end >= 0) index = end;
+  }
+  return nested;
+}
+
+function invocationMutates(invocation: ShellInvocation, depth: number): boolean {
+  const executable = invocation.executable.toLowerCase();
+  if (DIRECT_MUTATORS.has(executable)) return true;
+  if (executable === "sed") return sedMutates(invocation.args);
+  if (executable === "find") {
+    return invocation.args.includes("-delete")
+      || nestedFindCommands(invocation.args).some((nested) => invocationMutates(nested, depth));
+  }
+  if (SCRIPT_RUNTIMES.has(executable)) {
+    return /(?:writeFile|unlink|rename|truncate|open\s*\([^)]*["']w)/iu.test(invocation.args.join(" "));
+  }
+  if (depth >= 4) return false;
+  if (executable === "eval") return shellMutates(invocation.args.join(" "), depth + 1);
+  if (SHELL_RUNTIMES.has(executable)) {
+    const commandIndex = invocation.args.findIndex((argument) => /^-[^-]*c/u.test(argument));
+    const nested = commandIndex >= 0 ? invocation.args[commandIndex + 1] : undefined;
+    return nested !== undefined && shellMutates(nested, depth + 1);
+  }
+  return false;
+}
+
+function hasOutputRedirection(command: string): boolean {
+  let quote: "'" | "\"" | null = null;
+  let escaped = false;
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\" && quote !== "'") {
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === "'" || character === "\"") {
+      quote = character;
+      continue;
+    }
+    if (character === ">" && command[index + 1] !== "&") return true;
+  }
+  return false;
+}
+
+function shellMutates(command: unknown, depth = 0): boolean {
   const text = String(command ?? "");
-  return /(?:^|[\s(])(?:\/[\w./-]+\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install|touch|mkdir)\b/iu.test(text)
-    || /(?:^|[^<])>{1,2}\s*[^&]/u.test(text)
-    || /\bfind\b[\s\S]*(?:-delete|-exec|-execdir)\b/iu.test(text)
-    || /\bsed\b[\s\S]*(?:-[A-Za-z]*i[A-Za-z]*|--in-place)\b/iu.test(text)
-    || /\b(?:python3?|node|ruby|perl)\b[\s\S]*(?:writeFile|unlink|rename|truncate|open\s*\([^)]*["']w)/iu.test(text);
+  return hasOutputRedirection(text)
+    || shellCommandInvocations(text).some((invocation) => invocationMutates(invocation, depth));
+}
+
+function recursiveFlag(args: readonly string[]): boolean {
+  return args.some((argument) => argument === "--recursive" || (/^-[^-]*[rR]/u.test(argument) && argument !== "--"));
+}
+
+function invocationMutatesTree(invocation: ShellInvocation, depth: number): boolean {
+  const executable = invocation.executable.toLowerCase();
+  if (executable === "find") return invocationMutates(invocation, depth);
+  if (executable === "mv") return true;
+  if (["chmod", "chown", "cp", "rm", "rsync"].includes(executable)) return recursiveFlag(invocation.args);
+  if (depth >= 4) return false;
+  if (executable === "eval") return shellMutatesTree(invocation.args.join(" "), depth + 1);
+  if (SHELL_RUNTIMES.has(executable)) {
+    const commandIndex = invocation.args.findIndex((argument) => /^-[^-]*c/u.test(argument));
+    const nested = commandIndex >= 0 ? invocation.args[commandIndex + 1] : undefined;
+    return nested !== undefined && shellMutatesTree(nested, depth + 1);
+  }
+  return false;
+}
+
+function shellMutatesTree(command: unknown, depth = 0): boolean {
+  return shellCommandInvocations(String(command ?? "")).some((invocation) => invocationMutatesTree(invocation, depth));
 }
 
 function shellTokens(command: unknown, home: string): string[] {
@@ -160,11 +263,12 @@ function shellTokens(command: unknown, home: string): string[] {
 async function shellTargetsReports(command: string, cwd: string, home: string): Promise<boolean> {
   const root = reportsRoot(home);
   if (String(command).includes(".ai-experts")) return true;
+  const mutatesTree = shellMutatesTree(command);
   for (const token of shellTokens(command, home)) {
     const candidate = resolve(cwd, token);
     const physical = await physicalPath(candidate);
     if (isProtectedReportPath(candidate, home) || isProtectedReportPath(physical, home)) return true;
-    if (/\b(?:rm|mv|find)\b[\s\S]*(?:-r|-R|--recursive|-delete)/iu.test(command) && (inside(root, candidate) || inside(candidate, root) || inside(root, physical) || inside(physical, root))) return true;
+    if (mutatesTree && (inside(root, candidate) || inside(candidate, root) || inside(root, physical) || inside(physical, root))) return true;
   }
   return false;
 }

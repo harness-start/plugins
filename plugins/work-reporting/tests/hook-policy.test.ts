@@ -64,6 +64,58 @@ test("protectionDecision allows read-only inspection of a sealed report", async 
   rmSync(home, { recursive: true, force: true });
 });
 
+test("protectionDecision allows a read-only context-rules search rooted at home", async () => {
+  const home = mkdtempSync(join(tmpdir(), "work-report-hook-"));
+  try {
+    const decision = await protectionDecision({
+      cwd: home,
+      tool_name: "exec_command",
+      tool_input: {
+        cmd: `find ${home} -type f -name '*context-rules*' -exec sed -n '1,20p' {} \\;`,
+      },
+    }, { home, state: { phase: "idle" } });
+    assert.equal(decision.deny, false);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("protectionDecision denies a quoted absolute mutation executable", async () => {
+  const home = mkdtempSync(join(tmpdir(), "work-report-hook-"));
+  try {
+    const target = join(home, ".ai-experts", "daily-reports", "2026-08-10.md");
+    const decision = await protectionDecision({
+      cwd: home,
+      tool_name: "exec_command",
+      tool_input: { cmd: `"/bin/rm" -f "${target}"` },
+    }, { home, state: { phase: "idle" } });
+    assert.equal(decision.deny, true);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test("protectionDecision distinguishes search text from a mutating find action", async () => {
+  const home = mkdtempSync(join(tmpdir(), "work-report-hook-"));
+  try {
+    const search = await protectionDecision({
+      cwd: home,
+      tool_name: "exec_command",
+      tool_input: { cmd: `rg -n 'rm|.ai-experts|a > b' ${home}` },
+    }, { home, state: { phase: "idle" } });
+    assert.equal(search.deny, false);
+
+    const mutation = await protectionDecision({
+      cwd: home,
+      tool_name: "exec_command",
+      tool_input: { cmd: `find ${home} -type f -exec rm -f {} \\;` },
+    }, { home, state: { phase: "idle" } });
+    assert.equal(mutation.deny, true);
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test("officialScriptTrusted rejects a different script that only copies an official basename", async () => {
   const home = mkdtempSync(join(tmpdir(), "work-report-hook-"));
   const fake = join(home, "daily-work-report-save.mjs");

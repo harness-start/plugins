@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:260e491d8369ec89a3a058ab4b294ee5f3647ef8edb2e23c18fca630ff5fec27
+// harness-source-hash: sha256:5b90d89c646be1b9e7284f1ae23f34868119cca95eac1fc1607f03459c3e97a5
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -343,7 +343,7 @@ async function scanTranscripts(options) {
 async function collectTranscriptActivity(options) {
   const window = buildReportWindow(options);
   const scanned = await scanTranscripts({ ...options, window });
-  const { collectEvidenceBundle } = await import("./work-evidence-UOF6F476.mjs");
+  const { collectEvidenceBundle } = await import("./work-evidence-QTZSGY5G.mjs");
   const evidence = await collectEvidenceBundle({
     window,
     sessions: scanned.sessions,
