@@ -13,5 +13,6 @@ Inspect existing semantic tokens, theme configuration, shared components, icon s
 - Define the relevant state matrix: default, hover, focus, active, selected, disabled, loading, error, success, and empty. Preserve non-color cues and keyboard focus.
 - Check desktop and mobile behavior against the product's existing breakpoints and content order.
 - Record an exception when the requested outcome genuinely cannot fit the current system; keep it narrow and explain the migration or recovery path.
+- When a new decision will be reused across surfaces, update the managed block described in [Design memory](design-memory.md). Do not create a second hidden system file.
 
 Continuity is not visual sameness. It means new decisions are traceable to existing roles or to an explicit, bounded exception.

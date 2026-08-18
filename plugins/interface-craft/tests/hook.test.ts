@@ -52,3 +52,18 @@ test("non-UI writes stay silent", () => {
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), "");
 });
+
+test("PostToolUse reports transition-all and removed focus outlines through the bundled Hook", () => {
+  const root = mkdtempSync(join(tmpdir(), "interface-craft-"));
+  const css = join(root, "controls.css");
+  writeFileSync(css, "button { transition: all 200ms ease; outline: none; }\n");
+  const result = run("post", {
+    session_id: `motion-${Date.now()}`,
+    cwd: root,
+    tool_name: "Write",
+    tool_input: { file_path: css },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /TRANSITION_ALL/u);
+  assert.match(result.stdout, /FOCUS_OUTLINE_REMOVED/u);
+});

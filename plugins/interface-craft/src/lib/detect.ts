@@ -14,6 +14,10 @@ export const UI_EXTENSIONS = new Set([
 const IGNORED_SEGMENTS = new Set(["node_modules", "dist", ".git", "vendor-skills", "coverage"]);
 const IGNORED_BASENAMES = new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "Cargo.lock"]);
 
+function maskBlockComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->/gu, (comment) => comment.replace(/[^\r\n]/gu, " "));
+}
+
 const RULES: Array<{ code: string; message: string; pattern: RegExp }> = [
   {
     code: "HARD_OFFSET_SHADOW",
@@ -40,6 +44,16 @@ const RULES: Array<{ code: string; message: string; pattern: RegExp }> = [
     message: "repeating-linear-gradient grids need a real canvas, map, or measuring tool",
     pattern: /background(?:-image)?\s*:\s*repeating-linear-gradient/iu,
   },
+  {
+    code: "TRANSITION_ALL",
+    message: "transition-all is present; enumerate the properties that are intended to animate",
+    pattern: /(?:\btransition(?:-property)?\s*:\s*all(?:\s|;|$)|\btransition-all\b)/iu,
+  },
+  {
+    code: "FOCUS_OUTLINE_REMOVED",
+    message: "a native focus outline is removed; verify an equally visible focus-visible replacement",
+    pattern: /(?:\boutline\s*:\s*(?:none|0(?:px)?)(?:\s|;|$)|\boutline-none\b)/iu,
+  },
 ];
 
 export function isUiPath(filePath: string): boolean {
@@ -58,7 +72,7 @@ export function detectUiSource(filePath: string, source: string): CraftFinding[]
   if (!isUiPath(filePath) || isIgnoredPath(filePath)) return [];
   if (typeof source !== "string") return [];
   const findings: CraftFinding[] = [];
-  const lines = source.split(/\r?\n/u);
+  const lines = maskBlockComments(source).split(/\r?\n/u);
   for (const [index, line] of lines.entries()) {
     for (const rule of RULES) {
       if (rule.pattern.test(line)) {

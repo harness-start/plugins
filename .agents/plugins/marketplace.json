@@ -124,7 +124,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "description": "Supplies visual direction, design-system continuity, motion, rendered critique, and mechanical interface checks."
+      "description": "Supplies visual direction, project design memory, motion, rendered critique, and mechanical interface checks."
     },
     {
       "name": "intent-discovery",

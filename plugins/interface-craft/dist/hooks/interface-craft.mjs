@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c9ca8641e1f8a4fe9d128bcd5d189921783a19f9c7cacd2709739da3c5af7d1c
+// harness-source-hash: sha256:ce2d09fe54f855bba7567c5d76387b64828a4d2168dc9fffc50b4abb5d426894
 
 // plugins/interface-craft/src/entries/hooks/interface-craft.ts
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -218,6 +218,9 @@ var UI_EXTENSIONS = /* @__PURE__ */ new Set([
 ]);
 var IGNORED_SEGMENTS = /* @__PURE__ */ new Set(["node_modules", "dist", ".git", "vendor-skills", "coverage"]);
 var IGNORED_BASENAMES = /* @__PURE__ */ new Set(["package-lock.json", "pnpm-lock.yaml", "yarn.lock", "Cargo.lock"]);
+function maskBlockComments(source) {
+  return source.replace(/\/\*[\s\S]*?\*\/|<!--[\s\S]*?-->/gu, (comment) => comment.replace(/[^\r\n]/gu, " "));
+}
 var RULES = [
   {
     code: "HARD_OFFSET_SHADOW",
@@ -243,6 +246,16 @@ var RULES = [
     code: "REPEATING_GRID_BACKGROUND",
     message: "repeating-linear-gradient grids need a real canvas, map, or measuring tool",
     pattern: /background(?:-image)?\s*:\s*repeating-linear-gradient/iu
+  },
+  {
+    code: "TRANSITION_ALL",
+    message: "transition-all is present; enumerate the properties that are intended to animate",
+    pattern: /(?:\btransition(?:-property)?\s*:\s*all(?:\s|;|$)|\btransition-all\b)/iu
+  },
+  {
+    code: "FOCUS_OUTLINE_REMOVED",
+    message: "a native focus outline is removed; verify an equally visible focus-visible replacement",
+    pattern: /(?:\boutline\s*:\s*(?:none|0(?:px)?)(?:\s|;|$)|\boutline-none\b)/iu
   }
 ];
 function isUiPath(filePath) {
@@ -259,7 +272,7 @@ function detectUiSource(filePath, source) {
   if (!isUiPath(filePath) || isIgnoredPath(filePath)) return [];
   if (typeof source !== "string") return [];
   const findings = [];
-  const lines = source.split(/\r?\n/u);
+  const lines = maskBlockComments(source).split(/\r?\n/u);
   for (const [index, line] of lines.entries()) {
     for (const rule of RULES) {
       if (rule.pattern.test(line)) {

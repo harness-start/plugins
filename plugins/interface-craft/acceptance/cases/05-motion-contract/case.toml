@@ -1,0 +1,6 @@
+id = "05-motion-contract"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+allowed_host_exits_claude = [0, 124]
+allowed_host_exits_codex = [0, 124]
+tags = ["ui", "motion", "accessibility", "outcome"]

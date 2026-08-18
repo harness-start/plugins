@@ -1,7 +1,7 @@
 {
   "name": "interface-craft",
-  "version": "0.2.0",
-  "description": "General interface visual craft: direction, design-system continuity, responsive review, and mechanical UI checks.",
+  "version": "0.3.0",
+  "description": "General interface visual craft: direction, project design memory, motion, responsive review, and mechanical UI checks.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -10,8 +10,8 @@
   "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Interface Craft",
-    "shortDescription": "Interface direction, systems, rendered critique, and mechanical checks.",
-    "longDescription": "Supplies first-party methods for visual direction, design-system continuity, motion, craft floors, and rendered responsive critique, with mechanical anti-pattern checks after edits. It does not write posters, decks, Remotion, or logos, and it does not replace web-frontend syntax or lockfile gates.",
+    "shortDescription": "Interface direction, design memory, motion, rendered critique, and checks.",
+    "longDescription": "Supplies first-party methods for visual direction, project-owned design memory, design-system continuity, motion, craft floors, and rendered responsive critique, with mechanical anti-pattern checks after edits. It does not write posters, decks, Remotion, or logos, and it does not replace web-frontend syntax or lockfile gates.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],

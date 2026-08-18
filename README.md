@@ -149,7 +149,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | `engineering-practice` | 提供第一方实现判断、只读代码审查与完成前验证方法；具体故障调试归 `software-debugging` |
 | `professional-writing` | 按语言与文稿类型编排社区写作 Skill 的当前上游版本；只执行经过路径与 SHA-256 审计的脚本 |
 | `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
-| `interface-craft` | 提供视觉方向、设计系统连续性、动效、工艺底线与渲染批判方法，并检测 UI 文件上的机械反模式 |
+| `interface-craft` | 提供视觉方向、项目设计记忆、设计系统连续性、动效、严格渲染批判与 Web 风格 UI 文件机械检查 |
 | `software-debugging` | 作为具体软件故障的唯一工作流，通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
 | `agent-activity-audit` | 将文件读写与 shell 命令统一记录到 `.agent-activity-audit/sessions/<session>.jsonl`，记录以 `kind` 区分 |
 | `brand-logo-production` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |

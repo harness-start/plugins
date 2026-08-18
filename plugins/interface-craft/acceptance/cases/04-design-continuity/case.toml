@@ -1,0 +1,5 @@
+id = "04-design-continuity"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+allowed_host_exits_codex = [0, 124]
+tags = ["ui", "design-memory", "continuity", "outcome"]

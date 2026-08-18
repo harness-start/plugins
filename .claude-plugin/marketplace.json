@@ -65,7 +65,7 @@
     {
       "name": "interface-craft",
       "source": "./plugins/interface-craft",
-      "description": "Supplies visual direction, design-system continuity, motion, rendered critique, and mechanical interface checks."
+      "description": "Supplies visual direction, project design memory, motion, rendered critique, and mechanical interface checks."
     },
     {
       "name": "engineering-practice",
