@@ -69,74 +69,28 @@ codex plugin add <name>@harness-start --json
 
 ## 完整卸载
 
-以下命令对应一键安装器的默认用户级安装。它们先卸载 `harness-start` 下当前已安装的全部插件，再移除 marketplace，最后删除安装器写入的宿主级语言偏好文件。需要 `jq`；只安装了一个宿主时，只执行对应代码块。
-
-Claude Code：
+以下命令会为当前可用的 Claude Code 与 Codex CLI 卸载 `harness-start` 下的全部插件，移除 marketplace，并删除安装器写入的宿主级语言偏好文件：
 
 ```bash
-set -euo pipefail
-
-claude_plugins="$(
-  claude plugin list --json \
-    | jq -r '
-        if type == "array" then .[]
-        elif .plugins then .plugins[]
-        elif .installed then .installed[]
-        else empty end
-        | select(
-            (.marketplace // .marketplaceName // "") == "harness-start"
-            or (.id // .pluginId // "" | endswith("@harness-start"))
-          )
-        | (.name // ((.id // .pluginId // "") | split("@")[0]) // empty)
-      ' \
-    | sort -u
-)"
-
-while IFS= read -r name; do
-  [ -n "${name}" ] || continue
-  claude plugin uninstall "${name}@harness-start" --scope user --yes
-done <<<"${claude_plugins}"
-
-claude plugin marketplace remove harness-start --scope user
-claude_harness_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/harness-start"
-rm -f -- "${claude_harness_dir}/language-output.json"
-rmdir -- "${claude_harness_dir}" 2>/dev/null || true
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/uninstall-all.sh | bash
 ```
 
-Codex：
+常用变体：
 
 ```bash
-set -euo pipefail
+# 只卸载 Claude Code 插件
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/uninstall-all.sh | bash -s -- --claude-only
 
-codex_plugins="$(
-  codex plugin list --marketplace harness-start --json \
-    | jq -r '
-        if type == "object" and (.installed | type == "array") then .installed[]
-        elif type == "array" then .[]
-        elif .plugins then .plugins[]
-        else empty end
-        | select(.installed != false)
-        | select(
-            (.marketplaceName // .marketplace // "harness-start") == "harness-start"
-            or (.pluginId // .id // "" | endswith("@harness-start"))
-          )
-        | (.name // ((.pluginId // .id // "") | split("@")[0]) // empty)
-      ' \
-    | sort -u
-)"
+# 只卸载 Codex 插件
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/uninstall-all.sh | bash -s -- --codex-only
 
-while IFS= read -r name; do
-  [ -n "${name}" ] || continue
-  codex plugin remove "${name}@harness-start" --json
-done <<<"${codex_plugins}"
-
-codex plugin marketplace remove harness-start --json
-codex_harness_dir="${CODEX_HOME:-$HOME/.codex}/harness-start"
-rm -f -- "${codex_harness_dir}/language-output.json"
-rmdir -- "${codex_harness_dir}" 2>/dev/null || true
+# 只查看将执行的删除操作
+curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/uninstall-all.sh | bash -s -- --dry-run
 ```
 
-如果 Claude Code 插件通过 `--scope project` 或 `--scope local` 安装，把卸载命令和 marketplace 移除命令中的 `user` 换成原安装 scope，并在原项目目录执行。仅卸载单个插件时，分别使用 `claude plugin uninstall <name>@harness-start --scope user --yes` 或 `codex plugin remove <name>@harness-start --json`；不要移除仍被其他 Harness Start 插件使用的 marketplace。
+要求：`bash`、`jq`，以及至少一个可用的宿主 CLI。缺少的宿主会自动跳过；两个宿主都不可用时脚本失败。Claude Code 插件如果通过 `--scope project` 或 `--scope local` 安装，增加 `--scope project` 或 `--scope local`，并在原项目目录执行。本地 clone 可直接运行 `bash scripts/uninstall-all.sh`。
+
+脚本只删除宿主安装状态和安装器写入的偏好文件，不跨项目搜索或删除项目拥有的 `.language-output.mjs`、`.language-output/` 运行状态或其他项目文件。单个插件仍可使用 `claude plugin uninstall <name>@harness-start --scope user --yes` 或 `codex plugin remove <name>@harness-start --json` 卸载；还有其他 Harness Start 插件时不要移除 marketplace。
 
 ## 架构
 
@@ -152,6 +106,7 @@ rmdir -- "${codex_harness_dir}" 2>/dev/null || true
 ├── plugins/                           # 自包含插件目录
 ├── package.json                       # 根级 TypeScript、esbuild、测试与 lint 命令
 ├── scripts/install-all.sh             # marketplace 与全部插件的一键安装脚本
+├── scripts/uninstall-all.sh           # 全部插件、marketplace 与安装器偏好的一键卸载脚本
 ├── scripts/ci/validate-plugins.sh     # GitHub/GitLab 共用 CI 检查
 ├── docs/architecture.md               # Working harness architecture
 ├── .github/workflows/validate-plugins.yml

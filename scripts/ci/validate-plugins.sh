@@ -126,6 +126,8 @@ check_scripts() {
 
   log "Checking install-all.sh syntax"
   bash -n scripts/install-all.sh
+  log "Checking uninstall-all.sh syntax"
+  bash -n scripts/uninstall-all.sh
   printf 'Checking scripts/install-all.sh --list-only (offline-friendly)\n'
   # Prefer local marketplace.json when network is blocked; still exercises the script.
   bash scripts/install-all.sh --local . --list-only --skip-missing-hosts >/dev/null
