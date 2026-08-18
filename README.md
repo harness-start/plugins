@@ -67,6 +67,77 @@ codex plugin marketplace upgrade harness-start
 codex plugin add <name>@harness-start --json
 ```
 
+## 完整卸载
+
+以下命令对应一键安装器的默认用户级安装。它们先卸载 `harness-start` 下当前已安装的全部插件，再移除 marketplace，最后删除安装器写入的宿主级语言偏好文件。需要 `jq`；只安装了一个宿主时，只执行对应代码块。
+
+Claude Code：
+
+```bash
+set -euo pipefail
+
+claude_plugins="$(
+  claude plugin list --json \
+    | jq -r '
+        if type == "array" then .[]
+        elif .plugins then .plugins[]
+        elif .installed then .installed[]
+        else empty end
+        | select(
+            (.marketplace // .marketplaceName // "") == "harness-start"
+            or (.id // .pluginId // "" | endswith("@harness-start"))
+          )
+        | (.name // ((.id // .pluginId // "") | split("@")[0]) // empty)
+      ' \
+    | sort -u
+)"
+
+while IFS= read -r name; do
+  [ -n "${name}" ] || continue
+  claude plugin uninstall "${name}@harness-start" --scope user --yes
+done <<<"${claude_plugins}"
+
+claude plugin marketplace remove harness-start --scope user
+claude_harness_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/harness-start"
+rm -f -- "${claude_harness_dir}/language-output.json"
+rmdir -- "${claude_harness_dir}" 2>/dev/null || true
+```
+
+Codex：
+
+```bash
+set -euo pipefail
+
+codex_plugins="$(
+  codex plugin list --marketplace harness-start --json \
+    | jq -r '
+        if type == "object" and (.installed | type == "array") then .installed[]
+        elif type == "array" then .[]
+        elif .plugins then .plugins[]
+        else empty end
+        | select(.installed != false)
+        | select(
+            (.marketplaceName // .marketplace // "harness-start") == "harness-start"
+            or (.pluginId // .id // "" | endswith("@harness-start"))
+          )
+        | (.name // ((.pluginId // .id // "") | split("@")[0]) // empty)
+      ' \
+    | sort -u
+)"
+
+while IFS= read -r name; do
+  [ -n "${name}" ] || continue
+  codex plugin remove "${name}@harness-start" --json
+done <<<"${codex_plugins}"
+
+codex plugin marketplace remove harness-start --json
+codex_harness_dir="${CODEX_HOME:-$HOME/.codex}/harness-start"
+rm -f -- "${codex_harness_dir}/language-output.json"
+rmdir -- "${codex_harness_dir}" 2>/dev/null || true
+```
+
+如果 Claude Code 插件通过 `--scope project` 或 `--scope local` 安装，把卸载命令和 marketplace 移除命令中的 `user` 换成原安装 scope，并在原项目目录执行。仅卸载单个插件时，分别使用 `claude plugin uninstall <name>@harness-start --scope user --yes` 或 `codex plugin remove <name>@harness-start --json`；不要移除仍被其他 Harness Start 插件使用的 marketplace。
+
 ## 架构
 
 本仓库由可独立安装的插件组成。Hook 只负责生命周期中可机械验证的触发、门禁、反馈和状态推进；开放式推理、配置、诊断与恢复由 Skill 或普通 agent 工作流承接。插件内脚本保持确定、可测试和自包含。具体边界、取舍与开放问题见[工作架构](docs/architecture.md)。Skill / Hook 协作准则见 [Skill 与 Hook 协作准则](docs/skill-hook-collaboration.md)。
