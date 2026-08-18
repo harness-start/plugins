@@ -1,0 +1,33 @@
+schema_version: 1
+suite: stage1-known-smoke
+dataset:
+  name: princeton-nlp/SWE-bench_Lite
+  revision: 6ec7bb89b9342f664a54a6e0a6ea6501d3437cc2
+  split: test
+instances:
+  - astropy__astropy-12907
+  - django__django-10914
+  - django__django-11001
+hosts:
+  - claude
+  - codex
+model:
+  name: deepseek-v4-flash
+  api_host: api.deepseek.com
+  reasoning_effort: high
+agent:
+  timeout_sec: 3600
+  attempts: 1
+harness:
+  mode: full
+network:
+  allowed_hosts:
+    - api.deepseek.com
+grader:
+  max_workers: 1
+  timeout_sec: 1800
+  cache_level: env
+toolchain:
+  swebench: 4.1.0
+  claude_code: 2.1.170
+  codex: 0.147.0
