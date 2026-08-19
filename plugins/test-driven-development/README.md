@@ -84,13 +84,13 @@ Run PHPUnit successfully
 | 语言 | 测试侧证据 | 实现侧身份 | 同名消歧边界 |
 | --- | --- | --- | --- |
 | PHP | `#[CoversClass(Foo::class)]`、`@covers`，解析 `use` 和 alias | `namespace` + class/interface/trait/enum/function | FQCN |
-| Python | 被测试体实际使用的绝对 `from ... import ...` 或 `import ...`；`from package import lower_case_module` 同时按子模块解析；包重导出由当前仓库 `__init__.py` 的显式或 `*` 导入证明，目录镜像只能补充同名模块 | source root 后或包内的 module path + class/function | module + symbol |
+| Python | 被测试体实际使用的绝对导入，或可从测试包路径解析的相对 `from ... import ...`；导入的小写 namespace 会继续按实际使用的成员解析；包重导出由当前仓库 `__init__.py` 的显式或 `*` 导入证明，目录镜像只能补充同名模块 | source root 后或包内的 module path + class/function | module + symbol |
 | JavaScript | 被测试体使用的相对 `import` / `require` | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
 | TypeScript | 被测试体使用的相对 `import` / `require`，含 named/type alias | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
 | Rust | 外部测试中的 `use crate_name::module::Item`，支持一层 grouped use 和 alias | 最近 `Cargo.toml` 的 `[lib].name` / `[package].name` + crate scope + `src` module + item | crate + module + item |
 | Go | 同 package 测试引用的声明 symbol，或外部测试的 import alias + qualified symbol | 最近 `go.mod` 的 module path + package directory + func/type | module + package + symbol |
 
-如果测试已经解析出显式实体，但该实体与待写实现不相等，插件会直接拒绝，不再尝试目录镜像。无法解析的 Python 相对 import、JS/TS path alias、Rust 宏生成 item 等也不会退化为 simple-name 匹配；没有显式实体时，它们只有命中下面的完整目录镜像才会放行。
+如果测试已经解析出显式实体，但该实体与待写实现不相等，插件会直接拒绝，不再尝试目录镜像。越出测试包边界的 Python 相对 import、JS/TS path alias、Rust 宏生成 item 等无法解析的形式也不会退化为 simple-name 匹配；没有显式实体时，它们只有命中下面的完整目录镜像才会放行。
 
 ### 2. 完整目录镜像 fallback
 

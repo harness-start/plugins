@@ -624,6 +624,45 @@ test("Python package initialization proves a public re-export from a non-mirrore
   }
 });
 
+test("Python package-relative namespace imports authorize only the exported source symbol", () => {
+  const fx = fixture("test-driven-development-python-relative-import-");
+  try {
+    mkdirSync(join(fx.root, "lumen", "geometry"), { recursive: true });
+    writeFileSync(
+      join(fx.root, "lumen", "geometry", "__init__.py"),
+      "try:\n    from .converter import *\nexcept ImportError:\n    pass\n",
+    );
+    const testPath = "lumen/geometry/tests/test_public_api.py";
+    const testRecord = {
+      path: testPath,
+      language: "python",
+      evidence: extractTestEvidence(
+        "python",
+        "from ... import geometry\ndef test_public_conversion():\n    assert geometry.Converter().convert('value') == 'value'\n",
+        testPath,
+      ),
+    };
+    const source = {
+      path: "lumen/geometry/converter.py",
+      language: "python",
+      content: "class Converter:\n    def convert(self, value):\n        return value\n",
+    };
+
+    assert.equal(sourceAuthorizedByTest(
+      source,
+      testRecord,
+      resolveLanguageContext(fx.root, source.path, source.language),
+    ), true);
+    assert.equal(sourceAuthorizedByTest({
+      ...source,
+      path: "lumen/rendering/converter.py",
+    }, testRecord, resolveLanguageContext(fx.root, "lumen/rendering/converter.py", "python")), false);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("recognizes concrete test declarations for every supported language", () => {
   const cases = [
     ["php", "<?php\nfunction test_total(): void { new PriceCalculator(); }\n", "test_total", "PriceCalculator"],

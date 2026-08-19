@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:068bf2ce325295ab1dde8d7a5c6750424646f3c1ff4c9a9267b787733fd5010f
+// harness-source-hash: sha256:c2793d47da8c58482fbf310aa78967dd571b3fa991d26478271b40c8fdc8e4bf
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -591,16 +591,35 @@ function phpCoverageTargets(raw, code) {
   }
   return unique(targets);
 }
-function pythonTargets(code) {
+function pythonImportModule(specifier, testPath) {
+  const dots = specifier.match(/^\.+/u)?.[0].length ?? 0;
+  if (dots === 0) return specifier;
+  const packageSegments = stripExtension(testPath).split("/");
+  packageSegments.pop();
+  const keep = packageSegments.length - dots + 1;
+  if (keep < 0) return "";
+  return [
+    ...packageSegments.slice(0, keep),
+    specifier.slice(dots)
+  ].filter(Boolean).join(".");
+}
+function pythonTargets(code, testPath) {
   const body = code.replace(/^\s*(?:from\s+[^\n]+\s+import\s+[^\n]+|import\s+[^\n]+)$/gmu, "");
   const targets = [];
-  for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
+  for (const match of code.matchAll(/^\s*from\s+([.A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
+    const importedModule = pythonImportModule(match[1] ?? "", testPath);
+    if (!importedModule) continue;
     for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
       const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
       if (binding && identifierUsed(body, binding[2] ?? binding[1])) {
-        targets.push(`python:${match[1]}#${binding[1]}`);
+        targets.push(`python:${importedModule}#${binding[1]}`);
         if (/^[a-z_][a-z0-9_]*$/u.test(binding[1] ?? "")) {
-          targets.push(`python-module:${match[1]}.${binding[1]}`);
+          const namespaceModule = `${importedModule}.${binding[1]}`;
+          targets.push(`python-module:${namespaceModule}`);
+          const local = binding[2] ?? binding[1] ?? "";
+          for (const member of matches(body, new RegExp(`\\b${local}\\.([A-Za-z_][A-Za-z0-9_]*)`, "gu"))) {
+            targets.push(`python:${namespaceModule}#${member}`);
+          }
         }
       }
     }
@@ -685,7 +704,7 @@ function extractTestEvidence(language, text, testPath = "", context = {}) {
   const names = unique(testNames(language, code));
   let targets = [];
   if (language === "php") targets = phpCoverageTargets(raw, code);
-  else if (language === "python") targets = pythonTargets(code);
+  else if (language === "python") targets = pythonTargets(code, testPath);
   else if (["javascript", "typescript"].includes(language)) targets = javascriptTargets(code, testPath);
   else if (language === "rust") targets = rustTargets(code, context);
   else if (language === "go") targets = goTargets(code);

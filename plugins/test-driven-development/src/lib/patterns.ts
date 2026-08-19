@@ -261,16 +261,36 @@ function phpCoverageTargets(raw: string, code: string): string[] {
   return unique(targets);
 }
 
-function pythonTargets(code: string): string[] {
+function pythonImportModule(specifier: string, testPath: string): string {
+  const dots = specifier.match(/^\.+/u)?.[0].length ?? 0;
+  if (dots === 0) return specifier;
+  const packageSegments = stripExtension(testPath).split("/");
+  packageSegments.pop();
+  const keep = packageSegments.length - dots + 1;
+  if (keep < 0) return "";
+  return [
+    ...packageSegments.slice(0, keep),
+    specifier.slice(dots),
+  ].filter(Boolean).join(".");
+}
+
+function pythonTargets(code: string, testPath: string): string[] {
   const body = code.replace(/^\s*(?:from\s+[^\n]+\s+import\s+[^\n]+|import\s+[^\n]+)$/gmu, "");
   const targets: string[] = [];
-  for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
+  for (const match of code.matchAll(/^\s*from\s+([.A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
+    const importedModule = pythonImportModule(match[1] ?? "", testPath);
+    if (!importedModule) continue;
     for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
       const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
       if (binding && identifierUsed(body, binding[2] ?? binding[1])) {
-        targets.push(`python:${match[1]}#${binding[1]}`);
+        targets.push(`python:${importedModule}#${binding[1]}`);
         if (/^[a-z_][a-z0-9_]*$/u.test(binding[1] ?? "")) {
-          targets.push(`python-module:${match[1]}.${binding[1]}`);
+          const namespaceModule = `${importedModule}.${binding[1]}`;
+          targets.push(`python-module:${namespaceModule}`);
+          const local = binding[2] ?? binding[1] ?? "";
+          for (const member of matches(body, new RegExp(`\\b${local}\\.([A-Za-z_][A-Za-z0-9_]*)`, "gu"))) {
+            targets.push(`python:${namespaceModule}#${member}`);
+          }
         }
       }
     }
@@ -365,7 +385,7 @@ export function extractTestEvidence(language: string, text: unknown, testPath = 
   const names = unique(testNames(language, code));
   let targets: string[] = [];
   if (language === "php") targets = phpCoverageTargets(raw, code);
-  else if (language === "python") targets = pythonTargets(code);
+  else if (language === "python") targets = pythonTargets(code, testPath);
   else if (["javascript", "typescript"].includes(language)) targets = javascriptTargets(code, testPath);
   else if (language === "rust") targets = rustTargets(code, context);
   else if (language === "go") targets = goTargets(code);
