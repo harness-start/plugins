@@ -12,6 +12,10 @@ test("offers engineering methods without making Skill loading an outcome prerequ
   assert.match(context, /engineering-judgment.*engineering-review.*engineering-verification/isu);
   assert.match(context, /optional.*not.*(?:prerequisite|completion evidence)/isu);
   assert.match(context, /fresh command evidence/iu);
+  assert.match(context, /value.*type.*container.*shape.*cardinality.*order.*stability.*warning.*error.*public API/isu);
+  assert.match(context, /single example.*not.*complete/isu);
+  assert.match(context, /local.*callers.*tests.*documentation.*history/isu);
+  assert.match(context, /hidden evaluator.*solution patch/isu);
   assert.match(context, /P0-P3 severity.*exact file:line.*concrete evidence.*verifiable fix/isu);
   assert.doesNotMatch(context, /before acting|\brequire\b/iu);
   assert.doesNotMatch(context, /engineering-debugging|debug-workflow|humanizer|stop-slop|shuorenhua|\$HOME\/\.agents\/skills/iu);

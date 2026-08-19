@@ -42,5 +42,10 @@ test("acceptance inventory covers implementation, review, and a simple control",
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
-  assert.deepEqual(cases, ["01-implementation-and-verify", "02-review-regression", "03-simple-control"]);
+  assert.deepEqual(cases, [
+    "01-implementation-and-verify",
+    "02-review-regression",
+    "03-simple-control",
+    "04-contract-boundary",
+  ]);
 });

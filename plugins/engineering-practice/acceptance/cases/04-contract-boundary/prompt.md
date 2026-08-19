@@ -1,0 +1,1 @@
+Fix `summarizeWindow(samples, width)` in `src/window-summary.mjs` so an empty samples array no longer produces an invalid result. Preserve the exported API and documented output contract. Update the existing test file, do not create unrelated files, and finish with one short factual status line.

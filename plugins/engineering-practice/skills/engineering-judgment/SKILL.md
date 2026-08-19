@@ -31,6 +31,18 @@ Before implementing:
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
+## Observable Contract Challenge
+
+Before choosing an implementation for a non-trivial fix, derive the applicable observable contract from the request, existing API, callers, tests, documentation, and history:
+
+- returned value plus type, container, and shape;
+- zero, one, and many-item cardinalities or other boundary classes;
+- ordering and stability guarantees;
+- warning and error behavior;
+- public signature and compatibility with existing callers.
+
+A passing reproduction of one example is not complete evidence. Add the cheapest independent counterexample that could falsify the proposed mechanism. Prefer an existing repository primitive when it already establishes the contract, and do not search for hidden evaluator artifacts or solution patches.
+
 ## 3. Surgical Changes
 
 **Touch only what you must. Clean up only your own mess.**
