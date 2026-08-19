@@ -534,6 +534,30 @@ test("Python package-local tests mirror a sibling implementation module", () => 
   }, testRecord), false);
 });
 
+test("Python package re-exports bind a symbol to the mirrored sibling module", () => {
+  const testPath = "lumen/geometry/tests/test_converter.py";
+  const testRecord = {
+    path: testPath,
+    language: "python",
+    evidence: extractTestEvidence(
+      "python",
+      "from lumen.geometry import Converter\ndef test_blank_input():\n    assert Converter().convert('') == ''\n",
+      testPath,
+    ),
+  };
+
+  assert.equal(sourceAuthorizedByTest({
+    path: "lumen/geometry/converter.py",
+    language: "python",
+    content: "class Converter:\n    def convert(self, value):\n        return value\n",
+  }, testRecord), true);
+  assert.equal(sourceAuthorizedByTest({
+    path: "lumen/rendering/converter.py",
+    language: "python",
+    content: "class Converter:\n    def convert(self, value):\n        return value\n",
+  }, testRecord), false);
+});
+
 test("recognizes concrete test declarations for every supported language", () => {
   const cases = [
     ["php", "<?php\nfunction test_total(): void { new PriceCalculator(); }\n", "test_total", "PriceCalculator"],

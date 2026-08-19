@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f1e8e749ecf4d983fbae9f9cd972898e0d7258e270ffe690f76797f5a747bf4f
+// harness-source-hash: sha256:999ec3c763b3102180b33590a3113f00c9bae999d8822e5167dc0b0510572a72
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -780,6 +780,15 @@ function mirrorMatches(source, testRecord) {
   const testIdentity = mirrorIdentity(testRecord.path, source.language, "test");
   return Boolean(sourceIdentity && testIdentity && sourceIdentity === testIdentity);
 }
+function pythonPackageReexportMatches(source, testRecord) {
+  if (source.language !== "python" || !mirrorMatches(source, testRecord)) return false;
+  const module = sourceModule(source.path);
+  const separator = module.lastIndexOf(".");
+  if (separator < 0) return false;
+  const packageName = module.slice(0, separator);
+  const targets = new Set(testRecord.evidence?.targets ?? []);
+  return extractSourceSymbols("python", source.content).some((symbol) => targets.has(`python:${packageName}#${symbol}`));
+}
 function goPackageMatches(source, testRecord) {
   if (source.language !== "go") return false;
   const sourceDirectory = posix.dirname(normalize(source.path));
@@ -795,6 +804,7 @@ function sourceAuthorizedByTest(source, testRecord, context = {}) {
   if (!source || !testRecord || source.language !== testRecord.language || !testRecord.evidence?.valid) return false;
   const testTargets = new Set(testRecord.evidence.targets ?? []);
   if (explicitSourceTargets(source, context).some((target) => testTargets.has(target))) return true;
+  if (pythonPackageReexportMatches(source, testRecord)) return true;
   if (testTargets.size > 0) return false;
   if (goPackageMatches(source, testRecord)) return true;
   return mirrorMatches(source, testRecord);

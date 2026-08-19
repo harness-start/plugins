@@ -469,6 +469,17 @@ function mirrorMatches(source: SourceLike, testRecord: TestRecordLike): boolean 
   return Boolean(sourceIdentity && testIdentity && sourceIdentity === testIdentity);
 }
 
+function pythonPackageReexportMatches(source: SourceLike, testRecord: TestRecordLike): boolean {
+  if (source.language !== "python" || !mirrorMatches(source, testRecord)) return false;
+  const module = sourceModule(source.path);
+  const separator = module.lastIndexOf(".");
+  if (separator < 0) return false;
+  const packageName = module.slice(0, separator);
+  const targets = new Set(testRecord.evidence?.targets ?? []);
+  return extractSourceSymbols("python", source.content)
+    .some((symbol) => targets.has(`python:${packageName}#${symbol}`));
+}
+
 function goPackageMatches(source: SourceLike, testRecord: TestRecordLike): boolean {
   if (source.language !== "go") return false;
   const sourceDirectory = posix.dirname(normalize(source.path));
@@ -485,6 +496,7 @@ export function sourceAuthorizedByTest(source: SourceLike | null | undefined, te
   if (!source || !testRecord || source.language !== testRecord.language || !testRecord.evidence?.valid) return false;
   const testTargets = new Set(testRecord.evidence.targets ?? []);
   if (explicitSourceTargets(source, context).some((target) => testTargets.has(target))) return true;
+  if (pythonPackageReexportMatches(source, testRecord)) return true;
   if (testTargets.size > 0) return false;
   if (goPackageMatches(source, testRecord)) return true;
   return mirrorMatches(source, testRecord);
