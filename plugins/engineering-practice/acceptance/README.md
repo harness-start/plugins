@@ -14,7 +14,7 @@
 - `04-contract-boundary`：只给出一个边界故障，验证 agent 会保留文档规定的返回类型、容器形状、其他基数和异常合同，而不是只让示例不报错。
 - `05-shared-return-path`：边界输入触发底层失败；验证修复复用共同转换/返回路径，并保持两种公开调用形式的容器合同。
 - `06-cardinality-seam`：三组组合暴露顺序误报；验证 agent 扩展原有命名 seam、保留旧调用，并覆盖零、一、二、多组输入，而不是另建私有平行实现。
-- `07-mixed-boundary`：UserPromptSubmit 对联合 normalization 做窄路由；Stop 对有损变换之后才新增的空值短路做高置信门禁；验证 agent 在首个有损变换前处理一空一 singleton，并逐分量保留值和形状。
-- `08-stable-order-primitive`：UserPromptSubmit 对依赖顺序做窄路由；Stop 在 diff 手写依赖排序且仓库已有 stable primitive 时门禁；验证 agent 复用现有 primitive，覆盖独立链 stable ready-frontier、重复项、cycle fallback 和精确诊断。
+- `07-mixed-boundary`：UserPromptSubmit 对联合 normalization 做窄路由；Stop 对有损变换之后才新增的空值短路和前移后新发明的混合拒绝做高置信门禁；验证 agent 在首个有损变换前处理一空一 singleton，并逐分量保留值和形状。
+- `08-stable-order-primitive`：UserPromptSubmit 对依赖顺序与被质疑的诊断内容做窄路由；Stop 在 diff 手写依赖排序且仓库已有 stable primitive，或 variadic seam 新增单输入原样旁路时门禁；验证 agent 复用现有 primitive，覆盖独立链 stable ready-frontier、重复项、统一容器、cycle fallback 和调用者级精确诊断。
 
 验收只证明这些固定场景中的依赖安装、平台化路由注入和结果，不把模型是否每次主动调用或读取 Skill 当作稳定硬门禁，也不外推为所有任务的质量保证。实际加载仍保留在 live 日志中供观测。

@@ -3,7 +3,9 @@ import { test } from "node:test";
 
 import {
   boundaryGuardFinding,
+  mixedBoundaryRejectionFinding,
   orderingPrimitiveFinding,
+  variadicSeamBypassFinding,
 } from "../src/lib/outcome-challenge.js";
 
 test("flags an empty short-circuit added after a lossy broadcast", () => {
@@ -41,6 +43,26 @@ test("accepts an empty guard before the lossy transform", () => {
   assert.equal(boundaryGuardFinding(diff), null);
 });
 
+test("flags a newly invented mixed-boundary rejection before a lossy transform", () => {
+  const diff = `diff --git a/src/coordinates.py b/src/coordinates.py
+--- a/src/coordinates.py
++++ b/src/coordinates.py
+@@ -10,5 +10,11 @@ def convert(parts):
++    empty = [part.size == 0 for part in parts]
++    if any(empty) and not all(empty):
++        raise ValueError("components cannot be combined")
+     parts = broadcast_components(*parts)
+     return engine(parts)
+`;
+
+  assert.deepEqual(mixedBoundaryRejectionFinding(diff), {
+    code: "mixed-boundary-rejection",
+    path: "src/coordinates.py",
+    line: 12,
+    transform: "broadcast_components",
+  });
+});
+
 test("flags a hand-rolled dependency order when a repository primitive exists", () => {
   const diff = `diff --git a/src/registry.js b/src/registry.js
 --- a/src/registry.js
@@ -61,6 +83,54 @@ test("flags a hand-rolled dependency order when a repository primitive exists", 
     code: "repository-ordering-primitive-bypassed",
     path: "src/registry.js",
     candidate: "src/stable-order.js:7",
+  });
+});
+
+test("flags a before-after graph loop when a repository primitive exists", () => {
+  const diff = `diff --git a/src/registry.js b/src/registry.js
+--- a/src/registry.js
++++ b/src/registry.js
+@@ -5,3 +5,14 @@ export function combine(chains) {
++  const before = new Map();
++  const after = new Map();
++  const ready = items.filter((item) => before.get(item).size === 0);
++  const merged = [];
++  while (ready.length) {
++    const item = ready.shift();
++    merged.push(item);
++    for (const dependent of after.get(item)) ready.push(dependent);
++  }
+ }
+`;
+  const candidates = ["src/stable-order.js:7:export function stableTopologicalSort(items, graph) {"];
+
+  assert.deepEqual(orderingPrimitiveFinding(diff, candidates), {
+    code: "repository-ordering-primitive-bypassed",
+    path: "src/registry.js",
+    candidate: "src/stable-order.js:7",
+  });
+});
+
+test("flags a raw single-input bypass added to a variadic composition seam", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,2 +5,2 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
+         """Combine chains."""
+@@ -15,2 +15,5 @@ class Registry:
++        if len(chains) == 1:
++            # A single chain needs no composition.
++            return chains[0]
+         return stable_order(chains)
+`;
+
+  assert.deepEqual(variadicSeamBypassFinding(diff), {
+    code: "variadic-single-input-bypass",
+    path: "src/registry.py",
+    line: 17,
+    parameter: "chains",
   });
 });
 
@@ -89,6 +159,23 @@ test("ignores ordering guidance text and acceptance-only primitive examples", ()
   const candidates = [
     "acceptance/workspace/stable-order.js:1:export function stableTopologicalSort(items, graph) {",
   ];
+
+  assert.equal(orderingPrimitiveFinding(diff, candidates), null);
+});
+
+test("ignores graph vocabulary that appears only in production strings and comments", () => {
+  const diff = `diff --git a/src/messages.js b/src/messages.js
+--- a/src/messages.js
++++ b/src/messages.js
+@@ -1,2 +1,7 @@
++export function render(records) {
++  const guidance = "Check dependencies and the ready merged frontier before release";
++  // The topological successors example is documentation, not graph state.
++  for (const record of records) send(record);
++  return guidance;
++}
+`;
+  const candidates = ["src/stable-order.js:7:export function stableTopologicalSort(items, graph) {"];
 
   assert.equal(orderingPrimitiveFinding(diff, candidates), null);
 });

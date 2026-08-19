@@ -5,7 +5,12 @@ import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { eventCwd, eventPrompt, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, stopBlock, writeJson } from "@harness/core/hook-output";
-import { boundaryGuardFinding, orderingPrimitiveFinding } from "../../lib/outcome-challenge.js";
+import {
+  boundaryGuardFinding,
+  mixedBoundaryRejectionFinding,
+  orderingPrimitiveFinding,
+  variadicSeamBypassFinding,
+} from "../../lib/outcome-challenge.js";
 
 function warn(message: string): void {
   process.stderr.write(`[engineering-practice] ${message}\n`);
@@ -28,6 +33,7 @@ export function engineeringPracticeContext(): string {
 
 const BOUNDARY_PROMPT = /\b(?:array|tensor|dimension|shape|broadcast|flatten|coerc|normaliz|empty|zero[- ]?(?:length|size)|boundary)\w*/iu;
 const ORDERING_PROMPT = /\b(?:order(?:ed|ing)?|depend(?:ency|encies|ent|s)?|preced\w*|topolog\w*|cycle\w*|merge\w*|stable\w*)\b/iu;
+const DIAGNOSTIC_DISPUTE_PROMPT = /(?:(?:warning|diagnostic|error\s+message)[\s\S]{0,120}\b(?:wrong|incorrect|misleading|unhelpful|arbitrary)\b|\b(?:wrong|incorrect|misleading|unhelpful|arbitrary)\b[\s\S]{0,120}(?:warning|diagnostic|message))/iu;
 
 export function boundaryChallengeContext(): string {
   return [
@@ -39,14 +45,18 @@ export function boundaryChallengeContext(): string {
   ].join("\n");
 }
 
-export function orderingChallengeContext(): string {
-  return [
+export function orderingChallengeContext(diagnosticDisputed = false): string {
+  const context = [
     "[Engineering Practice: stable-order challenge]",
     "Before writing an ordering algorithm, run a repository-wide search for stable/topological/dependency ordering primitives and check the language standard library. Use an existing primitive unless the observable contract disproves it.",
-    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same mechanism.",
+    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same normalization mechanism. Do not add a raw single-input passthrough that skips deduplication or changes the result container unless local evidence explicitly requires it.",
     "Add a durable tie-break test with two independent chains of at least two items each. Stable ready-frontier means [a1→a2] and [b1→b2] with discovery order [a1,a2,b1,b2] yields [a1,b1,a2,b2], not [a1,a2,b1,b2].",
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text.",
-  ].join("\n");
+  ];
+  if (diagnosticDisputed) {
+    context.push("The request disputes the diagnostic content. Preserve the original caller-supplied constraint groups for reporting and assert the exact diagnostic type and text against those groups; do not substitute arbitrary internal cycle nodes.");
+  }
+  return context.join("\n");
 }
 
 export function promptChallengeContext(event: HookEvent): string {
@@ -54,7 +64,7 @@ export function promptChallengeContext(event: HookEvent): string {
   if (!prompt) return "";
   const contexts: string[] = [];
   if (BOUNDARY_PROMPT.test(prompt)) contexts.push(boundaryChallengeContext());
-  if (ORDERING_PROMPT.test(prompt)) contexts.push(orderingChallengeContext());
+  if (ORDERING_PROMPT.test(prompt)) contexts.push(orderingChallengeContext(DIAGNOSTIC_DISPUTE_PROMPT.test(prompt)));
   return contexts.join("\n");
 }
 
@@ -94,10 +104,26 @@ export async function runStop(): Promise<void> {
   const diff = gitOutput(root, ["diff", "--no-ext-diff", "--unified=80", "HEAD", "--"]);
   if (!diff) return;
 
+  const mixedRejection = mixedBoundaryRejectionFinding(diff);
+  if (mixedRejection) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${mixedRejection.path}:${mixedRejection.line}: the change invents a mixed empty/populated rejection before lossy transform ${mixedRejection.transform}(). A new exception is not preservation evidence. Add a public-seam unequal-cardinality test that asserts every corresponding component's value and shape, then preserve that observable result; or cite local caller/documentation evidence that explicitly requires rejection.`,
+    ));
+    return;
+  }
+
   const boundary = boundaryGuardFinding(diff);
   if (boundary) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${boundary.path}:${boundary.line}: the new empty-input guard is after lossy transform ${boundary.transform}(). Move the contract decision before that transform, and add a mixed unequal-cardinality test asserting each component's value and shape; or remove the short-circuit if local evidence disproves preservation.`,
+    ));
+    return;
+  }
+
+  const variadicBypass = variadicSeamBypassFinding(diff);
+  if (variadicBypass) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${variadicBypass.path}:${variadicBypass.line}: the new variadic seam returns ${variadicBypass.parameter}[0] unchanged for one input, bypassing the shared normalization contract. Route zero, one, two, and many inputs through the same deduplication/container mechanism, or cite local public-contract evidence that explicitly requires raw passthrough.`,
     ));
     return;
   }

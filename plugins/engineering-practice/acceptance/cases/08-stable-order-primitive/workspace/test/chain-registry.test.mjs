@@ -16,5 +16,7 @@ test("preserves the existing two-chain dependency contract", () => {
 test("warns and falls back for an actual cycle", () => {
   ChainRegistry.clearWarnings();
   assert.deepEqual(ChainRegistry.combine(["first", "second"], ["second", "first"]), ["first", "second"]);
-  assert.deepEqual(ChainRegistry.warnings, ["cycle in chains"]);
+  assert.deepEqual(ChainRegistry.warnings, [
+    'cycle in chains: ["first","second"] <> ["second","first"]',
+  ]);
 });

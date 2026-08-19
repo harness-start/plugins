@@ -88,6 +88,18 @@ test("routes ordering prompts to repository-native stable-order challenges", () 
   assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
 });
 
+test("challenges disputed diagnostics at the caller-visible abstraction level", () => {
+  const result = run("user-prompt", {
+    prompt: "Fix dependency merging; the warning message seems wrong because it names arbitrary internal nodes.",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+  assert.match(context, /request disputes.*diagnostic/isu);
+  assert.match(context, /original caller-supplied constraint groups/isu);
+  assert.match(context, /not.*arbitrary internal.*nodes/isu);
+  assert.match(context, /exact.*type.*text/isu);
+});
+
 test("generic workflow wording does not misroute a boundary prompt to ordering", () => {
   const result = run("user-prompt", {
     prompt: "Before editing production code, fix empty component arrays after broadcasting.",
@@ -126,6 +138,65 @@ test("Stop blocks a new empty guard placed after a lossy transform", () => {
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /src\/coordinates\.py:\d+.*after lossy transform broadcast_components/isu);
+  });
+});
+
+test("Stop blocks a newly invented rejection for mixed boundary inputs", () => {
+  withGitRepo({
+    "src/coordinates.py": [
+      "def convert(parts):",
+      "    parts = broadcast_components(*parts)",
+      "    return engine(parts)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/coordinates.py"), [
+      "def convert(parts):",
+      "    empty = [part.size == 0 for part in parts]",
+      "    if any(empty) and not all(empty):",
+      "        raise ValueError('components cannot be combined')",
+      "    parts = broadcast_components(*parts)",
+      "    return engine(parts)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /new exception is not preservation evidence.*public-seam unequal-cardinality test/isu);
+  });
+});
+
+test("Stop blocks a raw one-input bypass in a new variadic seam", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return stable_order(left + right)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*chains):",
+      "        if len(chains) == 1:",
+      "            return chains[0]",
+      "        return stable_order(chains)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /returns chains\[0\] unchanged.*shared normalization contract/isu);
   });
 });
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:385117e22c07d3cb3e94519f0d55294d1a8543d2d6332cb5231330fdc3e78ad2
+// harness-source-hash: sha256:f42a3c04778cf260a49f00ad45377aa9c189c0fe96d4211a43b2bc0c0023415a
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { execFileSync } from "node:child_process";
@@ -69,6 +69,8 @@ var TEST_PATH = /(?:^|\/)(?:test|tests|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?
 var GENERATED_PATH = /(?:^|\/)(?:acceptance|dist|build|docs?|examples?|fixtures?|vendor|node_modules|\.git)(?:\/|$)/u;
 var LOSSY_TRANSFORM = /\b((?:broadcast|flatten|coerc|normaliz|deduplic|align|stack|reshape)\w*)\s*\(/iu;
 var EMPTY_GUARD = /\bif\b[^\n]*(?:\bempty\b|\bzero\b|\.size\b|\.length\b|\.shape\b)/iu;
+var MIXED_EMPTY_GUARD = /\bif\b[^\n]*(?:\bany\s*\([^)]*(?:empty|sizes?)[^)]*\)|(?:empty|sizes?)\.some\s*\()[^\n]*(?:\bnot\s+all\s*\([^)]*(?:empty|sizes?)[^)]*\)|!\s*(?:empty|sizes?)\.every\s*\()/iu;
+var REJECTION = /^\s*(?:raise\b|throw\b|return\s+(?:new\s+)?\w*Error\b)/iu;
 var FUNCTION_START = /^\s*(?:(?:export\s+)?(?:async\s+)?function\s+|(?:async\s+)?def\s+)/u;
 function diffFiles(diff) {
   const files = [];
@@ -123,6 +125,92 @@ function boundaryGuardFinding(diff) {
   }
   return null;
 }
+function mixedBoundaryRejectionFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    let newLine = 0;
+    let mixedGuardBudget = 0;
+    let rejectionLine = 0;
+    for (const rawLine of file.lines) {
+      const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
+      const hunkLine = hunk?.[1];
+      if (hunkLine) {
+        newLine = Number.parseInt(hunkLine, 10);
+        mixedGuardBudget = 0;
+        rejectionLine = 0;
+        continue;
+      }
+      if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
+      const removed = rawLine.startsWith("-");
+      const added = rawLine.startsWith("+");
+      const source = rawLine.slice(1);
+      if (!removed) {
+        if (FUNCTION_START.test(source)) {
+          mixedGuardBudget = 0;
+          rejectionLine = 0;
+        }
+        if (added && MIXED_EMPTY_GUARD.test(source)) mixedGuardBudget = 4;
+        else if (mixedGuardBudget > 0) mixedGuardBudget -= 1;
+        if (added && mixedGuardBudget > 0 && REJECTION.test(source)) rejectionLine = newLine;
+        const lossyTransform = source.match(LOSSY_TRANSFORM)?.[1];
+        if (lossyTransform && rejectionLine) {
+          return {
+            code: "mixed-boundary-rejection",
+            path: file.path,
+            line: rejectionLine,
+            transform: lossyTransform
+          };
+        }
+        newLine += 1;
+      }
+    }
+  }
+  return null;
+}
+function variadicParameter(source) {
+  return source.match(/\bdef\s+\w+\s*\(\s*\*([A-Za-z_]\w*)/u)?.[1] ?? source.match(/(?:\bfunction\s+\w+|\b\w+)\s*\([^)]*\.\.\.([A-Za-z_$][\w$]*)/u)?.[1] ?? "";
+}
+function variadicSeamBypassFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    let newLine = 0;
+    let parameter = "";
+    let singleInputBudget = 0;
+    for (const rawLine of file.lines) {
+      const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
+      const hunkLine = hunk?.[1];
+      if (hunkLine) {
+        newLine = Number.parseInt(hunkLine, 10);
+        singleInputBudget = 0;
+        continue;
+      }
+      if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
+      const removed = rawLine.startsWith("-");
+      const added = rawLine.startsWith("+");
+      const source = rawLine.slice(1);
+      if (!removed) {
+        const addedParameter = added ? variadicParameter(source) : "";
+        if (FUNCTION_START.test(source) && !addedParameter) parameter = "";
+        if (addedParameter) parameter = addedParameter;
+        if (parameter) {
+          const escaped = parameter.replace(/[$]/gu, "\\$");
+          const singleInput = new RegExp(`\\bif\\b[^\\n]*(?:len\\s*\\(\\s*${escaped}\\s*\\)\\s*={2,3}\\s*1|${escaped}\\.length\\s*={2,3}\\s*1)`, "u");
+          if (added && singleInput.test(source)) singleInputBudget = 4;
+          else if (singleInputBudget > 0) singleInputBudget -= 1;
+          const rawReturn = new RegExp(`^\\s*return\\s+${escaped}\\s*\\[\\s*0\\s*\\]`, "u");
+          if (added && singleInputBudget > 0 && rawReturn.test(source)) {
+            return {
+              code: "variadic-single-input-bypass",
+              path: file.path,
+              line: newLine,
+              parameter
+            };
+          }
+        }
+        newLine += 1;
+      }
+    }
+  }
+  return null;
+}
 function candidateParts(candidate) {
   const match = candidate.match(/^([^:]+):(\d+):(.*)$/u);
   const path = match?.[1];
@@ -133,17 +221,23 @@ function candidateParts(candidate) {
   if (!symbol) return null;
   return { anchor: `${path}:${line}`, path, symbol };
 }
+function executableText(source) {
+  return source.split("\n").map((line) => line.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/gu, "").replace(/\s*(?:\/\/|#).*$/u, "")).join("\n");
+}
 function orderingPrimitiveFinding(diff, candidates) {
   for (const file of productionFiles(diff)) {
     const added = file.lines.filter((line) => line.startsWith("+") && !line.startsWith("+++")).map((line) => line.slice(1)).join("\n");
-    const hasGraphState = /\b(?:dependencies|dependency_graph|indegree|successors)\b/iu.test(added);
-    const hasFrontierState = /\b(?:ready|emitted|remaining|merged)\b/iu.test(added);
-    const hasControlLoop = /^\s*(?:for|while)\s*(?:\(|\b)/mu.test(added);
+    const executable = executableText(added);
+    const hasNamedGraphState = /\b(?:dependencies|dependency_graph|indegree|successors)\b/iu.test(executable);
+    const hasBeforeAfterGraph = /\bbefore\b/iu.test(executable) && /\bafter\b/iu.test(executable);
+    const hasGraphState = hasNamedGraphState || hasBeforeAfterGraph;
+    const hasFrontierState = /\b(?:ready|emitted|remaining|merged)\b/iu.test(executable);
+    const hasControlLoop = /^\s*(?:for|while)\s*(?:\(|\b)/mu.test(executable);
     if (!hasGraphState || !hasFrontierState || !hasControlLoop) continue;
     for (const rawCandidate of candidates) {
       const candidate = candidateParts(rawCandidate);
       if (!candidate || candidate.path === file.path) continue;
-      if (new RegExp(`\\b${candidate.symbol.replace(/[$]/gu, "\\$")}\\b`, "u").test(added)) continue;
+      if (new RegExp(`\\b${candidate.symbol.replace(/[$]/gu, "\\$")}\\b`, "u").test(executable)) continue;
       return {
         code: "repository-ordering-primitive-bypassed",
         path: file.path,
@@ -175,6 +269,7 @@ function engineeringPracticeContext() {
 }
 var BOUNDARY_PROMPT = /\b(?:array|tensor|dimension|shape|broadcast|flatten|coerc|normaliz|empty|zero[- ]?(?:length|size)|boundary)\w*/iu;
 var ORDERING_PROMPT = /\b(?:order(?:ed|ing)?|depend(?:ency|encies|ent|s)?|preced\w*|topolog\w*|cycle\w*|merge\w*|stable\w*)\b/iu;
+var DIAGNOSTIC_DISPUTE_PROMPT = /(?:(?:warning|diagnostic|error\s+message)[\s\S]{0,120}\b(?:wrong|incorrect|misleading|unhelpful|arbitrary)\b|\b(?:wrong|incorrect|misleading|unhelpful|arbitrary)\b[\s\S]{0,120}(?:warning|diagnostic|message))/iu;
 function boundaryChallengeContext() {
   return [
     "[Engineering Practice: boundary challenge]",
@@ -184,21 +279,25 @@ function boundaryChallengeContext() {
     "Add a durable mixed-case test that asserts each output component equals its corresponding input in both value and shape. Do not merely assert shapes or lock in the current exception."
   ].join("\n");
 }
-function orderingChallengeContext() {
-  return [
+function orderingChallengeContext(diagnosticDisputed = false) {
+  const context = [
     "[Engineering Practice: stable-order challenge]",
     "Before writing an ordering algorithm, run a repository-wide search for stable/topological/dependency ordering primitives and check the language standard library. Use an existing primitive unless the observable contract disproves it.",
-    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same mechanism.",
+    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same normalization mechanism. Do not add a raw single-input passthrough that skips deduplication or changes the result container unless local evidence explicitly requires it.",
     "Add a durable tie-break test with two independent chains of at least two items each. Stable ready-frontier means [a1\u2192a2] and [b1\u2192b2] with discovery order [a1,a2,b1,b2] yields [a1,b1,a2,b2], not [a1,a2,b1,b2].",
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text."
-  ].join("\n");
+  ];
+  if (diagnosticDisputed) {
+    context.push("The request disputes the diagnostic content. Preserve the original caller-supplied constraint groups for reporting and assert the exact diagnostic type and text against those groups; do not substitute arbitrary internal cycle nodes.");
+  }
+  return context.join("\n");
 }
 function promptChallengeContext(event) {
   const prompt = eventPrompt(event);
   if (!prompt) return "";
   const contexts = [];
   if (BOUNDARY_PROMPT.test(prompt)) contexts.push(boundaryChallengeContext());
-  if (ORDERING_PROMPT.test(prompt)) contexts.push(orderingChallengeContext());
+  if (ORDERING_PROMPT.test(prompt)) contexts.push(orderingChallengeContext(DIAGNOSTIC_DISPUTE_PROMPT.test(prompt)));
   return contexts.join("\n");
 }
 async function runSessionStart() {
@@ -233,10 +332,24 @@ async function runStop() {
   if (!root) return;
   const diff = gitOutput(root, ["diff", "--no-ext-diff", "--unified=80", "HEAD", "--"]);
   if (!diff) return;
+  const mixedRejection = mixedBoundaryRejectionFinding(diff);
+  if (mixedRejection) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${mixedRejection.path}:${mixedRejection.line}: the change invents a mixed empty/populated rejection before lossy transform ${mixedRejection.transform}(). A new exception is not preservation evidence. Add a public-seam unequal-cardinality test that asserts every corresponding component's value and shape, then preserve that observable result; or cite local caller/documentation evidence that explicitly requires rejection.`
+    ));
+    return;
+  }
   const boundary = boundaryGuardFinding(diff);
   if (boundary) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${boundary.path}:${boundary.line}: the new empty-input guard is after lossy transform ${boundary.transform}(). Move the contract decision before that transform, and add a mixed unequal-cardinality test asserting each component's value and shape; or remove the short-circuit if local evidence disproves preservation.`
+    ));
+    return;
+  }
+  const variadicBypass = variadicSeamBypassFinding(diff);
+  if (variadicBypass) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${variadicBypass.path}:${variadicBypass.line}: the new variadic seam returns ${variadicBypass.parameter}[0] unchanged for one input, bypassing the shared normalization contract. Route zero, one, two, and many inputs through the same deduplication/container mechanism, or cite local public-contract evidence that explicitly requires raw passthrough.`
     ));
     return;
   }
