@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
 
@@ -10,6 +12,24 @@ function run(mode: "session-start" | "user-prompt", event: Record<string, unknow
     input: JSON.stringify(event),
     encoding: "utf8",
   });
+}
+
+function withGitRepo(files: Record<string, string>, runInRepo: (root: string) => void): void {
+  const root = mkdtempSync(resolve(tmpdir(), "engineering-practice-"));
+  try {
+    for (const [path, content] of Object.entries(files)) {
+      mkdirSync(resolve(root, path, ".."), { recursive: true });
+      writeFileSync(resolve(root, path), content);
+    }
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    execFileSync("git", ["config", "user.email", "test@example.invalid"], { cwd: root });
+    execFileSync("git", ["config", "user.name", "Test"], { cwd: root });
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync("git", ["commit", "-qm", "baseline"], { cwd: root });
+    runInRepo(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 }
 
 test("offers engineering methods without making Skill loading an outcome prerequisite", () => {
@@ -23,12 +43,9 @@ test("offers engineering methods without making Skill loading an outcome prerequ
   assert.match(context, /single example.*not.*complete/isu);
   assert.match(context, /local.*callers.*tests.*documentation.*history/isu);
   assert.match(context, /hidden evaluator.*solution patch/isu);
-  assert.match(context, /boundary.*reuse.*normalization.*return path.*synthesi/isu);
-  assert.match(context, /first lossy transform.*mixed combinations.*one empty.*another populated/isu);
-  assert.match(context, /extend.*named seam.*old call forms.*add or extend tests.*zero.*one.*two.*many/isu);
   assert.match(context, /compatibility.*accepted call forms.*not.*incidental.*container/isu);
-  assert.match(context, /ordering.*dependency.*existing.*primitive.*two completely disjoint chains.*at least two items each.*duplicate.*cycle.*diagnostic/isu);
   assert.match(context, /P0-P3 severity.*exact file:line.*concrete evidence.*verifiable fix/isu);
+  assert.doesNotMatch(context, /first lossy transform|two completely disjoint chains/iu);
   assert.doesNotMatch(context, /before acting|\brequire\b/iu);
   assert.doesNotMatch(context, /engineering-debugging|debug-workflow|humanizer|stop-slop|shuorenhua|\$HOME\/\.agents\/skills/iu);
 });
@@ -49,8 +66,10 @@ test("routes boundary prompts to a short counterexample contract", () => {
   assert.match(output.additionalContext, /current (?:exception|rejection).*not.*compatibility proof/isu);
   assert.match(output.additionalContext, /all-empty.*mixed empty.*populated.*ordinary populated/isu);
   assert.match(output.additionalContext, /first lossy.*before.*distinction/isu);
-  assert.match(output.additionalContext, /durable.*mixed.*value.*shape/isu);
+  assert.match(output.additionalContext, /unequal cardinalit.*zero.*singleton/isu);
+  assert.match(output.additionalContext, /each output component.*corresponding input.*value.*shape/isu);
   assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
+  assert.doesNotMatch(output.additionalContext, /stable-order challenge/iu);
 });
 
 test("routes ordering prompts to repository-native stable-order challenges", () => {
@@ -60,12 +79,85 @@ test("routes ordering prompts to repository-native stable-order challenges", () 
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout).hookSpecificOutput;
   assert.equal(output.hookEventName, "UserPromptSubmit");
-  assert.match(output.additionalContext, /search.*repository.*stable.*primitive/isu);
+  assert.match(output.additionalContext, /repository.*search.*stable.*primitive/isu);
   assert.match(output.additionalContext, /two independent chains.*at least two items/isu);
-  assert.match(output.additionalContext, /stable.*frontier/isu);
+  assert.match(output.additionalContext, /stable.*frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2/isu);
   assert.match(output.additionalContext, /named.*seam.*zero.*one.*two.*many/isu);
-  assert.match(output.additionalContext, /duplicates.*cycle.*exact diagnostic/isu);
+  assert.match(output.additionalContext, /adjacent duplicate.*same chain.*self-dependency.*cycle/isu);
+  assert.match(output.additionalContext, /genuine cycle.*exact diagnostic/isu);
   assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
+});
+
+test("generic workflow wording does not misroute a boundary prompt to ordering", () => {
+  const result = run("user-prompt", {
+    prompt: "Before editing production code, fix empty component arrays after broadcasting.",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
+  assert.match(context, /boundary challenge/iu);
+  assert.doesNotMatch(context, /stable-order challenge/iu);
+});
+
+test("Stop blocks a new empty guard placed after a lossy transform", () => {
+  withGitRepo({
+    "src/coordinates.py": [
+      "def convert(parts):",
+      "    parts = broadcast_components(*parts)",
+      "    matrix = stack(parts)",
+      "    return engine(matrix)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/coordinates.py"), [
+      "def convert(parts):",
+      "    parts = broadcast_components(*parts)",
+      "    matrix = stack(parts)",
+      "    if matrix.size == 0:",
+      "        return empty_result(matrix.shape)",
+      "    return engine(matrix)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /src\/coordinates\.py:\d+.*after lossy transform broadcast_components/isu);
+  });
+});
+
+test("Stop blocks a hand-rolled dependency loop when a local primitive exists", () => {
+  withGitRepo({
+    "src/registry.js": "export function combine(chains) { return chains.flat(); }\n",
+    "src/stable-order.js": "export function stableTopologicalSort(items, graph) { return items; }\n",
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.js"), [
+      "export function combine(chains) {",
+      "  const dependencies = new Map();",
+      "  const emitted = new Set();",
+      "  while (emitted.size < dependencies.size) {",
+      "    const ready = [...dependencies].filter(([item, needs]) =>",
+      "      !emitted.has(item) && [...needs].every((need) => emitted.has(need)));",
+      "    if (ready.length === 0) throw new Error('cycle');",
+      "    emitted.add(ready[0][0]);",
+      "  }",
+      "  return [...emitted];",
+      "}",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /src\/registry\.js.*src\/stable-order\.js:1/isu);
+  });
 });
 
 test("unrelated prompts stay silent and malformed prompt events fail open", () => {

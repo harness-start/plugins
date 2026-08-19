@@ -23,6 +23,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/engineering-practice.mjs\" stop",
+            "statusMessage": "Checking outcome challenge seams",
+            "timeout": 10000
+          }
+        ]
+      }
     ]
   }
 }

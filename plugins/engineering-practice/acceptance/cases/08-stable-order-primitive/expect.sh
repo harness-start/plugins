@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_prompt_context_signal 'Engineering Practice: stable-order challenge.*search the repository.*existing stable primitive.*named public seam.*zero, one, two, and many.*two independent chains.*at least two items each.*stable ready-frontier.*duplicates.*cycle fallback.*exact diagnostic'
+require_prompt_context_signal 'Engineering Practice: stable-order challenge.*repository-wide search.*stable/topological/dependency.*existing primitive.*named public seam.*zero, one, two, and many.*two independent chains.*at least two items each.*Stable ready-frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2.*adjacent duplicate.*same chain.*self-dependency.*cycle.*genuine cycle fallback.*exact diagnostic'
 
 (
   cd "${ACCEPT_WORKSPACE}"

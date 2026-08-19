@@ -37,15 +37,19 @@ test("review method is read-only and emits verifiable findings", () => {
   assert.match(review, /no findings/iu);
 });
 
-test("both hosts register stateless prompt challenge routing", () => {
+test("both hosts register prompt routing and an outcome challenge Stop gate", () => {
   const claude = json("hooks/claude.json");
   const codex = json("hooks/codex.json");
   for (const hooks of [claude.hooks, codex.hooks]) {
     assert.equal(hooks.UserPromptSubmit.length, 1);
     assert.match(hooks.UserPromptSubmit[0].hooks[0].command, /engineering-practice\.mjs.*user-prompt/iu);
+    assert.equal(hooks.Stop.length, 1);
+    assert.match(hooks.Stop[0].hooks[0].command, /engineering-practice\.mjs.*stop/iu);
   }
   assert.match(codex.hooks.UserPromptSubmit[0].hooks[0].command, /AI_EXPERTS_SESSION_ID/iu);
   assert.match(codex.hooks.UserPromptSubmit[0].hooks[0].command, /AI_EXPERTS_TRIGGER_FROM/iu);
+  assert.match(codex.hooks.Stop[0].hooks[0].command, /AI_EXPERTS_SESSION_ID/iu);
+  assert.match(codex.hooks.Stop[0].hooks[0].command, /AI_EXPERTS_TRIGGER_FROM/iu);
 });
 
 test("acceptance inventory covers implementation, review, and a simple control", () => {
