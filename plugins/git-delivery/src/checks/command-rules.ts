@@ -179,6 +179,27 @@ function branchName(invocation: GitInvocation, command: string): DeliveryFinding
   );
 }
 
+function worktreeAction(args: readonly string[]): string {
+  for (const token of args) {
+    if (token === "--") continue;
+    if (token.startsWith("-")) continue;
+    return token;
+  }
+  return "";
+}
+
+function worktreeCreate(invocation: GitInvocation, command: string): DeliveryFinding | null {
+  if (invocation.subcommand !== "worktree") return null;
+  if (worktreeAction(invocation.args) !== "add") return null;
+  return finding(
+    "deny",
+    "Worktree Create Guard",
+    "unsolicited git worktree add creates an extra linked checkout",
+    command,
+    "stay on the current checkout and use an ordinary short-lived branch; create a worktree only after the user asks for an isolated workspace or a declared process writes an allow receipt",
+  );
+}
+
 function conflictChoice(invocation: GitInvocation, command: string): DeliveryFinding | null {
   if (!["checkout", "restore"].includes(invocation.subcommand)) return null;
   const args = invocation.args;
@@ -259,7 +280,7 @@ export function classifyDeliveryCommand(command: string, cwd: string): DeliveryF
     for (const result of [
       gitAdd(invocation, command), destructiveGit(invocation, command),
       branchName(invocation, command), conflictChoice(invocation, command),
-      commitMessage(invocation, command),
+      commitMessage(invocation, command), worktreeCreate(invocation, command),
     ]) {
       if (result) findings.push(result);
     }

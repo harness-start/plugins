@@ -1,6 +1,6 @@
 {
   "name": "git-delivery",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Guards local Git commands, atomic commits, repository state, and unresolved merge markers.",
   "author": {
     "name": "Harness Start",

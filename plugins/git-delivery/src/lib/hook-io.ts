@@ -1,5 +1,7 @@
 import {
   eventCwd,
+  eventPrompt,
+  eventSessionId,
   eventToolInput,
   eventToolName,
   readStdinJson,
@@ -12,6 +14,8 @@ import { extractFileTargets, extractShellCommand as extractEventShellCommand } f
 export { readStdinJson, writeJson, preToolDeny };
 export {
   eventCwd as extractCwd,
+  eventPrompt as extractPrompt,
+  eventSessionId as extractSessionId,
   eventToolInput as extractToolInput,
   eventToolName as extractToolName,
 };

@@ -15,9 +15,14 @@ import {
   findMergeConflictMarkers, modeForConflict, resolveConflictConfig,
 } from "../src/checks/file-checks.js";
 import { deliveryStateFindings } from "../src/checks/state-checks.js";
+import {
+  isWorktreeCreatePermitted, readWorktreeCreateReceipt, recordWorktreeCreateAllowance,
+  userRequestedWorktreeCreate, worktreeCreateReceiptPath, worktreeIsolationRequested,
+} from "../src/lib/worktree-intent.js";
 
 const PRE = fileURLToPath(new URL("../dist/hooks/git-delivery-hook-pre-tool.mjs", import.meta.url));
 const POST = fileURLToPath(new URL("../dist/hooks/git-delivery-hook-post-tool.mjs", import.meta.url));
+const PROMPT = fileURLToPath(new URL("../dist/hooks/git-delivery-hook-user-prompt.mjs", import.meta.url));
 
 function runEntry(entry, event) {
   return new Promise((resolvePromise, reject) => {
@@ -58,6 +63,8 @@ test("command classifier enforces the Git-only strict command rules", () => {
     ["git checkout --ours -- src/a.js src/b.js", /Bulk Conflict/u],
     ["git commit -m fix", /Commit Message/u],
     ["git commit -m \"$(cat <<'EOF'\nfix(core): bad transport\nEOF\n)\"", /Commit Heredoc/u],
+    ["git worktree add .worktrees/feat-x -b feat/x", /Worktree Create/u],
+    ["git -C repo worktree add /tmp/x", /Worktree Create/u],
   ];
   for (const [command, expected] of denied) {
     const findings = classifyDeliveryCommand(command, process.cwd());
@@ -77,6 +84,9 @@ test("command classifier preserves explicit and recoverable Git operations", () 
     "git commit -m 'fix(runtime): preserve recovery references'",
     "git commit --amend --no-edit",
     "AI_EXPERTS_ALLOW_GIT_STASH_DROP=1 git stash drop 'stash@{0}'",
+    "git worktree list",
+    "git worktree remove .worktrees/feat-x",
+    "git worktree prune --dry-run",
   ];
   for (const command of allowed) {
     assert.deepEqual(classifyDeliveryCommand(command, process.cwd()), [], command);
@@ -144,7 +154,18 @@ test("merge marker detection is line anchored, bounded, and configurable", () =>
   }, (message) => warnings.push(message));
   assert.equal(modeForConflict("fixtures/sample.txt", config), "off");
   assert.equal(modeForConflict("src/app.js", config), "report");
+  assert.equal(config.checks.worktreeCreate, "block");
   assert.equal(warnings.length, 1);
+  const worktreeWarnings = [];
+  const worktreeConfig = resolveConflictConfig({
+    checks: { worktreeCreate: "allow", mergeConflict: "block" },
+  }, (message) => worktreeWarnings.push(message));
+  assert.equal(worktreeConfig.checks.worktreeCreate, "allow");
+  const invalidWorktree = resolveConflictConfig({
+    checks: { worktreeCreate: "off" },
+  }, (message) => worktreeWarnings.push(message));
+  assert.equal(invalidWorktree.checks.worktreeCreate, "block");
+  assert.equal(worktreeWarnings.length, 1);
 });
 
 test("post entry blocks a final conflicted file and allows a clean file", async () => {
@@ -217,6 +238,146 @@ test("commit state reports partial staging and blocks invalid or cross-boundary 
     writeFileSync(join(root, ".ai-experts", "commit-boundaries.json"), "{ bad json");
     const invalid = deliveryStateFindings(root, "git commit -m 'fix(repo): update packages'");
     assert.equal(invalid.some((item) => item.id === "Commit Scope Guard" && item.action === "deny"), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("worktree create intent matches explicit isolation requests only", () => {
+  const requested = [
+    "请用 git worktree 隔离审查这个 PR",
+    "use a git worktree for this review",
+    "create an isolated worktree and keep main checked out",
+    "worktree add .worktrees/review-pr",
+    "请创建隔离工作区继续改",
+    "需要隔离 checkout 看另一条分支",
+    "隔离检出后再跑测试",
+    "spawn with isolation: worktree",
+    "isolation = worktree for the child",
+    "在 .worktrees/fix-login 里做",
+    "新建一个 worktree 来并行",
+    "开一个 worktree 给我",
+  ];
+  for (const prompt of requested) {
+    assert.equal(userRequestedWorktreeCreate(prompt), true, prompt);
+  }
+  const ignored = [
+    "keep a clean worktree",
+    "the source worktree must stay unchanged",
+    "report final worktree status",
+    "inspect the working tree and branch",
+    "不要用 git worktree",
+    "do not create a worktree",
+    "don't use git worktree add",
+    "without a worktree, stay on this checkout",
+    "分析这个 monorepo 的 package 边界，不要改 git 工作区",
+    "fix the tests in the current checkout",
+    "Run exactly `git worktree add /tmp/hs-feat-synthetic` once using Bash",
+  ];
+  for (const prompt of ignored) {
+    assert.equal(userRequestedWorktreeCreate(prompt), false, prompt);
+  }
+});
+
+test("worktree isolation is read from host tool input shapes", () => {
+  assert.equal(worktreeIsolationRequested({ isolation: "worktree" }), true);
+  assert.equal(worktreeIsolationRequested({ isolation: { type: "worktree" } }), true);
+  assert.equal(worktreeIsolationRequested({ isolation: { mode: "worktree" } }), true);
+  assert.equal(worktreeIsolationRequested({ isolation: "none" }), false);
+  assert.equal(worktreeIsolationRequested({ prompt: "worktree" }), false);
+  assert.equal(worktreeIsolationRequested({}), false);
+});
+
+test("pre entry denies unsolicited worktree add and host isolation", async () => {
+  const root = createRepository("git-delivery-worktree-pre-");
+  try {
+    const denied = await runEntry(PRE, {
+      cwd: root,
+      session_id: "sess-deny",
+      tool_name: "exec_command",
+      tool_input: { cmd: "git worktree add .worktrees/feat-x -b feat/x" },
+    });
+    assert.equal(denied.code, 0, denied.stderr);
+    const deniedOutput = JSON.parse(denied.stdout);
+    assert.equal(deniedOutput.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(deniedOutput.hookSpecificOutput.permissionDecisionReason, /Worktree Create Guard/u);
+
+    const isolated = await runEntry(PRE, {
+      cwd: root,
+      session_id: "sess-isolation",
+      tool_name: "Task",
+      tool_input: { isolation: "worktree", prompt: "review the branch" },
+    });
+    assert.equal(isolated.code, 0, isolated.stderr);
+    assert.equal(JSON.parse(isolated.stdout).hookSpecificOutput.permissionDecision, "deny");
+
+    recordWorktreeCreateAllowance(root, "sess-allow", "user-prompt");
+    const allowed = await runEntry(PRE, {
+      cwd: root,
+      session_id: "sess-allow",
+      tool_name: "exec_command",
+      tool_input: { cmd: "git worktree add .worktrees/feat-x -b feat/x" },
+    });
+    assert.deepEqual(allowed, { code: 0, stdout: "", stderr: "" });
+
+    writeFileSync(join(root, ".git-delivery.mjs"), "export default { checks: { worktreeCreate: 'allow' } };\n");
+    const configured = await runEntry(PRE, {
+      cwd: root,
+      session_id: "sess-config",
+      tool_name: "exec_command",
+      tool_input: { cmd: "git worktree add .worktrees/feat-y" },
+    });
+    assert.deepEqual(configured, { code: 0, stdout: "", stderr: "" });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("user prompt entry records explicit worktree requests and ignores negations", async () => {
+  const root = mkdtempSync(join(tmpdir(), "git-delivery-prompt-"));
+  try {
+    const recorded = await runEntry(PROMPT, {
+      cwd: root,
+      session_id: "sess-prompt",
+      prompt: "请创建隔离工作区继续改",
+    });
+    assert.equal(recorded.code, 0, recorded.stderr);
+    assert.equal(recorded.stdout, "");
+    assert.equal(readWorktreeCreateReceipt(root, "sess-prompt")?.source, "user-prompt");
+
+    const ignored = await runEntry(PROMPT, {
+      cwd: root,
+      session_id: "sess-ignore",
+      prompt: "分析这个 monorepo 的 package 边界，不要改 git 工作区",
+    });
+    assert.equal(ignored.code, 0, ignored.stderr);
+    assert.equal(readWorktreeCreateReceipt(root, "sess-ignore"), null);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("worktree create receipts permit only valid user-prompt or process sources", () => {
+  const root = mkdtempSync(join(tmpdir(), "git-delivery-worktree-"));
+  try {
+    assert.equal(isWorktreeCreatePermitted("block", null), false);
+    assert.equal(isWorktreeCreatePermitted("allow", null), true);
+    assert.equal(isWorktreeCreatePermitted("report", null), false);
+    assert.equal(recordWorktreeCreateAllowance(root, "", "user-prompt"), false);
+    assert.equal(readWorktreeCreateReceipt(root, "sess-user"), null);
+    assert.equal(recordWorktreeCreateAllowance(root, "sess-user", "user-prompt"), true);
+    const userReceipt = readWorktreeCreateReceipt(root, "sess-user");
+    assert.equal(userReceipt?.source, "user-prompt");
+    assert.equal(userReceipt?.allowed, true);
+    assert.equal(isWorktreeCreatePermitted("block", userReceipt), true);
+    assert.equal(recordWorktreeCreateAllowance(root, "sess-process", "process", "ci-gated-delivery:parallel-writers"), true);
+    assert.equal(readWorktreeCreateReceipt(root, "sess-process")?.source, "process");
+    assert.equal(recordWorktreeCreateAllowance(root, "sess-bad", "process"), false);
+    mkdirSync(join(worktreeCreateReceiptPath(root, "sess-forged"), ".."), { recursive: true });
+    writeFileSync(worktreeCreateReceiptPath(root, "sess-forged"), JSON.stringify({
+      version: 1, allowed: true, source: "agent", createdAt: "2026-01-01T00:00:00.000Z",
+    }));
+    assert.equal(readWorktreeCreateReceipt(root, "sess-forged"), null);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -250,6 +250,7 @@ MARKERS_SOURCE_SANITY='\[Source Sanity Guard\]|Unsafe source write detected|Unre
 MARKERS_CODE_QUALITY='\[Code Quality Guard\]|Source check results|PHPStan batch check results'
 MARKERS_STOP_BLOCK='hook: Stop Blocked|Stop hook blocked'
 MARKERS_GIT_ADD='\[Git Add Guard\]'
+MARKERS_GIT_WORKTREE='\[Worktree Create Guard\]'
 MARKERS_LOCKFILE='\[Lockfile Guard\]'
 MARKERS_INFRA_DEVOPS='\[Dangerous Infra Command\]'
 MARKERS_WEB_FRONTEND='\[WeChat Mini Program Config\]'

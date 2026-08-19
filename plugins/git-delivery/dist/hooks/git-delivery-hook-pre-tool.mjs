@@ -1,8 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f6cabdfd8eb2989acd10981f992c2b256029e5612715d71f53c0888a85045fcc
+// harness-source-hash: sha256:1d952498890ad388eddbbc17d0f899c24e442a2725c5cd1cba0652ccc1fca3a6
+import {
+  loadConflictConfig,
+  resolveRepoRoot
+} from "../chunks/chunk-YX7VOU6D.mjs";
+import {
+  isWorktreeCreatePermitted,
+  readWorktreeCreateReceipt,
+  worktreeIsolationRequested
+} from "../chunks/chunk-Q6SOTMN7.mjs";
 import {
   additionalContextOutput,
   eventCwd,
+  eventSessionId,
   eventToolInput,
   eventToolName,
   extractShellCommand,
@@ -10,7 +20,7 @@ import {
   preToolDeny,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-YETAT45W.mjs";
+} from "../chunks/chunk-I2VJ6UPN.mjs";
 
 // plugins/git-delivery/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";
@@ -529,6 +539,25 @@ function branchName(invocation, command) {
     `use ${TYPES.join("|")}/<lowercase-slug>`
   );
 }
+function worktreeAction(args) {
+  for (const token of args) {
+    if (token === "--") continue;
+    if (token.startsWith("-")) continue;
+    return token;
+  }
+  return "";
+}
+function worktreeCreate(invocation, command) {
+  if (invocation.subcommand !== "worktree") return null;
+  if (worktreeAction(invocation.args) !== "add") return null;
+  return finding(
+    "deny",
+    "Worktree Create Guard",
+    "unsolicited git worktree add creates an extra linked checkout",
+    command,
+    "stay on the current checkout and use an ordinary short-lived branch; create a worktree only after the user asks for an isolated workspace or a declared process writes an allow receipt"
+  );
+}
 function conflictChoice(invocation, command) {
   if (!["checkout", "restore"].includes(invocation.subcommand)) return null;
   const args = invocation.args;
@@ -621,7 +650,8 @@ function classifyDeliveryCommand(command, cwd) {
       destructiveGit(invocation, command),
       branchName(invocation, command),
       conflictChoice(invocation, command),
-      commitMessage(invocation, command)
+      commitMessage(invocation, command),
+      worktreeCreate(invocation, command)
     ]) {
       if (result) findings.push(result);
     }
@@ -970,22 +1000,38 @@ function deliveryStateFindings(cwd, command) {
 }
 
 // plugins/git-delivery/src/entries/hooks/git-delivery-hook-pre-tool.ts
+var WORKTREE_CREATE_ID = "Worktree Create Guard";
+var WORKTREE_ISOLATION_FINDING = {
+  action: "deny",
+  id: WORKTREE_CREATE_ID,
+  reason: "unsolicited host isolation: worktree creates an extra linked checkout",
+  command: "isolation: worktree",
+  recovery: "spawn the subagent in the current checkout; create a worktree only after the user asks for an isolated workspace or a declared process writes an allow receipt"
+};
 async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const command = extractShellCommand(eventToolName(event), eventToolInput(event));
-  if (!command) return;
+  const toolInput = eventToolInput(event);
+  const command = extractShellCommand(eventToolName(event), toolInput);
   const cwd = eventCwd(event);
-  const findings = [
-    ...classifyDeliveryCommand(command, cwd),
-    ...deliveryStateFindings(cwd, command)
-  ];
-  const denied = findings.find((finding3) => finding3.action === "deny");
+  const findings = command ? [...classifyDeliveryCommand(command, cwd), ...deliveryStateFindings(cwd, command)] : [];
+  if (worktreeIsolationRequested(toolInput)) findings.push(WORKTREE_ISOLATION_FINDING);
+  if (!findings.length) return;
+  const config = await loadConflictConfig(resolveRepoRoot(cwd));
+  const receipt = readWorktreeCreateReceipt(cwd, eventSessionId(event));
+  const permitted = isWorktreeCreatePermitted(config.checks.worktreeCreate, receipt);
+  const resolved = findings.flatMap((finding3) => {
+    if (finding3.id !== WORKTREE_CREATE_ID) return [finding3];
+    if (permitted) return [];
+    if (config.checks.worktreeCreate === "report") return [{ ...finding3, action: "report" }];
+    return [finding3];
+  });
+  const denied = resolved.find((finding3) => finding3.action === "deny");
   if (denied) writeJson(preToolDeny(formatDeliveryFinding(denied)));
-  else if (findings.length) {
+  else if (resolved.length) {
     writeJson(additionalContextOutput(
       "PreToolUse",
-      findings.map(formatDeliveryFinding).join("\n\n")
+      resolved.map(formatDeliveryFinding).join("\n\n")
     ));
   }
 }

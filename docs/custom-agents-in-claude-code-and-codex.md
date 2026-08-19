@@ -279,7 +279,7 @@ reviewer contract
 - 正文/`developer_instructions` 写任务边界、证据标准、失败返回和输出结构，不只写人格描述。
 - 读任务默认选择低成本模型和 `medium`；复杂审查才升到 `high` 或更深。模型和 effort 要在真实任务集上比较，不能把更深思考直接等同于更好。
 - 能不用 shell 就不用；需要 shell 时，提示词中的只读规则不能替代命令拦截或 sandbox。
-- 写 agent 明确 workspace-write；并行写入要分配互不重叠的文件范围，必要时使用 worktree。
+- 写 agent 明确 workspace-write；并行写入要分配互不重叠的文件范围。只有用户明确要求隔离工作区，或已激活流程写出放行回执时，才使用 worktree。
 
 ### 加载与路由验收
 

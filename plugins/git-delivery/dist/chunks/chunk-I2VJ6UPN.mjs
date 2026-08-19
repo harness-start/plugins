@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:f6cabdfd8eb2989acd10981f992c2b256029e5612715d71f53c0888a85045fcc
+// harness-source-hash: sha256:1d952498890ad388eddbbc17d0f899c24e442a2725c5cd1cba0652ccc1fca3a6
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -25,6 +25,17 @@ async function readStdinJson(input = process.stdin) {
     return { __parseError: true };
   }
 }
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
+}
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
@@ -36,6 +47,9 @@ function eventToolInput(event) {
   const tool = nestedRecord(event, "tool");
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
 }
 
 // core/src/hook-output.ts
@@ -216,9 +230,11 @@ function additionalContextOutput(hookEventName, text) {
 export {
   isRecord,
   readStdinJson,
+  eventSessionId,
   eventCwd,
   eventToolName,
   eventToolInput,
+  eventPrompt,
   preToolDeny,
   writeJson,
   extractShellCommand2 as extractShellCommand,
