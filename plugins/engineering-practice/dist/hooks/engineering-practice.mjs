@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d5195f087dfa8b5ff1ea7b8f2d59ceb8fe1b7413c496cf9ec5c24847fd76eecb
+// harness-source-hash: sha256:81eec33a100d9950e0c4755d52242a994d129745dbfb4f7fc4b83a78e8112626
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
@@ -22,10 +22,18 @@ async function readStdinJson(input = process.stdin) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

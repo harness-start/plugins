@@ -10,9 +10,11 @@
 | 修 bug | HEAD 里已有对应测试：改那些文件后观察 RED，或测试已经失败时直接观察 RED，再改实现 | 对应测试干净且没有 RED 就改实现；另写一份新测试不能解锁 |
 | 删特性 | 先删掉或改瘦对应测试，再删除/移走实现，不要求再制造一次已经不可能出现的 RED | 对应测试未动就 `rm` / `mv` / `Delete File` 实现 |
 
-实现发生变化后，Stop 会卡住直到相关测试跑绿（GREEN）。把实现恢复成 HEAD 内容会清掉这道屏障，避免无法回退。另写一份新测试不能用来绕过 HEAD 里已经存在的对应测试。
+实现发生变化后，Stop 会卡住直到相关测试跑绿（GREEN）。连续两次改实现之间必须实际运行一次相关测试：仍然 RED 时允许继续修正，但该失败会保留为完成阻断；没有测试观察就连续改实现仍会被拒绝。把实现恢复成 HEAD 内容会清掉这道屏障，避免无法回退。另写一份新测试不能用来绕过 HEAD 里已经存在的对应测试。实现已经相对 HEAD 变化后，任一已识别测试 scope 出现失败，Stop 会继续阻断，直到同一 runner 在相同或更宽的测试选择范围内后续成功；更窄的局部 GREEN 不能覆盖更宽的已知失败，等价命令中的 reporter、verbosity 等非选择参数也不会造成死锁。
 
-插件不会自行启动测试进程。RED 必须同时具备可识别的测试 runner、能绑定到测试文件的命令范围，以及测试框架报告的失败；命令不存在、依赖缺失、权限错误和其他基础设施失败不会算作 RED。GREEN 要求成功退出且没有相矛盾的失败摘要，因此 `pytest ... | tail` 一类管道即使末端退出码为 0，也不能把输出中的失败记成 GREEN。除常见框架命令外，插件支持 `runtests.py` / `run_tests.py` 与 `manage.py test`，并把 `expressions.tests` 这类 Python 点号 selector 绑定到工作区测试路径。缺少明确退出状态或可识别测试结果时不会记作 RED/GREEN。
+Hook 只约束可机械验证的 RED/GREEN 顺序与已知失败闭环，不从测试字面量猜测领域语义，也不规定某个 bug 应当怎样修。边界组合、返回值和异常等行为契约应由题面、当前实现、调用方与邻近测试共同确定。
+
+插件不会自行启动测试进程。RED 必须同时具备可识别的测试 runner、能绑定到测试文件的命令范围，以及测试框架报告的失败；命令不存在、依赖缺失、权限错误和其他基础设施失败不会算作 RED。GREEN 要求成功退出且没有相矛盾的失败摘要，因此 `pytest ... | tail` 一类管道即使末端退出码为 0，也不能把输出中的失败记成 GREEN。Claude 的 Bash 回执有时没有退出码；这时插件接受 pytest 的非零 `passed` 摘要、unittest 的非零 `Ran ... tests` + `OK` 摘要，以及 TAP 的非零 pass/零 fail 摘要。除常见框架命令外，插件支持 `runtests.py` / `run_tests.py` 与 `manage.py test`，并把 `expressions.tests` 这类 Python 点号 selector 绑定到工作区测试路径。缺少明确退出状态或可识别测试结果时不会记作 RED/GREEN。
 
 测试文件仍须通过语言实体绑定或完整目录镜像指向实现文件。会话状态只保存 RED/GREEN 回执，写在当前工作目录的 `.test-driven-development/state/`。`.test-driven-development/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。
 
@@ -57,6 +59,8 @@ Run PHPUnit successfully
   -> PostToolUse 记录 GREEN，Stop 才允许完成
 ```
 
+如果第一次实现仍未通过，相关 PHPUnit 失败会同时记录新的 RED 和未关闭验证失败；下一次实现修正会被允许，但 Stop 继续阻断，直到该 scope 后续 GREEN。
+
 如果第二次写入的是 `Acme\Transport\InvalidArgumentException`，即使类名仍是 `InvalidArgumentException`，也会被拒绝。插件不再使用 basename 或全局 simple name 解锁实现。
 
 同一个工具调用不能同时修改测试和实现。agent 必须先单独写测试，让 `PostToolUse` 观察最终字节，再发起实现写入。
@@ -68,7 +72,7 @@ Run PHPUnit successfully
 - HEAD 里已有对应测试时，拒绝文案会列出那些路径。本会话新建的另一份测试即使也能对上同一个 FQCN 或镜像，也不能解锁。
 - 对应测试已经失败时，只要观察到 RED，不必再改测试字节。
 - 对应测试已从工作区删除，或相对 HEAD 已改瘦时，允许删除或重命名该实现，不再要求 RED。
-- 上一次实现改动还在等 GREEN 时，不能继续改实现；写成与 HEAD 完全相同的内容（回退）会放行并清除屏障。HEAD 里还不存在的新实现，用 `rm` / `Delete File` 删掉也算回退，Stop 不会因此锁死。
+- 上一次实现改动后还没有运行相关测试时，不能继续改实现；相关测试仍 RED 时允许下一次修正，但不能完成。写成与 HEAD 完全相同的内容（回退）会放行并清除屏障。HEAD 里还不存在的新实现，用 `rm` / `Delete File` 删掉也算回退，Stop 不会因此锁死。
 - 文件工具的 `Delete File` 以及常见的 `rm` / `mv` 与普通实现写入一样受门禁，不能静默绕过。
 
 ## 两级匹配

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8e35bf905d187fd837f4611ac02a6c95750dcbc572d43278ee1a96cd9fcaca9a
+// harness-source-hash: sha256:4bf93cb23315222c027a7f594f7e84a3d832b2d933825844c3eb12cfcc8fd5c5
 
 // plugins/agent-activity-audit/src/entries/hooks/agent-activity-audit.ts
 import { resolve as resolve5 } from "node:path";

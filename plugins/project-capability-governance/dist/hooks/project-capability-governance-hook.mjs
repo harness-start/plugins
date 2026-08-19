@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0a8d9ffd84da28b3f80565ae1d91bf3a47c3a9169a252033c41c1c5aef7ae86b
+// harness-source-hash: sha256:0387746be5c1d7629625a45d2bb91b17c8b0fdf562b88ea02a904d37e723ee5b
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
@@ -13,7 +13,7 @@ import {
   readStdinJson,
   renderHumanNotice,
   validateProposalDocument
-} from "../chunks/chunk-TYKAUFBA.mjs";
+} from "../chunks/chunk-MABK2PZG.mjs";
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 import { execFileSync } from "node:child_process";
@@ -25,6 +25,11 @@ import { fileURLToPath } from "node:url";
 import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -35,9 +40,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

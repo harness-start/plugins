@@ -178,8 +178,8 @@ test("all Codex providers receive the same PostToolUse feedback", async () => {
   });
   const result = await runEntry("post-tool", input, env);
   assert.equal(result.code, 0);
-  const providerOutput = JSON.parse(result.stdout);
-  assert.match(providerOutput.hookSpecificOutput.additionalContext, /Hangul/u);
+  assert.equal(result.stdout, "");
+  assert.match(result.stderr, /Hangul/u);
 
   const standardInput = event(cwd, "codex-standard-feedback", {
     tool_name: "Bash",
@@ -195,8 +195,9 @@ test("all Codex providers receive the same PostToolUse feedback", async () => {
     PLUGIN_ROOT: "/plugin",
     DEEPSEEK_MODEL: "",
   });
-  const output = JSON.parse(standardCodex.stdout);
-  assert.match(output.hookSpecificOutput.additionalContext, /Hangul/u);
+  assert.equal(standardCodex.code, 0);
+  assert.equal(standardCodex.stdout, "");
+  assert.match(standardCodex.stderr, /Hangul/u);
 });
 
 test("Stop blocks drift including host retries with stop_hook_active", async () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5b90d89c646be1b9e7284f1ae23f34868119cca95eac1fc1607f03459c3e97a5
+// harness-source-hash: sha256:e096cc68d4c4fa272f90a77cf3b4e2e96ed45371fc9cb399770df3f1e57d598d
 import {
   createAcknowledgement,
   isProtectedReportPath,
@@ -10,7 +10,7 @@ import {
   sha256,
   validateAcknowledgement,
   verifyReport
-} from "../chunks/chunk-T5BR6ST7.mjs";
+} from "../chunks/chunk-ZJQ5RZVC.mjs";
 import {
   eventAssistantMessage,
   eventCwd,
@@ -21,7 +21,7 @@ import {
   eventToolResponse,
   isRecord,
   readStdinJson
-} from "../chunks/chunk-DUTGSILQ.mjs";
+} from "../chunks/chunk-HKHW5YOE.mjs";
 
 // plugins/work-reporting/src/entries/hooks/work-reporting-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";
@@ -30,6 +30,11 @@ import { resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -40,9 +45,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

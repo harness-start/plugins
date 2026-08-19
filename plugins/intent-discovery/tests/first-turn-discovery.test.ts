@@ -89,6 +89,8 @@ test("first prompt injects discovery and the second prompt is silent", async () 
     assert.equal(first.code, 0, first.stderr);
     const context = outputOf(first)?.hookSpecificOutput?.additionalContext ?? "";
     assert.match(context, /intent-discovery/u);
+    assert.match(context, /concrete target.*outcome.*constraints.*acceptance/isu);
+    assert.match(context, /do not load.*Skill.*spawn.*discovery/isu);
     assert.match(context, /Do not stop to ask the user/u);
     assert.match(context, /continue with the request/u);
 

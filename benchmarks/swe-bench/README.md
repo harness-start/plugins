@@ -13,6 +13,13 @@ Stage 1 passes only when all six cells below are officially `resolved`:
 | `django__django-10914` | required | required |
 | `django__django-11001` | required | required |
 
+Stage 2 is the independent follow-up suite in
+[`config/stage2.yaml`](config/stage2.yaml). It passes only when all four cells
+for `astropy__astropy-7746` and `django__django-11019` are officially
+`resolved` on Claude Code and Codex. It uses the explicit generic Python
+bug-fix plugin profile declared in that suite instead of mounting unrelated
+mobile, artifact-production, infrastructure, and reporting hooks.
+
 The frozen suite is [`config/stage1.yaml`](config/stage1.yaml). It pins
 SWE-bench Lite and its dataset revision, SWE-bench `4.1.0`, Claude Code
 `2.1.170`, Codex `0.147.0`, `deepseek-v4-flash`, high reasoning effort, one
@@ -25,6 +32,15 @@ attempt per cell, and one official evaluator worker.
   activated before the host starts.
 - The benchmark mounts a materialized consumer snapshot, not the development
   checkout. Source, tests, caches, `.env`, and symbolic links are excluded.
+  `harness.mode: full` includes the complete catalog; `profile` includes only
+  the suite-declared plugin set and rewrites both host catalogs to that exact
+  set. The selected set and its bytes are bound into the payload fingerprint.
+- Before building the agent cells, the harness rejects selected plugin runtime
+  payloads that contain an instance/repository identity or a copied 12-word
+  span from any configured problem statement. Conceptually task-shaped plugin
+  guidance is forbidden by review even when paraphrased: benchmark findings
+  must first be reduced to a task-independent mechanism and synthetic outcome
+  test.
 - The agent network is Docker-internal. Its only external route is an HTTPS
   CONNECT proxy whose exact allowlist is `api.deepseek.com:443`.
 - The checkout exposed to the agent is reinitialized as one sealed Git commit.
@@ -52,6 +68,7 @@ From the repository root:
 npm run bench:swe:check
 npm run bench:swe:gold -- --run-id stage1-gold
 npm run bench:swe:stage1 -- --run-id stage1-001
+benchmarks/swe-bench/run.sh --suite benchmarks/swe-bench/config/stage2.yaml run --run-id stage2-001
 ```
 
 `check` verifies the pinned toolchain, plugin catalogs and committed `dist/`,
@@ -74,7 +91,15 @@ npm run bench:swe:stage1 -- --run-id stage1-001 --resume
 Resume reuses only cells with a complete `status.json`. If the interruption
 happened during an agent call, the runner rejects that incomplete cell and
 requires a new run ID so a hidden second attempt can never be reported as the
-first.
+first. It also rejects a saved marketplace whose selected plugin list or
+payload fingerprint differs from the current checkout, preventing old cells
+from being relabeled with new source metadata.
+
+`run` applies the same exact-cell gate to whichever suite is supplied with
+`--suite`; its denominator is derived from that suite's configured instances
+and hosts. A profile is a consumer-side plugin selection, not a weakened
+plugin build: every selected plugin remains self-contained with its original
+Skills, Hooks, scripts, and acceptance contract.
 
 ## Artifacts
 

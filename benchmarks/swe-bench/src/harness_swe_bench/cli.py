@@ -9,6 +9,7 @@ from harness_swe_bench.runner import (
     load_report,
     run_check,
     run_gold_smoke,
+    run_suite,
     run_stage1,
     utc_run_id,
 )
@@ -28,6 +29,9 @@ def parser() -> argparse.ArgumentParser:
     stage1 = commands.add_parser("stage1")
     stage1.add_argument("--run-id", default=None)
     stage1.add_argument("--resume", action="store_true")
+    run = commands.add_parser("run")
+    run.add_argument("--run-id", default=None)
+    run.add_argument("--resume", action="store_true")
     report = commands.add_parser("report")
     report.add_argument("--run-id", required=True)
     return root
@@ -47,10 +51,21 @@ def main(argv: list[str] | None = None) -> None:
         report = run_stage1(
             REPO_ROOT, BENCHMARK_ROOT, suite, run_id, resume=args.resume
         )
-        print(json.dumps({"run_id": run_id, "stage_pass": report["stage_pass"]}, indent=2))
-        raise SystemExit(0 if report["stage_pass"] else 1)
+        print(json.dumps({"run_id": run_id, "suite_pass": report["suite_pass"]}, indent=2))
+        raise SystemExit(0 if report["suite_pass"] else 1)
+    if args.command == "run":
+        run_id = args.run_id or utc_run_id("suite")
+        report = run_suite(
+            REPO_ROOT, BENCHMARK_ROOT, suite, run_id, resume=args.resume
+        )
+        print(json.dumps({"run_id": run_id, "suite_pass": report["suite_pass"]}, indent=2))
+        raise SystemExit(0 if report["suite_pass"] else 1)
     if args.command == "report":
         report = load_report(BENCHMARK_ROOT, args.run_id)
         print(json.dumps(report, indent=2))
-        raise SystemExit(0 if report.get("stage_pass") is True else 1)
+        raise SystemExit(
+            0
+            if report.get("suite_pass") is True or report.get("stage_pass") is True
+            else 1
+        )
     raise SystemExit(2)

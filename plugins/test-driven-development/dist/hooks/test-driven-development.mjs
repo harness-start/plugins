@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b620fff3494710dbe1af7ec7d6a78cc8ca8523f3262beb1e11e424f527b4bd2b
+// harness-source-hash: sha256:929d0c19ad2ba7296a2374b5260e46916aa40c0696f6829301ca2bc8c0273504
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -75,6 +75,11 @@ function eventToolUseId(event) {
 import { isAbsolute, relative, resolve } from "node:path";
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -85,9 +90,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,
@@ -188,6 +196,8 @@ function inferOutcome(event, forceFailure = false) {
   if (forceFailure) return "unknown";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
   if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
+  if (/\b[1-9][0-9]*\s+passed\b/iu.test(text)) return "success";
+  if (/(?:^|\n)Ran\s+[1-9][0-9]*\s+tests?[^\n]*\n(?:\n)?OK(?:\s|$)/iu.test(text)) return "success";
   if (/\b0\s+failures?\b/iu.test(text)) return "success";
   if (isRecord(response) && response.success === false) return "unknown";
   if (code === 0 || isRecord(response) && response.success === true) return "success";
@@ -966,6 +976,16 @@ function listHeadPaths(root) {
   if (listed.status !== 0) return [];
   return listed.stdout.split("\n").map((path) => path.trim()).filter(Boolean);
 }
+function listDirtyPaths(root) {
+  if (!hasGitHead(root)) return [];
+  const changed = runGit(root, ["diff", "--name-only", "HEAD", "--"]);
+  const untracked = runGit(root, ["ls-files", "--others", "--exclude-standard"]);
+  const paths = [
+    ...changed.status === 0 ? changed.stdout.split("\n") : [],
+    ...untracked.status === 0 ? untracked.stdout.split("\n") : []
+  ];
+  return [...new Set(paths.map((path) => path.trim().replaceAll("\\", "/")).filter(Boolean))];
+}
 function restoresHeadState(root, relativePath2, { missing = false, content = "" } = {}) {
   const head = gitShowHead(root, relativePath2);
   if (head === null) return missing === true;
@@ -1059,10 +1079,18 @@ function withPathLock(path, operation) {
 }
 
 // plugins/test-driven-development/src/lib/state-store.ts
-var VERSION = 3;
+var VERSION = 5;
 var STATE_DIR_RELATIVE = ".test-driven-development/state";
 function emptyState() {
-  return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
+  return {
+    version: VERSION,
+    sequence: 0,
+    pending: null,
+    tests: [],
+    needsGreen: null,
+    observedRed: {},
+    unresolvedVerificationFailures: []
+  };
 }
 function digest(value) {
   return digestKey(value);
@@ -1081,7 +1109,7 @@ function readState(sessionId, root) {
   try {
     const value = JSON.parse(readFileSync5(path, "utf8"));
     if (!isRecord(value) || value.version !== VERSION) throw new Error("version mismatch");
-    return { observedRed: {}, ...value };
+    return { ...emptyState(), ...value };
   } catch {
     return emptyState();
   }
@@ -1133,7 +1161,10 @@ function testCommand(command) {
   const value = String(command ?? "");
   return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(value) || /(?:^|[;&|]\s*)(?:python(?:3)?\s+)?["']?(?:\.\/|\/)?[^\s;&|"']*(?:runtests|run[-_]?tests?)\.py\b/iu.test(value) || /(?:^|[;&|]\s*)python(?:3)?\s+(?:\.\/)?manage\.py\s+test\b/iu.test(value);
 }
-var TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
+function hasDirtySource(root) {
+  return listDirtyPaths(root).some((path) => classifyPath(path).kind === "source");
+}
+var TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))(?:::[^\s;|"']*)?["']?(?=\s|$)/gu;
 function namedTestPaths(command, root) {
   const normalized = String(command ?? "").replaceAll("\\", "/");
   const found = [];
@@ -1165,6 +1196,39 @@ function selectorTestPaths(command, root, state) {
     }
   }
   return [...found];
+}
+function verificationRunner(command) {
+  const value = String(command).toLowerCase();
+  if (/\bnode\s+--test\b/u.test(value)) return "node:test";
+  if (/\b(?:python(?:3)?\s+-m\s+)?pytest\b/u.test(value)) return "pytest";
+  if (/\b(?:vendor\/bin\/)?phpunit\b/u.test(value)) return "phpunit";
+  if (/\bgo\s+test\b/u.test(value)) return "go:test";
+  if (/\bcargo\s+test\b/u.test(value)) return "cargo:test";
+  if (/\bvitest\b/u.test(value)) return "vitest";
+  if (/\bjest\b/u.test(value)) return "jest";
+  if (/\bnpm\s+(?:run\s+)?test\b/u.test(value)) return "npm:test";
+  if (/\bpnpm\s+(?:run\s+)?test\b/u.test(value)) return "pnpm:test";
+  if (/\byarn\s+test\b/u.test(value)) return "yarn:test";
+  if (/\bmanage\.py\s+test\b/u.test(value)) return "django:test";
+  if (/\b(?:runtests|run[-_]?tests?)\.py\b/u.test(value)) return "python:test-script";
+  return "test";
+}
+function verificationScope(command, root, state) {
+  const testPaths = [.../* @__PURE__ */ new Set([
+    ...namedTestPaths(command, root),
+    ...selectorTestPaths(command, root, state)
+  ])].sort();
+  return { runner: verificationRunner(command), testPaths };
+}
+function sameVerificationScope(left, right) {
+  return left.runner === right.runner && left.testPaths.length === right.testPaths.length && left.testPaths.every((path, index) => path === right.testPaths[index]);
+}
+function verificationSuccessCovers(success, failure) {
+  if (success.runner !== failure.runner) return false;
+  if (success.testPaths.length === 0) return true;
+  if (failure.testPaths.length === 0) return false;
+  const successfulPaths = new Set(success.testPaths);
+  return failure.testPaths.every((path) => successfulPaths.has(path));
 }
 function coveredOutcomePaths(command, root, state, outcome) {
   const named = [.../* @__PURE__ */ new Set([...namedTestPaths(command, root), ...selectorTestPaths(command, root, state)])];
@@ -1252,7 +1316,7 @@ async function runPre(event) {
         if (!writeState(sessionId, root, state)) warn("implementation snapshot could not be persisted; GREEN completion will fail closed");
         return;
       }
-      writeJson(preToolDeny(`[TDD Guard] Blocked implementation edit: the previous implementation mutation still needs an observed passing test run (GREEN). Run the relevant tests successfully before another implementation change.`));
+      writeJson(preToolDeny(`[TDD Guard] Blocked implementation edit: the previous implementation mutation has not been exercised by a relevant test run. Run the relevant tests once before another implementation change; a failing result permits the next correction, while completion still requires GREEN.`));
       return;
     }
     const authorizingTests = /* @__PURE__ */ new Set();
@@ -1310,9 +1374,49 @@ async function runPost(event, platform, forceFailure = false) {
   const command = shellCommandOf(event);
   if (command && testCommand(command)) {
     const outcome = inferOutcome(event, forceFailure);
+    const scope = verificationScope(command, root, state);
+    let stateChanged = false;
+    if (outcome === "failure" && hasDirtySource(root)) {
+      if (!state.unresolvedVerificationFailures.some((failure) => sameVerificationScope(failure, scope))) {
+        state.unresolvedVerificationFailures.push(scope);
+      }
+      if (state.needsGreen) {
+        const required = new Set(state.needsGreen.testPaths ?? []);
+        const relevant = scope.testPaths.length === 0 || scope.testPaths.some((path) => required.has(path));
+        if (relevant) {
+          const covered = coveredOutcomePaths(command, root, state, outcome).filter((path) => required.size === 0 || required.has(path));
+          if (covered.length > 0) {
+            state.observedRed = { ...state.observedRed ?? {} };
+            for (const path of covered) {
+              const absolutePath = resolve6(root, path);
+              if (!existsSync4(absolutePath)) continue;
+              const hash = hashPath(absolutePath);
+              state.observedRed[path] = hash;
+              const record = (state.tests ?? []).find((item) => item.path === path);
+              if (record) record.redHash = hash;
+            }
+            state.lastRed = {
+              commandHash: digest(command),
+              testHashes: covered.map((path) => state.observedRed[path]).filter((value) => Boolean(value))
+            };
+            state.needsGreen = null;
+          }
+        }
+      }
+      if (!writeState(sessionId, root, state)) warn("failing verification outcome could not be persisted");
+      return;
+    }
+    if (outcome === "success") {
+      const remaining = state.unresolvedVerificationFailures.filter((failure) => !verificationSuccessCovers(scope, failure));
+      stateChanged = remaining.length !== state.unresolvedVerificationFailures.length;
+      state.unresolvedVerificationFailures = remaining;
+    }
     if (outcome === "failure" && !state.needsGreen) {
       const covered = coveredOutcomePaths(command, root, state, outcome);
-      if (covered.length === 0) return;
+      if (covered.length === 0) {
+        if (stateChanged && !writeState(sessionId, root, state)) warn("test outcome could not be persisted");
+        return;
+      }
       state.observedRed = { ...state.observedRed ?? {} };
       for (const path of covered) {
         const absolutePath = resolve6(root, path);
@@ -1325,9 +1429,12 @@ async function runPost(event, platform, forceFailure = false) {
       state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter((value) => Boolean(value)) };
     } else if (outcome === "success" && state.needsGreen) {
       const covered = coveredOutcomePaths(command, root, state, outcome);
-      if (covered.length === 0) return;
+      if (covered.length === 0) {
+        if (stateChanged && !writeState(sessionId, root, state)) warn("test outcome could not be persisted");
+        return;
+      }
       state.needsGreen = null;
-    } else return;
+    } else if (!stateChanged) return;
     if (!writeState(sessionId, root, state)) warn("test outcome could not be persisted");
     return;
   }
@@ -1392,8 +1499,14 @@ async function runPost(event, platform, forceFailure = false) {
 async function runStop(event) {
   const root = cwdOf(event);
   const state = readState(sessionIdOf(event), root);
-  if (!state.needsGreen) return;
-  writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
+  if (state.needsGreen) {
+    writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
+    return;
+  }
+  if (state.unresolvedVerificationFailures.length > 0) {
+    writeJson(stopDeny("[TDD Guard] Completion blocked: a test scope failed after implementation changes and has not subsequently passed with the same runner at the same or broader test-selection scope. Fix the regression and rerun that scope successfully; a narrower passing test does not clear a broader known failure."));
+    return;
+  }
 }
 async function main() {
   const event = await readStdinJson();

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7f446489c2ff3705650cb2ac838181af0cf6f64812ad07a05e6035a4ff99d790
+// harness-source-hash: sha256:9ed50f204723cfcd14603a31dbc9013f0d7e3174d70196094ee5498273dd4f26
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -6465,6 +6465,11 @@ function eventToolInput(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -6475,9 +6480,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

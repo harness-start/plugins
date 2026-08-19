@@ -30,6 +30,7 @@ class AgentConfig:
 @dataclass(frozen=True)
 class HarnessConfig:
     mode: str
+    plugins: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -117,6 +118,15 @@ def load_suite(path: Path) -> SuiteConfig:
     harness_mode = _string(harness.get("mode"), "harness.mode")
     if harness_mode not in {"full", "off", "profile"}:
         raise ValueError("harness.mode must be full, off, or profile")
+    harness_plugins = (
+        _strings(harness.get("plugins"), "harness.plugins")
+        if harness.get("plugins") is not None
+        else ()
+    )
+    if harness_mode == "profile" and not harness_plugins:
+        raise ValueError("harness.plugins is required when harness.mode is profile")
+    if harness_mode != "profile" and harness_plugins:
+        raise ValueError("harness.plugins is allowed only when harness.mode is profile")
     cache_level = _string(grader.get("cache_level"), "grader.cache_level")
     if cache_level not in {"none", "base", "env", "instance"}:
         raise ValueError("grader.cache_level is invalid")
@@ -142,7 +152,7 @@ def load_suite(path: Path) -> SuiteConfig:
             timeout_sec=_positive_int(agent.get("timeout_sec"), "agent.timeout_sec"),
             attempts=attempts,
         ),
-        harness=HarnessConfig(mode=harness_mode),
+        harness=HarnessConfig(mode=harness_mode, plugins=harness_plugins),
         network=NetworkConfig(
             allowed_hosts=_strings(network.get("allowed_hosts"), "network.allowed_hosts")
         ),

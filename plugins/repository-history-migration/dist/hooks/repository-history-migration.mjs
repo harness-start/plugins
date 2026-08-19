@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0c2a5cfcb14c2124de8ffe2ca1299b6856b86f0267d6a8acf664a854769e811f
+// harness-source-hash: sha256:afcad56dc8346af5bbe7c108e698f889b9b8f0175a731458c6f31e3334cc62d4
 import {
   eventToolInput,
   eventToolName,
   readStdinJson
-} from "../chunks/chunk-6FDFHGCP.mjs";
+} from "../chunks/chunk-WCHII4GV.mjs";
 
 // plugins/repository-history-migration/src/entries/hooks/repository-history-migration.ts
 import { resolve } from "node:path";

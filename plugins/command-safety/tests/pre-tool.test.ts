@@ -18,6 +18,10 @@ import { mysqlReplicationPreflightFinding } from "../src/engines/mysql-preflight
 import { fileSafetyReports } from "../src/engines/file-safety.js";
 import { secretReadReport } from "../src/engines/secret-read.js";
 import { escalationMessage, recordDeny } from "../src/lib/deny-state.js";
+import {
+  verificationIntegrityDenyMessage,
+  verificationIntegrityFinding,
+} from "../src/engines/verification-integrity.js";
 
 const PRE = fileURLToPath(
   new URL("../dist/hooks/cmd-safety-hook-pre-tool.mjs", import.meta.url),
@@ -267,6 +271,55 @@ test("dangerous-rm deny message contains the complete blocking contract", () => 
   }
 });
 
+test("verification integrity rejects shell composition that can mask a failing test", () => {
+  for (const command of [
+    "python runtests.py forms_tests 2>&1 | grep -E '^(Ran|OK|FAILED)'",
+    "python -m pytest -q | tail -20",
+    "node --test test/unit.test.mjs | head -40",
+    "npm test | tee /tmp/test.log",
+    "cargo test | sed -n '1,80p'",
+    "go test ./... || true",
+    "pytest -q; echo complete",
+    "bash -c 'pytest -q | tail -20'",
+  ]) {
+    assert.ok(verificationIntegrityFinding(command), command);
+  }
+});
+
+test("verification integrity allows direct tests and status-preserving composition", () => {
+  for (const command of [
+    "python runtests.py forms_tests",
+    "python -m pytest -q > /tmp/test.log 2>&1",
+    "node --test test/unit.test.mjs",
+    "set -o pipefail; pytest -q | tee /tmp/test.log",
+    "set -e; python runtests.py forms_tests; echo complete",
+    "pytest -q && echo complete",
+    "bash -o pipefail -c 'pytest -q | tail -20'",
+    "grep -rn 'pytest | tail' docs",
+    "printf '%s\\n' 'npm test | head'",
+    "git commit -m 'document pytest | tail output'",
+  ]) {
+    assert.equal(verificationIntegrityFinding(command), null, command);
+  }
+});
+
+test("verification integrity deny explains the evidence hazard and safe recovery", () => {
+  const finding = verificationIntegrityFinding("pytest -q | tail -20");
+  assert.ok(finding);
+  const message = verificationIntegrityDenyMessage(finding, "pytest -q | tail -20");
+  for (const field of [
+    "Verification Integrity Guard",
+    "blockingContract",
+    "observedFacts",
+    "harm",
+    "unblockWhen",
+    "recovery",
+    "pipefail",
+  ]) {
+    assert.match(message, new RegExp(field, "u"));
+  }
+});
+
 function runHook(event, env = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [PRE], {
@@ -320,6 +373,18 @@ test("entry denies dangerous command before lower-priority checks", async () => 
     output.hookSpecificOutput.permissionDecisionReason,
     /Dangerous Command/,
   );
+});
+
+test("entry denies masked verification before it can become completion evidence", async () => {
+  const { code, stdout } = await runHook({
+    cwd: CWD,
+    tool_name: "exec_command",
+    tool_input: { cmd: "python -m pytest -q 2>&1 | tail -20" },
+  });
+  assert.equal(code, 0);
+  const output = JSON.parse(stdout);
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(output.hookSpecificOutput.permissionDecisionReason, /Verification Integrity Guard/u);
 });
 
 test("entry denies cat heredoc for lowercase Codex shell tool", async () => {

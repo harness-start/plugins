@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:713ddff25727a3f8d384943017746dc5f0aa40e76632d4f3d017a4ba058f430f
+// harness-source-hash: sha256:8603e9d0f835f01cba1e98e871419348513953fcfa810a4a257a0cf7d3a9a790
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   readStdinJson,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-HSBW5ALZ.mjs";
+} from "../chunks/chunk-JXTZRWDW.mjs";
 
 // plugins/software-debugging/src/entries/hooks/software-debugging.ts
 import { appendFileSync, existsSync, readFileSync as readFileSync2 } from "node:fs";
@@ -63,6 +63,11 @@ function isGenericMutationCommand(command) {
 import { isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -73,9 +78,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context2, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context2}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context2}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,
@@ -313,12 +321,6 @@ function inferOutcome(event, forceFailure = false) {
   return "unknown";
 }
 function contextOutput(eventName, text) {
-  if (process.env.PLUGIN_ROOT && process.env.DEEPSEEK_MODEL && eventName === "PostToolUse") {
-    process.stderr.write(`${text}
-`);
-    process.exitCode = 2;
-    return null;
-  }
   return additionalContext(eventName, text);
 }
 function stopDeny(reason) {

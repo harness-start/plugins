@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d7eb5c2e7a5ba266f54cb3397eb35423cd022d76328738efc026c1b3670efbc7
+// harness-source-hash: sha256:85b13c2563bdc59fda6a978b54a670ea3995eff826a4b0880d4dd0c0892b9729
 import {
   issueWriterCapability
-} from "../chunks/chunk-JAI23ZUJ.mjs";
+} from "../chunks/chunk-32HEFPD2.mjs";
 import {
   computeTrainingSubjectDigest,
   evaluateTrainingWrite,
@@ -10,7 +10,7 @@ import {
   loadTrainingProject,
   resolveWorkspaceRoot,
   validateTrainingModel
-} from "../chunks/chunk-OJGCC4JJ.mjs";
+} from "../chunks/chunk-WWIPRB2V.mjs";
 
 // plugins/training-program-design/src/entries/hooks/training-program-design.ts
 import { relative, resolve as resolve3 } from "node:path";
@@ -66,6 +66,11 @@ function eventToolInput(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -76,9 +81,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

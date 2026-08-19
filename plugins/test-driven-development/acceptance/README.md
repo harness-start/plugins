@@ -10,3 +10,5 @@
 | `04-historical-test-first` | 修 bug | 已有对应测试时直接改实现被拒绝 |
 | `05-historical-fix-allow` | 修 bug | 已失败的对应测试观察 RED 后允许修实现并 GREEN |
 | `06-feature-delete` | 删特性 | 先删对应测试，再删实现，不要求再制造 RED |
+| `07-unresolved-verification-scope` | 修 bug 后验证 | 已观察到的全套失败不能被更窄的 GREEN 覆盖；同一 runner 的等价全套命令通过后允许完成 |
+| `08-red-implementation-iteration` | 第一次实现仍失败 | 每次实现修改之间运行相关测试；中间 RED 允许继续修正，最终仍须 GREEN |

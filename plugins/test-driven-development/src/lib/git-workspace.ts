@@ -91,6 +91,17 @@ export function listHeadPaths(root: string): string[] {
   return listed.stdout.split("\n").map((path) => path.trim()).filter(Boolean);
 }
 
+export function listDirtyPaths(root: string): string[] {
+  if (!hasGitHead(root)) return [];
+  const changed = runGit(root, ["diff", "--name-only", "HEAD", "--"]);
+  const untracked = runGit(root, ["ls-files", "--others", "--exclude-standard"]);
+  const paths = [
+    ...(changed.status === 0 ? changed.stdout.split("\n") : []),
+    ...(untracked.status === 0 ? untracked.stdout.split("\n") : []),
+  ];
+  return [...new Set(paths.map((path) => path.trim().replaceAll("\\", "/")).filter(Boolean))];
+}
+
 export function isHeadContent(root: string, relativePath: string, content: string): boolean {
   const head = gitShowHead(root, relativePath);
   return head !== null && head === String(content ?? "");

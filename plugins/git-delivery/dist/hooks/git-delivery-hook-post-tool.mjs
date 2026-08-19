@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:92a360465f0a28a6552ad76b3fa0644640b3445d982e79fb8844ff89a43e7ea7
+// harness-source-hash: sha256:f6cabdfd8eb2989acd10981f992c2b256029e5612715d71f53c0888a85045fcc
 import {
   additionalContextOutput,
   eventCwd,
@@ -7,7 +7,7 @@ import {
   isRecord,
   readStdinJson,
   writeJson
-} from "../chunks/chunk-KVLHEBTT.mjs";
+} from "../chunks/chunk-YETAT45W.mjs";
 
 // plugins/git-delivery/src/entries/hooks/git-delivery-hook-post-tool.ts
 import { resolve } from "node:path";

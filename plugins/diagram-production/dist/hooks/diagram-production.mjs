@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7cec658f0ff45c08d4979a750be5c1d1e145e40adc8373b8f6d0fb4ad8077ca1
+// harness-source-hash: sha256:11489f6cdf6f0dbafbc48058596c84f56a2e943da337b6d5ea09ff7895b66c29
 import {
   issueWriterCapability
-} from "../chunks/chunk-5VT3RKKP.mjs";
+} from "../chunks/chunk-ZXSWDE54.mjs";
 import {
   computeDiagramSubjectDigest,
   evaluateDiagramWrite,
@@ -10,7 +10,7 @@ import {
   loadDiagramProject,
   resolveWorkspaceRoot,
   validateDiagramModel
-} from "../chunks/chunk-J4PXQCMH.mjs";
+} from "../chunks/chunk-436EDDQR.mjs";
 
 // plugins/diagram-production/src/entries/hooks/diagram-production.ts
 import { createHash } from "node:crypto";
@@ -67,6 +67,11 @@ function eventToolInput(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -77,9 +82,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

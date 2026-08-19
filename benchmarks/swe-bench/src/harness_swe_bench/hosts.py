@@ -7,7 +7,9 @@ from harness_swe_bench.config import SuiteConfig
 
 
 CODEX_SHELL_EDIT_INSTRUCTIONS = (
-    "You are a coding agent. Use shell commands for file changes; the standalone "
+    "You are a coding agent. Issue at most one tool call per assistant turn and "
+    "wait for its output before calling another tool. Use shell commands for file "
+    "changes; the standalone "
     "patch editing tool is unavailable. Never write files with cat heredocs, tee, "
     "or shell output redirection because workspace hooks reject those commands. "
     "Use Python file APIs for multiline file edits. Complete the user request directly."
@@ -26,6 +28,7 @@ def write_codex_model_catalog(source: Path, destination: Path, model_name: str) 
         raise ValueError(f"Codex model catalog must contain exactly one {model_name}")
     model = selected[0]
     model["apply_patch_tool_type"] = None
+    model["supports_parallel_tool_calls"] = False
     model["base_instructions"] = CODEX_SHELL_EDIT_INSTRUCTIONS
     messages = model.get("model_messages")
     if not isinstance(messages, dict):

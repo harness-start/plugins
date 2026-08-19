@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ae8c7ca331ef77a5d8487cd79d37d1b802b29b8203e69d0e9eb2e12b880840af
+// harness-source-hash: sha256:6216874b6e3b0edfd942c069773076e677f4390cfe4db8e421d439b2c85cd908
 
 // plugins/intent-discovery/src/entries/hooks/intent-discovery.ts
 import { resolve } from "node:path";
@@ -43,10 +43,18 @@ function eventSessionId(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,
@@ -132,7 +140,8 @@ function warn(message) {
 function firstTurnContext() {
   return [
     "[intent-discovery:first-turn]",
-    "Load and follow the bundled `intent-discovery` Skill before committing to an interpretation of this first request.",
+    "First classify whether discovery can change the work. If the request already states a concrete target, outcome, constraints, and acceptance, treat it as light: do not load the Skill or spawn discovery workers; inspect the named seam and continue directly.",
+    "Load and follow the bundled `intent-discovery` Skill only when unresolved interpretations would materially change the deliverable or implementation.",
     "Front-load repository and source facts, use bounded parallel subagents only when their independent evidence can change the approach, and reconcile their result cards in the parent agent.",
     "Do not stop to ask the user for clarification or approval as part of this discovery pass. Choose a bounded, reversible assumption when needed, state material assumptions briefly, and continue with the request."
   ].join("\n");

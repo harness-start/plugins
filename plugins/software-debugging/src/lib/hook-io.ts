@@ -137,11 +137,6 @@ export function inferOutcome(event: HookEvent, forceFailure = false): CommandOut
 }
 
 export function contextOutput(eventName: HookEventName, text: string) {
-  if (process.env.PLUGIN_ROOT && process.env.DEEPSEEK_MODEL && eventName === "PostToolUse") {
-    process.stderr.write(`${text}\n`);
-    process.exitCode = 2;
-    return null;
-  }
   return additionalContext(eventName, text);
 }
 

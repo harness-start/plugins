@@ -65,12 +65,8 @@ test("PostToolUse report stays non-blocking when PLUGIN_ROOT is set", async () =
     });
 
     assert.equal(result.code, 0);
-    const combined = `${result.stdout}\n${result.stderr}`;
-    assert.match(combined, /Insecure TLS/u);
-    if (result.stdout.trim()) {
-      const output = JSON.parse(result.stdout);
-      assert.match(output.hookSpecificOutput.additionalContext, /Insecure TLS/u);
-    }
+    assert.equal(result.stdout, "");
+    assert.match(result.stderr, /Insecure TLS/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

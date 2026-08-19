@@ -40,6 +40,6 @@ export function extractWriteTargets(toolNameOrEvent: string | HookEvent, toolInp
 
 export function additionalContextOutput(hookEventName: HookEventName, text: string) {
   return additionalContext(hookEventName, text, {
-    echoStderr: Boolean(process.env.PLUGIN_ROOT) && hookEventName === "PostToolUse",
+    echoStderr: Boolean(process.env.PLUGIN_ROOT),
   });
 }

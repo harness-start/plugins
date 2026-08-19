@@ -731,6 +731,64 @@ test("public hook requires an observed RED before implementation and GREEN befor
   }
 });
 
+test("a related failing test between implementation edits permits the next correction", async () => {
+  const fx = fixture("test-driven-development-red-iteration-");
+  try {
+    gitInit(fx.root);
+    const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
+
+    const revisedTest = pair.testContent.replace(
+      "$service = new OrderService();",
+      "$service = new OrderService();\n        self::assertSame(2, $service->total());",
+    );
+    const testWrite = writeEvent(fx.root, pair.testPath, revisedTest, "iterate-test-1");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), revisedTest);
+    await runHook("post", testWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "iterate-initial-red");
+
+    const firstAttempt = pair.sourceContent.replace(
+      "final class OrderService {}",
+      "final class OrderService { public function total(): int { return 1; } }",
+    );
+    const firstWrite = writeEvent(fx.root, pair.sourcePath, firstAttempt, "iterate-source-1");
+    assert.equal((await runHook("pre", firstWrite, hookEnv(fx.data))).stdout, "");
+    writeFileSync(join(fx.root, pair.sourcePath), firstAttempt);
+    await runHook("post", firstWrite, hookEnv(fx.data));
+
+    const corrected = firstAttempt.replace("return 1", "return 2");
+    const correctedWrite = writeEvent(fx.root, pair.sourcePath, corrected, "iterate-source-2");
+    const beforeObservation = await runHook("pre", correctedWrite, hookEnv(fx.data));
+    assert.equal(JSON.parse(beforeObservation.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(beforeObservation.stdout, /test run|GREEN/iu);
+
+    await observeRed(fx.root, fx.data, pair.testPath, "iterate-still-red");
+    const afterObservation = await runHook("pre", correctedWrite, hookEnv(fx.data));
+    assert.equal(afterObservation.stdout, "", afterObservation.stdout);
+    writeFileSync(join(fx.root, pair.sourcePath), corrected);
+    await runHook("post", correctedWrite, hookEnv(fx.data));
+
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "iterate-green",
+      tool_input: { cmd: `phpunit ${pair.testPath}` },
+      tool_response: { exit_code: 0, stdout: "1 test, 0 failures" },
+    }, hookEnv(fx.data));
+    const completed = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, hookEnv(fx.data));
+    assert.equal(completed.stdout, "", completed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("an unrelated failing test command cannot authorize implementation", async () => {
   const fx = fixture("test-driven-development-unrelated-red-");
   try {
@@ -986,7 +1044,7 @@ test("state uses the visible directory and stores hashes instead of raw test sou
     assert.equal(readFileSync(join(fx.root, ".gitignore"), "utf8"), "vendor/\n");
     assert.equal((await import("node:fs")).existsSync(join(fx.data, "test-driven-development")), false);
     const stored = readFileSync(stateFiles[0], "utf8");
-    assert.equal(JSON.parse(stored).version, 3);
+    assert.equal(JSON.parse(stored).version, 5);
     assert.doesNotMatch(stored, /def test_total/u);
     assert.match(stored, /[a-f0-9]{64}/u);
   } finally {
@@ -1263,7 +1321,7 @@ test("rm and mv of a classified source file are denied without authorization", a
   }
 });
 
-test("source edit then needsGreen denies another source edit, but a git revert of that source clears the barrier", async () => {
+test("source edit without a test observation denies another source edit, but a git revert clears the barrier", async () => {
   const fx = fixture("test-driven-development-revert-clears-");
   try {
     gitInit(fx.root);
@@ -1295,7 +1353,7 @@ test("source edit then needsGreen denies another source edit, but a git revert o
     );
     const blocked = await runHook("pre", writeEvent(fx.root, pair.sourcePath, otherSource, "revert-source-2"), hookEnv(fx.data));
     assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
-    assert.match(blocked.stdout, /GREEN/u);
+    assert.match(blocked.stdout, /test run/iu);
 
     const revertWrite = writeEvent(fx.root, pair.sourcePath, pair.sourceContent, "revert-source-3");
     const revertAllowed = await runHook("pre", revertWrite, hookEnv(fx.data));
@@ -1333,7 +1391,7 @@ test("needsGreen after a new untracked implementation is cleared by deleting tha
       const second = pair.sourceContent.replace("final class OrderService {}", "final class OrderService { public function extra(): int { return 0; } }");
       const blocked = await runHook("pre", writeEvent(fx.root, pair.sourcePath, second, `${kind}-second`), hookEnv(fx.data));
       assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
-      assert.match(blocked.stdout, /GREEN/u);
+      assert.match(blocked.stdout, /test run/iu);
 
       const revertPre = await runHook("pre", restoreEvent(fx.root, pair), hookEnv(fx.data));
       assert.equal(revertPre.stdout, "", `${kind} restore pre ${revertPre.stdout}`);
@@ -1461,6 +1519,55 @@ test("a project test runner binds a dotted selector to the edited Python test", 
   }
 });
 
+test("a pytest node selector binds RED to its Python test file", async () => {
+  const fx = fixture("test-driven-development-pytest-node-");
+  try {
+    gitInit(fx.root);
+    mkdirSync(join(fx.root, "acme", "geometry", "tests"), { recursive: true });
+    const testPath = "acme/geometry/tests/test_transform.py";
+    const sourcePath = "acme/geometry/transform.py";
+    const sourceContent = "def normalize(value):\n    return value.strip()\n";
+    const originalTest = [
+      "from acme.geometry.transform import normalize",
+      "def test_text_value():",
+      "    assert normalize(' value ') == 'value'",
+      "",
+    ].join("\n");
+    writeFileSync(join(fx.root, sourcePath), sourceContent);
+    writeFileSync(join(fx.root, testPath), originalTest);
+    gitCommitAll(fx.root, "seed Python pair");
+
+    const changedTest = [
+      originalTest.trimEnd(),
+      "def test_empty_value():",
+      "    assert normalize('') == ''",
+      "",
+    ].join("\n");
+    const testWrite = writeEvent(fx.root, testPath, changedTest, "pytest-node-test");
+    await runHook("pre", testWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, testPath), changedTest);
+    await runHook("post", testWrite, hookEnv(fx.data));
+    await runHook("failure", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "pytest-node-red",
+      tool_input: { cmd: `python -m pytest ${testPath}::test_empty_value -x -q` },
+      tool_response: { exit_code: 1, stdout: "1 failed" },
+    }, hookEnv(fx.data));
+
+    const allowed = await runHook(
+      "pre",
+      writeEvent(fx.root, sourcePath, "def normalize(value):\n    return value.strip() if value else ''\n", "pytest-node-source"),
+      hookEnv(fx.data),
+    );
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("inferOutcome classifies Claude, Codex, and string test payloads", () => {
   const rows = [
     ["claude tap pass object", { tool_response: { stdout: "ok 1\n# pass 1\n# fail 0\n", stderr: "", interrupted: false } }, "success"],
@@ -1469,6 +1576,8 @@ test("inferOutcome classifies Claude, Codex, and string test payloads", () => {
     ["codex exit 0", { tool_response: { exit_code: 0, stdout: "1 test, 0 failures" } }, "success"],
     ["codex exit 1", { tool_response: { exit_code: 1, stdout: "1 test, 1 failure" } }, "failure"],
     ["pipeline exit 0 with failed tests", { tool_response: { exit_code: 0, stdout: "1 passed, 2 failed" } }, "failure"],
+    ["Claude pytest summary without exit code", { tool_response: { stdout: "19 passed in 0.12s", stderr: "", interrupted: false } }, "success"],
+    ["Claude unittest summary without exit code", { tool_response: { stdout: "Ran 19 tests in 0.010s\n\nOK", stderr: "", interrupted: false } }, "success"],
     ["missing implementation reported by the test framework", { tool_response: { exit_code: 1, stdout: "not ok 1 - test/price.test.mjs", stderr: "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'src/price.mjs'" } }, "failure"],
     ["Go test failure", { tool_response: { exit_code: 1, stdout: "--- FAIL: TestNormalize (0.00s)\nFAIL\texample.test/pkg" } }, "failure"],
     ["missing test executable", { tool_response: { exit_code: 127, stderr: "pytest: command not found" } }, "unknown"],
@@ -1537,6 +1646,71 @@ test("source write fails closed when workspace has no git HEAD", async () => {
     assert.notEqual(blocked.stdout, "", blocked.stderr);
     assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
     assert.match(blocked.stdout, /git|HEAD/iu);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("Stop retains a broad failure across a narrow GREEN and clears it with an equivalent broad command", async () => {
+  const fx = fixture("test-driven-development-unresolved-failure-");
+  try {
+    mkdirSync(join(fx.root, "src"), { recursive: true });
+    mkdirSync(join(fx.root, "test"), { recursive: true });
+    const sourcePath = "src/widget.mjs";
+    const testPath = "test/widget.test.mjs";
+    writeFileSync(join(fx.root, sourcePath), "export const widget = () => 1;\n");
+    writeFileSync(join(fx.root, testPath), 'import { test } from "node:test";\ntest("widget", () => {});\n');
+    gitInit(fx.root);
+    gitCommitAll(fx.root, "baseline");
+    writeFileSync(join(fx.root, sourcePath), "export const widget = () => 2;\n");
+
+    const broadCommand = "node --test";
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "known-failure",
+      tool_input: { cmd: broadCommand },
+      tool_response: { exit_code: 1, stdout: "1 test, 1 failed" },
+    }, hookEnv(fx.data));
+    const blocked = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, hookEnv(fx.data));
+    assert.match(blocked.stdout, /"decision":"block"/u);
+    assert.match(blocked.stdout, /known.*fail|verification.*fail/iu);
+
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "narrow-green",
+      tool_input: { cmd: `node --test ${testPath}` },
+      tool_response: { exit_code: 0, stdout: "1 test passed" },
+    }, hookEnv(fx.data));
+    const stillBlocked = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, hookEnv(fx.data));
+    assert.match(stillBlocked.stdout, /"decision":"block"/u);
+
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "equivalent-broad-green",
+      tool_input: { cmd: "node --test --test-reporter=tap" },
+      tool_response: { exit_code: 0, stdout: "2 tests passed" },
+    }, hookEnv(fx.data));
+    const completed = await runHook("stop", {
+      cwd: fx.root,
+      session_id: "session-1",
+      last_assistant_message: "Done",
+    }, hookEnv(fx.data));
+    assert.equal(completed.stdout, "", completed.stdout);
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });

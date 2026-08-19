@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b8305f8af386749bfbb45f0cc4fc226c875d2e7d3d86e27f6fa57b17998514e3
+// harness-source-hash: sha256:fc3be71c473e57852a81dd2b68a5eca20518b8db9e19d6c853954a577ab42db9
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-EHYWQCUA.mjs";
-import "../chunks/chunk-CO5DQXUU.mjs";
+} from "../chunks/chunk-ADJGOHSV.mjs";
+import "../chunks/chunk-PYN7NPYS.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-TCUX2XUZ.mjs";
+} from "../chunks/chunk-CNPQGMHP.mjs";
 
 // plugins/video-production/src/entries/hooks/video-production.ts
 import { relative, resolve as resolve3 } from "node:path";
@@ -66,6 +66,11 @@ function eventToolInput(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -76,9 +81,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context2, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context2}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context2}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

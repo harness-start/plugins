@@ -206,6 +206,7 @@ export type DomainEngineeringPolicy = {
 **必须**
 
 - 只在 `SessionStart`（或文档写明的等价注入点）写入短 `additionalContext`。
+- 当提示正文是选择窄提示所必需的输入时，允许把 `UserPromptSubmit` 作为等价注入点；该 Hook 必须无状态、不得保存提示正文、只对明确匹配的任务注入短上下文，并在解析失败时 fail-open。
 - 解析失败 fail-open：跳过注入，不得锁死会话。
 - 不创建业务账本，不 `stopBlock`，不因未加载 Skill 而拒绝写入。
 
@@ -214,7 +215,7 @@ export type DomainEngineeringPolicy = {
 - 注入文本按宿主区分加载方式：Codex 读 `skills/<name>/SKILL.md`；Claude 走原生 Skill 工具。
 - 只要求加载与当前任务匹配的 Skill，不得把全部方法 Skill 一次性灌进上下文。
 
-示例：`engineering-practice`、`professional-writing`、`reasoning-methods`。
+示例：`engineering-practice` 的短方法注入、`professional-writing`、`reasoning-methods`。
 
 ---
 
@@ -256,7 +257,7 @@ stateDiagram-v2
   BaselineGated --> Complete: 观察到完成回执
 ```
 
-示例：`software-debugging` 在 writer 绑定前保持惰性；`evidence-based-research` 只有 `workflow.json` 处于 open 后才开硬行为；`test-driven-development` 以 git HEAD 为基线，无创建 CLI。
+示例：`software-debugging` 在 writer 绑定前保持惰性；`evidence-based-research` 只有 `workflow.json` 处于 open 后才开硬行为；`test-driven-development` 以 git HEAD 为基线，无创建 CLI，并在 Stop 重验 dirty tests 与尚未由同 scope GREEN 关闭的失败回执。
 
 ---
 
@@ -397,6 +398,7 @@ Skill 是知识层，不是效果证据。
 | 数据目录 | Claude 用 `CLAUDE_PLUGIN_DATA`；Codex 用 `PLUGIN_DATA` |
 | 信任 | Codex 必须经 `/hooks` 审查并信任；安装成功不得写成 Hook 已在跑 |
 | 事件差 | `PostToolUseFailure` 不是双平台必选项；缺失时必须用 Post 或其它已注册事件收口，并在该插件文档写明 |
+| 工具报告 | Codex 的 `PreToolUse`、`PostToolUse`、`PostToolUseFailure` 非阻断报告只写 stderr，不把 `additionalContext` 插进尚未闭合的 tool-call 序列；deny / block 与会话级注入保持结构化输出 |
 | MCP | 仅在确有已登记工具时提供；声明方式按宿主，不得假设未声明的 MCP 一定可见 |
 | Provenance | Codex hook 应当设置 `AI_EXPERTS_SESSION_ID` / `AI_EXPERTS_TRIGGER_FROM` |
 

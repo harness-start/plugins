@@ -29,6 +29,7 @@ const CONFIG_FILE_NAMES = [
 
 export type EngineSettings = {
   dangerousRm: boolean;
+  verificationIntegrity: boolean;
   mysqlReplicationPreflight: boolean;
   secretRead: boolean;
   fileSafety: boolean;
@@ -53,6 +54,7 @@ export type ResolvedRules = {
 export const DEFAULT_SETTINGS: SafetySettings = {
   engines: {
     dangerousRm: true,
+    verificationIntegrity: true,
     mysqlReplicationPreflight: true,
     secretRead: true,
     fileSafety: true,
@@ -103,6 +105,9 @@ function resolveEngineSettings(raw: unknown): EngineSettings {
   const engines: EngineSettings = { ...DEFAULT_SETTINGS.engines };
   if (!isRecord(raw)) return engines;
   if (typeof raw.dangerousRm === "boolean") engines.dangerousRm = raw.dangerousRm;
+  if (typeof raw.verificationIntegrity === "boolean") {
+    engines.verificationIntegrity = raw.verificationIntegrity;
+  }
   if (typeof raw.mysqlReplicationPreflight === "boolean") {
     engines.mysqlReplicationPreflight = raw.mysqlReplicationPreflight;
   }

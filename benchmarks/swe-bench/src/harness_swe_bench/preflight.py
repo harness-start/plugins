@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 
 from harness_swe_bench.config import SuiteConfig
-from harness_swe_bench.harness import marketplace_plugins, payload_fingerprint
+from harness_swe_bench.harness import payload_fingerprint, resolve_plugins
 from harness_swe_bench.prompt import render_prompt
 
 
@@ -45,7 +45,11 @@ def static_preflight(
         raise RuntimeError(
             f"swebench version mismatch: expected {suite.toolchain.swebench}, got {installed_swebench}"
         )
-    plugins = marketplace_plugins(repo_root)
+    plugins = resolve_plugins(
+        repo_root,
+        mode=suite.harness.mode,
+        configured=suite.harness.plugins,
+    )
     models = json.loads(
         (repo_root / "docker" / "host-acceptance" / "models.json").read_text(
             encoding="utf-8"
@@ -79,5 +83,7 @@ def static_preflight(
         "swebench_version": installed_swebench,
         "plugins": list(plugins),
         "plugin_count": len(plugins),
-        "payload_fingerprint": payload_fingerprint(repo_root),
+        "payload_fingerprint": payload_fingerprint(
+            repo_root, selected_plugins=plugins
+        ),
     }

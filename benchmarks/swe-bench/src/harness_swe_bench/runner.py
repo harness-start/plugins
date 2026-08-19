@@ -12,13 +12,15 @@ from harness_swe_bench.config import SuiteConfig, load_suite
 from harness_swe_bench.dataset import DatasetSnapshot, snapshot_dataset
 from harness_swe_bench.evaluate import evaluation_command, run_evaluation
 from harness_swe_bench.harness import (
-    marketplace_plugins,
+    assert_no_benchmark_leakage,
     materialize_marketplace,
     payload_fingerprint,
+    resolve_plugins,
+    validate_marketplace_snapshot,
 )
 from harness_swe_bench.patch import write_predictions
 from harness_swe_bench.preflight import static_preflight
-from harness_swe_bench.report import official_report, write_stage1_report
+from harness_swe_bench.report import official_report, required_cells, write_suite_report
 from harness_swe_bench.runtime import DockerRuntime
 
 GOLD_INSTANCE = "sympy__sympy-20590"
@@ -54,7 +56,12 @@ def read_api_key(repo_root: Path) -> str:
     return key
 
 
-def source_metadata(repo_root: Path, suite: SuiteConfig, snapshot: DatasetSnapshot) -> dict[str, object]:
+def source_metadata(
+    repo_root: Path,
+    suite: SuiteConfig,
+    snapshot: DatasetSnapshot,
+    plugins: tuple[str, ...],
+) -> dict[str, object]:
     commit = subprocess.check_output(
         ["git", "rev-parse", "HEAD"], cwd=repo_root, text=True
     ).strip()
@@ -65,8 +72,10 @@ def source_metadata(repo_root: Path, suite: SuiteConfig, snapshot: DatasetSnapsh
         "harness_commit": commit,
         "source_clean": not bool(status.strip()),
         "source_status_sha256": __import__("hashlib").sha256(status.encode()).hexdigest(),
-        "payload_fingerprint": payload_fingerprint(repo_root),
-        "plugins": list(marketplace_plugins(repo_root)),
+        "payload_fingerprint": payload_fingerprint(
+            repo_root, selected_plugins=plugins
+        ),
+        "plugins": list(plugins),
         "dataset_name": suite.dataset.name,
         "dataset_revision": suite.dataset.revision,
         "dataset_snapshot": str(snapshot.path),
@@ -92,6 +101,15 @@ def prepare_run_dir(runs_root: Path, run_id: str, *, resume: bool) -> Path:
 def run_check(repo_root: Path, benchmark_root: Path, suite: SuiteConfig) -> dict[str, object]:
     result = static_preflight(repo_root, benchmark_root, suite)
     snapshot = snapshot_dataset(suite, benchmark_root / ".cache")
+    assert_no_benchmark_leakage(
+        repo_root,
+        resolve_plugins(
+            repo_root,
+            mode=suite.harness.mode,
+            configured=suite.harness.plugins,
+        ),
+        snapshot.rows,
+    )
     runtime = DockerRuntime(repo_root, benchmark_root, suite)
     runtime.build_support_images()
     runtime.verify_network_policy(benchmark_root / ".cache" / "network-check.log")
@@ -179,7 +197,7 @@ def _require_pipeline_ok(cell: dict[str, object]) -> None:
     )
 
 
-def run_stage1(
+def run_suite(
     repo_root: Path,
     benchmark_root: Path,
     suite: SuiteConfig,
@@ -195,9 +213,26 @@ def run_stage1(
     runtime.build_support_images()
     runtime.verify_network_policy(run_dir / "network-check.log")
     marketplace_root = run_dir / "marketplace"
+    plugins = resolve_plugins(
+        repo_root,
+        mode=suite.harness.mode,
+        configured=suite.harness.plugins,
+    )
+    assert_no_benchmark_leakage(repo_root, plugins, snapshot.rows)
     if not marketplace_root.exists():
-        materialize_marketplace(repo_root, marketplace_root)
-    metadata = {"run_id": run_id, "suite": suite.suite, **source_metadata(repo_root, suite, snapshot), **preflight}
+        materialize_marketplace(
+            repo_root, marketplace_root, selected_plugins=plugins
+        )
+    else:
+        validate_marketplace_snapshot(
+            repo_root, marketplace_root, selected_plugins=plugins
+        )
+    metadata = {
+        "run_id": run_id,
+        "suite": suite.suite,
+        **source_metadata(repo_root, suite, snapshot, plugins),
+        **preflight,
+    }
     (run_dir / "run.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     (run_dir / "dataset.snapshot.json").write_bytes(snapshot.path.read_bytes())
 
@@ -273,7 +308,29 @@ def run_stage1(
             status_path = run_dir / "instances" / instance_id / host / "status.json"
             status_path.write_text(json.dumps(cell, indent=2) + "\n", encoding="utf-8")
 
-    return write_stage1_report(run_dir, metadata=metadata, cells=cells)
+    return write_suite_report(
+        run_dir,
+        metadata=metadata,
+        cells=cells,
+        required=required_cells(suite.instances, suite.hosts),
+    )
+
+
+def run_stage1(
+    repo_root: Path,
+    benchmark_root: Path,
+    suite: SuiteConfig,
+    run_id: str,
+    *,
+    resume: bool,
+) -> dict[str, Any]:
+    return run_suite(
+        repo_root,
+        benchmark_root,
+        suite,
+        run_id,
+        resume=resume,
+    )
 
 
 def load_report(benchmark_root: Path, run_id: str) -> dict[str, Any]:

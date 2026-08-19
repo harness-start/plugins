@@ -25,6 +25,27 @@ def test_committed_stage1_suite_matches_frozen_acceptance_baseline() -> None:
     assert suite.grader.max_workers == 1
 
 
+def test_committed_stage2_suite_covers_both_followup_instances_on_both_hosts() -> None:
+    suite = load_suite(ROOT / "config" / "stage2.yaml")
+
+    assert suite.suite == "stage2-followup"
+    assert suite.instances == (
+        "astropy__astropy-7746",
+        "django__django-11019",
+    )
+    assert suite.hosts == ("claude", "codex")
+    assert suite.model.name == "deepseek-v4-flash"
+    assert suite.agent.attempts == 1
+    assert suite.harness.mode == "profile"
+    assert suite.harness.plugins == (
+        "command-safety",
+        "engineering-practice",
+        "intent-discovery",
+        "python-engineering",
+        "test-driven-development",
+    )
+
+
 def test_suite_rejects_duplicate_instances_and_retry_policy(tmp_path: Path) -> None:
     config = tmp_path / "bad.yaml"
     config.write_text(

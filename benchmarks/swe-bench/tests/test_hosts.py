@@ -20,6 +20,7 @@ def test_host_configs_pin_deepseek_without_persisting_secret(tmp_path: Path) -> 
                     {
                         "slug": suite.model.name,
                         "apply_patch_tool_type": "freeform",
+                        "supports_parallel_tool_calls": True,
                         "base_instructions": "Prefer apply_patch for edits.",
                         "model_messages": {
                             "instructions_template": "Prefer apply_patch for edits."
@@ -58,6 +59,7 @@ def test_codex_catalog_disables_unsupported_freeform_patch_tool(tmp_path: Path) 
                     {
                         "slug": suite.model.name,
                         "apply_patch_tool_type": "freeform",
+                        "supports_parallel_tool_calls": True,
                         "base_instructions": "Prefer apply_patch for edits.",
                         "model_messages": {
                             "instructions_template": "Prefer apply_patch for edits."
@@ -78,11 +80,14 @@ def test_codex_catalog_disables_unsupported_freeform_patch_tool(tmp_path: Path) 
     )
     model = catalog["models"][0]
     assert model["apply_patch_tool_type"] is None
+    assert model["supports_parallel_tool_calls"] is False
     assert "apply_patch" not in model["base_instructions"]
     assert "apply_patch" not in model["model_messages"]["instructions_template"]
     assert "shell commands" in model["base_instructions"]
     assert "cat heredocs" in model["base_instructions"]
     assert "Python file APIs" in model["base_instructions"]
+    assert "at most one tool call per assistant turn" in model["base_instructions"]
+    assert "wait for its output" in model["base_instructions"]
 
 
 def test_host_commands_use_same_model_effort_and_disable_untrusted_paths(tmp_path: Path) -> None:

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4d4fbe2783d9fe0d4af63a6ab4d24af89f7d608c82a18c731d16a5b9c3e69044
+// harness-source-hash: sha256:9aa0eb825d36c920a5a400200753854ed94f3910e1e8187ffe694aea6af448fb
 
 // plugins/ci-gated-delivery/src/entries/hooks/ci-gated-delivery.ts
 import { resolve } from "node:path";
@@ -63,6 +63,11 @@ function extractShellCommand(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -73,9 +78,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

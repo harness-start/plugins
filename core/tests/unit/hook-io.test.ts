@@ -80,3 +80,34 @@ test("builds host-compatible deny, context, and stop outputs", () => {
   });
   assert.deepEqual(stopBlock("incomplete"), { decision: "block", reason: "incomplete" });
 });
+
+test("keeps Codex tool reports out of an in-flight tool-call transcript", () => {
+  const previousPluginRoot = process.env.PLUGIN_ROOT;
+  process.env.PLUGIN_ROOT = "/installed/codex/plugin";
+  try {
+    assert.equal(
+      additionalContext("PreToolUse", "advisory", { echoStderr: false }),
+      null,
+    );
+    assert.equal(
+      additionalContext("PostToolUse", "advisory", { echoStderr: false }),
+      null,
+    );
+    assert.equal(
+      additionalContext("PostToolUseFailure", "advisory", {
+        echoStderr: false,
+        suppressJson: false,
+      }),
+      null,
+    );
+    assert.deepEqual(additionalContext("SessionStart", "session guidance"), {
+      hookSpecificOutput: {
+        hookEventName: "SessionStart",
+        additionalContext: "session guidance",
+      },
+    });
+  } finally {
+    if (previousPluginRoot === undefined) delete process.env.PLUGIN_ROOT;
+    else process.env.PLUGIN_ROOT = previousPluginRoot;
+  }
+});

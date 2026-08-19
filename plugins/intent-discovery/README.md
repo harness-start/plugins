@@ -1,6 +1,6 @@
 # intent-discovery
 
-`intent-discovery` 在 Claude Code 和 Codex 收到会话首个用户 prompt 时，先注入一次短小的发现协议。主 agent 随后加载插件自带的 `intent-discovery` Skill，前置查找项目事实、展开真正会改变行动的解释，并按任务复杂度选择是否并发只读 subagent。同一会话后来出现新的结果、交付物、目标系统或范围时，也可通过宿主的正常 Skill 路由再次使用；继续执行、追问、纠正或状态请求不会重跑完整发现流程。
+`intent-discovery` 在 Claude Code 和 Codex 收到会话首个用户 prompt 时，先注入一次短小的发现协议。目标、结果、约束和验收已经具体的任务按 `light` 直接执行，不加载 Skill，也不启动 discovery worker；只有尚未解决的解释会实质改变交付物或实现时，主 agent 才加载插件自带的 `intent-discovery` Skill，前置查找项目事实并按任务复杂度选择是否并发只读 subagent。同一会话后来出现新的结果、交付物、目标系统或范围时，也可通过宿主的正常 Skill 路由再次使用；继续执行、追问、纠正或状态请求不会重跑完整发现流程。
 
 这个插件不会开启访谈、等待 `done`、阻断业务写入或要求用户批准方案。探索结束后，agent 以有界、可逆的合理假设继续原请求；只有宿主自身的安全、权限或不可逆操作规则仍可能要求确认。
 

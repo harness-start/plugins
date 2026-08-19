@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c7e54f63d9dd7d296c2526c985ca5269f5bdf62308560fce83747a373d088b44
+// harness-source-hash: sha256:358ac72760ffe134d9add2fc6bdc8e9557a7601474a267dd17d2da75b95cffdd
 import {
   issueWriterCapability
-} from "../chunks/chunk-CKOEEFQK.mjs";
+} from "../chunks/chunk-RASMDDAN.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-RVO6BBHP.mjs";
+} from "../chunks/chunk-2SK7HI6K.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-UOUPSG3G.mjs";
+} from "../chunks/chunk-CTDNTXCI.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
@@ -76,6 +76,11 @@ function isStopHookActive(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -86,9 +91,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context2, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context2}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context2}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

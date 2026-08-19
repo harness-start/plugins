@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ce2d09fe54f855bba7567c5d76387b64828a4d2168dc9fffc50b4abb5d426894
+// harness-source-hash: sha256:eb95b449905ea371d627aa906ada3edcf20205b4c21f2396555d1107fe45896b
 
 // plugins/interface-craft/src/entries/hooks/interface-craft.ts
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -57,10 +57,18 @@ function eventToolInput(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

@@ -15,7 +15,7 @@
         "mode": "tokens",
         "limit": 10000
       },
-      "supports_parallel_tool_calls": true,
+      "supports_parallel_tool_calls": false,
       "tool_mode": null,
       "multi_agent_version": "v2",
       "use_responses_lite": false,
@@ -53,7 +53,7 @@
       "upgrade": null,
       "priority": 1,
       "model_messages": {
-        "instructions_template": "You are a coding agent. Prefer apply_patch/Edit/Write tools for file changes. Complete the user request directly.",
+        "instructions_template": "You are a coding agent. Issue at most one tool call per assistant turn and wait for its output before calling another tool. Prefer apply_patch/Edit/Write tools for file changes. Complete the user request directly.",
         "instructions_variables": {},
         "approvals": null
       },
@@ -61,7 +61,7 @@
       "supports_search_tool": false,
       "default_service_tier": null,
       "supports_reasoning_summaries": true,
-      "base_instructions": "You are a coding agent. Prefer apply_patch/Edit/Write tools for file changes. Complete the user request directly."
+      "base_instructions": "You are a coding agent. Issue at most one tool call per assistant turn and wait for its output before calling another tool. Prefer apply_patch/Edit/Write tools for file changes. Complete the user request directly."
     }
   ]
 }

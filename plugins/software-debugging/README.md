@@ -44,7 +44,7 @@
 ## Hook 行为
 
 - `PreToolUse` 在已绑定 ledger 无效、缺少精确失败基线、共享受影响缺陷没有独立基线，或三次修改后复现失败时阻断生产修改；它拒绝直接改账本，始终允许官方 CLI。
-- `PostToolUse` 和 Claude `PostToolUseFailure` 保存有限回执，并在 writer 命令后绑定。标准宿主接收结构化 `additionalContext`；Codex 0.146 配合本仓库 DeepSeek provider 时，Hook 会先保存回执，再输出非零 stderr 信号并以状态 2 退出，以绕开会替换原工具结果的 provider 问题。
+- `PostToolUse` 和 Claude `PostToolUseFailure` 保存有限回执，并在 writer 命令后绑定。Claude 接收结构化 `additionalContext`；Codex 的非阻断工具生命周期提示以状态 0 写入 stderr，不向 provider 插入替代工具结果。
 - `Stop` 对仍开放的账本放行。`closed` 订单必须用当前会话回执证明完成，并通过独立 debug-marker 扫描；`paused` 或 `aborted` 订单只当交接。
 
 Codex 通过 `PostToolUse` 响应报告命令失败，Claude 还提供 `PostToolUseFailure`。Shell 修改检测较保守，优先使用文件工具可获得更清晰的编辑轨迹。

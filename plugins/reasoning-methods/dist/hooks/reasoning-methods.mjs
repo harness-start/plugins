@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1b28eb0df2fd76fb764187eb9a6f53dbbdfc02f196dbbba3545225e8ebf4d810
+// harness-source-hash: sha256:32f220871ff2f3a05b774b98feb11605d79b14e24a74ee62130d37e876d1b608
 
 // plugins/reasoning-methods/src/entries/hooks/reasoning-methods.ts
 import { resolve } from "node:path";
@@ -22,10 +22,18 @@ async function readStdinJson(input = process.stdin) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

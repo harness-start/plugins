@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d7eb5c2e7a5ba266f54cb3397eb35423cd022d76328738efc026c1b3670efbc7
+// harness-source-hash: sha256:85b13c2563bdc59fda6a978b54a670ea3995eff826a4b0880d4dd0c0892b9729
 import {
   sealTrainingReview
-} from "../chunks/chunk-PLOTNDK3.mjs";
+} from "../chunks/chunk-DUFV7B3H.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-JAI23ZUJ.mjs";
+} from "../chunks/chunk-32HEFPD2.mjs";
 import {
   assertTrainingProjectRoot,
   atomicWriteJson,
@@ -14,7 +14,7 @@ import {
   loadTrainingProject,
   validateTrainingModel,
   withWriterJournal
-} from "../chunks/chunk-OJGCC4JJ.mjs";
+} from "../chunks/chunk-WWIPRB2V.mjs";
 
 // plugins/training-program-design/src/entries/cli/project-review.ts
 import { readFile } from "node:fs/promises";

@@ -8,7 +8,7 @@
 
 - **用户配置**：项目根 `.command-safety.mjs`（或 `.cjs` / `.js`）
 - **内置规则**：sed 原地写、cat heredoc、Redis/SQL、主动测试边界、凭据泄露、lark `--yes`
-- **引擎**（不可仅靠正则）：危险 `rm`、MySQL 复制 preflight、Read 敏感路径、写后 TLS/PII、deny 升级
+- **引擎**（不可仅靠正则）：危险 `rm`、验证结果完整性、MySQL 复制 preflight、Read 敏感路径、写后 TLS/PII、deny 升级
 
 ### 默认拦截清单（零配置）
 
@@ -18,6 +18,7 @@
 | --- | --- | --- | --- |
 | `dangerousRm`（引擎） | Deny | 递归删除过宽目标 | `rm -r /`、`rm -rf ~`、`rm -r .`、`rm -r /tmp` 等顶层目录；`xargs … rm -r`；嵌套 `sh -c` 过深 |
 | `denyEscalation`（引擎） | Deny | 同目标短时多次 deny 升级 | 默认约 10 分钟内对同一目标累计 ≥3 次本插件 deny |
+| `verificationIntegrity`（引擎） | Deny | 测试退出状态可能被后续 shell 操作掩盖 | `pytest ... \| tail`、`runtests.py ... \| grep`、`npm test \| tee`（未在同一 shell 启用 `pipefail`）；测试后的 `; echo` 或 `\|\| true` |
 | `sed-inplace` | Deny | 无备份的 sed 原地写（**非**临时路径） | `sed -i` / `sed --in-place` 作用于仓库等路径；`/tmp/…`、`/private/tmp/…`、`$TMPDIR/…` 上的无备份 `-i` **放行** |
 | `cat-heredoc-repo-write` | Deny | cat heredoc 写非临时文件 | `cat > path <<EOF` / `cat <<EOF > path`（非 `/tmp`、非管道输入） |
 | `redis-cli-risk` | Deny | 高风险 Redis CLI | `redis-cli` 的 `KEYS` / `MONITOR` / `FLUSHALL` / `FLUSHDB` |
@@ -62,6 +63,7 @@ export default {
   settings: {
     engines: {
       dangerousRm: true,
+      verificationIntegrity: true,
       mysqlReplicationPreflight: true,
       secretRead: true,
       fileSafety: true,
@@ -88,8 +90,9 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 | 2 | 同目标短时多次 deny（engine） | Deny |
 | 3 | 递归 `rm` 宽目标（engine） | Deny |
 | 4 | 声明式规则（用户 → 内置）：sed / cat / Redis / SQL / 主动测试 / 凭据 / lark | Deny / Report / Allow |
-| 5 | MySQL 复制切换缺 preflight（engine） | Deny |
-| 6 | 写后 TLS bypass / PII（engine） | PostToolUse report |
+| 5 | 测试退出状态可能被管道、fallback 或后续命令覆盖（engine） | Deny |
+| 6 | MySQL 复制切换缺 preflight（engine） | Deny |
+| 7 | 写后 TLS bypass / PII（engine） | PostToolUse report |
 
 安全命令不产生 stdout。拒绝结果以状态 0 退出，并返回两个宿主共同使用的 `permissionDecision: deny` JSON 契约。
 
@@ -126,6 +129,7 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 | `src/lib/rule-engine.ts` | 配置加载、合并、匹配与格式化 |
 | `src/lib/sanitize-command.ts` | 匹配前剥离 commit/heredoc 字面量 |
 | `src/engines/dangerous-rm.ts` | `dangerousRm` 引擎 |
+| `src/engines/verification-integrity.ts` | 测试/验证命令退出状态完整性引擎 |
 | `src/engines/mysql-preflight.ts` | MySQL replication preflight 引擎 |
 | `src/engines/secret-read.ts` | Read 敏感路径引擎 |
 | `src/engines/file-safety.ts` | `PostToolUse` TLS/PII 内容扫描引擎 |

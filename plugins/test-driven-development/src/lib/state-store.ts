@@ -7,7 +7,7 @@ import { atomicWriteJson, digestKey, withPathLock } from "@harness/core/state-fi
 
 import type { TestEvidence } from "./patterns.js";
 
-const VERSION = 3;
+const VERSION = 5;
 export const STATE_DIR_RELATIVE = ".test-driven-development/state";
 
 export type PendingTarget = {
@@ -43,6 +43,11 @@ export type LastRed = {
   testHashes: string[];
 };
 
+export type VerificationScope = {
+  runner: string;
+  testPaths: string[];
+};
+
 export type GuardState = {
   version: number;
   sequence: number;
@@ -50,11 +55,20 @@ export type GuardState = {
   tests: StoredTestRecord[];
   needsGreen: NeedsGreen | null;
   observedRed: Record<string, string>;
+  unresolvedVerificationFailures: VerificationScope[];
   lastRed?: LastRed;
 };
 
 function emptyState(): GuardState {
-  return { version: VERSION, sequence: 0, pending: null, tests: [], needsGreen: null, observedRed: {} };
+  return {
+    version: VERSION,
+    sequence: 0,
+    pending: null,
+    tests: [],
+    needsGreen: null,
+    observedRed: {},
+    unresolvedVerificationFailures: [],
+  };
 }
 
 export function digest(value: string): string { return digestKey(value); }
@@ -75,7 +89,7 @@ export function readState(sessionId: string, root: string): GuardState {
   try {
     const value: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (!isRecord(value) || value.version !== VERSION) throw new Error("version mismatch");
-    return { observedRed: {}, ...value } as GuardState;
+    return { ...emptyState(), ...value } as GuardState;
   } catch {
     return emptyState();
   }

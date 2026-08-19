@@ -12,6 +12,12 @@ export type AdditionalContextOptions = {
   suppressJson?: boolean;
 };
 
+const TOOL_LIFECYCLE_EVENTS = new Set<HookEventName>([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure",
+]);
+
 export function preToolDeny(reason: string): Record<string, unknown> {
   return {
     hookSpecificOutput: {
@@ -27,8 +33,12 @@ export function additionalContext(
   context: string,
   options: AdditionalContextOptions = {},
 ): Record<string, unknown> | null {
-  if (options.echoStderr) process.stderr.write(`${context}\n`);
-  if (options.suppressJson) return null;
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT)
+    && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}\n`);
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

@@ -84,6 +84,8 @@ export function inferOutcome(event: HookEvent, forceFailure = false): CommandOut
   if (forceFailure) return "unknown";
   const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
   if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
+  if (/\b[1-9][0-9]*\s+passed\b/iu.test(text)) return "success";
+  if (/(?:^|\n)Ran\s+[1-9][0-9]*\s+tests?[^\n]*\n(?:\n)?OK(?:\s|$)/iu.test(text)) return "success";
   if (/\b0\s+failures?\b/iu.test(text)) return "success";
   if (isRecord(response) && response.success === false) return "unknown";
   if (code === 0 || (isRecord(response) && response.success === true)) return "success";

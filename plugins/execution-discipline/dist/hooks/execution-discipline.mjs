@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1839bab7889bd271242e80350a8df0deb7e68b27fe9e561fd510b5f12b514c5e
+// harness-source-hash: sha256:7a6de6cf44b12c25fb7d4a35a46edc00ca8aa7cf9171aaaeab1e6d4a1eb1f319
 
 // plugins/execution-discipline/src/entries/hooks/execution-discipline.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";
@@ -296,6 +296,11 @@ async function loadProjectConfig(cwd, warn2 = defaultWarn) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -306,9 +311,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

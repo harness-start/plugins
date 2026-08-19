@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ea0ad845b5b54a4eb87506c1850434e5f55bb4ce422aa89f81138b7732fb56f7
+// harness-source-hash: sha256:6f8111817e27c52a37c34561b0ef1660d27e9b40e2856fa991dd96b1694fc879
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-Y34W5BCD.mjs";
+} from "../chunks/chunk-AJVEZKMJ.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
@@ -10,7 +10,7 @@ import {
   resolveWorkspaceRoot,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-6QU5D7XI.mjs";
+} from "../chunks/chunk-EHMW6KH7.mjs";
 
 // plugins/music-production/src/entries/hooks/music-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -115,6 +115,11 @@ function isStopHookActive(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -125,9 +130,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

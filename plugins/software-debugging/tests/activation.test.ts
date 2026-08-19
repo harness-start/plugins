@@ -199,7 +199,7 @@ test("Codex apply_patch shape extracts the work-order path and emits PostToolUse
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-data-"));
   const created = openLedger(root);
   const result = await runHook("post", writerEvent(root, created, "codex-session"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash" });
-  assert.equal(result.code, 2, result.stderr);
+  assert.equal(result.code, 0, result.stderr);
   assert.equal(result.stdout, "");
   assert.match(result.stderr, /Bound DWO-/u);
 });
@@ -209,7 +209,7 @@ test("Codex can recover an apply_patch target from structured response changes",
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-response-data-"));
   const created = openLedger(root);
   const result = await runHook("post", writerEvent(root, created, "codex-response-session"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash", AI_EXPERTS_SESSION_ID: "codex-response-session" });
-  assert.equal(result.code, 2, result.stderr);
+  assert.equal(result.code, 0, result.stderr);
   assert.match(result.stderr, /Bound DWO-/u);
 });
 
@@ -221,17 +221,18 @@ test("Codex PostToolUse keeps stderr feedback host-visible", async () => {
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-feedback-data-"));
   const created = openLedger(root);
   const feedback = await runHook("post", writerEvent(root, created, "feedback-session"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "deepseek-v4-flash" });
-  assert.equal(feedback.code, 2);
+  assert.equal(feedback.code, 0, feedback.stderr);
   assert.match(feedback.stderr, /Bound DWO-/u);
 });
 
-test("standard Codex PostToolUse uses structured additional context", async () => {
+test("Codex PostToolUse reports advisory context on stderr without interposing JSON", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-standard-codex-data-"));
   const created = openLedger(root);
   const feedback = await runHook("post", writerEvent(root, created, "standard-codex"), { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin", DEEPSEEK_MODEL: "" });
   assert.equal(feedback.code, 0, feedback.stderr);
-  assert.match(feedback.stdout, /"additionalContext":"\[Debugging Workflow Guard\] Bound DWO-/u);
+  assert.equal(feedback.stdout, "");
+  assert.match(feedback.stderr, /\[Debugging Workflow Guard\] Bound DWO-/u);
 });
 
 test("stderr redirection to dev null does not count as a production mutation", async () => {

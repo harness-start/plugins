@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1f18cb91b7397d991e2f45204ffcde0e2a62aaa20bd6fce0f06514f69bbfc9a1
+// harness-source-hash: sha256:5cc8c8fd7ed947ae8267a0ffc491b91f22b5743b0e09c483d31097991a04f4a7
 import {
   evaluatePrintWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
   validatePrintModel
-} from "../chunks/chunk-CB5TTYJS.mjs";
+} from "../chunks/chunk-O3OLEKZU.mjs";
 
 // plugins/print-publication-production/src/entries/hooks/print-publication-production.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -161,6 +161,11 @@ function eventToolInput(event) {
 }
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -171,9 +176,12 @@ function preToolDeny(reason) {
   };
 }
 function additionalContext(hookEventName, context, options = {}) {
-  if (options.echoStderr) process.stderr.write(`${context}
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
 `);
-  if (options.suppressJson) return null;
+  if (suppressJson) return null;
   return {
     hookSpecificOutput: {
       hookEventName,

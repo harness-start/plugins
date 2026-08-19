@@ -33,6 +33,7 @@ import {
   gitPathState,
   gitShowHead,
   hasGitHead,
+  listDirtyPaths,
   listHeadPaths,
   restoresHeadState,
 } from "../../lib/git-workspace.js";
@@ -47,7 +48,7 @@ import {
   type LanguageContext,
   type SourceLike,
 } from "../../lib/patterns.js";
-import { digest, readState, writeState, type GuardState } from "../../lib/state-store.js";
+import { digest, readState, writeState, type GuardState, type VerificationScope } from "../../lib/state-store.js";
 
 type ClassifiedTarget = {
   absolutePath: string;
@@ -98,7 +99,11 @@ function testCommand(command: string | null | undefined): boolean {
   );
 }
 
-const TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))["']?(?=\s|$)/gu;
+function hasDirtySource(root: string): boolean {
+  return listDirtyPaths(root).some((path) => classifyPath(path).kind === "source");
+}
+
+const TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))(?:::[^\s;|"']*)?["']?(?=\s|$)/gu;
 
 function namedTestPaths(command: string, root: string): string[] {
   const normalized = String(command ?? "").replaceAll("\\", "/");
@@ -132,6 +137,44 @@ function selectorTestPaths(command: string, root: string, state: GuardState): st
     }
   }
   return [...found];
+}
+
+function verificationRunner(command: string): string {
+  const value = String(command).toLowerCase();
+  if (/\bnode\s+--test\b/u.test(value)) return "node:test";
+  if (/\b(?:python(?:3)?\s+-m\s+)?pytest\b/u.test(value)) return "pytest";
+  if (/\b(?:vendor\/bin\/)?phpunit\b/u.test(value)) return "phpunit";
+  if (/\bgo\s+test\b/u.test(value)) return "go:test";
+  if (/\bcargo\s+test\b/u.test(value)) return "cargo:test";
+  if (/\bvitest\b/u.test(value)) return "vitest";
+  if (/\bjest\b/u.test(value)) return "jest";
+  if (/\bnpm\s+(?:run\s+)?test\b/u.test(value)) return "npm:test";
+  if (/\bpnpm\s+(?:run\s+)?test\b/u.test(value)) return "pnpm:test";
+  if (/\byarn\s+test\b/u.test(value)) return "yarn:test";
+  if (/\bmanage\.py\s+test\b/u.test(value)) return "django:test";
+  if (/\b(?:runtests|run[-_]?tests?)\.py\b/u.test(value)) return "python:test-script";
+  return "test";
+}
+
+function verificationScope(command: string, root: string, state: GuardState): VerificationScope {
+  const testPaths = [...new Set([
+    ...namedTestPaths(command, root),
+    ...selectorTestPaths(command, root, state),
+  ])].sort();
+  return { runner: verificationRunner(command), testPaths };
+}
+
+function sameVerificationScope(left: VerificationScope, right: VerificationScope): boolean {
+  return left.runner === right.runner && left.testPaths.length === right.testPaths.length &&
+    left.testPaths.every((path, index) => path === right.testPaths[index]);
+}
+
+function verificationSuccessCovers(success: VerificationScope, failure: VerificationScope): boolean {
+  if (success.runner !== failure.runner) return false;
+  if (success.testPaths.length === 0) return true;
+  if (failure.testPaths.length === 0) return false;
+  const successfulPaths = new Set(success.testPaths);
+  return failure.testPaths.every((path) => successfulPaths.has(path));
 }
 
 function coveredOutcomePaths(command: string, root: string, state: GuardState, outcome: CommandOutcome): string[] {
@@ -227,7 +270,7 @@ async function runPre(event: HookEvent): Promise<void> {
         if (!writeState(sessionId, root, state)) warn("implementation snapshot could not be persisted; GREEN completion will fail closed");
         return;
       }
-      writeJson(preToolDeny(`[TDD Guard] Blocked implementation edit: the previous implementation mutation still needs an observed passing test run (GREEN). Run the relevant tests successfully before another implementation change.`));
+      writeJson(preToolDeny(`[TDD Guard] Blocked implementation edit: the previous implementation mutation has not been exercised by a relevant test run. Run the relevant tests once before another implementation change; a failing result permits the next correction, while completion still requires GREEN.`));
       return;
     }
 
@@ -290,9 +333,49 @@ async function runPost(event: HookEvent, platform: string, forceFailure = false)
   const command = shellCommandOf(event);
   if (command && testCommand(command)) {
     const outcome = inferOutcome(event, forceFailure);
+    const scope = verificationScope(command, root, state);
+    let stateChanged = false;
+    if (outcome === "failure" && hasDirtySource(root)) {
+      if (!state.unresolvedVerificationFailures.some((failure) => sameVerificationScope(failure, scope))) {
+        state.unresolvedVerificationFailures.push(scope);
+      }
+      if (state.needsGreen) {
+        const required = new Set(state.needsGreen.testPaths ?? []);
+        const relevant = scope.testPaths.length === 0 || scope.testPaths.some((path) => required.has(path));
+        if (relevant) {
+          const covered = coveredOutcomePaths(command, root, state, outcome).filter((path) => required.size === 0 || required.has(path));
+          if (covered.length > 0) {
+            state.observedRed = { ...(state.observedRed ?? {}) };
+            for (const path of covered) {
+              const absolutePath = resolve(root, path);
+              if (!existsSync(absolutePath)) continue;
+              const hash = hashPath(absolutePath);
+              state.observedRed[path] = hash;
+              const record = (state.tests ?? []).find((item) => item.path === path);
+              if (record) record.redHash = hash;
+            }
+            state.lastRed = {
+              commandHash: digest(command),
+              testHashes: covered.map((path) => state.observedRed[path]).filter((value): value is string => Boolean(value)),
+            };
+            state.needsGreen = null;
+          }
+        }
+      }
+      if (!writeState(sessionId, root, state)) warn("failing verification outcome could not be persisted");
+      return;
+    }
+    if (outcome === "success") {
+      const remaining = state.unresolvedVerificationFailures.filter((failure) => !verificationSuccessCovers(scope, failure));
+      stateChanged = remaining.length !== state.unresolvedVerificationFailures.length;
+      state.unresolvedVerificationFailures = remaining;
+    }
     if (outcome === "failure" && !state.needsGreen) {
       const covered = coveredOutcomePaths(command, root, state, outcome);
-      if (covered.length === 0) return;
+      if (covered.length === 0) {
+        if (stateChanged && !writeState(sessionId, root, state)) warn("test outcome could not be persisted");
+        return;
+      }
       state.observedRed = { ...(state.observedRed ?? {}) };
       for (const path of covered) {
         const absolutePath = resolve(root, path);
@@ -305,9 +388,12 @@ async function runPost(event: HookEvent, platform: string, forceFailure = false)
       state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter((value): value is string => Boolean(value)) };
     } else if (outcome === "success" && state.needsGreen) {
       const covered = coveredOutcomePaths(command, root, state, outcome);
-      if (covered.length === 0) return;
+      if (covered.length === 0) {
+        if (stateChanged && !writeState(sessionId, root, state)) warn("test outcome could not be persisted");
+        return;
+      }
       state.needsGreen = null;
-    } else return;
+    } else if (!stateChanged) return;
     if (!writeState(sessionId, root, state)) warn("test outcome could not be persisted");
     return;
   }
@@ -373,8 +459,14 @@ async function runPost(event: HookEvent, platform: string, forceFailure = false)
 async function runStop(event: HookEvent): Promise<void> {
   const root = cwdOf(event);
   const state = readState(sessionIdOf(event), root);
-  if (!state.needsGreen) return;
-  writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
+  if (state.needsGreen) {
+    writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
+    return;
+  }
+  if (state.unresolvedVerificationFailures.length > 0) {
+    writeJson(stopDeny("[TDD Guard] Completion blocked: a test scope failed after implementation changes and has not subsequently passed with the same runner at the same or broader test-selection scope. Fix the regression and rerun that scope successfully; a narrower passing test does not clear a broader known failure."));
+    return;
+  }
 }
 
 async function main(): Promise<void> {

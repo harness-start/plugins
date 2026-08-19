@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7cec658f0ff45c08d4979a750be5c1d1e145e40adc8373b8f6d0fb4ad8077ca1
+// harness-source-hash: sha256:11489f6cdf6f0dbafbc48058596c84f56a2e943da337b6d5ea09ff7895b66c29
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-5VT3RKKP.mjs";
+} from "../chunks/chunk-ZXSWDE54.mjs";
 import {
   DESIGN_SYSTEM_SCHEMA,
   PLAN_SCHEMA,
@@ -12,7 +12,7 @@ import {
   assertDiagramProjectRoot,
   atomicWrite,
   withWriterJournal
-} from "../chunks/chunk-J4PXQCMH.mjs";
+} from "../chunks/chunk-436EDDQR.mjs";
 
 // plugins/diagram-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";

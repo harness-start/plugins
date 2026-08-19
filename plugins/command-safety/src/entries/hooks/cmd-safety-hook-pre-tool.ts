@@ -37,6 +37,10 @@ import {
   dangerousCommandDenyMessage,
   dangerousCommandHits,
 } from "../../engines/dangerous-rm.js";
+import {
+  verificationIntegrityDenyMessage,
+  verificationIntegrityFinding,
+} from "../../engines/verification-integrity.js";
 
 async function main() {
   const event = await readStdinJson();
@@ -105,6 +109,15 @@ async function main() {
       writeJson(
         additionalContextOutput("PreToolUse", formatFinding(hit, command, { host: process.env.HARNESS_HOST })),
       );
+      process.exit(0);
+    }
+  }
+
+  if (settings.engines.verificationIntegrity !== false) {
+    const verification = verificationIntegrityFinding(command);
+    if (verification) {
+      recordDeny(event, command, "verification-integrity");
+      writeJson(preToolDeny(verificationIntegrityDenyMessage(verification, command)));
       process.exit(0);
     }
   }
