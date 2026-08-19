@@ -20,6 +20,7 @@ export type LanguageContext = {
   rustCrateRoot?: string;
   goModulePath?: string;
   goModuleRoot?: string;
+  pythonReexports?: Array<{ sourceSymbol: string; publicTarget: string }>;
 };
 
 export type TestEvidence = {
@@ -97,6 +98,37 @@ function tomlSection(text: string, name: string): string {
 }
 
 export function resolveLanguageContext(root: string, path: string, language: string): LanguageContext {
+  if (language === "python") {
+    const module = sourceModule(path);
+    const separator = module.lastIndexOf(".");
+    if (separator < 0) return {};
+    const packageName = module.slice(0, separator);
+    const initializer = resolve(root, dirname(normalize(path)), "__init__.py");
+    if (!insideRoot(root, initializer) || !existsSync(initializer)) return {};
+    const reexports: Array<{ sourceSymbol: string; publicTarget: string }> = [];
+    const text = withoutComments("python", readFileSync(initializer, "utf8"));
+    for (const match of text.matchAll(/^\s*from\s+([.A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
+      const specifier = match[1] ?? "";
+      const dots = specifier.match(/^\.+/u)?.[0].length ?? 0;
+      const imported = dots === 0
+        ? specifier
+        : [
+            ...packageName.split(".").slice(0, Math.max(0, packageName.split(".").length - dots + 1)),
+            specifier.slice(dots),
+          ].filter(Boolean).join(".");
+      if (imported !== module) continue;
+      for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
+        const binding = item.trim().match(/^(\*|[A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
+        if (binding?.[1]) {
+          reexports.push({
+            sourceSymbol: binding[1],
+            publicTarget: `python:${packageName}#${binding[2] ?? binding[1]}`,
+          });
+        }
+      }
+    }
+    return { pythonReexports: reexports };
+  }
   if (language === "rust") {
     const manifest = nearestManifest(root, path, "Cargo.toml");
     if (!manifest) return {};
@@ -400,7 +432,18 @@ function explicitSourceTargets(source: SourceLike, context: LanguageContext): st
   if (source.language === "php") return symbols.map((symbol) => `php:${symbol}`);
   if (source.language === "python") {
     const module = sourceModule(source.path);
-    return [`python-module:${module}`, ...symbols.map((symbol) => `python:${module}#${symbol}`)];
+    const reexports = context.pythonReexports ?? [];
+    return [
+      `python-module:${module}`,
+      ...symbols.map((symbol) => `python:${module}#${symbol}`),
+      ...reexports.flatMap(({ sourceSymbol, publicTarget }) => {
+        if (sourceSymbol === "*" && publicTarget.endsWith("#*")) {
+          const prefix = publicTarget.slice(0, -1);
+          return symbols.map((symbol) => `${prefix}${symbol}`);
+        }
+        return symbols.includes(sourceSymbol) ? [publicTarget] : [];
+      }),
+    ];
   }
   if (["javascript", "typescript"].includes(source.language)) {
     const module = javascriptModule(source.path);

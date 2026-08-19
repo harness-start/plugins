@@ -84,7 +84,7 @@ Run PHPUnit successfully
 | 语言 | 测试侧证据 | 实现侧身份 | 同名消歧边界 |
 | --- | --- | --- | --- |
 | PHP | `#[CoversClass(Foo::class)]`、`@covers`，解析 `use` 和 alias | `namespace` + class/interface/trait/enum/function | FQCN |
-| Python | 被测试体实际使用的绝对 `from ... import ...` 或 `import ...`；`from package import lower_case_module` 同时按子模块解析；包重导出的符号还需与同名镜像模块中的定义一致 | source root 后或包内的 module path + class/function | module + symbol |
+| Python | 被测试体实际使用的绝对 `from ... import ...` 或 `import ...`；`from package import lower_case_module` 同时按子模块解析；包重导出由当前仓库 `__init__.py` 的显式或 `*` 导入证明，目录镜像只能补充同名模块 | source root 后或包内的 module path + class/function | module + symbol |
 | JavaScript | 被测试体使用的相对 `import` / `require` | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
 | TypeScript | 被测试体使用的相对 `import` / `require`，含 named/type alias | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
 | Rust | 外部测试中的 `use crate_name::module::Item`，支持一层 grouped use 和 alias | 最近 `Cargo.toml` 的 `[lib].name` / `[package].name` + crate scope + `src` module + item | crate + module + item |
