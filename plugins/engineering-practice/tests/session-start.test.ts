@@ -5,6 +5,13 @@ import { test } from "node:test";
 
 const entry = resolve(import.meta.dirname, "../dist/hooks/engineering-practice.mjs");
 
+function run(mode: "session-start" | "user-prompt", event: Record<string, unknown>) {
+  return spawnSync(process.execPath, [entry, mode], {
+    input: JSON.stringify(event),
+    encoding: "utf8",
+  });
+}
+
 test("offers engineering methods without making Skill loading an outcome prerequisite", () => {
   const result = spawnSync(process.execPath, [entry], { input: JSON.stringify({ cwd: process.cwd() }), encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
@@ -30,4 +37,43 @@ test("malformed input fails open", () => {
   const result = spawnSync(process.execPath, [entry], { input: "not-json", encoding: "utf8" });
   assert.equal(result.status, 0);
   assert.equal(result.stdout, "");
+});
+
+test("routes boundary prompts to a short counterexample contract", () => {
+  const result = run("user-prompt", {
+    prompt: "Fix a tensor conversion that rejects zero-length component arrays after broadcasting.",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout).hookSpecificOutput;
+  assert.equal(output.hookEventName, "UserPromptSubmit");
+  assert.match(output.additionalContext, /current (?:exception|rejection).*not.*compatibility proof/isu);
+  assert.match(output.additionalContext, /all-empty.*mixed empty.*populated.*ordinary populated/isu);
+  assert.match(output.additionalContext, /first lossy.*before.*distinction/isu);
+  assert.match(output.additionalContext, /durable.*mixed.*value.*shape/isu);
+  assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
+});
+
+test("routes ordering prompts to repository-native stable-order challenges", () => {
+  const result = run("user-prompt", {
+    prompt: "Repair dependency ordering when several independent chains are merged.",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout).hookSpecificOutput;
+  assert.equal(output.hookEventName, "UserPromptSubmit");
+  assert.match(output.additionalContext, /search.*repository.*stable.*primitive/isu);
+  assert.match(output.additionalContext, /two independent chains.*at least two items/isu);
+  assert.match(output.additionalContext, /stable.*frontier/isu);
+  assert.match(output.additionalContext, /named.*seam.*zero.*one.*two.*many/isu);
+  assert.match(output.additionalContext, /duplicates.*cycle.*exact diagnostic/isu);
+  assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
+});
+
+test("unrelated prompts stay silent and malformed prompt events fail open", () => {
+  const unrelated = run("user-prompt", { prompt: "Rename this local variable." });
+  assert.equal(unrelated.status, 0, unrelated.stderr);
+  assert.equal(unrelated.stdout, "");
+
+  const malformed = run("user-prompt", { cwd: process.cwd() });
+  assert.equal(malformed.status, 0, malformed.stderr);
+  assert.equal(malformed.stdout, "");
 });

@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'ordering or dependency changes.*existing stable primitive.*two completely disjoint chains.*at least two items each.*duplicate items.*cycle fallback.*exact diagnostic'
+require_prompt_context_signal 'Engineering Practice: stable-order challenge.*search the repository.*existing stable primitive.*named public seam.*zero, one, two, and many.*two independent chains.*at least two items each.*stable ready-frontier.*duplicates.*cycle fallback.*exact diagnostic'
 
 (
   cd "${ACCEPT_WORKSPACE}"
@@ -27,7 +27,7 @@ node --input-type=module -e '
 ' "file://${ACCEPT_WORKSPACE}/src/chain-registry.mjs"
 
 grep -Eq 'stable-order\.mjs' "${ACCEPT_WORKSPACE}/src/chain-registry.mjs"
-grep -Eiq 'test\("[^"]*independent[^"]*(ready|stage)[^"]*(order|successor)' \
+grep -Eiq 'test\("[^"]*(independent[^"]*(ready|stage)|(ready|stage)[^"]*independent)' \
   "${ACCEPT_WORKSPACE}/test/chain-registry.test.mjs"
 extra="$(find "${ACCEPT_WORKSPACE}" \
   -path "${ACCEPT_WORKSPACE}/.git" -prune -o \

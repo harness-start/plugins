@@ -2,7 +2,7 @@
 
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { readStdinJson } from "@harness/core/hook-event";
+import { eventPrompt, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, writeJson } from "@harness/core/hook-output";
 
 function warn(message: string): void {
@@ -26,12 +26,52 @@ export function engineeringPracticeContext(): string {
   ].join("\n");
 }
 
+const BOUNDARY_PROMPT = /\b(?:array|tensor|dimension|shape|broadcast|flatten|coerc|normaliz|empty|zero[- ]?(?:length|size)|boundary)\w*/iu;
+const ORDERING_PROMPT = /\b(?:order|ordering|depend|preced|topolog|cycle|merge|before|after|stable)\w*/iu;
+
+export function boundaryChallengeContext(): string {
+  return [
+    "[Engineering Practice: boundary challenge]",
+    "Treat the requested behavior as the contract candidate: a current exception or rejection is not compatibility proof unless local docs or callers require it.",
+    "Before editing, write outcomes for all-empty, mixed empty/populated, and ordinary populated inputs. Locate the first lossy transform and branch before it when the required distinction would otherwise disappear; then rejoin the shared result path.",
+    "Add a durable mixed-case test that asserts the requested value and shape. Do not merely lock in the current exception.",
+  ].join("\n");
+}
+
+export function orderingChallengeContext(): string {
+  return [
+    "[Engineering Practice: stable-order challenge]",
+    "Before writing an ordering algorithm, search the repository and language standard library for an existing stable primitive and use it unless the observable contract disproves it.",
+    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same mechanism.",
+    "Add a durable tie-break test with two independent chains of at least two items each. Verify stable ready-frontier behavior rather than only the motivating chain or flattened first appearance.",
+    "Also verify duplicates, a genuine cycle fallback, and the exact diagnostic type and text.",
+  ].join("\n");
+}
+
+export function promptChallengeContext(event: HookEvent): string {
+  const prompt = eventPrompt(event);
+  if (!prompt) return "";
+  const contexts: string[] = [];
+  if (BOUNDARY_PROMPT.test(prompt)) contexts.push(boundaryChallengeContext());
+  if (ORDERING_PROMPT.test(prompt)) contexts.push(orderingChallengeContext());
+  return contexts.join("\n");
+}
+
 export async function runSessionStart(): Promise<void> {
   const event = await readStdinJson();
   if (event.__parseError) return warn("invalid hook input; advisory context was skipped");
   writeJson(additionalContext("SessionStart", engineeringPracticeContext()));
 }
 
+export async function runUserPromptSubmit(): Promise<void> {
+  const event = await readStdinJson();
+  if (event.__parseError) return warn("invalid hook input; prompt guidance was skipped");
+  const context = promptChallengeContext(event);
+  if (context) writeJson(additionalContext("UserPromptSubmit", context));
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runSessionStart().catch((error: unknown) => warn(error instanceof Error ? error.message : String(error)));
+  const mode = process.argv[2] ?? "session-start";
+  const run = mode === "user-prompt" ? runUserPromptSubmit : runSessionStart;
+  run().catch((error: unknown) => warn(error instanceof Error ? error.message : String(error)));
 }

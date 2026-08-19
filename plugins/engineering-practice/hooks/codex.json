@@ -5,10 +5,23 @@
         "hooks": [
           {
             "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-practice:session-start\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/engineering-practice.mjs\"",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-practice:session-start\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/engineering-practice.mjs\" session-start",
             "statusMessage": "Loading engineering outcome guidance",
             "timeout": 10000,
             "additionalContextLimit": 2400
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-practice:user-prompt\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/engineering-practice.mjs\" user-prompt",
+            "statusMessage": "Selecting an engineering challenge",
+            "timeout": 10000,
+            "additionalContextLimit": 1200
           }
         ]
       }

@@ -147,14 +147,15 @@ require_exact_model_reply() {
   return 1
 }
 
-# require_session_context_signal <regex>
-# SessionStart context is surfaced differently by each host. Claude logs the
-# hook response; Codex records the injected developer message in its rollout.
+# require_hook_context_signal <event> <regex>
+# Hook context is surfaced differently by each host. Claude logs the hook
+# response; Codex records the injected developer message in its rollout.
 # Inspect those structured surfaces so reading plugin source cannot fake a hit.
-require_session_context_signal() {
-  local re="${1:?session context regex required}"
+require_hook_context_signal() {
+  local event="${1:?hook event required}"
+  local re="${2:?hook context regex required}"
   if [ "${ACCEPT_HOST:-}" = "claude" ]; then
-    if grep -E '"hookEventName":"SessionStart".*"additionalContext"' "${ACCEPT_LOG}" | grep -Eq "${re}"; then
+    if grep -E "\"hookEventName\":\"${event}\".*\"additionalContext\"" "${ACCEPT_LOG}" | grep -Eq "${re}"; then
       return 0
     fi
   elif [ "${ACCEPT_HOST:-}" = "codex" ]; then
@@ -165,15 +166,25 @@ require_session_context_signal() {
           .type == "response_item"
           and .payload.type == "message"
           and .payload.role == "developer"
-          and any(.payload.content[]?; .type == "input_text" and (.text | test($re)))
+          and any(.payload.content[]?; .type == "input_text" and (.text | test("(?s)" + $re)))
         )
       ' "${rollout}" >/dev/null 2>&1; then
         return 0
       fi
     done < <(find "${ACCEPT_OUT:?}/codex-home/sessions" -type f -name '*.jsonl' -print0 2>/dev/null)
   fi
-  echo "expect fail: no SessionStart context signal matching: ${re}" >&2
+  echo "expect fail: no ${event} context signal matching: ${re}" >&2
   return 1
+}
+
+# require_session_context_signal <regex>
+require_session_context_signal() {
+  require_hook_context_signal "SessionStart" "${1:?session context regex required}"
+}
+
+# require_prompt_context_signal <regex>
+require_prompt_context_signal() {
+  require_hook_context_signal "UserPromptSubmit" "${1:?prompt context regex required}"
 }
 
 require_file_absent() {

@@ -1,4 +1,4 @@
 id = "08-stable-order-primitive"
 hosts = ["claude", "codex"]
 timeout_sec = 240
-tags = ["session-start", "implementation", "contract", "ordering", "outcome"]
+tags = ["user-prompt", "implementation", "contract", "ordering", "outcome"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:a5b66d821c1efb083b7926d87381c07041d8d3befe61e21c11138e5717773eef
+// harness-source-hash: sha256:aea112fe4994a7ed0c58468aa88ed2504ab8a75382bc1cef3575d74752be613d
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
@@ -8,6 +8,12 @@ import { fileURLToPath } from "node:url";
 // core/src/hook-event.ts
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.length > 0) return value;
+  }
+  return "";
 }
 async function readStdinJson(input = process.stdin) {
   let raw = "";
@@ -19,6 +25,9 @@ async function readStdinJson(input = process.stdin) {
   } catch {
     return { __parseError: true };
   }
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
 }
 
 // core/src/hook-output.ts
@@ -69,15 +78,54 @@ function engineeringPracticeContext() {
     "Use only helpful methods, or work directly. Hooks remain independent enforcement."
   ].join("\n");
 }
+var BOUNDARY_PROMPT = /\b(?:array|tensor|dimension|shape|broadcast|flatten|coerc|normaliz|empty|zero[- ]?(?:length|size)|boundary)\w*/iu;
+var ORDERING_PROMPT = /\b(?:order|ordering|depend|preced|topolog|cycle|merge|before|after|stable)\w*/iu;
+function boundaryChallengeContext() {
+  return [
+    "[Engineering Practice: boundary challenge]",
+    "Treat the requested behavior as the contract candidate: a current exception or rejection is not compatibility proof unless local docs or callers require it.",
+    "Before editing, write outcomes for all-empty, mixed empty/populated, and ordinary populated inputs. Locate the first lossy transform and branch before it when the required distinction would otherwise disappear; then rejoin the shared result path.",
+    "Add a durable mixed-case test that asserts the requested value and shape. Do not merely lock in the current exception."
+  ].join("\n");
+}
+function orderingChallengeContext() {
+  return [
+    "[Engineering Practice: stable-order challenge]",
+    "Before writing an ordering algorithm, search the repository and language standard library for an existing stable primitive and use it unless the observable contract disproves it.",
+    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same mechanism.",
+    "Add a durable tie-break test with two independent chains of at least two items each. Verify stable ready-frontier behavior rather than only the motivating chain or flattened first appearance.",
+    "Also verify duplicates, a genuine cycle fallback, and the exact diagnostic type and text."
+  ].join("\n");
+}
+function promptChallengeContext(event) {
+  const prompt = eventPrompt(event);
+  if (!prompt) return "";
+  const contexts = [];
+  if (BOUNDARY_PROMPT.test(prompt)) contexts.push(boundaryChallengeContext());
+  if (ORDERING_PROMPT.test(prompt)) contexts.push(orderingChallengeContext());
+  return contexts.join("\n");
+}
 async function runSessionStart() {
   const event = await readStdinJson();
   if (event.__parseError) return warn("invalid hook input; advisory context was skipped");
   writeJson(additionalContext("SessionStart", engineeringPracticeContext()));
 }
+async function runUserPromptSubmit() {
+  const event = await readStdinJson();
+  if (event.__parseError) return warn("invalid hook input; prompt guidance was skipped");
+  const context = promptChallengeContext(event);
+  if (context) writeJson(additionalContext("UserPromptSubmit", context));
+}
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  runSessionStart().catch((error) => warn(error instanceof Error ? error.message : String(error)));
+  const mode = process.argv[2] ?? "session-start";
+  const run = mode === "user-prompt" ? runUserPromptSubmit : runSessionStart;
+  run().catch((error) => warn(error instanceof Error ? error.message : String(error)));
 }
 export {
+  boundaryChallengeContext,
   engineeringPracticeContext,
-  runSessionStart
+  orderingChallengeContext,
+  promptChallengeContext,
+  runSessionStart,
+  runUserPromptSubmit
 };

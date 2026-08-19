@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'first lossy transform.*mixed combinations.*one empty component.*another populated'
+require_prompt_context_signal 'Engineering Practice: boundary challenge.*current exception or rejection.*not compatibility proof.*all-empty.*mixed empty/populated.*ordinary populated'
 
 (
   cd "${ACCEPT_WORKSPACE}"
