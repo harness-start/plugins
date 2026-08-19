@@ -96,6 +96,8 @@ test("challenges disputed diagnostics at the caller-visible abstraction level", 
   const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
   assert.match(context, /request disputes.*diagnostic/isu);
   assert.match(context, /original caller-supplied constraint groups/isu);
+  assert.match(context, /complete original input sequences/isu);
+  assert.match(context, /not.*elements extracted from them/isu);
   assert.match(context, /not.*arbitrary internal.*nodes/isu);
   assert.match(context, /exact.*type.*text/isu);
 });
@@ -197,6 +199,73 @@ test("Stop blocks a raw one-input bypass in a new variadic seam", () => {
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /returns chains\[0\] unchanged.*shared normalization contract/isu);
+  });
+});
+
+test("Stop blocks a raw one-input bypass moved into a variadic seam caller", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def render(self):",
+      "        return self.combine(*self._chains)",
+      "",
+      "    def combine(left, right):",
+      "        return stable_order(left + right)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def render(self):",
+      "        if len(self._chains) == 1:",
+      "            return self._chains[0]",
+      "        return self.combine(*self._chains)",
+      "",
+      "    def combine(*chains):",
+      "        return stable_order(chains)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /returns self\._chains\[0\] unchanged.*shared normalization contract/isu);
+  });
+});
+
+test("Stop blocks a variadic diagnostic that reports extracted internal elements", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return stable_order(left + right)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*chains):",
+      "        try:",
+      "            return stable_order(chains)",
+      "        except DependencyCycleError:",
+      "            conflict = (previous, item)",
+      "            warnings.warn('Conflicting chains: %s' % conflict)",
+      "            return fallback(chains)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /formats extracted variable conflict.*complete caller-supplied input sequences/isu);
   });
 });
 

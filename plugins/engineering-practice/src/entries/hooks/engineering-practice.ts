@@ -9,6 +9,7 @@ import {
   boundaryGuardFinding,
   mixedBoundaryRejectionFinding,
   orderingPrimitiveFinding,
+  variadicDiagnosticFinding,
   variadicSeamBypassFinding,
 } from "../../lib/outcome-challenge.js";
 
@@ -54,7 +55,7 @@ export function orderingChallengeContext(diagnosticDisputed = false): string {
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text.",
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Preserve the original caller-supplied constraint groups for reporting and assert the exact diagnostic type and text against those groups; do not substitute arbitrary internal cycle nodes.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -124,6 +125,14 @@ export async function runStop(): Promise<void> {
   if (variadicBypass) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${variadicBypass.path}:${variadicBypass.line}: the new variadic seam returns ${variadicBypass.parameter}[0] unchanged for one input, bypassing the shared normalization contract. Route zero, one, two, and many inputs through the same deduplication/container mechanism, or cite local public-contract evidence that explicitly requires raw passthrough.`,
+    ));
+    return;
+  }
+
+  const variadicDiagnostic = variadicDiagnosticFinding(diff);
+  if (variadicDiagnostic) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${variadicDiagnostic.path}:${variadicDiagnostic.line}: the new variadic composition diagnostic formats extracted variable ${variadicDiagnostic.variable} instead of the complete caller-supplied input sequences. Keep the original groups through cycle handling and assert the exact warning/error text renders those full operands, not selected internal elements.`,
     ));
     return;
   }

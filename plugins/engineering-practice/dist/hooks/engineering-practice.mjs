@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f42a3c04778cf260a49f00ad45377aa9c189c0fe96d4211a43b2bc0c0023415a
+// harness-source-hash: sha256:c10a0d68932a1da084ccc0733f432061ae1a8448d0f1494e7851e1d8d2bbe905
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { execFileSync } from "node:child_process";
@@ -83,6 +83,24 @@ function diffFiles(diff) {
 }
 function productionFiles(diff) {
   return diffFiles(diff).filter(({ path }) => !TEST_PATH.test(path) && !GENERATED_PATH.test(path));
+}
+function addedLines(file) {
+  const added = [];
+  let newLine = 0;
+  for (const rawLine of file.lines) {
+    const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
+    const hunkLine = hunk?.[1];
+    if (hunkLine) {
+      newLine = Number.parseInt(hunkLine, 10);
+      continue;
+    }
+    if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
+    if (!rawLine.startsWith("-")) {
+      if (rawLine.startsWith("+")) added.push({ line: newLine, source: rawLine.slice(1) });
+      newLine += 1;
+    }
+  }
+  return added;
 }
 function boundaryGuardFinding(diff) {
   for (const file of productionFiles(diff)) {
@@ -169,43 +187,66 @@ function mixedBoundaryRejectionFinding(diff) {
 function variadicParameter(source) {
   return source.match(/\bdef\s+\w+\s*\(\s*\*([A-Za-z_]\w*)/u)?.[1] ?? source.match(/(?:\bfunction\s+\w+|\b\w+)\s*\([^)]*\.\.\.([A-Za-z_$][\w$]*)/u)?.[1] ?? "";
 }
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+function singleInputExpression(source) {
+  const expression = "([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)";
+  return source.match(new RegExp(`\\bif\\b[^\\n]*len\\s*\\(\\s*${expression}\\s*\\)\\s*={2,3}\\s*1`, "u"))?.[1] ?? source.match(new RegExp(`\\bif\\b[^\\n]*${expression}\\.length\\s*={2,3}\\s*1`, "u"))?.[1] ?? "";
+}
 function variadicSeamBypassFinding(diff) {
   for (const file of productionFiles(diff)) {
-    let newLine = 0;
-    let parameter = "";
-    let singleInputBudget = 0;
-    for (const rawLine of file.lines) {
-      const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
-      const hunkLine = hunk?.[1];
-      if (hunkLine) {
-        newLine = Number.parseInt(hunkLine, 10);
-        singleInputBudget = 0;
+    const additions = addedLines(file);
+    if (!additions.some(({ source }) => variadicParameter(source))) continue;
+    let input = "";
+    let singleInputLine = 0;
+    for (const addition of additions) {
+      const candidate = singleInputExpression(addition.source);
+      if (candidate && /(?:lists|chains|groups|inputs|items)$/u.test(candidate)) {
+        input = candidate;
+        singleInputLine = addition.line;
         continue;
       }
-      if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
-      const removed = rawLine.startsWith("-");
-      const added = rawLine.startsWith("+");
-      const source = rawLine.slice(1);
-      if (!removed) {
-        const addedParameter = added ? variadicParameter(source) : "";
-        if (FUNCTION_START.test(source) && !addedParameter) parameter = "";
-        if (addedParameter) parameter = addedParameter;
-        if (parameter) {
-          const escaped = parameter.replace(/[$]/gu, "\\$");
-          const singleInput = new RegExp(`\\bif\\b[^\\n]*(?:len\\s*\\(\\s*${escaped}\\s*\\)\\s*={2,3}\\s*1|${escaped}\\.length\\s*={2,3}\\s*1)`, "u");
-          if (added && singleInput.test(source)) singleInputBudget = 4;
-          else if (singleInputBudget > 0) singleInputBudget -= 1;
-          const rawReturn = new RegExp(`^\\s*return\\s+${escaped}\\s*\\[\\s*0\\s*\\]`, "u");
-          if (added && singleInputBudget > 0 && rawReturn.test(source)) {
-            return {
-              code: "variadic-single-input-bypass",
-              path: file.path,
-              line: newLine,
-              parameter
-            };
-          }
+      const distance = addition.line - singleInputLine;
+      if (input && distance > 0 && distance <= 4) {
+        const rawReturn = new RegExp(`^\\s*return\\s+${escapeRegExp(input)}\\s*\\[\\s*0\\s*\\]`, "u");
+        if (rawReturn.test(addition.source)) {
+          return {
+            code: "variadic-single-input-bypass",
+            path: file.path,
+            line: addition.line,
+            parameter: input
+          };
         }
-        newLine += 1;
+      }
+      if (distance > 4) input = "";
+    }
+  }
+  return null;
+}
+function variadicDiagnosticFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    const additions = addedLines(file);
+    const parameters = additions.map(({ source }) => variadicParameter(source)).filter(Boolean);
+    if (parameters.length === 0) continue;
+    for (let index = 0; index < additions.length; index += 1) {
+      const warning = additions[index];
+      if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+      const block = additions.slice(index, index + 8);
+      for (const entry of block) {
+        const formatting = entry.source.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/gu, "");
+        const variable = formatting.match(/%\s*(?:\(\s*)?([A-Za-z_]\w*)\b/u)?.[1] ?? formatting.match(/\.format\(\s*([A-Za-z_]\w*)\b/u)?.[1] ?? "";
+        if (!variable) continue;
+        const assignments = additions.filter(({ source }) => new RegExp(`\\b${escapeRegExp(variable)}\\s*=`, "u").test(source)).map(({ source }) => source).join("\n");
+        const callerGroups = parameters.includes(variable) || parameters.some((parameter) => new RegExp(`\\b${escapeRegExp(parameter)}\\b`, "u").test(assignments)) || /\b(?:chains|lists|groups|inputs|operands|constraints)\b/iu.test(assignments);
+        if (!callerGroups) {
+          return {
+            code: "variadic-internal-diagnostic",
+            path: file.path,
+            line: entry.line,
+            variable
+          };
+        }
       }
     }
   }
@@ -288,7 +329,7 @@ function orderingChallengeContext(diagnosticDisputed = false) {
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text."
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Preserve the original caller-supplied constraint groups for reporting and assert the exact diagnostic type and text against those groups; do not substitute arbitrary internal cycle nodes.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -350,6 +391,13 @@ async function runStop() {
   if (variadicBypass) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${variadicBypass.path}:${variadicBypass.line}: the new variadic seam returns ${variadicBypass.parameter}[0] unchanged for one input, bypassing the shared normalization contract. Route zero, one, two, and many inputs through the same deduplication/container mechanism, or cite local public-contract evidence that explicitly requires raw passthrough.`
+    ));
+    return;
+  }
+  const variadicDiagnostic = variadicDiagnosticFinding(diff);
+  if (variadicDiagnostic) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${variadicDiagnostic.path}:${variadicDiagnostic.line}: the new variadic composition diagnostic formats extracted variable ${variadicDiagnostic.variable} instead of the complete caller-supplied input sequences. Keep the original groups through cycle handling and assert the exact warning/error text renders those full operands, not selected internal elements.`
     ));
     return;
   }

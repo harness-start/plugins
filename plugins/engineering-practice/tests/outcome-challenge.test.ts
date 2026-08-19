@@ -5,6 +5,7 @@ import {
   boundaryGuardFinding,
   mixedBoundaryRejectionFinding,
   orderingPrimitiveFinding,
+  variadicDiagnosticFinding,
   variadicSeamBypassFinding,
 } from "../src/lib/outcome-challenge.js";
 
@@ -132,6 +133,108 @@ test("flags a raw single-input bypass added to a variadic composition seam", () 
     line: 17,
     parameter: "chains",
   });
+});
+
+test("flags a raw single-input bypass moved into a variadic seam caller", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,2 +5,5 @@ class Registry:
++    if len(self._chains) == 1:
++        return self._chains[0]
+     return self.combine(*self._chains)
+@@ -20,2 +23,2 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
+         return stable_order(chains)
+`;
+
+  assert.deepEqual(variadicSeamBypassFinding(diff), {
+    code: "variadic-single-input-bypass",
+    path: "src/registry.py",
+    line: 6,
+    parameter: "self._chains",
+  });
+});
+
+test("does not join a single-input guard and unrelated return across distant hunks", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,2 +5,3 @@ class Registry:
++    if len(self._chains) == 1:
++        audit_single_chain(self._chains)
+     return self.combine(*self._chains)
+@@ -80,2 +81,3 @@ class Registry:
++    def preview(self):
++        return self._chains[0]
+@@ -120,2 +122,2 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
+         return stable_order(chains)
+`;
+
+  assert.equal(variadicSeamBypassFinding(diff), null);
+});
+
+test("flags a variadic cycle diagnostic that formats an extracted element pair", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,12 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            conflict = (previous, item)
++            warnings.warn(
++                "Conflicting chains:\\n%s\\n%s" % conflict,
++                ChainConflictWarning,
++            )
+`;
+
+  assert.deepEqual(variadicDiagnosticFinding(diff), {
+    code: "variadic-internal-diagnostic",
+    path: "src/registry.py",
+    line: 26,
+    variable: "conflict",
+  });
+});
+
+test("accepts a variadic cycle diagnostic that formats the original input groups", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,11 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        original_chains = tuple(chains)
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains: %s" % original_chains)
++            return fallback(chains)
+`;
+
+  assert.equal(variadicDiagnosticFinding(diff), null);
+});
+
+test("accepts a variadic cycle diagnostic that directly formats its input groups", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,9 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains: %s" % chains)
++            return fallback(chains)
+`;
+
+  assert.equal(variadicDiagnosticFinding(diff), null);
 });
 
 test("accepts reuse of the repository ordering primitive", () => {

@@ -25,6 +25,13 @@ export type VariadicSeamBypassFinding = {
   parameter: string;
 };
 
+export type VariadicDiagnosticFinding = {
+  code: "variadic-internal-diagnostic";
+  path: string;
+  line: number;
+  variable: string;
+};
+
 const TEST_PATH = /(?:^|\/)(?:test|tests|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/iu;
 const GENERATED_PATH = /(?:^|\/)(?:acceptance|dist|build|docs?|examples?|fixtures?|vendor|node_modules|\.git)(?:\/|$)/u;
 const LOSSY_TRANSFORM = /\b((?:broadcast|flatten|coerc|normaliz|deduplic|align|stack|reshape)\w*)\s*\(/iu;
@@ -34,6 +41,7 @@ const REJECTION = /^\s*(?:raise\b|throw\b|return\s+(?:new\s+)?\w*Error\b)/iu;
 const FUNCTION_START = /^\s*(?:(?:export\s+)?(?:async\s+)?function\s+|(?:async\s+)?def\s+)/u;
 
 type DiffFile = { path: string; lines: string[] };
+type AddedLine = { line: number; source: string };
 
 function diffFiles(diff: string): DiffFile[] {
   const files: DiffFile[] = [];
@@ -47,6 +55,25 @@ function diffFiles(diff: string): DiffFile[] {
 
 function productionFiles(diff: string): DiffFile[] {
   return diffFiles(diff).filter(({ path }) => !TEST_PATH.test(path) && !GENERATED_PATH.test(path));
+}
+
+function addedLines(file: DiffFile): AddedLine[] {
+  const added: AddedLine[] = [];
+  let newLine = 0;
+  for (const rawLine of file.lines) {
+    const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
+    const hunkLine = hunk?.[1];
+    if (hunkLine) {
+      newLine = Number.parseInt(hunkLine, 10);
+      continue;
+    }
+    if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
+    if (!rawLine.startsWith("-")) {
+      if (rawLine.startsWith("+")) added.push({ line: newLine, source: rawLine.slice(1) });
+      newLine += 1;
+    }
+  }
+  return added;
 }
 
 export function boundaryGuardFinding(diff: string): BoundaryGuardFinding | null {
@@ -139,43 +166,78 @@ function variadicParameter(source: string): string {
     ?? "";
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function singleInputExpression(source: string): string {
+  const expression = "([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)";
+  return source.match(new RegExp(`\\bif\\b[^\\n]*len\\s*\\(\\s*${expression}\\s*\\)\\s*={2,3}\\s*1`, "u"))?.[1]
+    ?? source.match(new RegExp(`\\bif\\b[^\\n]*${expression}\\.length\\s*={2,3}\\s*1`, "u"))?.[1]
+    ?? "";
+}
+
 export function variadicSeamBypassFinding(diff: string): VariadicSeamBypassFinding | null {
   for (const file of productionFiles(diff)) {
-    let newLine = 0;
-    let parameter = "";
-    let singleInputBudget = 0;
-    for (const rawLine of file.lines) {
-      const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
-      const hunkLine = hunk?.[1];
-      if (hunkLine) {
-        newLine = Number.parseInt(hunkLine, 10);
-        singleInputBudget = 0;
+    const additions = addedLines(file);
+    if (!additions.some(({ source }) => variadicParameter(source))) continue;
+    let input = "";
+    let singleInputLine = 0;
+    for (const addition of additions) {
+      const candidate = singleInputExpression(addition.source);
+      if (candidate && /(?:lists|chains|groups|inputs|items)$/u.test(candidate)) {
+        input = candidate;
+        singleInputLine = addition.line;
         continue;
       }
-      if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
-      const removed = rawLine.startsWith("-");
-      const added = rawLine.startsWith("+");
-      const source = rawLine.slice(1);
-      if (!removed) {
-        const addedParameter = added ? variadicParameter(source) : "";
-        if (FUNCTION_START.test(source) && !addedParameter) parameter = "";
-        if (addedParameter) parameter = addedParameter;
-        if (parameter) {
-          const escaped = parameter.replace(/[$]/gu, "\\$");
-          const singleInput = new RegExp(`\\bif\\b[^\\n]*(?:len\\s*\\(\\s*${escaped}\\s*\\)\\s*={2,3}\\s*1|${escaped}\\.length\\s*={2,3}\\s*1)`, "u");
-          if (added && singleInput.test(source)) singleInputBudget = 4;
-          else if (singleInputBudget > 0) singleInputBudget -= 1;
-          const rawReturn = new RegExp(`^\\s*return\\s+${escaped}\\s*\\[\\s*0\\s*\\]`, "u");
-          if (added && singleInputBudget > 0 && rawReturn.test(source)) {
-            return {
-              code: "variadic-single-input-bypass",
-              path: file.path,
-              line: newLine,
-              parameter,
-            };
-          }
+      const distance = addition.line - singleInputLine;
+      if (input && distance > 0 && distance <= 4) {
+        const rawReturn = new RegExp(`^\\s*return\\s+${escapeRegExp(input)}\\s*\\[\\s*0\\s*\\]`, "u");
+        if (rawReturn.test(addition.source)) {
+          return {
+            code: "variadic-single-input-bypass",
+            path: file.path,
+            line: addition.line,
+            parameter: input,
+          };
         }
-        newLine += 1;
+      }
+      if (distance > 4) input = "";
+    }
+  }
+  return null;
+}
+
+export function variadicDiagnosticFinding(diff: string): VariadicDiagnosticFinding | null {
+  for (const file of productionFiles(diff)) {
+    const additions = addedLines(file);
+    const parameters = additions.map(({ source }) => variadicParameter(source)).filter(Boolean);
+    if (parameters.length === 0) continue;
+    for (let index = 0; index < additions.length; index += 1) {
+      const warning = additions[index];
+      if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+      const block = additions.slice(index, index + 8);
+      for (const entry of block) {
+        const formatting = entry.source.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/gu, "");
+        const variable = formatting.match(/%\s*(?:\(\s*)?([A-Za-z_]\w*)\b/u)?.[1]
+          ?? formatting.match(/\.format\(\s*([A-Za-z_]\w*)\b/u)?.[1]
+          ?? "";
+        if (!variable) continue;
+        const assignments = additions
+          .filter(({ source }) => new RegExp(`\\b${escapeRegExp(variable)}\\s*=`, "u").test(source))
+          .map(({ source }) => source)
+          .join("\n");
+        const callerGroups = parameters.includes(variable)
+          || parameters.some((parameter) => new RegExp(`\\b${escapeRegExp(parameter)}\\b`, "u").test(assignments))
+          || /\b(?:chains|lists|groups|inputs|operands|constraints)\b/iu.test(assignments);
+        if (!callerGroups) {
+          return {
+            code: "variadic-internal-diagnostic",
+            path: file.path,
+            line: entry.line,
+            variable,
+          };
+        }
       }
     }
   }
