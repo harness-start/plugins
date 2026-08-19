@@ -22,7 +22,6 @@ harness:
   plugins:
     - command-safety
     - engineering-practice
-    - intent-discovery
     - python-engineering
     - test-driven-development
 network:

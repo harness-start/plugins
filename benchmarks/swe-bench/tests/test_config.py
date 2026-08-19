@@ -40,7 +40,6 @@ def test_committed_stage2_suite_covers_both_followup_instances_on_both_hosts() -
     assert suite.harness.plugins == (
         "command-safety",
         "engineering-practice",
-        "intent-discovery",
         "python-engineering",
         "test-driven-development",
     )
