@@ -17,7 +17,10 @@ test("offers engineering methods without making Skill loading an outcome prerequ
   assert.match(context, /local.*callers.*tests.*documentation.*history/isu);
   assert.match(context, /hidden evaluator.*solution patch/isu);
   assert.match(context, /boundary.*reuse.*normalization.*return path.*synthesi/isu);
+  assert.match(context, /first lossy transform.*mixed combinations.*one empty.*another populated/isu);
   assert.match(context, /extend.*named seam.*old call forms.*add or extend tests.*zero.*one.*two.*many/isu);
+  assert.match(context, /compatibility.*accepted call forms.*not.*incidental.*container/isu);
+  assert.match(context, /ordering.*dependency.*existing.*primitive.*two completely disjoint chains.*at least two items each.*duplicate.*cycle.*diagnostic/isu);
   assert.match(context, /P0-P3 severity.*exact file:line.*concrete evidence.*verifiable fix/isu);
   assert.doesNotMatch(context, /before acting|\brequire\b/iu);
   assert.doesNotMatch(context, /engineering-debugging|debug-workflow|humanizer|stop-slop|shuorenhua|\$HOME\/\.agents\/skills/iu);

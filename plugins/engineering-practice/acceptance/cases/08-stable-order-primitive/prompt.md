@@ -1,0 +1,1 @@
+Fix `ChainRegistry.stages` so combining three chains doesn't invent a conflict between independent stages. Preserve the documented public seam, stable ordering, fallback, and diagnostic contracts. Update the existing test file and do not create unrelated files.

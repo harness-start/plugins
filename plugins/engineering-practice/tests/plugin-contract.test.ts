@@ -49,5 +49,7 @@ test("acceptance inventory covers implementation, review, and a simple control",
     "04-contract-boundary",
     "05-shared-return-path",
     "06-cardinality-seam",
+    "07-mixed-boundary",
+    "08-stable-order-primitive",
   ]);
 });

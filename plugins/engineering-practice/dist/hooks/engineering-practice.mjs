@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:da55112b14d6336df898561b3ec580fdc6a0257b65404fd08ce08c3c9c926f95
+// harness-source-hash: sha256:a5b66d821c1efb083b7926d87381c07041d8d3befe61e21c11138e5717773eef
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
@@ -60,8 +60,9 @@ function engineeringPracticeContext() {
     "For non-trivial implementation or refactoring, `engineering-judgment` can help control scope and tradeoffs.",
     "For a non-trivial fix, derive a compact observable contract before selecting code: value, type, container, shape, cardinality, order, stability, warning, error, and public API compatibility for existing accepted calls where applicable.",
     "A single example passing is not complete evidence. Challenge the proposed change with local callers, tests, documentation, and history, then prefer the smallest compatible repository-native mechanism.",
-    "For a boundary fix, reuse existing normalization and its shared return path instead of synthesized branch-local outputs that bypass post-processing.",
-    "When a requirement extends arity or composition, extend the named seam while old call forms remain valid; add or extend tests for zero, one, two, and many inputs through one mechanism instead of a private parallel path.",
+    "For a boundary fix, locate the first lossy transform (such as broadcast, flatten, coerce, or deduplicate) and test mixed combinations such as one empty component with another populated. Branch before lost distinctions when the contract requires them; otherwise reuse normalization, and keep the shared return path instead of synthesized branch-local outputs.",
+    "When a requirement extends arity or composition, extend the named seam while old call forms remain valid; add or extend tests for zero, one, two, and many inputs through one mechanism instead of a private parallel path. Compatibility means proven accepted call forms and documented results, not preserving incidental internal or container behavior with an unproven fast path.",
+    "For ordering or dependency changes, search the repository and standard library for an existing stable primitive before writing an algorithm. Before completion, add a direct durable tie-break test with two completely disjoint chains containing at least two items each; also test duplicate items, cycle fallback, and exact diagnostic behavior.",
     "Use local evidence; do not hunt for hidden evaluator artifacts or solution patches. Treat unavailable evidence as unavailable.",
     "`engineering-review` is optional guidance; every read-only review finding still needs a P0-P3 severity, exact file:line, concrete evidence, and a verifiable fix or recovery path.",
     "Completion, fixed, passing, commit, or PR claims need fresh command evidence; `engineering-verification` can help select the checks.",
