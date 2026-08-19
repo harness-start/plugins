@@ -338,6 +338,7 @@ async function runPost(event: HookEvent, platform: string, forceFailure = false)
     if (outcome === "failure" && hasDirtySource(root)) {
       if (!state.unresolvedVerificationFailures.some((failure) => sameVerificationScope(failure, scope))) {
         state.unresolvedVerificationFailures.push(scope);
+        stateChanged = true;
       }
       if (state.needsGreen) {
         const required = new Set(state.needsGreen.testPaths ?? []);
@@ -362,8 +363,6 @@ async function runPost(event: HookEvent, platform: string, forceFailure = false)
           }
         }
       }
-      if (!writeState(sessionId, root, state)) warn("failing verification outcome could not be persisted");
-      return;
     }
     if (outcome === "success") {
       const remaining = state.unresolvedVerificationFailures.filter((failure) => !verificationSuccessCovers(scope, failure));

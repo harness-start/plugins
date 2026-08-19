@@ -942,6 +942,57 @@ test("a related failing test between implementation edits permits the next corre
   }
 });
 
+test("a new RED cycle is recorded after an earlier source edit has reached GREEN", async () => {
+  const fx = fixture("test-driven-development-second-red-cycle-");
+  try {
+    gitInit(fx.root);
+    const pair = seedPhpOrderService(fx.root);
+    gitCommitAll(fx.root, "seed pair");
+
+    const firstTest = pair.testContent.replace(
+      "$service = new OrderService();",
+      "$service = new OrderService();\n        self::assertSame(2, $service->total());",
+    );
+    const firstTestWrite = writeEvent(fx.root, pair.testPath, firstTest, "cycle-test-1");
+    await runHook("pre", firstTestWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), firstTest);
+    await runHook("post", firstTestWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "cycle-red-1");
+
+    const firstSource = pair.sourceContent.replace(
+      "final class OrderService {}",
+      "final class OrderService { public function total(): int { return 2; } }",
+    );
+    const firstSourceWrite = writeEvent(fx.root, pair.sourcePath, firstSource, "cycle-source-1");
+    assert.equal((await runHook("pre", firstSourceWrite, hookEnv(fx.data))).stdout, "");
+    writeFileSync(join(fx.root, pair.sourcePath), firstSource);
+    await runHook("post", firstSourceWrite, hookEnv(fx.data));
+    await runHook("post", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "cycle-green-1",
+      tool_input: { cmd: `phpunit ${pair.testPath}` },
+      tool_response: { exit_code: 0, stdout: "1 test, 0 failures" },
+    }, hookEnv(fx.data));
+
+    const secondTest = firstTest.replace("assertSame(2", "assertSame(3");
+    const secondTestWrite = writeEvent(fx.root, pair.testPath, secondTest, "cycle-test-2");
+    await runHook("pre", secondTestWrite, hookEnv(fx.data));
+    writeFileSync(join(fx.root, pair.testPath), secondTest);
+    await runHook("post", secondTestWrite, hookEnv(fx.data));
+    await observeRed(fx.root, fx.data, pair.testPath, "cycle-red-2");
+
+    const secondSource = firstSource.replace("return 2", "return 3");
+    const secondSourceWrite = writeEvent(fx.root, pair.sourcePath, secondSource, "cycle-source-2");
+    const allowed = await runHook("pre", secondSourceWrite, hookEnv(fx.data));
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
 test("an unrelated failing test command cannot authorize implementation", async () => {
   const fx = fixture("test-driven-development-unrelated-red-");
   try {

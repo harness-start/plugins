@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c2793d47da8c58482fbf310aa78967dd571b3fa991d26478271b40c8fdc8e4bf
+// harness-source-hash: sha256:6e2232008f01875bb0919265c6e1d0aeb8d441c842d0f966d778069daae7e634
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -1460,6 +1460,7 @@ async function runPost(event, platform, forceFailure = false) {
     if (outcome === "failure" && hasDirtySource(root)) {
       if (!state.unresolvedVerificationFailures.some((failure) => sameVerificationScope(failure, scope))) {
         state.unresolvedVerificationFailures.push(scope);
+        stateChanged = true;
       }
       if (state.needsGreen) {
         const required = new Set(state.needsGreen.testPaths ?? []);
@@ -1484,8 +1485,6 @@ async function runPost(event, platform, forceFailure = false) {
           }
         }
       }
-      if (!writeState(sessionId, root, state)) warn("failing verification outcome could not be persisted");
-      return;
     }
     if (outcome === "success") {
       const remaining = state.unresolvedVerificationFailures.filter((failure) => !verificationSuccessCovers(scope, failure));

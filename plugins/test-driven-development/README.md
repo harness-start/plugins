@@ -59,7 +59,7 @@ Run PHPUnit successfully
   -> PostToolUse 记录 GREEN，Stop 才允许完成
 ```
 
-如果第一次实现仍未通过，相关 PHPUnit 失败会同时记录新的 RED 和未关闭验证失败；下一次实现修正会被允许，但 Stop 继续阻断，直到该 scope 后续 GREEN。
+如果第一次实现仍未通过，相关 PHPUnit 失败会同时记录新的 RED 和未关闭验证失败；下一次实现修正会被允许，但 Stop 继续阻断，直到该 scope 后续 GREEN。一个周期已经 GREEN 后，即使实现仍相对 HEAD 有改动，后续测试修改产生的新 RED 也会按当前测试哈希开启下一轮修正，不会复用或卡在旧 RED。
 
 如果第二次写入的是 `Acme\Transport\InvalidArgumentException`，即使类名仍是 `InvalidArgumentException`，也会被拒绝。插件不再使用 basename 或全局 simple name 解锁实现。
 
