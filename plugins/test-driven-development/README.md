@@ -84,7 +84,7 @@ Run PHPUnit successfully
 | 语言 | 测试侧证据 | 实现侧身份 | 同名消歧边界 |
 | --- | --- | --- | --- |
 | PHP | `#[CoversClass(Foo::class)]`、`@covers`，解析 `use` 和 alias | `namespace` + class/interface/trait/enum/function | FQCN |
-| Python | 被测试体实际使用的绝对 `from ... import ...` 或 `import ...` | source root 后的 module path + class/function | module + symbol |
+| Python | 被测试体实际使用的绝对 `from ... import ...` 或 `import ...`；`from package import lower_case_module` 同时按子模块解析 | source root 后或包内的 module path + class/function | module + symbol |
 | JavaScript | 被测试体使用的相对 `import` / `require` | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
 | TypeScript | 被测试体使用的相对 `import` / `require`，含 named/type alias | 解析后的相对文件路径；兼容扩展名和 `index` | module file path |
 | Rust | 外部测试中的 `use crate_name::module::Item`，支持一层 grouped use 和 alias | 最近 `Cargo.toml` 的 `[lib].name` / `[package].name` + crate scope + `src` module + item | crate + module + item |
@@ -125,6 +125,8 @@ src/Service/OrderService.php
 
 JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/feature/parser.ts`。Go 不走 `tests/` 镜像，只认同一 package 目录。显式实体绑定（例如 PHP `#[CoversClass]`）仍可指向别的测试文件；没有实体证据时，不能只靠文件名相同。
 
+Python 包内布局也保留完整包目录，例如 `lumen/geometry/tests/test_converter.py` 可以对应 `lumen/geometry/converter.py`，不能对应另一个包中的同名模块。
+
 ## 生效条件
 
 测试文件必须同时满足：
@@ -154,7 +156,7 @@ JS/TS 也支持 colocated `src/feature/__tests__/parser.test.ts` 到 `src/featur
 
 它核对的是：git 里对应测试是否相对 HEAD 变化（或已经失败并观察到 RED），以及测试命令回执是不是失败/成功。已有对应测试时，改的必须是那些文件，而不是另写一份新测试。普通文件工具、补丁、`rm` / `mv` 和常见重定向 Shell 的 source-first 跳步会被拦住。
 
-它不核对断言对不对、覆盖够不够、失败是不是“正确原因”。两个文件如果声明了完全相同的 FQCN 或 package symbol，语言本身已经重复声明；插件按实体处理，不替代 autoload、编译器或静态分析。Rust 第一版仍只支持独立 `tests/*.rs`，同文件 `#[cfg(test)]` 区域不能建立跨工具调用的文件顺序。无 git HEAD 的工作区不能改实现。
+它不核对断言对不对、覆盖够不够、失败是不是“正确原因”。Shell 检测只把 Python `open()` 的显式写入、追加、创建或更新模式视为写操作；默认只读 `open(path).read()` 不进入写门禁。两个文件如果声明了完全相同的 FQCN 或 package symbol，语言本身已经重复声明；插件按实体处理，不替代 autoload、编译器或静态分析。Rust 第一版仍只支持独立 `tests/*.rs`，同文件 `#[cfg(test)]` 区域不能建立跨工具调用的文件顺序。无 git HEAD 的工作区不能改实现。
 
 ## 验证
 

@@ -235,7 +235,12 @@ function pythonTargets(code: string): string[] {
   for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
     for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
       const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
-      if (binding && identifierUsed(body, binding[2] ?? binding[1])) targets.push(`python:${match[1]}#${binding[1]}`);
+      if (binding && identifierUsed(body, binding[2] ?? binding[1])) {
+        targets.push(`python:${match[1]}#${binding[1]}`);
+        if (/^[a-z_][a-z0-9_]*$/u.test(binding[1] ?? "")) {
+          targets.push(`python-module:${match[1]}.${binding[1]}`);
+        }
+      }
     }
   }
   for (const match of code.matchAll(/^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*$/gmu)) {
@@ -445,7 +450,11 @@ function mirrorIdentity(path: string, language: string, kind: "source" | "test")
     return `${directory}/${kind === "test" ? removeTestSuffix(posix.basename(path), language) : stripExtension(posix.basename(path))}`;
   }
   const descriptor = rootDescriptor(path, kind === "test" ? TEST_ROOTS : SOURCE_ROOTS);
-  if (!descriptor) return null;
+  if (!descriptor) {
+    if (kind !== "source") return null;
+    const normalized = normalize(path);
+    return `${posix.dirname(normalized)}#${removeTestSuffix(posix.basename(normalized), language)}`;
+  }
   const rest = [...descriptor.rest];
   if (kind === "test") {
     while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0]?.toLowerCase() ?? "")) rest.shift();

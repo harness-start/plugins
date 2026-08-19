@@ -510,6 +510,30 @@ test("directory mirror fallback requires the complete relative path in every lan
   }
 });
 
+test("Python package-local tests mirror a sibling implementation module", () => {
+  const testPath = "lumen/geometry/tests/test_converter.py";
+  const testRecord = {
+    path: testPath,
+    language: "python",
+    evidence: extractTestEvidence(
+      "python",
+      "from lumen.geometry import converter\ndef test_blank_input():\n    assert converter.convert('') == ''\n",
+      testPath,
+    ),
+  };
+
+  assert.equal(sourceAuthorizedByTest({
+    path: "lumen/geometry/converter.py",
+    language: "python",
+    content: "def convert(value):\n    return value\n",
+  }, testRecord), true);
+  assert.equal(sourceAuthorizedByTest({
+    path: "lumen/rendering/converter.py",
+    language: "python",
+    content: "def convert(value):\n    return value\n",
+  }, testRecord), false);
+});
+
 test("recognizes concrete test declarations for every supported language", () => {
   const cases = [
     ["php", "<?php\nfunction test_total(): void { new PriceCalculator(); }\n", "test_total", "PriceCalculator"],
@@ -1007,6 +1031,29 @@ test("interpreter write cannot create implementation before a test", async () =>
       AI_EXPERTS_TRIGGER_FROM: "test",
     });
     assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("interpreter read-only open does not count as an implementation write", async () => {
+  const fx = fixture("test-driven-development-python-read-");
+  try {
+    mkdirSync(join(fx.root, "src"), { recursive: true });
+    writeFileSync(join(fx.root, "src", "Converter.py"), "def convert(value):\n    return value\n");
+    const result = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "Bash",
+      tool_use_id: "shell-py-read",
+      tool_input: {
+        command: "python3 -c \"print(open('src/Converter.py').read())\"",
+      },
+    }, hookEnv(fx.data));
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "");
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });

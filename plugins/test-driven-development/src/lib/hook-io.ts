@@ -196,7 +196,10 @@ function shellPaths(input: HookToolInput): string[] {
   for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
   for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
   for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
+  for (const match of command.matchAll(/\bwriteFile(?:Sync)?\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
+  for (const match of command.matchAll(/\bopen\s*\(\s*["']([^"']+)["']\s*,\s*(?:mode\s*=\s*)?["']([^"']+)["']/gu)) {
+    if (/[wax+]/iu.test(match[2] ?? "")) push(match[1]);
+  }
   for (const operands of invocations(command, new Set(["rm", "unlink"]))) {
     for (const path of operands) push(path);
   }

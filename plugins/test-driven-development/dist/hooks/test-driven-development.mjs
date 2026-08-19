@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:929d0c19ad2ba7296a2374b5260e46916aa40c0696f6829301ca2bc8c0273504
+// harness-source-hash: sha256:f1e8e749ecf4d983fbae9f9cd972898e0d7258e270ffe690f76797f5a747bf4f
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
@@ -301,7 +301,10 @@ function shellPaths(input) {
   for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
   for (const match of command.matchAll(/\btee\b(?:\s+-[A-Za-z]+)*\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
   for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) push(match[1]);
-  for (const match of command.matchAll(/\b(?:writeFile(?:Sync)?|open)\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
+  for (const match of command.matchAll(/\bwriteFile(?:Sync)?\s*\(\s*["']([^"']+)["']/gu)) push(match[1]);
+  for (const match of command.matchAll(/\bopen\s*\(\s*["']([^"']+)["']\s*,\s*(?:mode\s*=\s*)?["']([^"']+)["']/gu)) {
+    if (/[wax+]/iu.test(match[2] ?? "")) push(match[1]);
+  }
   for (const operands of invocations(command, /* @__PURE__ */ new Set(["rm", "unlink"]))) {
     for (const path of operands) push(path);
   }
@@ -565,7 +568,12 @@ function pythonTargets(code) {
   for (const match of code.matchAll(/^\s*from\s+([A-Za-z_][A-Za-z0-9_.]*)\s+import\s+([^\n#]+)/gmu)) {
     for (const item of (match[2] ?? "").replace(/[()]/gu, "").split(",")) {
       const binding = item.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?$/u);
-      if (binding && identifierUsed(body, binding[2] ?? binding[1])) targets.push(`python:${match[1]}#${binding[1]}`);
+      if (binding && identifierUsed(body, binding[2] ?? binding[1])) {
+        targets.push(`python:${match[1]}#${binding[1]}`);
+        if (/^[a-z_][a-z0-9_]*$/u.test(binding[1] ?? "")) {
+          targets.push(`python-module:${match[1]}.${binding[1]}`);
+        }
+      }
     }
   }
   for (const match of code.matchAll(/^\s*import\s+([A-Za-z_][A-Za-z0-9_.]*)(?:\s+as\s+([A-Za-z_][A-Za-z0-9_]*))?\s*$/gmu)) {
@@ -755,7 +763,11 @@ function mirrorIdentity(path, language, kind) {
     return `${directory}/${kind === "test" ? removeTestSuffix(posix.basename(path), language) : stripExtension(posix.basename(path))}`;
   }
   const descriptor = rootDescriptor(path, kind === "test" ? TEST_ROOTS : SOURCE_ROOTS);
-  if (!descriptor) return null;
+  if (!descriptor) {
+    if (kind !== "source") return null;
+    const normalized = normalize(path);
+    return `${posix.dirname(normalized)}#${removeTestSuffix(posix.basename(normalized), language)}`;
+  }
   const rest = [...descriptor.rest];
   if (kind === "test") {
     while (rest.length > 1 && SUITE_DIRECTORIES.has(rest[0]?.toLowerCase() ?? "")) rest.shift();
