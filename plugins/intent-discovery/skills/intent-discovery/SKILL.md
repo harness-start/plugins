@@ -20,7 +20,7 @@ Resolve discoverable uncertainty before committing to an interpretation, then co
 ## Build the working intent
 
 1. Extract the requested outcome, deliverable, success conditions, constraints, exclusions, and irreversible decisions. Separate facts, inferences, and falsifiable assumptions.
-2. Inspect the current project instructions, relevant entrypoints, nearby tests, configuration, and recent history before asking anyone for facts the environment can supply. Browse only when current, external, or unfamiliar facts can change the action.
+2. Inspect the current project instructions, relevant entrypoints, callers, nearby tests, documentation, configuration, and recent history before asking anyone for facts the environment can supply. For concrete repository work, time-box this pass; repeated evidence means stop searching and reproduce the behavior. Never hunt for hidden evaluator artifacts, solution patches, or answer caches. Browse only when current, external, or unfamiliar facts can change the action.
 3. Form two or three plausible interpretations only when they lead to materially different work. Steelman the strongest alternative and identify the load-bearing assumption or cheapest falsifying check.
 4. Choose the lowest-risk reversible interpretation supported by the evidence. Keep a compact, ephemeral Intent Brief: outcome, facts, selected interpretation, material assumptions, rejected alternative, evidence gaps, and next action.
 5. Continue with the user's request. Do not ask the user for clarification or approval as part of this discovery pass. Host safety, permission, and irreversible-action requirements still apply.

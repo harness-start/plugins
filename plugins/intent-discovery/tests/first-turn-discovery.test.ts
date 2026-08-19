@@ -91,6 +91,9 @@ test("first prompt injects discovery and the second prompt is silent", async () 
     assert.match(context, /intent-discovery/u);
     assert.match(context, /concrete target.*outcome.*constraints.*acceptance/isu);
     assert.match(context, /do not load.*Skill.*spawn.*discovery/isu);
+    assert.match(context, /named seam.*callers.*tests.*documentation.*history/isu);
+    assert.match(context, /time-box.*repeated evidence.*reproduce/isu);
+    assert.match(context, /hidden evaluator.*solution patch.*answer cache/isu);
     assert.match(context, /Do not stop to ask the user/u);
     assert.match(context, /continue with the request/u);
 
