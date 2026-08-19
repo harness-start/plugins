@@ -39,9 +39,13 @@ Before choosing an implementation for a non-trivial fix, derive the applicable o
 - zero, one, and many-item cardinalities or other boundary classes;
 - ordering and stability guarantees;
 - warning and error behavior;
-- public signature and compatibility with existing callers.
+- compatibility of existing accepted calls, including public signature behavior.
 
 A passing reproduction of one example is not complete evidence. Add the cheapest independent counterexample that could falsify the proposed mechanism. Prefer an existing repository primitive when it already establishes the contract, and do not search for hidden evaluator artifacts or solution patches.
+
+For a boundary fix, preserve the established conversion pipeline. Reuse already-normalized inputs or the shared return postprocessor where possible; a branch-local synthesized result is suspect because it can silently change container, shape, ordering, metadata, or alternate calling forms.
+
+When the requirement expands arity or composition, evolve the named seam rather than introducing a private parallel implementation with different semantics. Keep every previously accepted call form working, and add or extend durable tests for zero, one, two, and many inputs through that seam. If ordering is partial, preserve established tie-breaking and warning/error behavior instead of letting set or graph traversal order redefine the contract.
 
 ## 3. Surgical Changes
 

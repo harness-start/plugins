@@ -1,0 +1,1 @@
+Fix `Pipeline.stages` so combining three groups doesn't invent a conflict between independent stages. In the example `['deploy']`, `['compile']`, `['compile', 'verify', 'deploy']`, the result must be `['compile', 'verify', 'deploy']` without a warning. Preserve and update the documented public combination API, update the existing test file, and do not create unrelated files.

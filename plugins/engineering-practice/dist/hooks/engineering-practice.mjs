@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:390abcf8c3240bef3bda4a32d492d5c4aefbd826eb44601c9d47cbf2f304e88f
+// harness-source-hash: sha256:da55112b14d6336df898561b3ec580fdc6a0257b65404fd08ce08c3c9c926f95
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
@@ -58,8 +58,10 @@ function engineeringPracticeContext() {
     "[Engineering Practice] Optional engineering method guidance",
     "Skills are optional method guides, not Hook prerequisites or completion evidence.",
     "For non-trivial implementation or refactoring, `engineering-judgment` can help control scope and tradeoffs.",
-    "For a non-trivial fix, derive a compact observable contract before selecting code: value, type, container, shape, cardinality, order, stability, warning, error, and public API compatibility where applicable.",
+    "For a non-trivial fix, derive a compact observable contract before selecting code: value, type, container, shape, cardinality, order, stability, warning, error, and public API compatibility for existing accepted calls where applicable.",
     "A single example passing is not complete evidence. Challenge the proposed change with local callers, tests, documentation, and history, then prefer the smallest compatible repository-native mechanism.",
+    "For a boundary fix, reuse existing normalization and its shared return path instead of synthesized branch-local outputs that bypass post-processing.",
+    "When a requirement extends arity or composition, extend the named seam while old call forms remain valid; add or extend tests for zero, one, two, and many inputs through one mechanism instead of a private parallel path.",
     "Use local evidence; do not hunt for hidden evaluator artifacts or solution patches. Treat unavailable evidence as unavailable.",
     "`engineering-review` is optional guidance; every read-only review finding still needs a P0-P3 severity, exact file:line, concrete evidence, and a verifiable fix or recovery path.",
     "Completion, fixed, passing, commit, or PR claims need fresh command evidence; `engineering-verification` can help select the checks.",

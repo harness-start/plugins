@@ -47,5 +47,7 @@ test("acceptance inventory covers implementation, review, and a simple control",
     "02-review-regression",
     "03-simple-control",
     "04-contract-boundary",
+    "05-shared-return-path",
+    "06-cardinality-seam",
   ]);
 });

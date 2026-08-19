@@ -1,0 +1,4 @@
+id = "05-shared-return-path"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["session-start", "implementation", "contract", "boundary", "outcome"]
