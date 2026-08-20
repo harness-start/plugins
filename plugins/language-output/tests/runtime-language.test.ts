@@ -11,6 +11,7 @@ const GUARDED_SCRIPTS = /\p{Script=Han}|\p{Script=Hangul}|\p{Script=Hiragana}|\p
 const DETECTOR_ONLY_LINES = new Map([
   ["plugins/command-safety/src/engines/file-safety.ts", ["const PII =", "const tlsLine ="]],
   ["plugins/git-delivery/src/checks/command-rules.ts", ["const GENERIC ="]],
+  ["plugins/git-delivery/src/lib/worktree-intent.ts", ["/(?:用|使用)", "/隔离", "/(?:创建|新建", "/worktree[^", ".replace(/(?:不要", ".replace(/不要改"]],
   ["plugins/intent-discovery/src/lib/policy.ts", ["const IMPLEMENT_CLAIM", "/(?:开始实现"]],
   ["plugins/language-output/src/lib/intent.ts", ["const TRANSLATION_CUE", "const RESPONSE_CUE", "const GENERIC_CHINESE"]],
   ["plugins/language-output/src/lib/profiles.ts", ["aliases:"]],
