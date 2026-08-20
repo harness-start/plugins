@@ -163,8 +163,8 @@ check_acceptance_suites() {
   bash -n scripts/acceptance/test-multi-turn-contract.sh
   bash scripts/acceptance/test-multi-turn-contract.sh
 
-  local plugin name cases_dir case_dir hosts
-  local found_case
+  local plugin name cases_dir case_dir hosts required_host
+  local found_case plugin_hosts
   for plugin in plugins/*; do
     [ -d "${plugin}" ] || continue
     name="$(basename "${plugin}")"
@@ -179,6 +179,7 @@ check_acceptance_suites() {
     fi
 
     found_case=0
+    plugin_hosts=""
     for case_dir in "${cases_dir}"/*; do
       [ -d "${case_dir}" ] || continue
       found_case=1
@@ -199,18 +200,24 @@ check_acceptance_suites() {
           "${case_dir}/case.toml" | tr -d '" ' | tr ',' '\n' \
           | tr '[:upper:]' '[:lower:]'
       )"
-      if ! printf '%s\n' "${hosts}" | grep -Fxq claude \
-        || ! printf '%s\n' "${hosts}" | grep -Fxq codex; then
-        printf 'Acceptance case must declare both claude and codex: %s\n' \
+      if [ -z "${hosts}" ] || printf '%s\n' "${hosts}" | grep -Evqx 'claude|codex'; then
+        printf 'Acceptance case hosts must be claude and/or codex: %s\n' \
           "${case_dir}/case.toml" >&2
         exit 1
       fi
+      plugin_hosts="${plugin_hosts}"$'\n'"${hosts}"
       bash -n "${case_dir}/expect.sh"
     done
     if [ "${found_case}" -eq 0 ]; then
       printf 'Plugin has no acceptance cases: %s\n' "${name}" >&2
       exit 1
     fi
+    for required_host in claude codex; do
+      if ! printf '%s\n' "${plugin_hosts}" | grep -Fxq "${required_host}"; then
+        printf 'Plugin acceptance suite must cover %s: %s\n' "${required_host}" "${name}" >&2
+        exit 1
+      fi
+    done
   done
 
   local honesty_dir

@@ -21,8 +21,8 @@ set -euo pipefail
 MARKETPLACE_NAME="${HARNESS_MARKETPLACE_NAME:-harness-start}"
 MARKETPLACE_SOURCE="${HARNESS_MARKETPLACE_SOURCE:-harness-start/plugins}"
 GIT_REF="${HARNESS_GIT_REF:-master}"
-GITHUB_HTTPS_URL="https://github.com/harness-start/plugins.git"
 MARKETPLACE_JSON_URL_TEMPLATE="https://raw.githubusercontent.com/harness-start/plugins/%s/.claude-plugin/marketplace.json"
+GITHUB_ARCHIVE_URL_TEMPLATE="https://github.com/harness-start/plugins/archive/%s.zip"
 
 DO_CLAUDE=1
 DO_CODEX=1
@@ -32,6 +32,13 @@ LIST_ONLY=0
 FAIL_FAST=0
 CLAUDE_SCOPE="user"
 LANGUAGE_PROFILE="${HARNESS_LANGUAGE_PROFILE:-}"
+ZIP_SNAPSHOT=0
+SNAPSHOT_BACKUP=""
+SNAPSHOT_COMMITTED=0
+SNAPSHOT_DESTINATION=""
+SNAPSHOT_LOCK=""
+SNAPSHOT_LOCK_KIND=""
+SNAPSHOT_WORK=""
 
 usage() {
   cat <<'EOF'
@@ -51,7 +58,7 @@ Strategy (per host):
 Options:
   --claude-only           Only Claude Code
   --codex-only            Only Codex
-  --ref <ref>             Git ref for Codex marketplace add (default: master)
+  --ref <ref>             GitHub ref for the ZIP snapshot (default: master)
   --local <path>          Install from a local marketplace checkout (path to repo root)
   --scope <scope>         Claude install scope: user|project|local (default: user)
   --language <profile>    Response profile: zh-CN|zh-TW|en-US|ja-JP|ko-KR|th-TH
@@ -295,6 +302,84 @@ download_url() {
   else
     return 1
   fi
+}
+
+release_snapshot_lock() {
+  case "${SNAPSHOT_LOCK_KIND}" in
+    shlock) rm -f -- "${SNAPSHOT_LOCK}" ;;
+    flock) flock -u 9 2>/dev/null || true; exec 9>&- ;;
+  esac
+  SNAPSHOT_LOCK_KIND=""
+}
+
+restore_previous_snapshot() {
+  [ -n "${SNAPSHOT_BACKUP}" ] && [ -d "${SNAPSHOT_BACKUP}" ] || return 1
+  rm -rf -- "${SNAPSHOT_WORK}/failed"
+  if [ -e "${SNAPSHOT_DESTINATION}" ] || [ -L "${SNAPSHOT_DESTINATION}" ]; then
+    mv -- "${SNAPSHOT_DESTINATION}" "${SNAPSHOT_WORK}/failed" || return 1
+  fi
+  mv -- "${SNAPSHOT_BACKUP}" "${SNAPSHOT_DESTINATION}" || return 1
+  SNAPSHOT_BACKUP=""
+}
+
+cleanup_snapshot_transaction() {
+  if [ "${SNAPSHOT_COMMITTED}" != "1" ]; then restore_previous_snapshot || true; fi
+  [ -z "${SNAPSHOT_WORK}" ] || rm -rf -- "${SNAPSHOT_WORK}"
+  release_snapshot_lock
+}
+
+acquire_snapshot_lock() {
+  local lock="$1" attempts=0
+  if have_cmd shlock; then
+    until shlock -p "$$" -f "${lock}"; do
+      attempts=$((attempts + 1)); [ "${attempts}" -lt 300 ] || return 1; sleep 0.1
+    done
+    SNAPSHOT_LOCK_KIND="shlock"
+  elif have_cmd flock; then
+    exec 9>"${lock}"
+    flock -w 30 9 || return 1
+    SNAPSHOT_LOCK_KIND="flock"
+  else
+    err "shlock or flock is required for safe marketplace snapshot replacement"
+    return 1
+  fi
+  SNAPSHOT_LOCK="${lock}"
+  trap cleanup_snapshot_transaction EXIT
+}
+
+prepare_remote_marketplace_snapshot() {
+  local cache="${XDG_CACHE_HOME:-$HOME/.cache}/harness-start" work archive url backup="" lock
+  local -a roots=()
+  [[ "${GIT_REF}" =~ ^[A-Za-z0-9._/-]+$ ]] || { err "invalid GitHub ref: ${GIT_REF}"; return 1; }
+  mkdir -p -- "${cache}"
+  work="$(mktemp -d "${cache}/.plugins-download.XXXXXX")"
+  archive="${work}/source.zip"
+  # shellcheck disable=SC2059
+  url="$(printf "${GITHUB_ARCHIVE_URL_TEMPLATE}" "${GIT_REF}")"
+  log "Downloading marketplace ZIP: ${url}"
+  download_url "${url}" "${archive}" || { rm -rf -- "${work}"; err "marketplace ZIP download failed"; return 1; }
+  mkdir "${work}/extract"
+  if have_cmd unzip; then unzip -q "${archive}" -d "${work}/extract"
+  elif have_cmd python3; then python3 -m zipfile -e "${archive}" "${work}/extract"
+  else rm -rf -- "${work}"; err "unzip or python3 is required"; return 1
+  fi || { rm -rf -- "${work}"; err "marketplace ZIP extraction failed"; return 1; }
+  roots=("${work}/extract"/*)
+  [ "${#roots[@]}" -eq 1 ] && [ -f "${roots[0]}/.claude-plugin/marketplace.json" ] || \
+    { rm -rf -- "${work}"; err "invalid marketplace ZIP layout"; return 1; }
+  lock="${cache}/.plugins.lock"
+  acquire_snapshot_lock "${lock}" || { rm -rf -- "${work}"; err "timed out waiting for marketplace snapshot lock"; return 1; }
+  SNAPSHOT_WORK="${work}"
+  SNAPSHOT_DESTINATION="${cache}/plugins"
+  if [ -e "${cache}/plugins" ] || [ -L "${cache}/plugins" ]; then
+    backup="${work}/previous"
+    mv -- "${cache}/plugins" "${backup}" || return 1
+    SNAPSHOT_BACKUP="${backup}"
+  fi
+  mv -- "${roots[0]}" "${cache}/plugins" || return 1
+  LOCAL_MARKETPLACE_PATH="$(cd "${cache}/plugins" && pwd)"
+  MARKETPLACE_SOURCE="${LOCAL_MARKETPLACE_PATH}"
+  ZIP_SNAPSHOT=1
+  log "Marketplace ZIP snapshot ready: ${LOCAL_MARKETPLACE_PATH}"
 }
 
 parse_marketplace_plugin_names() {
@@ -598,38 +683,24 @@ plan_plugin_diff() {
 
 # --- Claude ------------------------------------------------------------------
 
-claude_marketplace_present() {
-  have_cmd claude || return 1
-  local raw
-  raw="$(claude plugin marketplace list --json 2>/dev/null || true)"
-  [ -n "${raw}" ] || return 1
-  if have_cmd jq; then
-    printf '%s' "${raw}" | jq -e --arg n "${MARKETPLACE_NAME}" '
-      [.[]? | select(.name == $n)] | length > 0
-    ' >/dev/null 2>&1
-  else
-    printf '%s' "${raw}" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_NAME}\""
+ensure_claude_marketplace() {
+  log "Claude: adding local marketplace ${LOCAL_MARKETPLACE_PATH}"
+  if [ "${ZIP_SNAPSHOT}" = "1" ]; then
+    if [ "${DRY_RUN}" = "1" ]; then run_cmd claude plugin marketplace remove "${MARKETPLACE_NAME}" --scope "${CLAUDE_SCOPE}"
+    else claude plugin marketplace remove "${MARKETPLACE_NAME}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1 || true
+    fi
+  fi
+  if ! run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}"; then
+    if [ "${ZIP_SNAPSHOT}" = "1" ]; then
+      return 1
+    fi
+    run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}" || true
   fi
 }
 
-ensure_claude_marketplace() {
-  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
-    # Local path: always re-add so the checkout under test is the source of truth.
-    log "Claude: adding local marketplace ${LOCAL_MARKETPLACE_PATH}"
-    run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || \
-      run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}" || true
-    return 0
-  fi
-  if claude_marketplace_present; then
-    log "Claude: updating marketplace ${MARKETPLACE_NAME}"
-    run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}"
-  else
-    log "Claude: adding marketplace ${MARKETPLACE_SOURCE}"
-    if ! run_cmd claude plugin marketplace add "${MARKETPLACE_SOURCE}"; then
-      warn "Claude marketplace add via ${MARKETPLACE_SOURCE} failed; trying ${GITHUB_HTTPS_URL}"
-      run_cmd claude plugin marketplace add "${GITHUB_HTTPS_URL}"
-    fi
-  fi
+recover_claude_marketplace() {
+  claude plugin marketplace remove "${MARKETPLACE_NAME}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1 || true
+  run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1
 }
 
 uninstall_claude_plugin() {
@@ -709,55 +780,24 @@ sync_claude_plugins() {
 
 # --- Codex -------------------------------------------------------------------
 
-codex_marketplace_source_type() {
-  have_cmd codex || return 1
-  local raw
-  raw="$(codex plugin marketplace list --json 2>/dev/null || true)"
-  [ -n "${raw}" ] || return 1
-  if have_cmd jq; then
-    printf '%s' "${raw}" | jq -r --arg n "${MARKETPLACE_NAME}" '
-      (if type == "array" then . else (.marketplaces // []) end)
-      | [.[]? | select(.name == $n) | (.marketplaceSource.sourceType // .sourceType // "unknown")]
-      | first // empty
-    '
-  else
-    if printf '%s' "${raw}" | grep -q "\"name\"[[:space:]]*:[[:space:]]*\"${MARKETPLACE_NAME}\""; then
-      printf '%s\n' "unknown"
-    fi
-  fi
-}
-
-add_codex_git_marketplace() {
-  log "Codex: adding marketplace ${MARKETPLACE_SOURCE} --ref ${GIT_REF}"
-  if ! run_cmd codex plugin marketplace add "${MARKETPLACE_SOURCE}" --ref "${GIT_REF}" --json; then
-    warn "Codex marketplace add via ${MARKETPLACE_SOURCE} failed; trying ${GITHUB_HTTPS_URL}"
-    run_cmd codex plugin marketplace add "${GITHUB_HTTPS_URL}" --ref "${GIT_REF}" --json
-  fi
-}
-
 ensure_codex_marketplace() {
-  if [ -n "${LOCAL_MARKETPLACE_PATH}" ]; then
-    # Local path has no git ref; match host-acceptance local marketplace add.
-    log "Codex: adding local marketplace ${LOCAL_MARKETPLACE_PATH}"
-    run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json || \
-      run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true
-    return 0
-  fi
-  local source_type=""
-  source_type="$(codex_marketplace_source_type || true)"
-  if [ "${source_type}" = "git" ]; then
-    log "Codex: upgrading marketplace ${MARKETPLACE_NAME}"
-    if run_cmd codex plugin marketplace upgrade "${MARKETPLACE_NAME}" --json; then
-      return 0
+  log "Codex: adding local marketplace ${LOCAL_MARKETPLACE_PATH}"
+  if [ "${ZIP_SNAPSHOT}" = "1" ]; then
+    if [ "${DRY_RUN}" = "1" ]; then run_cmd codex plugin marketplace remove "${MARKETPLACE_NAME}" --json
+    else codex plugin marketplace remove "${MARKETPLACE_NAME}" --json >/dev/null 2>&1 || true
     fi
-    warn "Codex marketplace upgrade failed; re-adding ${MARKETPLACE_SOURCE}"
-  elif [ -n "${source_type}" ]; then
-    log "Codex: marketplace ${MARKETPLACE_NAME} is ${source_type}, not a Git marketplace; replacing with ${MARKETPLACE_SOURCE}"
   fi
-  if [ -n "${source_type}" ]; then
-    run_cmd codex plugin marketplace remove "${MARKETPLACE_NAME}" --json
+  if ! run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json; then
+    if [ "${ZIP_SNAPSHOT}" = "1" ]; then
+      return 1
+    fi
+    run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true
   fi
-  add_codex_git_marketplace
+}
+
+recover_codex_marketplace() {
+  codex plugin marketplace remove "${MARKETPLACE_NAME}" --json >/dev/null 2>&1 || true
+  run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json >/dev/null 2>&1
 }
 
 uninstall_codex_plugin() {
@@ -897,21 +937,21 @@ EOF
     exit 0
   fi
 
-  local claude_fail=0 codex_fail=0 did_any=0
+  if [ -z "${LOCAL_MARKETPLACE_PATH}" ]; then
+    if [ "${DRY_RUN}" = "1" ]; then
+      LOCAL_MARKETPLACE_PATH="${XDG_CACHE_HOME:-$HOME/.cache}/harness-start/plugins"
+      ZIP_SNAPSHOT=1
+      log "Would download ref ${GIT_REF} as a ZIP snapshot to ${LOCAL_MARKETPLACE_PATH}"
+    else
+      prepare_remote_marketplace_snapshot
+    fi
+  fi
+
+  local claude_fail=0 codex_fail=0 did_any=0 registration_fail=0 run_claude=0 run_codex=0
 
   if [ "${DO_CLAUDE}" = "1" ]; then
     if have_cmd claude; then
-      did_any=1
-      ensure_claude_marketplace
-      # Re-resolve after marketplace is present (may pick host available list)
-      load_plugins_array
-      set +e
-      sync_claude_plugins "${PLUGINS[@]}"
-      claude_fail=$?
-      set -e
-      if [ "${claude_fail}" -eq 0 ]; then
-        write_language_profile claude
-      fi
+      did_any=1; run_claude=1
     else
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "claude not found; skipping Claude Code"
@@ -924,16 +964,7 @@ EOF
 
   if [ "${DO_CODEX}" = "1" ]; then
     if have_cmd codex; then
-      did_any=1
-      ensure_codex_marketplace
-      load_plugins_array
-      set +e
-      sync_codex_plugins "${PLUGINS[@]}"
-      codex_fail=$?
-      set -e
-      if [ "${codex_fail}" -eq 0 ]; then
-        write_language_profile codex
-      fi
+      did_any=1; run_codex=1
     else
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "codex not found; skipping Codex"
@@ -947,6 +978,36 @@ EOF
   if [ "${did_any}" = "0" ]; then
     err "No host CLIs ran (claude/codex missing?)"
     exit 1
+  fi
+
+  if [ "${run_claude}" = "1" ] && ! ensure_claude_marketplace; then registration_fail=1; fi
+  if [ "${run_codex}" = "1" ] && ! ensure_codex_marketplace; then registration_fail=1; fi
+  if [ "${registration_fail}" != "0" ]; then
+    if [ "${ZIP_SNAPSHOT}" = "1" ] && restore_previous_snapshot; then
+      warn "Marketplace registration failed; restoring the previous ZIP snapshot for selected hosts"
+      [ "${run_claude}" != "1" ] || recover_claude_marketplace || warn "Claude marketplace recovery failed"
+      [ "${run_codex}" != "1" ] || recover_codex_marketplace || warn "Codex marketplace recovery failed"
+    fi
+    err "marketplace registration failed; plugin synchronization was not started"
+    exit 1
+  fi
+
+  [ "${DRY_RUN}" = "1" ] || load_plugins_array
+  SNAPSHOT_COMMITTED=1
+
+  if [ "${run_claude}" = "1" ]; then
+    set +e
+    sync_claude_plugins "${PLUGINS[@]}"
+    claude_fail=$?
+    set -e
+    [ "${claude_fail}" != "0" ] || write_language_profile claude
+  fi
+  if [ "${run_codex}" = "1" ]; then
+    set +e
+    sync_codex_plugins "${PLUGINS[@]}"
+    codex_fail=$?
+    set -e
+    [ "${codex_fail}" != "0" ] || write_language_profile codex
   fi
 
   printf '\n'
