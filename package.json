@@ -13,7 +13,7 @@
     "ensure:dist": "tsx scripts/build-plugins.ts --ensure",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern core/src core/hooks core/tests .claude/hooks .codex/hooks plugins/*/src plugins/*/tests scripts/*.ts",
-    "test": "tsx --test core/tests/**/*.test.ts plugins/*/tests/*.test.ts",
+    "test": "tsx scripts/run-tests.ts",
     "test:ffmpeg": "tsx --test plugins/video-production/tests/media.test.ts plugins/brand-logo-production/tests/squint.test.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:dist && npm test",
     "bench:swe:check": "benchmarks/swe-bench/run.sh check",
@@ -28,7 +28,8 @@
     "fast-check": "^4.9.0",
     "tsx": "4.23.12",
     "typescript": "6.0.3",
-    "typescript-eslint": "8.67.0"
+    "typescript-eslint": "8.67.0",
+    "yaml": "^2.9.0"
   },
   "dependencies": {
     "@xmldom/xmldom": "^0.9.11",
