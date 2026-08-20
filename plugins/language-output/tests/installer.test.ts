@@ -252,6 +252,105 @@ printf '%s\n' '[]'
   }
 });
 
+test("dual-host registration failure rolls back before either host syncs the new catalog", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-dual-registration-"));
+  const bin = join(fixture, "bin");
+  const archive = join(fixture, "master.zip");
+  const secondArchive = join(fixture, "second.zip");
+  const cacheRoot = join(fixture, "cache");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(archive, MARKETPLACE_ZIP);
+  writeFileSync(secondArchive, SECOND_MARKETPLACE_ZIP);
+  executable(join(bin, "curl"), `#!/bin/sh
+args="$*"; destination=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then destination="$2"; shift 2; continue; fi
+  shift
+done
+if [ -n "$destination" ]; then
+  case "$args" in *second.zip*) cp ${JSON.stringify(secondArchive)} "$destination" ;; *) cp ${JSON.stringify(archive)} "$destination" ;; esac
+else printf '%s\n' '{"plugins":[{"name":"example-plugin"}]}'; fi
+`);
+  for (const host of ["claude", "codex"]) {
+    const addCount = join(fixture, `${host}-add-count`);
+    const hostLog = join(fixture, `${host}.log`);
+    executable(join(bin, host), `#!/bin/sh
+printf '%s\n' "$*" >> ${JSON.stringify(hostLog)}
+case "$*" in
+  plugin\\ marketplace\\ add*)
+    count=0; [ ! -f ${JSON.stringify(addCount)} ] || count="$(cat ${JSON.stringify(addCount)})"
+    count=$((count + 1)); printf '%s\n' "$count" > ${JSON.stringify(addCount)}
+    if [ ${JSON.stringify(host)} = codex ] && [ "$count" -eq 2 ]; then exit 23; fi
+    ;;
+esac
+printf '%s\n' '[]'
+`);
+  }
+  const env = {
+    PATH: `${bin}:${process.env.PATH}`,
+    CLAUDE_CONFIG_DIR: join(fixture, "claude-home"),
+    CODEX_HOME: join(fixture, "codex-home"),
+    XDG_CACHE_HOME: cacheRoot,
+  };
+
+  try {
+    assert.equal(runInstaller(["--language", "en-US"], env).status, 0);
+    const second = runInstaller(["--ref", "second", "--language", "en-US"], env);
+    assert.notEqual(second.status, 0, second.stderr);
+    const snapshot = join(cacheRoot, "harness-start", "plugins");
+    assert.match(readFileSync(join(snapshot, ".claude-plugin", "marketplace.json"), "utf8"), /example-plugin/u);
+    for (const host of ["claude", "codex"]) {
+      const commands = readFileSync(join(fixture, `${host}.log`), "utf8");
+      assert.doesNotMatch(commands, /second-plugin@harness-start/u);
+      const adds = commands.split("\n").filter((line) => line.startsWith("plugin marketplace add "));
+      assert.equal(adds.length, 3);
+      assert.ok(adds.every((line) => line.includes(snapshot)));
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("plugin sync failure keeps the successfully registered new ZIP snapshot", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-sync-failure-"));
+  const bin = join(fixture, "bin");
+  const archive = join(fixture, "master.zip");
+  const secondArchive = join(fixture, "second.zip");
+  const cacheRoot = join(fixture, "cache");
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(archive, MARKETPLACE_ZIP);
+  writeFileSync(secondArchive, SECOND_MARKETPLACE_ZIP);
+  executable(join(bin, "curl"), `#!/bin/sh
+args="$*"; destination=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then destination="$2"; shift 2; continue; fi
+  shift
+done
+if [ -n "$destination" ]; then
+  case "$args" in *second.zip*) cp ${JSON.stringify(secondArchive)} "$destination" ;; *) cp ${JSON.stringify(archive)} "$destination" ;; esac
+else printf '%s\n' '{"plugins":[{"name":"example-plugin"}]}'; fi
+`);
+  executable(join(bin, "claude"), `#!/bin/sh
+case "$*" in plugin\\ install\\ second-plugin@harness-start*) exit 29 ;; esac
+printf '%s\n' '[]'
+`);
+  const env = {
+    PATH: `${bin}:${process.env.PATH}`,
+    CLAUDE_CONFIG_DIR: join(fixture, "claude-home"),
+    XDG_CACHE_HOME: cacheRoot,
+  };
+
+  try {
+    assert.equal(runInstaller(["--claude-only", "--language", "en-US"], env).status, 0);
+    const second = runInstaller(["--claude-only", "--ref", "second", "--language", "en-US"], env);
+    assert.notEqual(second.status, 0, second.stderr);
+    const snapshot = join(cacheRoot, "harness-start", "plugins", ".claude-plugin", "marketplace.json");
+    assert.match(readFileSync(snapshot, "utf8"), /second-plugin/u);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
 test("concurrent remote installs never nest one ZIP snapshot inside another", async () => {
   const fixture = mkdtempSync(join(tmpdir(), "installer-concurrent-zip-"));
   const bin = join(fixture, "bin");

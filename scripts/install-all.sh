@@ -692,14 +692,15 @@ ensure_claude_marketplace() {
   fi
   if ! run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}"; then
     if [ "${ZIP_SNAPSHOT}" = "1" ]; then
-      warn "Claude: restoring the previous ZIP snapshot after registration failure"
-      if restore_previous_snapshot; then
-        run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1 || true
-      fi
       return 1
     fi
     run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}" || true
   fi
+}
+
+recover_claude_marketplace() {
+  claude plugin marketplace remove "${MARKETPLACE_NAME}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1 || true
+  run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1
 }
 
 uninstall_claude_plugin() {
@@ -788,14 +789,15 @@ ensure_codex_marketplace() {
   fi
   if ! run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json; then
     if [ "${ZIP_SNAPSHOT}" = "1" ]; then
-      warn "Codex: restoring the previous ZIP snapshot after registration failure"
-      if restore_previous_snapshot; then
-        run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json >/dev/null 2>&1 || true
-      fi
       return 1
     fi
     run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true
   fi
+}
+
+recover_codex_marketplace() {
+  codex plugin marketplace remove "${MARKETPLACE_NAME}" --json >/dev/null 2>&1 || true
+  run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json >/dev/null 2>&1
 }
 
 uninstall_codex_plugin() {
@@ -945,21 +947,11 @@ EOF
     fi
   fi
 
-  local claude_fail=0 codex_fail=0 did_any=0
+  local claude_fail=0 codex_fail=0 did_any=0 registration_fail=0 run_claude=0 run_codex=0
 
   if [ "${DO_CLAUDE}" = "1" ]; then
     if have_cmd claude; then
-      did_any=1
-      ensure_claude_marketplace
-      # Re-resolve after marketplace is present (may pick host available list)
-      [ "${DRY_RUN}" = "1" ] || load_plugins_array
-      set +e
-      sync_claude_plugins "${PLUGINS[@]}"
-      claude_fail=$?
-      set -e
-      if [ "${claude_fail}" -eq 0 ]; then
-        write_language_profile claude
-      fi
+      did_any=1; run_claude=1
     else
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "claude not found; skipping Claude Code"
@@ -972,16 +964,7 @@ EOF
 
   if [ "${DO_CODEX}" = "1" ]; then
     if have_cmd codex; then
-      did_any=1
-      ensure_codex_marketplace
-      [ "${DRY_RUN}" = "1" ] || load_plugins_array
-      set +e
-      sync_codex_plugins "${PLUGINS[@]}"
-      codex_fail=$?
-      set -e
-      if [ "${codex_fail}" -eq 0 ]; then
-        write_language_profile codex
-      fi
+      did_any=1; run_codex=1
     else
       if [ "${SKIP_MISSING}" = "1" ]; then
         warn "codex not found; skipping Codex"
@@ -995,6 +978,36 @@ EOF
   if [ "${did_any}" = "0" ]; then
     err "No host CLIs ran (claude/codex missing?)"
     exit 1
+  fi
+
+  if [ "${run_claude}" = "1" ] && ! ensure_claude_marketplace; then registration_fail=1; fi
+  if [ "${run_codex}" = "1" ] && ! ensure_codex_marketplace; then registration_fail=1; fi
+  if [ "${registration_fail}" != "0" ]; then
+    if [ "${ZIP_SNAPSHOT}" = "1" ] && restore_previous_snapshot; then
+      warn "Marketplace registration failed; restoring the previous ZIP snapshot for selected hosts"
+      [ "${run_claude}" != "1" ] || recover_claude_marketplace || warn "Claude marketplace recovery failed"
+      [ "${run_codex}" != "1" ] || recover_codex_marketplace || warn "Codex marketplace recovery failed"
+    fi
+    err "marketplace registration failed; plugin synchronization was not started"
+    exit 1
+  fi
+
+  [ "${DRY_RUN}" = "1" ] || load_plugins_array
+  SNAPSHOT_COMMITTED=1
+
+  if [ "${run_claude}" = "1" ]; then
+    set +e
+    sync_claude_plugins "${PLUGINS[@]}"
+    claude_fail=$?
+    set -e
+    [ "${claude_fail}" != "0" ] || write_language_profile claude
+  fi
+  if [ "${run_codex}" = "1" ]; then
+    set +e
+    sync_codex_plugins "${PLUGINS[@]}"
+    codex_fail=$?
+    set -e
+    [ "${codex_fail}" != "0" ] || write_language_profile codex
   fi
 
   printf '\n'
@@ -1011,7 +1024,6 @@ EOF
     err "${total_fail} plugin operation(s) failed"
     exit 1
   fi
-  SNAPSHOT_COMMITTED=1
 }
 
 main
