@@ -13,6 +13,7 @@
     "ensure:dist": "tsx scripts/build-plugins.ts --ensure",
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern core/src core/hooks core/tests .claude/hooks .codex/hooks plugins/*/src plugins/*/tests scripts/*.ts",
+    "report:skill-metadata": "tsx scripts/report-skill-metadata.ts",
     "test": "tsx scripts/run-tests.ts",
     "test:ffmpeg": "tsx --test plugins/video-production/tests/media.test.ts plugins/brand-logo-production/tests/squint.test.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:dist && npm test",
