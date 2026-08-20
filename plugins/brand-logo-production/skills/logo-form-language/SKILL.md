@@ -1,6 +1,6 @@
 ---
 name: logo-form-language
-description: Design professional, scalable logos with complete brand identity deliverables including color palettes, typography, format variations, and usage guidelines. Use when the user requests logo design or provides relevant inputs for this workflow.
+description: Guide scalable logo form, color, typography, variants, and usage specifications as a read-only adviser.
 license: MIT
 metadata:
   author: AI Agent Skills Community

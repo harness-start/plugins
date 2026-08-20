@@ -1,6 +1,6 @@
 ---
 name: video-media-import
-description: Admit user-owned media already on disk into a video project through the plugin admit writer. Use when the user supplies local image, audio, video, subtitle, or font files; do not use to call vendor APIs or generate media from a key.
+description: Admit user-owned local images, audio, video, subtitles, or fonts through the plugin writer; never call vendor APIs or generate keyed media.
 ---
 
 # Video media import

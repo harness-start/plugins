@@ -1,6 +1,6 @@
 ---
 name: poster-regional-culture
-description: Read-only cultural research and art-direction adviser for Chinese regional posters. Produces candidate directions, prompt packages, and input-asset briefs for deterministic poster authoring; it has no rendering, writer, review, or release authority.
+description: Advise on cultural research and art direction for Chinese regional posters, producing candidate directions, prompt packages, and asset briefs.
 ---
 
 # Regional Culture Poster

@@ -1,6 +1,6 @@
 ---
 name: video-shot-recipes
-description: Select and stage attributed, offline shot recipes for an evidence-bound Remotion storyboard. Use for product promos or when a video beat needs a concrete camera, transition, UI entrance, kinetic-type, data-visualization, or motion recipe; do not use for audio generation or claims that a recipe alone proves final visual fidelity.
+description: Select offline shot recipes for evidence-bound Remotion storyboards, covering camera, transitions, UI entrances, kinetic type, data visuals, and motion.
 ---
 
 # Video Shot Recipes

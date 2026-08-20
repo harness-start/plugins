@@ -1,6 +1,6 @@
 ---
 name: poster-mondo
-description: Read-only art-direction adviser for original limited-palette screen-print posters, covers, and campaign key visuals. Use for symbolic compression, negative-space composition, integrated display lettering, and print-like texture; never use it to imitate a named artist or to invoke an undeclared image service.
+description: Advise on original limited-palette screen-print posters, covers, and key visuals using symbolic compression, negative space, lettering, and print texture.
 ---
 
 # Limited-palette poster direction

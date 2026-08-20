@@ -1,6 +1,6 @@
 ---
 name: music-project-review
-description: Independently review a current Music Project Delivery Guard mix and every stem, record digest-bound findings, and submit a controlled approval or changes-requested decision.
+description: Independently audition a current music mix and stems, record digest-bound findings, and submit approval or changes requested.
 ---
 
 # Music Project Review

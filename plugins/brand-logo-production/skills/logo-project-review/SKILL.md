@@ -1,6 +1,6 @@
 ---
 name: logo-project-review
-description: Independently review the final current logo masters, variants, PNGs, construction sheets, and preview strip, then produce the external review-input JSON admitted by brand-logo-production. Use after render and preview; never use in the authoring, rendering, or releasing session.
+description: Independently review final logo masters, variants, construction sheets, exports, and previews, then submit the digest-bound review input.
 ---
 
 # Logo Project Review

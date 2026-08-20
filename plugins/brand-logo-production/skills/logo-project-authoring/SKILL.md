@@ -1,6 +1,6 @@
 ---
 name: logo-project-authoring
-description: Orchestrate a reproducible native-vector logo project from a decision-complete brief through concepts, master roles, construction proof, variants, rendered preview, independent review, and release receipt under artifacts/logo. Use for end-to-end logo delivery; do not use for a quick standalone icon, general VI system, or review-only request.
+description: Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release.
 ---
 
 # Logo Project Authoring

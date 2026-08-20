@@ -1,6 +1,6 @@
 ---
 name: music-project-authoring
-description: Orchestrate a code-managed instrumental music project from brief and conditional reference analysis through deterministic composition, arrangement, Tone.js rendering, preview, independent review handoff, and digest-bound release.
+description: Orchestrate a code-managed instrumental music project through reference analysis, composition, Tone.js rendering, review handoff, and release.
 ---
 
 # Music Project Authoring
@@ -19,12 +19,12 @@ Build music as reviewable source code and establish a causal chain from brief to
 
 Use `plan.skill-composition.json` to select the current-source bilingual adviser pool. Keep at most three active in any phase and give every used adviser a distinct evidence artifact.
 
-- `music-composition-method`: composition, harmony, form, and orchestration.
-- `music-genre-reference`: Chinese genre, ambience, guofeng, and scene vocabulary.
-- `music-reference-profile`: reference identity expressed as techniques rather than artist imitation.
-- `music-mix-qc`: arrangement, balance, dynamics, and space.
+- [`music-composition-method`](../music-composition-method/SKILL.md): composition, harmony, form, and orchestration.
+- [`music-genre-reference`](../music-genre-reference/SKILL.md): Chinese genre, ambience, guofeng, and scene vocabulary.
+- [`music-reference-profile`](../music-reference-profile/SKILL.md): reference identity expressed as techniques rather than artist imitation.
+- [`music-mix-qc`](../music-mix-qc/SKILL.md): arrangement, balance, dynamics, and space.
 
-These bundled companion Skills are reference-only advisers. Do not run scripts, network calls, generators, or publishing steps from any similarly named runtime capability. The advisers cannot write the project. Put each structured result outside the project and admit recommendations through:
+When a worker is selected, read the exact bundled instructions linked above. These companion Skills are reference-only advisers. Do not run scripts, network calls, generators, or publishing steps from any similarly named runtime capability. The advisers cannot write the project. Put each structured result outside the project and admit recommendations through:
 
 ```bash
 node "${PLUGIN_ROOT}/dist/cli/project-advice.mjs" "artifacts/music/<id>" "/absolute/path/to/advice.json"

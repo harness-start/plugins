@@ -1,6 +1,6 @@
 ---
 name: video-project-authoring
-description: Orchestrate a new or existing evidence-bound Remotion video project from direction and storyboard through controlled media admission, composition, rendering, probes, independent review, and release. Use for motion explainers, product promos, short-form videos, talking-head edits, reference-led work, and micro-drama under artifacts/video; do not use for read-only critique or an unowned frame-exact replica.
+description: Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release.
 ---
 
 # Video Project Authoring

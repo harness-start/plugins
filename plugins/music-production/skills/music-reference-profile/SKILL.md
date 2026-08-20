@@ -1,6 +1,6 @@
 ---
 name: music-reference-profile
-description: Extract descriptive musical characteristics from any artist or band without using their name, building a vocabulary of sonic qualities for AI music generation, music description, or creative recombination.
+description: Extract unnamed musical characteristics from artists or bands for AI music prompts, descriptions, and creative recombination.
 license: MIT
 metadata:
   author: jwynia

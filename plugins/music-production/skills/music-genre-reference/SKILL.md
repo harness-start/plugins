@@ -1,16 +1,6 @@
 ---
 name: music-genre-reference
-description: >-
-  Create AI music on 妙响 (MUSE SONG) — 汽水音乐 / 抖音音乐创作实验室's AI music
-  platform. Use this skill WHENEVER the user wants to write music-generation
-  prompts (提示词/structured prompts), pick or fuse a 曲风/genre (国风/民族国韵,
-  EDM/电子, 动感流行, Rap/嘻哈, 禅意/ambient/梦核/纯音乐 BGM), write or refine song
-  lyrics (歌词/金句/押韵/诗词句式), choose a generation model (Sway, SeedMusic,
-  Mureka, MiniMax, TemPolor, Sodance, 音潮), troubleshoot AI output (唱错字/咬字/乱发挥),
-  or optimize a track for 汽水 cold-start traffic (冷启/起量/完播率/30s跳出率/被选用/BGM).
-  Trigger even when the user only describes the *outcome* (e.g. "help me make a
-  creepy ambient BGM", "write me a viral hook", "why won't my new song get plays")
-  without naming 妙响. Also trigger for batch/工作流/搬砖 music-generation planning.
+description: Advise on MUSE SONG genre selection, generation prompts, lyrics, models, output troubleshooting, and cold-start optimization.
 ---
 
 # 妙响 (MUSE SONG) AI Music Creation

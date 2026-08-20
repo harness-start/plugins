@@ -1,6 +1,6 @@
 ---
 name: video-motion-direction
-description: This Skill should be used when the user asks to "direct a motion graphics video", "do creative/art direction for a video", "define a motion language", "set the tone and pacing", "make the animation feel consistent", "decide what to animate (and what not to)", "turn a brief/brand into motion choices", or needs senior creative judgment above animation implementation details. Covers motion language, tone and energy, pacing and rhythm, motion hierarchy, restraint, and cross-shot consistency.
+description: Advise on motion-graphics direction across motion language, tone, pacing, hierarchy, restraint, and cross-shot consistency.
 version: 0.1.0
 ---
 

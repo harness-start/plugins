@@ -1,6 +1,6 @@
 ---
 name: video-format-playbooks
-description: This skill should be used when the user asks to "make an explainer video", "turn this into a short explainer", "write a script and storyboard for a product video", "produce a how-it-works/onboarding video", "sync narration and captions", or "build a 30–90s animated explainer". Covers script→storyboard→scene build→narration/caption sync→edit→polish.
+description: Plan 30–90 second explainer or product videos across script, storyboard, scenes, narration, caption sync, edit, and polish.
 version: 0.1.0
 ---
 

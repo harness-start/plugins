@@ -1,6 +1,6 @@
 ---
 name: music-composition-method
-description: Use this skill whenever the user asks for help with music composition, music theory, songwriting, harmony, melody, counterpoint, arrangement, orchestration, or musical analysis — across classical, jazz, pop, rock, hip-hop, R&B, electronic, film/TV, K-pop/J-pop, folk, or musical theatre. Triggers include explicit theory questions ("what scale fits over Cm7", "explain ii-V-I", "modulate from C to E♭"), craft questions ("write a chord progression for a melancholy bridge", "make this melody more memorable", "voice this chord on piano"), and vague creative problems that map to compositional techniques ("the chorus feels weak", "this transition is awkward", "my song sounds generic"). Use this skill even when the user describes the goal in non-technical terms — translating fuzzy creative problems into concrete compositional moves is exactly what this skill is for. Do NOT use for DAW operation, MIDI file generation, audio engineering, mixing/mastering, sound design, or notation software UI.
+description: Advise on composition, theory, melody, harmony, counterpoint, arrangement, orchestration, and analysis; exclude DAW operation and audio engineering.
 ---
 
 # Music Composition

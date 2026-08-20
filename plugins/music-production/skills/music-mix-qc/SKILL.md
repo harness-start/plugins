@@ -1,6 +1,6 @@
 ---
 name: music-mix-qc
-description: Full-stack audio routing across macOS / Linux / Windows, MIDI + OSC control surfaces, DAW integration over JACK, DSP (EQ / compression / loudness / spatial / binaural HRTF), AI denoise (DeepFilterNet / RNNoise / Resemble Enhance), stem separation (Demucs), TTS, Whisper transcription, and EBU R128 / Spotify / Apple / ATSC loudness certification. Use when the user says "set up DAW", "route audio through OBS", "MIDI control surface", "binaural ASMR", "stem separation", "loudness to −16 LUFS", "JACK transport", or anything audio-stack-related.
+description: Advise on cross-platform audio routing, MIDI/OSC, DAW/JACK, DSP, denoise, stem separation, transcription, and loudness verification.
 argument-hint: [source]
 ---
 

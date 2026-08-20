@@ -1,6 +1,6 @@
 ---
 name: video-project-review
-description: Independently review an evidence-bound video project after rendering and probing. Use only from a session distinct from media admission, rendering, and release to inspect narrative, pacing, motion, composition, typography, color, captions, audio, sources, asset rights, profile fidelity, selected-shot fidelity, and conditional reference or character continuity; do not edit project source.
+description: Independently review a rendered video and its evidence for narrative, pacing, motion, composition, captions, audio, rights, and profile fidelity.
 ---
 
 # Video Project Review

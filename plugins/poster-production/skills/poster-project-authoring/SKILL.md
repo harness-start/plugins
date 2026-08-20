@@ -1,6 +1,6 @@
 ---
 name: poster-project-authoring
-description: Orchestrate a new deterministic digital poster project from brief through art direction, design system, Satori source, SVG and PNG rendering, evidence probes, independent review, and release. Use for creating regional-culture, Mondo-inspired, editorial, academic, or custom posters under artifacts/poster; do not use for a read-only critique or for editing an existing flattened image.
+description: Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release.
 ---
 
 # Poster Project Authoring

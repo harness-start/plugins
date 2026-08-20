@@ -2,6 +2,8 @@
 
 Select dynamically by needed role from the bundled bilingual pool. Do not require every candidate and use at most three workers with distinct advice artifacts.
 
+When an adviser is selected, read its exact bundled instructions from [brand direction](../../logo-brand-direction/SKILL.md), [form language](../../logo-form-language/SKILL.md), [color accessibility](../../logo-color-accessibility/SKILL.md), or [presentation system](../../logo-presentation-system/SKILL.md). Never substitute session-global knowledge or a similarly named Skill.
+
 | Worker | Role | Mode | Contribution |
 |---|---|---|---|
 | `logo-brand-direction` | brand-direction | adviser | brief, context, and initial visual direction |

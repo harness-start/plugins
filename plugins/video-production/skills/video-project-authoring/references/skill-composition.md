@@ -2,6 +2,8 @@
 
 The orchestrator owns decisions and project files. First-party advisors return recommendations, rationale, risks, and measurable checks.
 
+When an adviser is selected, read its exact bundled instructions from [motion direction](../../video-motion-direction/SKILL.md), [format playbooks](../../video-format-playbooks/SKILL.md), [visual critique](../../video-visual-critique/SKILL.md), [media import](../../video-media-import/SKILL.md), or [shot recipes](../../video-shot-recipes/SKILL.md). Never substitute session-global knowledge or a similarly named Skill.
+
 | Worker | Mode | Contribution |
 |---|---|---|
 | `video-motion-direction` | advisor | motion thesis, animation principles, shot language, color motion |
