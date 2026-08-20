@@ -1,6 +1,6 @@
 ---
 name: presentation-storyboard
-description: Read-only adviser for planning a new presentation-production v2 deck from scratch: audience, title chain, slide roles, visual variety, evidence allocation, and diagram-slide intent. Do not use for editing an existing PPTX or template, extracting a deck, writing project files, rendering, review-signing, or release.
+description: "Read-only adviser for planning a new presentation-production v2 deck from scratch: audience, title chain, slide roles, visual variety, evidence allocation, and diagram-slide intent. Do not use for editing an existing PPTX or template, extracting a deck, writing project files, rendering, review-signing, or release."
 license: MIT
 metadata:
   version: "2.0"
