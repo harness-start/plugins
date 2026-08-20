@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { matcherTools, readHookManifest } from "../../../core/tests/support/hook-manifest.js";
 import { DEFAULT_CONFIG, resolveConfig } from "../src/lib/config.js";
 import {
   countRemotePolls,
@@ -289,12 +290,12 @@ test("Codex tool waits and agent status queries enter the requested polling budg
 });
 
 test("only the Codex hook advertises Codex function-level wait observation", () => {
-  const codex = readFileSync(CODEX_HOOKS, "utf8");
-  const claude = readFileSync(CLAUDE_HOOKS, "utf8");
-  assert.match(codex, /wait_agent/u);
-  assert.match(codex, /list_agents/u);
-  assert.match(codex, /write_stdin/u);
-  assert.doesNotMatch(claude, /wait_agent|list_agents|write_stdin/u);
+  const codexTools = matcherTools(readHookManifest(CODEX_HOOKS), "PreToolUse");
+  const claudeTools = matcherTools(readHookManifest(CLAUDE_HOOKS), "PreToolUse");
+  for (const tool of ["wait_agent", "list_agents", "write_stdin"]) {
+    assert.equal(codexTools.has(tool), true, tool);
+    assert.equal(claudeTools.has(tool), false, tool);
+  }
 });
 
 test("state persistence uses state and creates only the guard-local gitignore", async (context) => {

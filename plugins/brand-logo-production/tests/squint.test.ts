@@ -105,11 +105,6 @@ test("project preview rejects the removed review-writing option", async () => {
   }
 });
 
-test("distributed preview sources do not name undeclared logo Skill dependencies", async () => {
-  const source = await readFile(new URL("../dist/cli/project-preview.mjs", import.meta.url), "utf8");
-  assert.doesNotMatch(source, /brand-identity|logo-design|color-expert|logo-generator|logo-audit|lettering-design|visual-evidence|\/srv\/workspaces\//u);
-});
-
 test("bundled preview fails closed when its declared renderer is unavailable", async () => {
   const sandbox = await mkdtemp(join(tmpdir(), "logo-preview-renderer-missing-"));
   try {

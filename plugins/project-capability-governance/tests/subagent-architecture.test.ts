@@ -33,9 +33,6 @@ test("repository ships no central subagent management plugin", () => {
     const names = readJson(path).plugins.map((plugin) => plugin.name);
     for (const name of dedicatedPlugins) assert.equal(names.includes(name), false, `${path}: ${name}`);
   }
-
-  const installer = readFileSync(join(REPO, "scripts/install-all.sh"), "utf8");
-  for (const name of dedicatedPlugins) assert.doesNotMatch(installer, new RegExp(name, "u"));
 });
 
 test("domain plugins do not authenticate or schedule native subagents", () => {

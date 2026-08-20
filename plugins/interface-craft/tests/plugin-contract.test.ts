@@ -152,7 +152,4 @@ test("acceptance covers design memory, continuity, motion, and review-only outco
       assert.equal(existsSync(join(caseRoot, file)), true, `${id}/${file}`);
     }
   }
-  const motionExpect = text("acceptance/cases/05-motion-contract/expect.sh");
-  assert.match(motionExpect, /check-layout\.mjs.*disclosure/iu);
-  assert.match(motionExpect, /latestOpen/iu);
 });

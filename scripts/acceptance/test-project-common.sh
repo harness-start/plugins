@@ -68,17 +68,67 @@ jq -e '
   and .permissions.defaultMode == "bypassPermissions"
 ' "${configured_home}/.claude/settings.json" >/dev/null
 
-if grep -Eq 'seed_host_skills_into_home' "${SCRIPT_DIR}/lib/run-project-case.sh"; then
-  printf 'project acceptance must not seed undeclared host Skills into a consumer HOME\n' >&2
-  exit 1
-fi
-if grep -Eq 'ACCEPT_HOST_SKILLS_DIR|/opt/host-skills' "${SCRIPT_DIR}/run-project.sh"; then
-  printf 'project acceptance must not mount undeclared host Skills into Docker\n' >&2
-  exit 1
-fi
-if ! grep -Eq -- '--tmpfs[[:space:]]+/marketplace/\.acceptance-runs' "${SCRIPT_DIR}/run-project.sh"; then
-  printf 'project acceptance must hide historical acceptance outputs from live agents\n' >&2
-  exit 1
-fi
+fixture_root="${tmp_root}/project-case-fixture"
+mkdir -p \
+  "${fixture_root}/lib" \
+  "${fixture_root}/repo/acceptance/scenarios/demo/01/workspace" \
+  "${fixture_root}/repo/docker/host-acceptance" \
+  "${fixture_root}/out"
+cp "${SCRIPT_DIR}/lib/run-project-case.sh" "${fixture_root}/lib/run-project-case.sh"
+printf 'deliver the fixture\n' >"${fixture_root}/repo/acceptance/scenarios/demo/01/prompt.md"
+printf '{}\n' >"${fixture_root}/repo/docker/host-acceptance/models.json"
+cat >"${fixture_root}/repo/acceptance/scenarios/demo/01/expect.sh" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+cat >"${fixture_root}/lib/common.sh" <<'EOF'
+load_env_file() { export DEEPSEEK_MODEL=fixture; }
+require_cmd() { :; }
+copy_workspace() { mkdir -p "$2"; }
+read_case_timeout() { printf '10\n'; }
+configure_claude_home() { :; }
+run_claude_session_installed() { printf 'host-session\n' >>"${TRACE_FILE}"; : >"$3"; }
+assert_deepseek_in_log() { :; }
+seed_host_skills_into_home() { printf 'undeclared-host-skills\n' >>"${TRACE_FILE}"; }
+EOF
+cat >"${fixture_root}/lib/project-common.sh" <<'EOF'
+project_case_dir() { printf '%s/%s\n' "$1" "$2"; }
+ensure_project_install_cache() { mkdir -p "$2/cache"; printf '%s/cache\n' "$2"; }
+seed_project_install_home() { printf 'project-install\n' >>"${TRACE_FILE}"; mkdir -p "$2"; }
+assert_project_install_ready() { return 0; }
+EOF
+TRACE_FILE="${fixture_root}/case.trace" bash \
+  "${fixture_root}/lib/run-project-case.sh" \
+  "${fixture_root}/repo" demo/01 claude "${fixture_root}/out"
+test "$(sed -n '1p' "${fixture_root}/case.trace")" = "project-install"
+test "$(sed -n '2p' "${fixture_root}/case.trace")" = "host-session"
+test "$(wc -l <"${fixture_root}/case.trace" | tr -d ' ')" = "2"
+
+wrapper_root="${tmp_root}/project-wrapper"
+mkdir -p "${wrapper_root}/repo/scripts/acceptance/lib" "${wrapper_root}/bin" "${wrapper_root}/out"
+cp "${SCRIPT_DIR}/run-project.sh" "${wrapper_root}/repo/scripts/acceptance/run-project.sh"
+cp "${SCRIPT_DIR}/lib/common.sh" "${wrapper_root}/repo/scripts/acceptance/lib/common.sh"
+cp "${SCRIPT_DIR}/lib/project-common.sh" "${wrapper_root}/repo/scripts/acceptance/lib/project-common.sh"
+printf 'DEEPSEEK_API_KEY=fixture\nDEEPSEEK_MODEL=deepseek-v4-flash\n' >"${wrapper_root}/repo/.env"
+cat >"${wrapper_root}/bin/docker" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"${DOCKER_TRACE}"
+EOF
+chmod +x "${wrapper_root}/bin/docker"
+DOCKER_TRACE="${wrapper_root}/docker.trace" \
+  PATH="${wrapper_root}/bin:${PATH}" \
+  ACCEPT_OUT_DIR="${wrapper_root}/out" \
+  bash "${wrapper_root}/repo/scripts/acceptance/run-project.sh" --skip-honesty
+docker_run="$(sed -n '2p' "${wrapper_root}/docker.trace")"
+case " ${docker_run} " in
+  *" --tmpfs /marketplace/.acceptance-runs:rw,noexec,nosuid,nodev,size=16m,mode=1777 "*) ;;
+  *) printf 'project acceptance did not isolate historical outputs\n' >&2; exit 1 ;;
+esac
+case " ${docker_run} " in
+  *" /opt/host-skills "*|*" ACCEPT_HOST_SKILLS_DIR "*)
+    printf 'project acceptance mounted undeclared host Skills\n' >&2
+    exit 1
+    ;;
+esac
 
 printf 'project-common readiness tests passed\n'

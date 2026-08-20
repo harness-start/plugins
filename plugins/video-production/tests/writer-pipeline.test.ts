@@ -7,6 +7,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { syntaxDiagnostics } from "../../../core/tests/support/typescript-source.js";
 import { loadVideoProject } from "../src/lib/project.js";
 import { validateVideoModel } from "../src/lib/contract.js";
 import { withWriterJournal } from "../src/lib/writer.js";
@@ -158,7 +159,9 @@ test("registered writers produce a structured render-probe-review-release closur
 
     const model = await loadVideoProject(fx.root);
     assert.deepEqual(validateVideoModel(model, { stage: "release" }), []);
-    assert.match(model.files["src/visual/v001-intro.f000000-f000010.tsx"], /Intro/u);
+    const visualSource = model.files["src/visual/v001-intro.f000000-f000010.tsx"];
+    assert.equal(visualSource, fx.visual);
+    assert.deepEqual(syntaxDiagnostics(visualSource, "v001-intro.f000000-f000010.tsx"), []);
     assert.equal(JSON.parse(model.files["dist/demo.mp4.proof.json"]).writer.capability, "video-render");
     assert.equal(JSON.parse(model.files["evidence.probe.json"]).schema, "video-production/probe-evidence/v1");
     assert.equal(JSON.parse(model.files["review.video.json"]).reviewer.sessionId, "review-session");

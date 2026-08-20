@@ -9,6 +9,7 @@ import {
   PLUGIN_WORKDIR_GITIGNORE,
   ensurePluginWorkdirGitignore,
 } from "@harness/core/plugin-workdir";
+import { sourceLiterals } from "../support/typescript-source.js";
 
 function workdir(prefix: string) {
   return mkdtempSync(join(tmpdir(), prefix));
@@ -60,7 +61,8 @@ test("plugin sources do not write subdirectory-only workdir gitignores", async (
       }
       if (!entry.name.endsWith(".ts")) continue;
       const text = await readFile(path, "utf8");
-      if (text.includes("\"state/\\n\"") || text.includes("\"sessions/\\n\"")) {
+      const literals = sourceLiterals(text, path).map(({ value }) => value);
+      if (literals.includes("state/\n") || literals.includes("sessions/\n")) {
         leftover.push(relative(resolve(pluginsRoot, ".."), path).split("\\").join("/"));
       }
     }
@@ -68,4 +70,13 @@ test("plugin sources do not write subdirectory-only workdir gitignores", async (
 
   await walk(pluginsRoot);
   assert.deepEqual(leftover, []);
+});
+
+test("source literal analysis ignores comments and detects actual templates", () => {
+  const literals = sourceLiterals([
+    "// const ignored = \"state/\\n\";",
+    "const active = `sessions/\\n`;",
+  ].join("\n"));
+
+  assert.deepEqual(literals.map(({ value }) => value), ["sessions/\n"]);
 });

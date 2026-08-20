@@ -3,6 +3,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 import { test } from "node:test";
 
+import { identifierNames } from "../support/typescript-source.js";
+
 const root = resolve(import.meta.dirname, "../../..");
 const expected = [
   "agent-activity-audit",
@@ -323,22 +325,28 @@ test("plugin runtime, Hooks, and internal Skills never address a sibling plugin"
 });
 
 test("required method Skills fail closed in plugin-local orchestration while Hooks remain local", () => {
-  const orchestrators = [
-    "ci-gated-delivery",
-    "engineering-practice",
-    "intent-discovery",
-    "professional-writing",
-    "software-debugging",
-    "spec-driven-development",
-    "test-driven-development",
-  ];
-  for (const plugin of orchestrators) {
+  const orchestrators: Record<string, string[]> = {
+    "ci-gated-delivery": ["ci-gated-mr-workflow"],
+    "engineering-practice": ["engineering-judgment", "engineering-practice", "engineering-review", "engineering-verification"],
+    "intent-discovery": ["intent-discovery"],
+    "professional-writing": ["actionable-response", "professional-writing", "writing-chinese-prose", "writing-english-prose"],
+    "software-debugging": ["debug-workflow"],
+    "spec-driven-development": ["sdd", "sdd-build", "sdd-plan", "sdd-specify", "sdd-tasks"],
+    "test-driven-development": ["tdd-red-green", "test-driven-development-orchestrator"],
+  };
+  for (const [plugin, requiredSkills] of Object.entries(orchestrators)) {
     const pluginRoot = resolve(root, "plugins", plugin);
+    for (const skill of requiredSkills) {
+      assert.equal(
+        existsSync(resolve(pluginRoot, "skills", skill, "SKILL.md")),
+        true,
+        `${plugin} must bundle ${skill}`,
+      );
+    }
     const orchestration = ["src", "skills"]
       .flatMap((area) => filesBelow(resolve(pluginRoot, area)))
       .map((path) => readFileSync(path, "utf8"))
       .join("\n");
-    assert.match(orchestration, /ci-gated-mr-workflow|debug-workflow|intent-discovery|sdd|test-driven-development|engineering-|writing-/u, `${plugin} must keep first-party orchestration`);
     assert.doesNotMatch(orchestration, /\$HOME\/\.agents\/skills/u, `${plugin} must not load global community Skills`);
     assert.doesNotMatch(orchestration, /skill-deps\.json|vendor-skills/u, `${plugin} must not name the removed community supply chain`);
   }
@@ -365,10 +373,12 @@ test("domain orchestrators stay first-party and do not load community Skills", (
 
 test("retired cross-domain guard is absent and engineering-quality no longer owns language checks", () => {
   assert.equal(existsSync(resolve(root, "plugins", "dependency-file-custody")), false);
-  const qualitySources = filesBelow(resolve(root, "plugins", "engineering-quality", "src"))
-    .map((path) => readFileSync(path, "utf8"))
-    .join("\n");
-  assert.doesNotMatch(qualitySources, /javascriptSyntax|typescriptSyntax|pythonSyntax|phpSyntax|composerValidate|phpstan/u);
+  const retiredIdentifiers = new Set(["javascriptSyntax", "typescriptSyntax", "pythonSyntax", "phpSyntax", "composerValidate", "phpstan"]);
+  const unexpected = filesBelow(resolve(root, "plugins", "engineering-quality", "src")).flatMap((path) => {
+    const identifiers = identifierNames(readFileSync(path, "utf8"), path);
+    return [...retiredIdentifiers].filter((name) => identifiers.has(name)).map((name) => `${relative(root, path)}: ${name}`);
+  });
+  assert.deepEqual(unexpected, []);
 });
 
 test("merged plugins retain outcome-level acceptance for every merged responsibility", () => {

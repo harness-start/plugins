@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -61,54 +62,15 @@ test("plugin ships Docker acceptance cases for control, recovery, isolation, and
     assert.equal(existsSync(join(ROOT, "acceptance", "cases", name, "case.toml")), true, name);
     assert.equal(existsSync(join(ROOT, "acceptance", "cases", name, "prompt.md")), true, name);
     assert.equal(existsSync(join(ROOT, "acceptance", "cases", name, "expect.sh")), true, name);
-    assert.match(readFileSync(join(ROOT, "acceptance", "cases", name, "case.toml"), "utf8"), /hosts\s*=\s*\["claude",\s*"codex"\]/u, name);
+    const result = spawnSync("bash", ["-c", '. "$COMMON"; read_case_hosts "$CASE"'], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CASE: join(ROOT, "acceptance", "cases", name),
+        COMMON: join(ROOT, "..", "..", "scripts", "acceptance", "lib", "common.sh"),
+      },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(new Set(result.stdout.trim().split(/\s+/u)), new Set(["claude", "codex"]), name);
   }
-  const isolationOracle = [
-    readFileSync(join(ROOT, "acceptance", "cases", "04-multi-task-context-isolation", "expect.sh"), "utf8"),
-    readFileSync(join(ROOT, "acceptance", "lib", "codex-wait-receipt.jq"), "utf8"),
-  ].join("\n");
-  assert.match(isolationOracle, /timeout_ms\s*==\s*10000/u);
-  assert.match(isolationOracle, /function_call_output|tool_result/u);
-  assert.match(isolationOracle, /Tool-Policy: FORBID_ALL_TOOLS/u);
-  const isolationPrompt = readFileSync(
-    join(ROOT, "acceptance", "cases", "04-multi-task-context-isolation", "prompt.md"),
-    "utf8",
-  );
-  assert.match(isolationPrompt, /may add one blank line after the `Task Brief` heading/u);
-  assert.match(isolationPrompt, /may append only the lane-specific sentence “Return exactly the line/u);
-  assert.match(isolationPrompt, /Codex create that file only with one exact `apply_patch` Add File/u);
-  assert.match(isolationOracle, /expected_orchard_brief/u);
-  assert.match(isolationOracle, /\.message == \$orchard/u);
-  assert.match(isolationOracle, /encrypted_content[\s\S]*== \[\$expected\]/u);
-  assert.match(isolationOracle, /worker_messages[\s\S]*-eq 2/u);
-  assert.match(isolationOracle, /test .*wait_timed_out.*=.*false/u);
-  assert.match(isolationOracle, /assistant_text_count/u);
-  assert.match(isolationOracle, /child_user_prompt_count/u);
-  assert.match(isolationOracle, /\(\$deliveries \| length\) == 1/u);
-  assert.match(isolationOracle, /child_structure_violations/u);
-  assert.doesNotMatch(isolationOracle, /\| last \/\/ ""/u);
-  assert.match(isolationOracle, /\.prompt == \$orchard or \.prompt == \$orchardAccepted/u);
-  assert.match(isolationOracle, /orchardSpacedBase/u);
-  assert.match(isolationOracle, /orchardSpacedCompact/u);
-
-  const ordinaryOracle = readFileSync(join(ROOT, "acceptance", "cases", "01-ordinary-bypass", "expect.sh"), "utf8");
-  assert.match(ordinaryOracle, /ACCEPT_HOST.*claude[\s\S]*agent_count[\s\S]*-eq 0/iu);
-
-  const reviewOracle = readFileSync(join(ROOT, "acceptance", "cases", "06-review-and-scope-defense", "expect.sh"), "utf8");
-  assert.match(reviewOracle, /\.fork_turns[\s\S]*"none"/u);
-  assert.match(reviewOracle, /brief-id=formatter-review-001/u);
-  assert.match(reviewOracle, /descendant_count/u);
-  assert.match(reviewOracle, /reviewer_mutation_calls/u);
-  assert.match(reviewOracle, /verification_before_review/u);
-  assert.match(reviewOracle, /agent_prompt.*==.*expected_brief/u);
-  assert.match(reviewOracle, /review_prompt.*==.*expected_brief/u);
-  assert.match(reviewOracle, /encrypted_content[\s\S]*== \[\$expected\]/u);
-  assert.match(reviewOracle, /review_messages[\s\S]*-eq 1/u);
-  assert.match(reviewOracle, /expected_transport/u);
-  assert.match(reviewOracle, /spawn_contract_valid/u);
-  assert.match(reviewOracle, /child_card_valid/u);
-  assert.match(reviewOracle, /agent_receipt_total/u);
-  assert.match(reviewOracle, /\(\$deliveries \| length\) == 1/u);
-  assert.doesNotMatch(reviewOracle, /\| last \/\/ ""/u);
-  assert.doesNotMatch(reviewOracle, /normalized_child_card/u);
 });

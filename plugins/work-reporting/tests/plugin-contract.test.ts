@@ -4,6 +4,8 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { commandsFor, eventNames, readHookManifest } from "../../../core/tests/support/hook-manifest.js";
+
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 
 function json(path) {
@@ -23,16 +25,19 @@ test("dual-host manifests expose the same plugin and platform-scoped hooks", () 
   assert.equal(codex.skills, "./skills/");
   assert.equal(codex.interface.displayName, "Work Report Insights");
 
-  const claudeHooks = readFileSync(join(ROOT, "hooks/claude.json"), "utf8");
-  const codexHooks = readFileSync(join(ROOT, "hooks/codex.json"), "utf8");
-  assert.match(codexHooks, /AI_EXPERTS_SESSION_ID/u);
-  assert.match(codexHooks, /AI_EXPERTS_TRIGGER_FROM/u);
-  assert.doesNotMatch(codexHooks, /CLAUDE_PLUGIN_ROOT/u);
-  assert.doesNotMatch(claudeHooks, /\$\{PLUGIN_ROOT\}/u);
-  for (const hooks of [claudeHooks, codexHooks]) {
-    assert.match(hooks, /UserPromptSubmit/u);
-    assert.match(hooks, /SessionStart/u);
-    assert.match(hooks, /PostToolUseFailure/u);
+  const claudeHooks = readHookManifest(join(ROOT, "hooks/claude.json"));
+  const codexHooks = readHookManifest(join(ROOT, "hooks/codex.json"));
+  const codexCommands = commandsFor(codexHooks).map(({ command }) => command);
+  const claudeCommands = commandsFor(claudeHooks).map(({ command }) => command);
+  assert.equal(codexCommands.every((command) => command.includes("AI_EXPERTS_SESSION_ID")), true);
+  assert.equal(codexCommands.every((command) => command.includes("AI_EXPERTS_TRIGGER_FROM")), true);
+  assert.equal(codexCommands.every((command) => !command.includes("CLAUDE_PLUGIN_ROOT")), true);
+  assert.equal(claudeCommands.every((command) => !command.includes("${PLUGIN_ROOT}")), true);
+  const claudeEvents = eventNames(claudeHooks);
+  const codexEvents = eventNames(codexHooks);
+  assert.deepEqual(codexEvents, claudeEvents);
+  for (const event of ["PostToolUseFailure", "SessionStart", "UserPromptSubmit"]) {
+    assert.equal(codexEvents.includes(event), true, event);
   }
 });
 

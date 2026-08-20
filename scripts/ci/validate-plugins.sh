@@ -11,6 +11,11 @@ CODEX_VERSION="${CODEX_VERSION:-0.147.0}"
 MARKETPLACE_NAME="${MARKETPLACE_NAME:-harness-start}"
 SKIP_HOST_INSTALL="${SKIP_HOST_INSTALL:-0}"
 SKIP_CODEX_LOAD="${SKIP_CODEX_LOAD:-0}"
+VALIDATION_GROUPS=(
+  check_core_quality
+  check_unit_and_acceptance
+  check_host_marketplaces
+)
 
 log() {
   printf '==> %s\n' "$*"
@@ -144,7 +149,7 @@ check_unit_tests() {
     test_files=()
     if [ -d "${plugin}/tests" ]; then
       mapfile -t test_files < <(
-        find "${plugin}/tests" -maxdepth 1 -name '*.test.ts' -type f | sort
+        find "${plugin}/tests" -name '*.test.ts' -type f | sort
       )
     fi
     if [ "${#test_files[@]}" -eq 0 ]; then
@@ -578,27 +583,22 @@ check_host_marketplaces() {
 
 run_parallel_validation() {
   local log_dir failed=0 index rc
-  local -a groups=(
-    check_core_quality
-    check_unit_and_acceptance
-    check_host_marketplaces
-  )
   local -a pids=()
 
   log_dir="$(mktemp -d)"
-  for group in "${groups[@]}"; do
+  for group in "${VALIDATION_GROUPS[@]}"; do
     ( "${group}" ) >"${log_dir}/${group}.log" 2>&1 &
     pids+=("$!")
   done
 
-  for index in "${!groups[@]}"; do
+  for index in "${!VALIDATION_GROUPS[@]}"; do
     rc=0
     wait "${pids[${index}]}" || rc=$?
-    printf '\n===== %s =====\n' "${groups[${index}]}"
-    cat "${log_dir}/${groups[${index}]}.log"
+    printf '\n===== %s =====\n' "${VALIDATION_GROUPS[${index}]}"
+    cat "${log_dir}/${VALIDATION_GROUPS[${index}]}.log"
     if [ "${rc}" -ne 0 ]; then
       printf 'Validation group failed: %s (rc=%s)\n' \
-        "${groups[${index}]}" "${rc}" >&2
+        "${VALIDATION_GROUPS[${index}]}" "${rc}" >&2
       failed=1
     fi
   done
@@ -607,7 +607,21 @@ run_parallel_validation() {
   return "${failed}"
 }
 
+describe_validation() {
+  local separator="" group
+  printf '{"groups":['
+  for group in "${VALIDATION_GROUPS[@]}"; do
+    printf '%s"%s"' "${separator}" "${group}"
+    separator=","
+  done
+  printf ']}\n'
+}
+
 main() {
+  if [ "${1:-}" = "--describe" ]; then
+    describe_validation
+    return 0
+  fi
   log "Root: ${ROOT_DIR}"
   require_cmd node
   require_cmd npm

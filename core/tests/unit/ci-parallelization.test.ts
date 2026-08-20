@@ -1,62 +1,73 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { test } from "node:test";
 
-const gitlab = readFileSync(new URL("../../../.gitlab-ci.yml", import.meta.url), "utf8");
-const packageJson = JSON.parse(readFileSync(new URL("../../../package.json", import.meta.url), "utf8"));
-const validator = readFileSync(new URL("../../../scripts/ci/validate-plugins.sh", import.meta.url), "utf8");
-const mediaTest = readFileSync(new URL("../../../plugins/video-production/tests/media.test.ts", import.meta.url), "utf8");
-const logoSquintTest = readFileSync(new URL("../../../plugins/brand-logo-production/tests/squint.test.ts", import.meta.url), "utf8");
+import { parse } from "yaml";
 
-function yamlJob(config: string, name: string): string {
-  const lines = config.split("\n");
-  const start = lines.findIndex((line) => line === `${name}:`);
-  assert.notEqual(start, -1, `missing ${name} job`);
-  const endOffset = lines.slice(start + 1).findIndex((line) => /^[^\s#].*:\s*$/u.test(line));
-  const end = endOffset === -1 ? lines.length : start + 1 + endOffset;
-  return lines.slice(start, end).join("\n");
+const root = resolve(import.meta.dirname, "../../..");
+const gitlab = parse(readFileSync(resolve(root, ".gitlab-ci.yml"), "utf8")) as {
+  [job: string]: {
+    script?: string[];
+    variables?: Record<string, string>;
+  };
+};
+const packageJson = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8")) as {
+  scripts: Record<string, string>;
+};
+
+function validationContract(): { groups: string[] } {
+  const result = spawnSync("bash", ["scripts/ci/validate-plugins.sh", "--describe"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 5_000,
+  });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  return JSON.parse(result.stdout) as { groups: string[] };
 }
 
-function assertGitLabCoverage(config: string): void {
-  const pluginJob = yamlJob(config, "validate:plugins");
-  const ffmpegJob = yamlJob(config, "validate:ffmpeg");
-  assert.match(pluginJob, /SKIP_REAL_FFMPEG_TESTS: "1"/u);
-  assert.match(ffmpegJob, /npm run test:ffmpeg/u);
-  assert.doesNotMatch(ffmpegJob, /SKIP_REAL_FFMPEG_TESTS/u);
-}
-
-function assertParallelGroups(script: string): void {
-  const groupBlock = script.match(/local -a groups=\(\n([\s\S]*?)\n {2}\)/u);
-  const groups = groupBlock?.[1];
-  assert.ok(groups, "missing parallel validation groups");
-  assert.deepEqual(groups.trim().split(/\s+/u), [
-    "check_core_quality",
-    "check_unit_and_acceptance",
-    "check_host_marketplaces",
-  ]);
-  assert.match(script, /check_unit_and_acceptance\(\) \{\n {2}check_unit_tests\n {2}check_acceptance_contracts\n\}/u);
-  assert.match(script, /main\(\)[\s\S]*?run_parallel_validation/u);
-}
-
-test("GitLab runs the real FFmpeg contract beside the parallel validation job", () => {
-  assertGitLabCoverage(gitlab);
+test("GitLab runs the real FFmpeg contract beside the main validation job", () => {
+  const pluginJob = gitlab["validate:plugins"];
+  const ffmpegJob = gitlab["validate:ffmpeg"];
+  assert.ok(pluginJob);
+  assert.ok(ffmpegJob);
+  assert.equal(pluginJob.variables?.SKIP_REAL_FFMPEG_TESTS, "1");
+  assert.deepEqual(pluginJob.script, ["bash scripts/ci/validate-plugins.sh"]);
+  assert.deepEqual(ffmpegJob.script, ["npm run test:ffmpeg"]);
+  assert.equal(Object.hasOwn(ffmpegJob.variables ?? {}, "SKIP_REAL_FFMPEG_TESTS"), false);
   assert.equal(
     packageJson.scripts["test:ffmpeg"],
     "tsx --test plugins/video-production/tests/media.test.ts plugins/brand-logo-production/tests/squint.test.ts",
   );
-
-  const misplacedSkip = gitlab
-    .replace('    SKIP_REAL_FFMPEG_TESTS: "1"\n', "")
-    .replace("validate:ffmpeg:\n", 'validate:ffmpeg:\n  variables:\n    SKIP_REAL_FFMPEG_TESTS: "1"\n');
-  assert.throws(() => assertGitLabCoverage(misplacedSkip));
 });
 
-test("the main validation preserves every gate while skipping only separately gated FFmpeg tests", () => {
-  assertParallelGroups(validator);
-  assert.match(mediaTest, /SKIP_REAL_FFMPEG_TESTS/u);
-  assert.match(logoSquintTest, /SKIP_REAL_FFMPEG_TESTS/u);
-  assert.equal(logoSquintTest.match(/, realFfmpegTest, async/gu)?.length, 3);
+test("the main validator exposes its actual parallel execution groups", () => {
+  assert.deepEqual(validationContract().groups, [
+    "check_core_quality",
+    "check_unit_and_acceptance",
+    "check_host_marketplaces",
+  ]);
+});
 
-  const missingGroup = validator.replace("    check_unit_and_acceptance\n", "");
-  assert.throws(() => assertParallelGroups(missingGroup));
+test("the main job's FFmpeg skip is honored by the separately gated test files", () => {
+  const childEnv = { ...process.env };
+  delete childEnv.NODE_TEST_CONTEXT;
+  const result = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      "--test",
+      "plugins/video-production/tests/media.test.ts",
+      "plugins/brand-logo-production/tests/squint.test.ts",
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      env: { ...childEnv, SKIP_REAL_FFMPEG_TESTS: "1" },
+    },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /# skipped [1-9][0-9]*/u);
 });

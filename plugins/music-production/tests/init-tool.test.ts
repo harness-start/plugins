@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, realpath, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { issueMusicWriterCapability } from "../src/lib/capability.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/cli/project-init.mjs", import.meta.url));
 
 test("initializes a code-managed mathematical music project without installing when requested", async () => {
-  const workspace = await mkdtemp(join(tmpdir(), "tonejs-init-"));
+  const workspace = await realpath(await mkdtemp(join(tmpdir(), "tonejs-init-")));
   try {
     const root = join(workspace, "artifacts", "music", "study");
     const argv = [ENTRY, root, "--skip-install"];
@@ -31,7 +31,7 @@ test("initializes a code-managed mathematical music project without installing w
     const direction = JSON.parse(await readFile(join(root, "plan.direction.json"), "utf8"));
     const arrangement = JSON.parse(await readFile(join(root, "plan.arrangement.json"), "utf8"));
     const skillComposition = JSON.parse(await readFile(join(root, "plan.skill-composition.json"), "utf8"));
-    const composition = await readFile(join(root, "src", "composition.mjs"), "utf8");
+    const compositionPath = join(root, "src", "composition.mjs");
 
     assert.equal(project.artifactId, "study");
     assert.equal(project.schema, "music-production/project/v1");
@@ -40,7 +40,11 @@ test("initializes a code-managed mathematical music project without installing w
     assert.equal(direction.artifactId, "study");
     assert.equal(arrangement.artifactId, "study");
     assert.equal(skillComposition.workers.length, 4);
-    assert.match(composition, /tonejs-composition\/v1/u);
+    const syntax = spawnSync(process.execPath, ["--check", compositionPath], { encoding: "utf8" });
+    assert.equal(syntax.status, 0, syntax.stderr);
+    const module = await import(`${pathToFileURL(compositionPath).href}?test=${Date.now()}`);
+    assert.equal(typeof module.default, "object");
+    assert.equal(module.default.schema, "tonejs-composition/v1");
   } finally {
     await rm(workspace, { recursive: true, force: true });
   }
