@@ -7,8 +7,10 @@ import { eventCwd, eventPrompt, readStdinJson, type HookEvent } from "@harness/c
 import { additionalContext, stopBlock, writeJson } from "@harness/core/hook-output";
 import {
   boundaryGuardFinding,
+  mixedBoundarySynthesisFinding,
   mixedBoundaryRejectionFinding,
   orderingPrimitiveFinding,
+  parallelCompositionSeamFinding,
   variadicDiagnosticFinding,
   variadicSeamBypassFinding,
 } from "../../lib/outcome-challenge.js";
@@ -42,6 +44,7 @@ export function boundaryChallengeContext(): string {
     "Treat the requested behavior as the contract candidate: a current exception or rejection is not compatibility proof unless local docs or callers require it.",
     "Before editing, write outcomes for all-empty, mixed empty/populated, and ordinary populated inputs. The mixed case must use unequal cardinality, such as zero items beside a singleton, so broadcast/coercion cannot hide which component still carries data.",
     "Locate the first lossy transform and branch before it when the required distinction would otherwise disappear; then rejoin the shared result path.",
+    "For mixed unequal-cardinality inputs, do not synthesize one shared empty aggregate or matrix and split it back into components; preserve each original caller component separately.",
     "Add a durable mixed-case test that asserts each output component equals its corresponding input in both value and shape. Do not merely assert shapes or lock in the current exception.",
   ].join("\n");
 }
@@ -55,7 +58,7 @@ export function orderingChallengeContext(diagnosticDisputed = false): string {
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text.",
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Assert the exact diagnostic type and text against those original sequences.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -113,6 +116,14 @@ export async function runStop(): Promise<void> {
     return;
   }
 
+  const mixedSynthesis = mixedBoundarySynthesisFinding(diff);
+  if (mixedSynthesis) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${mixedSynthesis.path}:${mixedSynthesis.line}: shared empty aggregate ${mixedSynthesis.aggregate} is synthesized when any caller component is empty, then split back into components. This erases caller components that still carry data. Preserve each corresponding input's value and shape before the lossy transform, and prove the mixed unequal-cardinality result at the public seam.`,
+    ));
+    return;
+  }
+
   const boundary = boundaryGuardFinding(diff);
   if (boundary) {
     writeJson(stopBlock(
@@ -125,6 +136,14 @@ export async function runStop(): Promise<void> {
   if (variadicBypass) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${variadicBypass.path}:${variadicBypass.line}: the new variadic seam returns ${variadicBypass.parameter}[0] unchanged for one input, bypassing the shared normalization contract. Route zero, one, two, and many inputs through the same deduplication/container mechanism, or cite local public-contract evidence that explicitly requires raw passthrough.`,
+    ));
+    return;
+  }
+
+  const parallelSeam = parallelCompositionSeamFinding(diff);
+  if (parallelSeam) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${parallelSeam.path}:${parallelSeam.line}: private multi-input helper ${parallelSeam.helper} was added beside fixed-arity named public seam ${parallelSeam.publicSeam}. Extend the named seam itself and route zero, one, two, and many inputs through it; do not leave accepted callers on a narrower parallel contract.`,
     ));
     return;
   }

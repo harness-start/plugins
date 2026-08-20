@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c10a0d68932a1da084ccc0733f432061ae1a8448d0f1494e7851e1d8d2bbe905
+// harness-source-hash: sha256:85f1c6cf6d461d66a1de13bca1fc196abf52cc455f428cc0567788dd53c193c4
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { execFileSync } from "node:child_process";
@@ -72,6 +72,8 @@ var EMPTY_GUARD = /\bif\b[^\n]*(?:\bempty\b|\bzero\b|\.size\b|\.length\b|\.shape
 var MIXED_EMPTY_GUARD = /\bif\b[^\n]*(?:\bany\s*\([^)]*(?:empty|sizes?)[^)]*\)|(?:empty|sizes?)\.some\s*\()[^\n]*(?:\bnot\s+all\s*\([^)]*(?:empty|sizes?)[^)]*\)|!\s*(?:empty|sizes?)\.every\s*\()/iu;
 var REJECTION = /^\s*(?:raise\b|throw\b|return\s+(?:new\s+)?\w*Error\b)/iu;
 var FUNCTION_START = /^\s*(?:(?:export\s+)?(?:async\s+)?function\s+|(?:async\s+)?def\s+)/u;
+var COMPONENT_EMPTY_ASSIGNMENT = /\b([A-Za-z_$][\w$]*)\s*=\s*(?:any\s*\([^\n]*(?:\.size|\.length|\bempty\b)|[^\n]*(?:\.some|\.find)\s*\([^\n]*(?:\.size|\.length|\bempty\b))/iu;
+var EMPTY_AGGREGATE_ASSIGNMENT = /^\s*([A-Za-z_$][\w$]*)\s*=\s*(?:[A-Za-z_$][\w$]*\.)?(?:zeros?|empty|empty_like|full)\s*\(/iu;
 function diffFiles(diff) {
   const files = [];
   for (const block of diff.split(/^diff --git /mu).slice(1)) {
@@ -184,6 +186,69 @@ function mixedBoundaryRejectionFinding(diff) {
   }
   return null;
 }
+function mixedBoundarySynthesisFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    let newLine = 0;
+    let emptyFlag = "";
+    let sawLossyTransform = false;
+    let guardedBudget = 0;
+    let hunkScope = "";
+    for (const rawLine of file.lines) {
+      const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@(?:\s*(.*))?$/u);
+      const hunkLine = hunk?.[1];
+      if (hunkLine) {
+        const nextLine = Number.parseInt(hunkLine, 10);
+        const nextScope = hunk[2]?.trim() ?? "";
+        const sameScope = !hunkScope || !nextScope || hunkScope === nextScope;
+        const nearbyContinuation = sameScope && newLine > 0 && nextLine >= newLine && nextLine - newLine <= 32;
+        newLine = nextLine;
+        if (!nearbyContinuation) {
+          emptyFlag = "";
+          sawLossyTransform = false;
+        }
+        hunkScope = nextScope;
+        guardedBudget = 0;
+        continue;
+      }
+      if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++")) continue;
+      const removed = rawLine.startsWith("-");
+      const added = rawLine.startsWith("+");
+      const source = rawLine.slice(1);
+      if (!removed) {
+        if (FUNCTION_START.test(source)) {
+          emptyFlag = "";
+          sawLossyTransform = false;
+          guardedBudget = 0;
+        }
+        if (added) emptyFlag ||= source.match(COMPONENT_EMPTY_ASSIGNMENT)?.[1] ?? "";
+        if (emptyFlag && LOSSY_TRANSFORM.test(source)) sawLossyTransform = true;
+        if (added && emptyFlag && sawLossyTransform && new RegExp(`\\bif\\b[^\\n]*\\b${escapeRegExp(emptyFlag)}\\b`, "u").test(source)) {
+          guardedBudget = 4;
+        } else if (guardedBudget > 0) {
+          guardedBudget -= 1;
+        }
+        const aggregate = added && guardedBudget > 0 ? source.match(EMPTY_AGGREGATE_ASSIGNMENT)?.[1] ?? "" : "";
+        if (aggregate) {
+          const newSource = file.lines.filter((line) => !line.startsWith("-") || line.startsWith("---")).map((line) => line.startsWith("+") ? line.slice(1) : line).join("\n");
+          const isSplitBackIntoComponents = new RegExp(
+            `(?:\\b${escapeRegExp(aggregate)}\\s*\\[|\\b(?:split|unstack)\\w*\\s*\\(\\s*${escapeRegExp(aggregate)}\\b)[\\s\\S]{0,160}\\b(?:reshape|shape|split|unstack)\\b`,
+            "iu"
+          ).test(newSource);
+          if (isSplitBackIntoComponents) {
+            return {
+              code: "mixed-boundary-shared-synthesis",
+              path: file.path,
+              line: newLine,
+              aggregate
+            };
+          }
+        }
+        newLine += 1;
+      }
+    }
+  }
+  return null;
+}
 function variadicParameter(source) {
   return source.match(/\bdef\s+\w+\s*\(\s*\*([A-Za-z_]\w*)/u)?.[1] ?? source.match(/(?:\bfunction\s+\w+|\b\w+)\s*\([^)]*\.\.\.([A-Za-z_$][\w$]*)/u)?.[1] ?? "";
 }
@@ -252,6 +317,84 @@ function variadicDiagnosticFinding(diff) {
   }
   return null;
 }
+function fixedArityCompositionSeams(file) {
+  const seams = /* @__PURE__ */ new Set();
+  for (const rawLine of file.lines) {
+    if (rawLine.startsWith("-")) continue;
+    const source = rawLine.startsWith("+") ? rawLine.slice(1) : rawLine;
+    const python = source.match(/^\s*def\s+((?:merge|combine|order)\w*)\s*\(([^)]*)\)/iu);
+    const javascript = source.match(/^\s*(?:(?:export\s+)?(?:async\s+)?function\s+)?((?:merge|combine|order)\w*)\s*\(([^)]*)\)/iu);
+    const signature = python ?? javascript;
+    const name = signature?.[1];
+    const parameters = signature?.[2];
+    if (!name || parameters === void 0 || /(?:\*|\.\.\.)/u.test(parameters)) continue;
+    const required = parameters.split(",").map((parameter) => parameter.trim()).filter((parameter) => parameter && !/^(?:self|cls)$/u.test(parameter));
+    if (required.length >= 2) seams.add(name);
+  }
+  return [...seams];
+}
+function removedCompositionSeams(file) {
+  const seams = /* @__PURE__ */ new Set();
+  for (const rawLine of file.lines) {
+    if (!rawLine.startsWith("-") || rawLine.startsWith("---")) continue;
+    const matches = rawLine.slice(1).matchAll(
+      /\b[A-Za-z_$][\w$]*\s*\.\s*((?:merge|combine|order)\w*)\s*\(/giu
+    );
+    for (const match of matches) {
+      const seam = match[1];
+      if (seam) seams.add(seam);
+    }
+  }
+  return [...seams];
+}
+function variadicCompositionSeams(file) {
+  const seams = /* @__PURE__ */ new Set();
+  for (const rawLine of file.lines) {
+    if (rawLine.startsWith("-")) continue;
+    const source = rawLine.startsWith("+") ? rawLine.slice(1) : rawLine;
+    const signature = source.match(
+      /^\s*(?:def\s+|(?:(?:export\s+)?(?:async\s+)?function\s+)?)((?:merge|combine|order)\w*)\s*\(([^)]*)\)/iu
+    );
+    const name = signature?.[1];
+    const parameters = signature?.[2];
+    if (name && parameters !== void 0 && /(?:\*|\.\.\.)/u.test(parameters)) seams.add(name);
+  }
+  return [...seams];
+}
+function parallelCompositionSeamFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    const variadicSeams = new Set(variadicCompositionSeams(file));
+    const publicSeams = [.../* @__PURE__ */ new Set([
+      ...fixedArityCompositionSeams(file),
+      ...removedCompositionSeams(file)
+    ])].filter((seam) => !variadicSeams.has(seam));
+    if (publicSeams.length === 0) continue;
+    const additions = addedLines(file);
+    for (const addition of additions) {
+      const helperSignature = addition.source.match(
+        /^\s*(?:def\s+|(?:static\s+)?(?:async\s+)?function\s+)?(_(?:merge|combine|order)[A-Za-z_$\d]*)\s*\(([^)]*)\)/iu
+      );
+      const helper = helperSignature?.[1];
+      const parameters = helperSignature?.[2];
+      if (!helper || parameters === void 0) continue;
+      const hasMultiInputParameter = parameters.split(",").some((parameter) => /(?:lists|chains|groups|inputs|items)\b/iu.test(parameter.trim()));
+      if (!hasMultiInputParameter) continue;
+      const publicSeam = publicSeams.find((seam) => helper.toLowerCase().includes(seam.toLowerCase()));
+      if (!publicSeam) continue;
+      const callPattern = new RegExp(`(?:\\.|\\b)${escapeRegExp(helper)}\\s*\\(`, "u");
+      const callCount = additions.filter(({ source }) => !FUNCTION_START.test(source) && callPattern.test(executableText(source))).length;
+      if (callCount < 2) continue;
+      return {
+        code: "parallel-composition-seam",
+        path: file.path,
+        line: addition.line,
+        helper,
+        publicSeam
+      };
+    }
+  }
+  return null;
+}
 function candidateParts(candidate) {
   const match = candidate.match(/^([^:]+):(\d+):(.*)$/u);
   const path = match?.[1];
@@ -272,7 +415,9 @@ function orderingPrimitiveFinding(diff, candidates) {
     const hasNamedGraphState = /\b(?:dependencies|dependency_graph|indegree|successors)\b/iu.test(executable);
     const hasBeforeAfterGraph = /\bbefore\b/iu.test(executable) && /\bafter\b/iu.test(executable);
     const hasGraphState = hasNamedGraphState || hasBeforeAfterGraph;
-    const hasFrontierState = /\b(?:ready|emitted|remaining|merged)\b/iu.test(executable);
+    const hasExplicitFrontierState = /\b(?:ready|emitted|remaining|merged)\b/iu.test(executable);
+    const hasMutatedFrontierAliases = /\bordered_?items\b/iu.test(executable) && /\bresult\s*\.\s*(?:append|push)\s*\(/iu.test(executable) && /\bordered_?items\s*\.\s*(?:pop|shift|splice)\s*\(/iu.test(executable);
+    const hasFrontierState = hasExplicitFrontierState || hasMutatedFrontierAliases;
     const hasControlLoop = /^\s*(?:for|while)\s*(?:\(|\b)/mu.test(executable);
     if (!hasGraphState || !hasFrontierState || !hasControlLoop) continue;
     for (const rawCandidate of candidates) {
@@ -317,6 +462,7 @@ function boundaryChallengeContext() {
     "Treat the requested behavior as the contract candidate: a current exception or rejection is not compatibility proof unless local docs or callers require it.",
     "Before editing, write outcomes for all-empty, mixed empty/populated, and ordinary populated inputs. The mixed case must use unequal cardinality, such as zero items beside a singleton, so broadcast/coercion cannot hide which component still carries data.",
     "Locate the first lossy transform and branch before it when the required distinction would otherwise disappear; then rejoin the shared result path.",
+    "For mixed unequal-cardinality inputs, do not synthesize one shared empty aggregate or matrix and split it back into components; preserve each original caller component separately.",
     "Add a durable mixed-case test that asserts each output component equals its corresponding input in both value and shape. Do not merely assert shapes or lock in the current exception."
   ].join("\n");
 }
@@ -329,7 +475,7 @@ function orderingChallengeContext(diagnosticDisputed = false) {
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text."
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Assert the exact diagnostic type and text against those original sequences.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -380,6 +526,13 @@ async function runStop() {
     ));
     return;
   }
+  const mixedSynthesis = mixedBoundarySynthesisFinding(diff);
+  if (mixedSynthesis) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${mixedSynthesis.path}:${mixedSynthesis.line}: shared empty aggregate ${mixedSynthesis.aggregate} is synthesized when any caller component is empty, then split back into components. This erases caller components that still carry data. Preserve each corresponding input's value and shape before the lossy transform, and prove the mixed unequal-cardinality result at the public seam.`
+    ));
+    return;
+  }
   const boundary = boundaryGuardFinding(diff);
   if (boundary) {
     writeJson(stopBlock(
@@ -391,6 +544,13 @@ async function runStop() {
   if (variadicBypass) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${variadicBypass.path}:${variadicBypass.line}: the new variadic seam returns ${variadicBypass.parameter}[0] unchanged for one input, bypassing the shared normalization contract. Route zero, one, two, and many inputs through the same deduplication/container mechanism, or cite local public-contract evidence that explicitly requires raw passthrough.`
+    ));
+    return;
+  }
+  const parallelSeam = parallelCompositionSeamFinding(diff);
+  if (parallelSeam) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${parallelSeam.path}:${parallelSeam.line}: private multi-input helper ${parallelSeam.helper} was added beside fixed-arity named public seam ${parallelSeam.publicSeam}. Extend the named seam itself and route zero, one, two, and many inputs through it; do not leave accepted callers on a narrower parallel contract.`
     ));
     return;
   }

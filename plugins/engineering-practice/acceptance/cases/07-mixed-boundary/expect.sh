@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_prompt_context_signal 'Engineering Practice: boundary challenge.*current exception or rejection.*not compatibility proof.*all-empty.*mixed empty/populated.*ordinary populated.*unequal cardinality.*zero items.*singleton.*each output component.*corresponding input.*value and shape'
+require_prompt_context_signal 'Engineering Practice: boundary challenge.*current exception or rejection.*not compatibility proof.*all-empty.*mixed empty/populated.*ordinary populated.*unequal cardinality.*zero items.*singleton.*do not synthesize.*shared empty aggregate or matrix.*split it back.*preserve each original caller component.*each output component.*corresponding input.*value and shape'
 
 (
   cd "${ACCEPT_WORKSPACE}"

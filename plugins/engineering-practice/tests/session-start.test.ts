@@ -68,6 +68,7 @@ test("routes boundary prompts to a short counterexample contract", () => {
   assert.match(output.additionalContext, /first lossy.*before.*distinction/isu);
   assert.match(output.additionalContext, /unequal cardinalit.*zero.*singleton/isu);
   assert.match(output.additionalContext, /each output component.*corresponding input.*value.*shape/isu);
+  assert.match(output.additionalContext, /do not synthesize.*shared empty.*aggregate.*split/isu);
   assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
   assert.doesNotMatch(output.additionalContext, /stable-order challenge/iu);
 });
@@ -99,6 +100,8 @@ test("challenges disputed diagnostics at the caller-visible abstraction level", 
   assert.match(context, /complete original input sequences/isu);
   assert.match(context, /not.*elements extracted from them/isu);
   assert.match(context, /not.*arbitrary internal.*nodes/isu);
+  assert.match(context, /one grammatical summary.*project-conventional delimiters/isu);
+  assert.match(context, /do not retain.*internal-node.*one-item-per-line/isu);
   assert.match(context, /exact.*type.*text/isu);
 });
 
@@ -170,6 +173,41 @@ test("Stop blocks a newly invented rejection for mixed boundary inputs", () => {
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /new exception is not preservation evidence.*public-seam unequal-cardinality test/isu);
+  });
+});
+
+test("Stop blocks a shared empty aggregate synthesized from mixed components", () => {
+  withGitRepo({
+    "src/coordinates.py": [
+      "def convert(parts):",
+      "    parts = broadcast_components(*parts)",
+      "    matrix = stack(parts)",
+      "    output = engine(matrix)",
+      "    return [output[:, index].reshape(part.shape) for index, part in enumerate(parts)]",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/coordinates.py"), [
+      "def convert(parts):",
+      "    has_empty_component = any(part.size == 0 for part in parts)",
+      "    parts = broadcast_components(*parts)",
+      "    matrix = stack(parts)",
+      "    if has_empty_component:",
+      "        output = zeros((0, dimensions))",
+      "    else:",
+      "        output = engine(matrix)",
+      "    return [output[:, index].reshape(part.shape) for index, part in enumerate(parts)]",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /shared empty aggregate output.*erases caller components/isu);
   });
 });
 
@@ -297,6 +335,43 @@ test("Stop blocks a hand-rolled dependency loop when a local primitive exists", 
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /src\/registry\.js.*src\/stable-order\.js:1/isu);
+  });
+});
+
+test("Stop blocks a private multi-input helper beside a fixed-arity public seam", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return pairwise_order(left, right)",
+      "",
+      "    def render(self):",
+      "        return self.combine(self._groups[0], self._groups[1])",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return Registry._combine_groups([left, right])",
+      "",
+      "    @staticmethod",
+      "    def _combine_groups(groups):",
+      "        return stable_order(groups)",
+      "",
+      "    def render(self):",
+      "        return self._combine_groups(self._groups)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /private multi-input helper _combine_groups.*named public seam combine/isu);
   });
 });
 
