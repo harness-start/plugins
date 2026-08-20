@@ -33,6 +33,12 @@ FAIL_FAST=0
 CLAUDE_SCOPE="user"
 LANGUAGE_PROFILE="${HARNESS_LANGUAGE_PROFILE:-}"
 ZIP_SNAPSHOT=0
+SNAPSHOT_BACKUP=""
+SNAPSHOT_COMMITTED=0
+SNAPSHOT_DESTINATION=""
+SNAPSHOT_LOCK=""
+SNAPSHOT_LOCK_KIND=""
+SNAPSHOT_WORK=""
 
 usage() {
   cat <<'EOF'
@@ -298,8 +304,51 @@ download_url() {
   fi
 }
 
+release_snapshot_lock() {
+  case "${SNAPSHOT_LOCK_KIND}" in
+    shlock) rm -f -- "${SNAPSHOT_LOCK}" ;;
+    flock) flock -u 9 2>/dev/null || true; exec 9>&- ;;
+  esac
+  SNAPSHOT_LOCK_KIND=""
+}
+
+restore_previous_snapshot() {
+  [ -n "${SNAPSHOT_BACKUP}" ] && [ -d "${SNAPSHOT_BACKUP}" ] || return 1
+  rm -rf -- "${SNAPSHOT_WORK}/failed"
+  if [ -e "${SNAPSHOT_DESTINATION}" ] || [ -L "${SNAPSHOT_DESTINATION}" ]; then
+    mv -- "${SNAPSHOT_DESTINATION}" "${SNAPSHOT_WORK}/failed" || return 1
+  fi
+  mv -- "${SNAPSHOT_BACKUP}" "${SNAPSHOT_DESTINATION}" || return 1
+  SNAPSHOT_BACKUP=""
+}
+
+cleanup_snapshot_transaction() {
+  if [ "${SNAPSHOT_COMMITTED}" != "1" ]; then restore_previous_snapshot || true; fi
+  [ -z "${SNAPSHOT_WORK}" ] || rm -rf -- "${SNAPSHOT_WORK}"
+  release_snapshot_lock
+}
+
+acquire_snapshot_lock() {
+  local lock="$1" attempts=0
+  if have_cmd shlock; then
+    until shlock -p "$$" -f "${lock}"; do
+      attempts=$((attempts + 1)); [ "${attempts}" -lt 300 ] || return 1; sleep 0.1
+    done
+    SNAPSHOT_LOCK_KIND="shlock"
+  elif have_cmd flock; then
+    exec 9>"${lock}"
+    flock -w 30 9 || return 1
+    SNAPSHOT_LOCK_KIND="flock"
+  else
+    err "shlock or flock is required for safe marketplace snapshot replacement"
+    return 1
+  fi
+  SNAPSHOT_LOCK="${lock}"
+  trap cleanup_snapshot_transaction EXIT
+}
+
 prepare_remote_marketplace_snapshot() {
-  local cache="${XDG_CACHE_HOME:-$HOME/.cache}/harness-start" work archive url backup=""
+  local cache="${XDG_CACHE_HOME:-$HOME/.cache}/harness-start" work archive url backup="" lock
   local -a roots=()
   [[ "${GIT_REF}" =~ ^[A-Za-z0-9._/-]+$ ]] || { err "invalid GitHub ref: ${GIT_REF}"; return 1; }
   mkdir -p -- "${cache}"
@@ -317,12 +366,16 @@ prepare_remote_marketplace_snapshot() {
   roots=("${work}/extract"/*)
   [ "${#roots[@]}" -eq 1 ] && [ -f "${roots[0]}/.claude-plugin/marketplace.json" ] || \
     { rm -rf -- "${work}"; err "invalid marketplace ZIP layout"; return 1; }
+  lock="${cache}/.plugins.lock"
+  acquire_snapshot_lock "${lock}" || { rm -rf -- "${work}"; err "timed out waiting for marketplace snapshot lock"; return 1; }
+  SNAPSHOT_WORK="${work}"
+  SNAPSHOT_DESTINATION="${cache}/plugins"
   if [ -e "${cache}/plugins" ] || [ -L "${cache}/plugins" ]; then
-    backup="${work}/previous"; mv -- "${cache}/plugins" "${backup}"
+    backup="${work}/previous"
+    mv -- "${cache}/plugins" "${backup}" || return 1
+    SNAPSHOT_BACKUP="${backup}"
   fi
-  mv -- "${roots[0]}" "${cache}/plugins" || \
-    { [ -z "${backup}" ] || mv -- "${backup}" "${cache}/plugins"; rm -rf -- "${work}"; return 1; }
-  rm -rf -- "${work}"
+  mv -- "${roots[0]}" "${cache}/plugins" || return 1
   LOCAL_MARKETPLACE_PATH="$(cd "${cache}/plugins" && pwd)"
   MARKETPLACE_SOURCE="${LOCAL_MARKETPLACE_PATH}"
   ZIP_SNAPSHOT=1
@@ -637,8 +690,16 @@ ensure_claude_marketplace() {
     else claude plugin marketplace remove "${MARKETPLACE_NAME}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1 || true
     fi
   fi
-  run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}" || \
-    { [ "${ZIP_SNAPSHOT}" = "1" ] || run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}" || true; }
+  if ! run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}"; then
+    if [ "${ZIP_SNAPSHOT}" = "1" ]; then
+      warn "Claude: restoring the previous ZIP snapshot after registration failure"
+      if restore_previous_snapshot; then
+        run_cmd claude plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --scope "${CLAUDE_SCOPE}" >/dev/null 2>&1 || true
+      fi
+      return 1
+    fi
+    run_cmd claude plugin marketplace update "${MARKETPLACE_NAME}" || true
+  fi
 }
 
 uninstall_claude_plugin() {
@@ -725,8 +786,16 @@ ensure_codex_marketplace() {
     else codex plugin marketplace remove "${MARKETPLACE_NAME}" --json >/dev/null 2>&1 || true
     fi
   fi
-  run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json || \
-    { [ "${ZIP_SNAPSHOT}" = "1" ] || run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true; }
+  if ! run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json; then
+    if [ "${ZIP_SNAPSHOT}" = "1" ]; then
+      warn "Codex: restoring the previous ZIP snapshot after registration failure"
+      if restore_previous_snapshot; then
+        run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" --json >/dev/null 2>&1 || true
+      fi
+      return 1
+    fi
+    run_cmd codex plugin marketplace add "${LOCAL_MARKETPLACE_PATH}" || true
+  fi
 }
 
 uninstall_codex_plugin() {
@@ -942,6 +1011,7 @@ EOF
     err "${total_fail} plugin operation(s) failed"
     exit 1
   fi
+  SNAPSHOT_COMMITTED=1
 }
 
 main

@@ -2,12 +2,20 @@ import assert from "node:assert/strict";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const INSTALLER = join(ROOT, "scripts", "install-all.sh");
+const MARKETPLACE_ZIP = Buffer.from(
+  "UEsDBBQAAAAIAEKuFF1fVW6QRQAAAGIAAAAuAAAAcGx1Z2lucy1tYXN0ZXIvLmNsYXVkZS1wbHVnaW4vbWFya2V0cGxhY2UuanNvbqtWykvMTVWyUspILMpLLS7WLS5JLCpR0lEqyClNz8wrVrKKroYpSa1IzC3ISdWFSAHVFOeXFiWDZPT0ocr10dTUxtYCAFBLAQIUAxQAAAAIAEKuFF1fVW6QRQAAAGIAAAAuAAAAAAAAAAAAAACAAQAAAABwbHVnaW5zLW1hc3Rlci8uY2xhdWRlLXBsdWdpbi9tYXJrZXRwbGFjZS5qc29uUEsFBgAAAAABAAEAXAAAAJEAAAAAAA==",
+  "base64",
+);
+const SECOND_MARKETPLACE_ZIP = Buffer.from(
+  "UEsDBBQAAAAIAMuyFF0oE9KnRQAAAGYAAAAuAAAAcGx1Z2lucy1zZWNvbmQvLmNsYXVkZS1wbHVnaW4vbWFya2V0cGxhY2UuanNvbqtWykvMTVWyUlDKSCzKSy0u1i0uSSwqUdJRUCrIKU3PzCsGykVXw1UVpybn56XoQuRAqorzS4uSwVJ6+lAd+qiKamNrAVBLAQIUAxQAAAAIAMuyFF0oE9KnRQAAAGYAAAAuAAAAAAAAAAAAAACAAQAAAABwbHVnaW5zLXNlY29uZC8uY2xhdWRlLXBsdWdpbi9tYXJrZXRwbGFjZS5qc29uUEsFBgAAAAABAAEAXAAAAJEAAAAAAA==",
+  "base64",
+);
 
 function executable(path, source) {
   writeFileSync(path, source);
@@ -20,6 +28,24 @@ function runInstaller(args, env = {}) {
     encoding: "utf8",
     env: { ...process.env, ...env },
   });
+}
+
+function waitForExit(child) {
+  return new Promise((resolve, reject) => {
+    let stderr = "";
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", (chunk) => { stderr += chunk; });
+    child.once("error", reject);
+    child.once("exit", (status, signal) => resolve({ status, signal, stderr }));
+  });
+}
+
+async function waitForPath(path, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!existsSync(path)) {
+    if (Date.now() >= deadline) throw new Error(`Timed out waiting for ${path}`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
 }
 
 test("installer rejects unsupported language profiles", () => {
@@ -70,10 +96,7 @@ test("remote installs use a persistent master ZIP snapshot instead of a Git mark
   mkdirSync(join(cacheRoot, "harness-start", "plugins", ".git"), { recursive: true });
   writeFileSync(
     archive,
-    Buffer.from(
-      "UEsDBBQAAAAIAEKuFF1fVW6QRQAAAGIAAAAuAAAAcGx1Z2lucy1tYXN0ZXIvLmNsYXVkZS1wbHVnaW4vbWFya2V0cGxhY2UuanNvbqtWykvMTVWyUspILMpLLS7WLS5JLCpR0lEqyClNz8wrVrKKroYpSa1IzC3ISdWFSAHVFOeXFiWDZPT0ocr10dTUxtYCAFBLAQIUAxQAAAAIAEKuFF1fVW6QRQAAAGIAAAAuAAAAAAAAAAAAAACAAQAAAABwbHVnaW5zLW1hc3Rlci8uY2xhdWRlLXBsdWdpbi9tYXJrZXRwbGFjZS5qc29uUEsFBgAAAAABAAEAXAAAAJEAAAAAAA==",
-      "base64",
-    ),
+    MARKETPLACE_ZIP,
   );
   executable(join(bin, "curl"), `#!/bin/sh
 printf '%s\\n' "$*" >> ${JSON.stringify(curlLog)}
@@ -126,6 +149,186 @@ printf '%s\\n' '[]'
       assert.match(commands, new RegExp(`plugin marketplace add ${snapshot}`, "u"));
       assert.doesNotMatch(commands, /plugin marketplace add (?:harness-start\/plugins|https?:\/\/)/u);
     }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("remote installs stop before plugin sync when ZIP marketplace registration fails", () => {
+  for (const host of ["claude", "codex"]) {
+    const fixture = mkdtempSync(join(tmpdir(), `installer-${host}-registration-`));
+    const bin = join(fixture, "bin");
+    const archive = join(fixture, "master.zip");
+    const hostLog = join(fixture, `${host}.log`);
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(archive, MARKETPLACE_ZIP);
+    executable(join(bin, "curl"), `#!/bin/sh
+destination=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then destination="$2"; shift 2; continue; fi
+  shift
+done
+if [ -n "$destination" ]; then cp ${JSON.stringify(archive)} "$destination"; else printf '%s\n' '{"plugins":[{"name":"example-plugin"}]}'; fi
+`);
+    executable(join(bin, host), `#!/bin/sh
+printf '%s\n' "$*" >> ${JSON.stringify(hostLog)}
+case "$*" in plugin\\ marketplace\\ add*) exit 23 ;; esac
+printf '%s\n' '[]'
+`);
+
+    try {
+      const result = runInstaller([`--${host}-only`, "--language", "en-US"], {
+        PATH: `${bin}:${process.env.PATH}`,
+        CLAUDE_CONFIG_DIR: join(fixture, "claude-home"),
+        CODEX_HOME: join(fixture, "codex-home"),
+        XDG_CACHE_HOME: join(fixture, "cache"),
+      });
+      assert.notEqual(result.status, 0, `${host} unexpectedly succeeded: ${result.stderr}`);
+      assert.doesNotMatch(readFileSync(hostLog, "utf8"), /plugin (?:uninstall|install|remove|add) example-plugin@/u);
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }
+});
+
+test("failed ZIP registration restores the previous local snapshot for each host", () => {
+  for (const host of ["claude", "codex"]) {
+    const fixture = mkdtempSync(join(tmpdir(), `installer-${host}-restore-`));
+    const bin = join(fixture, "bin");
+    const archive = join(fixture, "master.zip");
+    const secondArchive = join(fixture, "second.zip");
+    const addCount = join(fixture, "add-count");
+    const hostLog = join(fixture, `${host}.log`);
+    const cacheRoot = join(fixture, "cache");
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(archive, MARKETPLACE_ZIP);
+    writeFileSync(secondArchive, SECOND_MARKETPLACE_ZIP);
+    executable(join(bin, "curl"), `#!/bin/sh
+args="$*"
+destination=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then destination="$2"; shift 2; continue; fi
+  shift
+done
+if [ -n "$destination" ]; then
+  case "$args" in *second.zip*) cp ${JSON.stringify(secondArchive)} "$destination" ;; *) cp ${JSON.stringify(archive)} "$destination" ;; esac
+else printf '%s\n' '{"plugins":[{"name":"example-plugin"}]}'; fi
+`);
+    executable(join(bin, host), `#!/bin/sh
+printf '%s\n' "$*" >> ${JSON.stringify(hostLog)}
+case "$*" in
+  plugin\\ marketplace\\ add*)
+    count=0; [ ! -f ${JSON.stringify(addCount)} ] || count="$(cat ${JSON.stringify(addCount)})"
+    count=$((count + 1)); printf '%s\n' "$count" > ${JSON.stringify(addCount)}
+    [ "$count" -ne 2 ] || exit 23
+    ;;
+esac
+printf '%s\n' '[]'
+`);
+    const env = {
+      PATH: `${bin}:${process.env.PATH}`,
+      CLAUDE_CONFIG_DIR: join(fixture, "claude-home"),
+      CODEX_HOME: join(fixture, "codex-home"),
+      XDG_CACHE_HOME: cacheRoot,
+    };
+
+    try {
+      const first = runInstaller([`--${host}-only`, "--language", "en-US"], env);
+      assert.equal(first.status, 0, first.stderr);
+      const second = runInstaller([`--${host}-only`, "--ref", "second", "--language", "en-US"], env);
+      assert.notEqual(second.status, 0, `${host} unexpectedly succeeded: ${second.stderr}`);
+
+      const snapshot = join(cacheRoot, "harness-start", "plugins");
+      assert.match(readFileSync(join(snapshot, ".claude-plugin", "marketplace.json"), "utf8"), /example-plugin/u);
+      const commands = readFileSync(hostLog, "utf8");
+      assert.doesNotMatch(commands, /second-plugin@harness-start/u);
+      const addLines = commands.split("\n").filter((line) => line.startsWith("plugin marketplace add "));
+      assert.equal(addLines.length, 3);
+      assert.ok(addLines.every((line) => line.includes(snapshot)));
+      assert.ok(addLines.every((line) => !/plugin marketplace add (?:harness-start\/plugins|https?:\/\/)|--ref/u.test(line)));
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }
+});
+
+test("concurrent remote installs never nest one ZIP snapshot inside another", async () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-concurrent-zip-"));
+  const bin = join(fixture, "bin");
+  const archive = join(fixture, "master.zip");
+  const secondArchive = join(fixture, "second.zip");
+  const cacheRoot = join(fixture, "cache");
+  const marketplaceRoot = join(cacheRoot, "harness-start");
+  const movedMarker = join(fixture, "old-moved");
+  const promotedMarker = join(fixture, "second-promoted");
+  mkdirSync(bin, { recursive: true });
+  mkdirSync(join(marketplaceRoot, "plugins", ".git"), { recursive: true });
+  writeFileSync(archive, MARKETPLACE_ZIP);
+  writeFileSync(secondArchive, SECOND_MARKETPLACE_ZIP);
+  executable(join(bin, "curl"), `#!/bin/sh
+args="$*"
+destination=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then destination="$2"; shift 2; continue; fi
+  shift
+done
+if [ -n "$destination" ]; then
+  case "$args" in *second.zip*) cp ${JSON.stringify(secondArchive)} "$destination" ;; *) cp ${JSON.stringify(archive)} "$destination" ;; esac
+else printf '%s\n' '{"plugins":[{"name":"example-plugin"}]}'; fi
+`);
+  executable(join(bin, "claude"), `#!/bin/sh
+case "$*" in
+  plugin\\ marketplace\\ add*)
+    if [ "\${TEST_INSTALL_ID:-}" = "first" ]; then
+      if [ ! -e ${JSON.stringify(join(marketplaceRoot, ".plugins.lock"))} ]; then
+        count=0
+        while [ ! -e ${JSON.stringify(promotedMarker)} ] && [ "$count" -lt 200 ]; do sleep 0.05; count=$((count + 1)); done
+      fi
+      grep -q example-plugin ${JSON.stringify(join(marketplaceRoot, "plugins", ".claude-plugin", "marketplace.json"))} || exit 24
+    else
+      grep -q second-plugin ${JSON.stringify(join(marketplaceRoot, "plugins", ".claude-plugin", "marketplace.json"))} || exit 25
+    fi
+    ;;
+esac
+printf '%s\n' '[]'
+`);
+  executable(join(bin, "mv"), `#!/bin/sh
+source_path="$2"
+destination="$3"
+/bin/mv "$@" || exit $?
+if [ "$source_path" = ${JSON.stringify(join(marketplaceRoot, "plugins"))} ]; then
+  : > ${JSON.stringify(movedMarker)}
+  if [ ! -e ${JSON.stringify(join(marketplaceRoot, ".plugins.lock"))} ]; then
+    count=0
+    while [ ! -e ${JSON.stringify(promotedMarker)} ] && [ "$count" -lt 200 ]; do sleep 0.05; count=$((count + 1)); done
+  fi
+elif [ "\${TEST_INSTALL_ID:-}" = "second" ] && [ "$destination" = ${JSON.stringify(join(marketplaceRoot, "plugins"))} ]; then
+  : > ${JSON.stringify(promotedMarker)}
+fi
+`);
+
+  const env = {
+    ...process.env,
+    PATH: `${bin}:${process.env.PATH}`,
+    XDG_CACHE_HOME: cacheRoot,
+  };
+  try {
+    const first = spawn("bash", [INSTALLER, "--claude-only", "--language", "en-US"], {
+      cwd: ROOT,
+      env: { ...env, CLAUDE_CONFIG_DIR: join(fixture, "claude-first"), TEST_INSTALL_ID: "first" },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    await waitForPath(movedMarker);
+    const second = spawn("bash", [INSTALLER, "--claude-only", "--ref", "second", "--language", "en-US"], {
+      cwd: ROOT,
+      env: { ...env, CLAUDE_CONFIG_DIR: join(fixture, "claude-second"), TEST_INSTALL_ID: "second" },
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    const [firstResult, secondResult] = await Promise.all([waitForExit(first), waitForExit(second)]);
+    assert.equal(firstResult.status, 0, `first installer exited via ${firstResult.signal}: ${firstResult.stderr}`);
+    assert.equal(secondResult.status, 0, `second installer exited via ${secondResult.signal}: ${secondResult.stderr}`);
+    assert.equal(existsSync(join(marketplaceRoot, "plugins", "plugins-master")), false);
+    assert.match(readFileSync(join(marketplaceRoot, "plugins", ".claude-plugin", "marketplace.json"), "utf8"), /second-plugin/u);
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
