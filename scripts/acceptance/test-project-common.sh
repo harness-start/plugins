@@ -68,15 +68,15 @@ jq -e '
   and .permissions.defaultMode == "bypassPermissions"
 ' "${configured_home}/.claude/settings.json" >/dev/null
 
-if rg -q 'seed_host_skills_into_home' "${SCRIPT_DIR}/lib/run-project-case.sh"; then
+if grep -Eq 'seed_host_skills_into_home' "${SCRIPT_DIR}/lib/run-project-case.sh"; then
   printf 'project acceptance must not seed undeclared host Skills into a consumer HOME\n' >&2
   exit 1
 fi
-if rg -q 'ACCEPT_HOST_SKILLS_DIR|/opt/host-skills' "${SCRIPT_DIR}/run-project.sh"; then
+if grep -Eq 'ACCEPT_HOST_SKILLS_DIR|/opt/host-skills' "${SCRIPT_DIR}/run-project.sh"; then
   printf 'project acceptance must not mount undeclared host Skills into Docker\n' >&2
   exit 1
 fi
-if ! rg -q -- '--tmpfs[[:space:]]+/marketplace/\.acceptance-runs' "${SCRIPT_DIR}/run-project.sh"; then
+if ! grep -Eq -- '--tmpfs[[:space:]]+/marketplace/\.acceptance-runs' "${SCRIPT_DIR}/run-project.sh"; then
   printf 'project acceptance must hide historical acceptance outputs from live agents\n' >&2
   exit 1
 fi
