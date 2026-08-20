@@ -1,9 +1,11 @@
 # 专业写作
 
-`professional-writing` 在 Claude Code 和 Codex 的 `SessionStart` 注入轻量路由提示：仅在匹配的写作场景加载本插件 Skill，再开始实质写作。
+`professional-writing` injects lightweight routing guidance at `SessionStart` in Claude Code and Codex. It loads only the bundled Skills needed for the current response or document.
 
 | 场景 | Skill |
 |---|---|
+| The user must perform a procedure, troubleshoot, choose, recover, or continue unfinished work | `actionable-response` |
+| A visual would materially clarify relationships, sequence, hierarchy, or state changes | `visual-explanation` |
 | 用户明确要求更短输出或减少 token | `writing-terse-output` |
 | 英文内容撰写、改写或审阅 | `writing-english-prose` |
 | 中文内容撰写、改写或审阅 | `writing-chinese-prose` + bundled `ai-flavor-remover` |
@@ -13,6 +15,8 @@
 
 `writing-markdown-ai-style` 用插件自带的 `dist/cli/analyze-ai-style.mjs` 定位重复出现的套话。分析结果只是定位证据，不能代替通读或授权批量替换。
 
+`actionable-response` is the default for action-heavy replies, even when the user does not request ADHD-friendly wording. It makes the next action obvious without deleting required information. `visual-explanation` handles comprehension structure, skips visuals for simple questions, and does not create HTML by default. Both preserve user-requested formats, safety confirmations, and task completeness.
+
 ## 边界
 
 SessionStart 只负责写作 Skill 编排，不处理工程实践，也不提供硬门禁。Hooks 的硬约束独立运行，不能把上下文注入、Skill 加载或额外模型轮次当成结果有效的证明。本插件不承诺绕过 AI 检测器，不创建状态目录。
@@ -21,4 +25,4 @@ SessionStart 只负责写作 Skill 编排，不处理工程实践，也不提供
 
 ## 来源
 
-正文改编自 caveman、humanizer、stop-slop、Humanizer-zh、shuorenhua 与 remove-ai-style，许可证见 `licenses/`。分析器已用 TypeScript 在本插件重写。
+The prose methods adapt caveman, humanizer, stop-slop, Humanizer-zh, shuorenhua, remove-ai-style, show-me, and i-have-adhd. See `licenses/` for attribution. The analyzer is a TypeScript reimplementation owned by this plugin.

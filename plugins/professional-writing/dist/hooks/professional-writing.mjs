@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8fbf0f9505e2a3b5f23461cdd9e738e619a9553c79dfeaec2d338b73ef2d478b
+// harness-source-hash: sha256:af05aa3246f2b42b406f51df7339da9c43f736bc1253ec6fd3af4f660341853e
 
 // plugins/professional-writing/src/entries/hooks/professional-writing.ts
 import { resolve } from "node:path";
@@ -58,6 +58,9 @@ function professionalWritingContext() {
   return [
     "[Professional Writing] Selective writing Skill orchestration",
     loading,
+    "Whenever the response requires the user to carry out a procedure, troubleshoot, choose among options, recover from an error, or continue unfinished work, you MUST load `actionable-response` before answering. This is the default for action-heavy responses; do not wait for the user to request concise or ADHD-friendly wording. Never diagnose or label the user.",
+    "For a knowledge-only answer or fully completed task, give the answer or result directly and do not manufacture a next action.",
+    "Load `visual-explanation` when the user asks to see the topic visually, or when relationships, sequence, hierarchy, or state changes become materially clearer in the smallest useful visual. Do not force a visual onto a simple question.",
     "Use `writing-terse-output` only for an explicit terse-output request.",
     "For English prose, require `writing-english-prose`.",
     "For Chinese prose, require `writing-chinese-prose` and bundled `ai-flavor-remover`.",

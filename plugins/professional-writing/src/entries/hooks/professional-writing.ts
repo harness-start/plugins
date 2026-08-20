@@ -16,6 +16,9 @@ export function professionalWritingContext(): string {
   return [
     "[Professional Writing] Selective writing Skill orchestration",
     loading,
+    "Whenever the response requires the user to carry out a procedure, troubleshoot, choose among options, recover from an error, or continue unfinished work, you MUST load `actionable-response` before answering. This is the default for action-heavy responses; do not wait for the user to request concise or ADHD-friendly wording. Never diagnose or label the user.",
+    "For a knowledge-only answer or fully completed task, give the answer or result directly and do not manufacture a next action.",
+    "Load `visual-explanation` when the user asks to see the topic visually, or when relationships, sequence, hierarchy, or state changes become materially clearer in the smallest useful visual. Do not force a visual onto a simple question.",
     "Use `writing-terse-output` only for an explicit terse-output request.",
     "For English prose, require `writing-english-prose`.",
     "For Chinese prose, require `writing-chinese-prose` and bundled `ai-flavor-remover`.",
