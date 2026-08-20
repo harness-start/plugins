@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9aa0eb825d36c920a5a400200753854ed94f3910e1e8187ffe694aea6af448fb
+// harness-source-hash: sha256:cc9b5727026f3b007039afcd40032a23a65a6c91a3ffefb8f2768c2d64795d7c
 
 // plugins/ci-gated-delivery/src/entries/hooks/ci-gated-delivery.ts
 import { resolve } from "node:path";
@@ -63,31 +63,12 @@ function extractShellCommand(event) {
 }
 
 // core/src/hook-output.ts
-var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
-  "PreToolUse",
-  "PostToolUse",
-  "PostToolUseFailure"
-]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
       permissionDecisionReason: reason
-    }
-  };
-}
-function additionalContext(hookEventName, context, options = {}) {
-  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
-  const echoStderr = options.echoStderr ?? codexToolReport;
-  const suppressJson = codexToolReport || Boolean(options.suppressJson);
-  if (echoStderr) process.stderr.write(`${context}
-`);
-  if (suppressJson) return null;
-  return {
-    hookSpecificOutput: {
-      hookEventName,
-      additionalContext: context
     }
   };
 }
@@ -496,29 +477,15 @@ function formatMergeProtectDeny(finding) {
     "This hook does not prove that required CI jobs passed."
   ].join("\n");
 }
-function ciGatedSessionContext() {
-  return [
-    "[CI-gated Delivery] Own the delivery loop until a provider-bound terminal state.",
-    "Use this plugin's `ci-gated-mr-workflow` Skill for scope, branch, review, CI supervision, merge, and cleanup.",
-    "Local tests prepare a change. They never substitute for required review, pipeline, merge, or post-merge evidence.",
-    "Bind every remote observation to repository, pipeline/run id, and the current head SHA.",
-    "Merge and default-branch push commands must include that head SHA in the same argv.",
-    "This SessionStart notice is not completion evidence and does not prove CI is green."
-  ].join("\n");
-}
 
 // plugins/ci-gated-delivery/src/entries/hooks/ci-gated-delivery.ts
 function warn(message) {
   process.stderr.write(`[ci-gated-delivery] ${message}
 `);
 }
-async function runHook(mode = process.argv[2]) {
+async function runHook() {
   const event = await readStdinJson();
-  if (event.__parseError) return warn("invalid hook input; advisory or merge-protect skipped");
-  if (mode === "session-start") {
-    writeJson(additionalContext("SessionStart", ciGatedSessionContext()));
-    return;
-  }
+  if (event.__parseError) return warn("invalid hook input; merge-protect skipped");
   const command = extractShellCommand(event);
   if (!command) return;
   const finding = classifyDefaultBranchPublish(command);

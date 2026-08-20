@@ -17,7 +17,7 @@ test("plugin exposes one delivery skill with dual-platform Hooks and no skill-de
 
   assert.equal(codex.name, "ci-gated-delivery");
   assert.equal(claude.name, codex.name);
-  assert.equal(codex.version, "0.3.0");
+  assert.equal(codex.version, "0.4.0");
   assert.equal(claude.version, codex.version);
   assert.equal(codex.skills, "./skills/");
   assert.equal(claude.skills, codex.skills);
@@ -34,6 +34,17 @@ test("plugin exposes one delivery skill with dual-platform Hooks and no skill-de
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
   assert.deepEqual(skillNames, ["ci-gated-mr-workflow"]);
+});
+
+test("installing the plugin does not start the delivery workflow", () => {
+  for (const host of ["claude", "codex"]) {
+    const manifest = json(`hooks/${host}.json`);
+    assert.deepEqual(
+      Object.keys(manifest.hooks).sort(),
+      ["PreToolUse"],
+      `${host} must keep delivery workflow activation manual`,
+    );
+  }
 });
 
 test("delivery skill owns review, CI supervision, merge, and cleanup in one state machine", () => {
@@ -61,6 +72,10 @@ test("delivery skill owns review, CI supervision, merge, and cleanup in one stat
   assert.match(skill, /query failures, not pending CI/iu);
   assert.match(skill, /remote mutation needs a subsequent read/iu);
   assert.match(skill, /ships no Stop Hook/iu);
+  assert.match(skill, /only.*\$(?:ci-gated-mr-workflow).*\/ci-gated-mr-workflow/isu);
+  assert.match(skill, /worktree.*explicit/isu);
+  assert.match(skill, /before.*(?:commit|push).*MR\/PR.*confirmation/isu);
+  assert.match(skill, /before.*merge.*confirmation/isu);
   assert.doesNotMatch(
     skill,
     /\$(?:code-review-loop|development-branch-finish|gitlab-delivery-supervisor)/u,

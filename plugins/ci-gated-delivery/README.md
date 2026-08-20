@@ -6,9 +6,8 @@ Review 阶段使用有界 Task Brief 和 Result Card。Reviewer 只接收目标�
 
 ## 责任边界
 
-插件注册 SessionStart 与 PreToolUse，不保存交付台账，也不用 Stop 假装证明 CI。
+插件只注册 PreToolUse，不保存交付台账，也不用 Stop 假装证明 CI。安装插件或启动会话不会进入交付工作流。
 
-- SessionStart 只注入交付状态机，要求使用本插件 `$ci-gated-mr-workflow`。
 - PreToolUse 拒绝不含 head SHA 的 `gh pr merge`、`glab mr merge` 和推送 `main`/`master`；解析失败 fail-open。这不证明 required jobs 已绿。
 - 本地 `git add`、提交信息、危险命令和 commit scope 由 `git-delivery` 负责；本插件不重复这些拦截。
 - 远端事实必须来自当前会话里的 provider 工具或结构化 API 输出，并绑定 repository、head SHA、pipeline/run id 和观测时间。
@@ -21,7 +20,7 @@ Review 阶段使用有界 Task Brief 和 Result Card。Reviewer 只接收目标�
 - Codex：`$ci-gated-mr-workflow`
 - Claude Code：`/ci-gated-mr-workflow`
 
-项目指令已明确要求代码或配置走 CI-gated delivery 时，也可以隐式加载。只读分析、本地草稿和允许直推的微小文档修改不进入完整流程。
+只有用户为当前任务明确输入上述调用之一时，才进入完整流程。普通修改请求、项目指令、会话启动和说明性提及都不能隐式加载。进入流程后，branch、worktree、commit、push、MR/PR、merge 和删除分支分别在执行前展示准确操作并等待用户确认；worktree 必须由用户另外明确提出。
 
 ## 验证
 

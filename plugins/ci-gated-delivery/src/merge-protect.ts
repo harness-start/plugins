@@ -86,14 +86,3 @@ export function formatMergeProtectDeny(finding: MergeProtectFinding): string {
     "This hook does not prove that required CI jobs passed.",
   ].join("\n");
 }
-
-export function ciGatedSessionContext(): string {
-  return [
-    "[CI-gated Delivery] Own the delivery loop until a provider-bound terminal state.",
-    "Use this plugin's `ci-gated-mr-workflow` Skill for scope, branch, review, CI supervision, merge, and cleanup.",
-    "Local tests prepare a change. They never substitute for required review, pipeline, merge, or post-merge evidence.",
-    "Bind every remote observation to repository, pipeline/run id, and the current head SHA.",
-    "Merge and default-branch push commands must include that head SHA in the same argv.",
-    "This SessionStart notice is not completion evidence and does not prove CI is green.",
-  ].join("\n");
-}

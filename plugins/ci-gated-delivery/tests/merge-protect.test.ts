@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { classifyDefaultBranchPublish, ciGatedSessionContext } from "../src/merge-protect.ts";
+import { fileURLToPath } from "node:url";
+import { classifyDefaultBranchPublish } from "../src/merge-protect.ts";
 
-test("session context names the state machine and does not claim CI proof", () => {
-  const context = ciGatedSessionContext();
-  assert.match(context, /ci-gated-mr-workflow/u);
-  assert.match(context, /head SHA/iu);
-  assert.doesNotMatch(context, /pipeline is green|proves CI|CI 已通过/iu);
-  assert.doesNotMatch(context, /Stop Hook/iu);
+test("merge protection has no SessionStart workflow activator", () => {
+  const source = readFileSync(fileURLToPath(new URL("../src/merge-protect.ts", import.meta.url)), "utf8");
+  assert.doesNotMatch(source, /ciGatedSessionContext|SessionStart|session-start/u);
 });
 
 test("allows merge and default-branch push when a head SHA is bound", () => {

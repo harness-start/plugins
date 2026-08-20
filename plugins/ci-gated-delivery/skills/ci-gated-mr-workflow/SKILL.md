@@ -1,11 +1,11 @@
 ---
 name: ci-gated-mr-workflow
-description: Use when a code or configuration change must be delivered through a short-lived branch, remote review, required CI, merge, and post-merge verification.
+description: Use only when the user explicitly invokes `$ci-gated-mr-workflow` or `/ci-gated-mr-workflow` for the current task. Do not select this workflow from an ordinary change request or repository policy alone.
 ---
 
 # CI-gated MR Workflow
 
-This Skill owns review request, completion-time verification, and branch finish methods. SessionStart injects the loop; PreToolUse refuses default-branch merge or push commands that omit a bound head SHA. Those Hooks do not prove that required CI passed. Repository policy remains an independent authority.
+After the user explicitly invokes this Skill for the current task, it owns review requests, completion-time verification, and branch finish methods. PreToolUse only rejects default-branch merge or push commands that omit a bound head SHA. It does not activate this workflow or prove that required CI passed. Repository policy remains an independent constraint.
 
 ## The one rule
 
@@ -13,20 +13,20 @@ Own the delivery loop until the repository reaches an evidenced terminal state. 
 
 ## Activation boundary
 
-Use this Skill when the user explicitly invokes it, or when repository instructions require CI-gated delivery for the concrete code or configuration change in scope.
+Only activate this Skill when the user explicitly invokes `$ci-gated-mr-workflow` or `/ci-gated-mr-workflow` for the current task. Repository instructions, SessionStart text, ordinary change requests, descriptive mentions of the Skill, and a general preference for CI do not activate it.
 
-Do not activate it for read-only analysis, planning without implementation, a user-requested local draft, or a trivial documentation-only change that repository policy permits on the default branch. Changing protected-branch settings, approval rules, release policy, or repository visibility needs separate authority; ordinary branch, commit, push, MR/PR, CI repair, merge, and cleanup steps stay inside an authorized implementation workflow.
+Explicit invocation authorizes planning and read-only inspection first. Before creating a branch or worktree, committing, pushing, creating or updating an MR/PR, merging, or deleting a branch, show the exact operation and its effects, then wait for the user's explicit confirmation for that step. One confirmation does not authorize later steps. A worktree requires a separate explicit user request. Do not select this workflow for read-only analysis, local drafts, or ordinary implementation requests. Changes to protected branches, approval policy, repository visibility, or release policy require separate authority.
 
 ## State machine
 
 1. **Scope** — identify the repository, provider, default branch, protection policy, required checks, review requirements, release side effects, current branch, dirty files, and unrelated user changes. Stop before mutation if the target repository or authorization boundary is unresolved.
 2. **Classify** — decide whether policy allows the change on the default branch. Code, configuration, CI, generated-runtime, and review-sensitive changes use a short branch. Do not invent an MR ceremony for a harmless documentation correction unless policy requires it.
-3. **Branch** — update remote facts, confirm the base, preserve unrelated work, and create one traceable short-lived branch. Never overwrite another worktree or use destructive history repair to make the branch convenient.
+3. **Branch** — Update remote facts, confirm the base, and preserve unrelated work. Show the proposed branch operation and wait for confirmation. Work in the current checkout by default. Create a worktree only after a separate explicit user request. Never overwrite another worktree or use destructive history repair for convenience.
 4. **Local loop** — implement the smallest scoped change and run directly relevant checks after the last mutation. Record the command, exit status, and concise result. Treat missing, skipped, stale, or inferred verification as unverified. Do not claim tests pass, a build succeeded, or a bug is fixed until this turn ran the proving command and the output confirms the claim.
-5. **Commit and publish** — inspect the diff, stage explicit files, create focused commits, push the branch, and create or update the MR/PR with scope, acceptance, risks, and local evidence. Local Git command safety belongs to a dedicated Git guard plugin and is not reimplemented here.
+5. **Commit and publish** — Inspect the diff and list the files to stage, target repository, branch, commits, and the effects of the push and MR/PR. Before committing, pushing, or creating or updating an MR/PR, wait for the user's explicit confirmation for that exact operation. After approval, stage only the named files and create focused commits. Describe scope, acceptance, risks, and local evidence in the MR/PR. A dedicated Git guard plugin owns local Git command safety; this plugin does not duplicate it.
 6. **Review** — inspect the final scoped diff and request an independent reviewer when risk justifies it. Build the task and result packets from [`references/reviewer-handoff.md`](references/reviewer-handoff.md); never send the full conversation, private reasoning, unrelated files, or another reviewer's conclusions. Give the reviewer only description, requirements, base SHA, and head SHA. Validate each finding against the current tree; resolve or explicitly reject every blocking discussion before merge.
 7. **Supervise CI** — query the provider through structured tool or API output bound to the current head SHA. Use bounded polling with a terminal-state set, maximum attempts or deadline, and an explicit query-failure branch. If CI fails, read the failed job log, make the smallest repair, rerun local checks, push, and resume supervision.
-8. **Gate merge** — require the expected head SHA, successful required jobs, satisfied approvals, resolved blocking discussions, and no unresolved merge conflict. Check for duplicate branch-push and MR pipelines for the same commit; report duplication instead of silently treating both as required evidence.
+8. **Gate merge** — Require the expected head SHA, successful required jobs, satisfied approvals, resolved blocking discussions, and no unresolved merge conflict. Check whether branch-push and MR pipelines ran twice for the same commit, and report the duplication. Before merging, show the exact merge command and head SHA, then wait for a separate explicit confirmation. Earlier approval for a push or MR does not authorize the merge.
 9. **Post-merge decision** — capture the merge commit and default-branch state. Wait for the default-branch pipeline unless repository policy permits an equivalence decision and the final MR head, merge tree, required job set, and absence of default-branch-only effects are all evidenced. If one condition is unknown, wait rather than infer.
 10. **Finish** — after required remote evidence is green, present the human with merge-locally, open-or-keep-the-MR, or keep-the-branch. Do not discard a branch unless the human types an explicit discard confirmation. Update the local default branch to the merge commit, remove the task branch only after confirming it is merged, verify the remote branch policy outcome, and report unrelated stale branches without deleting them automatically. Merge and default-branch push commands must include the current head SHA in the same argv.
 
