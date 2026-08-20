@@ -1,18 +1,5 @@
 {
   "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"ci-gated-delivery:session-start\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/ci-gated-delivery.mjs\" session-start",
-            "statusMessage": "Loading CI-gated delivery loop",
-            "timeout": 10000,
-            "additionalContextLimit": 2400
-          }
-        ]
-      }
-    ],
     "PreToolUse": [
       {
         "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",

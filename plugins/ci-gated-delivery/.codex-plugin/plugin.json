@@ -1,6 +1,6 @@
 {
   "name": "ci-gated-delivery",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Guides code and configuration changes through a bounded branch, review, CI, merge, and post-merge delivery loop.",
   "author": {
     "name": "Harness Start",
@@ -16,7 +16,7 @@
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],
     "defaultPrompt": [
-      "Use $ci-gated-mr-workflow to deliver this change through CI and merge."
+      "只有用户为当前任务明确调用 $ci-gated-mr-workflow 后，才能执行该交付工作流。"
     ]
   }
 }
