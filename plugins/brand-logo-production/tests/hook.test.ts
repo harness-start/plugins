@@ -66,9 +66,9 @@ test("Claude review subagents receive and use an agent-scoped reviewer identity"
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-function runHook(mode, event, raw = null) {
+function runHook(mode, event, raw = null, env = process.env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [ENTRY, mode], { stdio: ["pipe", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [ENTRY, mode], { env, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -78,6 +78,38 @@ function runHook(mode, event, raw = null) {
     child.stdin.end(raw ?? JSON.stringify(event));
   });
 }
+
+test("Codex pre hook binds a review grant to the child thread instead of the parent event session", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-review-codex-agent-"));
+  const project = join(root, "artifacts", "logo", "orbit-logo");
+  const input = join(root, "review.json");
+  const codexHome = join(root, "codex-home");
+  try {
+    const model = validLogoModel();
+    delete model.files["review.logo.json"];
+    delete model.files["release.manifest.json"];
+    delete model.files["receipt.release.json"];
+    await writeModel(project, model);
+    const wrapper = fileURLToPath(new URL("../dist/cli/project-review.mjs", import.meta.url));
+    const command = `node ${wrapper} ${project} ${input}`;
+    const allowed = await runHook("pre", {
+      cwd: root,
+      session_id: "parent-session",
+      agent_id: "codex-review-agent",
+      tool_name: "exec_command",
+      tool_input: { command },
+    }, null, {
+      ...process.env,
+      HARNESS_HOST: "codex",
+      CODEX_HOME: codexHome,
+      CODEX_THREAD_ID: "child-session",
+    });
+    assert.equal(allowed.code, 0, allowed.stderr);
+    const grant = JSON.parse(readFileSync(join(project, ".tmp", "logo-guard", "capability.logo-review.json"), "utf8"));
+    assert.equal(grant.sessionId, "child-session");
+    assert.equal(grant.codexHome, codexHome);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
 
 test("pre hook denies a direct master SVG write", async () => {
   const root = mkdtempSync(join(tmpdir(), "logo-hook-"));

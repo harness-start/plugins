@@ -1,6 +1,6 @@
 # Review contract
 
-Create an external JSON object with schema `brand-logo-production/review-input/v1`. Bind `artifactId`, current `subjectDigest`, every required artifact path and SHA-256, and a reviewer whose session is the current independent session. In a Claude review subagent, the plugin injects a trusted agent-scoped principal; use that exact value for `reviewer.sessionId`.
+Create an external JSON object with schema `brand-logo-production/review-input/v1`. Bind `artifactId`, current `subjectDigest`, every required artifact path and SHA-256, and a reviewer whose session is the current independent session. In Codex, use the exact `CODEX_THREAD_ID` for `reviewer.sessionId` and the absolute current child rollout path under `$CODEX_HOME/sessions` for `reviewer.transcriptPath`. Do not use `CODEX_SESSION_ID`, which identifies the parent in a spawned review. In a Claude review subagent, the plugin injects a trusted agent-scoped principal; use that exact value for `reviewer.sessionId`.
 
 Set `decision` to `approved` only when all nine outcome checks pass; all six aesthetic criteria contain substantive notes, set `requiredMin` to 2, and score 2; and every blocker or major finding is `verified` against the current artifact with `recheckEvidence`. Do not average scores. Finding fields are `findingId`, `severity`, `evidenceAnchor`, `artifactDigest`, `fix`, `status`, and `recheckEvidence`. `evidenceAnchor` must be one of the required coverage paths and `artifactDigest` must exactly equal that path's current SHA-256.
 
@@ -17,7 +17,8 @@ Use this shape. `coverage` must contain every required review artifact exactly o
   "reviewer": {
     "kind": "independent-agent",
     "id": "<stable-reviewer-id>",
-    "sessionId": "<current-independent-session>"
+    "sessionId": "<current-independent-session>",
+    "transcriptPath": "<absolute-current-codex-child-rollout-path>"
   },
   "coverage": [
     { "path": "build/master/lockup.svg", "sha256": "<current-file-sha256>" }

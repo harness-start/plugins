@@ -6,6 +6,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 import { AESTHETIC_CRITERIA, REVIEW_CHECKS, REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computeLogoSubjectDigest, masterSubjectDigest, reviewArtifactPaths, validateLogoModel, type JsonRecord } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
+import { validateCodexReviewIdentity } from "../../lib/codex-review-identity.js";
 import { assertLogoProjectRoot, loadLogoProject } from "../../lib/project.js";
 import { atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 
@@ -29,7 +30,28 @@ async function main() {
   const reviewer = record(payload.reviewer);
   let render: JsonRecord = {};
   try { render = record(JSON.parse(String(model.files["evidence.render.json"]))); } catch { /* validated above */ }
-  if (!['human', 'independent-agent'].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
+  if (!['human', 'independent-agent'].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id) throw new Error("SELF_REVIEW_DENIED");
+  let admittedReviewer = reviewer;
+  if (reviewer.kind === "independent-agent" && grant.codexHome) {
+    const identity = validateCodexReviewIdentity({
+      transcriptPath: reviewer.transcriptPath,
+      reviewerSessionId: reviewer.sessionId,
+      currentThreadId: grant.sessionId,
+      projectRoot: root,
+    }, { codexHome: grant.codexHome });
+    if (!identity.valid) throw new Error(`CODEX_REVIEW_IDENTITY_INVALID:${identity.reason}`);
+    if (identity.sessionId !== grant.sessionId || identity.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
+    admittedReviewer = {
+      kind: reviewer.kind,
+      id: reviewer.id,
+      sessionId: identity.sessionId,
+      parentSessionId: identity.parentSessionId,
+      agentPath: identity.agentPath,
+      sessionMetaSha256: identity.sessionMetaSha256,
+    };
+  } else if (reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) {
+    throw new Error("SELF_REVIEW_DENIED");
+  }
   const coverage = Array.isArray(payload.coverage) ? payload.coverage.map(record) : [];
   const expectedPaths = reviewArtifactPaths(model);
   if (coverage.length !== expectedPaths.length || coverage.some((entry, index) => entry.path !== expectedPaths[index] || entry.sha256 !== model.digests[expectedPaths[index] ?? ""])) throw new Error("REVIEW_COVERAGE_INVALID");
@@ -45,7 +67,7 @@ async function main() {
   if (findings.some((entry) => typeof entry.evidenceAnchor === "string" && expectedPaths.includes(entry.evidenceAnchor) && entry.artifactDigest !== model.digests[entry.evidenceAnchor])) throw new Error("REVIEW_FINDING_DIGEST_MISMATCH");
   if (findings.some((entry) => !["blocker", "major", "minor", "info"].includes(String(entry.severity)) || typeof entry.findingId !== "string" || !entry.findingId.trim() || typeof entry.evidenceAnchor !== "string" || !expectedPaths.includes(entry.evidenceAnchor) || !/^[a-f0-9]{64}$/u.test(String(entry.artifactDigest)) || typeof entry.fix !== "string" || !entry.fix.trim() || !["open", "fixed_pending_recheck", "verified"].includes(String(entry.status)) || (["blocker", "major"].includes(String(entry.severity)) && (entry.status !== "verified" || typeof entry.recheckEvidence !== "string" || !entry.recheckEvidence.trim())))) throw new Error("REVIEW_FINDING_UNRESOLVED");
   const stripPath = expectedPaths.find((path) => /evidence\/preview\/strip\..+\.png$/u.test(path)) ?? "";
-  const output = { schema: REVIEW_SCHEMA, plugin: "brand-logo-production", artifactId: model.artifactId, subjectDigest, masterDigest: masterSubjectDigest(model), squintStripDigest: model.digests[stripPath], decision: "approved", reviewer, coverage, checks, criteria, findings, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("logo-review", grant) };
+  const output = { schema: REVIEW_SCHEMA, plugin: "brand-logo-production", artifactId: model.artifactId, subjectDigest, masterDigest: masterSubjectDigest(model), squintStripDigest: model.digests[stripPath], decision: "approved", reviewer: admittedReviewer, coverage, checks, criteria, findings, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("logo-review", grant) };
   await withWriterJournal(root, "logo-review", grant, () => atomicWriteJson(root, "review.logo.json", output));
   process.stdout.write(`${JSON.stringify({ decision: "approved", sha256: createHash("sha256").update(`${JSON.stringify(output, null, 2)}\n`).digest("hex") })}\n`);
 }

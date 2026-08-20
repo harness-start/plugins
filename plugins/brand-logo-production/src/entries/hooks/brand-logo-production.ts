@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { access } from "node:fs/promises";
-import { resolve } from "node:path";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { eventAgentId, eventCwd, eventSessionId, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
@@ -17,9 +18,16 @@ const nameOf = (event: HookEvent) => eventToolName(event);
 const cwdOf = (event: HookEvent) => resolve(eventCwd(event));
 
 function principalId(event: HookEvent): string {
+  const codexThreadId = process.env.HARNESS_HOST === "codex" ? process.env.CODEX_THREAD_ID : undefined;
+  if (codexThreadId) return codexThreadId;
   const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
   const agentId = eventAgentId(event);
   return agentId ? `${sessionId}:agent:${agentId}` : sessionId;
+}
+
+function codexHome(capability: string): string | undefined {
+  if (capability !== "logo-review" || process.env.HARNESS_HOST !== "codex") return undefined;
+  return resolve(process.env.CODEX_HOME || join(homedir(), ".codex"));
 }
 
 function targetsOf(event: HookEvent): string[] {
@@ -90,7 +98,8 @@ async function main() {
       else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
       else if (result.writer && result.projectRoot && result.argv) {
         try {
-          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), triggerFrom: `brand-logo-production:pre:${result.writer}` });
+          const trustedCodexHome = codexHome(result.writer);
+          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), ...(trustedCodexHome ? { codexHome: trustedCodexHome } : {}), triggerFrom: `brand-logo-production:pre:${result.writer}` });
         } catch (error) { process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`))}\n`); }
       }
     }

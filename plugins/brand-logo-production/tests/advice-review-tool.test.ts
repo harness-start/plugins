@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,9 +15,9 @@ import { validLogoModel, writeModel } from "./helpers/logo-fixture.js";
 const ADVICE_ENTRY = fileURLToPath(new URL("../dist/cli/project-advice.mjs", import.meta.url));
 const REVIEW_ENTRY = fileURLToPath(new URL("../dist/cli/project-review.mjs", import.meta.url));
 
-function run(entry: string, args: string[]) {
+function run(entry: string, args: string[], env: NodeJS.ProcessEnv = process.env) {
   return new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
-    const child = spawn(process.execPath, [entry, ...args], { stdio: ["ignore", "pipe", "pipe"] });
+    const child = spawn(process.execPath, [entry, ...args], { env, stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -95,5 +95,61 @@ test("review writer requires an independent session and complete current-hash co
     const loweredThreshold = await run(REVIEW_ENTRY, [project, input]);
     assert.equal(loweredThreshold.code, 2);
     assert.match(loweredThreshold.stderr, /REVIEW_CRITERIA_INCOMPLETE/u);
+  } finally { rmSync(sandbox, { recursive: true, force: true }); }
+});
+
+test("Codex review admits the actual child transcript identity instead of binding it to the parent grant", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "logo-codex-review-"));
+  const project = join(sandbox, "artifacts", "logo", "orbit-logo");
+  const input = join(sandbox, "review.json");
+  const codexHome = join(sandbox, "codex-home");
+  const transcript = join(codexHome, "sessions", "2026", "08", "20", "child.jsonl");
+  const parentSessionId = "01a01ed8-b75a-75f3-85a5-08af20547d97";
+  const childSessionId = "01a01f03-bea2-7713-884e-d2438afd194c";
+  try {
+    const model = validLogoModel();
+    delete model.files["review.logo.json"];
+    delete model.files["release.manifest.json"];
+    delete model.files["receipt.release.json"];
+    await writeModel(project, model);
+    const loaded = await loadLogoProject(project);
+    const subjectDigest = computeLogoSubjectDigest(loaded);
+    const coverage = reviewArtifactPaths(loaded).map((path) => ({ path, sha256: loaded.digests[path] }));
+    mkdirSync(join(codexHome, "sessions", "2026", "08", "20"), { recursive: true });
+    await writeFile(transcript, `${JSON.stringify({
+      type: "session_meta",
+      payload: {
+        id: childSessionId,
+        session_id: parentSessionId,
+        forked_from_id: parentSessionId,
+        parent_thread_id: parentSessionId,
+        cwd: project,
+        thread_source: "subagent",
+        source: { subagent: { thread_spawn: { parent_thread_id: parentSessionId, depth: 1, agent_path: "/root/logo_review" } } },
+        agent_path: "/root/logo_review",
+      },
+    })}\n`);
+    await writeFile(input, JSON.stringify({
+      schema: REVIEW_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, decision: "approved",
+      reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: childSessionId, transcriptPath: transcript },
+      coverage,
+      checks: REVIEW_CHECKS.map((id) => ({ id, status: "pass" })),
+      criteria: Object.fromEntries(AESTHETIC_CRITERIA.map((id) => [id, { score: 2, requiredMin: 2, note: `${id} has substantive visual evidence` }])),
+      findings: [],
+    }));
+    await issueWriterCapability({ root: project, capability: "logo-review", argv: [REVIEW_ENTRY, project, input], subjectDigest, sessionId: childSessionId, codexHome });
+    const grant = JSON.parse(await readFile(join(project, ".tmp", "logo-guard", "capability.logo-review.json"), "utf8"));
+    assert.equal(grant.codexHome, codexHome);
+    const reviewed = await run(REVIEW_ENTRY, [project, input], {
+      ...process.env,
+      CODEX_HOME: codexHome,
+      CODEX_SESSION_ID: parentSessionId,
+      CODEX_THREAD_ID: childSessionId,
+    });
+    assert.equal(reviewed.code, 0, reviewed.stderr);
+    const admitted = JSON.parse(await readFile(join(project, "review.logo.json"), "utf8"));
+    assert.equal(admitted.reviewer.sessionId, childSessionId);
+    assert.equal(admitted.reviewer.agentPath, "/root/logo_review");
+    assert.equal("transcriptPath" in admitted.reviewer, false);
   } finally { rmSync(sandbox, { recursive: true, force: true }); }
 });

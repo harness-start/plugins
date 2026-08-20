@@ -1,16 +1,16 @@
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 import { assertLogoProjectRoot } from "./project.js";
 
 const TTL_MS = 30_000;
-export type WriterCapabilityGrant = { schema: string; id: string; capability: string; root: string; argvSha256: string; subjectDigest: string; sessionId: string; triggerFrom: string; issuedAt: string; expiresAt: number };
+export type WriterCapabilityGrant = { schema: string; id: string; capability: string; root: string; argvSha256: string; subjectDigest: string; sessionId: string; codexHome?: string; triggerFrom: string; issuedAt: string; expiresAt: number };
 const pathOf = (root: string, capability: string) => join(root, ".tmp", "logo-guard", `capability.${capability}.json`);
 const argvDigest = (argv: unknown) => createHash("sha256").update(JSON.stringify(argv)).digest("hex");
 const errorCode = (error: unknown) => typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : undefined;
 
-export async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, triggerFrom }: { root: string; capability: string; argv: unknown; subjectDigest: string; sessionId: string; triggerFrom?: string }) {
+export async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, codexHome, triggerFrom }: { root: string; capability: string; argv: unknown; subjectDigest: string; sessionId: string; codexHome?: string; triggerFrom?: string }) {
   const root = await assertLogoProjectRoot(rawRoot);
   if (!/^logo-(?:advice|lock|render|preview|stage|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
@@ -30,6 +30,7 @@ export async function issueWriterCapability({ root: rawRoot, capability, argv, s
   const grant: WriterCapabilityGrant = {
     schema: "brand-logo-production/writer-capability/v1",
     id: randomUUID(), capability, root, argvSha256: argvDigest(argv), subjectDigest, sessionId,
+    ...(codexHome ? { codexHome: resolve(codexHome) } : {}),
     triggerFrom: triggerFrom || "PreToolUse", issuedAt: new Date().toISOString(), expiresAt: Date.now() + TTL_MS,
   };
   await writeFile(target, `${JSON.stringify(grant)}\n`, { flag: "wx", mode: 0o600 });
@@ -51,7 +52,7 @@ export async function consumeWriterCapability({ root: rawRoot, capability, argv 
   try { grant = JSON.parse(bytes.toString("utf8")) as unknown; } catch { throw new Error("WRITER_CAPABILITY_INVALID"); }
   if (typeof grant !== "object" || grant === null) throw new Error("WRITER_CAPABILITY_INVALID");
   const value = grant as Record<string, unknown>;
-  if (value.schema !== "brand-logo-production/writer-capability/v1" || value.capability !== capability || value.root !== root || value.argvSha256 !== argvDigest(argv) || !Number.isFinite(value.expiresAt) || Number(value.expiresAt) < Date.now() || typeof value.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(value.subjectDigest) || typeof value.sessionId !== "string" || !value.sessionId || value.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
+  if (value.schema !== "brand-logo-production/writer-capability/v1" || value.capability !== capability || value.root !== root || value.argvSha256 !== argvDigest(argv) || !Number.isFinite(value.expiresAt) || Number(value.expiresAt) < Date.now() || typeof value.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(value.subjectDigest) || typeof value.sessionId !== "string" || !value.sessionId || value.sessionId === "unknown" || (value.codexHome !== undefined && (typeof value.codexHome !== "string" || !isAbsolute(value.codexHome)))) throw new Error("WRITER_CAPABILITY_INVALID");
   return value as WriterCapabilityGrant;
 }
 

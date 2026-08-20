@@ -11,12 +11,22 @@ const text = (path: string) => readFileSync(join(ROOT, path), "utf8");
 test("both manifests expose the bundled authoring and independent review skills", () => {
   for (const platform of [".claude-plugin", ".codex-plugin"]) {
     const manifest = json(`${platform}/plugin.json`);
-    assert.equal(manifest.version, "0.6.0");
+    assert.equal(manifest.version, "0.7.0");
     assert.equal(manifest.skills, "./skills/");
   }
   assert.deepEqual(json(".codex-plugin/plugin.json").interface.capabilities, ["skills", "hooks"]);
   assert.equal(existsSync(join(ROOT, "skills/logo-project-authoring/SKILL.md")), true);
   assert.equal(existsSync(join(ROOT, "skills/logo-project-review/SKILL.md")), true);
+});
+
+test("independent review documents transcript-bound Codex identity", () => {
+  const skill = text("skills/logo-project-review/SKILL.md");
+  const contract = text("skills/logo-project-review/references/review-contract.md");
+  for (const value of [skill, contract]) {
+    assert.match(value, /CODEX_THREAD_ID/u);
+    assert.match(value, /transcriptPath/u);
+    assert.match(value, /CODEX_SESSION_ID/u);
+  }
 });
 
 test("brand direction adviser specifies core, structural roles, and scenarios", () => {

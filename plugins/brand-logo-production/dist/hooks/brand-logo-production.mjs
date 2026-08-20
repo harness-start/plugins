@@ -1,22 +1,23 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:358ac72760ffe134d9add2fc6bdc8e9557a7601474a267dd17d2da75b95cffdd
+// harness-source-hash: sha256:fd0a2b89802fbedb619bc4bcf374af619e41cb9986f64f2be57c878a380afd55
 import {
   issueWriterCapability
-} from "../chunks/chunk-RASMDDAN.mjs";
+} from "../chunks/chunk-22QEW5AE.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-2SK7HI6K.mjs";
+} from "../chunks/chunk-FJP2V7Q2.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-CTDNTXCI.mjs";
+} from "../chunks/chunk-ZKDAUTLP.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
-import { resolve as resolve3 } from "node:path";
+import { homedir } from "node:os";
+import { join, resolve as resolve3 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -366,9 +367,15 @@ var inputOf = (event) => eventToolInput(event);
 var nameOf = (event) => eventToolName(event);
 var cwdOf = (event) => resolve3(eventCwd(event));
 function principalId(event) {
+  const codexThreadId = process.env.HARNESS_HOST === "codex" ? process.env.CODEX_THREAD_ID : void 0;
+  if (codexThreadId) return codexThreadId;
   const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
   const agentId = eventAgentId(event);
   return agentId ? `${sessionId}:agent:${agentId}` : sessionId;
+}
+function codexHome(capability) {
+  if (capability !== "logo-review" || process.env.HARNESS_HOST !== "codex") return void 0;
+  return resolve3(process.env.CODEX_HOME || join(homedir(), ".codex"));
 }
 function targetsOf(event) {
   const input = inputOf(event);
@@ -446,7 +453,8 @@ async function main() {
 `);
       else if (result.writer && result.projectRoot && result.argv) {
         try {
-          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), triggerFrom: `brand-logo-production:pre:${result.writer}` });
+          const trustedCodexHome = codexHome(result.writer);
+          await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), ...trustedCodexHome ? { codexHome: trustedCodexHome } : {}, triggerFrom: `brand-logo-production:pre:${result.writer}` });
         } catch (error) {
           process.stdout.write(`${JSON.stringify(deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`))}
 `);
