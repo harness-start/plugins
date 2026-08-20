@@ -1,6 +1,7 @@
 # AGENTS.md
 
 <!-- ai-experts:project-instructions:start -->
+
 ## Project instruction maintenance
 
 - Treat this root AGENTS.md as canonical; CLAUDE.md must remain its relative symlink.
@@ -9,6 +10,7 @@
 - Before implementing or publishing a plugin that claims a hard effect, ask: "Does its mechanism establish a credible causal chain to the target outcome?" Require outcome-level evidence; hook activation, formatting compliance, or extra model turns alone do not establish effectiveness.
 - Design and implement every published plugin for a clean consumer environment: never select its architecture, omit required behavior, or claim coverage based on Skills, hooks, tools, caches, or session state visible only in the current development session or workspace. Published plugins must bundle required Skill, Script, and Hook mechanisms. `skill-deps.json` and `vendor-skills/` are forbidden. Assume every undeclared capability is absent after publication, and verify acceptance in that isolated model.
 - When a plugin references, routes to, recommends, or instructs use of a Skill, resolve that Skill only against the Skills bundled under that plugin. Never use Skills disclosed or discoverable in the current development session as the basis for a plugin dependency or instruction; assume terminal consumers have no Skills beyond those shipped by the plugin.
+- Prefer English for plugin-authored natural-language instructions and descriptions. This includes Skills, Hook prompts, manifests, READMEs, tests, acceptance prompts, fixtures, and diagnostic messages. Use another language only when localization behavior, a language-specific acceptance case, verbatim source material, or an explicit user requirement makes that language part of the contract.
 - When adding or changing a plugin Skill, Hook, Script, CLI, or MCP, follow [docs/skill-hook-collaboration.md](docs/skill-hook-collaboration.md). Put mechanically verifiable constraints in Hooks. Put methods, configuration, diagnosis, and explicit workflows in Skills or CLI/MCP. Skill is optional and is never a Hook precondition: do not gate enforcement on Skill load or Skill-name mention. Choose one allowed collaboration pattern from that document; do not invent a new pattern without updating it first. Hook activation, Skill load, or extra model turns are not completion evidence.
 - Keep distributed plugin code, tests, skills, prompts, fixtures, and acceptance cases free of benchmark repository names, issue ids, task-specific inputs, and target answers. Model general behavior with synthetic isomorphic fixtures and prove it through outcome-level gates; never teach a benchmark solution through the plugin mount.
 - For substantial changes, follow contract → challenge or baseline → minimal change → targeted verification → complete verification → adversarial review → evidence report. Behavior-changing code requires an edited public-seam test and observed RED before production edits; refactors require a GREEN baseline.
