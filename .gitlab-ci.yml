@@ -34,8 +34,8 @@ validate:plugins:
   stage: validate
   interruptible: true
   variables:
-    # The real FFmpeg contract runs in validate:ffmpeg without blocking this job.
-    SKIP_REAL_FFMPEG_TEST: "1"
+    # 真实 FFmpeg 合约由 validate:ffmpeg 并行执行，不阻塞主校验。
+    SKIP_REAL_FFMPEG_TESTS: "1"
   timeout: 10m
   retry:
     max: 1

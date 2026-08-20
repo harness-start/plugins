@@ -566,6 +566,11 @@ check_acceptance_contracts() {
   check_project_acceptance_suites
 }
 
+check_unit_and_acceptance() {
+  check_unit_tests
+  check_acceptance_contracts
+}
+
 check_host_marketplaces() {
   validate_claude
   load_codex_marketplace
@@ -575,8 +580,7 @@ run_parallel_validation() {
   local log_dir failed=0 index rc
   local -a groups=(
     check_core_quality
-    check_unit_tests
-    check_acceptance_contracts
+    check_unit_and_acceptance
     check_host_marketplaces
   )
   local -a pids=()

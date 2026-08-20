@@ -14,6 +14,7 @@ import { renderPreviewStrip } from "../src/lib/preview-strip.js";
 import { analyzeSquintCell, buildSquintEvidence } from "../src/lib/squint.js";
 
 const PREVIEW_ENTRY = fileURLToPath(new URL("../dist/cli/project-preview.mjs", import.meta.url));
+const realFfmpegTest = { skip: process.env.SKIP_REAL_FFMPEG_TESTS === "1" };
 
 async function makeStripFixture() {
   const dir = await mkdtemp(join(tmpdir(), "logo-squint-"));
@@ -29,7 +30,7 @@ async function makeStripFixture() {
   return { buf, manifest };
 }
 
-test("decodePngToRgba reads the bundled preview-strip output", async () => {
+test("decodePngToRgba reads the bundled preview-strip output", realFfmpegTest, async () => {
   const fixture = await makeStripFixture();
   const { width, height, rgba } = decodePngToRgba(fixture.buf);
   assert.equal(width, 192);
@@ -37,7 +38,7 @@ test("decodePngToRgba reads the bundled preview-strip output", async () => {
   assert.equal(rgba.length, width * height * 4);
 });
 
-test("buildSquintEvidence binds real bboxes and can fail empty cells", async () => {
+test("buildSquintEvidence binds real bboxes and can fail empty cells", realFfmpegTest, async () => {
   const fixture = await makeStripFixture();
   const { width, height, rgba } = decodePngToRgba(fixture.buf);
   const samples = (fixture.manifest.samples ?? []).filter((s) =>
@@ -61,7 +62,7 @@ test("buildSquintEvidence binds real bboxes and can fail empty cells", async () 
   assert.equal(empty.silhouetteIntact, false);
 });
 
-test("project preview runs with an isolated HOME and no external Skill tool", async () => {
+test("project preview runs with an isolated HOME and no external Skill tool", realFfmpegTest, async () => {
   const sandbox = await mkdtemp(join(tmpdir(), "logo-preview-self-contained-"));
   const project = join(sandbox, "artifacts", "logo", "orbit");
   const isolatedHome = join(sandbox, "home");

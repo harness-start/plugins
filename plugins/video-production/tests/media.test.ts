@@ -14,7 +14,7 @@ function run(binary, args) {
 }
 
 test("real ffmpeg outputs satisfy measured visual, audio, and final contracts", {
-  skip: process.env.SKIP_REAL_FFMPEG_TEST === "1",
+  skip: process.env.SKIP_REAL_FFMPEG_TESTS === "1",
 }, async () => {
   const sandbox = mkdtempSync(join(tmpdir(), "video-real-media-"));
   const visual = join(sandbox, "visual.mp4");
