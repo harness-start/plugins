@@ -1,0 +1,4 @@
+id = "07-actionable-response"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["session-start", "skill-routing", "response", "actionable", "outcome"]

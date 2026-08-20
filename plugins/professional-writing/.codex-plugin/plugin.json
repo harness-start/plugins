@@ -1,7 +1,7 @@
 {
   "name": "professional-writing",
-  "version": "1.1.0",
-  "description": "Orchestrates language-aware community Skills for professional prose editing.",
+  "version": "1.2.0",
+  "description": "Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -10,15 +10,17 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "专业写作",
-    "shortDescription": "按语言和文稿类型编排写作 Skill。",
-    "longDescription": "为中英文和 Markdown 文稿选择社区 Skill 的当前上游版本，并由内部 Skill 组织执行顺序。",
+    "shortDescription": "Makes responses actionable, easier to understand, and natural in the target language.",
+    "longDescription": "Selects bundled Skills for actionable responses, minimal visual explanations, and English, Chinese, or Markdown prose while preserving facts, safety boundaries, and user-requested formats.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],
     "defaultPrompt": [
-      "把这段英文改得自然、准确并保留事实。",
-      "清理这段中文的机器写作痕迹并保持原意。",
-      "清理这段中英文内容的 AI 写作痕迹，同时保留事实。"
+      "Rewrite this English text so it sounds natural and preserves every fact.",
+      "Remove machine-written patterns from this Chinese text while preserving its meaning.",
+      "Remove AI-writing patterns from this mixed-language text while preserving its facts.",
+      "Turn this task into steps I can carry out immediately.",
+      "Explain this data flow with the smallest useful visual."
     ]
   }
 }

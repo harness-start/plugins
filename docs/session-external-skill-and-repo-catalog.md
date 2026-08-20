@@ -83,6 +83,8 @@
 | `humanizer-zh` | [op7418/Humanizer-zh](https://github.com/op7418/Humanizer-zh) | 中文去 AI 味 | 已声明并 vendor |
 | `shuorenhua` | [MrGeDiao/shuorenhua](https://github.com/MrGeDiao/shuorenhua) | 中文去 AI 味 | 已声明并 vendor |
 | `ai-flavor-remover` / `remove-ai-style` | 用户点名 `ai-flavor-remover`；仓库侧落到 [zc277584121/marketing-skills](https://github.com/zc277584121/marketing-skills) | 中文去 AI 味 | 已声明并 vendor：`remove-ai-style` |
+| `show-me` | [humanlayer/skills](https://www.skills.sh/humanlayer/skills/show-me) | Research how to make explanations easier to understand | Adapted as `professional-writing:visual-explanation`; does not create or open HTML by default |
+| `i-have-adhd` | [ayghri/i-have-adhd](https://www.skills.sh/ayghri/i-have-adhd/i-have-adhd) | Research how to reduce reading and execution friction | Adapted as `professional-writing:actionable-response`; adds no diagnosis or session identity assumption |
 
 ### 3.4 设计总则、PPT、海报、Logo
 
@@ -173,6 +175,8 @@ PPT / 工程重构相关会话里，助手还对比过一批 SDD 仓。它们出
 | [MrGeDiao/shuorenhua](https://github.com/MrGeDiao/shuorenhua) | 4 | `shuorenhua` | 同上 |
 | [zc277584121/marketing-skills](https://github.com/zc277584121/marketing-skills) | 4 | `remove-ai-style` | 同上 |
 | [wangjiawei508/workwise](https://www.skills.sh/wangjiawei508/workwise/ai-flavor-remover) | 1 | `ai-flavor-remover` | 未声明；同主题落到 marketing-skills |
+| [humanlayer/skills](https://github.com/humanlayer/skills) | 1 | `show-me` | Adapted as `professional-writing:visual-explanation` |
+| [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd) | 1 | `i-have-adhd` | Adapted as `professional-writing:actionable-response` |
 
 ### 4.4 设计、海报、PPT、Logo
 

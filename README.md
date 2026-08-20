@@ -147,7 +147,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
 | `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；遇到实质新任务可由原生 Skill 路由复用，继续与纠正不重复探索 |
 | `engineering-practice` | 提供第一方实现判断、只读代码审查与完成前验证方法；具体故障调试归 `software-debugging` |
-| `professional-writing` | 按语言与文稿类型编排社区写作 Skill 的当前上游版本；只执行经过路径与 SHA-256 审计的脚本 |
+| `professional-writing` | Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills; executes only path- and SHA-256-audited scripts |
 | `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
 | `interface-craft` | 提供视觉方向、项目设计记忆、设计系统连续性、动效、严格渲染批判与 Web 风格 UI 文件机械检查 |
 | `software-debugging` | 作为具体软件故障的唯一工作流，通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |

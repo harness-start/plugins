@@ -75,7 +75,7 @@
     {
       "name": "professional-writing",
       "source": "./plugins/professional-writing",
-      "description": "Orchestrates current-source community Skills for professional prose."
+      "description": "Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills."
     },
     {
       "name": "reasoning-methods",

@@ -1,7 +1,7 @@
 {
   "name": "professional-writing",
-  "version": "1.1.0",
-  "description": "Orchestrates language-aware community Skills for professional prose editing.",
+  "version": "1.2.0",
+  "description": "Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
