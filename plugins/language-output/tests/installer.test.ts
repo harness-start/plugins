@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -54,6 +54,83 @@ test("installer fails closed when no marketplace catalog can be resolved", () =>
   }
 });
 
+test("remote installs use a persistent master ZIP snapshot instead of a Git marketplace", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-remote-zip-"));
+  const bin = join(fixture, "bin");
+  const archive = join(fixture, "master.zip");
+  const curlLog = join(fixture, "curl.log");
+  const claudeLog = join(fixture, "claude.log");
+  const codexLog = join(fixture, "codex.log");
+  const cacheRoot = join(fixture, "cache");
+  const marketplace = {
+    name: "harness-start",
+    plugins: [{ name: "example-plugin", source: "./plugins/example-plugin" }],
+  };
+  mkdirSync(bin, { recursive: true });
+  mkdirSync(join(cacheRoot, "harness-start", "plugins", ".git"), { recursive: true });
+  writeFileSync(
+    archive,
+    Buffer.from(
+      "UEsDBBQAAAAIAEKuFF1fVW6QRQAAAGIAAAAuAAAAcGx1Z2lucy1tYXN0ZXIvLmNsYXVkZS1wbHVnaW4vbWFya2V0cGxhY2UuanNvbqtWykvMTVWyUspILMpLLS7WLS5JLCpR0lEqyClNz8wrVrKKroYpSa1IzC3ISdWFSAHVFOeXFiWDZPT0ocr10dTUxtYCAFBLAQIUAxQAAAAIAEKuFF1fVW6QRQAAAGIAAAAuAAAAAAAAAAAAAACAAQAAAABwbHVnaW5zLW1hc3Rlci8uY2xhdWRlLXBsdWdpbi9tYXJrZXRwbGFjZS5qc29uUEsFBgAAAAABAAEAXAAAAJEAAAAAAA==",
+      "base64",
+    ),
+  );
+  executable(join(bin, "curl"), `#!/bin/sh
+printf '%s\\n' "$*" >> ${JSON.stringify(curlLog)}
+destination=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then
+    destination="$2"
+    shift 2
+    continue
+  fi
+  shift
+done
+if [ -n "$destination" ]; then
+  cp ${JSON.stringify(archive)} "$destination"
+else
+  printf '%s\\n' ${JSON.stringify(JSON.stringify(marketplace))}
+fi
+`);
+  executable(join(bin, "claude"), `#!/bin/sh
+printf '%s\\n' "$*" >> ${JSON.stringify(claudeLog)}
+printf '%s\\n' '[]'
+`);
+  executable(join(bin, "codex"), `#!/bin/sh
+printf '%s\\n' "$*" >> ${JSON.stringify(codexLog)}
+printf '%s\\n' '[]'
+`);
+
+  try {
+    const result = runInstaller(["--language", "en-US"], {
+      PATH: `${bin}:${process.env.PATH}`,
+      CLAUDE_CONFIG_DIR: join(fixture, "claude"),
+      CODEX_HOME: join(fixture, "codex-home"),
+      XDG_CACHE_HOME: cacheRoot,
+    });
+    assert.equal(result.status, 0, result.stderr);
+
+    const snapshot = join(cacheRoot, "harness-start", "plugins");
+    assert.deepEqual(
+      JSON.parse(readFileSync(join(snapshot, ".claude-plugin", "marketplace.json"), "utf8")),
+      marketplace,
+    );
+    assert.equal(existsSync(join(snapshot, ".git")), false);
+    assert.match(
+      readFileSync(curlLog, "utf8"),
+      /https:\/\/github\.com\/harness-start\/plugins\/archive\/master\.zip/u,
+    );
+    for (const logFile of [claudeLog, codexLog]) {
+      const commands = readFileSync(logFile, "utf8");
+      assert.match(commands, /plugin marketplace remove harness-start/u);
+      assert.match(commands, new RegExp(`plugin marketplace add ${snapshot}`, "u"));
+      assert.doesNotMatch(commands, /plugin marketplace add (?:harness-start\/plugins|https?:\/\/)/u);
+    }
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
 test("installer writes host-scoped language preferences", () => {
   const fixture = mkdtempSync(join(tmpdir(), "language-installer-"));
   const bin = join(fixture, "bin");
@@ -75,7 +152,7 @@ test("installer writes host-scoped language preferences", () => {
 
   try {
     const claude = runInstaller(
-      ["--claude-only",  "--language", "en-US"],
+      ["--local", ROOT, "--claude-only", "--language", "en-US"],
       env,
     );
     assert.equal(claude.status, 0, claude.stderr);
@@ -83,7 +160,7 @@ test("installer writes host-scoped language preferences", () => {
     assert.deepEqual(JSON.parse(readFileSync(claudePath, "utf8")), { defaultProfile: "en-US" });
 
     const codex = runInstaller(
-      ["--codex-only",  "--language", "ja-JP"],
+      ["--local", ROOT, "--codex-only", "--language", "ja-JP"],
       env,
     );
     assert.equal(codex.status, 0, codex.stderr);
@@ -116,7 +193,7 @@ exit 1
 `);
 
   try {
-    const result = runInstaller(["--claude-only", ], {
+    const result = runInstaller(["--local", ROOT, "--claude-only"], {
       PATH: `${bin}:${process.env.PATH}`,
       CLAUDE_CONFIG_DIR: claudeRoot,
       LC_ALL: "en_US.UTF-8",
@@ -140,9 +217,10 @@ test("installer uses a supported system locale when language is omitted", () => 
   mkdirSync(bin, { recursive: true });
   executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
   executable(join(bin, "codex"), "#!/bin/sh\nprintf '[]\\n'\n");
+  executable(join(bin, "uname"), "#!/bin/sh\nprintf 'Linux\\n'\n");
 
   try {
-    const result = runInstaller(["--codex-only", ], {
+    const result = runInstaller(["--local", ROOT, "--codex-only"], {
       PATH: `${bin}:${process.env.PATH}`,
       CODEX_HOME: codexRoot,
       LC_ALL: "zh_TW.UTF-8",
@@ -165,9 +243,10 @@ test("installer falls back to English when the system locale is unsupported", ()
   mkdirSync(bin, { recursive: true });
   executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
   executable(join(bin, "claude"), "#!/bin/sh\nprintf '[]\\n'\n");
+  executable(join(bin, "uname"), "#!/bin/sh\nprintf 'Linux\\n'\n");
 
   try {
-    const result = runInstaller(["--claude-only", ], {
+    const result = runInstaller(["--local", ROOT, "--claude-only"], {
       PATH: `${bin}:${process.env.PATH}`,
       CLAUDE_CONFIG_DIR: claudeRoot,
       LC_ALL: "fr_FR.UTF-8",
@@ -178,146 +257,6 @@ test("installer falls back to English when the system locale is unsupported", ()
     const path = join(claudeRoot, "harness-start", "language-output.json");
     assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), { defaultProfile: "en-US" });
     assert.match(result.stderr, /unsupported system locale fr_FR\.UTF-8; using en-US/u);
-  } finally {
-    rmSync(fixture, { recursive: true, force: true });
-  }
-});
-
-function writeCodexStub(bin, logFile, listJson) {
-  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
-  executable(join(bin, "codex"), `#!/bin/sh
-printf '%s\\n' "$*" >> "${logFile}"
-case " $* " in
-  *" marketplace list "*)
-    cat <<'JSON'
-${listJson}
-JSON
-    ;;
-  *" marketplace upgrade "*)
-    printf '%s\\n' "Error: marketplace \\\`harness-start\\\` is not configured as a Git marketplace" >&2
-    exit 1
-    ;;
-  *)
-    printf '%s\\n' "[]"
-    ;;
-esac
-`);
-}
-
-test("installer re-adds a local Codex marketplace instead of aborting on upgrade", () => {
-  const fixture = mkdtempSync(join(tmpdir(), "installer-codex-local-mp-"));
-  const bin = join(fixture, "bin");
-  const logFile = join(fixture, "codex.log");
-  mkdirSync(bin, { recursive: true });
-  writeCodexStub(bin, logFile, JSON.stringify({
-    marketplaces: [{
-      name: "harness-start",
-      root: "/tmp/old-harness-start",
-      marketplaceSource: { sourceType: "local", source: "/tmp/old-harness-start" },
-    }],
-  }, null, 2));
-
-  try {
-    const result = runInstaller(["--codex-only", ], {
-      PATH: `${bin}:${process.env.PATH}`,
-      CODEX_HOME: join(fixture, "codex"),
-    });
-    assert.equal(result.status, 0, result.stderr);
-    const log = readFileSync(logFile, "utf8");
-    assert.match(result.stderr, /not a Git marketplace|replacing|adding marketplace/u);
-    assert.doesNotMatch(log, /marketplace upgrade harness-start/u);
-    assert.match(log, /marketplace add /u);
-  } finally {
-    rmSync(fixture, { recursive: true, force: true });
-  }
-});
-
-test("installer upgrades a Git Codex marketplace", () => {
-  const fixture = mkdtempSync(join(tmpdir(), "installer-codex-git-mp-"));
-  const bin = join(fixture, "bin");
-  const logFile = join(fixture, "codex.log");
-  mkdirSync(bin, { recursive: true });
-  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
-  executable(join(bin, "codex"), `#!/bin/sh
-printf '%s\\n' "$*" >> "${logFile}"
-case " $* " in
-  *" marketplace list "*)
-    cat <<'JSON'
-{
-  "marketplaces": [
-    {
-      "name": "harness-start",
-      "marketplaceSource": { "sourceType": "git", "source": "https://github.com/harness-start/plugins.git" }
-    }
-  ]
-}
-JSON
-    ;;
-  *" marketplace upgrade "*)
-    printf '%s\\n' '{"upgraded":true}'
-    ;;
-  *)
-    printf '%s\\n' "[]"
-    ;;
-esac
-`);
-
-  try {
-    const result = runInstaller(["--codex-only", ], {
-      PATH: `${bin}:${process.env.PATH}`,
-      CODEX_HOME: join(fixture, "codex"),
-    });
-    assert.equal(result.status, 0, result.stderr);
-    const log = readFileSync(logFile, "utf8");
-    assert.match(result.stderr, /upgrading marketplace harness-start/u);
-    assert.match(log, /marketplace upgrade harness-start/u);
-  } finally {
-    rmSync(fixture, { recursive: true, force: true });
-  }
-});
-
-test("installer replaces a Git Codex marketplace when upgrade fails", () => {
-  const fixture = mkdtempSync(join(tmpdir(), "installer-codex-git-mp-upgrade-failure-"));
-  const bin = join(fixture, "bin");
-  const logFile = join(fixture, "codex.log");
-  mkdirSync(bin, { recursive: true });
-  executable(join(bin, "curl"), "#!/bin/sh\nexit 1\n");
-  executable(join(bin, "codex"), `#!/bin/sh
-printf '%s\\n' "$*" >> "${logFile}"
-case " $* " in
-  *" marketplace list "*)
-    cat <<'JSON'
-{
-  "marketplaces": [
-    {
-      "name": "harness-start",
-      "marketplaceSource": { "sourceType": "git", "source": "https://github.com/harness-start/plugins.git" }
-    }
-  ]
-}
-JSON
-    ;;
-  *" marketplace upgrade "*)
-    printf '%s\\n' 'fatal: early EOF' >&2
-    exit 1
-    ;;
-  *)
-    printf '%s\\n' "[]"
-    ;;
-esac
-`);
-
-  try {
-    const result = runInstaller(["--codex-only", ], {
-      PATH: `${bin}:${process.env.PATH}`,
-      CODEX_HOME: join(fixture, "codex"),
-    });
-    assert.equal(result.status, 0, result.stderr);
-    const commands = readFileSync(logFile, "utf8");
-    assert.match(
-      commands,
-      /marketplace upgrade harness-start --json[\s\S]*marketplace remove harness-start --json[\s\S]*marketplace add harness-start\/plugins --ref master --json/u,
-    );
   } finally {
     rmSync(fixture, { recursive: true, force: true });
   }
