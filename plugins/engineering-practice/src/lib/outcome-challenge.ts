@@ -75,7 +75,24 @@ export type VariadicFlattenedDiagnosticFinding = {
   parameter: string;
 };
 
+export type VariadicNovelDiagnosticStyleFinding = {
+  code: "variadic-novel-diagnostic-style";
+  path: string;
+  line: number;
+  parameter: string;
+  style: "lexical-connector" | "multiline-peer-operands";
+};
+
+export type DiagnosticContractRewriteFinding = {
+  code: "diagnostic-contract-rewrite";
+  path: string;
+  line: number;
+  before: string;
+  after: string;
+};
+
 const TEST_PATH = /(?:^|\/)(?:test|tests|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/iu;
+const CONTRACT_EVIDENCE_PATH = /(?:^|\/)(?:test|tests|__tests__|docs?)(?:\/|$)|(?:^|\/)README(?:\.[^/]*)?$|\.(?:test|spec)\.[cm]?[jt]sx?$/iu;
 const GENERATED_PATH = /(?:^|\/)(?:acceptance|dist|build|docs?|examples?|fixtures?|vendor|node_modules|\.git)(?:\/|$)/u;
 const LOSSY_TRANSFORM = /\b((?:broadcast|flatten|coerc|normaliz|deduplic|align|stack|reshape)\w*)\s*\(/iu;
 const EMPTY_GUARD = /\bif\b[^\n]*(?:\bempty\b|\bzero\b|\.size\b|\.length\b|\.shape\b)/iu;
@@ -349,19 +366,100 @@ function singleInputExpression(source: string): string {
     ?? "";
 }
 
-function variadicFunctionScopes(file: DiffFile): Array<{ parameter: string; additions: AddedLine[] }> {
-  const scopes: Array<{ parameter: string; additions: AddedLine[] }> = [];
-  let active: { parameter: string; additions: AddedLine[] } | null = null;
+function variadicFunctionScopes(file: DiffFile): Array<{ parameter: string; additions: AddedLine[]; hunk: number }> {
+  const scopes: Array<{ parameter: string; additions: AddedLine[]; hunk: number }> = [];
+  let active: { parameter: string; additions: AddedLine[]; hunk: number } | null = null;
   for (const entry of newSideLines(file)) {
     if (FUNCTION_SCOPE_START.test(entry.source)) {
       const parameter = entry.added ? variadicParameter(entry.source) : "";
-      active = parameter ? { parameter, additions: [{ line: entry.line, source: entry.source }] } : null;
+      active = parameter ? { parameter, additions: [{ line: entry.line, source: entry.source }], hunk: entry.hunk } : null;
       if (active) scopes.push(active);
       continue;
     }
     if (active && entry.added) active.additions.push({ line: entry.line, source: entry.source });
   }
   return scopes;
+}
+
+function diagnosticCarriesCallerGroups(
+  additions: AddedLine[],
+  warningIndex: number,
+  block: string,
+  parameter: string,
+): boolean {
+  const executableBlock = executableText(block);
+  if (new RegExp(`\\b${escapeRegExp(parameter)}\\b`, "u").test(executableBlock)) return true;
+  for (let assignmentIndex = 0; assignmentIndex < warningIndex; assignmentIndex += 1) {
+    const alias = additions[assignmentIndex]?.source.match(/^\s*([A-Za-z_$][\w$]*)\s*=/u)?.[1];
+    if (!alias || !new RegExp(`\\b${escapeRegExp(alias)}\\b`, "u").test(executableBlock)) continue;
+    const assignmentBlock = executableText(
+      additions.slice(assignmentIndex, assignmentIndex + 6).map(({ source }) => source).join("\n"),
+    );
+    if (new RegExp(`\\b${escapeRegExp(parameter)}\\b`, "u").test(assignmentBlock)) return true;
+  }
+  return false;
+}
+
+function joinSeparators(source: string): string[] {
+  const separators: string[] = [];
+  for (const match of source.matchAll(/(["'])((?:\\.|(?!\1)[^\\\r\n])*)\1\s*\.join\s*\(/gu)) {
+    if (match[2] !== undefined) separators.push(match[2]);
+  }
+  for (const match of source.matchAll(/\.join\s*\(\s*(["'])((?:\\.|(?!\1)[^\\\r\n])*)\1\s*\)/gu)) {
+    if (match[2] !== undefined) separators.push(match[2]);
+  }
+  return separators;
+}
+
+function stringLiterals(source: string): string[] {
+  return [...source.matchAll(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/gu)].map(([literal]) => literal);
+}
+
+function removedDiagnosticSeparators(file: DiffFile, targetHunk: number): Set<string> {
+  const removed: string[] = [];
+  let hunk = 0;
+  for (const line of file.lines) {
+    if (line.startsWith("@@ ")) {
+      hunk += 1;
+      continue;
+    }
+    if (hunk === targetHunk && line.startsWith("-") && !line.startsWith("---")) removed.push(line.slice(1));
+  }
+  const separators = new Set<string>();
+  for (let index = 0; index < removed.length; index += 1) {
+    if (!/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(removed[index] ?? "")) continue;
+    for (const separator of joinSeparators(removed.slice(index, index + 12).join("\n"))) separators.add(separator);
+  }
+  return separators;
+}
+
+function peerOperandDelimiter(source: string): { delimiter: string; normalized: string } | null {
+  if (!/\b(?:warn(?:ing)?|error|diagnostic|conflict|cycle)\w*\b/iu.test(source)) return null;
+  const match = source.match(/([\])}])\s*([^\p{L}\p{N}\s"'`]+)\s*([[({])/u);
+  const delimiter = match?.[2]?.trim();
+  if (!match || !delimiter) return null;
+  return {
+    delimiter,
+    normalized: source.replace(match[0], `${match[1]}<peer-delimiter>${match[3]}`).trim(),
+  };
+}
+
+function hasVariadicCallerDiagnostic(diff: string): boolean {
+  for (const file of productionFiles(diff)) {
+    const scopes = variadicFunctionScopes(file);
+    for (const scope of scopes) {
+      for (let index = 0; index < scope.additions.length; index += 1) {
+        const warning = scope.additions[index];
+        if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+        const block = scope.additions.slice(index, index + 12).map(({ source }) => source).join("\n");
+        if (diagnosticCarriesCallerGroups(scope.additions, index, block, scope.parameter)) return true;
+      }
+    }
+    if (scopes.length > 0 && addedLines(file).some(({ source }) => (
+      /\bwarnings?\s*\.\s*(?:warn|push)\b|\bconsole\.warn\b|\bthrow\s+(?:new\s+)?\w*Error\b/iu.test(source)
+    ))) return true;
+  }
+  return false;
 }
 
 export function variadicSeamBypassFinding(diff: string): VariadicSeamBypassFinding | null {
@@ -438,17 +536,7 @@ export function variadicFlattenedDiagnosticFinding(diff: string): VariadicFlatte
         const block = additions.slice(index, index + 12).map(({ source }) => source).join("\n");
         const joinCount = [...block.matchAll(/\.join\s*\(/gu)].length;
         if (joinCount < 2) continue;
-        const executableBlock = executableText(block);
-        let carriesCallerGroups = new RegExp(`\\b${escapeRegExp(scope.parameter)}\\b`, "u").test(executableBlock);
-        for (let assignmentIndex = 0; !carriesCallerGroups && assignmentIndex < index; assignmentIndex += 1) {
-          const alias = additions[assignmentIndex]?.source.match(/^\s*([A-Za-z_$][\w$]*)\s*=/u)?.[1];
-          if (!alias || !new RegExp(`\\b${escapeRegExp(alias)}\\b`, "u").test(executableBlock)) continue;
-          const assignmentBlock = executableText(
-            additions.slice(assignmentIndex, assignmentIndex + 6).map(({ source }) => source).join("\n"),
-          );
-          carriesCallerGroups = new RegExp(`\\b${escapeRegExp(scope.parameter)}\\b`, "u").test(assignmentBlock);
-        }
-        if (!carriesCallerGroups) continue;
+        if (!diagnosticCarriesCallerGroups(additions, index, block, scope.parameter)) continue;
         return {
           code: "variadic-flattened-diagnostic",
           path: file.path,
@@ -456,6 +544,69 @@ export function variadicFlattenedDiagnosticFinding(diff: string): VariadicFlatte
           parameter: scope.parameter,
         };
       }
+    }
+  }
+  return null;
+}
+
+export function variadicNovelDiagnosticStyleFinding(diff: string): VariadicNovelDiagnosticStyleFinding | null {
+  for (const file of productionFiles(diff)) {
+    for (const scope of variadicFunctionScopes(file)) {
+      const originalSeparators = removedDiagnosticSeparators(file, scope.hunk);
+      const additions = scope.additions;
+      for (let index = 0; index < additions.length; index += 1) {
+        const warning = additions[index];
+        if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+        const block = additions.slice(index, index + 12).map(({ source }) => source).join("\n");
+        if (!diagnosticCarriesCallerGroups(additions, index, block, scope.parameter)) continue;
+        if (stringLiterals(block).some((literal) => /\\n/u.test(literal))) {
+          return {
+            code: "variadic-novel-diagnostic-style",
+            path: file.path,
+            line: warning.line,
+            parameter: scope.parameter,
+            style: "multiline-peer-operands",
+          };
+        }
+        const lexicalConnector = joinSeparators(block).find((separator) => {
+          const visible = separator.replace(/\\./gu, "");
+          return /\p{L}/u.test(visible) && !originalSeparators.has(separator);
+        });
+        if (lexicalConnector !== undefined) {
+          return {
+            code: "variadic-novel-diagnostic-style",
+            path: file.path,
+            line: warning.line,
+            parameter: scope.parameter,
+            style: "lexical-connector",
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+
+export function diagnosticContractRewriteFinding(diff: string): DiagnosticContractRewriteFinding | null {
+  if (!hasVariadicCallerDiagnostic(diff)) return null;
+  for (const file of diffFiles(diff)) {
+    if (!CONTRACT_EVIDENCE_PATH.test(file.path)) continue;
+    const removed = file.lines
+      .filter((line) => line.startsWith("-") && !line.startsWith("---"))
+      .map((line) => peerOperandDelimiter(line.slice(1)))
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null);
+    for (const addition of addedLines(file)) {
+      const added = peerOperandDelimiter(addition.source);
+      if (!added) continue;
+      const baseline = removed.find((candidate) => candidate.normalized === added.normalized);
+      if (!baseline || baseline.delimiter === added.delimiter) continue;
+      return {
+        code: "diagnostic-contract-rewrite",
+        path: file.path,
+        line: addition.line,
+        before: baseline.delimiter,
+        after: added.delimiter,
+      };
     }
   }
   return null;

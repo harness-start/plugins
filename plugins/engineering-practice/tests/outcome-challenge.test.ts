@@ -3,6 +3,7 @@ import { test } from "node:test";
 
 import {
   boundaryGuardFinding,
+  diagnosticContractRewriteFinding,
   mixedBoundaryFreshEmptyFinding,
   mixedBoundarySynthesisFinding,
   mixedBoundaryRejectionFinding,
@@ -12,6 +13,7 @@ import {
   variadicCycleFallbackFinding,
   variadicDiagnosticFinding,
   variadicFlattenedDiagnosticFinding,
+  variadicNovelDiagnosticStyleFinding,
   variadicSeamBypassFinding,
 } from "../src/lib/outcome-challenge.js";
 
@@ -776,6 +778,238 @@ test("accepts a variadic diagnostic that formats complete caller groups with the
  `;
 
   assert.equal(variadicFlattenedDiagnosticFinding(diff), null);
+});
+
+test("flags a lexical connector invented for peer caller groups", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,9 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains: %s" % " and ".join(repr(chain) for chain in chains))
+ `;
+
+  assert.deepEqual(variadicNovelDiagnosticStyleFinding(diff), {
+    code: "variadic-novel-diagnostic-style",
+    path: "src/registry.py",
+    line: 24,
+    parameter: "chains",
+    style: "lexical-connector",
+  });
+});
+
+test("flags a JavaScript lexical connector invented for peer caller groups", () => {
+  const diff = `diff --git a/src/registry.js b/src/registry.js
+--- a/src/registry.js
++++ b/src/registry.js
+@@ -20,3 +20,9 @@ export class Registry {
+-  static combine(left, right) {
++  static combine(...groups) {
++    try {
++      return stableOrder(groups);
++    } catch (DependencyCycleError) {
++      console.warn("Conflicting groups: " + groups.map(String).join(" vs "));
++    }
+ `;
+
+  assert.deepEqual(variadicNovelDiagnosticStyleFinding(diff), {
+    code: "variadic-novel-diagnostic-style",
+    path: "src/registry.js",
+    line: 24,
+    parameter: "groups",
+    style: "lexical-connector",
+  });
+});
+
+test("flags a multiline layout invented for peer caller groups", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,9 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            warnings.warn("Conflicting groups:\\n%s" % ", ".join(repr(group) for group in groups))
+ `;
+
+  assert.deepEqual(variadicNovelDiagnosticStyleFinding(diff), {
+    code: "variadic-novel-diagnostic-style",
+    path: "src/registry.py",
+    line: 24,
+    parameter: "groups",
+    style: "multiline-peer-operands",
+  });
+});
+
+test("flags a legacy internal-item multiline layout reused for complete caller groups", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,8 +20,9 @@ class Registry:
+-    def combine(left, right):
+-        warnings.warn("Conflicting items:\\n%s\\n%s" % (left[-1], right[0]))
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            warnings.warn("Conflicting groups:\\n%s" % ", ".join(repr(group) for group in groups))
+ `;
+
+  assert.deepEqual(variadicNovelDiagnosticStyleFinding(diff), {
+    code: "variadic-novel-diagnostic-style",
+    path: "src/registry.py",
+    line: 24,
+    parameter: "groups",
+    style: "multiline-peer-operands",
+  });
+});
+
+test("accepts one-line punctuation between peer caller groups", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,9 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            warnings.warn("Conflicting groups: %s" % ", ".join(repr(group) for group in groups))
+ `;
+
+  assert.equal(variadicNovelDiagnosticStyleFinding(diff), null);
+});
+
+test("accepts a peer-group connector retained from the original diagnostic", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,5 +20,9 @@ class Registry:
+-    def combine(left, right):
+-        warnings.warn("Conflicting chains: %s" % " versus ".join((repr(left), repr(right))))
++    def combine(*chains):
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains: %s" % " versus ".join(repr(chain) for chain in chains))
+ `;
+
+  assert.equal(variadicNovelDiagnosticStyleFinding(diff), null);
+});
+
+test("does not treat a connector from an unrelated removed diagnostic as local style evidence", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,3 +5,2 @@ def validate(left, right):
+-    warnings.warn("Invalid values: %s" % " and ".join((repr(left), repr(right))))
+     return True
+@@ -20,3 +19,9 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            warnings.warn("Conflicting groups: %s" % " and ".join(repr(group) for group in groups))
+ `;
+
+  assert.deepEqual(variadicNovelDiagnosticStyleFinding(diff), {
+    code: "variadic-novel-diagnostic-style",
+    path: "src/registry.py",
+    line: 23,
+    parameter: "groups",
+    style: "lexical-connector",
+  });
+});
+
+test("flags rewriting an existing complete-peer diagnostic delimiter during a variadic migration", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,7 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            warnings.warn("Conflicting groups: %s" % ", ".join(repr(group) for group in groups))
+diff --git a/tests/test_registry.py b/tests/test_registry.py
+--- a/tests/test_registry.py
++++ b/tests/test_registry.py
+@@ -40,3 +40,3 @@ def test_cycle_warning():
+-    assert warning == "Conflicting groups: [1, 2] <> [2, 1]"
++    assert warning == "Conflicting groups: [1, 2], [2, 1]"
+ `;
+
+  assert.deepEqual(diagnosticContractRewriteFinding(diff), {
+    code: "diagnostic-contract-rewrite",
+    path: "tests/test_registry.py",
+    line: 40,
+    before: "<>",
+    after: ",",
+  });
+});
+
+test("flags contract rewriting when a variadic seam delegates diagnostic formatting to a helper", () => {
+  const diff = `diff --git a/src/registry.js b/src/registry.js
+--- a/src/registry.js
++++ b/src/registry.js
+@@ -20,3 +20,10 @@ export class Registry {
+-  static combine(left, right) {
++  static combine(...groups) {
++    try {
++      return stableOrder(groups);
++    } catch (error) {
++      Registry.warnings.push(Registry.conflictMessage(groups));
++    }
++  }
++  static conflictMessage(groups) {
++    return "Conflicting groups: " + groups.map(String).join(", ");
+diff --git a/tests/registry.test.js b/tests/registry.test.js
+--- a/tests/registry.test.js
++++ b/tests/registry.test.js
+@@ -40,3 +40,3 @@ test("cycle warning", () => {
+-  assert.equal(warning, "Conflicting groups: [1, 2] <> [2, 1]");
++  assert.equal(warning, "Conflicting groups: [1, 2], [2, 1]");
+ `;
+
+  assert.deepEqual(diagnosticContractRewriteFinding(diff), {
+    code: "diagnostic-contract-rewrite",
+    path: "tests/registry.test.js",
+    line: 40,
+    before: "<>",
+    after: ",",
+  });
+});
+
+test("accepts adding a new complete-peer diagnostic assertion without rewriting baseline evidence", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,7 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            warnings.warn("Conflicting groups: %s" % ", ".join(repr(group) for group in groups))
+diff --git a/tests/test_registry.py b/tests/test_registry.py
+--- a/tests/test_registry.py
++++ b/tests/test_registry.py
+@@ -40,2 +40,5 @@ def test_regular_order():
+     assert combine([1], [2]) == [1, 2]
++
++def test_cycle_warning():
++    assert warning == "Conflicting groups: [1, 2], [2, 1]"
+ `;
+
+  assert.equal(diagnosticContractRewriteFinding(diff), null);
 });
 
 test("does not carry a variadic parameter into another function's nested text renderer", () => {

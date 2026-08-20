@@ -3,7 +3,9 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_prompt_context_signal 'Engineering Practice: stable-order challenge.*repository-wide search.*stable/topological/dependency.*existing primitive.*named public seam.*zero, one, two, and many.*single-input side branch.*own deduplication.*incidental input container.*audit every aggregate caller.*sibling consumers.*two independent chains.*at least two items each.*Stable ready-frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2.*adjacent duplicate.*same chain.*self-dependency.*cycle.*genuine cycle fallback.*every distinct item.*every caller group.*unique.*later groups.*exact diagnostic.*request disputes the diagnostic content.*original caller-supplied constraint groups.*complete original input sequences.*not a pair of elements extracted from them.*arbitrary internal cycle nodes.*Preserve each collection boundary.*do not flatten.*member text.*one grammatical summary.*project-conventional delimiters.*do not retain.*one-item-per-line'
+require_prompt_context_signal 'Engineering Practice: stable-order challenge.*repository-wide search.*stable/topological/dependency.*existing primitive.*named public seam.*zero, one, two, and many.*single-input side branch.*own deduplication.*incidental input container.*audit every aggregate caller.*sibling consumers.*two independent chains.*at least two items each.*Stable ready-frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2.*adjacent duplicate.*same chain.*self-dependency.*cycle.*genuine cycle fallback.*every distinct item.*every caller group.*unique.*later groups.*exact diagnostic'
+require_prompt_context_signal 'request disputes the diagnostic content.*original caller-supplied constraint groups.*complete original input sequences.*not a pair of elements extracted from them.*arbitrary internal cycle nodes.*Preserve each collection boundary.*do not flatten.*member text.*one grammatical summary.*project-conventional delimiters.*do not retain.*one-item-per-line'
+require_prompt_context_signal 'Do not invent.*lexical connector.*single line.*punctuation.*When no exact local contract.*comma-space.*baseline.*complete peer.*preserve.*exact delimiter.*do not rewrite.*tests.*documentation'
 
 (
   cd "${ACCEPT_WORKSPACE}"
@@ -31,8 +33,8 @@ node --input-type=module -e '
 ' "file://${ACCEPT_WORKSPACE}/src/chain-registry.mjs"
 
 grep -Eq 'stable-order\.mjs' "${ACCEPT_WORKSPACE}/src/chain-registry.mjs"
-grep -Eiq 'test\("[^"]*(independent[^"]*(ready|stage)|(ready|stage)[^"]*independent)' \
-  "${ACCEPT_WORKSPACE}/test/chain-registry.test.mjs"
+grep -Eiq 'test\("[^"]*independent' "${ACCEPT_WORKSPACE}/test/chain-registry.test.mjs"
+grep -Eiq 'test\("[^"]*(ready|stage)' "${ACCEPT_WORKSPACE}/test/chain-registry.test.mjs"
 extra="$(find "${ACCEPT_WORKSPACE}" \
   -path "${ACCEPT_WORKSPACE}/.git" -prune -o \
   -type f \

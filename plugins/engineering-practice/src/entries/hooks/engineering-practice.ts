@@ -7,6 +7,7 @@ import { eventCwd, eventPrompt, readStdinJson, type HookEvent } from "@harness/c
 import { additionalContext, stopBlock, writeJson } from "@harness/core/hook-output";
 import {
   boundaryGuardFinding,
+  diagnosticContractRewriteFinding,
   mixedBoundaryFreshEmptyFinding,
   mixedBoundarySynthesisFinding,
   mixedBoundaryRejectionFinding,
@@ -16,6 +17,7 @@ import {
   variadicCycleFallbackFinding,
   variadicDiagnosticFinding,
   variadicFlattenedDiagnosticFinding,
+  variadicNovelDiagnosticStyleFinding,
   variadicSeamBypassFinding,
 } from "../../lib/outcome-challenge.js";
 
@@ -62,7 +64,7 @@ export function orderingChallengeContext(diagnosticDisputed = false): string {
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback retains every distinct item supplied by every caller group, including items unique to later groups, and assert the exact diagnostic type and text.",
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Preserve each collection boundary when rendering those groups; do not flatten every group into member text. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Preserve each collection boundary when rendering those groups; do not flatten every group into member text. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Do not invent a lexical connector between peer operands; keep them on a single line with punctuation. When no exact local contract exists, default to comma-space between complete operands. If baseline tests or documentation already render complete peer collections, preserve their exact delimiter; do not rewrite tests or documentation to manufacture a different contract. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -188,6 +190,26 @@ export async function runStop(): Promise<void> {
   if (flattenedDiagnostic) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${flattenedDiagnostic.path}:${flattenedDiagnostic.line}: the new variadic diagnostic flattens caller groups from ${flattenedDiagnostic.parameter} into member text, erasing collection boundaries. Format each complete original group directly with project-conventional delimiters in one caller-level summary, and assert the exact diagnostic text.`,
+    ));
+    return;
+  }
+
+  const contractRewrite = diagnosticContractRewriteFinding(diff);
+  if (contractRewrite) {
+    const after = contractRewrite.after === "," ? "comma (,)" : contractRewrite.after;
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${contractRewrite.path}:${contractRewrite.line}: the change rewrites a baseline diagnostic delimiter between complete peer operands from ${contractRewrite.before} to ${after} while changing the variadic implementation. Restore the existing test/documentation contract and make production satisfy it; do not rewrite baseline evidence to match the implementation.`,
+    ));
+    return;
+  }
+
+  const novelDiagnosticStyle = variadicNovelDiagnosticStyleFinding(diff);
+  if (novelDiagnosticStyle) {
+    const style = novelDiagnosticStyle.style === "lexical-connector"
+      ? "an invented lexical connector between caller groups"
+      : "an invented multiline layout for caller groups";
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${novelDiagnosticStyle.path}:${novelDiagnosticStyle.line}: the new variadic diagnostic uses ${style}. Preserve an exact local diagnostic contract when one exists; otherwise render the complete peer operands on a single line with punctuation, defaulting to comma-space, and assert the exact text at the public seam.`,
     ));
     return;
   }

@@ -104,6 +104,9 @@ test("challenges disputed diagnostics at the caller-visible abstraction level", 
   assert.match(context, /preserve each collection boundary.*do not flatten.*member text/isu);
   assert.match(context, /one grammatical summary.*project-conventional delimiters/isu);
   assert.match(context, /do not retain.*internal-node.*one-item-per-line/isu);
+  assert.match(context, /do not invent.*lexical connector.*single line.*punctuation/isu);
+  assert.match(context, /no exact local contract.*comma-space/isu);
+  assert.match(context, /baseline.*complete peer.*preserve.*exact delimiter.*do not rewrite.*tests.*documentation/isu);
   assert.match(context, /exact.*type.*text/isu);
 });
 
@@ -443,6 +446,106 @@ test("Stop blocks lossy cycle fallback and flattened caller-group diagnostics", 
     const secondOutput = JSON.parse(second.stdout);
     assert.equal(secondOutput.decision, "block");
     assert.match(secondOutput.reason, /flattens caller groups.*into member text.*collection boundaries/isu);
+  });
+});
+
+test("Stop rejects invented peer-group prose and layout until a punctuation-only summary is used", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return stable_order((left, right))",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    const runStop = () => spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*groups):",
+      "        try:",
+      "            return stable_order(groups)",
+      "        except DependencyCycleError:",
+      "            warnings.warn('Conflicting groups: %s' % ' and '.join(repr(group) for group in groups))",
+      "",
+    ].join("\n"));
+    const lexical = runStop();
+    assert.equal(lexical.status, 0, lexical.stderr);
+    const lexicalOutput = JSON.parse(lexical.stdout);
+    assert.equal(lexicalOutput.decision, "block");
+    assert.match(lexicalOutput.reason, /lexical connector.*caller groups.*exact local.*single line.*punctuation/isu);
+
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*groups):",
+      "        try:",
+      "            return stable_order(groups)",
+      "        except DependencyCycleError:",
+      "            warnings.warn('Conflicting groups:\\n%s' % ', '.join(repr(group) for group in groups))",
+      "",
+    ].join("\n"));
+    const multiline = runStop();
+    assert.equal(multiline.status, 0, multiline.stderr);
+    const multilineOutput = JSON.parse(multiline.stdout);
+    assert.equal(multilineOutput.decision, "block");
+    assert.match(multilineOutput.reason, /multiline.*caller groups.*single line.*punctuation/isu);
+
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*groups):",
+      "        try:",
+      "            return stable_order(groups)",
+      "        except DependencyCycleError:",
+      "            warnings.warn('Conflicting groups: %s' % ', '.join(repr(group) for group in groups))",
+      "",
+    ].join("\n"));
+    const punctuation = runStop();
+    assert.equal(punctuation.status, 0, punctuation.stderr);
+    assert.equal(punctuation.stdout, "");
+  });
+});
+
+test("Stop rejects rewriting a baseline complete-peer diagnostic contract to match production", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return stable_order((left, right))",
+      "",
+    ].join("\n"),
+    "tests/test_registry.py": [
+      "def test_cycle_warning():",
+      "    assert warning == 'Conflicting groups: [1, 2] <> [2, 1]'",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*groups):",
+      "        try:",
+      "            return stable_order(groups)",
+      "        except DependencyCycleError:",
+      "            warnings.warn('Conflicting groups: %s' % ', '.join(repr(group) for group in groups))",
+      "",
+    ].join("\n"));
+    writeFileSync(resolve(root, "tests/test_registry.py"), [
+      "def test_cycle_warning():",
+      "    assert warning == 'Conflicting groups: [1, 2], [2, 1]'",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /rewrites.*baseline diagnostic.*complete peer operands.*<>.*comma.*restore.*existing test.*documentation/isu);
   });
 });
 

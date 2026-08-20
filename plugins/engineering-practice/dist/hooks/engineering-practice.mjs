@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:424050a8570f42090fce430a9176f7404c00a3e80cfa12ea366923ba270f704b
+// harness-source-hash: sha256:04888a486b5f5d13c7d4dc6e7c7ffa7596e5d94e9364d4c71861f0288b9b1f0c
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { execFileSync } from "node:child_process";
@@ -66,6 +66,7 @@ function writeJson(value) {
 
 // plugins/engineering-practice/src/lib/outcome-challenge.ts
 var TEST_PATH = /(?:^|\/)(?:test|tests|__tests__)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/iu;
+var CONTRACT_EVIDENCE_PATH = /(?:^|\/)(?:test|tests|__tests__|docs?)(?:\/|$)|(?:^|\/)README(?:\.[^/]*)?$|\.(?:test|spec)\.[cm]?[jt]sx?$/iu;
 var GENERATED_PATH = /(?:^|\/)(?:acceptance|dist|build|docs?|examples?|fixtures?|vendor|node_modules|\.git)(?:\/|$)/u;
 var LOSSY_TRANSFORM = /\b((?:broadcast|flatten|coerc|normaliz|deduplic|align|stack|reshape)\w*)\s*\(/iu;
 var EMPTY_GUARD = /\bif\b[^\n]*(?:\bempty\b|\bzero\b|\.size\b|\.length\b|\.shape\b)/iu;
@@ -319,13 +320,81 @@ function variadicFunctionScopes(file) {
   for (const entry of newSideLines(file)) {
     if (FUNCTION_SCOPE_START.test(entry.source)) {
       const parameter = entry.added ? variadicParameter(entry.source) : "";
-      active = parameter ? { parameter, additions: [{ line: entry.line, source: entry.source }] } : null;
+      active = parameter ? { parameter, additions: [{ line: entry.line, source: entry.source }], hunk: entry.hunk } : null;
       if (active) scopes.push(active);
       continue;
     }
     if (active && entry.added) active.additions.push({ line: entry.line, source: entry.source });
   }
   return scopes;
+}
+function diagnosticCarriesCallerGroups(additions, warningIndex, block, parameter) {
+  const executableBlock = executableText(block);
+  if (new RegExp(`\\b${escapeRegExp(parameter)}\\b`, "u").test(executableBlock)) return true;
+  for (let assignmentIndex = 0; assignmentIndex < warningIndex; assignmentIndex += 1) {
+    const alias = additions[assignmentIndex]?.source.match(/^\s*([A-Za-z_$][\w$]*)\s*=/u)?.[1];
+    if (!alias || !new RegExp(`\\b${escapeRegExp(alias)}\\b`, "u").test(executableBlock)) continue;
+    const assignmentBlock = executableText(
+      additions.slice(assignmentIndex, assignmentIndex + 6).map(({ source }) => source).join("\n")
+    );
+    if (new RegExp(`\\b${escapeRegExp(parameter)}\\b`, "u").test(assignmentBlock)) return true;
+  }
+  return false;
+}
+function joinSeparators(source) {
+  const separators = [];
+  for (const match of source.matchAll(/(["'])((?:\\.|(?!\1)[^\\\r\n])*)\1\s*\.join\s*\(/gu)) {
+    if (match[2] !== void 0) separators.push(match[2]);
+  }
+  for (const match of source.matchAll(/\.join\s*\(\s*(["'])((?:\\.|(?!\1)[^\\\r\n])*)\1\s*\)/gu)) {
+    if (match[2] !== void 0) separators.push(match[2]);
+  }
+  return separators;
+}
+function stringLiterals(source) {
+  return [...source.matchAll(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/gu)].map(([literal]) => literal);
+}
+function removedDiagnosticSeparators(file, targetHunk) {
+  const removed = [];
+  let hunk = 0;
+  for (const line of file.lines) {
+    if (line.startsWith("@@ ")) {
+      hunk += 1;
+      continue;
+    }
+    if (hunk === targetHunk && line.startsWith("-") && !line.startsWith("---")) removed.push(line.slice(1));
+  }
+  const separators = /* @__PURE__ */ new Set();
+  for (let index = 0; index < removed.length; index += 1) {
+    if (!/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(removed[index] ?? "")) continue;
+    for (const separator of joinSeparators(removed.slice(index, index + 12).join("\n"))) separators.add(separator);
+  }
+  return separators;
+}
+function peerOperandDelimiter(source) {
+  if (!/\b(?:warn(?:ing)?|error|diagnostic|conflict|cycle)\w*\b/iu.test(source)) return null;
+  const match = source.match(/([\])}])\s*([^\p{L}\p{N}\s"'`]+)\s*([[({])/u);
+  const delimiter = match?.[2]?.trim();
+  if (!match || !delimiter) return null;
+  return {
+    delimiter,
+    normalized: source.replace(match[0], `${match[1]}<peer-delimiter>${match[3]}`).trim()
+  };
+}
+function hasVariadicCallerDiagnostic(diff) {
+  for (const file of productionFiles(diff)) {
+    const scopes = variadicFunctionScopes(file);
+    for (const scope of scopes) {
+      for (let index = 0; index < scope.additions.length; index += 1) {
+        const warning = scope.additions[index];
+        if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+        const block = scope.additions.slice(index, index + 12).map(({ source }) => source).join("\n");
+        if (diagnosticCarriesCallerGroups(scope.additions, index, block, scope.parameter)) return true;
+      }
+    }
+    if (scopes.length > 0 && addedLines(file).some(({ source }) => /\bwarnings?\s*\.\s*(?:warn|push)\b|\bconsole\.warn\b|\bthrow\s+(?:new\s+)?\w*Error\b/iu.test(source))) return true;
+  }
+  return false;
 }
 function variadicSeamBypassFinding(diff) {
   for (const file of productionFiles(diff)) {
@@ -399,17 +468,7 @@ function variadicFlattenedDiagnosticFinding(diff) {
         const block = additions.slice(index, index + 12).map(({ source }) => source).join("\n");
         const joinCount = [...block.matchAll(/\.join\s*\(/gu)].length;
         if (joinCount < 2) continue;
-        const executableBlock = executableText(block);
-        let carriesCallerGroups = new RegExp(`\\b${escapeRegExp(scope.parameter)}\\b`, "u").test(executableBlock);
-        for (let assignmentIndex = 0; !carriesCallerGroups && assignmentIndex < index; assignmentIndex += 1) {
-          const alias = additions[assignmentIndex]?.source.match(/^\s*([A-Za-z_$][\w$]*)\s*=/u)?.[1];
-          if (!alias || !new RegExp(`\\b${escapeRegExp(alias)}\\b`, "u").test(executableBlock)) continue;
-          const assignmentBlock = executableText(
-            additions.slice(assignmentIndex, assignmentIndex + 6).map(({ source }) => source).join("\n")
-          );
-          carriesCallerGroups = new RegExp(`\\b${escapeRegExp(scope.parameter)}\\b`, "u").test(assignmentBlock);
-        }
-        if (!carriesCallerGroups) continue;
+        if (!diagnosticCarriesCallerGroups(additions, index, block, scope.parameter)) continue;
         return {
           code: "variadic-flattened-diagnostic",
           path: file.path,
@@ -417,6 +476,64 @@ function variadicFlattenedDiagnosticFinding(diff) {
           parameter: scope.parameter
         };
       }
+    }
+  }
+  return null;
+}
+function variadicNovelDiagnosticStyleFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    for (const scope of variadicFunctionScopes(file)) {
+      const originalSeparators = removedDiagnosticSeparators(file, scope.hunk);
+      const additions = scope.additions;
+      for (let index = 0; index < additions.length; index += 1) {
+        const warning = additions[index];
+        if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+        const block = additions.slice(index, index + 12).map(({ source }) => source).join("\n");
+        if (!diagnosticCarriesCallerGroups(additions, index, block, scope.parameter)) continue;
+        if (stringLiterals(block).some((literal) => /\\n/u.test(literal))) {
+          return {
+            code: "variadic-novel-diagnostic-style",
+            path: file.path,
+            line: warning.line,
+            parameter: scope.parameter,
+            style: "multiline-peer-operands"
+          };
+        }
+        const lexicalConnector = joinSeparators(block).find((separator) => {
+          const visible = separator.replace(/\\./gu, "");
+          return new RegExp("\\p{L}", "u").test(visible) && !originalSeparators.has(separator);
+        });
+        if (lexicalConnector !== void 0) {
+          return {
+            code: "variadic-novel-diagnostic-style",
+            path: file.path,
+            line: warning.line,
+            parameter: scope.parameter,
+            style: "lexical-connector"
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+function diagnosticContractRewriteFinding(diff) {
+  if (!hasVariadicCallerDiagnostic(diff)) return null;
+  for (const file of diffFiles(diff)) {
+    if (!CONTRACT_EVIDENCE_PATH.test(file.path)) continue;
+    const removed = file.lines.filter((line) => line.startsWith("-") && !line.startsWith("---")).map((line) => peerOperandDelimiter(line.slice(1))).filter((candidate) => candidate !== null);
+    for (const addition of addedLines(file)) {
+      const added = peerOperandDelimiter(addition.source);
+      if (!added) continue;
+      const baseline = removed.find((candidate) => candidate.normalized === added.normalized);
+      if (!baseline || baseline.delimiter === added.delimiter) continue;
+      return {
+        code: "diagnostic-contract-rewrite",
+        path: file.path,
+        line: addition.line,
+        before: baseline.delimiter,
+        after: added.delimiter
+      };
     }
   }
   return null;
@@ -646,7 +763,7 @@ function orderingChallengeContext(diagnosticDisputed = false) {
     "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback retains every distinct item supplied by every caller group, including items unique to later groups, and assert the exact diagnostic type and text."
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Preserve each collection boundary when rendering those groups; do not flatten every group into member text. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Preserve each collection boundary when rendering those groups; do not flatten every group into member text. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Do not invent a lexical connector between peer operands; keep them on a single line with punctuation. When no exact local contract exists, default to comma-space between complete operands. If baseline tests or documentation already render complete peer collections, preserve their exact delimiter; do not rewrite tests or documentation to manufacture a different contract. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -757,6 +874,22 @@ async function runStop() {
   if (flattenedDiagnostic) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${flattenedDiagnostic.path}:${flattenedDiagnostic.line}: the new variadic diagnostic flattens caller groups from ${flattenedDiagnostic.parameter} into member text, erasing collection boundaries. Format each complete original group directly with project-conventional delimiters in one caller-level summary, and assert the exact diagnostic text.`
+    ));
+    return;
+  }
+  const contractRewrite = diagnosticContractRewriteFinding(diff);
+  if (contractRewrite) {
+    const after = contractRewrite.after === "," ? "comma (,)" : contractRewrite.after;
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${contractRewrite.path}:${contractRewrite.line}: the change rewrites a baseline diagnostic delimiter between complete peer operands from ${contractRewrite.before} to ${after} while changing the variadic implementation. Restore the existing test/documentation contract and make production satisfy it; do not rewrite baseline evidence to match the implementation.`
+    ));
+    return;
+  }
+  const novelDiagnosticStyle = variadicNovelDiagnosticStyleFinding(diff);
+  if (novelDiagnosticStyle) {
+    const style = novelDiagnosticStyle.style === "lexical-connector" ? "an invented lexical connector between caller groups" : "an invented multiline layout for caller groups";
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${novelDiagnosticStyle.path}:${novelDiagnosticStyle.line}: the new variadic diagnostic uses ${style}. Preserve an exact local diagnostic contract when one exists; otherwise render the complete peer operands on a single line with punctuation, defaulting to comma-space, and assert the exact text at the public seam.`
     ));
     return;
   }
