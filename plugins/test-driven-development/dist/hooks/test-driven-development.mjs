@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6e2232008f01875bb0919265c6e1d0aeb8d441c842d0f966d778069daae7e634
+// harness-source-hash: sha256:4531ab74ed88bd36b38195829c3f44b58640e74dcf0d9a64ea4fc136d1c42df4
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
-import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
-import { isAbsolute as isAbsolute2, relative as relative4, resolve as resolve6, sep } from "node:path";
+import { readFileSync as readFileSync4 } from "node:fs";
+import { isAbsolute as isAbsolute2, relative as relative4, resolve as resolve5, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // core/src/hook-event.ts
@@ -31,17 +31,6 @@ async function readStdinJson(input = process.stdin) {
     return { __parseError: true };
   }
 }
-function eventSessionId(event) {
-  const context = nestedRecord(event, "context");
-  return firstString(
-    event.session_id,
-    event.sessionId,
-    event.sessionID,
-    event.conversation_id,
-    event.conversationId,
-    context?.session_id
-  );
-}
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
 }
@@ -54,32 +43,11 @@ function eventToolInput(event) {
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
 }
-function eventToolResponse(event) {
-  const tool = nestedRecord(event, "tool");
-  return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
-}
-function eventToolUseId(event) {
-  const tool = nestedRecord(event, "tool");
-  const toolUse = nestedRecord(event, "tool_use");
-  return firstString(
-    event.tool_use_id,
-    event.toolUseId,
-    event.tool_call_id,
-    event.toolCallId,
-    toolUse?.id,
-    tool?.id
-  );
-}
 
 // plugins/test-driven-development/src/lib/hook-io.ts
 import { isAbsolute, relative, resolve } from "node:path";
 
 // core/src/hook-output.ts
-var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
-  "PreToolUse",
-  "PostToolUse",
-  "PostToolUseFailure"
-]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
@@ -88,23 +56,6 @@ function preToolDeny(reason) {
       permissionDecisionReason: reason
     }
   };
-}
-function additionalContext(hookEventName, context, options = {}) {
-  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
-  const echoStderr = options.echoStderr ?? codexToolReport;
-  const suppressJson = codexToolReport || Boolean(options.suppressJson);
-  if (echoStderr) process.stderr.write(`${context}
-`);
-  if (suppressJson) return null;
-  return {
-    hookSpecificOutput: {
-      hookEventName,
-      additionalContext: context
-    }
-  };
-}
-function stopBlock(reason) {
-  return { decision: "block", reason };
 }
 function writeJson(value) {
   if (value !== null && value !== void 0) {
@@ -153,12 +104,6 @@ function cwdOf(event) {
   if (raw !== void 0 && raw !== null && typeof raw !== "string") return resolve(raw);
   return resolve(eventCwd(event));
 }
-function sessionIdOf(event) {
-  return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
-}
-function toolUseIdOf(event) {
-  return eventToolUseId(event) || String(event.id ?? "pending");
-}
 function toolNameOf(event) {
   return canonicalToolName(eventToolName(event));
 }
@@ -167,41 +112,6 @@ function toolInputOf(event) {
 }
 function shellCommandOf(event) {
   return extractShellCommand(event);
-}
-function responseOf(event) {
-  return eventToolResponse(event) ?? event.error ?? null;
-}
-function responseText(response) {
-  if (typeof response === "string") return response;
-  if (isRecord(response)) {
-    const fields = ["stdout", "stderr", "output", "content", "message"].map((key) => response[key]).filter((value) => typeof value === "string");
-    if (fields.length > 0) return fields.join("\n");
-  }
-  return "";
-}
-function inferOutcome(event, forceFailure = false) {
-  const response = responseOf(event);
-  const text = responseText(response);
-  const transportFailure = isRecord(response) && (response.is_error === true || response.isError === true || Boolean(response.error) || response.interrupted === true);
-  if (/(?:command not found|permission denied|could not find executable|is not recognized as an internal or external command)/iu.test(text)) {
-    return "unknown";
-  }
-  const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (failed?.[1] && Number(failed[1]) > 0 || /(?:^|\n)(?:not ok\s+[0-9]+\b|--- FAIL:)|\b[1-9][0-9]*\s+failures?\b|\b[1-9][0-9]*\s+failed\b|FAILED\s*\([^\n]*(?:failures?|errors?)\s*=\s*[1-9]/iu.test(text)) return "failure";
-  if (transportFailure) return "unknown";
-  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
-  const responseCode = isRecord(response) ? response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code : void 0;
-  const code = Number.isFinite(Number(responseCode)) ? Number(responseCode) : exitLine?.[1] !== void 0 ? Number(exitLine[1]) : null;
-  if (code !== null && code !== 0) return "unknown";
-  if (forceFailure) return "unknown";
-  const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
-  if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
-  if (/\b[1-9][0-9]*\s+passed\b/iu.test(text)) return "success";
-  if (/(?:^|\n)Ran\s+[1-9][0-9]*\s+tests?[^\n]*\n(?:\n)?OK(?:\s|$)/iu.test(text)) return "success";
-  if (/\b0\s+failures?\b/iu.test(text)) return "success";
-  if (isRecord(response) && response.success === false) return "unknown";
-  if (code === 0 || isRecord(response) && response.success === true) return "success";
-  return "unknown";
 }
 function stripQuotes(value) {
   const text = String(value ?? "").trim();
@@ -353,12 +263,6 @@ function proposedContent(event, target, currentText = "") {
 }
 function relativePath(root, path) {
   return relative(root, resolve(path)).replaceAll("\\", "/") || ".";
-}
-function contextOutput(eventName, text) {
-  return additionalContext(eventName, text);
-}
-function stopDeny(reason) {
-  return stopBlock(reason);
 }
 
 // plugins/test-driven-development/src/lib/existing-tests.ts
@@ -970,12 +874,6 @@ function findCorrespondingTests(root, source, context = {}) {
   }
   return found;
 }
-function historicalCorrespondingTests(root, source, state, context = {}) {
-  return findCorrespondingTests(root, source, context).filter((path) => {
-    const record = (state?.tests ?? []).find((item) => item.path === path);
-    return record?.created !== true;
-  });
-}
 function formatTestPathList(paths) {
   const values = [...new Set((paths ?? []).filter((value) => Boolean(value)))];
   if (values.length <= 4) return values.join(", ");
@@ -1057,149 +955,11 @@ function listHeadPaths(root) {
   if (listed.status !== 0) return [];
   return listed.stdout.split("\n").map((path) => path.trim()).filter(Boolean);
 }
-function listDirtyPaths(root) {
-  if (!hasGitHead(root)) return [];
-  const changed = runGit(root, ["diff", "--name-only", "HEAD", "--"]);
-  const untracked = runGit(root, ["ls-files", "--others", "--exclude-standard"]);
-  const paths = [
-    ...changed.status === 0 ? changed.stdout.split("\n") : [],
-    ...untracked.status === 0 ? untracked.stdout.split("\n") : []
-  ];
-  return [...new Set(paths.map((path) => path.trim().replaceAll("\\", "/")).filter(Boolean))];
-}
 function restoresHeadState(root, relativePath2, { missing = false, content = "" } = {}) {
   const head = gitShowHead(root, relativePath2);
   if (head === null) return missing === true;
   if (missing) return false;
   return head === String(content ?? "");
-}
-
-// plugins/test-driven-development/src/lib/state-store.ts
-import { mkdirSync as mkdirSync3, readFileSync as readFileSync5 } from "node:fs";
-import { dirname as dirname3, join as join4, resolve as resolve5 } from "node:path";
-
-// core/src/plugin-workdir.ts
-import { mkdirSync, readFileSync as readFileSync4, writeFileSync } from "node:fs";
-import { join as join2 } from "node:path";
-var PLUGIN_WORKDIR_GITIGNORE = "*\n";
-function normalizeGitignore(text) {
-  return String(text ?? "").replace(/\r\n/gu, "\n").trim();
-}
-function isStalePluginWorkdirGitignore(text) {
-  const value = normalizeGitignore(text);
-  return value === "" || value === "state/" || value === "sessions/";
-}
-function ensurePluginWorkdirGitignore(pluginRoot) {
-  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
-  const ignore = join2(pluginRoot, ".gitignore");
-  let current = null;
-  try {
-    current = readFileSync4(ignore, "utf8");
-  } catch (error) {
-    if (error.code !== "ENOENT") throw error;
-  }
-  if (current !== null && normalizeGitignore(current) === "*") return;
-  if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
-  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
-}
-
-// core/src/state-file.ts
-import { createHash, randomBytes } from "node:crypto";
-import { existsSync as existsSync3, mkdirSync as mkdirSync2, renameSync, rmSync, statSync, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname as dirname2, join as join3 } from "node:path";
-var DIRECTORY_MODE = 448;
-var FILE_MODE = 384;
-var STALE_LOCK_MS = 3e4;
-var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
-function digestKey(value) {
-  return createHash("sha256").update(String(value)).digest("hex");
-}
-function atomicWriteJson(path, value) {
-  const directory = dirname2(path);
-  const temporary = join3(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    mkdirSync2(directory, { recursive: true, mode: DIRECTORY_MODE });
-    writeFileSync2(temporary, `${JSON.stringify(value)}
-`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try {
-      rmSync(temporary, { force: true });
-    } catch {
-    }
-    return false;
-  }
-}
-function withPathLock(path, operation) {
-  const lockPath = `${path}.lock`;
-  mkdirSync2(dirname2(path), { recursive: true, mode: DIRECTORY_MODE });
-  const deadline = Date.now() + 5e3;
-  while (true) {
-    try {
-      mkdirSync2(lockPath, { mode: DIRECTORY_MODE });
-      try {
-        return operation();
-      } finally {
-        rmSync(lockPath, { recursive: true, force: true });
-      }
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      try {
-        if (Date.now() - statSync(lockPath).mtimeMs > STALE_LOCK_MS) {
-          rmSync(lockPath, { recursive: true, force: true });
-          continue;
-        }
-      } catch {
-        if (!existsSync3(lockPath)) continue;
-      }
-      if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock: ${lockPath}`);
-      Atomics.wait(WAIT_BUFFER, 0, 0, 10);
-    }
-  }
-}
-
-// plugins/test-driven-development/src/lib/state-store.ts
-var VERSION = 5;
-var STATE_DIR_RELATIVE = ".test-driven-development/state";
-function emptyState() {
-  return {
-    version: VERSION,
-    sequence: 0,
-    pending: null,
-    tests: [],
-    needsGreen: null,
-    observedRed: {},
-    unresolvedVerificationFailures: []
-  };
-}
-function digest(value) {
-  return digestKey(value);
-}
-function ensureStateDir(directory) {
-  mkdirSync3(directory, { recursive: true, mode: 448 });
-  ensurePluginWorkdirGitignore(dirname3(directory));
-}
-function statePath(sessionId, root) {
-  const session = sessionId || "default";
-  return join4(resolve5(root), STATE_DIR_RELATIVE, `${digest(session)}.json`);
-}
-function readState(sessionId, root) {
-  const path = statePath(sessionId, root);
-  if (!path) return emptyState();
-  try {
-    const value = JSON.parse(readFileSync5(path, "utf8"));
-    if (!isRecord(value) || value.version !== VERSION) throw new Error("version mismatch");
-    return { ...emptyState(), ...value };
-  } catch {
-    return emptyState();
-  }
-}
-function writeState(sessionId, root, state) {
-  const path = statePath(sessionId, root);
-  if (!path) return false;
-  ensureStateDir(dirname3(path));
-  return withPathLock(path, () => atomicWriteJson(path, { ...state, version: VERSION }));
 }
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
@@ -1209,13 +969,10 @@ function warn(message) {
 }
 function readText(path) {
   try {
-    return readFileSync6(path, "utf8");
+    return readFileSync4(path, "utf8");
   } catch {
     return "";
   }
-}
-function hashPath(path) {
-  return existsSync4(path) ? digest(readText(path)) : "missing";
 }
 function errorMessage(error) {
   if (error instanceof Error) return error.message;
@@ -1226,7 +983,7 @@ function isActiveTarget(target) {
   return target.kind !== "ignored" && target.language !== null;
 }
 function isInsideRoot(root, path) {
-  const value = relative4(resolve6(root), resolve6(path));
+  const value = relative4(resolve5(root), resolve5(path));
   return value !== ".." && !value.startsWith(`..${sep}`) && !isAbsolute2(value);
 }
 function targetsFor(event, root) {
@@ -1236,96 +993,11 @@ function targetsFor(event, root) {
   }).filter(isActiveTarget);
 }
 function mixedWriteFinding() {
-  return "[TDD Guard] A single tool call cannot mix test and implementation files. Use separate tool calls: write the test first, let the hook record it, then write implementation files.";
+  return "[TDD Guard] A single tool call cannot mix test and implementation files. Use separate tool calls: change the test first, then change the implementation.";
 }
-function testCommand(command) {
-  const value = String(command ?? "");
-  return /(?:^|[;&|]\s*)(?:[^\s]+\/)?(?:node\s+--test|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+test|pytest|python(?:3)?\s+-m\s+pytest|phpunit|vendor\/bin\/phpunit|go\s+test|cargo\s+test|jest|vitest)\b/iu.test(value) || /(?:^|[;&|]\s*)(?:python(?:3)?\s+)?["']?(?:\.\/|\/)?[^\s;&|"']*(?:runtests|run[-_]?tests?)\.py\b/iu.test(value) || /(?:^|[;&|]\s*)python(?:3)?\s+(?:\.\/)?manage\.py\s+test\b/iu.test(value);
-}
-function hasDirtySource(root) {
-  return listDirtyPaths(root).some((path) => classifyPath(path).kind === "source");
-}
-var TEST_FILE_IN_COMMAND = /(?:^|\s)["']?((?:\.\/|\/)?[^\s;|"']*(?:Test\.php|_test\.go|(?:test_[^/\s"']+|tests?)\.py|\.(?:test|spec)\.[cm]?[jt]sx?|\.rs))(?:::[^\s;|"']*)?["']?(?=\s|$)/gu;
-function namedTestPaths(command, root) {
-  const normalized = String(command ?? "").replaceAll("\\", "/");
-  const found = [];
-  for (const match of normalized.matchAll(TEST_FILE_IN_COMMAND)) {
-    const captured = match[1] ?? "";
-    const relative5 = relativePath(root, resolve6(root, captured.replace(/^\.\//u, "")));
-    if (classifyPath(relative5).kind === "test") found.push(relative5);
-  }
-  return [...new Set(found)];
-}
-function selectorTestPaths(command, root, state) {
-  const tokens = String(command).match(/[A-Za-z_][A-Za-z0-9_.]*/gu) ?? [];
+function headCorrespondingTests(root, source, context) {
+  if (!hasGitHead(root)) return [];
   const found = /* @__PURE__ */ new Set();
-  const recorded = (state.tests ?? []).map((record) => record.path);
-  for (const token of tokens) {
-    if (!token.includes(".")) continue;
-    const parts = token.split(".");
-    for (let length = parts.length; length >= 2; length -= 1) {
-      const selector = parts.slice(0, length).join(".");
-      const selectorPath = `${selector.replaceAll(".", "/")}.py`;
-      const candidates = [selectorPath, `tests/${selectorPath}`, ...recorded.filter((path) => {
-        const module = path.replace(/\.py$/u, "").replaceAll("/", ".").replace(/^tests?\./u, "");
-        return selector === module || selector.startsWith(`${module}.`);
-      })];
-      for (const candidate of candidates) {
-        if (!existsSync4(resolve6(root, candidate))) continue;
-        if (classifyPath(candidate).kind === "test") found.add(candidate);
-      }
-    }
-  }
-  return [...found];
-}
-function verificationRunner(command) {
-  const value = String(command).toLowerCase();
-  if (/\bnode\s+--test\b/u.test(value)) return "node:test";
-  if (/\b(?:python(?:3)?\s+-m\s+)?pytest\b/u.test(value)) return "pytest";
-  if (/\b(?:vendor\/bin\/)?phpunit\b/u.test(value)) return "phpunit";
-  if (/\bgo\s+test\b/u.test(value)) return "go:test";
-  if (/\bcargo\s+test\b/u.test(value)) return "cargo:test";
-  if (/\bvitest\b/u.test(value)) return "vitest";
-  if (/\bjest\b/u.test(value)) return "jest";
-  if (/\bnpm\s+(?:run\s+)?test\b/u.test(value)) return "npm:test";
-  if (/\bpnpm\s+(?:run\s+)?test\b/u.test(value)) return "pnpm:test";
-  if (/\byarn\s+test\b/u.test(value)) return "yarn:test";
-  if (/\bmanage\.py\s+test\b/u.test(value)) return "django:test";
-  if (/\b(?:runtests|run[-_]?tests?)\.py\b/u.test(value)) return "python:test-script";
-  return "test";
-}
-function verificationScope(command, root, state) {
-  const testPaths = [.../* @__PURE__ */ new Set([
-    ...namedTestPaths(command, root),
-    ...selectorTestPaths(command, root, state)
-  ])].sort();
-  return { runner: verificationRunner(command), testPaths };
-}
-function sameVerificationScope(left, right) {
-  return left.runner === right.runner && left.testPaths.length === right.testPaths.length && left.testPaths.every((path, index) => path === right.testPaths[index]);
-}
-function verificationSuccessCovers(success, failure) {
-  if (success.runner !== failure.runner) return false;
-  if (success.testPaths.length === 0) return true;
-  if (failure.testPaths.length === 0) return false;
-  const successfulPaths = new Set(success.testPaths);
-  return failure.testPaths.every((path) => successfulPaths.has(path));
-}
-function coveredOutcomePaths(command, root, state, outcome) {
-  const named = [.../* @__PURE__ */ new Set([...namedTestPaths(command, root), ...selectorTestPaths(command, root, state)])];
-  if (named.length > 0) {
-    if (outcome === "success" && state.needsGreen?.testPaths?.length) {
-      return named.filter((path) => state.needsGreen?.testPaths.includes(path));
-    }
-    return named;
-  }
-  if (/\b(?:--list-tests|--collect-only|--listTests)\b/u.test(String(command ?? ""))) return [];
-  if (testCommand(command) && state.needsGreen?.testPaths?.length) return state.needsGreen.testPaths;
-  return [];
-}
-function correspondingTests(root, source, context) {
-  const found = new Set(findCorrespondingTests(root, source, context));
-  if (!hasGitHead(root)) return [...found];
   for (const path of listHeadPaths(root)) {
     const classified = classifyPath(path);
     if (classified.kind !== "test" || classified.language !== source.language) continue;
@@ -1339,34 +1011,53 @@ function correspondingTests(root, source, context) {
   }
   return [...found];
 }
-function headCorrespondingTests(root, source, state, context, corresponding) {
-  if (hasGitHead(root)) return corresponding.filter((path) => gitPathState(root, path).tracked);
-  return historicalCorrespondingTests(root, source, state, context);
+function dirtyLiveTests(root, source, context) {
+  return findCorrespondingTests(root, source, context).filter((path) => {
+    const state = gitPathState(root, path);
+    return state.present && state.dirty;
+  });
 }
-function liveObservedRed(state, root, path) {
-  const absolutePath = resolve6(root, path);
-  if (!existsSync4(absolutePath)) return false;
-  return (state.observedRed ?? {})[path] === hashPath(absolutePath);
+function restoresBaseline(root, event, target) {
+  const deleting = targetOperation(event, target.absolutePath) === "delete";
+  const current = readText(target.absolutePath);
+  return restoresHeadState(root, target.path, {
+    missing: deleting,
+    content: deleting ? "" : proposedContent(event, target.absolutePath, current)
+  });
 }
-function remainingCorrespondingTests(root, changed, testPaths) {
-  const existing = (testPaths ?? []).filter((path) => existsSync4(resolve6(root, path)));
-  if (existing.length > 0) return existing;
-  const found = /* @__PURE__ */ new Set();
-  for (const path of changed) {
-    const classified = classifyPath(path);
-    if (classified.kind !== "source" || !classified.language) continue;
-    const absolutePath = resolve6(root, path);
-    const content = existsSync4(absolutePath) ? readText(absolutePath) : gitShowHead(root, path) ?? "";
-    const context = resolveLanguageContext(root, path, classified.language);
-    for (const testPath of findCorrespondingTests(root, { path, language: classified.language, content }, context)) {
-      found.add(testPath);
-    }
+function sourceForTarget(root, event, target, deleting) {
+  const current = readText(target.absolutePath);
+  return {
+    path: target.path,
+    language: target.language,
+    content: deleting ? current || gitShowHead(root, target.path) || "" : proposedContent(event, target.absolutePath, current)
+  };
+}
+function denySourceChange(target, tests) {
+  if (tests.length > 0) {
+    writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: matching tests exist (${formatTestPathList(tests)}), but none has changed relative to git HEAD. Change a corresponding test first, then retry the implementation change.`));
+    return;
   }
-  return [...found];
+  writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: no changed corresponding test exists. Create or update ${expectedTestExample(target.path, target.language)} with a real test case first, then retry the implementation change.`));
+}
+function checkSourceTarget(root, event, target) {
+  if (restoresBaseline(root, event, target)) return true;
+  const deleting = targetOperation(event, target.absolutePath) === "delete";
+  const source = sourceForTarget(root, event, target, deleting);
+  const context = resolveLanguageContext(root, target.path, target.language);
+  if (deleting) {
+    const historical = headCorrespondingTests(root, source, context);
+    if (historical.length > 0 && historical.every((path) => gitPathState(root, path).dirty)) return true;
+    denySourceChange(target, historical);
+    return false;
+  }
+  const current = findCorrespondingTests(root, source, context);
+  if (dirtyLiveTests(root, source, context).length > 0) return true;
+  denySourceChange(target, current);
+  return false;
 }
 async function runPre(event) {
   const root = cwdOf(event);
-  const sessionId = sessionIdOf(event);
   const targets = targetsFor(event, root);
   if (targets.length === 0) return;
   const kinds = new Set(targets.map((target) => target.kind));
@@ -1374,241 +1065,33 @@ async function runPre(event) {
     writeJson(preToolDeny(mixedWriteFinding()));
     return;
   }
-  const state = readState(sessionId, root);
-  if (kinds.has("source")) {
-    if (state.needsGreen) {
-      const pendingPaths = new Set(state.needsGreen.paths ?? []);
-      const allRevert = targets.length > 0 && targets.every((target) => {
-        if (pendingPaths.size > 0 && !pendingPaths.has(target.path)) return false;
-        const deleting = targetOperation(event, target.absolutePath) === "delete";
-        const current = readText(target.absolutePath);
-        return restoresHeadState(root, target.path, {
-          missing: deleting,
-          content: proposedContent(event, target.absolutePath, current)
-        });
-      });
-      if (allRevert) {
-        state.pending = {
-          kind: "revert",
-          toolUseId: toolUseIdOf(event),
-          targets: targets.map((target) => ({ path: target.path, beforeHash: hashPath(target.absolutePath) })),
-          testPaths: state.needsGreen.testPaths ?? []
-        };
-        if (!writeState(sessionId, root, state)) warn("implementation snapshot could not be persisted; GREEN completion will fail closed");
-        return;
-      }
-      writeJson(preToolDeny(`[TDD Guard] Blocked implementation edit: the previous implementation mutation has not been exercised by a relevant test run. Run the relevant tests once before another implementation change; a failing result permits the next correction, while completion still requires GREEN.`));
-      return;
-    }
-    const authorizingTests = /* @__PURE__ */ new Set();
-    for (const target of targets) {
-      const current = readText(target.absolutePath);
-      const source = { ...target, content: proposedContent(event, target.absolutePath, current) };
-      const context = resolveLanguageContext(root, target.path, target.language);
-      const corresponding = correspondingTests(root, source, context);
-      const headCorresponding = headCorrespondingTests(root, source, state, context, corresponding);
-      const redPool = headCorresponding.length > 0 ? headCorresponding : corresponding;
-      const redOk = redPool.some((path) => liveObservedRed(state, root, path));
-      const headGone = headCorresponding.length > 0 && headCorresponding.every((path) => !existsSync4(resolve6(root, path)));
-      const headDirty = headCorresponding.some((path) => gitPathState(root, path).dirty);
-      const isDelete = targetOperation(event, target.absolutePath) === "delete";
-      if (redOk) {
-        for (const path of redPool) if (liveObservedRed(state, root, path)) authorizingTests.add(path);
-        continue;
-      }
-      if (isDelete && headCorresponding.length > 0 && (headGone || headDirty)) {
-        for (const path of headCorresponding) authorizingTests.add(path);
-        continue;
-      }
-      if (headCorresponding.length > 0) {
-        writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: matching tests already exist (${formatTestPathList(headCorresponding)}), but no current failing test run (RED) was observed after their latest edit. Run the relevant tests, confirm they fail for the intended behavior, then retry the implementation edit.`));
-        return;
-      }
-      const expected = expectedTestExample(target.path, target.language);
-      writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: no matching edited test with an observed failing run (RED) is available. Create or update ${expected} with a real test case, run it and observe the intended failure, then retry.`));
-      return;
-    }
-    if (!hasGitHead(root)) {
-      writeJson(preToolDeny("[TDD Guard] Blocked implementation edit: this workspace has no git HEAD, so implementation writes are denied. Initialize a git repository with a commit, then retry."));
-      return;
-    }
-    state.pending = {
-      kind: "source",
-      toolUseId: toolUseIdOf(event),
-      targets: targets.map((target) => ({ path: target.path, beforeHash: hashPath(target.absolutePath) })),
-      testPaths: [...authorizingTests]
-    };
-    if (!writeState(sessionId, root, state)) warn("implementation snapshot could not be persisted; GREEN completion will fail closed");
+  if (!kinds.has("source")) return;
+  if (!hasGitHead(root)) {
+    writeJson(preToolDeny("[TDD Guard] Blocked implementation change: this workspace has no git HEAD. Initialize a git repository with a commit, then change a corresponding test before retrying."));
     return;
   }
-  state.pending = {
-    kind: "test",
-    toolUseId: toolUseIdOf(event),
-    targets: targets.map((target) => ({ path: target.path, language: target.language, beforeHash: hashPath(target.absolutePath) }))
-  };
-  if (!writeState(sessionId, root, state)) warn("test write snapshot could not be persisted; later implementation writes will remain blocked");
-}
-async function runPost(event, platform, forceFailure = false) {
-  const root = cwdOf(event);
-  const sessionId = sessionIdOf(event);
-  const state = readState(sessionId, root);
-  const command = shellCommandOf(event);
-  if (command && testCommand(command)) {
-    const outcome = inferOutcome(event, forceFailure);
-    const scope = verificationScope(command, root, state);
-    let stateChanged = false;
-    if (outcome === "failure" && hasDirtySource(root)) {
-      if (!state.unresolvedVerificationFailures.some((failure) => sameVerificationScope(failure, scope))) {
-        state.unresolvedVerificationFailures.push(scope);
-        stateChanged = true;
-      }
-      if (state.needsGreen) {
-        const required = new Set(state.needsGreen.testPaths ?? []);
-        const relevant = scope.testPaths.length === 0 || scope.testPaths.some((path) => required.has(path));
-        if (relevant) {
-          const covered = coveredOutcomePaths(command, root, state, outcome).filter((path) => required.size === 0 || required.has(path));
-          if (covered.length > 0) {
-            state.observedRed = { ...state.observedRed ?? {} };
-            for (const path of covered) {
-              const absolutePath = resolve6(root, path);
-              if (!existsSync4(absolutePath)) continue;
-              const hash = hashPath(absolutePath);
-              state.observedRed[path] = hash;
-              const record = (state.tests ?? []).find((item) => item.path === path);
-              if (record) record.redHash = hash;
-            }
-            state.lastRed = {
-              commandHash: digest(command),
-              testHashes: covered.map((path) => state.observedRed[path]).filter((value) => Boolean(value))
-            };
-            state.needsGreen = null;
-          }
-        }
-      }
-    }
-    if (outcome === "success") {
-      const remaining = state.unresolvedVerificationFailures.filter((failure) => !verificationSuccessCovers(scope, failure));
-      stateChanged = remaining.length !== state.unresolvedVerificationFailures.length;
-      state.unresolvedVerificationFailures = remaining;
-    }
-    if (outcome === "failure" && !state.needsGreen) {
-      const covered = coveredOutcomePaths(command, root, state, outcome);
-      if (covered.length === 0) {
-        if (stateChanged && !writeState(sessionId, root, state)) warn("test outcome could not be persisted");
-        return;
-      }
-      state.observedRed = { ...state.observedRed ?? {} };
-      for (const path of covered) {
-        const absolutePath = resolve6(root, path);
-        if (!existsSync4(absolutePath)) continue;
-        const hash = hashPath(absolutePath);
-        state.observedRed[path] = hash;
-        const record = (state.tests ?? []).find((item) => item.path === path);
-        if (record) record.redHash = hash;
-      }
-      state.lastRed = { commandHash: digest(command), testHashes: covered.map((path) => state.observedRed[path]).filter((value) => Boolean(value)) };
-    } else if (outcome === "success" && state.needsGreen) {
-      const covered = coveredOutcomePaths(command, root, state, outcome);
-      if (covered.length === 0) {
-        if (stateChanged && !writeState(sessionId, root, state)) warn("test outcome could not be persisted");
-        return;
-      }
-      state.needsGreen = null;
-    } else if (!stateChanged) return;
-    if (!writeState(sessionId, root, state)) warn("test outcome could not be persisted");
-    return;
-  }
-  if (!state.pending || state.pending.toolUseId !== toolUseIdOf(event)) return;
-  if (state.pending.kind === "source" || state.pending.kind === "revert") {
-    const testPaths = state.pending.testPaths ?? [];
-    const kind = state.pending.kind;
-    const pendingTargets = state.pending.targets ?? [];
-    const changed = pendingTargets.filter((target) => hashPath(resolve6(root, target.path)) !== target.beforeHash).map((target) => target.path);
-    state.pending = null;
-    if (kind === "revert") {
-      const restored = pendingTargets.every((target) => {
-        const missing = !existsSync4(resolve6(root, target.path));
-        return restoresHeadState(root, target.path, {
-          missing,
-          content: missing ? "" : readText(resolve6(root, target.path))
-        });
-      });
-      if (restored) state.needsGreen = null;
-    } else if (changed.length > 0) {
-      const remaining = remainingCorrespondingTests(root, changed, testPaths);
-      const allDeleted = changed.every((path) => !existsSync4(resolve6(root, path)));
-      if (!(allDeleted && remaining.length === 0)) {
-        state.needsGreen = { paths: changed, testPaths };
-        state.observedRed = {};
-        for (const record of state.tests ?? []) delete record.redHash;
-      }
-    }
-    if (!writeState(sessionId, root, state)) warn("implementation outcome could not be persisted; GREEN completion will fail closed");
-    return;
-  }
-  const recorded = [];
-  for (const target of state.pending.targets ?? []) {
-    const absolutePath = resolve6(root, target.path);
-    const afterHash = hashPath(absolutePath);
-    state.tests = (state.tests ?? []).filter((record) => record.path !== target.path);
-    if (afterHash === "missing" || afterHash === target.beforeHash) continue;
-    const language = target.language ?? "";
-    const context = resolveLanguageContext(root, target.path, language);
-    const evidence = extractTestEvidence(language, readText(absolutePath), target.path, context);
-    if (!evidence.valid) continue;
-    state.sequence = (state.sequence ?? 0) + 1;
-    state.tests.push({
-      path: target.path,
-      language,
-      hash: afterHash,
-      sequence: state.sequence,
-      created: target.beforeHash === "missing",
-      evidence
-    });
-    recorded.push(target.path);
-  }
-  state.pending = null;
-  if (!writeState(sessionId, root, state)) {
-    warn("test-first evidence could not be persisted; implementation writes will remain blocked");
-    return;
-  }
-  if (recorded.length > 0 && platform !== "codex") {
-    writeJson(contextOutput("PostToolUse", `[TDD Guard] Recorded test structure for ${recorded.join(", ")}. Run the relevant test command and observe the intended failure (RED) before editing implementation.`));
-  }
-}
-async function runStop(event) {
-  const root = cwdOf(event);
-  const state = readState(sessionIdOf(event), root);
-  if (state.needsGreen) {
-    writeJson(stopDeny(`[TDD Guard] Completion blocked: implementation paths ${state.needsGreen.paths.join(", ")} do not yet have an observed passing test run (GREEN). Run the relevant test command successfully, then retry completion.`));
-    return;
-  }
-  if (state.unresolvedVerificationFailures.length > 0) {
-    writeJson(stopDeny("[TDD Guard] Completion blocked: a test scope failed after implementation changes and has not subsequently passed with the same runner at the same or broader test-selection scope. Fix the regression and rerun that scope successfully; a narrower passing test does not clear a broader known failure."));
-    return;
+  for (const target of targets) {
+    if (target.kind === "source" && !checkSourceTarget(root, event, target)) return;
   }
 }
 async function main() {
   const event = await readStdinJson();
   const mode = process.argv[2];
-  const platform = process.argv[3] ?? "unknown";
   if (event.__parseError) {
     warn("hook input was not valid JSON");
     if (mode === "pre") {
-      writeJson(preToolDeny("[TDD Guard] The hook could not parse this write event safely, so it was blocked. Fix the hook input, then retry."));
+      writeJson(preToolDeny("[TDD Guard] The hook could not parse this implementation event safely, so it was blocked. Fix the hook input, then retry."));
     }
     return;
   }
   if (mode === "pre") await runPre(event);
-  else if (mode === "post" || mode === "failure") await runPost(event, platform, mode === "failure");
-  else if (mode === "stop") await runStop(event);
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve6(process.argv[1])) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve5(process.argv[1])) {
   main().catch((error) => {
     const mode = process.argv[2];
     warn(`hook validation failed: ${errorMessage(error)}`);
     if (mode === "pre") {
-      writeJson(preToolDeny("[TDD Guard] The hook could not validate this write safely, so it was blocked. Fix the hook input or state error, then retry."));
+      writeJson(preToolDeny("[TDD Guard] The hook could not validate this implementation change safely, so it was blocked. Fix the hook input or git state, then retry."));
     }
     process.exitCode = 0;
   });

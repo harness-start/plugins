@@ -257,7 +257,7 @@ stateDiagram-v2
   BaselineGated --> Complete: 观察到完成回执
 ```
 
-示例：`software-debugging` 在 writer 绑定前保持惰性；`evidence-based-research` 只有 `workflow.json` 处于 open 后才开硬行为；`test-driven-development` 以 git HEAD 为基线，无创建 CLI，并在 Stop 重验 dirty tests 与尚未由同 scope GREEN 关闭的失败回执。
+示例：`software-debugging` 在 writer 绑定前保持惰性；`evidence-based-research` 只有 `workflow.json` 处于 open 后才开硬行为；`test-driven-development` 以 git HEAD 为基线，只在 PreToolUse 检查对应测试是否先进入当前变更，不解析测试命令或提供完成回执。
 
 ---
 
@@ -381,7 +381,7 @@ stopBlock(reason)             // { decision: "block", reason }
 | 工作类型 | 完成必须看 | 不得当成完成 |
 | --- | --- | --- |
 | 领域工程 | 项目自己的测试 / 构建 / 静态分析 | Hook 未报错 |
-| 顺序门禁 | 权威基线（如 git HEAD）上的观察回执 | 「本会话写过测试文件」 |
+| 顺序门禁 | 权威基线（如 git HEAD）上的上下游共同变更 | 「本会话写过文件」或 Hook 放行 |
 | 调试账本 | writer 绑定后的会话回执 + 关闭扫描 | 加载了 debug Skill |
 | 研究 | phase、可解析 anchor、seal digest、Stop 重验 | 提到研究 Skill 或跑过发现 |
 | 产物交付 | 当前 `targetStage` 下的合同与 receipt；无 open journal | 顾问建议、预览「看起来对」 |

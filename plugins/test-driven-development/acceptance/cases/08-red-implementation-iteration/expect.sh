@@ -19,4 +19,4 @@ NODE
 
 grep -Eq 'cap\(-3\).*0' "${ACCEPT_WORKSPACE}/test/cap.test.mjs"
 
-echo "OK a related intermediate RED permitted a second implementation correction before final GREEN"
+echo "OK one changed test permitted repeated implementation corrections"

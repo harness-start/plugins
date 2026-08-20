@@ -1,6 +1,6 @@
 ---
 name: tdd-red-green
-description: Plan a test-first red-green-refactor loop. Use with the plugin Hook, which independently records observed RED and GREEN evidence.
+description: Plan a test-first red-green-refactor loop. The plugin Hook enforces file order; the agent must run and judge RED and GREEN.
 ---
 
 # Test-Driven Development (TDD)

@@ -12,44 +12,6 @@
           }
         ]
       }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"test-driven-development:post\" node \"${PLUGIN_ROOT}/dist/hooks/test-driven-development.mjs\" post codex",
-            "statusMessage": "Recording test-first file evidence",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "PostToolUseFailure": [
-      {
-        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"test-driven-development:failure\" node \"${PLUGIN_ROOT}/dist/hooks/test-driven-development.mjs\" failure codex",
-            "statusMessage": "Recording failing test evidence",
-            "timeout": 10000
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"test-driven-development:stop\" node \"${PLUGIN_ROOT}/dist/hooks/test-driven-development.mjs\" stop codex",
-            "statusMessage": "Checking GREEN test evidence",
-            "timeout": 10000
-          }
-        ]
-      }
     ]
   }
 }

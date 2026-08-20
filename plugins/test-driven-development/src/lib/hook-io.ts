@@ -2,20 +2,15 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 import {
   eventCwd,
-  eventSessionId,
   eventToolInput,
   eventToolName,
-  eventToolResponse,
-  eventToolUseId,
   isRecord,
   readStdinJson,
   type HookEvent,
   type HookToolInput,
 } from "@harness/core/hook-event";
-import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import { preToolDeny, writeJson } from "@harness/core/hook-output";
 import { canonicalToolName, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
-
-export type CommandOutcome = "success" | "failure" | "unknown";
 
 export { readStdinJson, preToolDeny, writeJson };
 
@@ -23,12 +18,6 @@ export function cwdOf(event: HookEvent): string {
   const raw = event.cwd ?? event.working_directory ?? event.workingDirectory;
   if (raw !== undefined && raw !== null && typeof raw !== "string") return resolve(raw as string);
   return resolve(eventCwd(event));
-}
-export function sessionIdOf(event: HookEvent): string {
-  return eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
-}
-export function toolUseIdOf(event: HookEvent): string {
-  return eventToolUseId(event) || String(event.id ?? "pending");
 }
 export function toolNameOf(event: HookEvent): string {
   return canonicalToolName(eventToolName(event));
@@ -38,58 +27,6 @@ export function toolInputOf(event: HookEvent): HookToolInput {
 }
 export function shellCommandOf(event: HookEvent): string | null {
   return extractShellCommand(event);
-}
-
-function responseOf(event: HookEvent): unknown {
-  return eventToolResponse(event) ?? event.error ?? null;
-}
-
-function responseText(response: unknown): string {
-  if (typeof response === "string") return response;
-  if (isRecord(response)) {
-    const fields = ["stdout", "stderr", "output", "content", "message"]
-      .map((key) => response[key])
-      .filter((value): value is string => typeof value === "string");
-    if (fields.length > 0) return fields.join("\n");
-  }
-  return "";
-}
-
-export function inferOutcome(event: HookEvent, forceFailure = false): CommandOutcome {
-  const response = responseOf(event);
-  const text = responseText(response);
-  const transportFailure = isRecord(response) && (
-    response.is_error === true ||
-    response.isError === true ||
-    Boolean(response.error) ||
-    response.interrupted === true
-  );
-  if (/(?:command not found|permission denied|could not find executable|is not recognized as an internal or external command)/iu.test(text)) {
-    return "unknown";
-  }
-  const failed = text.match(/(?:^|\n)#\s*fail\s+([0-9]+)/iu);
-  if (
-    (failed?.[1] && Number(failed[1]) > 0) ||
-    /(?:^|\n)(?:not ok\s+[0-9]+\b|--- FAIL:)|\b[1-9][0-9]*\s+failures?\b|\b[1-9][0-9]*\s+failed\b|FAILED\s*\([^\n]*(?:failures?|errors?)\s*=\s*[1-9]/iu.test(text)
-  ) return "failure";
-  if (transportFailure) return "unknown";
-  const exitLine = text.match(/(?:Process exited with code|Exit code:?|exited with code|exit_code)\s*:?\s*(-?\d+)/iu);
-  const responseCode = isRecord(response)
-    ? response.exit_code ?? response.exitCode ?? response.returnCode ?? response.return_code ?? response.code
-    : undefined;
-  const code = Number.isFinite(Number(responseCode))
-    ? Number(responseCode)
-    : exitLine?.[1] !== undefined ? Number(exitLine[1]) : null;
-  if (code !== null && code !== 0) return "unknown";
-  if (forceFailure) return "unknown";
-  const passed = text.match(/(?:^|\n)#\s*pass\s+([0-9]+)/iu);
-  if (passed?.[1] && Number(passed[1]) > 0 && (!failed?.[1] || Number(failed[1]) === 0)) return "success";
-  if (/\b[1-9][0-9]*\s+passed\b/iu.test(text)) return "success";
-  if (/(?:^|\n)Ran\s+[1-9][0-9]*\s+tests?[^\n]*\n(?:\n)?OK(?:\s|$)/iu.test(text)) return "success";
-  if (/\b0\s+failures?\b/iu.test(text)) return "success";
-  if (isRecord(response) && response.success === false) return "unknown";
-  if (code === 0 || (isRecord(response) && response.success === true)) return "success";
-  return "unknown";
 }
 
 function stripQuotes(value: unknown): string {
@@ -253,10 +190,4 @@ export function proposedContent(event: HookEvent, target: string, currentText = 
 
 export function relativePath(root: string, path: string): string {
   return relative(root, resolve(path)).replaceAll("\\", "/") || ".";
-}
-export function contextOutput(eventName: Parameters<typeof additionalContext>[0], text: string) {
-  return additionalContext(eventName, text);
-}
-export function stopDeny(reason: string) {
-  return stopBlock(reason);
 }

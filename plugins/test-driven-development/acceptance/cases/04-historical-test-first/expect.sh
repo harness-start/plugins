@@ -4,7 +4,7 @@ set -euo pipefail
 
 require_host_session_started
 require_guard_hook_signal '\[TDD Guard\] Blocked'
-require_guard_hook_signal 'already exist'
+require_guard_hook_signal 'none has changed'
 if grep -Eq 'function[[:space:]]+total' "${ACCEPT_WORKSPACE}/src/Service/OrderService.php"; then
   echo "source was mutated despite historical tests" >&2
   exit 1

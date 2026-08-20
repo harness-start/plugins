@@ -10,7 +10,6 @@ import {
   type LanguageContext,
   type SourceLike,
 } from "./patterns.js";
-import type { GuardState } from "./state-store.js";
 
 const MAX_TEST_BYTES = 1_048_576;
 
@@ -65,18 +64,6 @@ export function findCorrespondingTests(root: string, source: SourceLike | null |
     }
   }
   return found;
-}
-
-export function historicalCorrespondingTests(
-  root: string,
-  source: SourceLike,
-  state: Pick<GuardState, "tests"> | null | undefined,
-  context: LanguageContext = {},
-): string[] {
-  return findCorrespondingTests(root, source, context).filter((path) => {
-    const record = (state?.tests ?? []).find((item) => item.path === path);
-    return record?.created !== true;
-  });
 }
 
 export function formatTestPathList(paths: Array<string | null | undefined> | null | undefined): string {
