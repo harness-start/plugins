@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint --no-error-on-unmatched-pattern core/src core/hooks core/tests .claude/hooks .codex/hooks plugins/*/src plugins/*/tests scripts/*.ts",
     "test": "tsx --test core/tests/**/*.test.ts plugins/*/tests/*.test.ts",
+    "test:ffmpeg": "tsx --test plugins/video-production/tests/media.test.ts",
     "verify": "npm run typecheck && npm run lint && npm run check:dist && npm test",
     "bench:swe:check": "benchmarks/swe-bench/run.sh check",
     "bench:swe:gold": "benchmarks/swe-bench/run.sh gold-smoke",

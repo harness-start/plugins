@@ -549,6 +549,60 @@ load_codex_marketplace() {
   log "Codex marketplace load check passed"
 }
 
+check_core_quality() {
+  log "Checking TypeScript, ESLint, and committed dist freshness"
+  npm run typecheck
+  npm run lint
+  npm run check:dist
+  validate_json
+  check_scripts
+  check_manifest_versions
+  check_skill_deps
+  check_marketplace_registration
+}
+
+check_acceptance_contracts() {
+  check_acceptance_suites
+  check_project_acceptance_suites
+}
+
+check_host_marketplaces() {
+  validate_claude
+  load_codex_marketplace
+}
+
+run_parallel_validation() {
+  local log_dir failed=0 index rc
+  local -a groups=(
+    check_core_quality
+    check_unit_tests
+    check_acceptance_contracts
+    check_host_marketplaces
+  )
+  local -a pids=()
+
+  log_dir="$(mktemp -d)"
+  for group in "${groups[@]}"; do
+    ( "${group}" ) >"${log_dir}/${group}.log" 2>&1 &
+    pids+=("$!")
+  done
+
+  for index in "${!groups[@]}"; do
+    rc=0
+    wait "${pids[${index}]}" || rc=$?
+    printf '\n===== %s =====\n' "${groups[${index}]}"
+    cat "${log_dir}/${groups[${index}]}.log"
+    if [ "${rc}" -ne 0 ]; then
+      printf 'Validation group failed: %s (rc=%s)\n' \
+        "${groups[${index}]}" "${rc}" >&2
+      failed=1
+    fi
+  done
+
+  rm -rf -- "${log_dir}"
+  return "${failed}"
+}
+
 main() {
   log "Root: ${ROOT_DIR}"
   require_cmd node
@@ -556,20 +610,7 @@ main() {
   require_cmd jq
 
   install_hosts_if_needed
-  log "Checking TypeScript, ESLint, and committed dist freshness"
-  npm run typecheck
-  npm run lint
-  npm run check:dist
-  validate_json
-  check_scripts
-  check_unit_tests
-  check_acceptance_suites
-  check_project_acceptance_suites
-  check_manifest_versions
-  check_skill_deps
-  check_marketplace_registration
-  validate_claude
-  load_codex_marketplace
+  run_parallel_validation
 
   log "All plugin validations passed"
 }

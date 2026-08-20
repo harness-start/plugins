@@ -33,8 +33,9 @@ cache:
 validate:plugins:
   stage: validate
   interruptible: true
-  # The complete suite can approach five minutes on shared runners after
-  # dependency installation. Keep a bounded window without terminating tests.
+  variables:
+    # The real FFmpeg contract runs in validate:ffmpeg without blocking this job.
+    SKIP_REAL_FFMPEG_TEST: "1"
   timeout: 10m
   retry:
     max: 1
@@ -44,12 +45,11 @@ validate:plugins:
       - job_execution_timeout
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends jq ca-certificates git ffmpeg
+    - apt-get install -y --no-install-recommends jq
     - node --version
     - npm --version
     - npm ci
     - jq --version
-    - ffmpeg -version
     - mkdir -p "${CODEX_HOME}"
   script:
     - bash scripts/ci/validate-plugins.sh
@@ -59,3 +59,30 @@ validate:plugins:
     paths:
       - .ci-codex-home/
     reports: {}
+
+validate:ffmpeg:
+  stage: validate
+  interruptible: true
+  timeout: 5m
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - job_execution_timeout
+  cache:
+    key:
+      files:
+        - .gitlab-ci.yml
+    paths:
+      - .npm/
+    policy: pull
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ffmpeg
+    - node --version
+    - npm --version
+    - npm ci
+    - ffmpeg -version
+  script:
+    - npm run test:ffmpeg
