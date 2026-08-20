@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_prompt_context_signal 'Engineering Practice: stable-order challenge.*repository-wide search.*stable/topological/dependency.*existing primitive.*named public seam.*zero, one, two, and many.*raw single-input passthrough.*two independent chains.*at least two items each.*Stable ready-frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2.*adjacent duplicate.*same chain.*self-dependency.*cycle.*genuine cycle fallback.*exact diagnostic.*request disputes the diagnostic content.*original caller-supplied constraint groups.*complete original input sequences.*not a pair of elements extracted from them.*arbitrary internal cycle nodes.*one grammatical summary.*project-conventional delimiters.*do not retain.*one-item-per-line'
+require_prompt_context_signal 'Engineering Practice: stable-order challenge.*repository-wide search.*stable/topological/dependency.*existing primitive.*named public seam.*zero, one, two, and many.*single-input side branch.*own deduplication.*incidental input container.*audit every aggregate caller.*sibling consumers.*two independent chains.*at least two items each.*Stable ready-frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2.*adjacent duplicate.*same chain.*self-dependency.*cycle.*genuine cycle fallback.*every distinct item.*every caller group.*unique.*later groups.*exact diagnostic.*request disputes the diagnostic content.*original caller-supplied constraint groups.*complete original input sequences.*not a pair of elements extracted from them.*arbitrary internal cycle nodes.*Preserve each collection boundary.*do not flatten.*member text.*one grammatical summary.*project-conventional delimiters.*do not retain.*one-item-per-line'
 
 (
   cd "${ACCEPT_WORKSPACE}"
@@ -24,6 +24,9 @@ node --input-type=module -e '
     ChainRegistry.clearWarnings();
     if (!same(ChainRegistry.combine(["x", "y"], ["y", "x"]), ["x", "y"])) process.exit(1);
     if (!same(ChainRegistry.warnings, ["cycle in chains: [\"x\",\"y\"] <> [\"y\",\"x\"]"])) process.exit(1);
+    ChainRegistry.clearWarnings();
+    if (!same(ChainRegistry.combine(["left", "x", "y"], ["y", "x", "right"]), ["left", "x", "y", "right"])) process.exit(1);
+    if (!same(ChainRegistry.warnings, ["cycle in chains: [\"left\",\"x\",\"y\"] <> [\"y\",\"x\",\"right\"]"])) process.exit(1);
   });
 ' "file://${ACCEPT_WORKSPACE}/src/chain-registry.mjs"
 

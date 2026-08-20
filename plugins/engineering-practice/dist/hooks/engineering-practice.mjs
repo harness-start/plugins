@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:85f1c6cf6d461d66a1de13bca1fc196abf52cc455f428cc0567788dd53c193c4
+// harness-source-hash: sha256:424050a8570f42090fce430a9176f7404c00a3e80cfa12ea366923ba270f704b
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { execFileSync } from "node:child_process";
@@ -72,8 +72,10 @@ var EMPTY_GUARD = /\bif\b[^\n]*(?:\bempty\b|\bzero\b|\.size\b|\.length\b|\.shape
 var MIXED_EMPTY_GUARD = /\bif\b[^\n]*(?:\bany\s*\([^)]*(?:empty|sizes?)[^)]*\)|(?:empty|sizes?)\.some\s*\()[^\n]*(?:\bnot\s+all\s*\([^)]*(?:empty|sizes?)[^)]*\)|!\s*(?:empty|sizes?)\.every\s*\()/iu;
 var REJECTION = /^\s*(?:raise\b|throw\b|return\s+(?:new\s+)?\w*Error\b)/iu;
 var FUNCTION_START = /^\s*(?:(?:export\s+)?(?:async\s+)?function\s+|(?:async\s+)?def\s+)/u;
+var FUNCTION_SCOPE_START = /^\s*(?:(?:(?:export\s+)?(?:async\s+)?function\s+|(?:async\s+)?def\s+)|(?:(?:static|async|get|set)\s+)*[A-Za-z_$][\w$]*\s*\([^)]*\)\s*\{)/u;
 var COMPONENT_EMPTY_ASSIGNMENT = /\b([A-Za-z_$][\w$]*)\s*=\s*(?:any\s*\([^\n]*(?:\.size|\.length|\bempty\b)|[^\n]*(?:\.some|\.find)\s*\([^\n]*(?:\.size|\.length|\bempty\b))/iu;
 var EMPTY_AGGREGATE_ASSIGNMENT = /^\s*([A-Za-z_$][\w$]*)\s*=\s*(?:[A-Za-z_$][\w$]*\.)?(?:zeros?|empty|empty_like|full)\s*\(/iu;
+var FRESH_EMPTY_RETURN = /^\s*return\b[^\n]*(?:\b(?:zeros?|empty|empty_like|full)\s*\(|\b(?:array|asarray)\s*\(\s*\[\s*\]\s*\)|\[\s*\])/iu;
 function diffFiles(diff) {
   const files = [];
   for (const block of diff.split(/^diff --git /mu).slice(1)) {
@@ -103,6 +105,25 @@ function addedLines(file) {
     }
   }
   return added;
+}
+function newSideLines(file) {
+  const lines = [];
+  let newLine = 0;
+  let hunkNumber = 0;
+  for (const rawLine of file.lines) {
+    const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/u);
+    const hunkLine = hunk?.[1];
+    if (hunkLine) {
+      newLine = Number.parseInt(hunkLine, 10);
+      hunkNumber += 1;
+      continue;
+    }
+    if (newLine === 0 || rawLine.startsWith("---") || rawLine.startsWith("+++") || rawLine.startsWith("-")) continue;
+    const added = rawLine.startsWith("+");
+    lines.push({ line: newLine, source: rawLine.slice(1), added, hunk: hunkNumber });
+    newLine += 1;
+  }
+  return lines;
 }
 function boundaryGuardFinding(diff) {
   for (const file of productionFiles(diff)) {
@@ -249,6 +270,39 @@ function mixedBoundarySynthesisFinding(diff) {
   }
   return null;
 }
+function mixedBoundaryFreshEmptyFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    let transform = "";
+    let postTransformGuardBudget = 0;
+    let activeHunk = 0;
+    for (const entry of newSideLines(file)) {
+      if (entry.hunk !== activeHunk) {
+        activeHunk = entry.hunk;
+        transform = "";
+        postTransformGuardBudget = 0;
+      }
+      if (FUNCTION_START.test(entry.source)) {
+        transform = "";
+        postTransformGuardBudget = 0;
+      }
+      transform ||= entry.source.match(LOSSY_TRANSFORM)?.[1] ?? "";
+      if (entry.added && transform && EMPTY_GUARD.test(entry.source)) {
+        postTransformGuardBudget = 5;
+        continue;
+      }
+      if (postTransformGuardBudget > 0) postTransformGuardBudget -= 1;
+      if (entry.added && transform && postTransformGuardBudget > 0 && FRESH_EMPTY_RETURN.test(entry.source)) {
+        return {
+          code: "mixed-boundary-fresh-empty",
+          path: file.path,
+          line: entry.line,
+          transform
+        };
+      }
+    }
+  }
+  return null;
+}
 function variadicParameter(source) {
   return source.match(/\bdef\s+\w+\s*\(\s*\*([A-Za-z_]\w*)/u)?.[1] ?? source.match(/(?:\bfunction\s+\w+|\b\w+)\s*\([^)]*\.\.\.([A-Za-z_$][\w$]*)/u)?.[1] ?? "";
 }
@@ -259,23 +313,42 @@ function singleInputExpression(source) {
   const expression = "([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)*)";
   return source.match(new RegExp(`\\bif\\b[^\\n]*len\\s*\\(\\s*${expression}\\s*\\)\\s*={2,3}\\s*1`, "u"))?.[1] ?? source.match(new RegExp(`\\bif\\b[^\\n]*${expression}\\.length\\s*={2,3}\\s*1`, "u"))?.[1] ?? "";
 }
+function variadicFunctionScopes(file) {
+  const scopes = [];
+  let active = null;
+  for (const entry of newSideLines(file)) {
+    if (FUNCTION_SCOPE_START.test(entry.source)) {
+      const parameter = entry.added ? variadicParameter(entry.source) : "";
+      active = parameter ? { parameter, additions: [{ line: entry.line, source: entry.source }] } : null;
+      if (active) scopes.push(active);
+      continue;
+    }
+    if (active && entry.added) active.additions.push({ line: entry.line, source: entry.source });
+  }
+  return scopes;
+}
 function variadicSeamBypassFinding(diff) {
   for (const file of productionFiles(diff)) {
     const additions = addedLines(file);
     if (!additions.some(({ source }) => variadicParameter(source))) continue;
     let input = "";
     let singleInputLine = 0;
+    let guardIndent = 0;
     for (const addition of additions) {
       const candidate = singleInputExpression(addition.source);
       if (candidate && /(?:lists|chains|groups|inputs|items)$/u.test(candidate)) {
         input = candidate;
         singleInputLine = addition.line;
+        guardIndent = addition.source.match(/^\s*/u)?.[0].length ?? 0;
         continue;
       }
       const distance = addition.line - singleInputLine;
-      if (input && distance > 0 && distance <= 4) {
-        const rawReturn = new RegExp(`^\\s*return\\s+${escapeRegExp(input)}\\s*\\[\\s*0\\s*\\]`, "u");
-        if (rawReturn.test(addition.source)) {
+      const indent = addition.source.match(/^\s*/u)?.[0].length ?? 0;
+      if (input && distance > 0 && distance <= 20 && indent > guardIndent) {
+        const returned = addition.source.match(/^\s*return\s+(.+)$/u)?.[1] ?? "";
+        if (returned) {
+          const usesCompleteCollection = new RegExp(`\\b(?:stable|order|normaliz|dedup|merge|combine)\\w*\\s*\\([^\\n]*\\b${escapeRegExp(input)}\\b(?!\\s*\\[)`, "iu").test(returned);
+          if (usesCompleteCollection) continue;
           return {
             code: "variadic-single-input-bypass",
             path: file.path,
@@ -284,7 +357,66 @@ function variadicSeamBypassFinding(diff) {
           };
         }
       }
-      if (distance > 4) input = "";
+      if (distance > 20 || distance > 0 && addition.source.trim() && indent <= guardIndent) input = "";
+    }
+  }
+  return null;
+}
+function variadicCycleFallbackFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    for (const scope of variadicFunctionScopes(file)) {
+      let cycleBudget = 0;
+      for (const addition of scope.additions) {
+        if (/\b(?:except|catch)\b[^\n]*(?:cycle|cyclic|dependency)/iu.test(addition.source)) {
+          cycleBudget = 24;
+          continue;
+        }
+        if (cycleBudget > 0) cycleBudget -= 1;
+        if (cycleBudget === 0 || !/^\s*return\b/u.test(addition.source)) continue;
+        if (new RegExp(
+          `\\b${escapeRegExp(scope.parameter)}\\s*\\[\\s*0\\s*\\]`,
+          "u"
+        ).test(addition.source)) {
+          return {
+            code: "variadic-cycle-first-input-fallback",
+            path: file.path,
+            line: addition.line,
+            parameter: scope.parameter
+          };
+        }
+      }
+    }
+  }
+  return null;
+}
+function variadicFlattenedDiagnosticFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    for (const scope of variadicFunctionScopes(file)) {
+      const additions = scope.additions;
+      for (let index = 0; index < additions.length; index += 1) {
+        const warning = additions[index];
+        if (!warning || !/(?:warnings?\.warn|console\.warn|throw\s+(?:new\s+)?\w*Error)\b/iu.test(warning.source)) continue;
+        const block = additions.slice(index, index + 12).map(({ source }) => source).join("\n");
+        const joinCount = [...block.matchAll(/\.join\s*\(/gu)].length;
+        if (joinCount < 2) continue;
+        const executableBlock = executableText(block);
+        let carriesCallerGroups = new RegExp(`\\b${escapeRegExp(scope.parameter)}\\b`, "u").test(executableBlock);
+        for (let assignmentIndex = 0; !carriesCallerGroups && assignmentIndex < index; assignmentIndex += 1) {
+          const alias = additions[assignmentIndex]?.source.match(/^\s*([A-Za-z_$][\w$]*)\s*=/u)?.[1];
+          if (!alias || !new RegExp(`\\b${escapeRegExp(alias)}\\b`, "u").test(executableBlock)) continue;
+          const assignmentBlock = executableText(
+            additions.slice(assignmentIndex, assignmentIndex + 6).map(({ source }) => source).join("\n")
+          );
+          carriesCallerGroups = new RegExp(`\\b${escapeRegExp(scope.parameter)}\\b`, "u").test(assignmentBlock);
+        }
+        if (!carriesCallerGroups) continue;
+        return {
+          code: "variadic-flattened-diagnostic",
+          path: file.path,
+          line: warning.line,
+          parameter: scope.parameter
+        };
+      }
     }
   }
   return null;
@@ -360,6 +492,45 @@ function variadicCompositionSeams(file) {
     if (name && parameters !== void 0 && /(?:\*|\.\.\.)/u.test(parameters)) seams.add(name);
   }
   return [...seams];
+}
+function partialCompositionMigrationFinding(diff) {
+  for (const file of productionFiles(diff)) {
+    const additions = addedLines(file);
+    const seams = /* @__PURE__ */ new Set();
+    for (const addition of additions) {
+      const signature = addition.source.match(
+        /^\s*(?:def\s+|(?:static\s+)?(?:(?:export\s+)?(?:async\s+)?function\s+)?)((?:merge|combine|order)\w*)\s*\(([^)]*)\)/iu
+      );
+      if (signature?.[1] && /(?:\*|\.\.\.)/u.test(signature[2] ?? "")) seams.add(signature[1]);
+    }
+    if (seams.size === 0) continue;
+    const lines = newSideLines(file);
+    for (const seam of seams) {
+      const seamPattern = escapeRegExp(seam);
+      const hasMigratedConsumer = additions.some(({ source }) => !FUNCTION_SCOPE_START.test(source) && new RegExp(`(?:\\.|\\b)${seamPattern}\\s*\\(\\s*(?:\\*|\\.\\.\\.)`, "u").test(source));
+      if (!hasMigratedConsumer) continue;
+      for (let index = 0; index < lines.length; index += 1) {
+        const entry = lines[index];
+        if (!entry || FUNCTION_SCOPE_START.test(entry.source)) continue;
+        const fixedCall = new RegExp(`(?:\\.|\\b)${seamPattern}\\s*\\(\\s*(?!\\*|\\.\\.)[^\\n,]+,`, "u").test(executableText(entry.source));
+        if (!fixedCall) continue;
+        const indent = entry.source.match(/^\s*/u)?.[0].length ?? 0;
+        const nearby = lines.slice(Math.max(0, index - 8), index);
+        const inAggregateLoop = /^\s*(?:for|while)\b/u.test(entry.source) || nearby.some((candidate) => {
+          const candidateIndent = candidate.source.match(/^\s*/u)?.[0].length ?? 0;
+          return /^\s*(?:for|while)\b/u.test(candidate.source) && candidateIndent < indent;
+        });
+        if (!inAggregateLoop) continue;
+        return {
+          code: "partial-composition-migration",
+          path: file.path,
+          line: entry.line,
+          seam
+        };
+      }
+    }
+  }
+  return null;
 }
 function parallelCompositionSeamFinding(diff) {
   for (const file of productionFiles(diff)) {
@@ -470,12 +641,12 @@ function orderingChallengeContext(diagnosticDisputed = false) {
   const context = [
     "[Engineering Practice: stable-order challenge]",
     "Before writing an ordering algorithm, run a repository-wide search for stable/topological/dependency ordering primitives and check the language standard library. Use an existing primitive unless the observable contract disproves it.",
-    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same normalization mechanism. Do not add a raw single-input passthrough that skips deduplication or changes the result container unless local evidence explicitly requires it.",
+    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same normalization mechanism. Do not add a single-input side branch that performs its own deduplication or preserves an incidental input container; audit every aggregate caller and migrate sibling consumers through the widened public seam.",
     "Add a durable tie-break test with two independent chains of at least two items each. Stable ready-frontier means [a1\u2192a2] and [b1\u2192b2] with discovery order [a1,a2,b1,b2] yields [a1,b1,a2,b2], not [a1,a2,b1,b2].",
-    "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text."
+    "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback retains every distinct item supplied by every caller group, including items unique to later groups, and assert the exact diagnostic type and text."
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups\u2014the complete original input sequences\u2014as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Preserve each collection boundary when rendering those groups; do not flatten every group into member text. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -533,6 +704,13 @@ async function runStop() {
     ));
     return;
   }
+  const mixedFreshEmpty = mixedBoundaryFreshEmptyFinding(diff);
+  if (mixedFreshEmpty) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${mixedFreshEmpty.path}:${mixedFreshEmpty.line}: fresh empty components are synthesized after lossy transform ${mixedFreshEmpty.transform}(), so an earlier all-empty guard does not protect the mixed empty/populated contract. Remove the post-transform detour, preserve the original caller components before information is lost, and prove both mixed directions by value and shape at the public seam.`
+    ));
+    return;
+  }
   const boundary = boundaryGuardFinding(diff);
   if (boundary) {
     writeJson(stopBlock(
@@ -547,6 +725,13 @@ async function runStop() {
     ));
     return;
   }
+  const partialMigration = partialCompositionMigrationFinding(diff);
+  if (partialMigration) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${partialMigration.path}:${partialMigration.line}: a sibling aggregate consumer still accumulates pairwise after another consumer migrated to variadic public seam ${partialMigration.seam}. Repository-search every caller and route each aggregate consumer through the widened seam so cross-group constraints are visible at once; add a sibling-consumer regression with three groups.`
+    ));
+    return;
+  }
   const parallelSeam = parallelCompositionSeamFinding(diff);
   if (parallelSeam) {
     writeJson(stopBlock(
@@ -558,6 +743,20 @@ async function runStop() {
   if (variadicDiagnostic) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${variadicDiagnostic.path}:${variadicDiagnostic.line}: the new variadic composition diagnostic formats extracted variable ${variadicDiagnostic.variable} instead of the complete caller-supplied input sequences. Keep the original groups through cycle handling and assert the exact warning/error text renders those full operands, not selected internal elements.`
+    ));
+    return;
+  }
+  const cycleFallback = variadicCycleFallbackFinding(diff);
+  if (cycleFallback) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${cycleFallback.path}:${cycleFallback.line}: the cycle fallback returns only the first caller group from ${cycleFallback.parameter}, discarding distinct items supplied by later groups. Preserve stable first appearance across every group in the fallback, and test a cycle where both the first and a later group contain a unique item.`
+    ));
+    return;
+  }
+  const flattenedDiagnostic = variadicFlattenedDiagnosticFinding(diff);
+  if (flattenedDiagnostic) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${flattenedDiagnostic.path}:${flattenedDiagnostic.line}: the new variadic diagnostic flattens caller groups from ${flattenedDiagnostic.parameter} into member text, erasing collection boundaries. Format each complete original group directly with project-conventional delimiters in one caller-level summary, and assert the exact diagnostic text.`
     ));
     return;
   }

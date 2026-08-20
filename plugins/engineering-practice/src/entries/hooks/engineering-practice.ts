@@ -7,11 +7,15 @@ import { eventCwd, eventPrompt, readStdinJson, type HookEvent } from "@harness/c
 import { additionalContext, stopBlock, writeJson } from "@harness/core/hook-output";
 import {
   boundaryGuardFinding,
+  mixedBoundaryFreshEmptyFinding,
   mixedBoundarySynthesisFinding,
   mixedBoundaryRejectionFinding,
   orderingPrimitiveFinding,
+  partialCompositionMigrationFinding,
   parallelCompositionSeamFinding,
+  variadicCycleFallbackFinding,
   variadicDiagnosticFinding,
+  variadicFlattenedDiagnosticFinding,
   variadicSeamBypassFinding,
 } from "../../lib/outcome-challenge.js";
 
@@ -53,12 +57,12 @@ export function orderingChallengeContext(diagnosticDisputed = false): string {
   const context = [
     "[Engineering Practice: stable-order challenge]",
     "Before writing an ordering algorithm, run a repository-wide search for stable/topological/dependency ordering primitives and check the language standard library. Use an existing primitive unless the observable contract disproves it.",
-    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same normalization mechanism. Do not add a raw single-input passthrough that skips deduplication or changes the result container unless local evidence explicitly requires it.",
+    "Extend the named public seam rather than a parallel helper, and preserve zero, one, two, and many-input calls through that same normalization mechanism. Do not add a single-input side branch that performs its own deduplication or preserves an incidental input container; audit every aggregate caller and migrate sibling consumers through the widened public seam.",
     "Add a durable tie-break test with two independent chains of at least two items each. Stable ready-frontier means [a1→a2] and [b1→b2] with discovery order [a1,a2,b1,b2] yields [a1,b1,a2,b2], not [a1,a2,b1,b2].",
-    "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback and the exact diagnostic type and text.",
+    "Test an adjacent duplicate in the same chain: it must not create a self-dependency or cycle. Also verify a genuine cycle fallback retains every distinct item supplied by every caller group, including items unique to later groups, and assert the exact diagnostic type and text.",
   ];
   if (diagnosticDisputed) {
-    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
+    context.push("The request disputes the diagnostic content. Report the original caller-supplied constraint groups—the complete original input sequences—as the caller-visible conflicting operands, not a pair of elements extracted from them or arbitrary internal cycle nodes. Preserve each collection boundary when rendering those groups; do not flatten every group into member text. Render the complete operands as one grammatical summary using project-conventional delimiters; do not retain an internal-node-oriented one-item-per-line layout unless local tests or documentation require it. Assert the exact diagnostic type and text against those original sequences.");
   }
   return context.join("\n");
 }
@@ -124,6 +128,14 @@ export async function runStop(): Promise<void> {
     return;
   }
 
+  const mixedFreshEmpty = mixedBoundaryFreshEmptyFinding(diff);
+  if (mixedFreshEmpty) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${mixedFreshEmpty.path}:${mixedFreshEmpty.line}: fresh empty components are synthesized after lossy transform ${mixedFreshEmpty.transform}(), so an earlier all-empty guard does not protect the mixed empty/populated contract. Remove the post-transform detour, preserve the original caller components before information is lost, and prove both mixed directions by value and shape at the public seam.`,
+    ));
+    return;
+  }
+
   const boundary = boundaryGuardFinding(diff);
   if (boundary) {
     writeJson(stopBlock(
@@ -140,6 +152,14 @@ export async function runStop(): Promise<void> {
     return;
   }
 
+  const partialMigration = partialCompositionMigrationFinding(diff);
+  if (partialMigration) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${partialMigration.path}:${partialMigration.line}: a sibling aggregate consumer still accumulates pairwise after another consumer migrated to variadic public seam ${partialMigration.seam}. Repository-search every caller and route each aggregate consumer through the widened seam so cross-group constraints are visible at once; add a sibling-consumer regression with three groups.`,
+    ));
+    return;
+  }
+
   const parallelSeam = parallelCompositionSeamFinding(diff);
   if (parallelSeam) {
     writeJson(stopBlock(
@@ -152,6 +172,22 @@ export async function runStop(): Promise<void> {
   if (variadicDiagnostic) {
     writeJson(stopBlock(
       `[Engineering Practice] Completion blocked at ${variadicDiagnostic.path}:${variadicDiagnostic.line}: the new variadic composition diagnostic formats extracted variable ${variadicDiagnostic.variable} instead of the complete caller-supplied input sequences. Keep the original groups through cycle handling and assert the exact warning/error text renders those full operands, not selected internal elements.`,
+    ));
+    return;
+  }
+
+  const cycleFallback = variadicCycleFallbackFinding(diff);
+  if (cycleFallback) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${cycleFallback.path}:${cycleFallback.line}: the cycle fallback returns only the first caller group from ${cycleFallback.parameter}, discarding distinct items supplied by later groups. Preserve stable first appearance across every group in the fallback, and test a cycle where both the first and a later group contain a unique item.`,
+    ));
+    return;
+  }
+
+  const flattenedDiagnostic = variadicFlattenedDiagnosticFinding(diff);
+  if (flattenedDiagnostic) {
+    writeJson(stopBlock(
+      `[Engineering Practice] Completion blocked at ${flattenedDiagnostic.path}:${flattenedDiagnostic.line}: the new variadic diagnostic flattens caller groups from ${flattenedDiagnostic.parameter} into member text, erasing collection boundaries. Format each complete original group directly with project-conventional delimiters in one caller-level summary, and assert the exact diagnostic text.`,
     ));
     return;
   }

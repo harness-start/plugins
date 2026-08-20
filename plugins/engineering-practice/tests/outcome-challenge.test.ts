@@ -3,11 +3,15 @@ import { test } from "node:test";
 
 import {
   boundaryGuardFinding,
+  mixedBoundaryFreshEmptyFinding,
   mixedBoundarySynthesisFinding,
   mixedBoundaryRejectionFinding,
   orderingPrimitiveFinding,
+  partialCompositionMigrationFinding,
   parallelCompositionSeamFinding,
+  variadicCycleFallbackFinding,
   variadicDiagnosticFinding,
+  variadicFlattenedDiagnosticFinding,
   variadicSeamBypassFinding,
 } from "../src/lib/outcome-challenge.js";
 
@@ -44,6 +48,60 @@ test("accepts an empty guard before the lossy transform", () => {
 `;
 
   assert.equal(boundaryGuardFinding(diff), null);
+});
+
+test("flags fresh per-component empties returned after a lossy transform despite an earlier all-empty guard", () => {
+  const diff = `diff --git a/src/coordinates.py b/src/coordinates.py
+--- a/src/coordinates.py
++++ b/src/coordinates.py
+@@ -10,5 +10,11 @@ def convert(parts):
++    if all(part.size == 0 for part in parts):
++        return [array([]) for _ in parts]
+     parts = broadcast_components(*parts)
+     matrix = stack(parts)
++    if matrix.size == 0:
++        return [array([]) for _ in parts]
+     return engine(matrix)
+ `;
+
+  assert.deepEqual(mixedBoundaryFreshEmptyFinding(diff), {
+    code: "mixed-boundary-fresh-empty",
+    path: "src/coordinates.py",
+    line: 15,
+    transform: "broadcast_components",
+  });
+});
+
+test("accepts returning the original components before a lossy transform without a fresh-empty detour", () => {
+  const diff = `diff --git a/src/coordinates.py b/src/coordinates.py
+--- a/src/coordinates.py
++++ b/src/coordinates.py
+@@ -10,5 +10,8 @@ def convert(parts):
++    if any(part.size == 0 for part in parts):
++        return list(parts)
+     parts = broadcast_components(*parts)
+     return engine(parts)
+ `;
+
+  assert.equal(mixedBoundaryFreshEmptyFinding(diff), null);
+});
+
+test("does not carry a lossy transform into a separate function hidden behind the next diff hunk", () => {
+  const diff = `diff --git a/src/coordinates.py b/src/coordinates.py
+--- a/src/coordinates.py
++++ b/src/coordinates.py
+@@ -10,4 +10,6 @@ def convert_components(parts):
++    if any(part.size == 0 for part in parts):
++        return list(parts)
+     parts = broadcast_components(*parts)
+     return engine(parts)
+@@ -30,3 +32,6 @@ def convert_matrix(matrix):
++    if matrix.size == 0:
++        return array([])
+     return matrix_engine(matrix)
+ `;
+
+  assert.equal(mixedBoundaryFreshEmptyFinding(diff), null);
 });
 
 test("flags a newly invented mixed-boundary rejection before a lossy transform", () => {
@@ -405,6 +463,135 @@ test("does not join a single-input guard and unrelated return across distant hun
   assert.equal(variadicSeamBypassFinding(diff), null);
 });
 
+test("flags a container-sensitive result derived inside a one-input variadic branch", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,3 +5,13 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        if len(chains) == 1:
++            chain = chains[0]
++            unique = []
++            for item in chain:
++                if item not in unique:
++                    unique.append(item)
++            if isinstance(chain, tuple):
++                return tuple(unique)
++            return unique
+         return stable_order(chains)
+ `;
+
+  assert.deepEqual(variadicSeamBypassFinding(diff), {
+    code: "variadic-single-input-bypass",
+    path: "src/registry.py",
+    line: 13,
+    parameter: "chains",
+  });
+});
+
+test("accepts a one-input branch that still invokes the shared mechanism with the complete group collection", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,3 +5,6 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        if len(chains) == 1:
++            return stable_order(chains)
+         return stable_order(chains)
+ `;
+
+  assert.equal(variadicSeamBypassFinding(diff), null);
+});
+
+test("flags a sibling composition consumer left on pairwise accumulation after a variadic migration", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,12 +5,9 @@ class Registry:
+     def primary(self):
+-        result = self._chains[0]
+-        for chain in self._chains[1:]:
+-            result = self.combine(result, chain)
+-        return result
++        return self.combine(*self._chains)
+
+     def secondary(self):
+         result = self._fallback_chains[0]
+         for chain in self._fallback_chains[1:]:
+             result = self.combine(result, chain)
+         return result
+@@ -30,2 +27,2 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
+         return stable_order(chains)
+ `;
+
+  assert.deepEqual(partialCompositionMigrationFinding(diff), {
+    code: "partial-composition-migration",
+    path: "src/registry.py",
+    line: 11,
+    seam: "combine",
+  });
+});
+
+test("accepts migrating every aggregate consumer through the variadic public seam", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -5,14 +5,8 @@ class Registry:
+     def primary(self):
+-        result = self._chains[0]
+-        for chain in self._chains[1:]:
+-            result = self.combine(result, chain)
+-        return result
++        return self.combine(*self._chains)
+
+     def secondary(self):
+-        result = self._fallback_chains[0]
+-        for chain in self._fallback_chains[1:]:
+-            result = self.combine(result, chain)
+-        return result
++        return self.combine(*self._fallback_chains)
+@@ -30,2 +24,2 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
+         return stable_order(chains)
+ `;
+
+  assert.equal(partialCompositionMigrationFinding(diff), null);
+});
+
+test("flags a JavaScript class consumer left pairwise after its static seam becomes variadic", () => {
+  const diff = `diff --git a/src/registry.js b/src/registry.js
+--- a/src/registry.js
++++ b/src/registry.js
+@@ -5,12 +5,9 @@ export class Registry {
+   get primary() {
+-    let result = this.chains[0];
+-    for (const chain of this.chains.slice(1)) result = Registry.combine(result, chain);
+-    return result;
++    return Registry.combine(...this.chains);
+   }
+   get secondary() {
+     let result = this.fallbackChains[0];
+     for (const chain of this.fallbackChains.slice(1)) result = Registry.combine(result, chain);
+     return result;
+   }
+-  static combine(left, right) { return pairwiseOrder(left, right); }
++  static combine(...chains) { return stableOrder(chains); }
+ }
+ `;
+
+  assert.deepEqual(partialCompositionMigrationFinding(diff), {
+    code: "partial-composition-migration",
+    path: "src/registry.js",
+    line: 10,
+    seam: "combine",
+  });
+});
+
 test("flags a variadic cycle diagnostic that formats an extracted element pair", () => {
   const diff = `diff --git a/src/registry.py b/src/registry.py
 --- a/src/registry.py
@@ -463,6 +650,150 @@ test("accepts a variadic cycle diagnostic that directly formats its input groups
 `;
 
   assert.equal(variadicDiagnosticFinding(diff), null);
+});
+
+test("flags a variadic cycle fallback that discards every group except the first", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,10 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains")
++            return list(chains[0])
+ `;
+
+  assert.deepEqual(variadicCycleFallbackFinding(diff), {
+    code: "variadic-cycle-first-input-fallback",
+    path: "src/registry.py",
+    line: 25,
+    parameter: "chains",
+  });
+});
+
+test("accepts a cycle fallback that retains unique items from every caller group", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,10 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        items = unique(chain.from_iterable(chains))
++        try:
++            return stable_order(items, graph)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains: %s" % (chains,))
++            return items
+ `;
+
+  assert.equal(variadicCycleFallbackFinding(diff), null);
+});
+
+test("does not carry variadic cycle state into another function", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,12 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        return stable_order(groups)
++
++    def recover_pair(groups):
++        try:
++            return pairwise_order(groups)
++        except DependencyCycleError:
++            return list(groups[0])
+ `;
+
+  assert.equal(variadicCycleFallbackFinding(diff), null);
+});
+
+test("flags a JavaScript class variadic cycle fallback that keeps only its first group", () => {
+  const diff = `diff --git a/src/registry.js b/src/registry.js
+--- a/src/registry.js
++++ b/src/registry.js
+@@ -20,3 +20,10 @@ export class Registry {
+-  static combine(left, right) {
++  static combine(...groups) {
++    try {
++      return stableOrder(groups);
++    } catch (DependencyCycleError) {
++      warn("conflict");
++      return Array.from(groups[0]);
++    }
+   }
+ `;
+
+  assert.deepEqual(variadicCycleFallbackFinding(diff), {
+    code: "variadic-cycle-first-input-fallback",
+    path: "src/registry.js",
+    line: 25,
+    parameter: "groups",
+  });
+});
+
+test("flags a variadic diagnostic that flattens each caller group into member text", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,13 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        try:
++            return stable_order(groups)
++        except DependencyCycleError:
++            conflicting_chains = [chain for chain in groups if len(chain) > 1]
++            warnings.warn(
++                "Conflicting chains:\\n%s" % "\\n".join(
++                    ", ".join(str(item) for item in chain)
++                    for chain in conflicting_chains
++                )
++            )
+`;
+
+  assert.deepEqual(variadicFlattenedDiagnosticFinding(diff), {
+    code: "variadic-flattened-diagnostic",
+    path: "src/registry.py",
+    line: 25,
+    parameter: "groups",
+  });
+});
+
+test("accepts a variadic diagnostic that formats complete caller groups with their collection boundaries", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,9 @@ class Registry:
+-    def combine(left, right):
++    def combine(*chains):
++        try:
++            return stable_order(chains)
++        except DependencyCycleError:
++            warnings.warn("Conflicting chains: %s" % ", ".join(str(chain) for chain in chains))
+ `;
+
+  assert.equal(variadicFlattenedDiagnosticFinding(diff), null);
+});
+
+test("does not carry a variadic parameter into another function's nested text renderer", () => {
+  const diff = `diff --git a/src/registry.py b/src/registry.py
+--- a/src/registry.py
++++ b/src/registry.py
+@@ -20,3 +20,11 @@ class Registry:
+-    def combine(left, right):
++    def combine(*groups):
++        return stable_order(groups)
++
++    def render_table(groups):
++        warnings.warn("table:\\n%s" % "\\n".join(
++            ", ".join(str(cell) for cell in row) for row in groups
++        ))
+ `;
+
+  assert.equal(variadicFlattenedDiagnosticFinding(diff), null);
 });
 
 test("accepts reuse of the repository ordering primitive", () => {

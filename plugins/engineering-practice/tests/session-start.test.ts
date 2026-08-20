@@ -84,8 +84,9 @@ test("routes ordering prompts to repository-native stable-order challenges", () 
   assert.match(output.additionalContext, /two independent chains.*at least two items/isu);
   assert.match(output.additionalContext, /stable.*frontier.*a1.*b1.*a2.*b2.*not.*a1.*a2.*b1.*b2/isu);
   assert.match(output.additionalContext, /named.*seam.*zero.*one.*two.*many/isu);
+  assert.match(output.additionalContext, /single-input side branch.*own deduplication.*incidental input container.*audit every aggregate caller.*sibling consumers/isu);
   assert.match(output.additionalContext, /adjacent duplicate.*same chain.*self-dependency.*cycle/isu);
-  assert.match(output.additionalContext, /genuine cycle.*exact diagnostic/isu);
+  assert.match(output.additionalContext, /genuine cycle.*every distinct item.*every caller group.*unique.*later groups.*exact diagnostic/isu);
   assert.doesNotMatch(output.additionalContext, /Repository:|Instance ID:|Base commit:/iu);
 });
 
@@ -100,6 +101,7 @@ test("challenges disputed diagnostics at the caller-visible abstraction level", 
   assert.match(context, /complete original input sequences/isu);
   assert.match(context, /not.*elements extracted from them/isu);
   assert.match(context, /not.*arbitrary internal.*nodes/isu);
+  assert.match(context, /preserve each collection boundary.*do not flatten.*member text/isu);
   assert.match(context, /one grammatical summary.*project-conventional delimiters/isu);
   assert.match(context, /do not retain.*internal-node.*one-item-per-line/isu);
   assert.match(context, /exact.*type.*text/isu);
@@ -211,6 +213,39 @@ test("Stop blocks a shared empty aggregate synthesized from mixed components", (
   });
 });
 
+test("Stop blocks fresh per-component empties synthesized after lossy alignment", () => {
+  withGitRepo({
+    "src/coordinates.py": [
+      "def convert(parts):",
+      "    parts = broadcast_components(*parts)",
+      "    matrix = stack(parts)",
+      "    return engine(matrix)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/coordinates.py"), [
+      "def convert(parts):",
+      "    if all(part.size == 0 for part in parts):",
+      "        return [array([]) for _ in parts]",
+      "    parts = broadcast_components(*parts)",
+      "    matrix = stack(parts)",
+      "    if matrix.size == 0:",
+      "        return [array([]) for _ in parts]",
+      "    return engine(matrix)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /fresh empty components.*after lossy transform.*preserve.*original caller components/isu);
+  });
+});
+
 test("Stop blocks a raw one-input bypass in a new variadic seam", () => {
   withGitRepo({
     "src/registry.py": [
@@ -304,6 +339,110 @@ test("Stop blocks a variadic diagnostic that reports extracted internal elements
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /formats extracted variable conflict.*complete caller-supplied input sequences/isu);
+  });
+});
+
+test("Stop blocks a variadic migration that leaves a sibling aggregate consumer pairwise", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def primary(self):",
+      "        result = self._chains[0]",
+      "        for chain in self._chains[1:]:",
+      "            result = self.combine(result, chain)",
+      "        return result",
+      "",
+      "    def secondary(self):",
+      "        result = self._fallback_chains[0]",
+      "        for chain in self._fallback_chains[1:]:",
+      "            result = self.combine(result, chain)",
+      "        return result",
+      "",
+      "    def combine(left, right):",
+      "        return pairwise_order(left, right)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def primary(self):",
+      "        return self.combine(*self._chains)",
+      "",
+      "    def secondary(self):",
+      "        result = self._fallback_chains[0]",
+      "        for chain in self._fallback_chains[1:]:",
+      "            result = self.combine(result, chain)",
+      "        return result",
+      "",
+      "    def combine(*chains):",
+      "        return stable_order(chains)",
+      "",
+    ].join("\n"));
+    const result = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /sibling aggregate consumer.*pairwise.*variadic public seam combine/isu);
+  });
+});
+
+test("Stop blocks lossy cycle fallback and flattened caller-group diagnostics", () => {
+  withGitRepo({
+    "src/registry.py": [
+      "class Registry:",
+      "    def combine(left, right):",
+      "        return stable_order(left + right)",
+      "",
+    ].join("\n"),
+  }, (root) => {
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*chains):",
+      "        try:",
+      "            return stable_order(chains)",
+      "        except DependencyCycleError:",
+      "            warnings.warn('Conflicting chains:\\n%s' % '\\n'.join(",
+      "                ', '.join(str(item) for item in chain) for chain in chains",
+      "            ))",
+      "            return list(chains[0])",
+      "",
+    ].join("\n"));
+    const first = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(first.status, 0, first.stderr);
+    const firstOutput = JSON.parse(first.stdout);
+    assert.equal(firstOutput.decision, "block");
+    assert.match(firstOutput.reason, /cycle fallback.*first caller group.*distinct items.*later groups.*every group/isu);
+
+    writeFileSync(resolve(root, "src/registry.py"), [
+      "class Registry:",
+      "    def combine(*chains):",
+      "        items = unique(flatten(chains))",
+      "        try:",
+      "            return stable_order(items)",
+      "        except DependencyCycleError:",
+      "            warnings.warn('Conflicting chains:\\n%s' % '\\n'.join(",
+      "                ', '.join(str(item) for item in chain) for chain in chains",
+      "            ))",
+      "            return items",
+      "",
+    ].join("\n"));
+    const second = spawnSync(process.execPath, [entry, "stop"], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root }),
+      encoding: "utf8",
+    });
+    assert.equal(second.status, 0, second.stderr);
+    const secondOutput = JSON.parse(second.stdout);
+    assert.equal(secondOutput.decision, "block");
+    assert.match(secondOutput.reason, /flattens caller groups.*into member text.*collection boundaries/isu);
   });
 });
 
