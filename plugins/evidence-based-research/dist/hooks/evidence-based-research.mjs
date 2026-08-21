@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1afaf9031681cc825675b70e21237e9945b80ba4175e3b8b0ce7e6204c7b6f9d
+// harness-source-hash: sha256:34e5dc850a6f350d58162220ca73769b7f74dd5e7dd94cf9712f747b0f94a0f1
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-T4HNEKS5.mjs";
+} from "../chunks/chunk-Y2NNKQDR.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -24,7 +24,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-JS57URXM.mjs";
+} from "../chunks/chunk-M76AK2TQ.mjs";
 
 // plugins/evidence-based-research/src/entries/hooks/evidence-based-research.ts
 import { join as join4, resolve as resolve3 } from "node:path";
