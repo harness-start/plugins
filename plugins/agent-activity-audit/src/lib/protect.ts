@@ -1,4 +1,7 @@
-import { extractFileTargets, extractShellCommand, extractToolName, isFileTool, isShellTool } from "./hook-io.js";
+import { realpathSync } from "node:fs";
+import { basename, dirname, resolve } from "node:path";
+
+import { extractCwd, extractFileTargets, extractShellCommand, extractToolName, isFileTool, isShellTool } from "./hook-io.js";
 import { commandMentionsRoot, isGenericMutationCommand, pathUnderRoot } from "@harness/core/path-protect";
 import type { HookEvent } from "@harness/core/hook-event";
 
@@ -6,8 +9,25 @@ export type ProtectDecision =
   | { deny: true; reason: string }
   | { deny: false };
 
+function canonicalPath(path: string): string {
+  let cursor = resolve(path);
+  const suffix: string[] = [];
+  while (true) {
+    try { return resolve(realpathSync(cursor), ...suffix); } catch {}
+    const parent = dirname(cursor);
+    if (parent === cursor) return resolve(path);
+    suffix.unshift(basename(cursor));
+    cursor = parent;
+  }
+}
+
+function pathWithin(candidate: string, root: string): boolean {
+  return pathUnderRoot(candidate, root)
+    || pathUnderRoot(canonicalPath(candidate), canonicalPath(root));
+}
+
 export function targetsHitAuditRoot(event: HookEvent, auditRootAbs: string): string[] {
-  return extractFileTargets(event).filter((target) => pathUnderRoot(target, auditRootAbs));
+  return extractFileTargets(event).filter((target) => pathWithin(target, auditRootAbs));
 }
 
 export function commandMentionsAuditRoot(command: string, auditRootRel: string, auditRootAbs: string): boolean {
@@ -18,8 +38,10 @@ export function isAuditMutationCommand(command: string): boolean {
   return isGenericMutationCommand(command);
 }
 
-export function shellMutatesAuditRoot(command: string, auditRootRel: string, auditRootAbs: string): boolean {
-  return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
+export function shellMutatesAuditRoot(command: string, auditRootRel: string, auditRootAbs: string, cwd?: string): boolean {
+  if (!isAuditMutationCommand(command)) return false;
+  return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs)
+    || (cwd !== undefined && pathWithin(cwd, auditRootAbs));
 }
 
 export function protectDecision(event: HookEvent, auditRootRel: string, auditRootAbs: string): ProtectDecision {
@@ -43,7 +65,7 @@ export function protectDecision(event: HookEvent, auditRootRel: string, auditRoo
   }
   if (isShellTool(toolName)) {
     const command = extractShellCommand(event);
-    if (command && shellMutatesAuditRoot(command, auditRootRel, auditRootAbs)) {
+    if (command && shellMutatesAuditRoot(command, auditRootRel, auditRootAbs, extractCwd(event))) {
       return {
         deny: true,
         reason: [

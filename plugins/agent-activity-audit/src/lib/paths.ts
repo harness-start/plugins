@@ -3,12 +3,19 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 export function resolveRepoRoot(cwd: string): string | null {
   try {
-    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5000,
+    });
+    const cdup = execFileSync("git", ["rev-parse", "--show-cdup"], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5000,
     }).trim();
+    return resolve(cwd, cdup || ".");
   } catch {
     return null;
   }

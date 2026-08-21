@@ -146,6 +146,24 @@ test("pre denies interpreter rewrite of the file-access trail", async () => {
   }
 });
 
+test("pre denies a relative shell mutation launched from inside the audit root", async () => {
+  const root = workspace();
+  const auditRoot = join(root, ".agent-activity-audit");
+  try {
+    mkdirSync(join(auditRoot, "sessions"), { recursive: true });
+    const deny = await runEntry("pre", {
+      cwd: auditRoot,
+      session_id: "sess-relative-shell",
+      tool_name: "exec_command",
+      tool_input: { cmd: "rm sessions/sess-relative-shell.jsonl" },
+    });
+    assert.equal(deny.code, 0, deny.stderr);
+    assert.equal(JSON.parse(deny.stdout.trim()).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("post records edit with a local gitignore without modifying the project gitignore", async () => {
   const root = workspace();
   try {

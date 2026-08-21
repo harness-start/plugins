@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b71b1a90f8485be4fb2935b6bfcdae864ae1c2df42bd25c1b0e29eb03beeb583
+// harness-source-hash: sha256:c18c96df566325e115a71db38a306a85ae94d2c49641a5a2a2f42e4996da1916
 
 // plugins/agent-activity-audit/src/entries/hooks/agent-activity-audit.ts
-import { resolve as resolve5 } from "node:path";
+import { resolve as resolve6 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // core/src/hook-event.ts
@@ -654,12 +654,19 @@ import { execFileSync } from "node:child_process";
 import { isAbsolute as isAbsolute3, relative, resolve as resolve3 } from "node:path";
 function resolveRepoRoot(cwd) {
   try {
-    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+    execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 5e3
+    });
+    const cdup = execFileSync("git", ["rev-parse", "--show-cdup"], {
       cwd,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 5e3
     }).trim();
+    return resolve3(cwd, cdup || ".");
   } catch {
     return null;
   }
@@ -676,11 +683,15 @@ function toDisplayPath(filePath, base) {
   return candidate && candidate !== ".." && !candidate.startsWith("../") && !isAbsolute3(candidate) ? candidate : absolute.replaceAll("\\", "/");
 }
 
+// plugins/agent-activity-audit/src/lib/protect.ts
+import { realpathSync } from "node:fs";
+import { basename, dirname as dirname2, resolve as resolve5 } from "node:path";
+
 // core/src/path-protect.ts
 import { isAbsolute as isAbsolute4, relative as relative2, resolve as resolve4 } from "node:path";
 function pathUnderRoot(filePath, rootAbs) {
   const rel = relative2(resolve4(rootAbs), resolve4(filePath)).replaceAll("\\", "/");
-  return rel === "" || !rel.startsWith("../") && !isAbsolute4(rel);
+  return rel === "" || rel !== ".." && !rel.startsWith("../") && !isAbsolute4(rel);
 }
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
@@ -710,8 +721,25 @@ function isGenericMutationCommand(command) {
 }
 
 // plugins/agent-activity-audit/src/lib/protect.ts
+function canonicalPath(path) {
+  let cursor = resolve5(path);
+  const suffix = [];
+  while (true) {
+    try {
+      return resolve5(realpathSync(cursor), ...suffix);
+    } catch {
+    }
+    const parent = dirname2(cursor);
+    if (parent === cursor) return resolve5(path);
+    suffix.unshift(basename(cursor));
+    cursor = parent;
+  }
+}
+function pathWithin(candidate, root) {
+  return pathUnderRoot(candidate, root) || pathUnderRoot(canonicalPath(candidate), canonicalPath(root));
+}
 function targetsHitAuditRoot(event, auditRootAbs) {
-  return extractFileTargets2(event).filter((target) => pathUnderRoot(target, auditRootAbs));
+  return extractFileTargets2(event).filter((target) => pathWithin(target, auditRootAbs));
 }
 function commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) {
   return commandMentionsRoot(command, auditRootRel, auditRootAbs);
@@ -719,8 +747,9 @@ function commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) {
 function isAuditMutationCommand(command) {
   return isGenericMutationCommand(command);
 }
-function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs) {
-  return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) && isAuditMutationCommand(command);
+function shellMutatesAuditRoot(command, auditRootRel, auditRootAbs, cwd) {
+  if (!isAuditMutationCommand(command)) return false;
+  return commandMentionsAuditRoot(command, auditRootRel, auditRootAbs) || cwd !== void 0 && pathWithin(cwd, auditRootAbs);
 }
 function protectDecision(event, auditRootRel, auditRootAbs) {
   const toolName = eventToolName(event);
@@ -743,7 +772,7 @@ function protectDecision(event, auditRootRel, auditRootAbs) {
   }
   if (isShellTool2(toolName)) {
     const command = extractShellCommand(event);
-    if (command && shellMutatesAuditRoot(command, auditRootRel, auditRootAbs)) {
+    if (command && shellMutatesAuditRoot(command, auditRootRel, auditRootAbs, eventCwd(event))) {
       return {
         deny: true,
         reason: [
@@ -783,7 +812,7 @@ function buildPendingRecord(event, command, config, now = /* @__PURE__ */ new Da
     kind: "command",
     ts: started,
     session_id: extractSessionId(event),
-    cwd: resolve5(eventCwd(event)),
+    cwd: resolve6(eventCwd(event)),
     tool_name: eventToolName(event),
     tool_use_id: extractToolUseId(event),
     command: redactCommand(command, config),
@@ -805,7 +834,7 @@ function finalizeRecord(base, event, forceFailure, config, now = /* @__PURE__ */
     kind: "command",
     ts: ended,
     session_id: stringField(base, "session_id") ?? extractSessionId(event),
-    cwd: stringField(base, "cwd") ?? resolve5(eventCwd(event)),
+    cwd: stringField(base, "cwd") ?? resolve6(eventCwd(event)),
     tool_name: stringField(base, "tool_name") ?? eventToolName(event),
     tool_use_id: stringField(base, "tool_use_id") ?? extractToolUseId(event),
     command,
@@ -836,11 +865,11 @@ async function main() {
   const mode = modeFromArgv();
   const event = await readStdinJson();
   if (event.__parseError) return;
-  const cwd = resolve5(eventCwd(event));
+  const cwd = resolve6(eventCwd(event));
   const repoRoot = resolveRepoRoot(cwd) ?? cwd;
   const config = await loadProjectConfig(repoRoot, warn);
   if (!config.enabled) return;
-  const auditRootAbs = resolve5(repoRoot, config.auditRoot);
+  const auditRootAbs = resolve6(repoRoot, config.auditRoot);
   const toolName = eventToolName(event);
   if (mode === "pre") {
     const decision = protectDecision(event, config.auditRoot, auditRootAbs);
@@ -907,7 +936,7 @@ async function main() {
   }
 }
 var entryPath = process.argv[1];
-var isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve5(entryPath ?? "");
+var isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve6(entryPath ?? "");
 if (isMain) {
   main().catch((error) => {
     warn(errorText(error));
