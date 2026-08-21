@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1f02a1f296070b914c2c210b4d4f90f547785bacdf653357cefc199b3477b1d3
+// harness-source-hash: sha256:0c9603a9b2462caf0217503d1d0d8c3689f2a3bfe3e623086067cd7377286b10
 import {
   issueWriterCapability
-} from "../chunks/chunk-RQFGBTK6.mjs";
+} from "../chunks/chunk-VS5OSNEI.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-ST7X3X5O.mjs";
+} from "../chunks/chunk-77RZFMEG.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-CFVQS5IX.mjs";
+} from "../chunks/chunk-TLWPTCGP.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve as resolve3 } from "node:path";
+import { join, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -110,7 +110,30 @@ function stopBlock(reason) {
 }
 
 // core/src/hook-targets.ts
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve as resolve2 } from "node:path";
+
+// core/src/artifact-paths.ts
+import { basename, dirname, resolve } from "node:path";
+function resolveWorkspaceRoot2(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -193,7 +216,7 @@ function patchPayload(input) {
 }
 function resolveTargets(raw, cwd) {
   return [...new Set(
-    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve2(path) : resolve2(cwd, path.replace(/^\.\//u, "")))
   )];
 }
 function shellWritePaths(command) {
@@ -222,7 +245,7 @@ function acceptsTool(name, tools) {
 function extractFileTargets(event, options = {}) {
   const tools = options.tools ?? "mutation";
   const name = eventToolName(event);
-  const cwd = resolve(eventCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const input = eventToolInput(event);
   const raw = [];
   if (acceptsTool(name, tools)) {
@@ -236,16 +259,24 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/brand-logo-production/src/lib/shell-policy.ts
-import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
+import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve2(
+var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var PLUGIN_DIRECTORY = resolve3(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
-var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
+var TOOL_DIRECTORY = resolve3(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-lint.mjs", "project-lock.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs", "project-validate.mjs"]);
 var MUTATING_WRITERS = /* @__PURE__ */ new Set(["project-advice.mjs", "project-lock.mjs", "project-preview.mjs", "project-render.mjs", "project-release.mjs", "project-review.mjs", "project-stage.mjs"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
@@ -295,7 +326,7 @@ function expandKnownPluginRoot(command) {
   let expanded = String(command ?? "");
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
-    if (value) expanded = expanded.replaceAll(`\${${name}}`, resolve2(value));
+    if (value) expanded = expanded.replaceAll(`\${${name}}`, resolve3(value));
   }
   return expanded;
 }
@@ -303,12 +334,12 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   const first = words?.[0];
   const second = words?.[1];
   const third = words?.[2];
-  if (!words || words.length < 3 || first === void 0 || second === void 0 || third === void 0 || !["node", basename(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
-  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
-  const name = basename(script);
-  if (dirname(script) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
-  if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
+  if (!words || words.length < 3 || first === void 0 || second === void 0 || third === void 0 || !["node", basename2(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
+  const script = isAbsolute2(second) ? resolve3(second) : resolve3(cwd, second);
+  const name = basename2(script);
+  if (dirname2(script) !== resolve3(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(third) ? resolve3(third) : resolve3(cwd, third);
+  if (dirname2(projectRoot) !== resolve3(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
   if (name === "project-lock.mjs" && words.length !== 3) return null;
   if (["project-advice.mjs", "project-review.mjs"].includes(name) && words.length !== 4) return null;
@@ -331,7 +362,7 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
 }
 function readOnlyCommand(words) {
   const command = words?.[0];
-  if (!words?.length || command === void 0 || command !== basename(command) || !READ_ONLY.has(command)) return false;
+  if (!words?.length || command === void 0 || command !== basename2(command) || !READ_ONLY.has(command)) return false;
   if (command === "git") {
     if (!["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
     if (words.some((word) => word === "--output" || word.startsWith("--output=") || /^-o.+/u.test(word) || ["--ext-diff", "--textconv"].includes(word))) return false;
@@ -341,8 +372,8 @@ function readOnlyCommand(words) {
 }
 function touchesLogo(command, cwd, workspaceRoot) {
   const normalized = String(command ?? "").replaceAll("\\", "/");
-  const root = resolve2(workspaceRoot).replaceAll("\\", "/");
-  const current = resolve2(cwd).replaceAll("\\", "/");
+  const root = resolve3(workspaceRoot).replaceAll("\\", "/");
+  const current = resolve3(cwd).replaceAll("\\", "/");
   return current.startsWith(`${root}/artifacts/logo/`) || /(?:^|[\s"'=])\.?\/?artifacts\/logo(?:\/|[\s"']|$)/u.test(normalized) || normalized.includes(`${root}/artifacts/logo/`);
 }
 function evaluateLogoShell({
@@ -351,7 +382,7 @@ function evaluateLogoShell({
   workspaceRoot,
   activeProjectCount = 0
 }) {
-  if (activeProjectCount < 1 && !touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
+  if (!touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) {
@@ -365,7 +396,7 @@ function evaluateLogoShell({
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 var inputOf = (event) => eventToolInput(event);
 var nameOf = (event) => eventToolName(event);
-var cwdOf = (event) => resolve3(eventCwd(event));
+var cwdOf = (event) => resolve4(eventCwd(event));
 function principalId(event) {
   const codexThreadId = process.env.HARNESS_HOST === "codex" ? process.env.CODEX_THREAD_ID : void 0;
   if (codexThreadId) return codexThreadId;
@@ -375,7 +406,7 @@ function principalId(event) {
 }
 function codexHome(capability) {
   if (capability !== "logo-review" || process.env.HARNESS_HOST !== "codex") return void 0;
-  return resolve3(process.env.CODEX_HOME || join(homedir(), ".codex"));
+  return resolve4(process.env.CODEX_HOME || join(homedir(), ".codex"));
 }
 function targetsOf(event) {
   const input = inputOf(event);
@@ -383,7 +414,7 @@ function targetsOf(event) {
   for (const key of ["source_path", "sourcePath", "destination_path", "destinationPath", "old_path", "oldPath", "new_path", "newPath"]) {
     if (typeof input[key] === "string") extras.push(input[key]);
   }
-  return [.../* @__PURE__ */ new Set([...extractFileTargets(event, { tools: "any" }), ...extras.map((path) => resolve3(cwdOf(event), path))])];
+  return [.../* @__PURE__ */ new Set([...extractFileTargets(event, { tools: "any" }), ...extras.map((path) => resolve4(cwdOf(event), path))])];
 }
 function deny(reason) {
   return preToolDeny(`[Logo Project Delivery Guard] ${reason}`);
@@ -392,7 +423,7 @@ function context(eventName, message) {
   return additionalContext(eventName, message);
 }
 async function existingPlanTarget(cwd, target) {
-  const absolute = resolve3(cwd, target);
+  const absolute = resolve4(cwd, target);
   if (!/(?:^|[\\/])artifacts[\\/]logo[\\/][^\\/]+[\\/]plan\.contract\.json$/u.test(absolute)) return false;
   try {
     await access(absolute);
@@ -436,7 +467,7 @@ async function main() {
 `);
         return;
       }
-      const result = evaluateLogoWrite({ relativePath: resolve3(cwd, target), toolName: nameOf(event) });
+      const result = evaluateLogoWrite({ relativePath: resolve4(cwd, target), toolName: nameOf(event) });
       if (result.decision === "deny") {
         process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
@@ -445,13 +476,17 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
+      const result = evaluateLogoShell({ command, cwd, workspaceRoot });
+      if (result.decision === "deny") {
+        process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
+`);
+        return;
+      }
+      if (!result.writer || !result.projectRoot || !result.argv) return;
       const { roots } = await findLogoProjects(cwd);
-      const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
-      if (result.writer && (result.projectRoot === void 0 || !roots.includes(result.projectRoot))) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}
+      if (!roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}
 `);
-      else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
-`);
-      else if (result.writer && result.projectRoot && result.argv) {
+      else {
         try {
           const trustedCodexHome = codexHome(result.writer);
           await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), ...trustedCodexHome ? { codexHome: trustedCodexHome } : {}, triggerFrom: `brand-logo-production:pre:${result.writer}` });
@@ -475,6 +510,7 @@ async function main() {
 `);
     return;
   }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "logo")) return;
   const { findings } = await findingsFor(cwd);
   if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}
@@ -484,7 +520,7 @@ async function main() {
 `);
   }
 }
-if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve4(process.argv[1])) main().catch((error) => {
   process.stderr.write(`[Logo Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;

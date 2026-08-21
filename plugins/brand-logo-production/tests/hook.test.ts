@@ -137,12 +137,23 @@ for (const command of [
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test("pre hook denies an opaque shell mutation whenever a logo project is active", async () => {
-  const root = mkdtempSync(join(tmpdir(), "logo-opaque-shell-"));
+test("pre hook allows repo-root reads when a logo project exists but is not touched", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-unscoped-sed-"));
   try {
     mkdirSync(join(root, "artifacts", "logo", "orbit"), { recursive: true });
+    const result = await runHook("pre", { cwd: root, tool_name: "Bash", tool_input: { command: "sed -n '1,20p' README.md" } });
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("pre hook denies an opaque shell mutation from inside a logo project", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-opaque-shell-"));
+  try {
+    const project = join(root, "artifacts", "logo", "orbit");
+    mkdirSync(project, { recursive: true });
     const command = `node -e "require('node:fs').writeFileSync(['arti','facts','logo','orbit','dist','primary','mark.svg'].join('/'),'forged')"`;
-    const result = await runHook("pre", { cwd: root, tool_name: "Bash", tool_input: { command } });
+    const result = await runHook("pre", { cwd: project, tool_name: "Bash", tool_input: { command } });
     assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

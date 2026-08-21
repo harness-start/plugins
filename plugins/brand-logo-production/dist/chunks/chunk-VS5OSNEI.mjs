@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:1f02a1f296070b914c2c210b4d4f90f547785bacdf653357cefc199b3477b1d3
+// harness-source-hash: sha256:0c9603a9b2462caf0217503d1d0d8c3689f2a3bfe3e623086067cd7377286b10
 import {
   assertLogoProjectRoot
-} from "./chunk-CFVQS5IX.mjs";
+} from "./chunk-TLWPTCGP.mjs";
 
 // plugins/brand-logo-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";

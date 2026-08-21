@@ -113,7 +113,7 @@ export function evaluateLogoShell({
   workspaceRoot: string;
   activeProjectCount?: number;
 }): LogoShellDecision {
-  if (activeProjectCount < 1 && !touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
+  if (!touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) {

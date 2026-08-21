@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { eventAgentId, eventCwd, eventSessionId, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, type HookEventName } from "@harness/core/hook-output";
-import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 import { computeLogoSubjectDigest, evaluateLogoWrite, validateLogoModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
 import { findLogoProjects, loadLogoProject, resolveWorkspaceRoot } from "../../lib/project.js";
@@ -92,11 +92,12 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
+      const result = evaluateLogoShell({ command, cwd, workspaceRoot });
+      if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
+      if (!result.writer || !result.projectRoot || !result.argv) return;
       const { roots } = await findLogoProjects(cwd);
-      const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
-      if (result.writer && (result.projectRoot === undefined || !roots.includes(result.projectRoot))) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}\n`);
-      else if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
-      else if (result.writer && result.projectRoot && result.argv) {
+      if (!roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}\n`);
+      else {
         try {
           const trustedCodexHome = codexHome(result.writer);
           await issueWriterCapability({ root: result.projectRoot, capability: result.writer, argv: result.argv, subjectDigest: computeLogoSubjectDigest(await loadLogoProject(result.projectRoot)), sessionId: principalId(event), ...(trustedCodexHome ? { codexHome: trustedCodexHome } : {}), triggerFrom: `brand-logo-production:pre:${result.writer}` });
@@ -115,6 +116,7 @@ async function main() {
     if (agentId) process.stdout.write(`${JSON.stringify(context("SubagentStart", `[Logo Project Delivery Guard] trusted subagent principal=${principalId(event)}. When this subagent is explicitly assigned the independent logo review, use this exact value as reviewer.sessionId in the external review input, inspect the current digest-bound artifacts, and invoke project-review.mjs from this subagent only.`))}\n`);
     return;
   }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "logo")) return;
   const { findings } = await findingsFor(cwd);
   if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);
