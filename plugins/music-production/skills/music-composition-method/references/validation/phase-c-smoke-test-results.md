@@ -1,18 +1,18 @@
 # Phase C Smoke-Test Results
 
-This document records Phase C prompt-smoke-test status for release preparation. It should be read with `prompt-smoke-tests.md`, `first-release-readiness.md`, `phase-b-correctness-pass.md`, and `../../RELEASE-ROADMAP.md`.
+This document records Phase C prompt-smoke-test status for release preparation. It should be read with `prompt-smoke-tests.md`, `first-release-readiness.md`, and `phase-b-correctness-pass.md`.
 
 ## Status snapshot
 
 | Field | Status |
 |---|---|
 | Phase | C — prompt simulation / smoke-test behavior |
-| Result | Pass, based on user-run smoke testing reported on 2026-04-27 |
+| Result | Not run in this packaged consumer; record the current run before release |
 | Scope | Representative routing, loading discipline, answer shape, currentness behavior, and workflow behavior |
-| Major issues found | None reported |
-| Over-reading behavior | None reported; file loading stayed within expected range |
-| Randomness / variation | Within expected creative range |
-| Follow-up action | No blocker fixes required; apply non-blocking release-hardening improvements only |
+| Major issues found | Unknown until the current run completes |
+| Over-reading behavior | Not yet verified |
+| Randomness / variation | Not yet verified |
+| Follow-up action | Run the prompt suite and replace this status snapshot with observed evidence |
 
 ## What this result does and does not claim
 
@@ -40,7 +40,7 @@ A Phase C pass does **not** mean:
 |---|---|
 | Randomness was acceptable but should remain bounded. | Add and route `../creative-workflows/answer-calibration.md` for response length, option count, and variation control. |
 | Phase C pass should be visible to release maintainers. | Keep this file as the Phase C result record and link it from readiness / roadmap documents. |
-| First release needs explicit caveats. | Add `../../KNOWN-LIMITATIONS.md` and require it in RC packaging. |
+| First release needs explicit caveats. | Record observed limitations in the release validation report and require that section in RC packaging. |
 | RC packaging should avoid vague “ready” claims. | Add `rc1-packaging-checklist.md` for artifact hygiene and factual validation statements. |
 
 ## Regression watchlist after Phase C
@@ -57,7 +57,7 @@ If future edits change routing, templates, or workflow behavior, rerun at least 
 
 ## Release decision implication
 
-The Phase C pass clears the path to **Phase D — release candidate packaging**, provided that:
+Phase C clears the path to **Phase D — release candidate packaging** only after an observed pass is recorded and:
 
 - the sanity checker still passes,
 - Phase B corrections remain intact,
@@ -70,7 +70,5 @@ The Phase C pass clears the path to **Phase D — release candidate packaging**,
 - First-release readiness → `first-release-readiness.md`
 - Phase B correctness pass → `phase-b-correctness-pass.md`
 - RC1 packaging checklist → `rc1-packaging-checklist.md`
-- Release roadmap → `../../RELEASE-ROADMAP.md`
-- Known limitations → `../../KNOWN-LIMITATIONS.md`
 - Answer calibration → `../creative-workflows/answer-calibration.md`
 - Response templates → `../../assets/response-templates.md`

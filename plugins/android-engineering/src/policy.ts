@@ -19,7 +19,7 @@ export const policy: DomainEngineeringPolicy = {
 ],
  validators:[
  { id:"androidXml", kind:"xml", match:/(?:AndroidManifest\.xml|res\/.+\.xml)$/iu, mode:"block" },
- { id:"androidJson", kind:"json", match:/(?:^|\/)(?:google-services|package)\.json$/iu, mode:"block" },
+ { id:"androidJson", kind:"json", match:/(?:^|\/)google-services\.json$/iu, mode:"block" },
 ],
  sourceScans:[
  { id:"composeCollectAsState", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["COLLECT_AS_STATE","PAGING_COLLECT_AS_STATE"])) },

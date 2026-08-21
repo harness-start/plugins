@@ -33,7 +33,7 @@ Never test views directly – they use `@State` and are likely to behave unpredi
 
 Instead, test view models or similar. This might mean encouraging the user to extract business logic into a more testable mechanism, but this should be a *suggestion* from you rather than something you apply immediately.
 
-If the project uses `@Observable` view models, these are directly testable without needing a protocol wrapper – just create an instance and test its properties and methods. For more help with SwiftUI, suggest the [SwiftUI Pro agent skill](https://github.com/twostraws/swiftui-agent-skill).
+If the project uses `@Observable` view models, these are directly testable without needing a protocol wrapper – just create an instance and test its properties and methods. For more help with SwiftUI, load the bundled `ios-swiftui` Skill.
 
 
 ## Structuring tests

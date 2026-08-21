@@ -1,5 +1,5 @@
 import { mkdirSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 
 import { isRecord } from "@harness/core/hook-event";
 import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
@@ -7,19 +7,17 @@ import { atomicWriteJson, digestKey } from "@harness/core/state-file";
 
 export type WorktreeCreateMode = "block" | "report" | "allow";
 
-export type WorktreeCreateSource = "user-prompt" | "process";
+export type WorktreeCreateSource = "user-prompt";
 
 export type WorktreeCreateReceipt = {
   version: 1;
   allowed: true;
   source: WorktreeCreateSource;
   createdAt: string;
-  process?: string;
 };
 
 export const WORKTREE_STATE_DIR = ".git-delivery/state";
 const RECEIPT_VERSION = 1;
-const PROCESS_ID = /^[^:\s]+:\S+$/u;
 
 const CREATION_PATTERNS = [
   /\b(?:create|creating|use|using)\s+(?:a |an |the )?(?:linked |isolated )?(?:git\s+)?worktree\b/iu,
@@ -62,8 +60,19 @@ export function worktreeCreateReceiptPath(cwd: string, sessionId: string): strin
   );
 }
 
+export function isWorktreeAuthorizationStateTarget(cwd: string, target: string): boolean {
+  const stateRoot = resolve(cwd, WORKTREE_STATE_DIR);
+  const candidate = resolve(target);
+  const relation = relative(stateRoot, candidate);
+  return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
+}
+
+export function commandReferencesWorktreeAuthorizationState(command: string): boolean {
+  return /(?:^|[^A-Za-z0-9._-])\.git-delivery[\\/]state(?:[\\/]|\b)/u.test(command);
+}
+
 function isWorktreeCreateSource(value: unknown): value is WorktreeCreateSource {
-  return value === "user-prompt" || value === "process";
+  return value === "user-prompt";
 }
 
 function parseReceipt(value: unknown): WorktreeCreateReceipt | null {
@@ -72,16 +81,6 @@ function parseReceipt(value: unknown): WorktreeCreateReceipt | null {
   }
   if (!isWorktreeCreateSource(value.source) || typeof value.createdAt !== "string" || !value.createdAt) {
     return null;
-  }
-  if (value.source === "process") {
-    if (typeof value.process !== "string" || !PROCESS_ID.test(value.process)) return null;
-    return {
-      version: 1,
-      allowed: true,
-      source: "process",
-      createdAt: value.createdAt,
-      process: value.process,
-    };
   }
   return {
     version: 1,
@@ -103,18 +102,12 @@ export function readWorktreeCreateReceipt(cwd: string, sessionId: string): Workt
 export function recordWorktreeCreateAllowance(
   cwd: string,
   sessionId: string,
-  source: WorktreeCreateSource,
-  processId?: string,
+  source: unknown,
+  _processId?: string,
 ): boolean {
-  if (!sessionId) return false;
+  if (!sessionId || source !== "user-prompt") return false;
   const createdAt = new Date().toISOString();
-  let receipt: WorktreeCreateReceipt;
-  if (source === "process") {
-    if (typeof processId !== "string" || !PROCESS_ID.test(processId)) return false;
-    receipt = { version: 1, allowed: true, source, createdAt, process: processId };
-  } else {
-    receipt = { version: 1, allowed: true, source, createdAt };
-  }
+  const receipt: WorktreeCreateReceipt = { version: 1, allowed: true, source, createdAt };
   const path = worktreeCreateReceiptPath(cwd, sessionId);
   mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
   ensurePluginWorkdirGitignore(join(resolve(cwd), ".git-delivery"));

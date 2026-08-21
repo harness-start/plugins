@@ -120,6 +120,45 @@ test("pre entry emits a complete blocking contract", async () => {
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /blockingContract:/u);
 });
 
+test("pre entry denies direct writes to worktree authorization receipts", async () => {
+  const root = createRepository("git-delivery-state-write-");
+  try {
+    const receipt = worktreeCreateReceiptPath(root, "forged-session");
+    const result = await runEntry(PRE, {
+      cwd: root,
+      session_id: "forged-session",
+      tool_name: "Write",
+      tool_input: { file_path: receipt, content: "{\"allowed\":true}" },
+    });
+    assert.equal(result.code, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /Authorization State Guard/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pre entry denies interpreter writes to worktree authorization receipts", async () => {
+  const root = createRepository("git-delivery-state-interpreter-write-");
+  try {
+    const result = await runEntry(PRE, {
+      cwd: root,
+      session_id: "forged-session",
+      tool_name: "Bash",
+      tool_input: {
+        command: "node -e 'require(\"node:fs\").writeFileSync(\".git-delivery/state/forged.json\", \"{}\")'",
+      },
+    });
+    assert.equal(result.code, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /Authorization State Guard/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("merge marker detection is line anchored, bounded, and configurable", () => {
   assert.deepEqual(findMergeConflictMarkers([
     "=======",
@@ -357,7 +396,7 @@ test("user prompt entry records explicit worktree requests and ignores negations
   }
 });
 
-test("worktree create receipts permit only valid user-prompt or process sources", () => {
+test("worktree create receipts permit only bundled user-prompt sources", () => {
   const root = mkdtempSync(join(tmpdir(), "git-delivery-worktree-"));
   try {
     assert.equal(isWorktreeCreatePermitted("block", null), false);
@@ -370,9 +409,8 @@ test("worktree create receipts permit only valid user-prompt or process sources"
     assert.equal(userReceipt?.source, "user-prompt");
     assert.equal(userReceipt?.allowed, true);
     assert.equal(isWorktreeCreatePermitted("block", userReceipt), true);
-    assert.equal(recordWorktreeCreateAllowance(root, "sess-process", "process", "ci-gated-delivery:parallel-writers"), true);
-    assert.equal(readWorktreeCreateReceipt(root, "sess-process")?.source, "process");
-    assert.equal(recordWorktreeCreateAllowance(root, "sess-bad", "process"), false);
+    assert.equal(recordWorktreeCreateAllowance(root, "sess-process", "process", "ci-gated-delivery:parallel-writers"), false);
+    assert.equal(readWorktreeCreateReceipt(root, "sess-process"), null);
     mkdirSync(join(worktreeCreateReceiptPath(root, "sess-forged"), ".."), { recursive: true });
     writeFileSync(worktreeCreateReceiptPath(root, "sess-forged"), JSON.stringify({
       version: 1, allowed: true, source: "agent", createdAt: "2026-01-01T00:00:00.000Z",

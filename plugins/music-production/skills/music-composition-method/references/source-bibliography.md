@@ -295,7 +295,7 @@ A chart position does not automatically become a composition rule. Extract repea
 
 Useful sources:
 
-- The current project files themselves: `SKILL.md`, `references/00-navigation.md`, `RELEASE-ROADMAP.md`, and validation reports
+- The current project files themselves: `SKILL.md`, `references/00-navigation.md`, and the bundled validation reports
 - Stable theory references for disputed notation, harmony, and voice-leading claims
 - The automated regression script for broken links and known high-risk patterns
 - Prompt smoke-test transcripts from representative user sessions
@@ -344,7 +344,5 @@ Use caution:
 - Revision and feedback loops → `creative-workflows/revision-and-feedback-loops.md`
 - Style and copyright guardrails → `research/style-reference-and-copyright.md`
 - Instrument idiom overview → `instrument-idiom/overview.md`
-- First release roadmap → `../RELEASE-ROADMAP.md`
 - Release readiness checklist → `validation/first-release-readiness.md`
 - Prompt smoke tests → `validation/prompt-smoke-tests.md`
-- Maintenance policy → `../MAINTENANCE.md`

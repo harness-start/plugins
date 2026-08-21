@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -8,10 +8,11 @@ import { fileURLToPath } from "node:url";
 
 const HOOK = fileURLToPath(new URL("../dist/hooks/interface-craft.mjs", import.meta.url));
 
-function run(mode: string, event: Record<string, unknown>) {
+function run(mode: string, event: Record<string, unknown>, env: Record<string, string> = {}) {
   return spawnSync(process.execPath, [HOOK, mode], {
     input: JSON.stringify(event),
     encoding: "utf8",
+    env: { ...process.env, ...env },
   });
 }
 
@@ -23,6 +24,7 @@ test("invalid hook JSON fails open", () => {
 
 test("PostToolUse reports a hard offset shadow and Stop dedupes it", () => {
   const root = mkdtempSync(join(tmpdir(), "interface-craft-"));
+  const data = mkdtempSync(join(tmpdir(), "interface-craft-data-"));
   const css = join(root, "page.css");
   writeFileSync(css, "section { box-shadow: 8px 8px 0 black; }\n");
   const event = {
@@ -31,10 +33,11 @@ test("PostToolUse reports a hard offset shadow and Stop dedupes it", () => {
     tool_name: "Write",
     tool_input: { file_path: css },
   };
-  const post = run("post", event);
+  const env = { HARNESS_HOST: "codex", PLUGIN_DATA: data };
+  const post = run("post", event, env);
   assert.equal(post.status, 0, post.stderr);
   assert.match(post.stdout, /HARD_OFFSET_SHADOW/u);
-  const stop = run("stop", { session_id: event.session_id, cwd: root });
+  const stop = run("stop", { session_id: event.session_id, cwd: root }, env);
   assert.equal(stop.status, 0, stop.stderr);
   assert.doesNotMatch(stop.stdout, /HARD_OFFSET_SHADOW/u);
 });
@@ -66,4 +69,30 @@ test("PostToolUse reports transition-all and removed focus outlines through the 
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /TRANSITION_ALL/u);
   assert.match(result.stdout, /FOCUS_OUTLINE_REMOVED/u);
+});
+
+test("session ledger is platform-scoped, private, and disabled without a session id", () => {
+  const root = mkdtempSync(join(tmpdir(), "interface-craft-state-"));
+  const data = join(root, "codex-data");
+  const css = join(root, "page.css");
+  writeFileSync(css, "section { box-shadow: 8px 8px 0 black; }\n");
+  const env = { HARNESS_HOST: "codex", PLUGIN_DATA: data };
+  const event = {
+    session_id: "private-ledger",
+    cwd: root,
+    tool_name: "Write",
+    tool_input: { file_path: css },
+  };
+  const persisted = run("post", event, env);
+  assert.equal(persisted.status, 0, persisted.stderr);
+  const ledgerDirectory = join(data, "interface-craft", "sessions");
+  assert.equal(existsSync(ledgerDirectory), true);
+  assert.equal(statSync(ledgerDirectory).mode & 0o777, 0o700);
+  const ledgerFiles = readdirSync(ledgerDirectory);
+  assert.equal(ledgerFiles.length, 1);
+  assert.equal(statSync(join(ledgerDirectory, ledgerFiles[0])).mode & 0o777, 0o600);
+
+  const noSession = run("post", { ...event, session_id: "" }, env);
+  assert.equal(noSession.status, 0, noSession.stderr);
+  assert.equal(readdirSync(ledgerDirectory).length, 1);
 });

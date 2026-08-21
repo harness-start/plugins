@@ -48,7 +48,9 @@ export async function issueMusicWriterCapability({ root: rawRoot, capability, ar
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown" || sessionId === "hook") throw new Error("WRITER_SESSION_MISSING");
   const target = grantPath(root, capability);
-  await mkdir(join(root, ".tmp", "music-guard"), { recursive: true });
+  const capabilityDirectory = join(root, ".tmp", "music-guard");
+  await mkdir(capabilityDirectory, { recursive: true, mode: 0o700 });
+  await chmod(capabilityDirectory, 0o700);
   try {
     const existing = JSON.parse(await readFile(target, "utf8")) as Record<string, unknown>;
     if (Number(existing.expiresAt) >= Date.now()) throw new Error("WRITER_CAPABILITY_BUSY");

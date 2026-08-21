@@ -17,6 +17,8 @@ brief → reference-analysis（按需）→ direction → composition → arrang
 
 ## 快速开始
 
+以下 mutating 命令应在已安装插件的 Claude/Codex 会话中作为精确工具调用执行，由 PreToolUse Hook 签发一次性 capability；直接在普通终端运行会以 `WRITER_CAPABILITY_MISSING` 拒绝。
+
 ```bash
 export PLUGIN_ROOT="$PWD/plugins/music-production"
 

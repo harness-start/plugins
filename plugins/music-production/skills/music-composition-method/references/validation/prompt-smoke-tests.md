@@ -94,7 +94,6 @@ A prompt passes when the assistant:
 ## Cross-references
 
 - Release readiness → `first-release-readiness.md`
-- Release roadmap → `../../RELEASE-ROADMAP.md`
 - Response templates → `../../assets/response-templates.md`
 - Diagnostic checklists → `../../assets/diagnostic-checklists.md`
 - Musical brainstorming → `../creative-workflows/musical-brainstorming.md`

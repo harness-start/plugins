@@ -104,7 +104,6 @@ function optionalString(value: unknown): string | undefined {
 function resolveEngineSettings(raw: unknown): EngineSettings {
   const engines: EngineSettings = { ...DEFAULT_SETTINGS.engines };
   if (!isRecord(raw)) return engines;
-  if (typeof raw.dangerousRm === "boolean") engines.dangerousRm = raw.dangerousRm;
   if (typeof raw.verificationIntegrity === "boolean") {
     engines.verificationIntegrity = raw.verificationIntegrity;
   }
@@ -113,16 +112,11 @@ function resolveEngineSettings(raw: unknown): EngineSettings {
   }
   if (typeof raw.secretRead === "boolean") engines.secretRead = raw.secretRead;
   if (typeof raw.fileSafety === "boolean") engines.fileSafety = raw.fileSafety;
-  if (typeof raw.denyEscalation === "boolean") engines.denyEscalation = raw.denyEscalation;
   return engines;
 }
 
-function resolveEscalationSettings(raw: unknown): EscalationSettings {
-  const escalation: EscalationSettings = { ...DEFAULT_SETTINGS.escalation };
-  if (!isRecord(raw)) return escalation;
-  if (typeof raw.windowMinutes === "number") escalation.windowMinutes = raw.windowMinutes;
-  if (typeof raw.threshold === "number") escalation.threshold = raw.threshold;
-  return escalation;
+function resolveEscalationSettings(_raw: unknown): EscalationSettings {
+  return { ...DEFAULT_SETTINGS.escalation };
 }
 
 /** Validate a user-supplied rule. Built-ins are trusted. */

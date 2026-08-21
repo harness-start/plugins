@@ -64,11 +64,6 @@ EXPECTED_MODE_LINES = [
 ]
 
 EXPECTED_FILES = [
-    "RELEASE-ROADMAP.md",
-    "KNOWN-LIMITATIONS.md",
-    "RELEASE-NOTES-v1.0.md",
-    "VALIDATION-v1.0.md",
-    "RC1-v1.0-decision-memo-2026-04-27.md",
     "references/validation/first-release-readiness.md",
     "references/validation/prompt-smoke-tests.md",
     "references/validation/phase-b-correctness-pass.md",
@@ -519,31 +514,21 @@ def check_scale_degree_spelling_asset() -> list[str]:
 
 def check_release_docs() -> list[str]:
     errors: list[str] = []
-    roadmap = ROOT / "RELEASE-ROADMAP.md"
-    limitations = ROOT / "KNOWN-LIMITATIONS.md"
-    release_notes_v1 = ROOT / "RELEASE-NOTES-v1.0.md"
-    validation_v1 = ROOT / "VALIDATION-v1.0.md"
-    decision_memo = ROOT / "RC1-v1.0-decision-memo-2026-04-27.md"
     readiness = ROOT / "references" / "validation" / "first-release-readiness.md"
     smoke = ROOT / "references" / "validation" / "prompt-smoke-tests.md"
     phase_c = ROOT / "references" / "validation" / "phase-c-smoke-test-results.md"
     rc1 = ROOT / "references" / "validation" / "rc1-packaging-checklist.md"
     calibration = ROOT / "references" / "creative-workflows" / "answer-calibration.md"
-    for p in (roadmap, limitations, release_notes_v1, validation_v1, decision_memo, readiness, smoke, phase_c, rc1, calibration):
+    for p in (readiness, smoke, phase_c, rc1, calibration):
         if not p.exists():
             errors.append(f"Missing release validation doc: {p.relative_to(ROOT)}")
-    if roadmap.exists():
-        text = roadmap.read_text(encoding="utf-8")
-        for phrase in ("Minimum viable first release", "prompt smoke tests", "What not to build before first release", "v1.0 finalization", "KNOWN-LIMITATIONS.md"):
-            if phrase not in text:
-                errors.append(f"Release roadmap missing expected section phrase: {phrase}")
     if smoke.exists():
         text = smoke.read_text(encoding="utf-8")
         if text.count("| # | Prompt | Expected routing | Expected answer shape |") < 5:
             errors.append("Prompt smoke tests should cover multiple prompt categories.")
     if phase_c.exists():
         text = phase_c.read_text(encoding="utf-8")
-        for phrase in ("Pass, based on user-run smoke testing", "No blocker fixes required", "Phase D"):
+        for phrase in ("Status snapshot", "What this result does and does not claim", "Phase D"):
             if phrase not in text:
                 errors.append(f"Phase C result doc missing expected phrase: {phrase}")
     if rc1.exists():
@@ -551,26 +536,6 @@ def check_release_docs() -> list[str]:
         for phrase in ("Required inputs", "Packaging steps", "Release-hold conditions"):
             if phrase not in text:
                 errors.append(f"RC1 checklist missing expected phrase: {phrase}")
-    if limitations.exists():
-        text = limitations.read_text(encoding="utf-8")
-        for phrase in ("Known limitations", "Current trends", "Copyright / style", "Automated validation"):
-            if phrase not in text:
-                errors.append(f"Known limitations doc missing expected phrase: {phrase}")
-    if release_notes_v1.exists():
-        text = release_notes_v1.read_text(encoding="utf-8")
-        for phrase in ("Release Notes — v1.0", "What changed from RC1", "How to validate locally", "Post-release direction"):
-            if phrase not in text:
-                errors.append(f"v1.0 release notes missing expected phrase: {phrase}")
-    if validation_v1.exists():
-        text = validation_v1.read_text(encoding="utf-8")
-        for phrase in ("Validation Report — v1.0", "Ship v1.0", "Snapshot-note files", "Phase C prompt smoke tests"):
-            if phrase not in text:
-                errors.append(f"v1.0 validation report missing expected phrase: {phrase}")
-    if decision_memo.exists():
-        text = decision_memo.read_text(encoding="utf-8")
-        for phrase in ("Promote RC1 to v1.0", "Why RC2 is not recommended now", "RC2 trigger conditions"):
-            if phrase not in text:
-                errors.append(f"RC1 → v1.0 decision memo missing expected phrase: {phrase}")
     if calibration.exists():
         text = calibration.read_text(encoding="utf-8")
         for phrase in ("Controlled variation bands", "Default answer budgets", "Loading calibration"):

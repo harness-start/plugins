@@ -62,19 +62,16 @@ export default {
   ],
   settings: {
     engines: {
-      dangerousRm: true,
       verificationIntegrity: true,
       mysqlReplicationPreflight: true,
       secretRead: true,
       fileSafety: true,
-      denyEscalation: true,
     },
-    escalation: { windowMinutes: 10, threshold: 3 },
   },
 };
 ```
 
-`mode: "allow"` 可覆盖后续内置声明式 deny/report，**不能**绕过危险 `rm` 引擎与 deny 升级。关闭某引擎请用 `settings.engines.* = false`。
+`mode: "allow"` 可覆盖后续内置声明式 deny/report，**不能**绕过危险 `rm` 引擎与 deny 升级。`dangerousRm`、`denyEscalation` 及升级窗口固定为内置值；配置中的 `false` 或自定义阈值会被忽略。其余引擎可用 `settings.engines.* = false` 关闭。
 
 使用插件自带 skill **`command-safety-config`**（`skills/command-safety-config/SKILL.md`）初始化、维护和诊断配置文件：在已启用本插件的会话中按 description 自动触发，或显式调用该 skill。
 
@@ -152,7 +149,7 @@ Hook 自身出错（超时、异常、无效 JSON、配置加载失败）时放�
 在 marketplace 根目录运行：
 
 ```bash
-find plugins/command-safety/scripts -name '*.mjs' -print0 | xargs -0 -n1 node --check
+npx tsx scripts/build-plugins.ts --check --plugin command-safety
 npx tsx --test plugins/command-safety/tests/*.test.ts
 ./scripts/acceptance/run.sh --plugin command-safety
 ```
@@ -161,7 +158,7 @@ npx tsx --test plugins/command-safety/tests/*.test.ts
 
 拒绝信息中的恢复建议按宿主能力生成：Claude Code 使用 `Write` / `Edit`，Codex 使用 `apply_patch`；两端共享相同的风险判定与放行条件。
 
-版本：`0.5.0`
+版本：`0.6.0`
 
 ## 版本沿革
 

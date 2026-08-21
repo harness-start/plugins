@@ -13,7 +13,7 @@
     "shortDescription": "Orchestrates Android engineering and guards Gradle-owned dependency state with lightweight Android configuration checks.",
     "developerName": "Harness Start",
     "category": "Productivity",
-    "capabilities": [],
+    "capabilities": ["skills", "hooks"],
     "defaultPrompt": "Use $android-engineering for this task."
   }
 }

@@ -24,7 +24,7 @@ Scene Packs 是面向可发布文本的子场景策略。它不替代 [场景禁
 
 - 项目名、目标用户、核心能力、支持平台
 - 命令、安装方式、文件路径、链接
-- 已有 benchmark 数量、版本号和能力边界
+- 已发布的评估数量、版本号和能力边界
 
 优先删除：
 
@@ -44,7 +44,7 @@ Scene Packs 是面向可发布文本的子场景策略。它不替代 [场景禁
 误杀边界：
 
 - README intro 允许一句有辨识度的定位句
-- `CLI / API / benchmark / Codex / ChatGPT` 等项目术语应保留
+- `CLI / API / evaluation / Codex / ChatGPT` 等项目术语应保留
 - 不要把 README 改成社交媒体短帖
 
 Before:
@@ -53,7 +53,7 @@ Before:
 
 After:
 
-> `说人话` 是一个中文优先的 rewrite skill，用来把 AI 写出来的套话、表演感和工程师腔改回自然表达。适合 README、release note、issue 回复和日常协作文本。
+> 这个 rewrite skill 优先处理中文正文里的套话、表演感和工程师腔，适合 README、release note、issue 回复和日常协作文本。
 
 ## `release-note`
 
@@ -94,9 +94,9 @@ Before:
 
 After:
 
-> - 新增 `references/scene-packs.md`，覆盖 README、release note、forum post 和 issue reply
-> - `evals/benchmark.md` 增加 8 条 scene pack 回归用例
-> - 新增 `evals/results-v1.8.0.md` 记录本轮复核结果
+> - README 首屏改为直接说明目标用户和核心能力
+> - release note 增加已知限制和迁移提示
+> - issue 回复模板改为先给复现状态和下一步
 
 ## `forum-post`
 
@@ -149,7 +149,7 @@ After:
 必须保留：
 
 - bad case 原句、场景标签、复现结果
-- issue / PR 编号、文件路径、规则名、benchmark 编号
+- issue / PR 编号、文件路径、规则名、复现编号
 - “已确认 / 未复现 / 需要更多样本 / 会补测试”的状态
 
 优先删除：
@@ -168,7 +168,7 @@ After:
 误杀边界：
 
 - issue 回复可以短、硬、直接
-- `bad case / docs / SNF / benchmark / repro` 是维护语境里的正常术语
+- `bad case / docs / repro` 是维护语境里的正常术语
 - 不要把明确的维护回复改成社交式寒暄
 
 Before:
@@ -177,4 +177,4 @@ Before:
 
 After:
 
-> 收到，这个 case 我能复现。它属于 `docs` 场景里的误杀，下一版先补一条 SNF；如果现有规则已经能放行，就只加回归用例。
+> 收到，这个 case 我能复现。它属于 `docs` 场景里的误杀，下一版先补一条不应改写的回归用例；如果现有规则已经能放行，就不改生产规则。

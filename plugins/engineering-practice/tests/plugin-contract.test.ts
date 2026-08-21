@@ -37,19 +37,18 @@ test("review method is read-only and emits verifiable findings", () => {
   assert.match(review, /no findings/iu);
 });
 
-test("both hosts register prompt routing and an outcome challenge Stop gate", () => {
+test("both hosts implement mode C with prompt routing and no Stop gate", () => {
   const claude = json("hooks/claude.json");
   const codex = json("hooks/codex.json");
   for (const hooks of [claude.hooks, codex.hooks]) {
+    assert.deepEqual(Object.keys(hooks).sort(), ["SessionStart", "UserPromptSubmit"]);
     assert.equal(hooks.UserPromptSubmit.length, 1);
     assert.match(hooks.UserPromptSubmit[0].hooks[0].command, /engineering-practice\.mjs.*user-prompt/iu);
-    assert.equal(hooks.Stop.length, 1);
-    assert.match(hooks.Stop[0].hooks[0].command, /engineering-practice\.mjs.*stop/iu);
   }
   assert.match(codex.hooks.UserPromptSubmit[0].hooks[0].command, /AI_EXPERTS_SESSION_ID/iu);
   assert.match(codex.hooks.UserPromptSubmit[0].hooks[0].command, /AI_EXPERTS_TRIGGER_FROM/iu);
-  assert.match(codex.hooks.Stop[0].hooks[0].command, /AI_EXPERTS_SESSION_ID/iu);
-  assert.match(codex.hooks.Stop[0].hooks[0].command, /AI_EXPERTS_TRIGGER_FROM/iu);
+  const entry = readFileSync(resolve(root, "src", "entries", "hooks", "engineering-practice.ts"), "utf8");
+  assert.doesNotMatch(entry, /stopBlock|runStop|outcome-challenge/iu);
 });
 
 test("acceptance inventory covers implementation, review, and a simple control", () => {
@@ -61,10 +60,5 @@ test("acceptance inventory covers implementation, review, and a simple control",
     "01-implementation-and-verify",
     "02-review-regression",
     "03-simple-control",
-    "04-contract-boundary",
-    "05-shared-return-path",
-    "06-cardinality-seam",
-    "07-mixed-boundary",
-    "08-stable-order-primitive",
   ]);
 });

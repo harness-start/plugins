@@ -45,15 +45,9 @@ export default {
   ],
   settings: {
     engines: {
-      dangerousRm: true,
       mysqlReplicationPreflight: true,
       secretRead: true,
       fileSafety: true,
-      denyEscalation: true,
-    },
-    escalation: {
-      windowMinutes: 10,
-      threshold: 3,
     },
   },
 };
@@ -81,7 +75,7 @@ User `match` **must** be `RegExp`. Built-in function matchers are not available 
 | `fileSafety` | true | PostToolUse TLS/PII |
 | `denyEscalation` | true | Same-target multi-deny window |
 
-**Critical:** `mode: "allow"` does **not** bypass `dangerousRm` or `denyEscalation`. To relax recursive-rm protection, user must explicitly set `settings.engines.dangerousRm: false` — confirm impact first.
+**Critical:** `mode: "allow"` does **not** bypass `dangerousRm` or `denyEscalation`. Those engines and their escalation window are fixed safety invariants; `false` or custom escalation thresholds in project config are ignored.
 
 Built-in declarative ids (override with a **more specific** user `allow`/`deny` above them, not by editing the plugin):  
 `sed-inplace`, `cat-heredoc-repo-write`, `cat-heredoc-tmp-write`, `redis-cli-risk`, `redis-cli-pressure`, `sql-destructive`, `sql-privilege`, `active-test-unbounded`, `secret-leak`, `lark-yes`.
@@ -95,7 +89,7 @@ Built-in declarative ids (override with a **more specific** user `allow`/`deny` 
 | `init` | Scaffold empty/minimal config |
 | `show` | Summarize current rules/engines |
 | `add-rule` / `edit-rule` / `remove-rule` | Change `rules` |
-| `set-engines` / `set-escalation` | Change `settings` |
+| `set-engines` | Change configurable report/domain engines; never change `dangerousRm` or `denyEscalation` |
 | `allow-false-positive` | User was blocked; add narrow `allow` |
 | `diagnose` | Invalid config or unexpected block/allow |
 
@@ -120,15 +114,9 @@ export default {
   ],
   settings: {
     engines: {
-      dangerousRm: true,
       mysqlReplicationPreflight: true,
       secretRead: true,
       fileSafety: true,
-      denyEscalation: true,
-    },
-    escalation: {
-      windowMinutes: 10,
-      threshold: 3,
     },
   },
 };
@@ -142,7 +130,7 @@ Encode any known project policies in the same initial write when the user alread
 - Always set `id` for new rules.
 - Deny/report: fill `reason` + `recovery` (and `title` when useful).
 - For false-positive unblocks: capture a **sample command** from the user and craft a tight regex; show the sample in a comment above the rule.
-- Do not disable `dangerousRm` / `denyEscalation` / `fileSafety` without explicit confirmation and a one-line risk note in the reply.
+- Never claim that project config can disable `dangerousRm` or `denyEscalation`, or change their fixed escalation window. Confirm before disabling configurable report/domain engines such as `fileSafety`.
 - Keep regexes as literals with appropriate flags (`i`, `u` as needed).
 
 ### 4. `diagnose`
@@ -150,7 +138,7 @@ Encode any known project policies in the same initial write when the user alread
 1. Correct filename under repo root?
 2. ESM `export default` object parses?
 3. Each user rule: `match` is RegExp; mode in `deny|report|allow`?
-4. Engines values are booleans; escalation numbers positive?
+4. Configurable engine values are booleans; reject attempts to change the fixed dangerous-delete or deny-escalation settings.
 5. Over-broad allows (`/.*/`, bare `/\brm\b/`) — flag as risk.
 6. Remind: `allow` cannot override dangerous recursive-rm engine.
 

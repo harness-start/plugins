@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { findCarrierProjects, collectProjectFiles } from "@harness/core/artifact-scan";
 import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
-import { evaluateRegisteredWriter } from "@harness/core/artifact-shell";
+import { evaluateRegisteredWriter, expandKnownPluginRoot, parseShellWords } from "@harness/core/artifact-shell";
 import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
@@ -17,9 +17,22 @@ const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..",
 );
+const READ_ONLY_COMMANDS = new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 
 function deny(reason: string) {
   return preToolDeny(`[Print Project Delivery Guard] ${reason}`);
+}
+
+function isReadOnlyCommand(command: string): boolean {
+  const words = parseShellWords(expandKnownPluginRoot(command));
+  if (!words?.length) return false;
+  const executable = basename(words[0] ?? "");
+  if (!READ_ONLY_COMMANDS.has(executable)) return false;
+  if (executable === "git" && !["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
+  if (executable === "sed" && words.some((word) => /^-.*i/u.test(word))) return false;
+  if (executable === "find" && words.some((word) => ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"].includes(word))) return false;
+  if (executable === "rg" && words.some((word) => word === "--pre" || word.startsWith("--pre="))) return false;
+  return true;
 }
 
 type ProjectFinding = ContractFinding & { artifactId: string };
@@ -76,8 +89,7 @@ async function main() {
     const command = extractShellCommand(event) ?? "";
     const workspaceRoot = resolveWorkspaceRoot(cwd, "print");
     const cwdInScope = /(?:^|[\\/])artifacts[\\/]print[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const mutates = (/artifacts[\\/]print[\\/]/u.test(command) || cwdInScope)
-      && (/[>]{1,2}/u.test(command) || /(?:^|\s)(?:cp|mv|rm|touch|tee|node|npm|npx|python\d*)\b/u.test(command));
+    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope;
     const approved = evaluateRegisteredWriter({
       command,
       cwd,
@@ -86,7 +98,9 @@ async function main() {
       writers: ["project-lint.mjs", "project-release.mjs"],
       toolDirectory: resolve(PLUGIN_DIRECTORY, "dist", "cli"),
     });
-    if (mutates && !approved.ok) writeJson(deny("UNKNOWN_MUTATION_SHELL: print mutations require a registered wrapper"));
+    if (inScope && !approved.ok && !isReadOnlyCommand(command)) {
+      writeJson(deny("UNKNOWN_MUTATION_SHELL: print scope permits only read-only commands or an exact registered writer invocation"));
+    }
     return;
   }
   const findings = await findingsFor(cwd);

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -13,6 +12,7 @@ import {
 } from "@harness/core/hook-event";
 import { additionalContext, writeJson } from "@harness/core/hook-output";
 import { extractFileTargets } from "@harness/core/hook-targets";
+import { atomicWriteJson, digestKey } from "@harness/core/state-file";
 
 import { detectUiSource, findingKey, isIgnoredPath, isUiPath, type CraftFinding } from "../../lib/detect.ts";
 
@@ -25,13 +25,21 @@ function warn(message: string): void {
   process.stderr.write(`[interface-craft] ${message}\n`);
 }
 
-function ledgerPath(sessionId: string): string {
-  return join(tmpdir(), "interface-craft", `${sessionId || "unknown"}.json`);
+function ledgerPath(sessionId: string): string | null {
+  const validSessionId = sessionId || process.env.AI_EXPERTS_SESSION_ID || "";
+  if (!validSessionId || validSessionId === "hook" || validSessionId === "unknown") return null;
+  const dataRoot = process.env.HARNESS_HOST === "codex"
+    ? process.env.PLUGIN_DATA
+    : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA;
+  if (!dataRoot) return null;
+  return join(dataRoot, "interface-craft", "sessions", `${digestKey(validSessionId)}.json`);
 }
 
 function readLedger(sessionId: string): { files: string[]; keys: string[] } {
+  const path = ledgerPath(sessionId);
+  if (!path) return { files: [], keys: [] };
   try {
-    const value: unknown = JSON.parse(readFileSync(ledgerPath(sessionId), "utf8"));
+    const value: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (!value || typeof value !== "object") return { files: [], keys: [] };
     const record = value as { files?: unknown; keys?: unknown };
     return {
@@ -45,8 +53,11 @@ function readLedger(sessionId: string): { files: string[]; keys: string[] } {
 
 function writeLedger(sessionId: string, ledger: { files: string[]; keys: string[] }): void {
   const path = ledgerPath(sessionId);
-  mkdirSync(join(path, ".."), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(ledger)}\n`);
+  if (!path) return;
+  const directory = join(path, "..");
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(directory, 0o700);
+  atomicWriteJson(path, ledger);
 }
 
 function scanFile(filePath: string): CraftFinding[] {

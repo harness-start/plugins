@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b5503af635117964ca63ec9658d0cf107d5dd4109556add2d6b1ba2c4342bf14
+// harness-source-hash: sha256:57569677924cad9d579da55eb111411406046b1ba11093aff42a9c87d04c8c47
 import {
   recordWorktreeCreateAllowance,
   userRequestedWorktreeCreate
-} from "../chunks/chunk-AST5GRBT.mjs";
+} from "../chunks/chunk-TKSHDHYS.mjs";
 import {
   eventCwd,
   eventPrompt,
   eventSessionId,
-  readStdinJson
-} from "../chunks/chunk-G6TGSGCB.mjs";
+  readStdinJson,
+  resolveRepoRoot
+} from "../chunks/chunk-ZVFRZNHB.mjs";
 
 // plugins/git-delivery/src/entries/hooks/git-delivery-hook-user-prompt.ts
 function warn(message) {
@@ -20,7 +21,8 @@ async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
   if (!userRequestedWorktreeCreate(eventPrompt(event))) return;
-  recordWorktreeCreateAllowance(eventCwd(event), eventSessionId(event), "user-prompt");
+  const cwd = eventCwd(event);
+  recordWorktreeCreateAllowance(resolveRepoRoot(cwd) ?? cwd, eventSessionId(event), "user-prompt");
 }
 main().catch((error) => {
   const message = error instanceof Error ? error.message : String(error);

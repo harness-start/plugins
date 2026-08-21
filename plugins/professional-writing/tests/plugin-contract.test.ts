@@ -1,10 +1,28 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 
 const root = resolve(import.meta.dirname, "..");
 const json = (path: string) => JSON.parse(readFileSync(resolve(root, path), "utf8"));
+
+function filesUnder(path: string): string[] {
+  if (!existsSync(path)) return [];
+  const entries = readdirSync(path, { withFileTypes: true });
+  return entries.flatMap((entry) => {
+    const target = resolve(path, entry.name);
+    return entry.isDirectory() ? filesUnder(target) : [target];
+  });
+}
+
+function directoriesUnder(path: string): string[] {
+  if (!existsSync(path)) return [];
+  return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    if (!entry.isDirectory()) return [];
+    const target = resolve(path, entry.name);
+    return [target, ...directoriesUnder(target)];
+  });
+}
 
 test("publishes a standalone professional-writing plugin", () => {
   for (const host of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"]) {
@@ -52,4 +70,47 @@ test("publishes separate actionable and visual response contracts", () => {
   assert.match(visual, /simple.*do not.*visual|do not.*force.*visual/isu);
   assert.match(visual, /do not.*HTML.*by default|default.*do not.*HTML/isu);
   assert.doesNotMatch(visual, /\p{Script=Han}/u);
+});
+
+test("published plugin excludes maintainer benchmark corpora and target-answer markers", () => {
+  const skillDirectories = directoriesUnder(resolve(root, "skills"));
+  assert.equal(skillDirectories.some((path) => path.split(/[\\/]/u).includes("evals")), false);
+
+  const publishedFiles = [
+    ...filesUnder(resolve(root, "src")),
+    ...filesUnder(resolve(root, "skills")),
+    ...filesUnder(resolve(root, "hooks")),
+    ...filesUnder(resolve(root, "acceptance")),
+    resolve(root, "README.md"),
+  ];
+  const forbidden = /(?:^|[./])evals\/|automation\/eval|(?:issue|pull request|pr)\s*#\d+|benchmark-(?:blind|map|tiers)\.md|Blind Benchmark|Blind Map|\*\*(?:预期|Expected)\*\*\s*:/iu;
+  for (const path of publishedFiles) {
+    assert.doesNotMatch(readFileSync(path, "utf8"), forbidden, path);
+  }
+});
+
+test("live acceptance targets the bundled writing skills and analyzer CLI", () => {
+  const expectationByCase = new Map(
+    ["04-english-natural-writing", "05-chinese-natural-writing", "06-markdown-analyzer"].map((id) => [
+      id,
+      readFileSync(resolve(root, "acceptance", "cases", id, "expect.sh"), "utf8"),
+    ]),
+  );
+  const expectations = [...expectationByCase.values()].join("\n");
+  const normalizedExpectations = expectations.replaceAll("\\", "");
+
+  for (const required of [
+    "writing-english-prose",
+    "writing-chinese-prose",
+    "writing-markdown-ai-style",
+    "ai-flavor-remover",
+    "analyze-ai-style.mjs",
+  ]) {
+    assert.ok(normalizedExpectations.includes(required), required);
+  }
+  assert.doesNotMatch(expectations, /skills\/(?:humanizer|stop-slop|shuorenhua|remove-ai-style)\/SKILL\.md|analyze_ai_style\.py/u);
+  assert.match(
+    expectationByCase.get("06-markdown-analyzer") ?? "",
+    /SkillTool returning\.\*skill \(\[\^ \]\+:\)\?\$\{skill\}/u,
+  );
 });

@@ -45,9 +45,17 @@ function ensureStateDir(directory: string): void {
   ensurePluginWorkdirGitignore(dirname(directory));
 }
 
-function statePath(event: HookEvent): string {
-  const session = extractSessionId(event) ?? "default";
-  return join(resolve(extractCwd(event)), STATE_DIR_RELATIVE, `${digest(session)}.json`);
+function statePath(event: HookEvent): string | null {
+  const session = extractSessionId(event);
+  if (!session || session === "hook" || session === "unknown") return null;
+  const platform = process.env.HARNESS_HOST === "claude"
+    || Boolean(process.env.CLAUDE_PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_DATA)
+    ? "claude"
+    : process.env.HARNESS_HOST === "codex"
+      || Boolean(process.env.PLUGIN_ROOT || process.env.PLUGIN_DATA)
+      ? "codex"
+      : "standalone";
+  return join(resolve(extractCwd(event)), STATE_DIR_RELATIVE, `${platform}-${digest(session)}.json`);
 }
 
 export function emptyState(defaultProfile = "zh-CN"): LanguageState {
@@ -80,7 +88,7 @@ function sanitize(value: unknown, defaultProfile: string): LanguageState {
   };
 }
 
-function read(path: string, defaultProfile: string): LanguageState {
+function read(path: string | null, defaultProfile: string): LanguageState {
   if (!path) return emptyState(defaultProfile);
   try {
     return sanitize(JSON.parse(readFileSync(path, "utf8")), defaultProfile);
@@ -89,7 +97,7 @@ function read(path: string, defaultProfile: string): LanguageState {
   }
 }
 
-function write(path: string, state: LanguageState): boolean {
+function write(path: string | null, state: LanguageState): boolean {
   if (!path) return false;
   const directory = dirname(path);
   const temporary = join(directory, `.${digest(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);

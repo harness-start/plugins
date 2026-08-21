@@ -1,7 +1,7 @@
 // Example project config for command-safety.
 // Copy ideas into <repo>/.command-safety.mjs — not loaded from this path.
 // User rules prepend built-ins; first match wins.
-// Note: mode "allow" does not bypass engines.dangerousRm or denyEscalation.
+// Note: mode "allow" and project settings cannot bypass dangerousRm or denyEscalation.
 
 export default {
   rules: [
@@ -34,15 +34,9 @@ export default {
   ],
   settings: {
     engines: {
-      dangerousRm: true,
       mysqlReplicationPreflight: true,
       secretRead: true,
       fileSafety: true,
-      denyEscalation: true,
-    },
-    escalation: {
-      windowMinutes: 10,
-      threshold: 3,
     },
   },
 };

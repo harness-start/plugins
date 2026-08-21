@@ -3,6 +3,7 @@
   "version": "0.2.0",
   "description": "Enforces static React publication units, Paged Media sources, and print delivery evidence.",
   "author": {"name": "Harness Start", "email": "devtools@example.com"},
+  "hooks": "./hooks/codex.json",
   "interface": {
     "displayName": "Print Publication Delivery Guard",
     "shortDescription": "Guard publication sections, PDF roles, and preflight evidence.",

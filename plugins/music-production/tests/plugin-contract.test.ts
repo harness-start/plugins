@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
 import { readFile } from "node:fs/promises";
+import { promisify } from "node:util";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -8,6 +10,7 @@ import { EXTERNAL_SKILLS } from "../src/lib/contract.js";
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const pluginRoot = join(repositoryRoot, "plugins", "music-production");
+const execFileAsync = promisify(execFile);
 
 async function json(path: string): Promise<Record<string, unknown>> {
   return JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
@@ -50,4 +53,10 @@ test("uses a bundled bilingual first-party adviser pool and exposes controlled s
   }
   await readFile(join(pluginRoot, "src", "lib", "capability.ts"), "utf8");
   await readFile(join(pluginRoot, "src", "lib", "shell-policy.ts"), "utf8");
+});
+
+test("bundled composition-method integrity check passes in a clean consumer tree", async () => {
+  const script = join(pluginRoot, "skills", "music-composition-method", "scripts", "music_theory_sanity_check.py");
+  const { stdout } = await execFileAsync("python3", [script]);
+  assert.match(stdout, /music_theory_sanity_check: PASS/u);
 });

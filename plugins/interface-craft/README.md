@@ -6,6 +6,6 @@
 
 完成界面编辑后，在项目已有运行条件允许时，应渲染桌面和移动视口并根据截图做一次有界修正；没有渲染条件时必须明确哪些视觉结论未经验证。只读审查的每个 finding 都要给出 `blocker | major | minor`、负责代码的 `file:line`、证据、实际代价、可验证修复/恢复路径和验证状态，最终 verdict 只能是 `approved`、`changes_required` 或 `unverified`。
 
-PostToolUse 只对声明的 Web 风格 UI 扩展名（CSS/SCSS/HTML/JSX/TSX/Vue/Svelte/Astro）做机械检测；Stop 只复扫本会话改过的 UI 文件并去重。新增的 `TRANSITION_ALL` 与 `FOCUS_OUTLINE_REMOVED` 和既有五项检查一样，只报告当前源码事实，不判断设计方向，也不声称已修复。原生 App 工艺仍由 Skill 判断或对应领域插件的机械检查负责。解析失败 fail-open，不阻断会话。
+PostToolUse 只对声明的 Web 风格 UI 扩展名（CSS/SCSS/HTML/JSX/TSX/Vue/Svelte/Astro）做机械检测；Stop 只复扫本会话改过的 UI 文件并去重。去重 ledger 写入当前宿主的平台数据目录，目录权限为 `0700`、文件权限为 `0600`；缺少可信会话标识或平台数据目录时不持久化。新增的 `TRANSITION_ALL` 与 `FOCUS_OUTLINE_REMOVED` 和既有五项检查一样，只报告当前源码事实，不判断设计方向，也不声称已修复。原生 App 工艺仍由 Skill 判断或对应领域插件的机械检查负责。解析失败 fail-open，不阻断会话。
 
 本插件不写海报、PPTX、Remotion 或 logo 制品，也不替代 `web-frontend-engineering` 的语法/lockfile 门禁。图片生成只在宿主已提供对应能力时作为可选参考分支，发布插件不依赖它。其他生产插件不得运行时依赖本插件。Hook 命中、源码符合规则、`DESIGN.md` 存在或截图生成成功都不能单独证明界面质量。

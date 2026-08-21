@@ -69,6 +69,54 @@ test("SessionStart initializes and resumes the configured profile", async () => 
   assert.match(JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext, /profile=ko-KR/u);
 });
 
+test("Codex provenance session ids keep missing-event sessions isolated", async () => {
+  const cwd = root();
+  const data = root();
+  const firstEnv = {
+    HARNESS_HOST: "codex",
+    PLUGIN_DATA: data,
+    AI_EXPERTS_SESSION_ID: "provenance-one",
+  };
+  await runEntry("session-start", event(cwd, ""), firstEnv);
+  await runEntry("user-prompt", event(cwd, "", { prompt: "Please continue to answer in Korean." }), firstEnv);
+
+  const second = await runEntry("session-start", event(cwd, ""), {
+    ...firstEnv,
+    AI_EXPERTS_SESSION_ID: "provenance-two",
+  });
+  assert.equal(second.code, 0, second.stderr);
+  assert.match(JSON.parse(second.stdout).hookSpecificOutput.additionalContext, /profile=zh-CN/u);
+});
+
+test("state for equal session ids is isolated by host platform", async () => {
+  const cwd = root();
+  const codexData = root();
+  const claudeData = root();
+  const session = "shared-host-id";
+  const codexEnv = { HARNESS_HOST: "codex", PLUGIN_DATA: codexData };
+  await runEntry("session-start", event(cwd, session), codexEnv);
+  await runEntry("user-prompt", event(cwd, session, { prompt: "Please continue to answer in Korean." }), codexEnv);
+
+  const claude = await runEntry("session-start", event(cwd, session, { source: "resume" }), {
+    HARNESS_HOST: "claude",
+    CLAUDE_PLUGIN_DATA: claudeData,
+  });
+  assert.equal(claude.code, 0, claude.stderr);
+  assert.match(JSON.parse(claude.stdout).hookSpecificOutput.additionalContext, /profile=zh-CN/u);
+});
+
+test("missing trusted session identity does not create shared sticky state", async () => {
+  const cwd = root();
+  const data = root();
+  const result = await runEntry("session-start", event(cwd, ""), {
+    HARNESS_HOST: "codex",
+    PLUGIN_DATA: data,
+    AI_EXPERTS_SESSION_ID: "",
+  });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(existsSync(join(cwd, ".language-output", "state")), false);
+});
+
 test("SessionStart uses state and creates only the governance-local gitignore", async () => {
   const cwd = root();
   const data = root();

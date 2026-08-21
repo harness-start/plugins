@@ -6,11 +6,9 @@ Use this checklist after Phase B and Phase C are complete and before publishing 
 
 | Input | Required status |
 |---|---|
-| `../../RELEASE-ROADMAP.md` | Phase D criteria current |
 | `first-release-readiness.md` | No open release blockers |
 | `phase-b-correctness-pass.md` | Completed or updated after latest corrections |
 | `phase-c-smoke-test-results.md` | Phase C result recorded |
-| `../../KNOWN-LIMITATIONS.md` | Present and linked |
 | `../../scripts/music_theory_sanity_check.py` | Run after final edits |
 
 ## Packaging steps
@@ -23,7 +21,7 @@ Use this checklist after Phase B and Phase C are complete and before publishing 
 6. Create the release ZIP.
 7. Create a unified diff against the previous patch or release candidate.
 8. Create a validation report using the template in `first-release-readiness.md`.
-9. Include known limitations in the validation report or ship `../../KNOWN-LIMITATIONS.md` with the package.
+9. Include known limitations directly in the validation report.
 10. Open the ZIP listing and confirm expected files are present.
 
 ## RC validation report minimum
@@ -53,7 +51,7 @@ A release-candidate validation report should include:
 - Cultural specificity:
 
 ## Known limitations
-- See KNOWN-LIMITATIONS.md
+- Record limitations observed during this validation run.
 
 ## Release decision
 - Ship / hold / ship with caveats
@@ -90,8 +88,6 @@ unzip -t <release-package>.zip
 
 ## Cross-references
 
-- Release roadmap → `../../RELEASE-ROADMAP.md`
-- Known limitations → `../../KNOWN-LIMITATIONS.md`
 - First-release readiness → `first-release-readiness.md`
 - Phase B correctness pass → `phase-b-correctness-pass.md`
 - Phase C results → `phase-c-smoke-test-results.md`

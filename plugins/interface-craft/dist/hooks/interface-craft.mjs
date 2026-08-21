@@ -1,10 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c8ac6fcb12d4a7d5d51a27b2e2ac2d6ba59323a0b81d50641c12c66120f82500
+// harness-source-hash: sha256:5ff063e65912e5ebd768bcd000d0c4d9c8a1b540ff9ed8b9b98806bd8ea17f15
 
 // plugins/interface-craft/src/entries/hooks/interface-craft.ts
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve as resolve2 } from "node:path";
+import { chmodSync, mkdirSync as mkdirSync2, readFileSync } from "node:fs";
+import { join as join2, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // core/src/hook-event.ts
@@ -211,6 +210,34 @@ function extractFileTargets(event, options = {}) {
   return resolveTargets(raw, cwd);
 }
 
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
 // plugins/interface-craft/src/lib/detect.ts
 import { extname } from "node:path";
 var UI_EXTENSIONS = /* @__PURE__ */ new Set([
@@ -304,11 +331,17 @@ function warn(message) {
 `);
 }
 function ledgerPath(sessionId) {
-  return join(tmpdir(), "interface-craft", `${sessionId || "unknown"}.json`);
+  const validSessionId = sessionId || process.env.AI_EXPERTS_SESSION_ID || "";
+  if (!validSessionId || validSessionId === "hook" || validSessionId === "unknown") return null;
+  const dataRoot = process.env.HARNESS_HOST === "codex" ? process.env.PLUGIN_DATA : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA;
+  if (!dataRoot) return null;
+  return join2(dataRoot, "interface-craft", "sessions", `${digestKey(validSessionId)}.json`);
 }
 function readLedger(sessionId) {
+  const path = ledgerPath(sessionId);
+  if (!path) return { files: [], keys: [] };
   try {
-    const value = JSON.parse(readFileSync(ledgerPath(sessionId), "utf8"));
+    const value = JSON.parse(readFileSync(path, "utf8"));
     if (!value || typeof value !== "object") return { files: [], keys: [] };
     const record = value;
     return {
@@ -321,9 +354,11 @@ function readLedger(sessionId) {
 }
 function writeLedger(sessionId, ledger) {
   const path = ledgerPath(sessionId);
-  mkdirSync(join(path, ".."), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(ledger)}
-`);
+  if (!path) return;
+  const directory = join2(path, "..");
+  mkdirSync2(directory, { recursive: true, mode: 448 });
+  chmodSync(directory, 448);
+  atomicWriteJson(path, ledger);
 }
 function scanFile(filePath) {
   try {

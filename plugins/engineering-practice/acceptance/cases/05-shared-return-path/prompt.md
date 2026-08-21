@@ -1,1 +1,0 @@
-Fix `convertSamples()` so empty inputs no longer fail. Preserve both documented call forms and their return contracts. Update the existing test file, do not create unrelated files, and finish with one short factual status line.

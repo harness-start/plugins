@@ -14,6 +14,7 @@ test("both manifests expose the bundled authoring and independent review skills"
     assert.equal(manifest.version, "0.7.0");
     assert.equal(manifest.skills, "./skills/");
   }
+  assert.equal(json(".codex-plugin/plugin.json").hooks, "./hooks/codex.json");
   assert.deepEqual(json(".codex-plugin/plugin.json").interface.capabilities, ["skills", "hooks"]);
   assert.equal(existsSync(join(ROOT, "skills/logo-project-authoring/SKILL.md")), true);
   assert.equal(existsSync(join(ROOT, "skills/logo-project-review/SKILL.md")), true);

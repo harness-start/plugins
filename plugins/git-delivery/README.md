@@ -54,7 +54,7 @@ export default {
 `PreToolUse` 监听 shell 工具，以及可观察 `isolation` 参数的 Task / Agent 工具；`PostToolUse` 只监听文件工具，并扫描本次写入后的最终文件，不执行全仓库扫描。`UserPromptSubmit` 只把「明确要求隔离工作区」记成 session 回执，不保存 prompt 正文。
 
 - 宽范围 `git add`、批量 ours/theirs、非规范新分支，以及危险的历史或工作区覆盖操作会直接阻断。
-- `git worktree add` 和可观察的宿主 `isolation: worktree` 默认阻断。只有本会话用户明确要求隔离工作区、已激活流程写出合法 `process` 回执，或 `.git-delivery.mjs` 将 `worktreeCreate` 设为 `allow` 时才放行。`git worktree list` / `remove` / `prune` 不在此列。
+- `git worktree add` 和可观察的宿主 `isolation: worktree` 默认阻断。只有本会话用户明确要求隔离工作区，或 `.git-delivery.mjs` 将 `worktreeCreate` 设为 `allow` 时才放行。用户意图回执只能由捆绑的 UserPromptSubmit Hook 写入 `.git-delivery/state/`，PreToolUse 会阻断 agent 对该授权状态的直接文件访问和显式 shell 路径访问。`git worktree list` / `remove` / `prune` 不在此列。
 - 普通 commit 校验 Conventional Commits、具体描述、staged/unstaged 重叠和提交边界；amend、fixup 与 squash 跳过消息和 scope 检查。
 - 跨两个以上边界，或在一个边界内混入 source 与 config/infra 时阻断；超过 15 个文件只报告；纯 rename 不触发混合类型阻断。
 - `index.lock` 状态不确定时不会自动删除。只有锁超过五分钟、是普通非符号链接文件、包含有效且已确认退出的 PID，并在 unlink 前通过相同 inode/mtime 复核，才会清理。

@@ -39,13 +39,27 @@ function privateIpv4(address: string): boolean {
     || (a === 198 && (b === 18 || b === 19 || b === 51)) || (a === 203 && b === 0) || a >= 224;
 }
 
+function embeddedIpv4(address: string, prefix: string): string | undefined {
+  const tail = address.slice(prefix.length);
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(tail)) return tail;
+  const groups = tail.split(":");
+  if (groups.length < 1 || groups.length > 2 || groups.some((group) => !/^[0-9a-f]{1,4}$/u.test(group))) return undefined;
+  const [high = "0", low = "0"] = groups.length === 1 ? ["0", groups[0]] : groups;
+  const value = (Number.parseInt(high, 16) * 0x10000) + Number.parseInt(low, 16);
+  return [value >>> 24, (value >>> 16) & 0xff, (value >>> 8) & 0xff, value & 0xff].join(".");
+}
+
 export function isPrivateAddress(address: string): boolean {
   const normalized = address.toLowerCase().split("%")[0] ?? "";
   if (isIP(normalized) === 4) return privateIpv4(normalized);
   if (isIP(normalized) !== 6) return true;
   if (normalized === "::" || normalized === "::1" || normalized.startsWith("2001:db8:") || normalized.startsWith("fe8") || normalized.startsWith("fe9")
     || normalized.startsWith("fea") || normalized.startsWith("feb") || normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
-  if (normalized.startsWith("::ffff:")) return privateIpv4(normalized.slice(7));
+  for (const prefix of ["::ffff:", "::"]) {
+    if (!normalized.startsWith(prefix)) continue;
+    const embedded = embeddedIpv4(normalized, prefix);
+    if (embedded) return privateIpv4(embedded);
+  }
   return false;
 }
 

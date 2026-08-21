@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8ed6da61ac7d333b82edcfd81ee9483bc73d6020b069846dec9b7051ff464f63
+// harness-source-hash: sha256:873dfccdcfa230be5949b0ba3f8fe3b1b3fc213a8aceb044007bae96f7523aa5
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7284,7 +7284,7 @@ var policy = {
   ],
   validators: [
     { id: "androidXml", kind: "xml", match: /(?:AndroidManifest\.xml|res\/.+\.xml)$/iu, mode: "block" },
-    { id: "androidJson", kind: "json", match: /(?:^|\/)(?:google-services|package)\.json$/iu, mode: "block" }
+    { id: "androidJson", kind: "json", match: /(?:^|\/)google-services\.json$/iu, mode: "block" }
   ],
   sourceScans: [
     { id: "composeCollectAsState", match: KOTLIN_SOURCE, mode: "report", inspect: composeHits(/* @__PURE__ */ new Set(["COLLECT_AS_STATE", "PAGING_COLLECT_AS_STATE"])) },

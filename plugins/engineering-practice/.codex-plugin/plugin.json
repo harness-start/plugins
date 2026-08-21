@@ -9,16 +9,16 @@
   "skills": "./skills/",
   "hooks": "./hooks/codex.json",
   "interface": {
-    "displayName": "工程实践",
-    "shortDescription": "按工程任务加载必要的方法 Skill。",
-    "longDescription": "为实现、只读代码审查与完成前验证选择本插件的方法 Skill。",
+    "displayName": "Engineering Practice",
+    "shortDescription": "Route engineering tasks to an optional bundled method.",
+    "longDescription": "Suggests a bundled method for implementation, read-only review, or verification before completion.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["hooks", "skills"],
     "defaultPrompt": [
-      "用工程师思维处理这个代码任务。",
-      "只读审查当前改动并给出有证据的分级发现。",
-      "完成前运行直接相关的验证并给出证据。"
+      "Apply engineering judgment to this code task.",
+      "Review the current changes without editing and report evidence-backed findings.",
+      "Run directly relevant verification before claiming completion."
     ]
   }
 }

@@ -3,6 +3,7 @@
 import {
   extractCwd, extractPrompt, extractSessionId, readStdinJson,
 } from "../../lib/hook-io.js";
+import { resolveRepoRoot } from "../../checks/file-checks.js";
 import { recordWorktreeCreateAllowance, userRequestedWorktreeCreate } from "../../lib/worktree-intent.js";
 
 function warn(message: string): void {
@@ -13,7 +14,8 @@ async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
   if (!userRequestedWorktreeCreate(extractPrompt(event))) return;
-  recordWorktreeCreateAllowance(extractCwd(event), extractSessionId(event), "user-prompt");
+  const cwd = extractCwd(event);
+  recordWorktreeCreateAllowance(resolveRepoRoot(cwd) ?? cwd, extractSessionId(event), "user-prompt");
 }
 
 main().catch((error: unknown) => {

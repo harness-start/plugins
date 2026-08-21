@@ -6,8 +6,6 @@ export type SourceProtectFinding = {
   recovery: string;
 };
 
-const PLUGIN_EXECUTE = /git-history-migration-execute\.mjs(?:\s|$)/u;
-
 function gitSubcommand(args: readonly string[]): { subcommand: string; rest: string[] } {
   let index = 0;
   while (index < args.length) {
@@ -32,7 +30,6 @@ function gitSubcommand(args: readonly string[]): { subcommand: string; rest: str
 
 export function classifySourceProtectCommand(command: string): SourceProtectFinding | null {
   if (!command.trim()) return null;
-  if (PLUGIN_EXECUTE.test(command)) return null;
 
   for (const invocation of shellCommandInvocations(command)) {
     const executable = invocation.executable;
@@ -60,7 +57,13 @@ export function classifySourceProtectCommand(command: string): SourceProtectFind
       };
     }
     if (subcommand === "push") {
-      const force = rest.some((arg) => arg === "--force" || arg === "-f" || /^-[^-]*f/u.test(arg));
+      const force = rest.some((arg) =>
+        arg === "--force"
+        || arg === "-f"
+        || arg === "--force-if-includes"
+        || arg.startsWith("--force-with-lease")
+        || /^-[^-]*f/u.test(arg)
+      );
       if (force) {
         return {
           id: "SOURCE_FORCE_PUSH",

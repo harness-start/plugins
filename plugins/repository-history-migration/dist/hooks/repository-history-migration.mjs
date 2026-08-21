@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:567ce8c167c6d9e39b713fd55009f8ec39fb82c8928f0fd2ea14c99df95cce4c
+// harness-source-hash: sha256:7ded73f566b8392c38ac9690ecd0feb0616bd600af8955a96dfe6b92fb82d9f3
 import {
   eventToolInput,
   eventToolName,
   readStdinJson
-} from "../chunks/chunk-NARDKFFM.mjs";
+} from "../chunks/chunk-UIMRL2ZJ.mjs";
 
 // plugins/repository-history-migration/src/entries/hooks/repository-history-migration.ts
 import { resolve } from "node:path";
@@ -372,7 +372,6 @@ function shellCommandInvocations(command) {
 }
 
 // plugins/repository-history-migration/src/source-protect.ts
-var PLUGIN_EXECUTE = /git-history-migration-execute\.mjs(?:\s|$)/u;
 function gitSubcommand(args) {
   let index = 0;
   while (index < args.length) {
@@ -396,7 +395,6 @@ function gitSubcommand(args) {
 }
 function classifySourceProtectCommand(command) {
   if (!command.trim()) return null;
-  if (PLUGIN_EXECUTE.test(command)) return null;
   for (const invocation of shellCommandInvocations(command)) {
     const executable = invocation.executable;
     if (executable === "git-filter-repo") {
@@ -423,7 +421,9 @@ function classifySourceProtectCommand(command) {
       };
     }
     if (subcommand === "push") {
-      const force = rest.some((arg) => arg === "--force" || arg === "-f" || /^-[^-]*f/u.test(arg));
+      const force = rest.some(
+        (arg) => arg === "--force" || arg === "-f" || arg === "--force-if-includes" || arg.startsWith("--force-with-lease") || /^-[^-]*f/u.test(arg)
+      );
       if (force) {
         return {
           id: "SOURCE_FORCE_PUSH",

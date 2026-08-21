@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b33221e8e8db261389c9f618d165e75f39b857378bf8ba3c4c282651505e3a6d
+// harness-source-hash: sha256:1d31942c5bb6ee2a5e8858050bd5d894b1b225a6e670e81490e2d59e20a3f955
 
 // plugins/ci-gated-delivery/src/entries/hooks/ci-gated-delivery.ts
 import { resolve } from "node:path";
@@ -402,8 +402,17 @@ function shellCommandInvocations(command) {
 }
 
 // plugins/ci-gated-delivery/src/merge-protect.ts
-var HEAD_SHA = /\b[0-9a-f]{7,40}\b/iu;
+var HEAD_SHA = /^[0-9a-f]{7,40}$/iu;
 var DEFAULT_BRANCH = /^(?:main|master)$/u;
+function isDefaultBranchRef(value) {
+  return DEFAULT_BRANCH.test(value) || /^(?:refs\/heads\/)?(?:main|master)$/u.test(value);
+}
+function optionBindsHeadSha(args, option) {
+  return args.some((arg, index) => {
+    if (arg === option) return HEAD_SHA.test(args[index + 1] ?? "");
+    return arg.startsWith(`${option}=`) && HEAD_SHA.test(arg.slice(option.length + 1));
+  });
+}
 function gitSubcommand(args) {
   let index = 0;
   while (index < args.length) {
@@ -423,26 +432,32 @@ function gitSubcommand(args) {
 }
 function pushTouchesDefaultBranch(args) {
   return args.some((arg) => {
-    if (DEFAULT_BRANCH.test(arg)) return true;
+    if (isDefaultBranchRef(arg)) return true;
     const colon = arg.lastIndexOf(":");
     if (colon <= 0) return false;
-    return DEFAULT_BRANCH.test(arg.slice(colon + 1));
+    return isDefaultBranchRef(arg.slice(colon + 1));
+  });
+}
+function pushBindsHeadSha(args) {
+  return args.some((arg) => {
+    const colon = arg.lastIndexOf(":");
+    if (colon <= 0 || !isDefaultBranchRef(arg.slice(colon + 1))) return false;
+    return HEAD_SHA.test(arg.slice(0, colon).replace(/^\+/u, ""));
   });
 }
 function classifyDefaultBranchPublish(command) {
   if (!command.trim()) return null;
-  const hasSha = HEAD_SHA.test(command);
   for (const invocation of shellCommandInvocations(command)) {
     const name = invocation.executable;
     const args = invocation.args;
-    if (name === "gh" && args[0] === "pr" && args[1] === "merge" && !hasSha) {
+    if (name === "gh" && args[0] === "pr" && args[1] === "merge" && !optionBindsHeadSha(args, "--match-head-commit")) {
       return {
         id: "MERGE_SHA_REQUIRED",
         reason: "gh pr merge without a bound head SHA can merge a different commit than the observed pipeline",
         recovery: "include the current head SHA, for example gh pr merge --match-head-commit <sha>"
       };
     }
-    if (name === "glab" && args[0] === "mr" && args[1] === "merge" && !hasSha) {
+    if (name === "glab" && args[0] === "mr" && args[1] === "merge" && !optionBindsHeadSha(args, "--sha")) {
       return {
         id: "MERGE_SHA_REQUIRED",
         reason: "glab mr merge without a bound head SHA can merge a different commit than the observed pipeline",
@@ -451,7 +466,7 @@ function classifyDefaultBranchPublish(command) {
     }
     if (name === "git") {
       const { subcommand, rest } = gitSubcommand(args);
-      if (subcommand === "push" && pushTouchesDefaultBranch(rest) && !hasSha) {
+      if (subcommand === "push" && pushTouchesDefaultBranch(rest) && !pushBindsHeadSha(rest)) {
         return {
           id: "PUSH_SHA_REQUIRED",
           reason: "git push to main/master without a bound SHA can update the default branch from a different head",

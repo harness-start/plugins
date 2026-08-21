@@ -178,10 +178,6 @@ If the user needs any of the above, narrow the scope and say so.
 - `references/paging.md` — Paging 3 in Compose: when to page vs plain lists, `collectAsLazyPagingItems`, stable `itemKey`, `LoadState` UI, pull-to-refresh, anti-patterns for paginated lazy lists.
 - `references/kotlin.md` — Kotlin coding conventions and Android Kotlin style the LLM keeps missing.
 
-## Acceptance Evals
-
-`evals/evals.json` holds write-mode acceptance cases — prompts that ask this Skill to write Compose, plus expectations for cross-phase back-writes, Strong Skipping false leads, snapshot self-invalidation, phase-correct reads, and lifecycle-aware Flow collection. Run a model with this Skill loaded against each prompt and check every expectation.
-
 ## Primary Sources
 
 Every rule in this skill traces back to one of:

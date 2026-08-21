@@ -9,6 +9,8 @@
 - 双宿主 Hook：选择性路由、生成物写边界、阶段反馈、Stop 门禁。
 - 五个注册 CLI：初始化、校验、渲染、封存评审、签发 release receipt。
 
+Claude 注册 `PostToolUseFailure`，可在失败的 shell writer 后立即报告仍未闭合的项目合同。Codex 没有该事件注册；它通过后续 `PostToolUse` 与 `Stop` 对磁盘现状重验，因此不会把缺失的失败事件当成 writer 成功证据。
+
 ## 交付结构
 
 ```text

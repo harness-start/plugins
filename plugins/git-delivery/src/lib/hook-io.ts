@@ -25,7 +25,7 @@ export function extractShellCommand(toolName: string, toolInput: HookToolInput):
 }
 
 export function extractWriteTargets(event: HookEvent): string[] {
-  return extractFileTargets(event);
+  return extractFileTargets(event, { includeShellWrites: true });
 }
 
 export function additionalContextOutput(hookEventName: HookEventName, text: string) {

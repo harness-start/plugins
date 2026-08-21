@@ -1,6 +1,6 @@
 # Async tests
 
-Swift Testing is built to be async and run tests in parallel; special care must be taken to ensure those tests run well, particularly when Swift concurrency is involved. For more help with Swift concurrency, suggest the [Swift Concurrency Pro agent skill](https://github.com/twostraws/swift-concurrency-agent-skill).
+Swift Testing is built to be async and run tests in parallel; special care must be taken to ensure those tests run well, particularly when Swift concurrency is involved. For more help with Swift concurrency, load the bundled `ios-concurrency` Skill.
 
 
 ## Serializing tests

@@ -3,12 +3,12 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'Markdown.*remove-ai-style.*analyzer'
+require_session_context_signal 'Markdown prose.*writing-markdown-ai-style.*analy'
 require_file_exists "${ACCEPT_WORKSPACE}/release-note.md"
 
 if [ "${ACCEPT_HOST}" = "claude" ]; then
-  for skill in humanizer stop-slop remove-ai-style; do
-    grep -Eq "SkillTool returning.*skill ${skill}" "${ACCEPT_LOG}"
+  for skill in writing-english-prose writing-markdown-ai-style; do
+    grep -Eq "SkillTool returning.*skill ([^ ]+:)?${skill}" "${ACCEPT_LOG}"
   done
 
   # Claude's debug log records tool dispatches but omits Bash command text.
@@ -19,10 +19,10 @@ if [ "${ACCEPT_HOST}" = "claude" ]; then
   printf '%s' "${claude_reply}" | grep -Eiq \
     '(analy[sz]er|before/after).*(0|zero).*(finding|total)|(0|zero).*(finding|total)'
 else
-  for skill in humanizer stop-slop remove-ai-style; do
+  for skill in writing-english-prose writing-markdown-ai-style; do
     grep -Eq "/skills/${skill}/SKILL\\.md" "${ACCEPT_LOG}"
   done
-  analyzer_runs="$(grep -Ec 'analyze_ai_style\.py' "${ACCEPT_LOG}" || true)"
+  analyzer_runs="$(grep -Ec 'analyze-ai-style\.mjs' "${ACCEPT_LOG}" || true)"
 fi
 
 if [ "${analyzer_runs}" -lt 2 ]; then

@@ -1,14 +1,13 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b5503af635117964ca63ec9658d0cf107d5dd4109556add2d6b1ba2c4342bf14
+// harness-source-hash: sha256:57569677924cad9d579da55eb111411406046b1ba11093aff42a9c87d04c8c47
 import {
-  loadConflictConfig,
-  resolveRepoRoot
-} from "../chunks/chunk-3TLJR5NK.mjs";
-import {
+  WORKTREE_STATE_DIR,
+  commandReferencesWorktreeAuthorizationState,
+  isWorktreeAuthorizationStateTarget,
   isWorktreeCreatePermitted,
   readWorktreeCreateReceipt,
   worktreeIsolationRequested
-} from "../chunks/chunk-AST5GRBT.mjs";
+} from "../chunks/chunk-TKSHDHYS.mjs";
 import {
   additionalContextOutput,
   eventCwd,
@@ -16,11 +15,14 @@ import {
   eventToolInput,
   eventToolName,
   extractShellCommand,
+  extractWriteTargets,
   isRecord,
+  loadConflictConfig,
   preToolDeny,
   readStdinJson,
+  resolveRepoRoot,
   writeJson
-} from "../chunks/chunk-G6TGSGCB.mjs";
+} from "../chunks/chunk-ZVFRZNHB.mjs";
 
 // plugins/git-delivery/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";
@@ -555,7 +557,7 @@ function worktreeCreate(invocation, command) {
     "Worktree Create Guard",
     "unsolicited git worktree add creates an extra linked checkout",
     command,
-    "stay on the current checkout and use an ordinary short-lived branch; create a worktree only after the user asks for an isolated workspace or a declared process writes an allow receipt"
+    "stay on the current checkout and use an ordinary short-lived branch; create a worktree only after the user asks for an isolated workspace or repository configuration explicitly allows it"
   );
 }
 function conflictChoice(invocation, command) {
@@ -1006,7 +1008,7 @@ var WORKTREE_ISOLATION_FINDING = {
   id: WORKTREE_CREATE_ID,
   reason: "unsolicited host isolation: worktree creates an extra linked checkout",
   command: "isolation: worktree",
-  recovery: "spawn the subagent in the current checkout; create a worktree only after the user asks for an isolated workspace or a declared process writes an allow receipt"
+  recovery: "spawn the subagent in the current checkout; create a worktree only after the user asks for an isolated workspace or repository configuration explicitly allows it"
 };
 async function main() {
   const event = await readStdinJson();
@@ -1014,11 +1016,23 @@ async function main() {
   const toolInput = eventToolInput(event);
   const command = extractShellCommand(eventToolName(event), toolInput);
   const cwd = eventCwd(event);
+  const repoRoot = resolveRepoRoot(cwd);
   const findings = command ? [...classifyDeliveryCommand(command, cwd), ...deliveryStateFindings(cwd, command)] : [];
+  const protectedTarget = extractWriteTargets(event).find((target) => isWorktreeAuthorizationStateTarget(repoRoot ?? cwd, target));
+  const protectedCommand = command && commandReferencesWorktreeAuthorizationState(command) ? command : null;
+  if (protectedTarget || protectedCommand) {
+    findings.push({
+      action: "deny",
+      id: "Authorization State Guard",
+      reason: "plugin-owned worktree authorization state may be accessed only by the bundled Hooks",
+      command: protectedTarget ?? protectedCommand ?? WORKTREE_STATE_DIR,
+      recovery: "do not access .git-delivery/state directly; ask the user to request a worktree or configure checks.worktreeCreate"
+    });
+  }
   if (worktreeIsolationRequested(toolInput)) findings.push(WORKTREE_ISOLATION_FINDING);
   if (!findings.length) return;
-  const config = await loadConflictConfig(resolveRepoRoot(cwd));
-  const receipt = readWorktreeCreateReceipt(cwd, eventSessionId(event));
+  const config = await loadConflictConfig(repoRoot);
+  const receipt = readWorktreeCreateReceipt(repoRoot ?? cwd, eventSessionId(event));
   const permitted = isWorktreeCreatePermitted(config.checks.worktreeCreate, receipt);
   const resolved = findings.flatMap((finding3) => {
     if (finding3.id !== WORKTREE_CREATE_ID) return [finding3];

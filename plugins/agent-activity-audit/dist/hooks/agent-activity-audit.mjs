@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c5c6dd666f8f3d5334565bbfce91dc668d43d4c2e6ae3fc369c4772acb76e680
+// harness-source-hash: sha256:fea54dcf1014887efb8578425e9e4ea56e490b06eaed9873177d465b8373cf9f
 
 // plugins/agent-activity-audit/src/entries/hooks/agent-activity-audit.ts
 import { resolve as resolve5 } from "node:path";
@@ -253,20 +253,16 @@ function sameToolUseId(left, right) {
 }
 function redactCommand(command, options = {}) {
   const maxCommandChars = options.maxCommandChars ?? 2e3;
-  const redactSecrets = options.redactSecrets ?? true;
-  let text = String(command ?? "");
-  if (redactSecrets) {
-    text = text.replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]+/giu, "$1 ***").replace(
-      /\b((?:MYSQL_PWD|PGPASSWORD|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|GITHUB_TOKEN|GH_TOKEN|NPM_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY)[A-Za-z0-9_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
-      "$1=***"
-    ).replace(
-      /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|ACCESS[_-]?KEY)[A-Za-z_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
-      "$1=***"
-    ).replace(
-      /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY)[A-Za-z_]*)\s*:\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
-      "$1:***"
-    ).replace(/(?:^|\s)(-u|--user)\s+\S+:\S+/giu, " $1 ***:****").replace(/(?:^|\s)(--password|--passwd|-p)\s+(?:"[^"]*"|'[^']*'|\S+)/giu, " $1 ***");
-  }
+  const text = String(command ?? "").replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]+/giu, "$1 ***").replace(
+    /\b((?:MYSQL_PWD|PGPASSWORD|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|GITHUB_TOKEN|GH_TOKEN|NPM_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY)[A-Za-z0-9_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
+    "$1=***"
+  ).replace(
+    /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|ACCESS[_-]?KEY)[A-Za-z_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
+    "$1=***"
+  ).replace(
+    /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY)[A-Za-z_]*)\s*:\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
+    "$1:***"
+  ).replace(/(?:^|\s)(-u|--user)\s+\S+:\S+/giu, " $1 ***:****").replace(/(?:^|\s)(--password|--passwd|-p)\s+(?:"[^"]*"|'[^']*'|\S+)/giu, " $1 ***");
   if (text.length > maxCommandChars) {
     return `${text.slice(0, maxCommandChars)}\u2026`;
   }
@@ -425,8 +421,10 @@ function resolveConfig(raw, warn2 = () => {
   } else if (raw.maxCommandChars !== void 0) {
     warn2("maxCommandChars must be a number");
   }
-  if (typeof raw.redactSecrets === "boolean") config.redactSecrets = raw.redactSecrets;
-  else if (raw.redactSecrets !== void 0) warn2("redactSecrets must be boolean");
+  if (raw.redactSecrets === false) warn2("redactSecrets cannot be disabled; command redaction remains enabled");
+  else if (raw.redactSecrets !== void 0 && raw.redactSecrets !== true) {
+    warn2("redactSecrets must be true");
+  }
   return config;
 }
 async function loadProjectConfig(repoRoot, warn2 = () => {

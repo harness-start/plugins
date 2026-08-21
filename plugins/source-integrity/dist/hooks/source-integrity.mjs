@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fb0d52cc96766085cc1236fd131e9f4e88823798c28134efa631d134cb4a6646
+// harness-source-hash: sha256:9d77f609f5b73e18be1e8d0ead7614b9906123a1985c900a71f6660b31b70313
 
 // plugins/source-integrity/src/entries/hooks/source-integrity.ts
 import { execFileSync as execFileSync2 } from "node:child_process";
@@ -324,11 +324,7 @@ function extractFileTargets(event, options = {}) {
 
 // plugins/source-integrity/src/lib/encoding-runner.ts
 var MAX_FILE_BYTES = 2 * 1024 * 1024;
-var CONFIG_FILE_NAMES = [
-  ".source-integrity.mjs",
-  ".source-integrity.cjs",
-  ".source-integrity.js"
-];
+var CONFIG_FILE_NAME = ".source-integrity.mjs";
 var BUILTIN_RULES = [
   {
     match: /(^|\/)(?:node_modules|vendor|dist|build|coverage|target|\.next|\.nuxt|generated|__generated__)\//u,
@@ -390,18 +386,15 @@ function matchRule(relativePath2, rules) {
   return null;
 }
 async function loadUserConfig(repoRoot) {
-  for (const name of CONFIG_FILE_NAMES) {
-    const configPath = join(repoRoot, name);
-    if (!existsSync(configPath)) continue;
-    try {
-      const loaded = await import(pathToFileURL(configPath).href);
-      return loaded.default ?? loaded;
-    } catch (error) {
-      warnConfig(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
-      return null;
-    }
+  const configPath = join(repoRoot, CONFIG_FILE_NAME);
+  if (!existsSync(configPath)) return null;
+  try {
+    const loaded = await import(pathToFileURL(configPath).href);
+    return loaded.default ?? loaded;
+  } catch (error) {
+    warnConfig(`failed to load ${CONFIG_FILE_NAME}: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
   }
-  return null;
 }
 function extractFilePaths(event) {
   const cwd = eventCwd(event);
@@ -621,7 +614,7 @@ function tokenizeShell(command) {
 }
 
 // plugins/source-integrity/src/entries/hooks/source-integrity.ts
-var CONFIG_FILE_NAME = ".source-integrity.mjs";
+var CONFIG_FILE_NAME2 = ".source-integrity.mjs";
 var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
 var SIMPLE_WRAPPERS = /* @__PURE__ */ new Set(["busybox", "command", "exec", "nohup", "time"]);
 function splitSimpleCommands(tokens) {
@@ -877,13 +870,13 @@ function relativePath(filePath, repoRoot, cwd) {
 }
 async function loadUserConfig2(repoRoot) {
   if (!repoRoot) return null;
-  const configPath = join2(repoRoot, CONFIG_FILE_NAME);
+  const configPath = join2(repoRoot, CONFIG_FILE_NAME2);
   if (!existsSync2(configPath)) return null;
   try {
     const loaded = await import(pathToFileURL2(configPath).href);
     return loaded.default ?? loaded;
   } catch (error) {
-    warn(`failed to load ${CONFIG_FILE_NAME}: ${error instanceof Error ? error.message : String(error)}`);
+    warn(`failed to load ${CONFIG_FILE_NAME2}: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }

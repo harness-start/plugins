@@ -3,15 +3,15 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'Chinese prose.*humanizer-zh.*shuorenhua.*ai-flavor-remover'
+require_session_context_signal 'Chinese prose.*writing-chinese-prose.*ai-flavor-remover'
 
 if [ "${ACCEPT_HOST}" = "claude" ]; then
-  for skill in humanizer-zh shuorenhua ai-flavor-remover; do
+  for skill in writing-chinese-prose ai-flavor-remover; do
     grep -Eq "SkillTool returning.*skill ([^ ]+:)?${skill}" "${ACCEPT_LOG}"
   done
   reply="$(sed -n '1p' "${ACCEPT_LOG}")"
 else
-  for skill in humanizer-zh shuorenhua ai-flavor-remover; do
+  for skill in writing-chinese-prose ai-flavor-remover; do
     grep -Eq "/skills/${skill}/SKILL\\.md" "${ACCEPT_LOG}"
   done
   reply="$(awk '
@@ -37,4 +37,4 @@ if printf '%s' "${reply}" | grep -Eq '(^|[^你])我(们)?'; then
   exit 1
 fi
 
-echo "OK Chinese route loaded all three editors and preserved facts without invented voice"
+echo "OK Chinese route loaded both bundled editors and preserved facts without invented voice"

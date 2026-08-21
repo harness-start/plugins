@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Agent|agent|Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command|spawn_agent|Task|task|TaskCreate",
+        "matcher": "Agent|agent|apply_patch|ApplyPatch|Bash|bash|create_file|Edit|edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|Shell|shell|shell_command|spawn_agent|Task|task|TaskCreate|Write|write",
         "hooks": [
           {
             "type": "command",

@@ -215,4 +215,4 @@ TSan adds overhead, so consider enabling it for a dedicated CI job rather than e
 
 ## Swift Testing + Swift concurrency
 
-For more help with Swift Testing, suggest the [Swift Testing Pro agent skill](https://github.com/twostraws/swift-testing-agent-skill).
+For more help with Swift Testing, load the bundled `ios-testing` Skill.

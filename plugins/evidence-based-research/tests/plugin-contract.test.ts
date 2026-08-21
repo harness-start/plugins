@@ -5,6 +5,13 @@ import test from "node:test";
 
 const pluginFile = (relativePath: string) => new URL(`../${relativePath}`, import.meta.url);
 
+test("both manifests expose the bundled orchestrator Skill", async () => {
+  for (const platform of [".claude-plugin", ".codex-plugin"]) {
+    const manifest = JSON.parse(await readFile(pluginFile(`${platform}/plugin.json`), "utf8"));
+    assert.equal(manifest.skills, "./skills/");
+  }
+});
+
 test("plugin is self-contained with no community skill-deps", async () => {
   assert.equal(existsSync(pluginFile("skill-deps.json")), false);
   const notice = await readFile(pluginFile("licenses/mattpocock/NOTICE.md"), "utf8");
@@ -15,6 +22,15 @@ test("plugin is self-contained with no community skill-deps", async () => {
   ]) {
     assert.equal(existsSync(pluginFile(relative)), true, relative);
   }
+});
+
+test("outbound handoff names artifacts and goals without routing to unbundled Skills", async () => {
+  const template = await readFile(
+    pluginFile("skills/research-evidence-workflow/references/outbound-handoff-template.md"),
+    "utf8",
+  );
+  assert.doesNotMatch(template, /Suggested next skills|implementation-planning/iu);
+  assert.match(template, /downstream goal/iu);
 });
 
 test("orchestrator keeps untrusted candidates outside the evidence boundary", async () => {

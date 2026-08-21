@@ -1,7 +1,7 @@
 {
   "name": "source-integrity",
   "version": "0.3.0",
-  "description": "Blocks backup artifacts and obvious replacement-character corruption in source files.",
+  "description": "Blocks backup artifacts, obvious replacement-character corruption, BOMs, and invalid UTF-8 in source files.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"

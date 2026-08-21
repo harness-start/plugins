@@ -84,6 +84,8 @@ release 只有在 proof、probe、独立 review、release manifest 全部与当�
 
 本插件是宿主 Tool/Hook 边界，不是操作系统沙箱。拥有直接磁盘权限的进程、被替换的系统媒体工具或插件不可见的进程不在其证明范围内。
 
+Claude 注册 `PostToolUseFailure`，在失败的 shell writer 后立即重验项目。Codex 没有该事件注册；它依靠后续 `PostToolUse` 与 `Stop` 重验当前磁盘合同，且任何缺失的 proof、evidence、review 或 receipt 都仍按未完成处理。
+
 ## 验证
 
 ```bash

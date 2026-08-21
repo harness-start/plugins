@@ -63,9 +63,11 @@ export default {
   enabled: true,
   auditRoot: ".agent-activity-audit",
   maxCommandChars: 2000,
-  redactSecrets: true,
+  redactSecrets: true, // fixed safety invariant; false is ignored
 };
 ```
+
+`redactSecrets` cannot disable redaction. A false value is reported and the built-in redaction remains active so the audit trail never intentionally records credential-shaped command arguments.
 
 可使用 `agent-activity-audit-config` Skill 初始化配置。
 

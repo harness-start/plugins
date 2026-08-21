@@ -9,11 +9,7 @@ import { eventCwd, eventToolInput, eventToolName, isRecord, type HookEvent } fro
 import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
-const CONFIG_FILE_NAMES = [
-  ".source-integrity.mjs",
-  ".source-integrity.cjs",
-  ".source-integrity.js",
-];
+const CONFIG_FILE_NAME = ".source-integrity.mjs";
 
 export type EncodingRule = {
   match: RegExp;
@@ -98,18 +94,15 @@ export function matchRule(relativePath: string, rules: readonly EncodingRule[]):
 }
 
 export async function loadUserConfig(repoRoot: string): Promise<unknown> {
-  for (const name of CONFIG_FILE_NAMES) {
-    const configPath = join(repoRoot, name);
-    if (!existsSync(configPath)) continue;
-    try {
-      const loaded = await import(pathToFileURL(configPath).href);
-      return loaded.default ?? loaded;
-    } catch (error) {
-      warnConfig(`failed to load ${name}: ${error instanceof Error ? error.message : String(error)}`);
-      return null;
-    }
+  const configPath = join(repoRoot, CONFIG_FILE_NAME);
+  if (!existsSync(configPath)) return null;
+  try {
+    const loaded = await import(pathToFileURL(configPath).href);
+    return loaded.default ?? loaded;
+  } catch (error) {
+    warnConfig(`failed to load ${CONFIG_FILE_NAME}: ${error instanceof Error ? error.message : String(error)}`);
+    return null;
   }
-  return null;
 }
 
 export function extractFilePaths(event: HookEvent): string[] {

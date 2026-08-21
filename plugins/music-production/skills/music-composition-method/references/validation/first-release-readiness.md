@@ -1,6 +1,6 @@
 # First Release Readiness Checklist
 
-Use this checklist before shipping the music-composition skill as a first release, and retain it as the audit trail for v1.0. It is maintainer-facing and should be used alongside `../../RELEASE-ROADMAP.md`, `../../scripts/music_theory_sanity_check.py`, `phase-b-correctness-pass.md`, `prompt-smoke-tests.md`, `phase-c-smoke-test-results.md`, `rc1-packaging-checklist.md`, and `../../KNOWN-LIMITATIONS.md`, and `../../VALIDATION-v1.0.md`.
+Use this checklist before shipping the music-composition skill as a first release, and retain it as the release audit trail. It is maintainer-facing and should be used alongside `../../scripts/music_theory_sanity_check.py`, `phase-b-correctness-pass.md`, `prompt-smoke-tests.md`, `phase-c-smoke-test-results.md`, and `rc1-packaging-checklist.md`.
 
 ## When to consult
 
@@ -21,9 +21,9 @@ Consult this file when preparing a release candidate, after a major patch, or be
 | Cultural specificity | Broad shortcut labels replaced by specific source/scene/idiom language | pass / fail |
 | Prompt smoke tests | Representative prompts tested for routing and answer quality | pass / fail / partial |
 | Phase C result record | Prompt-smoke-test result recorded in `phase-c-smoke-test-results.md` | pass / fail / partial |
-| Known limitations | `../../KNOWN-LIMITATIONS.md` present or limitations included in validation report | pass / fail |
+| Known limitations | Limitations included in the validation report | pass / fail |
 | ZIP hygiene | No cache, scratch, temp, or obsolete files included | pass / fail |
-| v1.0 validation | `../../VALIDATION-v1.0.md` present and consistent with package counts | pass / fail |
+| Release validation | Current validation report is consistent with package counts | pass / fail |
 
 ## First-release blockers
 
@@ -140,10 +140,6 @@ Use this structure for release-candidate validation reports.
 
 ## Cross-references
 
-- Release roadmap → `../../RELEASE-ROADMAP.md`
-- v1.0 validation report → `../../VALIDATION-v1.0.md`
-- RC1 validation report → `../../VALIDATION-RC1.md`
-- Known limitations → `../../KNOWN-LIMITATIONS.md`
 - Phase B correctness pass → `phase-b-correctness-pass.md`
 - Prompt smoke tests → `prompt-smoke-tests.md`
 - Phase C smoke-test results → `phase-c-smoke-test-results.md`
@@ -151,4 +147,3 @@ Use this structure for release-candidate validation reports.
 - Chord-symbol audit → `../../assets/chord-symbol-ambiguity-and-parsing.md`
 - Scale-degree spelling → `../../assets/scale-degree-spelling-cheatsheet.md`
 - Music-theory audit rubric → `../../assets/music-theory-audit-rubric.md`
-- Maintenance guide → `../../MAINTENANCE.md`

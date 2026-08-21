@@ -196,7 +196,7 @@ function worktreeCreate(invocation: GitInvocation, command: string): DeliveryFin
     "Worktree Create Guard",
     "unsolicited git worktree add creates an extra linked checkout",
     command,
-    "stay on the current checkout and use an ordinary short-lived branch; create a worktree only after the user asks for an isolated workspace or a declared process writes an allow receipt",
+    "stay on the current checkout and use an ordinary short-lived branch; create a worktree only after the user asks for an isolated workspace or repository configuration explicitly allows it",
   );
 }
 

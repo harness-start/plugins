@@ -72,6 +72,14 @@ test("resolveConfig rejects reserved and absolute auditRoot", () => {
   assert.ok(warnings.length >= 2);
 });
 
+test("resolveConfig never permits command secret redaction to be disabled", () => {
+  const warnings = [];
+  const config = resolveConfig({ redactSecrets: false }, (message) => warnings.push(message));
+
+  assert.equal(config.redactSecrets, true);
+  assert.match(warnings.join("\n"), /cannot be disabled/iu);
+});
+
 test("sameToolUseId requires non-empty ids", () => {
   assert.equal(sameToolUseId("a", "a"), true);
   assert.equal(sameToolUseId("", ""), false);
@@ -88,9 +96,13 @@ test("redactCommand strips secrets and truncates", () => {
   assert.match(redacted, /MYSQL_PWD=\*\*\*/u);
   assert.doesNotMatch(redacted, /supersecret|dbpass/u);
 
-  const short = redactCommand("x".repeat(100), { maxCommandChars: 20, redactSecrets: false });
+  const short = redactCommand("TOKEN=secret " + "x".repeat(100), {
+    maxCommandChars: 20,
+    redactSecrets: false,
+  });
   assert.equal(short.length, 21);
   assert.ok(short.endsWith("…"));
+  assert.doesNotMatch(short, /secret/u);
 });
 
 test("inferCommandStatus defaults to unknown without explicit signal", () => {

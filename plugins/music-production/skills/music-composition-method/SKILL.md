@@ -147,7 +147,7 @@ This skill is designed to grow. To add new content:
 4. **New instrument idiom**: add `references/instrument-idiom/<instrument>.md`, update `instrument-idiom/overview.md` and `00-navigation.md`.
 5. **New current-research workflow**: add to `references/research/`, include a snapshot note, update `00-navigation.md`, and link from related genre files.
 6. **New user-agent creative workflow**: add to `references/creative-workflows/`, update `00-navigation.md`, and add quick templates in `assets/` if the workflow benefits from reusable cards. Use `creative-workflows/answer-calibration.md` for bounded variation, answer length, and loading discipline.
-7. **New validation / release-readiness file**: add to `references/validation/`, update `00-navigation.md`, `RELEASE-ROADMAP.md` if relevant, and add expected-file checks when it becomes release-critical. Ship `KNOWN-LIMITATIONS.md` or include its caveats in release validation reports.
+7. **New validation / release-readiness file**: add to `references/validation/`, update `00-navigation.md`, and add expected-file checks when it becomes release-critical. Include known limitations directly in the relevant validation report.
 
 When adding files, keep them under ~600 lines (split if longer), one topic per file, descriptive names. Always update `00-navigation.md` so the agent can find new content.
 

@@ -98,4 +98,4 @@ These phrases are not automatically forbidden in every possible context, but the
 - Prompt smoke tests → `references/validation/prompt-smoke-tests.md`
 - Chord ambiguity → `chord-symbol-ambiguity-and-parsing.md`
 - Scale-degree spelling → `scale-degree-spelling-cheatsheet.md`
-- Maintenance guide → `MAINTENANCE.md`
+- Release packaging checklist → `../references/validation/rc1-packaging-checklist.md`

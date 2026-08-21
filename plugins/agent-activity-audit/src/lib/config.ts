@@ -83,8 +83,10 @@ export function resolveConfig(raw: unknown, warn: WarnFn = () => {}): AgentActiv
     warn("maxCommandChars must be a number");
   }
 
-  if (typeof raw.redactSecrets === "boolean") config.redactSecrets = raw.redactSecrets;
-  else if (raw.redactSecrets !== undefined) warn("redactSecrets must be boolean");
+  if (raw.redactSecrets === false) warn("redactSecrets cannot be disabled; command redaction remains enabled");
+  else if (raw.redactSecrets !== undefined && raw.redactSecrets !== true) {
+    warn("redactSecrets must be true");
+  }
 
   return config;
 }

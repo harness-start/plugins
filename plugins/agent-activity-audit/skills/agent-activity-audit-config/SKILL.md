@@ -34,7 +34,7 @@ export default {
 | `enabled` | `boolean` | Default `true` |
 | `auditRoot` | `string` | Relative path without `..` |
 | `maxCommandChars` | `number` | `64..20000`; default `2000` |
-| `redactSecrets` | `boolean` | Default `true` |
+| `redactSecrets` | `true` | Fixed safety invariant; `false` is rejected and redaction remains active |
 
 ## Workflow
 

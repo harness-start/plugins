@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:df1bd92e593d4209f0b6b8b99f8f0862714fdc7f8e1010073f189d00b9fd836b
+// harness-source-hash: sha256:dcd4fe0011a0342e791fd708077649334f760e233e97255a87265815561d514d
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-YNFN7BVM.mjs";
+} from "../chunks/chunk-23NNQSDH.mjs";
 import {
   defaultWorkflow,
   ensureRunSkeleton,
@@ -13,7 +13,7 @@ import {
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-6FEK3B5X.mjs";
+} from "../chunks/chunk-2NNAHPWI.mjs";
 
 // plugins/evidence-based-research/src/entries/mcp/research-provenance-server.ts
 import { realpath as realpath2 } from "node:fs/promises";
@@ -41,12 +41,25 @@ function privateIpv4(address) {
   if (a === void 0 || b === void 0) return true;
   return a === 0 || a === 10 || a === 127 || a === 169 && b === 254 || a === 172 && b >= 16 && b <= 31 || a === 100 && b >= 64 && b <= 127 || a === 192 && (b === 0 || b === 168) || a === 198 && (b === 18 || b === 19 || b === 51) || a === 203 && b === 0 || a >= 224;
 }
+function embeddedIpv4(address, prefix) {
+  const tail = address.slice(prefix.length);
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/u.test(tail)) return tail;
+  const groups = tail.split(":");
+  if (groups.length < 1 || groups.length > 2 || groups.some((group) => !/^[0-9a-f]{1,4}$/u.test(group))) return void 0;
+  const [high = "0", low = "0"] = groups.length === 1 ? ["0", groups[0]] : groups;
+  const value = Number.parseInt(high, 16) * 65536 + Number.parseInt(low, 16);
+  return [value >>> 24, value >>> 16 & 255, value >>> 8 & 255, value & 255].join(".");
+}
 function isPrivateAddress(address) {
   const normalized = address.toLowerCase().split("%")[0] ?? "";
   if (isIP(normalized) === 4) return privateIpv4(normalized);
   if (isIP(normalized) !== 6) return true;
   if (normalized === "::" || normalized === "::1" || normalized.startsWith("2001:db8:") || normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb") || normalized.startsWith("fc") || normalized.startsWith("fd")) return true;
-  if (normalized.startsWith("::ffff:")) return privateIpv4(normalized.slice(7));
+  for (const prefix of ["::ffff:", "::"]) {
+    if (!normalized.startsWith(prefix)) continue;
+    const embedded = embeddedIpv4(normalized, prefix);
+    if (embedded) return privateIpv4(embedded);
+  }
   return false;
 }
 async function resolvePublic(hostname) {

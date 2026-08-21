@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:567ce8c167c6d9e39b713fd55009f8ec39fb82c8928f0fd2ea14c99df95cce4c
+// harness-source-hash: sha256:7ded73f566b8392c38ac9690ecd0feb0616bd600af8955a96dfe6b92fb82d9f3
 import {
   preflightMigration,
   runCli
-} from "../chunks/chunk-PJHIAHJK.mjs";
-import "../chunks/chunk-NARDKFFM.mjs";
+} from "../chunks/chunk-CPMEUWBQ.mjs";
+import "../chunks/chunk-UIMRL2ZJ.mjs";
 
 // plugins/repository-history-migration/src/entries/cli/git-history-migration-preflight.ts
 runCli("git-history-migration-preflight", preflightMigration, process.argv.slice(2));

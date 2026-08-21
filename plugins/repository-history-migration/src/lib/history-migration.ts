@@ -117,7 +117,9 @@ function normalizeInputs(options: MigrationOptions): NormalizedInputs {
     throw new TypeError("includePaths must contain at least one path");
   }
 
-  const source = realpathSync(resolve(sourceInput));
+  const requestedSource = realpathSync(resolve(sourceInput));
+  git(requestedSource, "rev-parse", "--is-inside-work-tree");
+  const source = realpathSync(git(requestedSource, "rev-parse", "--show-toplevel"));
   const requestedTarget = resolve(targetInput);
   const requestedParent = dirname(requestedTarget);
   if (!existsSync(requestedParent)) {
@@ -136,7 +138,6 @@ function normalizeInputs(options: MigrationOptions): NormalizedInputs {
   }
   accessSync(parent, constants.R_OK | constants.W_OK | constants.X_OK);
 
-  git(source, "rev-parse", "--is-inside-work-tree");
   git(source, "check-ref-format", `refs/heads/${targetBranch}`);
   return { source, target, parent, ref, targetBranch, includePaths };
 }

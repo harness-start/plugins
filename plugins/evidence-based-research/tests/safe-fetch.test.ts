@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { isPrivateAddress, pinnedLookup, safeFetchText } from "../src/lib/server/safe-fetch.js";
 
-test("address policy rejects loopback, private, link-local, and IPv4-mapped private addresses", () => {
-  for (const address of ["127.0.0.1", "10.1.2.3", "100.64.0.1", "172.16.0.1", "192.168.2.2", "169.254.169.254", "198.18.0.1", "203.0.113.2", "::1", "2001:db8::1", "fe80::1", "fc00::1", "::ffff:127.0.0.1"]) {
+test("address policy rejects loopback, private, link-local, and embedded private addresses", () => {
+  for (const address of ["127.0.0.1", "10.1.2.3", "100.64.0.1", "172.16.0.1", "192.168.2.2", "169.254.169.254", "198.18.0.1", "203.0.113.2", "::1", "2001:db8::1", "fe80::1", "fc00::1", "::ffff:127.0.0.1", "::127.0.0.1", "::7f00:1", "::a01:203"]) {
     assert.equal(isPrivateAddress(address), true, address);
   }
   assert.equal(isPrivateAddress("8.8.8.8"), false);

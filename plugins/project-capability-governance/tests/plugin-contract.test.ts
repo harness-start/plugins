@@ -30,6 +30,8 @@ test("dual-host plugin contracts expose only proposal lifecycle hooks", () => {
   assert.equal(claude.version, codex.version);
   assert.equal(codex.hooks, "./hooks/codex.json");
   assert.equal(claude.hooks, "./hooks/claude.json");
+  assert.equal(codex.skills, "./skills/");
+  assert.equal(claude.skills, "./skills/");
 
   const codexHooks = readHookManifest(join(ROOT, "hooks/codex.json"));
   const claudeHooks = readHookManifest(join(ROOT, "hooks/claude.json"));

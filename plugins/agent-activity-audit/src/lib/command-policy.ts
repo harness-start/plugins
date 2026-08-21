@@ -23,26 +23,22 @@ export function sameToolUseId(left: unknown, right: unknown): boolean {
 
 export function redactCommand(command: unknown, options: RedactOptions = {}): string {
   const maxCommandChars = options.maxCommandChars ?? 2000;
-  const redactSecrets = options.redactSecrets ?? true;
-  let text = String(command ?? "");
-  if (redactSecrets) {
-    text = text
-      .replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]+/giu, "$1 ***")
-      .replace(
-        /\b((?:MYSQL_PWD|PGPASSWORD|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|GITHUB_TOKEN|GH_TOKEN|NPM_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY)[A-Za-z0-9_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
-        "$1=***",
-      )
-      .replace(
-        /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|ACCESS[_-]?KEY)[A-Za-z_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
-        "$1=***",
-      )
-      .replace(
-        /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY)[A-Za-z_]*)\s*:\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
-        "$1:***",
-      )
-      .replace(/(?:^|\s)(-u|--user)\s+\S+:\S+/giu, " $1 ***:****")
-      .replace(/(?:^|\s)(--password|--passwd|-p)\s+(?:"[^"]*"|'[^']*'|\S+)/giu, " $1 ***");
-  }
+  const text = String(command ?? "")
+    .replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]+/giu, "$1 ***")
+    .replace(
+      /\b((?:MYSQL_PWD|PGPASSWORD|AWS_SECRET_ACCESS_KEY|AWS_SESSION_TOKEN|GITHUB_TOKEN|GH_TOKEN|NPM_TOKEN|OPENAI_API_KEY|ANTHROPIC_API_KEY)[A-Za-z0-9_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
+      "$1=***",
+    )
+    .replace(
+      /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|ACCESS[_-]?KEY)[A-Za-z_]*)\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
+      "$1=***",
+    )
+    .replace(
+      /\b([A-Za-z_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY)[A-Za-z_]*)\s*:\s*(?:"[^"]*"|'[^']*'|\S+)/giu,
+      "$1:***",
+    )
+    .replace(/(?:^|\s)(-u|--user)\s+\S+:\S+/giu, " $1 ***:****")
+    .replace(/(?:^|\s)(--password|--passwd|-p)\s+(?:"[^"]*"|'[^']*'|\S+)/giu, " $1 ***");
   if (text.length > maxCommandChars) {
     return `${text.slice(0, maxCommandChars)}…`;
   }

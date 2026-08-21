@@ -1,18 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b5503af635117964ca63ec9658d0cf107d5dd4109556add2d6b1ba2c4342bf14
-import {
-  conflictFileFindings,
-  formatConflictFindings,
-  loadConflictConfig,
-  resolveRepoRoot
-} from "../chunks/chunk-3TLJR5NK.mjs";
+// harness-source-hash: sha256:57569677924cad9d579da55eb111411406046b1ba11093aff42a9c87d04c8c47
 import {
   additionalContextOutput,
+  conflictFileFindings,
   eventCwd,
   extractWriteTargets,
+  formatConflictFindings,
+  loadConflictConfig,
   readStdinJson,
+  resolveRepoRoot,
   writeJson
-} from "../chunks/chunk-G6TGSGCB.mjs";
+} from "../chunks/chunk-ZVFRZNHB.mjs";
 
 // plugins/git-delivery/src/entries/hooks/git-delivery-hook-post-tool.ts
 import { resolve } from "node:path";

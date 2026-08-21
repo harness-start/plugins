@@ -14,7 +14,7 @@
 
 - Consume only claims in the sealed report (status sourced via claim labels).
 - Treat UNVERIFIED / INFERENCE / CONTESTED as bounded, not as proven facts.
-- Suggested next skills: <prd / adr / implementation-planning / …>
+- Downstream goal and required artifacts or commands: <user-stated goal and deliverables>
 
 ## Open gaps
 
@@ -23,7 +23,7 @@
 
 ## handoffs/outbound/prompt.md
 
-Store the **exact** prompt that will start the next session or skill, for example:
+Store the **exact** prompt that will start the next session or task, for example:
 
 ```text
 Continue from sealed research run <run-id>.

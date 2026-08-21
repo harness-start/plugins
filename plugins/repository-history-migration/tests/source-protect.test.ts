@@ -26,6 +26,14 @@ test("denies source-mutating history rewrite and force push", () => {
 test("denies wrapped filter-repo and force-with-f short flag", () => {
   assert.equal(classifySourceProtectCommand("sudo git filter-repo --invert-paths")?.id, "SOURCE_FILTER_REPO");
   assert.equal(classifySourceProtectCommand("git push -f origin main")?.id, "SOURCE_FORCE_PUSH");
+  assert.equal(classifySourceProtectCommand("git push --force-with-lease origin main")?.id, "SOURCE_FORCE_PUSH");
+});
+
+test("does not let an execute CLI mention hide a chained destructive Git command", () => {
+  const finding = classifySourceProtectCommand(
+    "node dist/cli/git-history-migration-execute.mjs --source /src --target /dst && git reset --hard HEAD",
+  );
+  assert.equal(finding?.id, "SOURCE_RESET_HARD");
 });
 
 test("returns null for empty or unparseable commands", () => {

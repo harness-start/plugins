@@ -75,11 +75,11 @@ This file routes user requests to the specific reference files you need. **Read 
 | Critique, feedback on a finished piece, evaluating user's own work | `critique-and-feedback.md` |
 | Teaching, learning paths, exercises, pedagogical mode | `teaching-composition.md` |
 | Source verification, bibliography, maintainer research sources | `source-bibliography.md` |
-| First-release readiness, release blockers, validation checklist | `validation/first-release-readiness.md` + `validation/phase-b-correctness-pass.md` + `../RELEASE-ROADMAP.md` |
+| First-release readiness, release blockers, validation checklist | `validation/first-release-readiness.md` + `validation/phase-b-correctness-pass.md` |
 | Phase B correctness pass, pre-smoke-test audit | `validation/phase-b-correctness-pass.md` |
 | Prompt smoke tests for routing and answer-shape QA, Phase C | `validation/prompt-smoke-tests.md` |
 | Phase C smoke-test results, user-run pass record | `validation/phase-c-smoke-test-results.md` |
-| RC1/v1.0 packaging, release artifact hygiene, validation report minimums | `validation/rc1-packaging-checklist.md` + `../VALIDATION-v1.0.md` + `../KNOWN-LIMITATIONS.md` |
+| RC1/v1.0 packaging, release artifact hygiene, validation report minimums | `validation/rc1-packaging-checklist.md` + `validation/first-release-readiness.md` |
 | Manual theory audit rubric for maintainer review | `../assets/music-theory-audit-rubric.md` |
 | User listening context, subscribed streaming services, playlists, Replay/Wrapped, personal reference library | `research/user-listening-context-and-streaming-services.md` + `research/reference-track-digging.md` |
 | Regional trend evolution, market changes across time windows, region-specific trend analysis | `research/regional-trend-evolution-analysis.md` + `research/web-music-trend-research.md` |
@@ -178,7 +178,7 @@ Some requests genuinely span several files. Common patterns:
 
 **"Make it sound like [artist/song]"** — `research/style-reference-and-copyright.md` + `research/reference-track-digging.md` + the relevant genre file. Extract variables; do not clone melody, lyrics, riffs, samples, vocal identity, or signature production tags.
 
-**"Prepare / validate / release this skill"** — `validation/first-release-readiness.md` + `validation/phase-b-correctness-pass.md` + `validation/prompt-smoke-tests.md` + `validation/phase-c-smoke-test-results.md` + `validation/rc1-packaging-checklist.md` + `../assets/music-theory-audit-rubric.md` + `../RELEASE-ROADMAP.md` + `../KNOWN-LIMITATIONS.md`. Use Phase B for correctness hardening, Phase C for prompt behavior QA, and Phase D / v1.0 finalization for packaging; not normal composition answers.
+**"Prepare / validate / release this skill"** — `validation/first-release-readiness.md` + `validation/phase-b-correctness-pass.md` + `validation/prompt-smoke-tests.md` + `validation/phase-c-smoke-test-results.md` + `validation/rc1-packaging-checklist.md` + `../assets/music-theory-audit-rubric.md`. Use Phase B for correctness hardening, Phase C for prompt behavior QA, and the RC1 checklist for packaging; not normal composition answers.
 
 ## Cheatsheets — when to use `assets/`
 
@@ -238,7 +238,7 @@ Heavily cross-linked clusters:
 - **Microgenre / hybrid genre cluster**: `genres/minor-and-hybrid-genres` ↔ `genres/regional-scene-starters` ↔ `research/web-music-trend-research` ↔ `research/regional-trend-evolution-analysis` ↔ `research/reference-track-digging` ↔ relevant major genre files. Use when the genre label is small, unstable, platform-born, local, or deliberately hybrid.
 - **Folk / roots / tradition-specific cluster**: `genres/folk-roots-and-traditions` ↔ `genres/regional-scene-starters` ↔ `techniques/microtonal` ↔ `fundamentals/prosody-and-language` ↔ relevant regional genre files. Use when the user asks for folk/traditional influence or uses broad labels that need specificity.
 - **Agent output cluster**: `assets/response-templates` ↔ `assets/diagnostic-checklists` ↔ `critique-and-feedback` ↔ `workflow` ↔ `creative-workflows/revision-and-feedback-loops`. Use when the user needs a structured answer, not more theory.
-- **Release validation cluster**: `validation/first-release-readiness` ↔ `validation/phase-b-correctness-pass` ↔ `validation/prompt-smoke-tests` ↔ `validation/phase-c-smoke-test-results` ↔ `validation/rc1-packaging-checklist` ↔ `assets/music-theory-audit-rubric` ↔ `scripts/music_theory_sanity_check.py` ↔ `RELEASE-ROADMAP.md` ↔ `VALIDATION-v1.0.md` ↔ `KNOWN-LIMITATIONS.md`. Use for maintainer QA and first-release planning.
+- **Release validation cluster**: `validation/first-release-readiness` ↔ `validation/phase-b-correctness-pass` ↔ `validation/prompt-smoke-tests` ↔ `validation/phase-c-smoke-test-results` ↔ `validation/rc1-packaging-checklist` ↔ `assets/music-theory-audit-rubric` ↔ `scripts/music_theory_sanity_check.py`. Use for maintainer QA and first-release planning.
 - **Exploration / system techniques cluster**: `techniques/algorithmic-and-AI-assisted` ↔ `techniques/microtonal` ↔ `techniques/constraint-based-composition` ↔ `techniques/20th-century-techniques`. For composers reaching beyond the standard 12-TET / functional-harmony / through-composed default.
 
 ## When to ask the user before loading

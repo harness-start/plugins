@@ -191,6 +191,29 @@ test("entry loads a project skip override before built-ins", async () => {
   }
 });
 
+test("entry ignores undocumented CommonJS config and keeps the encoding guard active", async () => {
+  const root = mkdtempSync(join(tmpdir(), "source-integrity-cjs-config-"));
+  try {
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    mkdirSync(join(root, "fixtures"));
+    writeFileSync(
+      join(root, ".source-integrity.cjs"),
+      "module.exports = { rules: [{ match: /^fixtures\\//, mode: 'skip' }] };\n",
+      "utf8",
+    );
+    const target = join(root, "fixtures", "legacy.sql");
+    writeFileSync(target, Buffer.from([0xff, 0xfe, 0x41, 0x00]));
+
+    const result = await runEntry(
+      JSON.stringify({ cwd: root, tool_input: { file_path: target } }),
+    );
+    assert.equal(result.code, 2);
+    assert.match(result.stderr, /\[Encoding Guard\]/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("entry fails open without output for malformed JSON", async () => {
   const result = await runEntry("{");
   assert.equal(result.code, 0);

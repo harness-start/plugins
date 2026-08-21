@@ -175,6 +175,20 @@ test("preflight resolves a symlinked target parent before enforcing source isola
   );
 });
 
+test("preflight resolves a source subdirectory to the repository root before enforcing target isolation", () => {
+  const { source, gitFilterRepo } = fixture();
+
+  assert.throws(
+    () => preflightMigration({
+      source: join(source, "packages", "widget"),
+      target: join(source, "published-target"),
+      includePaths: ["packages/widget"],
+      gitFilterRepo,
+    }),
+    /target path must not be inside the source repository/iu,
+  );
+});
+
 test("execute preserves selected history, excludes unrelated content, and leaves source unchanged", () => {
   const { source, target, gitFilterRepo } = fixture();
   const sourceHead = git(source, "rev-parse", "HEAD");

@@ -71,7 +71,6 @@ Phase B can be marked prepared/complete when:
 
 ## Cross-references
 
-- Release roadmap → `../../RELEASE-ROADMAP.md`
 - First-release readiness → `first-release-readiness.md`
 - Prompt smoke tests, Phase C only → `prompt-smoke-tests.md`
 - Music-theory audit rubric → `../../assets/music-theory-audit-rubric.md`

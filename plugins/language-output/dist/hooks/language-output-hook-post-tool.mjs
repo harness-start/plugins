@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:df7e95fac2c8bf7f96ff291a5508f7af6c33b8ba82cdd6e91ea0e7ae52128c3a
+// harness-source-hash: sha256:75a99cdb060fc16b6d5f00c02c18faa8fb73a9b59b1542244a72b9d44aae42bc
 import {
   detectLanguageDrift,
   toolFeedback
-} from "../chunks/chunk-DC5L6F44.mjs";
+} from "../chunks/chunk-72RM5LVL.mjs";
 import {
   claimToolFeedback,
   eventCwd,
@@ -16,7 +16,7 @@ import {
   supportsPostToolFeedback,
   warn,
   writeJson
-} from "../chunks/chunk-GCBSTI5C.mjs";
+} from "../chunks/chunk-4FE42TVS.mjs";
 
 // plugins/language-output/src/entries/hooks/language-output-hook-post-tool.ts
 async function main() {

@@ -1,1 +1,0 @@
-Fix `mapChannels()` so mixed boundary inputs preserve each component as documented instead of failing during alignment. Update the existing test file, do not create unrelated files, and finish with one short factual status line.

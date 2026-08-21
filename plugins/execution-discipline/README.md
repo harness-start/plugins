@@ -70,7 +70,7 @@ export default {
 
 `PreToolUse` 在命令执行前判断重复和轮询预算；Codex 若为 `wait`、`wait_agent`、`write_stdin`、`list_agents` 发出工具事件，也按请求的等待上限和查询次数计入同一预算。`PostToolUse` 记录命令结果和文件编辑。Claude 的 `PostToolUseFailure` 补充失败结果，Codex 从 `PostToolUse` 响应退出码推断成败。
 
-工具级统计只在宿主实际发出对应 Hook 事件时生效；请求的 timeout/yield 是上限，不是实际耗时，所以默认只报告。持续中的统一命令 session 不会因后续 `write_stdin` 必然再次触发 `PreToolUse`，插件不声称能观察宿主未暴露的轮询事件。reviewer Skill 的单次等待上限是这类不可见边界的第一道约束。
+工具级统计只在宿主实际发出对应 Hook 事件时生效；请求的 timeout/yield 是上限，不是实际耗时，所以默认只报告。持续中的统一命令 session 不会因后续 `write_stdin` 必然再次触发 `PreToolUse`，插件不声称能观察宿主未暴露的轮询事件。调用方自身的单次等待上限是这类不可见边界的第一道约束。
 
 状态按 session 和 cwd 摘要隔离，原子写入宿主插件数据目录，权限为 `0600`。磁盘只保存摘要、时间戳、计数和失败签名，不保存命令输出、文件内容、路径或规范化命令。状态目录不可用、状态损坏或 Hook 异常时 fail-open。
 

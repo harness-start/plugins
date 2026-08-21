@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -13,6 +13,7 @@ test("writer capabilities are session, argv, subject, expiry, and one-shot bound
   const argv = ["/plugin/dist/cli/project-render.mjs", root];
   try {
     const issued = await issueMusicWriterCapability({ root, capability: "music-render", argv, subjectDigest: "a".repeat(64), sessionId: "render-session", triggerFrom: "test" });
+    assert.equal((await stat(join(root, ".tmp", "music-guard"))).mode & 0o777, 0o700);
     const consumed = await consumeMusicWriterCapability({ root, capability: "music-render", argv });
     assert.equal(consumed.id, issued.id);
     assert.equal(consumed.sessionId, "render-session");

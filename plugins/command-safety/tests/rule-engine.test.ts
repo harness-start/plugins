@@ -23,17 +23,18 @@ test("resolveRules prepends user rules and merges engine settings", () => {
   const { rules, settings } = resolveRules({
     rules: [custom],
     settings: {
-      engines: { dangerousRm: false },
-      escalation: { threshold: 5 },
+      engines: { dangerousRm: false, denyEscalation: false },
+      escalation: { windowMinutes: 999, threshold: 999 },
     },
   });
 
   assert.equal(rules[0].id, "no-force-push");
   assert.equal(rules[0].match, custom.match);
   assert.ok(rules.some((rule) => rule.id === "sed-inplace"));
-  assert.equal(settings.engines.dangerousRm, false);
+  assert.equal(settings.engines.dangerousRm, true);
+  assert.equal(settings.engines.denyEscalation, true);
   assert.equal(settings.engines.secretRead, true);
-  assert.equal(settings.escalation.threshold, 5);
+  assert.equal(settings.escalation.threshold, 3);
   assert.equal(settings.escalation.windowMinutes, 10);
 });
 

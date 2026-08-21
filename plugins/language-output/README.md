@@ -26,9 +26,9 @@ Latin 始终允许，避免命令、API、类型、标识符和技术术语造�
 - `PostToolUse` 只检查模型为 Bash、Write、Edit、MultiEdit 和 apply_patch 生成的工具输入。带引号的 shell payload 会作为独立候选片段检查，避免命令语法稀释自然语言比例。命令和工具输出从不扫描，每个会话最多报告一次。
 - `Stop` 和 `SubagentStop` 在最终散文含未授权文字系统时要求完整重写；宿主带 `stop_hook_active` 的重试仍会阻断，直到散文不再漂移。
 
-状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以 session ID 的 SHA-256 为键，原子写到当前工作目录的 `.language-output/state/`。`.language-output/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。状态 24 小时后过期，当前没有逐轮 profile 或撤销协议。
+状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以宿主平台名和 session ID 的 SHA-256 为键，原子写到当前工作目录的 `.language-output/state/`，因此 Claude 与 Codex 的同名会话不会共享状态。缺少可信 session ID 时插件不创建共享默认状态。`.language-output/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。状态 24 小时后过期，当前没有逐轮 profile 或撤销协议。
 
-Claude 与 Codex 的所有 provider 都通过 `hookSpecificOutput.additionalContext` 接收同一份 `PostToolUse` 反馈；插件不维护 provider 特例或降级分支。
+Claude 通过 `hookSpecificOutput.additionalContext` 接收 `PostToolUse` 反馈；Codex 的 tool-lifecycle Hook 按宿主协议通过 stderr 接收同一文本。插件不按 provider 维护语义不同的检测分支。
 
 ## 配置优先级
 

@@ -53,4 +53,4 @@ var tileColor: Color {
 - When evaluating `MainActor.run()`, check whether the project has its default actor isolation set to Main Actor first, because `MainActor.run()` might not be needed.
 - `Task.detached()` is often a bad idea. Check any usage extremely carefully.
 
-For more help with Swift concurrency, suggest the [Swift Concurrency Pro agent skill](https://github.com/twostraws/swift-concurrency-agent-skill).
+For more help with Swift concurrency, load the bundled `ios-concurrency` Skill.

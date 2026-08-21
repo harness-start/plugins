@@ -3,15 +3,13 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'English prose.*humanizer.*stop-slop'
+require_session_context_signal 'English prose.*writing-english-prose'
 
 if [ "${ACCEPT_HOST}" = "claude" ]; then
-  grep -Eq 'SkillTool returning.*skill humanizer' "${ACCEPT_LOG}"
-  grep -Eq 'SkillTool returning.*skill stop-slop' "${ACCEPT_LOG}"
+  grep -Eq 'SkillTool returning.*skill (professional-writing:)?writing-english-prose' "${ACCEPT_LOG}"
   reply="$(sed -n '1p' "${ACCEPT_LOG}")"
 else
-  grep -Eq '/skills/humanizer/SKILL\.md' "${ACCEPT_LOG}"
-  grep -Eq '/skills/stop-slop/SKILL\.md' "${ACCEPT_LOG}"
+  grep -Eq '/skills/writing-english-prose/SKILL\.md' "${ACCEPT_LOG}"
   reply="$(awk '
     $0 == "codex" { in_reply = 1; next }
     in_reply && index($0, "Orchid API") && index($0, "2026-07-01") &&

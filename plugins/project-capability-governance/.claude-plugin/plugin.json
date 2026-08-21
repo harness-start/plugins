@@ -6,5 +6,6 @@
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
+  "skills": "./skills/",
   "hooks": "./hooks/claude.json"
 }
