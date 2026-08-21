@@ -1,11 +1,11 @@
-// harness-source-hash: sha256:4792ccc1b9044e92c456d58e726eba93109c87c0a770ee992bb4fe82738cdc0a
+// harness-source-hash: sha256:924cc58853e84cd81acea89c903c26d2ba046c86e5885c106ae9163c4947aea6
 import {
   SHOT_LIBRARY_UPSTREAM_COMMIT,
   getShotRecipe
-} from "./chunk-LROVHZDH.mjs";
+} from "./chunk-72NYFEVP.mjs";
 import {
   assertVideoProjectRoot
-} from "./chunk-EQU7CLGR.mjs";
+} from "./chunk-QC5OJTYM.mjs";
 
 // plugins/video-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";

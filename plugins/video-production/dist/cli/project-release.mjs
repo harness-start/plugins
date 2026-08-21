@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4792ccc1b9044e92c456d58e726eba93109c87c0a770ee992bb4fe82738cdc0a
+// harness-source-hash: sha256:924cc58853e84cd81acea89c903c26d2ba046c86e5885c106ae9163c4947aea6
 import {
   consumeWriterCapability,
   createVideoReceipt,
@@ -7,15 +7,15 @@ import {
   processWriterArgv,
   validateVideoModel,
   validateVideoReceipt
-} from "../chunks/chunk-RHD2X3SL.mjs";
-import "../chunks/chunk-LROVHZDH.mjs";
+} from "../chunks/chunk-WYEFUNFT.mjs";
+import "../chunks/chunk-72NYFEVP.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-EQU7CLGR.mjs";
+} from "../chunks/chunk-QC5OJTYM.mjs";
 
 // plugins/video-production/src/entries/cli/project-release.ts
 function beforeManifestFindings(model) {
