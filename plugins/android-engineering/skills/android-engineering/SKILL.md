@@ -7,7 +7,7 @@ version: 0.1.0
 
 ## Scope
 
-Kotlin/Java Android、Gradle/AGP、Jetpack Compose、测试、R8 与 Android 资源配置。本 Skill 负责开放式领域工作；Hook 只负责 lockfile、依赖目录和轻量语法/配置校验。
+Kotlin/Java Android、Gradle/AGP、Jetpack Compose、测试、R8 与 Android 资源配置。本 Skill 负责开放式领域工作；Hook 负责 lockfile、依赖目录、轻量语法/配置校验，以及 Kotlin 源码上的有界 Compose 扫描。Hook 通过不等于任务完成。
 
 ## Workflow
 
@@ -28,7 +28,7 @@ Kotlin/Java Android、Gradle/AGP、Jetpack Compose、测试、R8 与 Android 资
 
 ## Hook 配置
 
-可选配置 `.android-engineering.mjs` 支持 `rules`、`checks`、`limits.maxFiles`、`limits.timeoutMs` 和 `missingTools`。
+可选配置 `.android-engineering.mjs` 支持 `rules`、`checks`、`limits.maxFiles`、`limits.timeoutMs` 和 `missingTools`。Compose 扫描 id 为 `composeCollectAsState`、`composePrimitiveState`、`composeLiteralColor`，默认 `report`。
 
 ## Anti-patterns
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:345727962cf4c85afa0499541b6da631359185ffead00d3bb312ef81df7ffe38
+// harness-source-hash: sha256:df7e95fac2c8bf7f96ff291a5508f7af6c33b8ba82cdd6e91ea0e7ae52128c3a
 import {
   PROFILES,
   PROFILE_IDS,
@@ -9,7 +9,7 @@ import {
   readStdinJson,
   recordLanguageIntent,
   warn
-} from "../chunks/chunk-7I6CECTA.mjs";
+} from "../chunks/chunk-GCBSTI5C.mjs";
 
 // plugins/language-output/src/lib/intent.ts
 var TRANSLATION_CUE = /翻译|翻譯|译成|譯成|译为|譯為|翻成|translate|translation/iu;

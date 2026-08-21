@@ -1,4 +1,13 @@
-import { repoContainsPath, type DomainEngineeringPolicy } from "@harness/core/domain-engineering-hook";
+import { repoContainsPath, type DomainEngineeringPolicy, type DomainSourceScanHit } from "@harness/core/domain-engineering-hook";
+import { detectComposeSource } from "./lib/compose-detect.js";
+
+const KOTLIN_SOURCE = /\.(?:kt|kts)$/iu;
+
+function composeHits(codes: ReadonlySet<string>): (filePath: string, source: string) => DomainSourceScanHit[] {
+  return (_filePath, source) => detectComposeSource(source)
+    .filter((hit) => codes.has(hit.code))
+    .map((hit) => ({ line: hit.line, code: hit.code, message: hit.message }));
+}
 
 export const policy: DomainEngineeringPolicy = {
  plugin:"android-engineering",
@@ -12,4 +21,9 @@ export const policy: DomainEngineeringPolicy = {
  { id:"androidXml", kind:"xml", match:/(?:AndroidManifest\.xml|res\/.+\.xml)$/iu, mode:"block" },
  { id:"androidJson", kind:"json", match:/(?:^|\/)(?:google-services|package)\.json$/iu, mode:"block" },
 ],
+ sourceScans:[
+ { id:"composeCollectAsState", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["COLLECT_AS_STATE","PAGING_COLLECT_AS_STATE"])) },
+ { id:"composePrimitiveState", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["PRIMITIVE_MUTABLE_STATE"])) },
+ { id:"composeLiteralColor", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["HARDCODED_ON_THEME"])) },
+ ],
 };

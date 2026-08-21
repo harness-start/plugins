@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:85b13c2563bdc59fda6a978b54a670ea3995eff826a4b0880d4dd0c0892b9729
+// harness-source-hash: sha256:b2f36386157c00b16ab52a11758d9a35c1698d230797b5e0e14009bbe921c99a
 import {
   PACKAGE_SCHEMA,
   PLAN_SCHEMA,
@@ -7,7 +7,7 @@ import {
   assertTrainingProjectRoot,
   atomicWriteJson,
   atomicWriteText
-} from "../chunks/chunk-WWIPRB2V.mjs";
+} from "../chunks/chunk-GMK6D3DB.mjs";
 
 // plugins/training-program-design/src/entries/cli/project-init.ts
 import { lstat, mkdir } from "node:fs/promises";

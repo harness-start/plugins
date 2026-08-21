@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:21d6020de3990636c899a230a14b1ce68e7808c2b3498b8eae1728dc65cec28d
+// harness-source-hash: sha256:96285819d663dfc409e440d954769bd9efcd98acff907031f193255ff8195570
 import {
   issueWriterCapability
-} from "../chunks/chunk-HWIXKZL3.mjs";
-import "../chunks/chunk-B72MPVB2.mjs";
+} from "../chunks/chunk-MZ4KGSY5.mjs";
+import "../chunks/chunk-SW3JQKS7.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -11,7 +11,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-7PVUJ726.mjs";
+} from "../chunks/chunk-CW64IWON.mjs";
 
 // plugins/presentation-production/src/entries/hooks/presentation-production.ts
 import { relative as relative2, resolve as resolve5 } from "node:path";

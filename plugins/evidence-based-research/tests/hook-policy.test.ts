@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -20,31 +19,13 @@ async function fixture(session = "hook-session") {
   await mkdir(workspace);
   await writeFile(join(workspace, "source.md"), "Supported fact.\n", "utf8");
   process.env.RESEARCH_PLUGIN_DATA = dataRoot;
-  process.env.AI_EXPERTS_SESSION_ID = session;
   return { workspace, dataRoot, event: { session_id: session, cwd: workspace } };
 }
 
 function openWorkflow(workspace, runId = "r-20260808120000-abcdef") {
   ensureRunSkeleton(workspace, runId);
-  writeWorkflow(workspace, defaultWorkflow({
-    runId,
-    question: "Q",
-    scope: "S",
-    asOf: "2026-08-08",
-    promptEpoch: 1,
-    ownerSessionSha256: createHash("sha256").update(String(process.env.AI_EXPERTS_SESSION_ID)).digest("hex"),
-  }));
+  writeWorkflow(workspace, defaultWorkflow({ runId, question: "Q", scope: "S", asOf: "2026-08-08", promptEpoch: 1 }));
   return runId;
-}
-
-function openOwnedWorkflow(workspace, sessionId, runId, openedAt) {
-  ensureRunSkeleton(workspace, runId);
-  const workflow = defaultWorkflow({ runId, question: "Q", scope: "S", asOf: "2026-08-21", promptEpoch: 1 });
-  workflow.owner_session_sha256 = createHash("sha256").update(sessionId).digest("hex");
-  workflow.opened_at = openedAt;
-  workflow.mcp.begun = true;
-  workflow.phase = "briefed";
-  writeWorkflow(workspace, workflow);
 }
 
 function runHook(mode, event, dataRoot) {
@@ -197,116 +178,6 @@ test("only the exact abort prompt terminalizes an active workflow", async () => 
   assert.equal(result.status, 0);
   assert.equal(readWorkflowFile(workflowPath(workspace, runId)).phase, "aborted");
   assert.equal(readState(event).active, false);
-});
-
-test("parallel hook sessions bind and abort only their own workflow", async () => {
-  const { workspace, dataRoot } = await fixture("parallel-session-a");
-  const eventA = { session_id: "parallel-session-a", cwd: workspace };
-  const eventB = { session_id: "parallel-session-b", cwd: workspace };
-  const runA = "r-20260821120000-parallela";
-  const runB = "r-20260821120001-parallelb";
-  openOwnedWorkflow(workspace, eventA.session_id, runA, "2026-08-21T12:00:00.000Z");
-  openOwnedWorkflow(workspace, eventB.session_id, runB, "2026-08-21T12:00:01.000Z");
-
-  assert.equal(readState(eventA).runId, runA);
-  assert.equal(readState(eventB).runId, runB);
-
-  const abortA = runHook("prompt", { ...eventA, prompt: "# research-abort" }, dataRoot);
-  assert.equal(abortA.status, 0, abortA.stderr);
-  assert.equal(readWorkflowFile(workflowPath(workspace, runA))?.phase, "aborted");
-  assert.equal(readWorkflowFile(workflowPath(workspace, runB))?.phase, "briefed");
-  assert.equal(readState(eventB).active, true);
-  assert.equal(readState(eventB).runId, runB);
-});
-
-test("MCP and host session identities bind through the begin receipt", async () => {
-  const { workspace, dataRoot } = await fixture("host-session-a");
-  const event = { session_id: "host-session-a", cwd: workspace };
-  appendStateEvent(event, "prompt", { abort: false });
-  const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "mcp-session-a" });
-  const begun = await service.call("research_begin", { question: "Q", scope: "S", as_of: "2026-08-21", prompt_epoch: 1 });
-
-  const beginPost = runHook("post", {
-    ...event,
-    tool_name: "mcp__research_provenance__research_begin",
-    tool_response: { structuredContent: begun },
-  }, dataRoot);
-  assert.equal(beginPost.status, 0, beginPost.stderr);
-
-  const claimed = readWorkflowFile(workflowPath(workspace, begun.run_id));
-  assert.equal(claimed?.owner_session_sha256, createHash("sha256").update(event.session_id).digest("hex"));
-  assert.equal(claimed?.mcp_session_sha256, createHash("sha256").update("mcp-session-a").digest("hex"));
-  assert.equal(readState(event).runId, begun.run_id);
-  assert.equal(readState(event).active, true);
-
-  const captured = await service.call("source_capture", { kind: "workspace", path: "source.md" });
-  assert.equal(captured.run_id, begun.run_id);
-});
-
-test("parallel hook sessions isolate receipts, revisions, seals, and Stop", async () => {
-  const { workspace, dataRoot } = await fixture("parallel-stop-a");
-  const eventA = { session_id: "parallel-stop-a", cwd: workspace };
-  const eventB = { session_id: "parallel-stop-b", cwd: workspace };
-  appendStateEvent(eventA, "prompt", { abort: false });
-  appendStateEvent(eventB, "prompt", { abort: false });
-
-  const serviceA = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: eventA.session_id });
-  const serviceB = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: eventB.session_id });
-  const begunA = await serviceA.call("research_begin", { question: "A", scope: "A", as_of: "2026-08-21", prompt_epoch: 1 });
-  const begunB = await serviceB.call("research_begin", { question: "B", scope: "B", as_of: "2026-08-21", prompt_epoch: 1 });
-  const sealedA = await serviceA.call("research_seal", {
-    run_id: begunA.run_id,
-    prompt_epoch: 1,
-    mutation_revision: 1,
-    claims: [{ id: "C1", status: "unverified", text: "Unknown A", limitation: "No source was supplied." }],
-  });
-  const sealedB = await serviceB.call("research_seal", {
-    run_id: begunB.run_id,
-    prompt_epoch: 1,
-    mutation_revision: 0,
-    claims: [{ id: "C1", status: "unverified", text: "Unknown B", limitation: "No source was supplied." }],
-  });
-
-  appendStateEvent(eventA, "receipt", { tool: "research_begin", runId: begunA.run_id, promptEpoch: 1, revision: 0 });
-  appendStateEvent(eventB, "receipt", { tool: "research_begin", runId: begunB.run_id, promptEpoch: 1, revision: 0 });
-  appendStateEvent(eventA, "mutation", { tool: "apply_patch" });
-  appendStateEvent(eventA, "receipt", { tool: "research_seal", runId: begunA.run_id, seal: sealedA.seal, promptEpoch: 1, revision: 1 });
-  appendStateEvent(eventB, "receipt", { tool: "research_seal", runId: begunB.run_id, seal: sealedB.seal, promptEpoch: 1, revision: 0 });
-  appendStateEvent(eventA, "receipt", { tool: "research_seal", runId: begunB.run_id, seal: sealedB.seal, promptEpoch: 1, revision: 1 });
-
-  assert.equal(readState(eventA).revision, 1);
-  assert.equal(readState(eventB).revision, 0);
-  assert.equal(readState(eventA).runId, begunA.run_id);
-  assert.equal(readState(eventA).seal?.seal, sealedA.seal);
-  assert.equal(readState(eventB).seal?.seal, sealedB.seal);
-
-  const stopA = runHook("stop", { ...eventA, last_assistant_message: sealedA.trailer }, dataRoot);
-  assert.equal(stopA.status, 0, stopA.stderr);
-  assert.equal(stopA.stdout, "");
-  assert.equal(readWorkflowFile(workflowPath(workspace, begunA.run_id))?.phase, "complete");
-  assert.equal(readWorkflowFile(workflowPath(workspace, begunB.run_id))?.phase, "sealed");
-  assert.equal(readState(eventB).active, true);
-
-  const stopB = runHook("stop", { ...eventB, last_assistant_message: sealedB.trailer }, dataRoot);
-  assert.equal(stopB.status, 0, stopB.stderr);
-  assert.equal(stopB.stdout, "");
-  assert.equal(readWorkflowFile(workflowPath(workspace, begunB.run_id))?.phase, "complete");
-});
-
-test("a new session ignores sealed and ownerless workflows from other sessions", async () => {
-  const { workspace, event } = await fixture("new-session");
-  openOwnedWorkflow(workspace, "old-session", "r-20260821130000-oldseal", "2026-08-21T13:00:00.000Z");
-  const sealed = readWorkflowFile(workflowPath(workspace, "r-20260821130000-oldseal"));
-  sealed.phase = "sealed";
-  sealed.completeness.sealed = true;
-  writeWorkflow(workspace, sealed);
-  const ownerlessRun = "r-20260821130001-ownerless";
-  ensureRunSkeleton(workspace, ownerlessRun);
-  writeWorkflow(workspace, defaultWorkflow({ runId: ownerlessRun, question: "old", scope: "old", asOf: "2026-08-21" }));
-
-  const state = readState(event);
-  assert.equal(state.active, false);
-  assert.equal(state.runId, null);
 });
 
 test("a successful Stop terminalizes the workflow and releases later answers", async () => {

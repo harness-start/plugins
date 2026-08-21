@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f88c65fffb18d5051e322be150c8ae5406dddc1c231e3d35f26d07210a2a67a8
+// harness-source-hash: sha256:d0a169b177190c6fb8d0a9b90a134691594376015ee0565ae7415a8940763d32
 import {
   eventToolName,
   extractFileTargets,
   isRecord,
   readStdinJson
-} from "../chunks/chunk-OQWFWXEM.mjs";
+} from "../chunks/chunk-I5HQ5CCL.mjs";
 
 // plugins/engineering-quality/src/entries/hooks/markdown-check.ts
 import { execFileSync } from "node:child_process";

@@ -54,7 +54,7 @@ Hook 被调用、`SessionStart` 打了字，或多走几轮模型，都不算研
 | `research.json`、`report.md` | 仅 `research_seal` |
 | `handoffs/outbound/**` | phase 为 `sealed` 后的 `handoff-outbound` CLI |
 
-`research_begin` 将一个运行绑定到 MCP workspace root 和当前 session，并同步 `workflow.json`。工作流分别保存 MCP 进程身份与 Hook 宿主 session 身份的 SHA-256，不保存原始标识；成功的 begin 回执负责把两层身份绑定到同一个 `run_id`。同一 workspace 中的并行 session 因而分别查找和变更自己的运行。所有成功的 MCP 工具响应都返回 `run_id`，Hook 不会用 workspace 中最新的运行补全缺失归属。MCP 工具标识带宿主 namespace，应选择以 `__research_begin`、`__source_capture` 等结尾的已注册标识，不能输出裸短函数名。`source_discover` 可在内部使用 Firecrawl；若可选 executable 未安装，它会返回 `available=false` 和恢复说明，agent 可用宿主搜索发现 URL 后继续 `source_capture`，不会再以 `spawn ... ENOENT` 中断。发现本身不是证据；`source_capture`、`source_read`、`source_anchor` 才建立证据，`research_seal` 校验 claim 并写 canonical report。
+`research_begin` 将一个运行绑定到 MCP workspace root 并同步 `workflow.json`。MCP 工具标识带宿主 namespace，应选择以 `__research_begin`、`__source_capture` 等结尾的已注册标识，不能输出裸短函数名。`source_discover` 可在内部使用 Firecrawl；若可选 executable 未安装，它会返回 `available=false` 和恢复说明，agent 可用宿主搜索发现 URL 后继续 `source_capture`，不会再以 `spawn ... ENOENT` 中断。发现本身不是证据；`source_capture`、`source_read`、`source_anchor` 才建立证据，`research_seal` 校验 claim 并写 canonical report。
 
 seal 后拒绝修改证据和重复 seal。通过校验的 `Stop` 会把 workflow 变为 `complete`，后续普通 prompt 不再处于硬模式。活动运行期间，直接修改 `workflow.json`、canonical seal 文件或 outbound handoff 路径会被阻断。
 
@@ -96,7 +96,7 @@ node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/re
 
 ## 状态、并发与信任边界
 
-Hook observation 是按 session 和 workspace 划分、TTL 24 小时的 append-only event 文件。活动模式由当前 session 拥有的 `workflow.json` phase 与同 session Hook 回执共同重建；ownerless 或其他 session 的旧运行不会自动激活当前 session。abort、seal receipt 和已校验 `Stop` 都必须匹配 owner 与明确的 `run_id`。seal receipt 在已校验 `Stop` 写入 `complete` 前持续受门禁；新的 `research_begin` 会清除本 session 旧 seal 的权限。每个 server 进程一次只允许一个未完成 MCP 运行，同一 workspace 可由多个 session 并行运行。
+Hook observation 是按 session 和 workspace 划分、TTL 24 小时的 append-only event 文件。活动模式由项目 `workflow.json` phase 与 Hook 回执共同重建。seal receipt 在已校验 `Stop` 写入 `complete` 前持续受门禁；新的 `research_begin` 会清除旧 seal 的权限。server 进程一次只允许一个未完成 MCP 运行，并绑定一个 workspace root。
 
 seal 前的普通 workspace 修改会增加 Hook revision。seal 后 canonical manifest/report 和已捕获 evidence 保持不可变并由 Stop 重验；后续实现修改和 `handoff-outbound` 不再使有效 seal 失效，也不需要开启第二个 run。直接修改 canonical 或 outbound 路径仍会阻断。
 

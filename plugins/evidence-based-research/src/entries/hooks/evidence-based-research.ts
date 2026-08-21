@@ -9,14 +9,12 @@ import { validateSealedArtifacts, parseTrailer, type ResearchTrailer } from "../
 import { appendStateEvent, readState, type ResearchHookState } from "../../lib/state-store.js";
 import {
   classifyResearchPath,
-  claimWorkflowOwner,
   extractResearchRelativePaths,
   pathLooksLikeResearchWrite,
   SEALED_OR_LATER,
-  sessionOwnerSha256,
   terminalizeWorkflow,
 } from "../../lib/workflow-fs.js";
-import { assistantMessage, cwd, fileMutation, prompt, readStdinJson, sessionId, shellCommand, toolInput, toolName, toolResponse, writeJson } from "../../lib/hook-io.js";
+import { assistantMessage, cwd, fileMutation, prompt, readStdinJson, shellCommand, toolInput, toolName, toolResponse, writeJson } from "../../lib/hook-io.js";
 
 const MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_discover|source_capture|source_read|source_anchor|research_status|research_seal)$/iu;
 
@@ -172,16 +170,11 @@ function post(event: HookEvent): ResearchHookState | null {
     const payload = responsePayload(event);
     const rawResponse = toolResponse(event);
     const responseIsError = objectLike(rawResponse) && rawResponse.isError === true;
-    if (!payload || payload.isError === true || responseIsError || typeof payload.run_id !== "string") return null;
-    const owner = sessionOwnerSha256(sessionId(event) || "default");
-    if ((method === "research_begin" || state.runId === payload.run_id)
-      && !claimWorkflowOwner(resolve(cwd(event)), payload.run_id, owner)) return null;
-    const workflow = readState(event).workflow;
-    if (!workflow || workflow.run_id !== payload.run_id || workflow.owner_session_sha256 !== owner) return null;
+    if (!payload || payload.isError === true || responseIsError) return null;
     appendStateEvent(event, "receipt", {
       tool: method,
       eventId: payload.event_id ?? null,
-      runId: payload.run_id,
+      runId: payload.run_id ?? state.runId,
       seal: payload.seal ?? null,
       promptEpoch: state.promptEpoch,
       revision: state.revision,
@@ -241,9 +234,7 @@ async function main(mode: string | undefined = process.argv[2]): Promise<void> {
       return;
     }
     if (abort) {
-      const owner = sessionOwnerSha256(sessionId(event) || "default");
-      const legacyOwnerless = Boolean(prior.workflow && !prior.workflow.owner_session_sha256);
-      if (prior.workflow && !terminalizeWorkflow(resolve(cwd(event)), prior.workflow.run_id, "aborted", owner, legacyOwnerless)) {
+      if (prior.workflow && !terminalizeWorkflow(resolve(cwd(event)), prior.workflow.run_id, "aborted")) {
         writeJson({ decision: "block", reason: "research workflow could not be terminalized after the abort request." });
         return;
       }
@@ -278,13 +269,7 @@ async function main(mode: string | undefined = process.argv[2]): Promise<void> {
         reason: `[Research Provenance Guard] Completion blocked.\n- ${result.findings.join("\n- ")}\nRecovery: open/use research-evidence-workflow, capture and anchor through research_provenance, call research_seal after the last mutation, paste its exact trailer. Outbound handoff only after seal. To abandon, submit exactly # research-abort.`,
       });
     } else if (result.trailer) {
-      const owner = sessionOwnerSha256(sessionId(event) || "default");
-      const legacyOwnerless = Boolean(result.state.workflow && !result.state.workflow.owner_session_sha256);
-      const terminalized = Boolean(
-        result.state.workflow
-        && result.state.runId === result.trailer.runId
-        && terminalizeWorkflow(resolve(cwd(event)), result.trailer.runId, "complete", owner, legacyOwnerless),
-      );
+      const terminalized = !result.state.workflow || terminalizeWorkflow(resolve(cwd(event)), result.trailer.runId, "complete");
       const recorded = terminalized && appendStateEvent(event, "complete", { runId: result.trailer.runId });
       if (!recorded || !terminalized) {
         writeJson({ decision: "block", reason: "[Research Provenance Guard] Completion could not be recorded durably; retry Stop without changing the workspace." });

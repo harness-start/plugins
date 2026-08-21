@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:04888a486b5f5d13c7d4dc6e7c7ffa7596e5d94e9364d4c71861f0288b9b1f0c
+// harness-source-hash: sha256:68126ffd93fe9a74f76c5f9a409001005c3d3eaba6753e0a26eb7214acc77e4d
 
 // plugins/engineering-practice/src/entries/hooks/engineering-practice.ts
 import { execFileSync } from "node:child_process";

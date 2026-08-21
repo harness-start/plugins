@@ -1,22 +1,22 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:6f8111817e27c52a37c34561b0ef1660d27e9b40e2856fa991dd96b1694fc879
+// harness-source-hash: sha256:826f8f89fdce0c6044c891d6e5535381794e413a62b9f50a7dda39ffd76f1154
 import {
   atomicWriteMusicJson,
   withMusicJournal
-} from "../chunks/chunk-34KK6XUJ.mjs";
+} from "../chunks/chunk-23M2UIAN.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-AULF2YFE.mjs";
+} from "../chunks/chunk-EIS6AX5B.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-AJVEZKMJ.mjs";
+} from "../chunks/chunk-PLHSTGUV.mjs";
 import {
   PLAN_SCHEMA,
   computeMusicSubjectDigest,
   validateMusicModel,
   validateMusicReview
-} from "../chunks/chunk-EHMW6KH7.mjs";
+} from "../chunks/chunk-EYZZNZH7.mjs";
 
 // plugins/music-production/src/entries/cli/project-stage.ts
 import { resolve } from "node:path";

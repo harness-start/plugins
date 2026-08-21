@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:5a7b8d67078d5e2f7f9315ab17843e463fc0a5b4db5251e48bff169c78a59b1d
+// harness-source-hash: sha256:a545860e00ebf2cf4b9f285e313ec09c00445391587b503eca2b819fda8c4a62
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7039,6 +7039,15 @@ function internalValidation(kind, filePath) {
   }
   return void 0;
 }
+function sourceScanFindings(scan, relativePath2, source, mode, filePath = relativePath2) {
+  if (mode === "off" || !regexMatches(scan.match, relativePath2)) return [];
+  return scan.inspect(filePath, source).map((hit) => ({
+    check: scan.id,
+    mode,
+    path: `${relativePath2}:${hit.line}`,
+    message: `${hit.code}: ${hit.message}`
+  }));
+}
 function validateFile(validator, filePath, root, timeoutMs) {
   if (validator.contentMatch) {
     try {
@@ -7110,6 +7119,18 @@ async function runPost(policy2, event) {
       if (mode === "off" || !regexMatches(validator.match, path)) continue;
       const finding = validateFile({ ...validator, mode }, filePath, root, config.timeoutMs);
       if (finding && shouldReportMissingTool(policy2, root, session, finding, config.missingTools)) findings.push(finding);
+    }
+    const scans = policy2.sourceScans ?? [];
+    if (!scans.length) continue;
+    let source = "";
+    try {
+      source = readFileSync(filePath, "utf8");
+    } catch {
+      continue;
+    }
+    for (const scan of scans) {
+      const mode = config.checks[scan.id] ?? scan.mode;
+      findings.push(...sourceScanFindings(scan, path, source, mode, filePath));
     }
   }
   if (!findings.length) return;

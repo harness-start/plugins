@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fc3be71c473e57852a81dd2b68a5eca20518b8db9e19d6c853954a577ab42db9
+// harness-source-hash: sha256:a8cbbaca97cf246def2d5cf6f2b361e6018cf85e58bd587564ef4c87e89aa557
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-ADJGOHSV.mjs";
-import "../chunks/chunk-PYN7NPYS.mjs";
+} from "../chunks/chunk-PYUA6IPS.mjs";
+import "../chunks/chunk-QWWAC6H2.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-CNPQGMHP.mjs";
+} from "../chunks/chunk-RAMCB7RU.mjs";
 
 // plugins/video-production/src/entries/hooks/video-production.ts
 import { relative, resolve as resolve3 } from "node:path";

@@ -111,7 +111,7 @@ test("a sealed run rejects later evidence mutations and cannot be reused", async
     as_of: "2026-08-08",
     prompt_epoch: 3,
     run_id: begun.run_id,
-  }), /different session/u);
+  }), /open and unsealed/u);
 });
 
 test("automatic begin does not bind a malformed post-seal workflow", async () => {

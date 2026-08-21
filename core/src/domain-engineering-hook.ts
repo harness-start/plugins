@@ -47,6 +47,27 @@ export type DomainValidator = {
   mode: DomainCheckMode;
 };
 
+export type DomainSourceScanHit = {
+  line: number;
+  code: string;
+  message: string;
+};
+
+export type DomainSourceScan = {
+  id: string;
+  match: RegExp;
+  mode: DomainCheckMode;
+  inspect: (filePath: string, source: string) => readonly DomainSourceScanHit[];
+};
+
+export type DomainCheckFinding = {
+  check: string;
+  mode: Exclude<DomainCheckMode, "off">;
+  path: string;
+  message: string;
+  missingTool?: string;
+};
+
 export type DomainActivationContext = {
   root: string;
   targetPath: string;
@@ -58,6 +79,7 @@ export type DomainEngineeringPolicy = {
   displayName: string;
   protections: readonly DomainProtectionRule[];
   validators: readonly DomainValidator[];
+  sourceScans?: readonly DomainSourceScan[];
   active?: (context: DomainActivationContext) => boolean;
 };
 
@@ -69,7 +91,7 @@ type DomainConfig = {
   missingTools: "report-once" | "silent";
 };
 
-type Finding = { check: string; mode: Exclude<DomainCheckMode, "off">; path: string; message: string; missingTool?: string };
+type Finding = DomainCheckFinding;
 
 const COMMAND_SEPARATORS = new Set(["&&", "||", ";", "|", "&"]);
 const SIMPLE_WRAPPERS = new Set(["busybox", "command", "exec", "nohup", "time"]);
@@ -413,6 +435,22 @@ function internalValidation(kind: DomainValidatorKind, filePath: string): string
   return undefined;
 }
 
+export function sourceScanFindings(
+  scan: DomainSourceScan,
+  relativePath: string,
+  source: string,
+  mode: DomainCheckMode,
+  filePath = relativePath,
+): DomainCheckFinding[] {
+  if (mode === "off" || !regexMatches(scan.match, relativePath)) return [];
+  return scan.inspect(filePath, source).map((hit) => ({
+    check: scan.id,
+    mode,
+    path: `${relativePath}:${hit.line}`,
+    message: `${hit.code}: ${hit.message}`,
+  }));
+}
+
 function validateFile(validator: DomainValidator, filePath: string, root: string, timeoutMs: number): Finding | null {
   if (validator.contentMatch) {
     try {
@@ -492,6 +530,18 @@ async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promi
       if (mode === "off" || !regexMatches(validator.match, path)) continue;
       const finding = validateFile({ ...validator, mode }, filePath, root, config.timeoutMs);
       if (finding && shouldReportMissingTool(policy, root, session, finding, config.missingTools)) findings.push(finding);
+    }
+    const scans = policy.sourceScans ?? [];
+    if (!scans.length) continue;
+    let source = "";
+    try {
+      source = readFileSync(filePath, "utf8");
+    } catch {
+      continue;
+    }
+    for (const scan of scans) {
+      const mode = config.checks[scan.id] ?? scan.mode;
+      findings.push(...sourceScanFindings(scan, path, source, mode, filePath));
     }
   }
   if (!findings.length) return;

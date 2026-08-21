@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fc3be71c473e57852a81dd2b68a5eca20518b8db9e19d6c853954a577ab42db9
+// harness-source-hash: sha256:a8cbbaca97cf246def2d5cf6f2b361e6018cf85e58bd587564ef4c87e89aa557
 import {
   compareVideoSimilarity,
   extractFrameDigest,
@@ -8,7 +8,7 @@ import {
   probeMedia,
   renderContactSheet,
   validateMeasuredMedia
-} from "../chunks/chunk-FBCEKGVB.mjs";
+} from "../chunks/chunk-Z3LEN76J.mjs";
 import {
   AUDIO_EVIDENCE_SCHEMA,
   CAPTION_EVIDENCE_SCHEMA,
@@ -21,8 +21,8 @@ import {
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-ADJGOHSV.mjs";
-import "../chunks/chunk-PYN7NPYS.mjs";
+} from "../chunks/chunk-PYUA6IPS.mjs";
+import "../chunks/chunk-QWWAC6H2.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
@@ -30,7 +30,7 @@ import {
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-CNPQGMHP.mjs";
+} from "../chunks/chunk-RAMCB7RU.mjs";
 
 // plugins/video-production/src/entries/cli/project-probe.ts
 import { mkdir, rename, unlink } from "node:fs/promises";

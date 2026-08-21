@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1af50e2b5e79fccaeedf66e734564f3a9c899d021f4ee263085cd1d0adfa1f9a
+// harness-source-hash: sha256:8ed6da61ac7d333b82edcfd81ee9483bc73d6020b069846dec9b7051ff464f63
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7049,6 +7049,15 @@ function internalValidation(kind, filePath) {
   }
   return void 0;
 }
+function sourceScanFindings(scan, relativePath2, source, mode, filePath = relativePath2) {
+  if (mode === "off" || !regexMatches(scan.match, relativePath2)) return [];
+  return scan.inspect(filePath, source).map((hit) => ({
+    check: scan.id,
+    mode,
+    path: `${relativePath2}:${hit.line}`,
+    message: `${hit.code}: ${hit.message}`
+  }));
+}
 function validateFile(validator, filePath, root, timeoutMs) {
   if (validator.contentMatch) {
     try {
@@ -7121,6 +7130,18 @@ async function runPost(policy2, event) {
       const finding = validateFile({ ...validator, mode }, filePath, root, config.timeoutMs);
       if (finding && shouldReportMissingTool(policy2, root, session, finding, config.missingTools)) findings.push(finding);
     }
+    const scans = policy2.sourceScans ?? [];
+    if (!scans.length) continue;
+    let source = "";
+    try {
+      source = readFileSync(filePath, "utf8");
+    } catch {
+      continue;
+    }
+    for (const scan of scans) {
+      const mode = config.checks[scan.id] ?? scan.mode;
+      findings.push(...sourceScanFindings(scan, path, source, mode, filePath));
+    }
   }
   if (!findings.length) return;
   const text = [
@@ -7142,7 +7163,117 @@ async function runDomainEngineeringHook(policy2, phase) {
   else warn(policy2.plugin, `unknown hook phase ${String(phase)}`);
 }
 
+// plugins/android-engineering/src/lib/compose-detect.ts
+var COLLECT_AS_STATE = /\bcollectAsState\s*\(/u;
+var PAGING_NEAR = /\b(?:PagingData|LazyPagingItems|collectAsLazyPagingItems)\b/u;
+var BOXED_PRIMITIVE_TYPE = /\bmutableStateOf\s*<\s*(?:Int|Long|Float|Double)\s*>/u;
+var BOXED_PRIMITIVE_LITERAL = /\bmutableStateOf\s*\(\s*-?(?:0x[0-9A-Fa-f]+|\d+(?:\.\d+)?[fFlL]?)\s*\)/u;
+var FOREGROUND_NAMED = /(?:color|tint)\s*=\s*Color\.(?:Black|White)\b/u;
+var FOREGROUND_ARGB = /(?:color|tint)\s*=\s*Color\s*\(\s*0x[0-9A-Fa-f]+/u;
+var COLOR_SCHEME = /\b(?:MaterialTheme\.)?colorScheme\b/u;
+function maskRange(text) {
+  return text.replace(/[^\n]/gu, " ");
+}
+function maskKotlin(source) {
+  let out = "";
+  let index = 0;
+  while (index < source.length) {
+    const current = source[index];
+    const next = source[index + 1];
+    if (current === "/" && next === "/") {
+      const end = source.indexOf("\n", index);
+      const stop = end === -1 ? source.length : end;
+      out += maskRange(source.slice(index, stop));
+      index = stop;
+      continue;
+    }
+    if (current === "/" && next === "*") {
+      const end = source.indexOf("*/", index + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      out += maskRange(source.slice(index, stop));
+      index = stop;
+      continue;
+    }
+    if (source.startsWith('"""', index)) {
+      const end = source.indexOf('"""', index + 3);
+      const stop = end === -1 ? source.length : end + 3;
+      out += maskRange(source.slice(index, stop));
+      index = stop;
+      continue;
+    }
+    if (current === '"' || current === "'") {
+      let cursor = index + 1;
+      while (cursor < source.length) {
+        if (source[cursor] === "\\") {
+          cursor += 2;
+          continue;
+        }
+        if (source[cursor] === current) {
+          cursor += 1;
+          break;
+        }
+        cursor += 1;
+      }
+      out += maskRange(source.slice(index, cursor));
+      index = cursor;
+      continue;
+    }
+    out += current ?? "";
+    index += 1;
+  }
+  return out;
+}
+function nearbyPaging(lines, index) {
+  const from = Math.max(0, index - 2);
+  const to = Math.min(lines.length, index + 3);
+  return lines.slice(from, to).some((line) => PAGING_NEAR.test(line));
+}
+function pushUnique(findings, finding) {
+  if (findings.some((item) => item.code === finding.code && item.line === finding.line)) return;
+  findings.push(finding);
+}
+function detectComposeSource(source) {
+  if (typeof source !== "string" || source.length === 0) return [];
+  const visible = maskKotlin(source);
+  const lines = visible.split(/\n/u);
+  const findings = [];
+  const hasColorScheme = COLOR_SCHEME.test(visible);
+  for (const [index, line] of lines.entries()) {
+    if (COLLECT_AS_STATE.test(line)) {
+      const paging = nearbyPaging(lines, index);
+      pushUnique(findings, paging ? {
+        code: "PAGING_COLLECT_AS_STATE",
+        line: index + 1,
+        message: "PagingData must be collected with collectAsLazyPagingItems(), not collectAsState()."
+      } : {
+        code: "COLLECT_AS_STATE",
+        line: index + 1,
+        message: "UI Flow collection should use collectAsStateWithLifecycle(); if this is PagingData, use collectAsLazyPagingItems() instead."
+      });
+    }
+    if (BOXED_PRIMITIVE_TYPE.test(line) || BOXED_PRIMITIVE_LITERAL.test(line)) {
+      pushUnique(findings, {
+        code: "PRIMITIVE_MUTABLE_STATE",
+        line: index + 1,
+        message: "Use mutableIntStateOf, mutableLongStateOf, mutableFloatStateOf, or mutableDoubleStateOf instead of boxed mutableStateOf."
+      });
+    }
+    if (hasColorScheme && (FOREGROUND_NAMED.test(line) || FOREGROUND_ARGB.test(line))) {
+      pushUnique(findings, {
+        code: "HARDCODED_ON_THEME",
+        line: index + 1,
+        message: "Foreground Color.Black, Color.White, or Color(0x\u2026) over colorScheme is a dark-mode regression; use the matching on* role."
+      });
+    }
+  }
+  return findings;
+}
+
 // plugins/android-engineering/src/policy.ts
+var KOTLIN_SOURCE = /\.(?:kt|kts)$/iu;
+function composeHits(codes) {
+  return (_filePath, source) => detectComposeSource(source).filter((hit) => codes.has(hit.code)).map((hit) => ({ line: hit.line, code: hit.code, message: hit.message }));
+}
 var policy = {
   plugin: "android-engineering",
   displayName: "Android Engineering",
@@ -7154,6 +7285,11 @@ var policy = {
   validators: [
     { id: "androidXml", kind: "xml", match: /(?:AndroidManifest\.xml|res\/.+\.xml)$/iu, mode: "block" },
     { id: "androidJson", kind: "json", match: /(?:^|\/)(?:google-services|package)\.json$/iu, mode: "block" }
+  ],
+  sourceScans: [
+    { id: "composeCollectAsState", match: KOTLIN_SOURCE, mode: "report", inspect: composeHits(/* @__PURE__ */ new Set(["COLLECT_AS_STATE", "PAGING_COLLECT_AS_STATE"])) },
+    { id: "composePrimitiveState", match: KOTLIN_SOURCE, mode: "report", inspect: composeHits(/* @__PURE__ */ new Set(["PRIMITIVE_MUTABLE_STATE"])) },
+    { id: "composeLiteralColor", match: KOTLIN_SOURCE, mode: "report", inspect: composeHits(/* @__PURE__ */ new Set(["HARDCODED_ON_THEME"])) }
   ]
 };
 

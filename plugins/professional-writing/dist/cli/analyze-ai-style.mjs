@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:af05aa3246f2b42b406f51df7339da9c43f736bc1253ec6fd3af4f660341853e
+// harness-source-hash: sha256:03ff7cc805fa63b17d431d542939cc642243fcd441f65ecd75aad21045d844bc
 
 // plugins/professional-writing/src/entries/cli/analyze-ai-style.ts
 import { readFileSync } from "node:fs";
