@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c85b196267a83ba52e01dca5250ee4aaf53f83d91563581a5ff1aae595eeb57c
+// harness-source-hash: sha256:c5cdbb0ec533ae1a8f916ad7d2b2272c691e432fa64b96a412a24f62a414e3de
 import {
   issueWriterCapability
-} from "../chunks/chunk-QLA36CO2.mjs";
+} from "../chunks/chunk-AHAUC7CS.mjs";
 import {
   computeTrainingSubjectDigest,
   evaluateTrainingWrite,
@@ -10,10 +10,10 @@ import {
   loadTrainingProject,
   resolveWorkspaceRoot,
   validateTrainingModel
-} from "../chunks/chunk-AFVNRVDR.mjs";
+} from "../chunks/chunk-VSD2H36T.mjs";
 
 // plugins/training-program-design/src/entries/hooks/training-program-design.ts
-import { relative, resolve as resolve3 } from "node:path";
+import { relative, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -105,7 +105,30 @@ function writeJson(value) {
 }
 
 // core/src/hook-targets.ts
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve as resolve2 } from "node:path";
+
+// core/src/artifact-paths.ts
+import { basename, dirname, resolve } from "node:path";
+function resolveWorkspaceRoot2(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -188,7 +211,7 @@ function patchPayload(input) {
 }
 function resolveTargets(raw, cwd) {
   return [...new Set(
-    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve2(path) : resolve2(cwd, path.replace(/^\.\//u, "")))
   )];
 }
 function shellWritePaths(command) {
@@ -217,7 +240,7 @@ function acceptsTool(name, tools) {
 function extractFileTargets(event, options = {}) {
   const tools = options.tools ?? "mutation";
   const name = eventToolName(event);
-  const cwd = resolve(eventCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const input = eventToolInput(event);
   const raw = [];
   if (acceptsTool(name, tools)) {
@@ -231,13 +254,21 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/training-program-design/src/lib/shell-policy.ts
-import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
+import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve2(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
-var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
+var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var PLUGIN_DIRECTORY = resolve3(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
+var TOOL_DIRECTORY = resolve3(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-render.mjs", "project-review.mjs", "project-release.mjs"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
 function parseShellWords(command) {
@@ -286,24 +317,24 @@ function expandKnownPluginRoot(command) {
   let expanded = String(command ?? "");
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
-    if (value) expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve2(value)}/dist/cli/`);
+    if (value) expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve3(value)}/dist/cli/`);
   }
   return expanded;
 }
 function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!words || words.length < 3) return null;
   const [first, second, third] = words;
-  if (!first || !second || !third || !["node", basename(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
-  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
-  const name = basename(script);
-  if (dirname(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
-  if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "training") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
+  if (!first || !second || !third || !["node", basename2(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
+  const script = isAbsolute2(second) ? resolve3(second) : resolve3(cwd, second);
+  const name = basename2(script);
+  if (dirname2(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(third) ? resolve3(third) : resolve3(cwd, third);
+  if (dirname2(projectRoot) !== resolve3(workspaceRoot, "artifacts", "training") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 function readOnlyCommand(words) {
   if (!words?.length) return false;
-  const command = basename(words[0] ?? "");
+  const command = basename2(words[0] ?? "");
   if (!READ_ONLY.has(command)) return false;
   if (command === "git" && !["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
   if (command === "sed" && words.some((word) => /^-.*i/u.test(word))) return false;
@@ -312,8 +343,8 @@ function readOnlyCommand(words) {
 }
 function commandTouchesTrainingScope(command, cwd, workspaceRoot) {
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
-  const normalizedCwd = resolve2(cwd).replaceAll("\\", "/");
-  const normalizedRoot = resolve2(workspaceRoot).replaceAll("\\", "/");
+  const normalizedCwd = resolve3(cwd).replaceAll("\\", "/");
+  const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/training/`) || /(?:^|[\s"'=])\.?\/?artifacts\/training(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/training/`);
 }
 function evaluateTrainingShell({ command, cwd, workspaceRoot }) {
@@ -331,10 +362,10 @@ function deny(reason) {
   return preToolDeny(`${LABEL} ${reason}`);
 }
 async function runPre(event) {
-  const cwd = resolve3(eventCwd(event));
+  const cwd = resolve4(eventCwd(event));
   const toolName = eventToolName(event);
   for (const target of extractFileTargets(event, { tools: "any" })) {
-    const decision2 = evaluateTrainingWrite({ relativePath: relative(cwd, resolve3(cwd, target)), toolName, cwd });
+    const decision2 = evaluateTrainingWrite({ relativePath: relative(cwd, resolve4(cwd, target)), toolName, cwd });
     if (decision2.decision === "deny") return deny(`${decision2.code}: ${decision2.message}`);
   }
   const command = extractShellCommand(event);
@@ -416,6 +447,7 @@ async function main() {
     return;
   }
   if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "training")) return;
     const findings = await projectFindings(cwd, void 0, { generatedOnly: true });
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
@@ -431,7 +463,7 @@ reviewBoundary: Reviewer output is advisory; it has no release authority.`));
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }
 }
-if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) {
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve4(process.argv[1])) {
   main().catch((error) => {
     const message = `${LABEL} ${error instanceof Error ? error.message : String(error)}`;
     if ((process.argv[2] ?? "session") === "pre") writeJson(deny(`HOOK_FAILURE: ${message}`));

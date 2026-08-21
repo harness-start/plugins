@@ -8,7 +8,7 @@ import { collectProjectFiles, findCarrierProjects } from "@harness/core/artifact
 import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { issueMusicWriterCapability } from "../../lib/capability.js";
 import { computeMusicSubjectDigest, evaluateMusicWrite, validateMusicModel, validateMusicReferenceProfile, type MusicFinding, type MusicProjectConfig } from "../../lib/contract.js";
@@ -138,11 +138,14 @@ async function main() {
     }
     return;
   }
-  const findings = await findingsFor(cwd);
   if (mode === "session") {
     const { roots } = await findCarrierProjects(cwd, "music");
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Music Project Delivery Guard] active. Use $music-project-authoring for production and hand the current digest to a separate $music-project-review session."));
-  } else if (mode === "post" || mode === "failure") {
+    return;
+  }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "music")) return;
+  const findings = await findingsFor(cwd);
+  if (mode === "post" || mode === "failure") {
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
   } else if (mode === "stop" && findings.length > 0) {
     writeJson(stopBlock(format(findings)));

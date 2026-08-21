@@ -1,42 +1,54 @@
-// harness-source-hash: sha256:984bb8861e2d5e166d5ffc1199b94ccc606eee857e475a1074e6ae0d33cc3be6
+// harness-source-hash: sha256:7dd4197f7388a95b8fcb0a3f0c2674cf89d8d8f71b7b2dff1e767a158f31565a
 import {
-  assertDiagramProjectRoot
-} from "./chunk-YO4FNS5H.mjs";
+  assertPptxProjectRoot
+} from "./chunk-6GTQERFB.mjs";
 
-// plugins/diagram-production/src/lib/capability.ts
+// plugins/presentation-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 var TTL_MS = 3e4;
-var pathOf = (root, capability) => join(root, ".tmp", "diagram-guard", `capability.${capability}.json`);
+var grantPath = (root, capability) => join(root, ".tmp", "pptx-guard", `capability.${capability}.json`);
 var argvDigest = (argv) => createHash("sha256").update(JSON.stringify(argv)).digest("hex");
 var errorCode = (error) => typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
 async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, triggerFrom }) {
-  const root = assertDiagramProjectRoot(rawRoot, { allowMissing: capability === "diagram-init" });
-  if (!/^diagram-(?:init|import|render|probe|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+  const root = assertPptxProjectRoot(rawRoot);
+  if (!/^pptx-(?:render|probe|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
-  const directory = join(root, ".tmp", "diagram-guard");
-  const target = pathOf(root, capability);
+  const directory = join(root, ".tmp", "pptx-guard");
+  const target = grantPath(root, capability);
   await mkdir(directory, { recursive: true });
   try {
     const existing = JSON.parse(await readFile(target, "utf8"));
     if (Number(existing.expiresAt) >= Date.now()) throw new Error("WRITER_CAPABILITY_BUSY");
     await unlink(target);
   } catch (error) {
+    if (errorCode(error) !== "ENOENT" && !(error instanceof SyntaxError) && !(error instanceof Error && error.message === "WRITER_CAPABILITY_BUSY")) throw error;
     if (error instanceof Error && error.message === "WRITER_CAPABILITY_BUSY") throw error;
-    if (errorCode(error) !== "ENOENT" && !(error instanceof SyntaxError)) throw error;
-    if (error instanceof SyntaxError) await unlink(target).catch(() => void 0);
+    if (error instanceof SyntaxError) await unlink(target).catch(() => {
+    });
   }
-  const grant = { schema: "diagram-production/writer-capability/v1", id: randomUUID(), capability, root, argvSha256: argvDigest(argv), subjectDigest, sessionId, triggerFrom: triggerFrom || "PreToolUse", issuedAt: (/* @__PURE__ */ new Date()).toISOString(), expiresAt: Date.now() + TTL_MS };
+  const grant = {
+    schema: "presentation-production/writer-capability/v1",
+    id: randomUUID(),
+    capability,
+    root,
+    argvSha256: argvDigest(argv),
+    subjectDigest,
+    sessionId,
+    triggerFrom: triggerFrom || "PreToolUse",
+    issuedAt: (/* @__PURE__ */ new Date()).toISOString(),
+    expiresAt: Date.now() + TTL_MS
+  };
   await writeFile(target, `${JSON.stringify(grant)}
 `, { flag: "wx", mode: 384 });
   await chmod(target, 384);
   return grant;
 }
 async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
-  const root = assertDiagramProjectRoot(rawRoot, { allowMissing: capability === "diagram-init" });
-  const target = pathOf(root, capability);
+  const root = assertPptxProjectRoot(rawRoot);
+  const target = grantPath(root, capability);
   let bytes;
   try {
     const metadata = await lstat(target);
@@ -54,9 +66,9 @@ async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
     throw new Error("WRITER_CAPABILITY_INVALID");
   }
   if (typeof grant !== "object" || grant === null) throw new Error("WRITER_CAPABILITY_INVALID");
-  const value = grant;
-  if (value.schema !== "diagram-production/writer-capability/v1" || value.capability !== capability || value.root !== root || value.argvSha256 !== argvDigest(argv) || !Number.isFinite(value.expiresAt) || Number(value.expiresAt) < Date.now() || typeof value.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(value.subjectDigest) || typeof value.sessionId !== "string" || !value.sessionId || value.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
-  return value;
+  const record = grant;
+  if (record.schema !== "presentation-production/writer-capability/v1" || record.capability !== capability || record.root !== root || record.argvSha256 !== argvDigest(argv) || !Number.isFinite(record.expiresAt) || Number(record.expiresAt) < Date.now() || typeof record.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(record.subjectDigest) || typeof record.sessionId !== "string" || !record.sessionId || record.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
+  return record;
 }
 function processWriterArgv() {
   return [resolve(process.argv[1] ?? ""), ...process.argv.slice(2)];

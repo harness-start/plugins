@@ -8,7 +8,7 @@ import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
 import { evaluateRegisteredWriter, expandKnownPluginRoot, parseShellWords } from "@harness/core/artifact-shell";
 import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { evaluatePrintWrite, validatePrintModel, type ContractFinding } from "../../lib/contract.js";
 
@@ -103,11 +103,14 @@ async function main() {
     }
     return;
   }
-  const findings = await findingsFor(cwd);
   if (mode === "session") {
     const { roots } = await findCarrierProjects(cwd, "print");
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Print Project Delivery Guard] active; generated outputs require registered writers."));
-  } else if (mode === "post" || mode === "failure") {
+    return;
+  }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "print")) return;
+  const findings = await findingsFor(cwd);
+  if (mode === "post" || mode === "failure") {
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
   } else if (mode === "stop" && findings.length > 0) {
     writeJson(stopBlock(format(findings)));

@@ -1,11 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:67b71f5ce4c606babe1ee532a7b51b3217db1dbeffcf56787e739d3e29cb8e2e
+// harness-source-hash: sha256:2fff60ad80b8d4bf4a2b9f7a1716e30f21099b188c378df0095a9b825888b731
 import {
   evaluatePrintWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
+  touchesArtifact,
   validatePrintModel
-} from "../chunks/chunk-3ZO2JZI4.mjs";
+} from "../chunks/chunk-S7CJHLIR.mjs";
 
 // plugins/print-publication-production/src/entries/hooks/print-publication-production.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -326,6 +327,14 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/print-publication-production/src/entries/hooks/print-publication-production.ts
 var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
@@ -415,11 +424,14 @@ async function main() {
     }
     return;
   }
-  const findings = await findingsFor(cwd);
   if (mode === "session") {
     const { roots } = await findCarrierProjects(cwd, "print");
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Print Project Delivery Guard] active; generated outputs require registered writers."));
-  } else if (mode === "post" || mode === "failure") {
+    return;
+  }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "print")) return;
+  const findings = await findingsFor(cwd);
+  if (mode === "post" || mode === "failure") {
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
   } else if (mode === "stop" && findings.length > 0) {
     writeJson(stopBlock(format(findings)));

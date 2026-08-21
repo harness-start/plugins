@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { computeDiagramSubjectDigest, evaluateDiagramWrite, findDiagramProjects, loadDiagramProject, resolveWorkspaceRoot, validateDiagramModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -44,7 +44,7 @@ async function main() {
   if (event.__parseError) { process.stderr.write("[Diagram Project Delivery Guard] invalid hook JSON\n"); process.exitCode = 2; return; }
   const cwd = eventCwd(event); if (mode === "pre") { writeJson(await runPre(event)); return; }
   if (mode === "session") { const roots = await findDiagramProjects(cwd); if (roots.length) writeJson(additionalContext("SessionStart", `[Diagram Project Delivery Guard] discovered ${roots.length} project(s). Use $diagram-project-authoring; generated outputs and evidence require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`)); return; }
-  if (mode === "post" || mode === "failure") { const findings = await projectFindings(cwd); if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings))); return; }
+  if (mode === "post" || mode === "failure") { if (!eventTouchesArtifact(event, "diagram")) return; const findings = await projectFindings(cwd); if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings))); return; }
   if (mode === "stop" || mode === "subagent-stop") { const findings = await projectFindings(cwd, mode === "subagent-stop"); if (findings.length) writeJson(stopBlock(format(findings))); }
 }
 

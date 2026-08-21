@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8416bc4081f58627d98ad1d9c3064b09943cd0e8ba69543f48f0cfc8fe0cec0
+// harness-source-hash: sha256:0f033dbda25f781d5d801ba023aac451f20d741c35a2e953287767aad7f13ab1
 import {
   issueWriterCapability
-} from "../chunks/chunk-C75SCMRF.mjs";
+} from "../chunks/chunk-AUFPR65N.mjs";
 import {
   computePosterSubjectDigest,
   evaluatePosterWrite,
@@ -10,11 +10,11 @@ import {
   loadPosterProject,
   resolveWorkspaceRoot,
   validatePosterModel
-} from "../chunks/chunk-PE2DGZHF.mjs";
+} from "../chunks/chunk-RIVNNDT4.mjs";
 
 // plugins/poster-production/src/entries/hooks/poster-production.ts
 import { createHash } from "node:crypto";
-import { relative, resolve as resolve3 } from "node:path";
+import { relative, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -106,7 +106,30 @@ function writeJson(value) {
 }
 
 // core/src/hook-targets.ts
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve as resolve2 } from "node:path";
+
+// core/src/artifact-paths.ts
+import { basename, dirname, resolve } from "node:path";
+function resolveWorkspaceRoot2(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -189,7 +212,7 @@ function patchPayload(input) {
 }
 function resolveTargets(raw, cwd) {
   return [...new Set(
-    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve2(path) : resolve2(cwd, path.replace(/^\.\//u, "")))
   )];
 }
 function shellWritePaths(command) {
@@ -218,7 +241,7 @@ function acceptsTool(name, tools) {
 function extractFileTargets(event, options = {}) {
   const tools = options.tools ?? "mutation";
   const name = eventToolName(event);
-  const cwd = resolve(eventCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const input = eventToolInput(event);
   const raw = [];
   if (acceptsTool(name, tools)) {
@@ -232,13 +255,21 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/poster-production/src/lib/shell-policy.ts
-import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
+import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve2(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
-var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
+var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var PLUGIN_DIRECTORY = resolve3(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
+var TOOL_DIRECTORY = resolve3(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
 var PROFILES = /* @__PURE__ */ new Set(["regional-culture", "mondo", "editorial", "academic", "custom"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]);
@@ -288,19 +319,19 @@ function expandKnownPluginRoot(command) {
   let expanded = String(command ?? "");
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
-    if (value) expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve2(value)}/dist/cli/`);
+    if (value) expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve3(value)}/dist/cli/`);
   }
   return expanded;
 }
 function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!words || words.length < 3) return null;
   const [runtime, entry, rootWord] = words;
-  if (!runtime || !entry || !rootWord || !["node", basename(process.execPath), process.execPath].includes(runtime) || entry.startsWith("-")) return null;
-  const script = isAbsolute2(entry) ? resolve2(entry) : resolve2(cwd, entry);
-  const name = basename(script);
-  if (dirname(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(rootWord) ? resolve2(rootWord) : resolve2(cwd, rootWord);
-  if (dirname(projectRoot) !== resolve2(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
+  if (!runtime || !entry || !rootWord || !["node", basename2(process.execPath), process.execPath].includes(runtime) || entry.startsWith("-")) return null;
+  const script = isAbsolute2(entry) ? resolve3(entry) : resolve3(cwd, entry);
+  const name = basename2(script);
+  if (dirname2(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(rootWord) ? resolve3(rootWord) : resolve3(cwd, rootWord);
+  if (dirname2(projectRoot) !== resolve3(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   if (name === "project-init.mjs" && (words.length !== 5 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? ""))) return null;
   if (name === "project-review.mjs" && words.length !== 4) return null;
   if (!["project-init.mjs", "project-review.mjs"].includes(name) && words.length !== 3) return null;
@@ -308,7 +339,7 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
 }
 function readOnlyCommand(words) {
   if (!words?.length) return false;
-  const command = basename(words[0] ?? "");
+  const command = basename2(words[0] ?? "");
   if (!READ_ONLY.has(command)) return false;
   if (command === "git" && (!["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "") || words.some((word) => word === "--output" || word.startsWith("--output=")))) return false;
   if (command === "find" && words.some((word) => ["-delete", "-exec", "-execdir", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"].includes(word))) return false;
@@ -317,8 +348,8 @@ function readOnlyCommand(words) {
 }
 function commandTouchesPosterScope(command, cwd, workspaceRoot) {
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
-  const normalizedCwd = resolve2(cwd).replaceAll("\\", "/");
-  const normalizedRoot = resolve2(workspaceRoot).replaceAll("\\", "/");
+  const normalizedCwd = resolve3(cwd).replaceAll("\\", "/");
+  const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/poster/`) || /(?:^|[\s"'=])\.?\/?artifacts\/poster(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/poster/`);
 }
 function evaluatePosterShell({ command, cwd, workspaceRoot }) {
@@ -332,11 +363,11 @@ function evaluatePosterShell({ command, cwd, workspaceRoot }) {
 
 // plugins/poster-production/src/entries/hooks/poster-production.ts
 var deny = (reason) => preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
-var initDigest = (root) => createHash("sha256").update(`poster-init:${resolve3(root)}`).digest("hex");
+var initDigest = (root) => createHash("sha256").update(`poster-init:${resolve4(root)}`).digest("hex");
 async function runPre(event) {
-  const cwd = resolve3(eventCwd(event));
+  const cwd = resolve4(eventCwd(event));
   for (const target of extractFileTargets(event, { tools: "any" })) {
-    const result = evaluatePosterWrite({ relativePath: relative(cwd, resolve3(cwd, target)), toolName: eventToolName(event), cwd });
+    const result = evaluatePosterWrite({ relativePath: relative(cwd, resolve4(cwd, target)), toolName: eventToolName(event), cwd });
     if (result.decision === "deny") return deny(`${result.code}: ${result.message}`);
   }
   const command = extractShellCommand(event);
@@ -397,6 +428,7 @@ async function main() {
     return;
   }
   if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "poster")) return;
     const findings = await projectFindings(cwd);
     if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
@@ -406,7 +438,7 @@ async function main() {
     if (findings.length) writeJson(stopBlock(formatFindings(findings)));
   }
 }
-if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) main().catch((error) => {
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve4(process.argv[1])) main().catch((error) => {
   process.stderr.write(`[Poster Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}
 `);
   process.exitCode = 2;

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:67b71f5ce4c606babe1ee532a7b51b3217db1dbeffcf56787e739d3e29cb8e2e
+// harness-source-hash: sha256:2fff60ad80b8d4bf4a2b9f7a1716e30f21099b188c378df0095a9b825888b731
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";
@@ -15,6 +15,14 @@ function resolveWorkspaceRoot(cwd, carrier) {
     current = dirname(current);
   }
   return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
 }
 function projectInside(relativePath = "", cwd = "", carrier) {
   const normalized = String(relativePath ?? "").replaceAll("\\", "/");
@@ -266,6 +274,7 @@ function evaluatePrintWrite({ relativePath = "", toolName = "", writer = "", cwd
 export {
   isKebabArtifactId,
   resolveWorkspaceRoot,
+  touchesArtifact,
   createPrintReceipt,
   validatePrintReceipt,
   validatePrintModel,

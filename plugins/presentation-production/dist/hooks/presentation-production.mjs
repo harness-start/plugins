@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:74cda15691bb0a5c975176769b1f79a042fe44fa7077495a876df0a7d160831a
+// harness-source-hash: sha256:7dd4197f7388a95b8fcb0a3f0c2674cf89d8d8f71b7b2dff1e767a158f31565a
 import {
   issueWriterCapability
-} from "../chunks/chunk-ESEPMOYE.mjs";
-import "../chunks/chunk-W4TR7BG3.mjs";
+} from "../chunks/chunk-QTFWG5V2.mjs";
+import "../chunks/chunk-6GTQERFB.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -11,7 +11,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-SVC5VOOK.mjs";
+} from "../chunks/chunk-L66YBYFZ.mjs";
 
 // plugins/presentation-production/src/entries/hooks/presentation-production.ts
 import { relative as relative2, resolve as resolve5 } from "node:path";
@@ -36,6 +36,14 @@ function resolveWorkspaceRoot2(cwd, carrier) {
     current = dirname(current);
   }
   return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
 }
 
 // core/src/artifact-scan.ts
@@ -266,6 +274,14 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/presentation-production/src/lib/shell-policy.ts
 import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve4 } from "node:path";
@@ -442,6 +458,7 @@ async function main() {
     return;
   }
   if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "pptx")) return;
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;

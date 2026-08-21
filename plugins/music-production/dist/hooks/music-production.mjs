@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:268824c13e1007ff68308d7f8e15e78af4a7d6cbaadfe58138a5cf5100a0d493
+// harness-source-hash: sha256:3ebea783aa4ce59c2d8dd0c713f6d6ac2f81f453bd2e01ce06ec6aba31fa71be
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-CPXL4OJM.mjs";
+} from "../chunks/chunk-QBIPIKQE.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
+  touchesArtifact,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-TACMICVM.mjs";
+} from "../chunks/chunk-UMGZF2MG.mjs";
 
 // plugins/music-production/src/entries/hooks/music-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -280,6 +281,14 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/music-production/src/lib/shell-policy.ts
 import { resolve as resolve4 } from "node:path";
@@ -521,11 +530,14 @@ init\0${shell.projectRoot}`).digest("hex");
     }
     return;
   }
-  const findings = await findingsFor(cwd);
   if (mode === "session") {
     const { roots } = await findCarrierProjects(cwd, "music");
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Music Project Delivery Guard] active. Use $music-project-authoring for production and hand the current digest to a separate $music-project-review session."));
-  } else if (mode === "post" || mode === "failure") {
+    return;
+  }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "music")) return;
+  const findings = await findingsFor(cwd);
+  if (mode === "post" || mode === "failure") {
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
   } else if (mode === "stop" && findings.length > 0) {
     writeJson(stopBlock(format(findings)));

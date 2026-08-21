@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:984bb8861e2d5e166d5ffc1199b94ccc606eee857e475a1074e6ae0d33cc3be6
+// harness-source-hash: sha256:e8cc40fcfe5349972dfeb32048b1a7a0b55f23fb89184c448bf03d2bddb4c2d7
 import {
   assertDiagramProjectRoot,
   loadDiagramProject,
   validateDiagramModel
-} from "../chunks/chunk-YO4FNS5H.mjs";
+} from "../chunks/chunk-UIOPM3FT.mjs";
 
 // plugins/diagram-production/src/entries/cli/project-lint.ts
 async function main() {

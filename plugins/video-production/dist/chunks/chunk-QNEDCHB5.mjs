@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:f8681912b85183af3fbe39a0bc2faffebceed81d2c6d08934ebd5723c6165df1
+// harness-source-hash: sha256:22e6392dba932aa10bf2d78c5055d1132ad4854afa015de40b48561ff079fa07
 
 // plugins/video-production/src/lib/project.ts
 import { createHash } from "node:crypto";

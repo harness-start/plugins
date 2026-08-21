@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:268824c13e1007ff68308d7f8e15e78af4a7d6cbaadfe58138a5cf5100a0d493
+// harness-source-hash: sha256:3ebea783aa4ce59c2d8dd0c713f6d6ac2f81f453bd2e01ce06ec6aba31fa71be
 
 // core/src/artifact-paths.ts
 import { basename, dirname, resolve } from "node:path";
@@ -15,6 +15,14 @@ function resolveWorkspaceRoot(cwd, carrier) {
     current = dirname(current);
   }
   return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
 }
 function projectInside(relativePath = "", cwd = "", carrier) {
   const normalized = String(relativePath ?? "").replaceAll("\\", "/");
@@ -417,6 +425,7 @@ function evaluateMusicWrite({ relativePath = "", toolName = "", writer = "", cwd
 export {
   isKebabArtifactId,
   resolveWorkspaceRoot,
+  touchesArtifact,
   MUSIC_ENGINE,
   PLAN_SCHEMA,
   BRIEF_SCHEMA,

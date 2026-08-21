@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f8681912b85183af3fbe39a0bc2faffebceed81d2c6d08934ebd5723c6165df1
+// harness-source-hash: sha256:22e6392dba932aa10bf2d78c5055d1132ad4854afa015de40b48561ff079fa07
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-RPBMYHBC.mjs";
-import "../chunks/chunk-5OX4OUTU.mjs";
+} from "../chunks/chunk-M5MHK7CM.mjs";
+import "../chunks/chunk-QGO6LRUV.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-HXO6PZZ5.mjs";
+} from "../chunks/chunk-QNEDCHB5.mjs";
 
 // plugins/video-production/src/entries/hooks/video-production.ts
-import { relative, resolve as resolve3 } from "node:path";
+import { relative, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -105,7 +105,30 @@ function writeJson(value) {
 }
 
 // core/src/hook-targets.ts
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, resolve as resolve2 } from "node:path";
+
+// core/src/artifact-paths.ts
+import { basename, dirname, resolve } from "node:path";
+function resolveWorkspaceRoot2(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -188,7 +211,7 @@ function patchPayload(input) {
 }
 function resolveTargets(raw, cwd) {
   return [...new Set(
-    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, "")))
+    raw.map(stripMatchingQuotes).filter(Boolean).map((path) => isAbsolute(path) ? resolve2(path) : resolve2(cwd, path.replace(/^\.\//u, "")))
   )];
 }
 function shellWritePaths(command) {
@@ -217,7 +240,7 @@ function acceptsTool(name, tools) {
 function extractFileTargets(event, options = {}) {
   const tools = options.tools ?? "mutation";
   const name = eventToolName(event);
-  const cwd = resolve(eventCwd(event));
+  const cwd = resolve2(eventCwd(event));
   const input = eventToolInput(event);
   const raw = [];
   if (acceptsTool(name, tools)) {
@@ -231,16 +254,24 @@ function extractFileTargets(event, options = {}) {
   }
   return resolveTargets(raw, cwd);
 }
+function eventTouchesArtifact(event, carrier) {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" })
+  });
+}
 
 // plugins/video-production/src/lib/shell-policy.ts
-import { basename, dirname, isAbsolute as isAbsolute2, resolve as resolve2 } from "node:path";
+import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
-var PLUGIN_DIRECTORY = resolve2(
+var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var PLUGIN_DIRECTORY = resolve3(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
 );
-var TOOL_DIRECTORY = resolve2(PLUGIN_DIRECTORY, "dist", "cli");
+var TOOL_DIRECTORY = resolve3(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-admit.mjs", "project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs", "project-shot-stage.mjs"]);
 var PROFILES = /* @__PURE__ */ new Set(["motion-explainer", "product-promo", "short-form", "talking-head", "reference-led", "micro-drama"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
@@ -292,14 +323,14 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   const second = words[1];
   const third = words[2];
   if (first === void 0 || second === void 0 || third === void 0) return null;
-  if (!["node", basename(process.execPath), process.execPath].includes(first)) return null;
+  if (!["node", basename2(process.execPath), process.execPath].includes(first)) return null;
   if (second.startsWith("-")) return null;
-  const script = isAbsolute2(second) ? resolve2(second) : resolve2(cwd, second);
-  const name = basename(script);
-  if (dirname(resolve2(script)) !== resolve2(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
-  const projectRoot = isAbsolute2(third) ? resolve2(third) : resolve2(cwd, third);
-  const expectedParent = resolve2(workspaceRoot, "artifacts", "video");
-  if (dirname(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
+  const script = isAbsolute2(second) ? resolve3(second) : resolve3(cwd, second);
+  const name = basename2(script);
+  if (dirname2(resolve3(script)) !== resolve3(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
+  const projectRoot = isAbsolute2(third) ? resolve3(third) : resolve3(cwd, third);
+  const expectedParent = resolve3(workspaceRoot, "artifacts", "video");
+  if (dirname2(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   if (name === "project-init.mjs" && (words.length !== 7 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? "") || words[5] !== "--mode" || !["guided", "autonomous"].includes(words[6] ?? ""))) return null;
   if (name === "project-admit.mjs" && words.length !== 4) return null;
   if (name === "project-review.mjs" && words.length !== 4) return null;
@@ -313,7 +344,7 @@ function expandKnownPluginRoot(command) {
   for (const name of ["PLUGIN_ROOT", "CLAUDE_PLUGIN_ROOT"]) {
     const value = process.env[name];
     if (!value) continue;
-    expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve2(value)}/dist/cli/`);
+    expanded = expanded.replaceAll(`"\${${name}}/dist/cli/`, `"${resolve3(value)}/dist/cli/`);
   }
   return expanded;
 }
@@ -321,7 +352,7 @@ function readOnlyCommand(words) {
   if (!words || words.length === 0) return false;
   const first = words[0];
   if (first === void 0) return false;
-  const command = basename(first);
+  const command = basename2(first);
   if (!READ_ONLY.has(command)) return false;
   if (command === "git" && !["status", "diff", "log", "show", "rev-parse", "ls-files"].includes(words[1] ?? "")) return false;
   if (command === "sed" && words.some((word) => /^-.*i/u.test(word))) return false;
@@ -330,8 +361,8 @@ function readOnlyCommand(words) {
 }
 function commandTouchesVideoScope(command, cwd, workspaceRoot) {
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
-  const normalizedCwd = resolve2(cwd).replaceAll("\\", "/");
-  const normalizedRoot = resolve2(workspaceRoot).replaceAll("\\", "/");
+  const normalizedCwd = resolve3(cwd).replaceAll("\\", "/");
+  const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/video/`) || /(?:^|[\s"'=])\.?\/?artifacts\/video(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/video/`);
 }
 function evaluateVideoShell({ command, cwd, workspaceRoot }) {
@@ -350,7 +381,7 @@ function evaluateVideoShell({ command, cwd, workspaceRoot }) {
 
 // plugins/video-production/src/entries/hooks/video-production.ts
 var nameOf = (event) => eventToolName(event);
-var cwdOf = (event) => resolve3(eventCwd(event));
+var cwdOf = (event) => resolve4(eventCwd(event));
 var sessionOf = (event) => eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
 function targetsOf(event) {
   return extractFileTargets(event, { tools: "any" });
@@ -393,7 +424,7 @@ async function main() {
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   if (mode === "pre") {
     for (const target of targetsOf(event)) {
-      const absolutePath = resolve3(cwd, target);
+      const absolutePath = resolve4(cwd, target);
       const result = evaluateVideoWrite({ relativePath: absolutePath, toolName: nameOf(event) });
       if (result.decision === "deny") {
         process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
@@ -425,6 +456,7 @@ async function main() {
 `);
     return;
   }
+  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "video")) return;
   const { findings } = await findingsFor(cwd);
   if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}
@@ -433,7 +465,7 @@ async function main() {
     writeJson(stopBlock(format(findings)));
   }
 }
-if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve3(process.argv[1])) {
+if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve4(process.argv[1])) {
   main().catch((error) => {
     const message = typeof error === "object" && error !== null && "message" in error ? String(error.message) : String(error);
     process.stderr.write(`[Video Project Delivery Guard] ${message}

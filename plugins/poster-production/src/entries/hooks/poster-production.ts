@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { computePosterSubjectDigest, evaluatePosterWrite, findPosterProjects, loadPosterProject, resolveWorkspaceRoot, validatePosterModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -73,6 +73,7 @@ async function main() {
     return;
   }
   if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "poster")) return;
     const findings = await projectFindings(cwd);
     if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;

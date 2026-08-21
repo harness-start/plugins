@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f8681912b85183af3fbe39a0bc2faffebceed81d2c6d08934ebd5723c6165df1
+// harness-source-hash: sha256:22e6392dba932aa10bf2d78c5055d1132ad4854afa015de40b48561ff079fa07
 import {
   APPROVALS_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
@@ -15,13 +15,13 @@ import {
   VIDEO_PROFILES,
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-RPBMYHBC.mjs";
+} from "../chunks/chunk-M5MHK7CM.mjs";
 import {
   SHOT_LIBRARY_UPSTREAM_COMMIT
-} from "../chunks/chunk-5OX4OUTU.mjs";
+} from "../chunks/chunk-QGO6LRUV.mjs";
 import {
   assertVideoProjectRoot
-} from "../chunks/chunk-HXO6PZZ5.mjs";
+} from "../chunks/chunk-QNEDCHB5.mjs";
 
 // plugins/video-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";

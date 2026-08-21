@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import {
   computeTrainingSubjectDigest,
@@ -123,6 +123,7 @@ async function main() {
     return;
   }
   if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "training")) return;
     const findings = await projectFindings(cwd, undefined, { generatedOnly: true });
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;

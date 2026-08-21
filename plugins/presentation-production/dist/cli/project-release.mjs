@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:74cda15691bb0a5c975176769b1f79a042fe44fa7077495a876df0a7d160831a
+// harness-source-hash: sha256:7dd4197f7388a95b8fcb0a3f0c2674cf89d8d8f71b7b2dff1e767a158f31565a
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-ESEPMOYE.mjs";
+} from "../chunks/chunk-QTFWG5V2.mjs";
 import {
   assertPptxProjectRoot,
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-W4TR7BG3.mjs";
+} from "../chunks/chunk-6GTQERFB.mjs";
 import {
   computePptxSubjectDigest,
   createPptxReceipt,
@@ -17,7 +17,7 @@ import {
   loadPptxProject,
   validatePptxModel,
   validatePptxReceipt
-} from "../chunks/chunk-SVC5VOOK.mjs";
+} from "../chunks/chunk-L66YBYFZ.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-release.ts
 async function main() {
