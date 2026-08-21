@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9fae7acb7b99e6820272d52799a413b6a8e1b2464d5454303a2ea6769ffa7df8
+// harness-source-hash: sha256:cafc8a70a5c6e53a6b3fdd264e889af9ee073b12efe2533e339d952816910a88
 import {
   issueWriterCapability
-} from "../chunks/chunk-RSZF2S33.mjs";
+} from "../chunks/chunk-HZ56MVVV.mjs";
 import {
   computeDiagramSubjectDigest,
   evaluateDiagramWrite,
@@ -10,7 +10,7 @@ import {
   loadDiagramProject,
   resolveWorkspaceRoot,
   validateDiagramModel
-} from "../chunks/chunk-T4JPGSCM.mjs";
+} from "../chunks/chunk-KM6KTTP3.mjs";
 
 // plugins/diagram-production/src/entries/hooks/diagram-production.ts
 import { createHash as createHash2 } from "node:crypto";
