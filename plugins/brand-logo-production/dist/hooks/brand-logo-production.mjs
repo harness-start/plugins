@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c633e514c8b6e22889b72b5d0d4eb8e6d1c8e9b4d53f21168e1cfdc3f8bbf728
+// harness-source-hash: sha256:178deb3a5ad5ac1fc6dca0940d32ec39fa497256da66144b1c139bdc1c1ad69e
 import {
   issueWriterCapability
-} from "../chunks/chunk-GG5KTI7T.mjs";
+} from "../chunks/chunk-KNPVK3PX.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-S2AMY7MO.mjs";
+} from "../chunks/chunk-52QUSOYN.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-CZ3JICN3.mjs";
+} from "../chunks/chunk-2SXJQ4DD.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
