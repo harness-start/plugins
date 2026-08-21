@@ -11,10 +11,12 @@ import {
   additionalContext,
   cwdOf,
   extractTargets,
+  opaqueShellMutation,
   preToolDeny,
   proposedContent,
   readStdinJson,
   relativePath,
+  shellCommandOf,
   targetOperation,
   writeJson,
 } from "../../lib/hook-io.js";
@@ -103,6 +105,7 @@ function dirtyLiveTests(root: string, source: SourceLike, context: LanguageConte
 
 function restoresBaseline(root: string, event: HookEvent, target: ActiveTarget): boolean {
   const deleting = targetOperation(event, target.absolutePath) === "delete";
+  if (!deleting && shellCommandOf(event)) return false;
   const current = readText(target.absolutePath);
   return restoresHeadState(root, target.path, {
     missing: deleting,
@@ -162,7 +165,13 @@ function runSessionStart(): void {
 async function runPre(event: HookEvent): Promise<void> {
   const root = cwdOf(event);
   const targets = targetsFor(event, root);
-  if (targets.length === 0) return;
+  if (targets.length === 0) {
+    const opaqueMutation = opaqueShellMutation(event);
+    if (opaqueMutation) {
+      writeJson(preToolDeny(`[TDD Guard] Blocked opaque implementation mutation: ${opaqueMutation}. Use file tools or an explicit patch whose target paths can be checked against corresponding tests.`));
+    }
+    return;
+  }
   const kinds = new Set(targets.map((target) => target.kind));
   if (kinds.has("test") && kinds.has("source")) {
     writeJson(preToolDeny(mixedWriteFinding()));

@@ -1,4 +1,4 @@
-import { isAbsolute, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 
 import {
   eventCwd,
@@ -11,6 +11,7 @@ import {
 } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, writeJson } from "@harness/core/hook-output";
 import { canonicalToolName, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
+import { shellCommandInvocations } from "@harness/core/shell-parse";
 
 export { additionalContext, readStdinJson, preToolDeny, writeJson };
 
@@ -87,40 +88,98 @@ function contentFromPatch(input: unknown, target: string, cwd: string, currentTe
   return currentText;
 }
 
-function tokenize(command: unknown): string[] {
-  const tokens: string[] = [];
-  for (const match of String(command ?? "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)) {
-    tokens.push(match[1] ?? match[2] ?? match[3] ?? "");
-  }
-  return tokens;
-}
-
 function invocations(command: unknown, names: Set<string>): string[][] {
   const found: string[][] = [];
-  for (const segment of String(command ?? "").split(/\s*(?:&&|\|\||;|\n)\s*/u)) {
-    const tokens = tokenize(segment);
-    let index = 0;
-    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index] ?? "")) index += 1;
-    if (index >= tokens.length) continue;
-    const base = String(tokens[index]).replace(/^.*\//u, "");
-    if (!names.has(base)) continue;
-    index += 1;
+  for (const invocation of shellCommandInvocations(String(command ?? ""))) {
+    if (!names.has(invocation.executable)) continue;
     const operands: string[] = [];
-    while (index < tokens.length && (tokens[index] ?? "").startsWith("-")) {
-      if (tokens[index] === "--") {
-        index += 1;
-        break;
+    let optionsEnded = false;
+    for (const token of invocation.args) {
+      if (!optionsEnded && token === "--") {
+        optionsEnded = true;
+        continue;
       }
-      index += 1;
-    }
-    while (index < tokens.length) {
-      const token = tokens[index];
-      if (token && !token.startsWith("-")) operands.push(token);
-      index += 1;
+      if (!optionsEnded && token.startsWith("-")) continue;
+      if (token) operands.push(token);
     }
     found.push(operands);
   }
   return found;
+}
+
+function sedInPlacePaths(command: unknown): string[] {
+  const paths: string[] = [];
+  for (const invocation of shellCommandInvocations(String(command ?? ""))) {
+    if (invocation.executable !== "sed") continue;
+    const args = invocation.args;
+    let inPlace = false;
+    let programFromOption = false;
+    const positional: string[] = [];
+    for (let cursor = 0; cursor < args.length; cursor += 1) {
+      const argument = args[cursor] ?? "";
+      if (argument === "--") {
+        positional.push(...args.slice(cursor + 1).filter(Boolean));
+        break;
+      }
+      if (argument === "-i" || /^-[^-]*i/u.test(argument) || argument === "--in-place" || argument.startsWith("--in-place=")) {
+        inPlace = true;
+        if (argument === "-i" && /^(?:|\.[^/]+)$/u.test(args[cursor + 1] ?? "")) cursor += 1;
+        continue;
+      }
+      if (argument === "-e" || argument === "--expression" || argument === "-f" || argument === "--file") {
+        programFromOption = true;
+        cursor += 1;
+        continue;
+      }
+      if (/^(?:-e|--expression=|-f|--file=)/u.test(argument)) {
+        programFromOption = true;
+        continue;
+      }
+      if (argument.startsWith("-")) continue;
+      positional.push(argument);
+    }
+    if (inPlace) paths.push(...(programFromOption ? positional : positional.slice(1)));
+  }
+  return paths;
+}
+
+function copyInstallTargets(command: unknown): string[] {
+  const paths: string[] = [];
+  for (const invocation of shellCommandInvocations(String(command ?? ""))) {
+    if (invocation.executable !== "cp" && invocation.executable !== "install") continue;
+    const operands: string[] = [];
+    let targetDirectory: string | null = null;
+    for (let cursor = 0; cursor < invocation.args.length; cursor += 1) {
+      const argument = invocation.args[cursor] ?? "";
+      if (argument === "--") {
+        operands.push(...invocation.args.slice(cursor + 1).filter(Boolean));
+        break;
+      }
+      if (argument === "-t" || argument === "--target-directory") {
+        targetDirectory = invocation.args[cursor + 1] ?? null;
+        cursor += 1;
+        continue;
+      }
+      if (argument.startsWith("--target-directory=")) {
+        targetDirectory = argument.slice("--target-directory=".length) || null;
+        continue;
+      }
+      if (/^-t.+/u.test(argument)) {
+        targetDirectory = argument.slice(2) || null;
+        continue;
+      }
+      if (argument.startsWith("-")) continue;
+      operands.push(argument);
+    }
+    if (targetDirectory) {
+      paths.push(targetDirectory, ...operands.map((source) => join(targetDirectory, basename(source))));
+      continue;
+    }
+    if (operands.length < 2) continue;
+    const destination = operands.at(-1) ?? "";
+    paths.push(destination, ...operands.slice(0, -1).map((source) => join(destination, basename(source))));
+  }
+  return paths;
 }
 
 function shellPaths(input: HookToolInput): string[] {
@@ -143,7 +202,43 @@ function shellPaths(input: HookToolInput): string[] {
   for (const operands of invocations(command, new Set(["mv"]))) {
     for (const path of operands) push(path);
   }
+  for (const path of copyInstallTargets(command)) push(path);
+  for (const path of sedInPlacePaths(command)) push(path);
   return paths;
+}
+
+function gitSubcommand(args: readonly string[]): { command: string; args: string[] } {
+  let cursor = 0;
+  while (cursor < args.length) {
+    const token = args[cursor] ?? "";
+    if (["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(token)) {
+      cursor += 2;
+      continue;
+    }
+    if (/^--(?:git-dir|work-tree|namespace|config-env)=/u.test(token)) {
+      cursor += 1;
+      continue;
+    }
+    break;
+  }
+  return { command: args[cursor] ?? "", args: args.slice(cursor + 1) };
+}
+
+export function opaqueShellMutation(event: HookEvent): string | null {
+  const command = shellCommandOf(event);
+  if (!command) return null;
+  for (const invocation of shellCommandInvocations(command)) {
+    if (invocation.executable === "git") {
+      const git = gitSubcommand(invocation.args);
+      if (git.command === "apply" && !git.args.some((argument) => ["--check", "--stat", "--numstat", "--summary"].includes(argument))) {
+        return "git apply can mutate implementation paths that are not visible in the hook event";
+      }
+    }
+    if (invocation.executable === "patch" && !invocation.args.includes("--dry-run")) {
+      return "patch can mutate implementation paths that are not visible in the hook event";
+    }
+  }
+  return null;
 }
 
 function resolvedEquals(cwd: string, rawPath: unknown, absolutePath: string): boolean {

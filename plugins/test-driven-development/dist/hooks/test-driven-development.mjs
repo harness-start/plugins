@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:766fe4b4c065d59b9a31ad82713d5d24c83df96d4fe03b7ef5d0ff13742fa627
+// harness-source-hash: sha256:605049012f2c76f8965f38d0e56ed300d0f48891891a08b7cecec31c4054d243
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { readFileSync as readFileSync4 } from "node:fs";
@@ -45,7 +45,7 @@ function eventToolInput(event) {
 }
 
 // plugins/test-driven-development/src/lib/hook-io.ts
-import { isAbsolute, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 
 // core/src/hook-output.ts
 var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
@@ -120,6 +120,328 @@ function extractShellCommand(event) {
   return typeof command === "string" ? command : null;
 }
 
+// core/src/shell-parse.ts
+function decodeAnsiCQuoteEscape(command, slashIndex) {
+  const marker = command[slashIndex + 1] ?? "";
+  const simple = /* @__PURE__ */ new Map([
+    ["a", "\x07"],
+    ["b", "\b"],
+    ["e", "\x1B"],
+    ["E", "\x1B"],
+    ["f", "\f"],
+    ["n", "\n"],
+    ["r", "\r"],
+    ["t", "	"],
+    ["v", "\v"],
+    ["\\", "\\"],
+    ["'", "'"],
+    ['"', '"']
+  ]);
+  if (simple.has(marker)) {
+    return { value: simple.get(marker) ?? "", endIndex: slashIndex + 1 };
+  }
+  const numeric = marker === "x" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,2}/iu) : marker === "u" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,4}/iu) : marker === "U" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,8}/iu) : command.slice(slashIndex + 1).match(/^[0-7]{1,3}/u);
+  if (numeric?.[0]) {
+    const radix = marker === "x" || marker === "u" || marker === "U" ? 16 : 8;
+    const codePoint = Number.parseInt(numeric[0], radix);
+    if (codePoint <= 1114111) {
+      const offset = marker === "x" || marker === "u" || marker === "U" ? 2 : 1;
+      return {
+        value: String.fromCodePoint(codePoint),
+        endIndex: slashIndex + offset + numeric[0].length - 1
+      };
+    }
+  }
+  if (marker === "\n") return { value: "", endIndex: slashIndex + 1 };
+  return { value: `\\${marker}`, endIndex: slashIndex + 1 };
+}
+var EMPTY_OPTIONS = /* @__PURE__ */ new Set();
+var SIMPLE_COMMAND_WRAPPERS = /* @__PURE__ */ new Set(["command", "exec", "nohup", "busybox", "time"]);
+var SUDO_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-C",
+  "-D",
+  "-g",
+  "-h",
+  "-p",
+  "-R",
+  "-T",
+  "-u",
+  "--chdir",
+  "--close-from",
+  "--group",
+  "--host",
+  "--prompt",
+  "--role",
+  "--type",
+  "--user"
+]);
+var ENV_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-C",
+  "-S",
+  "-u",
+  "--chdir",
+  "--split-string",
+  "--unset"
+]);
+var XARGS_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-a",
+  "-d",
+  "-E",
+  "-I",
+  "-L",
+  "-n",
+  "-P",
+  "-s",
+  "--arg-file",
+  "--delimiter",
+  "--eof",
+  "--max-args",
+  "--max-chars",
+  "--max-lines",
+  "--max-procs",
+  "--replace"
+]);
+var TIMEOUT_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-s",
+  "--signal",
+  "-k",
+  "--kill-after"
+]);
+var NICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set(["-n", "--adjustment"]);
+var STDBUF_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-i",
+  "--input",
+  "-o",
+  "--output",
+  "-e",
+  "--error"
+]);
+var IONICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-c",
+  "--class",
+  "-n",
+  "--classdata",
+  "-p",
+  "--pid"
+]);
+var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
+function skipWrapperOptions(tokens, start, optionsWithValue) {
+  let index = start;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token?.startsWith("-")) break;
+    if (token === "--") return index + 1;
+    index += optionsWithValue.has(token) ? 2 : 1;
+  }
+  return index;
+}
+function tokenBasename(token) {
+  return token.split("/").at(-1) ?? "";
+}
+function commandInvocation(tokens) {
+  let index = 0;
+  let stdinDriven = false;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token) break;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
+      index += 1;
+      continue;
+    }
+    const name = tokenBasename(token);
+    if (SIMPLE_COMMAND_WRAPPERS.has(name)) {
+      index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
+      continue;
+    }
+    if (name === "sudo") {
+      index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "env") {
+      index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "xargs") {
+      stdinDriven = true;
+      index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "timeout") {
+      index = skipWrapperOptions(tokens, index + 1, TIMEOUT_OPTIONS_WITH_VALUE);
+      if (index < tokens.length && tokens[index] && !COMMAND_SEPARATORS.has(tokens[index] ?? "")) {
+        index += 1;
+      }
+      continue;
+    }
+    if (name === "nice") {
+      index = skipWrapperOptions(tokens, index + 1, NICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "stdbuf") {
+      index = skipWrapperOptions(tokens, index + 1, STDBUF_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "ionice") {
+      index = skipWrapperOptions(tokens, index + 1, IONICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    return {
+      executable: name || token,
+      args: tokens.slice(index + 1),
+      stdinDriven
+    };
+  }
+  return null;
+}
+function tokenizeShell(command) {
+  const tokens = [];
+  let current = "";
+  let tokenStarted = false;
+  let quote = null;
+  let ansiCQuote = false;
+  let escaped = false;
+  const pushCurrent = () => {
+    if (tokenStarted) {
+      tokens.push(current);
+      current = "";
+      tokenStarted = false;
+    }
+  };
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index] ?? "";
+    const next = command[index + 1];
+    if (escaped) {
+      current += char;
+      tokenStarted = true;
+      escaped = false;
+      continue;
+    }
+    if (quote) {
+      if (ansiCQuote && char === "\\") {
+        const decoded = decodeAnsiCQuoteEscape(command, index);
+        current += decoded.value;
+        tokenStarted = true;
+        index = decoded.endIndex;
+        continue;
+      }
+      if (quote === '"' && char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        quote = null;
+        ansiCQuote = false;
+        continue;
+      }
+      current += char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "$" && (next === '"' || next === "'")) {
+      quote = next;
+      ansiCQuote = next === "'";
+      tokenStarted = true;
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      tokenStarted = true;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      pushCurrent();
+      continue;
+    }
+    if (char === "#" && !tokenStarted) break;
+    if (char === "&" && next === "&") {
+      pushCurrent();
+      tokens.push("&&");
+      index += 1;
+      continue;
+    }
+    if (char === "&") {
+      pushCurrent();
+      tokens.push("&");
+      continue;
+    }
+    if (char === "|" && next === "|") {
+      pushCurrent();
+      tokens.push("||");
+      index += 1;
+      continue;
+    }
+    if (char === ";" || char === "|") {
+      pushCurrent();
+      tokens.push(char);
+      continue;
+    }
+    current += char;
+    tokenStarted = true;
+  }
+  pushCurrent();
+  return tokens;
+}
+function splitShellLogicalLines(command) {
+  const lines = [];
+  let current = "";
+  let quote = null;
+  let escaped = false;
+  for (const char of command) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      current += char;
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "\n") {
+      if (current.trim()) lines.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) lines.push(current);
+  return lines;
+}
+function shellCommandInvocations(command) {
+  const invocations2 = [];
+  for (const logicalLine of splitShellLogicalLines(command)) {
+    const tokens = tokenizeShell(logicalLine);
+    let segment = [];
+    for (let index = 0; index <= tokens.length; index += 1) {
+      const token = tokens[index];
+      if (token !== void 0 && !COMMAND_SEPARATORS.has(token)) {
+        segment.push(token);
+        continue;
+      }
+      const invocation = commandInvocation(segment);
+      if (invocation) invocations2.push(invocation);
+      segment = [];
+    }
+  }
+  return invocations2;
+}
+
 // plugins/test-driven-development/src/lib/hook-io.ts
 function cwdOf(event) {
   const raw = event.cwd ?? event.working_directory ?? event.workingDirectory;
@@ -189,39 +511,96 @@ function contentFromPatch(input, target, cwd, currentText) {
 ${added.join("\n")}`;
   return currentText;
 }
-function tokenize(command) {
-  const tokens = [];
-  for (const match of String(command ?? "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/gu)) {
-    tokens.push(match[1] ?? match[2] ?? match[3] ?? "");
-  }
-  return tokens;
-}
 function invocations(command, names) {
   const found = [];
-  for (const segment of String(command ?? "").split(/\s*(?:&&|\|\||;|\n)\s*/u)) {
-    const tokens = tokenize(segment);
-    let index = 0;
-    while (index < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/u.test(tokens[index] ?? "")) index += 1;
-    if (index >= tokens.length) continue;
-    const base = String(tokens[index]).replace(/^.*\//u, "");
-    if (!names.has(base)) continue;
-    index += 1;
+  for (const invocation of shellCommandInvocations(String(command ?? ""))) {
+    if (!names.has(invocation.executable)) continue;
     const operands = [];
-    while (index < tokens.length && (tokens[index] ?? "").startsWith("-")) {
-      if (tokens[index] === "--") {
-        index += 1;
-        break;
+    let optionsEnded = false;
+    for (const token of invocation.args) {
+      if (!optionsEnded && token === "--") {
+        optionsEnded = true;
+        continue;
       }
-      index += 1;
-    }
-    while (index < tokens.length) {
-      const token = tokens[index];
-      if (token && !token.startsWith("-")) operands.push(token);
-      index += 1;
+      if (!optionsEnded && token.startsWith("-")) continue;
+      if (token) operands.push(token);
     }
     found.push(operands);
   }
   return found;
+}
+function sedInPlacePaths(command) {
+  const paths = [];
+  for (const invocation of shellCommandInvocations(String(command ?? ""))) {
+    if (invocation.executable !== "sed") continue;
+    const args = invocation.args;
+    let inPlace = false;
+    let programFromOption = false;
+    const positional = [];
+    for (let cursor = 0; cursor < args.length; cursor += 1) {
+      const argument = args[cursor] ?? "";
+      if (argument === "--") {
+        positional.push(...args.slice(cursor + 1).filter(Boolean));
+        break;
+      }
+      if (argument === "-i" || /^-[^-]*i/u.test(argument) || argument === "--in-place" || argument.startsWith("--in-place=")) {
+        inPlace = true;
+        if (argument === "-i" && /^(?:|\.[^/]+)$/u.test(args[cursor + 1] ?? "")) cursor += 1;
+        continue;
+      }
+      if (argument === "-e" || argument === "--expression" || argument === "-f" || argument === "--file") {
+        programFromOption = true;
+        cursor += 1;
+        continue;
+      }
+      if (/^(?:-e|--expression=|-f|--file=)/u.test(argument)) {
+        programFromOption = true;
+        continue;
+      }
+      if (argument.startsWith("-")) continue;
+      positional.push(argument);
+    }
+    if (inPlace) paths.push(...programFromOption ? positional : positional.slice(1));
+  }
+  return paths;
+}
+function copyInstallTargets(command) {
+  const paths = [];
+  for (const invocation of shellCommandInvocations(String(command ?? ""))) {
+    if (invocation.executable !== "cp" && invocation.executable !== "install") continue;
+    const operands = [];
+    let targetDirectory = null;
+    for (let cursor = 0; cursor < invocation.args.length; cursor += 1) {
+      const argument = invocation.args[cursor] ?? "";
+      if (argument === "--") {
+        operands.push(...invocation.args.slice(cursor + 1).filter(Boolean));
+        break;
+      }
+      if (argument === "-t" || argument === "--target-directory") {
+        targetDirectory = invocation.args[cursor + 1] ?? null;
+        cursor += 1;
+        continue;
+      }
+      if (argument.startsWith("--target-directory=")) {
+        targetDirectory = argument.slice("--target-directory=".length) || null;
+        continue;
+      }
+      if (/^-t.+/u.test(argument)) {
+        targetDirectory = argument.slice(2) || null;
+        continue;
+      }
+      if (argument.startsWith("-")) continue;
+      operands.push(argument);
+    }
+    if (targetDirectory) {
+      paths.push(targetDirectory, ...operands.map((source) => join(targetDirectory, basename(source))));
+      continue;
+    }
+    if (operands.length < 2) continue;
+    const destination = operands.at(-1) ?? "";
+    paths.push(destination, ...operands.slice(0, -1).map((source) => join(destination, basename(source))));
+  }
+  return paths;
 }
 function shellPaths(input) {
   const command = String(input.command ?? input.cmd ?? "");
@@ -243,7 +622,41 @@ function shellPaths(input) {
   for (const operands of invocations(command, /* @__PURE__ */ new Set(["mv"]))) {
     for (const path of operands) push(path);
   }
+  for (const path of copyInstallTargets(command)) push(path);
+  for (const path of sedInPlacePaths(command)) push(path);
   return paths;
+}
+function gitSubcommand(args) {
+  let cursor = 0;
+  while (cursor < args.length) {
+    const token = args[cursor] ?? "";
+    if (["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env"].includes(token)) {
+      cursor += 2;
+      continue;
+    }
+    if (/^--(?:git-dir|work-tree|namespace|config-env)=/u.test(token)) {
+      cursor += 1;
+      continue;
+    }
+    break;
+  }
+  return { command: args[cursor] ?? "", args: args.slice(cursor + 1) };
+}
+function opaqueShellMutation(event) {
+  const command = shellCommandOf(event);
+  if (!command) return null;
+  for (const invocation of shellCommandInvocations(command)) {
+    if (invocation.executable === "git") {
+      const git = gitSubcommand(invocation.args);
+      if (git.command === "apply" && !git.args.some((argument) => ["--check", "--stat", "--numstat", "--summary"].includes(argument))) {
+        return "git apply can mutate implementation paths that are not visible in the hook event";
+      }
+    }
+    if (invocation.executable === "patch" && !invocation.args.includes("--dry-run")) {
+      return "patch can mutate implementation paths that are not visible in the hook event";
+    }
+  }
+  return null;
 }
 function resolvedEquals(cwd, rawPath, absolutePath) {
   return resolve(cwd, stripQuotes(rawPath)) === resolve(absolutePath);
@@ -289,7 +702,7 @@ function relativePath(root, path) {
 
 // plugins/test-driven-development/src/lib/existing-tests.ts
 import { lstatSync, readdirSync, readFileSync as readFileSync2 } from "node:fs";
-import { join, relative as relative3, resolve as resolve3 } from "node:path";
+import { join as join2, relative as relative3, resolve as resolve3 } from "node:path";
 
 // plugins/test-driven-development/src/lib/patterns.ts
 import { existsSync, readFileSync } from "node:fs";
@@ -870,7 +1283,7 @@ function listTestFiles(root, language) {
     }
     for (const entry of entries) {
       if (entry.isSymbolicLink() || entry.name.startsWith(".")) continue;
-      const absolutePath = join(directory, entry.name);
+      const absolutePath = join2(directory, entry.name);
       const path = relative3(workspace, absolutePath).replaceAll("\\", "/");
       if (entry.isDirectory()) {
         if (isSkippedPath(`${path}/`)) continue;
@@ -1041,6 +1454,7 @@ function dirtyLiveTests(root, source, context) {
 }
 function restoresBaseline(root, event, target) {
   const deleting = targetOperation(event, target.absolutePath) === "delete";
+  if (!deleting && shellCommandOf(event)) return false;
   const current = readText(target.absolutePath);
   return restoresHeadState(root, target.path, {
     missing: deleting,
@@ -1092,7 +1506,13 @@ function runSessionStart() {
 async function runPre(event) {
   const root = cwdOf(event);
   const targets = targetsFor(event, root);
-  if (targets.length === 0) return;
+  if (targets.length === 0) {
+    const opaqueMutation = opaqueShellMutation(event);
+    if (opaqueMutation) {
+      writeJson(preToolDeny(`[TDD Guard] Blocked opaque implementation mutation: ${opaqueMutation}. Use file tools or an explicit patch whose target paths can be checked against corresponding tests.`));
+    }
+    return;
+  }
   const kinds = new Set(targets.map((target) => target.kind));
   if (kinds.has("test") && kinds.has("source")) {
     writeJson(preToolDeny(mixedWriteFinding()));

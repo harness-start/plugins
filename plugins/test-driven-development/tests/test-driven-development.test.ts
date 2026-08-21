@@ -1169,6 +1169,41 @@ test("common shell redirection cannot create implementation before a test", asyn
   }
 });
 
+test("common shell mutators cannot change implementation before a test", async () => {
+  const commands = [
+    "sed -i.bak 's/old/new/' src/OrderService.php",
+    "env LC_ALL=C sed -i.bak 's/old/new/' src/OrderService.php",
+    "cp /tmp/OrderService.php src/OrderService.php",
+    "command cp /tmp/OrderService.php src/OrderService.php",
+    "cp /tmp/OrderService.php src",
+    "cp -t src /tmp/OrderService.php",
+    "install --target-directory=src /tmp/OrderService.php",
+    "git apply /tmp/implementation.patch",
+    "env git apply /tmp/implementation.patch",
+  ];
+  for (const [index, command] of commands.entries()) {
+    const fx = fixture(`test-driven-development-shell-mutator-${index}-`);
+    try {
+      gitInit(fx.root);
+      mkdirSync(join(fx.root, "src"), { recursive: true });
+      writeFileSync(join(fx.root, "src", "OrderService.php"), "<?php final class OrderService {}\n");
+      gitCommitAll(fx.root, "seed implementation");
+      const result = await runHook("pre", {
+        cwd: fx.root,
+        session_id: "session-1",
+        tool_name: "exec_command",
+        tool_use_id: `shell-mutator-${index}`,
+        tool_input: { cmd: command },
+      }, hookEnv(fx.data));
+      assert.equal(result.code, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny", command);
+    } finally {
+      rmSync(fx.root, { recursive: true, force: true });
+      rmSync(fx.data, { recursive: true, force: true });
+    }
+  }
+});
+
 test("public pre hook ignores shell writes outside the workspace", async () => {
   const fx = fixture("test-driven-development-external-write-");
   try {
