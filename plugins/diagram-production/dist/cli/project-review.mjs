@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fc87d2a89e04b481f5651ca00387a5f9f7995e4da08b7b7b29878787d68afcf5
+// harness-source-hash: sha256:984bb8861e2d5e166d5ffc1199b94ccc606eee857e475a1074e6ae0d33cc3be6
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-HMY4KEAW.mjs";
+} from "../chunks/chunk-2BTLTCPB.mjs";
 import {
   REVIEW_INPUT_SCHEMA,
   REVIEW_SCHEMA,
@@ -14,7 +14,7 @@ import {
   sessionMetadata,
   validateDiagramModel,
   withWriterJournal
-} from "../chunks/chunk-ZWE6DJYT.mjs";
+} from "../chunks/chunk-YO4FNS5H.mjs";
 
 // plugins/diagram-production/src/entries/cli/project-review.ts
 import { createHash } from "node:crypto";

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b818fb12025b9087789ea937ad5d03cd1a3d3a891c4094279d5588444f9108c2
+// harness-source-hash: sha256:8a6612b4e2118e710619318c1955c13d2690537928de031e5bd2d19c077c5e88
 import {
   DEFAULT_CONFIG,
   findLedgerDir,
   isRecord,
   loadLedger,
   scanLedgers
-} from "../chunks/chunk-PK4LIDL5.mjs";
+} from "../chunks/chunk-Z36EOQCW.mjs";
 
 // plugins/software-debugging/src/entries/cli/debug-workflow.ts
 import { resolve as resolve3 } from "node:path";

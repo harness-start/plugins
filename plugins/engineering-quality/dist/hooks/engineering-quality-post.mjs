@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:d0a169b177190c6fb8d0a9b90a134691594376015ee0565ae7415a8940763d32
+// harness-source-hash: sha256:5bd8a65a5bc2d1e380e74f2566e4909cff5fced6fed6f94d0806c59aa978ad8d
 
 // plugins/engineering-quality/src/entries/hooks/engineering-quality-post.ts
 import { spawnSync } from "node:child_process";

@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { test } from "node:test";
 
 import {
+  eventTouchesArtifact,
   extractFileTargets,
   extractShellCommand,
   isFileMutationTool,
@@ -82,6 +83,19 @@ test("reads shell command from command, cmd, or script and ignores event.name", 
     name: "Bash",
     tool_input: { command: "rm -rf /" },
   }), null);
+});
+
+test("eventTouchesArtifact uses Write paths and shell text, not mere repo presence", () => {
+  assert.equal(eventTouchesArtifact({
+    cwd: "/workspace",
+    tool_name: "exec_command",
+    tool_input: { cmd: "rg -n foo README.md" },
+  }, "logo"), false);
+  assert.equal(eventTouchesArtifact({
+    cwd: "/workspace",
+    tool_name: "Write",
+    tool_input: { file_path: "artifacts/logo/mark/plan.contract.json" },
+  }, "logo"), true);
 });
 
 test("Read is excluded from mutation targets unless read-or-mutation is requested", () => {

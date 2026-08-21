@@ -5,8 +5,6 @@ import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { DOMParser } from "@xmldom/xmldom";
-
 import { eventCwd, eventSessionId, eventToolName, isRecord, readStdinJson, type HookEvent } from "./hook-event.ts";
 import { additionalContext, preToolDeny, writeJson } from "./hook-output.ts";
 import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "./hook-targets.ts";
@@ -236,6 +234,30 @@ export function extractDomainTargets(event: HookEvent): string[] {
   return [...new Set(targets.map((path) => isAbsolute(path) ? resolve(path) : resolve(cwd, path.replace(/^\.\//u, ""))))];
 }
 
+export function domainTargetsNeedPhase(
+  policy: DomainEngineeringPolicy,
+  targets: readonly string[],
+  phase: "pre" | "post",
+): boolean {
+  const paths = targets.map((path) => path.replaceAll("\\", "/"));
+  if (phase === "pre") return paths.some((path) => policy.protections.some((rule) => regexMatches(rule.match, path)));
+  return paths.some((path) =>
+    policy.validators.some((validator) => regexMatches(validator.match, path))
+    || (policy.sourceScans ?? []).some((scan) => regexMatches(scan.match, path))
+  );
+}
+
+function configFileExists(cwd: string, plugin: string): boolean {
+  let cursor = resolve(cwd);
+  while (true) {
+    if (existsSync(join(cursor, `.${plugin}.mjs`))) return true;
+    if (existsSync(join(cursor, ".git"))) return false;
+    const parent = dirname(cursor);
+    if (parent === cursor) return false;
+    cursor = parent;
+  }
+}
+
 function repoRoot(cwd: string): string | null {
   const result = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd, encoding: "utf8", timeout: 5000 });
   return result.status === 0 ? result.stdout.trim() : null;
@@ -414,7 +436,18 @@ function commandFor(kind: DomainValidatorKind, filePath: string): { command: str
   return null;
 }
 
-function internalValidation(kind: DomainValidatorKind, filePath: string): string | null | undefined {
+async function xmlValidation(filePath: string): Promise<string | null> {
+  const errors: string[] = [];
+  try {
+    const { DOMParser } = await import("@xmldom/xmldom");
+    new DOMParser({ onError: (level, message) => { if (level === "fatalError" || level === "error") errors.push(message); } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");
+    return errors.length ? errors.join("\n") : null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+async function internalValidation(kind: DomainValidatorKind, filePath: string): Promise<string | null | undefined> {
   if (kind === "json") {
     try {
       JSON.parse(readFileSync(filePath, "utf8"));
@@ -423,15 +456,7 @@ function internalValidation(kind: DomainValidatorKind, filePath: string): string
       return error instanceof Error ? error.message : String(error);
     }
   }
-  if (kind === "xml") {
-    const errors: string[] = [];
-    try {
-      new DOMParser({ onError: (level, message) => { if (level === "fatalError" || level === "error") errors.push(message); } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");
-      return errors.length ? errors.join("\n") : null;
-    } catch (error) {
-      return error instanceof Error ? error.message : String(error);
-    }
-  }
+  if (kind === "xml") return xmlValidation(filePath);
   return undefined;
 }
 
@@ -451,7 +476,7 @@ export function sourceScanFindings(
   }));
 }
 
-function validateFile(validator: DomainValidator, filePath: string, root: string, timeoutMs: number): Finding | null {
+async function validateFile(validator: DomainValidator, filePath: string, root: string, timeoutMs: number): Promise<Finding | null> {
   if (validator.contentMatch) {
     try {
       if (!regexMatches(validator.contentMatch, readFileSync(filePath, "utf8"))) return null;
@@ -459,7 +484,7 @@ function validateFile(validator: DomainValidator, filePath: string, root: string
       return null;
     }
   }
-  const internal = internalValidation(validator.kind, filePath);
+  const internal = await internalValidation(validator.kind, filePath);
   if (internal !== undefined) return internal ? { check: validator.id, mode: validator.mode === "off" ? "report" : validator.mode, path: relativePath(filePath, root), message: internal } : null;
   const spec = commandFor(validator.kind, filePath);
   if (!spec?.command) return { check: validator.id, mode: "report", path: relativePath(filePath, root), message: "No validator implementation is available." };
@@ -492,10 +517,13 @@ function shouldReportMissingTool(policy: DomainEngineeringPolicy, root: string, 
 }
 
 async function runPre(policy: DomainEngineeringPolicy, event: HookEvent): Promise<void> {
+  const targets = extractDomainTargets(event);
+  if (!targets.length) return;
   const cwd = resolve(eventCwd(event));
+  if (!domainTargetsNeedPhase(policy, targets, "pre") && !configFileExists(cwd, policy.plugin)) return;
   const root = repoRoot(cwd) ?? cwd;
   const config = await loadConfig(policy, repoRoot(cwd));
-  const findings = extractDomainTargets(event).flatMap((filePath) => {
+  const findings = targets.flatMap((filePath) => {
     const path = relativePath(filePath, root);
     if (policy.active && !policy.active({ root, targetPath: filePath, relativePath: path })) return [];
     const rule = protectionFor(matchPaths(filePath, root), policy, config);
@@ -506,11 +534,14 @@ async function runPre(policy: DomainEngineeringPolicy, event: HookEvent): Promis
 
 async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promise<void> {
   const cwd = resolve(eventCwd(event));
+  const rawTargets = extractDomainTargets(event);
+  if (!rawTargets.length) return;
+  if (!domainTargetsNeedPhase(policy, rawTargets, "post") && !configFileExists(cwd, policy.plugin)) return;
   const discoveredRoot = repoRoot(cwd);
   const root = discoveredRoot ?? cwd;
   const config = await loadConfig(policy, discoveredRoot);
   const session = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "hook";
-  const targets = extractDomainTargets(event).filter((filePath) => {
+  const targets = rawTargets.filter((filePath) => {
     if (!existsSync(filePath)) return false;
     try {
       const path = relativePath(filePath, root);
@@ -528,7 +559,7 @@ async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promi
     for (const validator of policy.validators) {
       const mode = config.checks[validator.id] ?? validator.mode;
       if (mode === "off" || !regexMatches(validator.match, path)) continue;
-      const finding = validateFile({ ...validator, mode }, filePath, root, config.timeoutMs);
+      const finding = await validateFile({ ...validator, mode }, filePath, root, config.timeoutMs);
       if (finding && shouldReportMissingTool(policy, root, session, finding, config.missingTools)) findings.push(finding);
     }
     const scans = policy.sourceScans ?? [];

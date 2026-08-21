@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:98352add726d849edaa8daf11beb00c656803b4e48bce08efb48492d6299683c
+// harness-source-hash: sha256:e8416bc4081f58627d98ad1d9c3064b09943cd0e8ba69543f48f0cfc8fe0cec0
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-M6NK7SFB.mjs";
+} from "../chunks/chunk-C75SCMRF.mjs";
 import {
   RENDER_EVIDENCE_SCHEMA,
   assertPosterProjectRoot,
@@ -15,7 +15,7 @@ import {
   sessionMetadata,
   validatePosterModel,
   withWriterJournal
-} from "../chunks/chunk-EO2FCMJX.mjs";
+} from "../chunks/chunk-PE2DGZHF.mjs";
 
 // plugins/poster-production/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";

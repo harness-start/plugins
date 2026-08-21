@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:57569677924cad9d579da55eb111411406046b1ba11093aff42a9c87d04c8c47
+// harness-source-hash: sha256:33cc52d23aae608a5d6c8a2efea2ebe78fc416df4d175db64653a38e8950e523
 import {
   recordWorktreeCreateAllowance,
   userRequestedWorktreeCreate
-} from "../chunks/chunk-TKSHDHYS.mjs";
+} from "../chunks/chunk-DQBP5LWI.mjs";
 import {
   eventCwd,
   eventPrompt,
   eventSessionId,
   readStdinJson,
   resolveRepoRoot
-} from "../chunks/chunk-ZVFRZNHB.mjs";
+} from "../chunks/chunk-OLUWPGKU.mjs";
 
 // plugins/git-delivery/src/entries/hooks/git-delivery-hook-user-prompt.ts
 function warn(message) {

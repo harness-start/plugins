@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:690e2149a15c49c5b2c5b07b459ee226a9b35eb561a69259e649d773c3454656
+// harness-source-hash: sha256:1f02a1f296070b914c2c210b4d4f90f547785bacdf653357cefc199b3477b1d3
 import {
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-SXYN2NSW.mjs";
+} from "../chunks/chunk-CBQHMZJR.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-4GZLKVC3.mjs";
+} from "../chunks/chunk-RQFGBTK6.mjs";
 import {
   RENDER_EVIDENCE_SCHEMA,
   computeLogoSubjectDigest,
   validateLogoModel
-} from "../chunks/chunk-B5M6MBJ6.mjs";
+} from "../chunks/chunk-ST7X3X5O.mjs";
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-HPOWBWW2.mjs";
+} from "../chunks/chunk-CFVQS5IX.mjs";
 
 // plugins/brand-logo-production/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";

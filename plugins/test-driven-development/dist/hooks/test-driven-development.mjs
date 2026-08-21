@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:080097090630d5a69a95b2e9070121bc7dc8f28fc865a9529df752b6db3dff11
+// harness-source-hash: sha256:0af9d9011c76a2c847cb42f85ac44dbd171ee1a097364bb708153f307eb783ab
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { readFileSync as readFileSync4 } from "node:fs";

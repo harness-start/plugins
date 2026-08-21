@@ -17,6 +17,20 @@ export function resolveWorkspaceRoot(cwd: string, carrier: string): string {
   return resolve(cwd);
 }
 
+export function touchesArtifact(options: {
+  cwd: string;
+  carrier: string;
+  command?: string;
+  paths?: readonly string[];
+}): boolean {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+
 export function projectInside(relativePath = "", cwd = "", carrier: string): string {
   const normalized = String(relativePath ?? "").replaceAll("\\", "/");
   const escaped = carrier.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");

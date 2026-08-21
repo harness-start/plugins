@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1876110c5fe66bd958177d83d456c72c245dcdb5c89059166f5e71666880337f
+// harness-source-hash: sha256:268824c13e1007ff68308d7f8e15e78af4a7d6cbaadfe58138a5cf5100a0d493
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-SOKOEVVL.mjs";
+} from "../chunks/chunk-CPXL4OJM.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
@@ -10,7 +10,7 @@ import {
   resolveWorkspaceRoot,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-PVD334JN.mjs";
+} from "../chunks/chunk-TACMICVM.mjs";
 
 // plugins/music-production/src/entries/hooks/music-production.ts
 import { createHash as createHash2 } from "node:crypto";

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:b2f36386157c00b16ab52a11758d9a35c1698d230797b5e0e14009bbe921c99a
+// harness-source-hash: sha256:c85b196267a83ba52e01dca5250ee4aaf53f83d91563581a5ff1aae595eeb57c
 import {
   issueWriterCapability
-} from "../chunks/chunk-GWHO753O.mjs";
+} from "../chunks/chunk-QLA36CO2.mjs";
 import {
   computeTrainingSubjectDigest,
   evaluateTrainingWrite,
@@ -10,7 +10,7 @@ import {
   loadTrainingProject,
   resolveWorkspaceRoot,
   validateTrainingModel
-} from "../chunks/chunk-GMK6D3DB.mjs";
+} from "../chunks/chunk-AFVNRVDR.mjs";
 
 // plugins/training-program-design/src/entries/hooks/training-program-design.ts
 import { relative, resolve as resolve3 } from "node:path";

@@ -1,5 +1,6 @@
 import { isAbsolute, resolve } from "node:path";
 
+import { touchesArtifact } from "./artifact-paths.ts";
 import {
   eventCwd,
   eventToolInput,
@@ -167,4 +168,13 @@ export function extractFileTargets(event: HookEvent, options: ExtractTargetOptio
   }
 
   return resolveTargets(raw, cwd);
+}
+
+export function eventTouchesArtifact(event: HookEvent, carrier: string): boolean {
+  return touchesArtifact({
+    cwd: eventCwd(event),
+    carrier,
+    command: extractShellCommand(event) ?? "",
+    paths: extractFileTargets(event, { tools: "any" }),
+  });
 }

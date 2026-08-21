@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:03ff7cc805fa63b17d431d542939cc642243fcd441f65ecd75aad21045d844bc
+// harness-source-hash: sha256:b1ae5a2d320f295faeb6d6e3778a16bc8b0106f4759a3b2dba7d69a03c1940fa
 
 // plugins/professional-writing/src/entries/hooks/professional-writing.ts
 import { resolve } from "node:path";

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f85d3988e08773fc123aa50438204dd156871962b9469f9ac6a9f39db57c69fd
+// harness-source-hash: sha256:63d3331afbcd42f0bd4f15b25cb916faed63c26d747f7e8e23b686bc68f061dd
 
 // plugins/reasoning-methods/src/entries/hooks/reasoning-methods.ts
 import { resolve } from "node:path";
