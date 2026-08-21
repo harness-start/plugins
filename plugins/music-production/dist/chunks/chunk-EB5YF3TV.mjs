@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:20351ccba6843a86c66353eb0040de681e248d2e49a4a1e06b60be5493e262ab
+// harness-source-hash: sha256:9cbbcf6c77732468ece9913fe8e40727beaeeec8a06be5ec4322c22012c7127c
 
 // plugins/music-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
