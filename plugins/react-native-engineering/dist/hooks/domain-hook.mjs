@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:3e49439fa080ae7f63f3df05a3e45c745c6c46c4e1d9b673dfc8e5daa0a493ea
-import "../chunks/chunk-ERUFJUKJ.mjs";
+// harness-source-hash: sha256:c307873f36cacbdce70b54293a57ac992f79cac1f31c269f47d90deaeee34d05
+import "../chunks/chunk-YWIMY4WR.mjs";
 
 // plugins/react-native-engineering/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -667,7 +667,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-JOSJBESB.mjs");
+    const { DOMParser } = await import("../chunks/lib-ARPSZPBD.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");
