@@ -1,7 +1,17 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
-import { isKebabArtifactId, projectInside, resolveWorkspaceRoot, touchesArtifact } from "@harness/core/artifact-paths";
+import {
+  artifactJournalName,
+  isKebabArtifactId,
+  projectInside,
+  resolveWorkspaceRoot,
+  sessionEngagedArtifact,
+  touchesArtifact,
+} from "@harness/core/artifact-paths";
 
 test("projectInside uses path first and falls back to cwd inside an artifact root", () => {
   assert.equal(
@@ -31,6 +41,23 @@ test("touchesArtifact is cwd-or-path scoped and ignores unrelated repo-root work
     carrier: "logo",
     command: "sed -n 1,20p README.md",
   }), true);
+});
+
+test("sessionEngagedArtifact ignores a stale project at repo root without a journal", () => {
+  const root = mkdtempSync(join(tmpdir(), "artifact-unengaged-"));
+  const project = join(root, "artifacts", "logo", "mark");
+  mkdirSync(project, { recursive: true });
+  writeFileSync(join(project, "plan.contract.json"), "{}\n");
+  assert.equal(sessionEngagedArtifact({ cwd: root, carrier: "logo" }), false);
+  assert.equal(sessionEngagedArtifact({ cwd: project, carrier: "logo" }), true);
+});
+
+test("sessionEngagedArtifact treats an open delivery journal as engagement", () => {
+  const root = mkdtempSync(join(tmpdir(), "artifact-journal-"));
+  const project = join(root, "artifacts", "pptx", "deck");
+  mkdirSync(project, { recursive: true });
+  writeFileSync(join(project, artifactJournalName("pptx")), "{}\n");
+  assert.equal(sessionEngagedArtifact({ cwd: root, carrier: "pptx" }), true);
 });
 
 test("resolveWorkspaceRoot walks up from artifacts/<carrier>/<id>", () => {

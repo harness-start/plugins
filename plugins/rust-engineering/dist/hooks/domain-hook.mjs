@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1a3389d33e66c88486a44fef3573c8c600461ab26567a97ed8cd96fb42e93ea7
-import "../chunks/chunk-QXBS5SRR.mjs";
+// harness-source-hash: sha256:79defd2d3595c36393e447d65453e58bc5d7f4a37d4d695b708964d11cb741cd
+import "../chunks/chunk-AXBKD4XJ.mjs";
 
 // plugins/rust-engineering/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -636,7 +636,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-XXWCSPZI.mjs");
+    const { DOMParser } = await import("../chunks/lib-FZXEPJOZ.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");

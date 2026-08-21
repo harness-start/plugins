@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:22e6392dba932aa10bf2d78c5055d1132ad4854afa015de40b48561ff079fa07
+// harness-source-hash: sha256:96df2574442a3de2ade2597b51acd80e5a7a09c8d8bafcc99260cace477a3ec9
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-M5MHK7CM.mjs";
-import "../chunks/chunk-QGO6LRUV.mjs";
+} from "../chunks/chunk-3GXCKMZX.mjs";
+import "../chunks/chunk-7CXYDIQ3.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-QNEDCHB5.mjs";
+} from "../chunks/chunk-BKY5A4KU.mjs";
 
 // plugins/video-production/src/entries/hooks/video-production.ts
 import { relative, resolve as resolve4 } from "node:path";
@@ -64,6 +64,9 @@ function eventToolInput(event) {
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
 }
+function isStopHookActive(event) {
+  return event.stop_hook_active === true || event.stopHookActive === true;
+}
 
 // core/src/hook-output.ts
 var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
@@ -104,11 +107,9 @@ function writeJson(value) {
   }
 }
 
-// core/src/hook-targets.ts
-import { isAbsolute, resolve as resolve2 } from "node:path";
-
 // core/src/artifact-paths.ts
-import { basename, dirname, resolve } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 function resolveWorkspaceRoot2(cwd, carrier) {
   let current = resolve(cwd);
   while (current !== dirname(current)) {
@@ -127,8 +128,36 @@ function touchesArtifact(options) {
   if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
   return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
 }
+function artifactJournalName(carrier) {
+  return `.${carrier}-delivery-journal.json`;
+}
+function cwdInsideArtifact(cwd, carrier) {
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  const marker = `artifacts/${carrier}`;
+  return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
+}
+function sessionEngagedArtifact(options) {
+  const cwd = resolve(options.cwd);
+  const { carrier } = options;
+  if (cwdInsideArtifact(cwd, carrier)) return true;
+  const workspace = resolveWorkspaceRoot2(cwd, carrier);
+  const artifactRoot = join(workspace, "artifacts", carrier);
+  const journal = artifactJournalName(carrier);
+  if (existsSync(artifactRoot)) {
+    try {
+      for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+      }
+    } catch {
+    }
+  }
+  return false;
+}
 
 // core/src/hook-targets.ts
+import { isAbsolute, resolve as resolve2 } from "node:path";
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -457,12 +486,18 @@ async function main() {
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "video")) return;
-  const { findings } = await findingsFor(cwd);
-  if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}
+  if (mode === "stop" && isStopHookActive(event)) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "video" })) return;
+  if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
+    const { findings } = await findingsFor(cwd);
+    if (mode === "post" || mode === "failure") {
+      if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}
 `);
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+    } else if (mode === "subagent-stop") {
+      if (findings.length > 0) writeJson(context("Stop", format(findings)));
+    } else if (findings.length > 0) {
+      writeJson(stopBlock(format(findings)));
+    }
   }
 }
 if (process.argv[1] && fileURLToPath2(import.meta.url) === resolve4(process.argv[1])) {

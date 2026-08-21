@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:882b91f8472f11875108a465361989d94b93fce75c55e8192c2118b7d9d98299
-import "../chunks/chunk-WVOJRTSO.mjs";
+// harness-source-hash: sha256:c54677c68c559996fecaffe14cdf87ca0a13dd0279afaae5a439d069bb23e8a4
+import "../chunks/chunk-ORULXDVS.mjs";
 
 // plugins/kubernetes-operations/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -636,7 +636,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-GBPYGQQY.mjs");
+    const { DOMParser } = await import("../chunks/lib-AW4BR3CW.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");

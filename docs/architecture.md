@@ -93,7 +93,7 @@ Claude Code 和 Codex 分别维护 manifest、Hook JSON、根目录变量和输�
 - `PreToolUse` 适合阻止高置信、尚未发生且有明确恢复路径的风险。
 - `PostToolUse` 适合报告已发生操作的结果、写 receipt 或提示修正；不能把事后反馈描述成已经回滚。
 - `SessionStart` 等注入必须短小、限定到插件责任，并基于稳定策略或可观察事实。不要用 `SubagentStart` 建立跨平台身份、reservation、nonce、mailbox 或审批协议。
-- `Stop` / `SubagentStop` 只有在完成条件能机械验证且解阻路径明确时才应阻断。
+- `Stop` / `SubagentStop` 只有在完成条件能机械验证且解阻路径明确时才应阻断。制品交付的 Stop 只拦本回合动过对应 `artifacts/<carrier>` 的会话（cwd 在项目内，或 writer journal 未关闭）；仓库里已有未完成项目不得让无关会话 `stopBlock`。独立 review 的 `SubagentStop` 不得 fail-closed，只给 `additionalContext`。宿主带 `stop_hook_active` 的重试必须放行，避免回合死循环。
 
 每个 Hook 都要显式选择错误策略。解析失败、依赖缺失、超时和内部异常是否 fail-open 或 fail-closed，取决于误阻与漏阻的失败成本，并由入口测试锁定；仓库不设一个覆盖所有事件的统一答案。
 

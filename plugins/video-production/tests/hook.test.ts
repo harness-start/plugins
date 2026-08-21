@@ -78,7 +78,7 @@ test("stop fails closed when an artifact directory is missing plan.contract.json
   const root = mkdtempSync(join(tmpdir(), "video-hook-plan-"));
   try {
     mkdirSync(join(root, "artifacts", "video", "launch"), { recursive: true });
-    const result = await runHook("stop", { cwd: root });
+    const result = await runHook("stop", { cwd: join(root, "artifacts", "video", "launch") });
 
     assert.equal(result.code, 0);
     const output = JSON.parse(result.stdout);

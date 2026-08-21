@@ -8,6 +8,7 @@ import { collectProjectFiles, findCarrierProjects } from "@harness/core/artifact
 import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { issueMusicWriterCapability } from "../../lib/capability.js";
@@ -144,11 +145,16 @@ async function main() {
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "music")) return;
-  const findings = await findingsFor(cwd);
-  if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "music" })) return;
+  if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
+    const findings = await findingsFor(cwd);
+    if (mode === "post" || mode === "failure") {
+      if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
+    } else if (mode === "subagent-stop") {
+      if (findings.length > 0) writeJson(additionalContext("Stop", format(findings)));
+    } else if (findings.length > 0) {
+      writeJson(stopBlock(format(findings)));
+    }
   }
 }
 

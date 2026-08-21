@@ -248,7 +248,7 @@ test("all Codex providers receive the same PostToolUse feedback", async () => {
   assert.match(standardCodex.stderr, /Hangul/u);
 });
 
-test("Stop blocks drift including host retries with stop_hook_active", async () => {
+test("Stop blocks drift once, then allows the host retry", async () => {
   const cwd = root();
   const data = root();
   const env = { PLUGIN_DATA: data };
@@ -268,8 +268,8 @@ test("Stop blocks drift including host retries with stop_hook_active", async () 
     stop_hook_active: true,
     last_assistant_message: "あいうえおかきくけこさし",
   }), env);
-  assert.equal(JSON.parse(retry.stdout).decision, "block");
-  assert.match(JSON.parse(retry.stdout).reason, /profile zh-CN/u);
+  assert.equal(retry.code, 0);
+  assert.equal(retry.stdout, "");
 });
 
 test("Stop blocks Traditional Chinese on the zh-CN profile", async () => {

@@ -24,7 +24,7 @@ Latin 始终允许，避免命令、API、类型、标识符和技术术语造�
 - `SessionStart` 加载默认配置并注入活动 profile 标记；startup/clear 会话重置，resume/compact 会话保留状态。
 - `UserPromptSubmit` 记录明确的回复语言请求。普通会话语言请求可替换首选 profile；翻译请求只授权目标语言，不改变首选 profile。
 - `PostToolUse` 只检查模型为 Bash、Write、Edit、MultiEdit 和 apply_patch 生成的工具输入。带引号的 shell payload 会作为独立候选片段检查，避免命令语法稀释自然语言比例。命令和工具输出从不扫描，每个会话最多报告一次。
-- `Stop` 和 `SubagentStop` 在最终散文含未授权文字系统时要求完整重写；宿主带 `stop_hook_active` 的重试仍会阻断，直到散文不再漂移。
+- `Stop` 和 `SubagentStop` 在最终散文含未授权文字系统时要求完整重写；宿主带 `stop_hook_active` 的重试放行，避免回合死循环。
 
 状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以宿主平台名和 session ID 的 SHA-256 为键，原子写到当前工作目录的 `.language-output/state/`，因此 Claude 与 Codex 的同名会话不会共享状态。缺少可信 session ID 时插件不创建共享默认状态。`.language-output/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。状态 24 小时后过期，当前没有逐轮 profile 或撤销协议。
 

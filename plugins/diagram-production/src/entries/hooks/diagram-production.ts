@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
@@ -45,7 +46,8 @@ async function main() {
   const cwd = eventCwd(event); if (mode === "pre") { writeJson(await runPre(event)); return; }
   if (mode === "session") { const roots = await findDiagramProjects(cwd); if (roots.length) writeJson(additionalContext("SessionStart", `[Diagram Project Delivery Guard] discovered ${roots.length} project(s). Use $diagram-project-authoring; generated outputs and evidence require registered writers. session=${eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown"}.`)); return; }
   if (mode === "post" || mode === "failure") { if (!eventTouchesArtifact(event, "diagram")) return; const findings = await projectFindings(cwd); if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings))); return; }
-  if (mode === "stop" || mode === "subagent-stop") { const findings = await projectFindings(cwd, mode === "subagent-stop"); if (findings.length) writeJson(stopBlock(format(findings))); }
+  if (mode === "subagent-stop") { if (!sessionEngagedArtifact({ cwd, carrier: "diagram" })) return; const findings = await projectFindings(cwd, true); if (findings.length) writeJson(additionalContext("Stop", format(findings))); return; }
+  if (mode === "stop") { if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "diagram" })) return; const findings = await projectFindings(cwd); if (findings.length) writeJson(stopBlock(format(findings))); }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) main().catch((error: unknown) => { process.stderr.write(`[Diagram Project Delivery Guard] ${error instanceof Error ? error.message : String(error)}\n`); process.exitCode = 2; });

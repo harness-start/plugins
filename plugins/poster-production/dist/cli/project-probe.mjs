@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0f033dbda25f781d5d801ba023aac451f20d741c35a2e953287767aad7f13ab1
+// harness-source-hash: sha256:62db3d51d8174f48dee646c2ecfea3f37302442021dab4c03f21dab79e8bb52a
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-AUFPR65N.mjs";
+} from "../chunks/chunk-DHNJZKUV.mjs";
 import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   COMPOSITION_EVIDENCE_SCHEMA,
@@ -20,7 +20,7 @@ import {
   sessionMetadata,
   validatePosterModel,
   withWriterJournal
-} from "../chunks/chunk-RIVNNDT4.mjs";
+} from "../chunks/chunk-GULJL6H5.mjs";
 
 // plugins/poster-production/src/entries/cli/project-probe.ts
 import { createHash } from "node:crypto";

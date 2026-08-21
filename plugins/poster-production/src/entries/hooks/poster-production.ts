@@ -4,8 +4,9 @@ import { createHash } from "node:crypto";
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import { computePosterSubjectDigest, evaluatePosterWrite, findPosterProjects, loadPosterProject, resolveWorkspaceRoot, validatePosterModel, type ContractFinding } from "../../lib/contract.js";
@@ -78,8 +79,15 @@ async function main() {
     if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
-  if (mode === "stop" || mode === "subagent-stop") {
-    const findings = await projectFindings(cwd, mode === "subagent-stop");
+  if (mode === "subagent-stop") {
+    if (!sessionEngagedArtifact({ cwd, carrier: "poster" })) return;
+    const findings = await projectFindings(cwd, true);
+    if (findings.length) writeJson(additionalContext("Stop", formatFindings(findings)));
+    return;
+  }
+  if (mode === "stop") {
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "poster" })) return;
+    const findings = await projectFindings(cwd);
     if (findings.length) writeJson(stopBlock(formatFindings(findings)));
   }
 }

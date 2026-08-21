@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0f033dbda25f781d5d801ba023aac451f20d741c35a2e953287767aad7f13ab1
+// harness-source-hash: sha256:62db3d51d8174f48dee646c2ecfea3f37302442021dab4c03f21dab79e8bb52a
 import {
   assertPosterProjectRoot,
   loadPosterProject,
   validatePosterModel
-} from "../chunks/chunk-RIVNNDT4.mjs";
+} from "../chunks/chunk-GULJL6H5.mjs";
 
 // core/src/eslint-local-runner.ts
 import { createRequire } from "node:module";

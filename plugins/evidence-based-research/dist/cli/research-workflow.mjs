@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1008fde3c67e00ee05f8139454fdbcd506aa6dd68f72a7ff8369e8c121b10cdb
+// harness-source-hash: sha256:4873bcc545138f46460a0dd27ea078d289478418a26cc24d68b9f35de949fd05
 import {
   SEALED_OR_LATER,
   appendSkillTrace,
@@ -12,7 +12,7 @@ import {
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-ONJL4L2M.mjs";
+} from "../chunks/chunk-PXLHGXD7.mjs";
 
 // plugins/evidence-based-research/src/entries/cli/research-workflow.ts
 import { createHash } from "node:crypto";

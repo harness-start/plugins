@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:33cc52d23aae608a5d6c8a2efea2ebe78fc416df4d175db64653a38e8950e523
+// harness-source-hash: sha256:03d18d20a325dc52bf5f629a3b077cb21fa4769573273d503348dd8dc3ae9cb5
 import {
   WORKTREE_STATE_DIR,
   commandReferencesWorktreeAuthorizationState,
@@ -7,7 +7,7 @@ import {
   isWorktreeCreatePermitted,
   readWorktreeCreateReceipt,
   worktreeIsolationRequested
-} from "../chunks/chunk-DQBP5LWI.mjs";
+} from "../chunks/chunk-B7HIICQE.mjs";
 import {
   additionalContextOutput,
   eventCwd,
@@ -22,7 +22,7 @@ import {
   readStdinJson,
   resolveRepoRoot,
   writeJson
-} from "../chunks/chunk-OLUWPGKU.mjs";
+} from "../chunks/chunk-DYCLW5DJ.mjs";
 
 // plugins/git-delivery/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";

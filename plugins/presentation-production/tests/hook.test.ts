@@ -129,7 +129,7 @@ test("stop hook blocks an incomplete project that targets release", async () => 
       JSON.stringify({ artifactId: "quarterly-review", targetStage: "release" }),
     );
 
-    const result = await runHook("stop", { cwd: root });
+    const result = await runHook("stop", { cwd: projectRoot });
 
     assert.equal(result.code, 0);
     const output = JSON.parse(result.stdout);
@@ -153,7 +153,7 @@ test("subagent stop closes at review while main stop still requires release", as
     const reviewerStop = await runHook("subagent-stop", { cwd: root });
     assert.deepEqual(reviewerStop, { code: 0, stdout: "", stderr: "" });
 
-    const mainStop = await runHook("stop", { cwd: root });
+    const mainStop = await runHook("stop", { cwd: projectRoot });
     const output = JSON.parse(mainStop.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /RELEASE_MANIFEST_INVALID|RECEIPT_INVALID/u);

@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { eventAgentId, eventCwd, eventSessionId, eventToolInput, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, type HookEventName } from "@harness/core/hook-output";
+import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 import { computeLogoSubjectDigest, evaluateLogoWrite, validateLogoModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -117,6 +118,7 @@ async function main() {
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "logo")) return;
+  if (mode === "stop" && !sessionEngagedArtifact({ cwd, carrier: "logo" })) return;
   const { findings } = await findingsFor(cwd);
   if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);

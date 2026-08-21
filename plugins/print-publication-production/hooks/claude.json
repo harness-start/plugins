@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/print-publication-production.mjs\" stop",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/print-publication-production.mjs\" subagent-stop",
             "statusMessage": "Validating Print artifact closure",
             "timeout": 10000
           }

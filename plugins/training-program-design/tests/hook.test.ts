@@ -68,7 +68,7 @@ test("stop hook reports structured recovery and blocks an incomplete release", a
     const projectRoot = join(root, "artifacts", "training", "workflow-foundations");
     mkdirSync(projectRoot, { recursive: true });
     writeFileSync(join(projectRoot, "plan.contract.json"), `${JSON.stringify({ artifactId: "workflow-foundations", targetStage: "release" })}\n`);
-    const result = await runHook("stop", { cwd: root });
+    const result = await runHook("stop", { cwd: projectRoot });
     assert.equal(result.code, 0);
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");

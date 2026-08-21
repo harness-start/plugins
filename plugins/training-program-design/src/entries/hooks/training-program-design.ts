@@ -3,8 +3,9 @@
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
+import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
 import {
@@ -129,11 +130,13 @@ async function main() {
     return;
   }
   if (mode === "subagent-stop") {
+    if (!sessionEngagedArtifact({ cwd, carrier: "training" })) return;
     const findings = await projectFindings(cwd, "review");
     if (findings.length > 0) writeJson(additionalContext("Stop", `${formatFindings(findings)}\nreviewBoundary: Reviewer output is advisory; it has no release authority.`));
     return;
   }
   if (mode === "stop") {
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "training" })) return;
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }

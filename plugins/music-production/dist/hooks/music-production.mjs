@@ -1,17 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:3ebea783aa4ce59c2d8dd0c713f6d6ac2f81f453bd2e01ce06ec6aba31fa71be
+// harness-source-hash: sha256:270295f6dc4c44f7fd0084a824f37ca0fc45d0d63c0e4317eae40b7886d899f8
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-QBIPIKQE.mjs";
+} from "../chunks/chunk-OG72MMCX.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
   isKebabArtifactId,
   resolveWorkspaceRoot,
+  sessionEngagedArtifact,
   touchesArtifact,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-UMGZF2MG.mjs";
+} from "../chunks/chunk-NMHJTGBI.mjs";
 
 // plugins/music-production/src/entries/hooks/music-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -536,11 +537,16 @@ init\0${shell.projectRoot}`).digest("hex");
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "music")) return;
-  const findings = await findingsFor(cwd);
-  if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "music" })) return;
+  if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
+    const findings = await findingsFor(cwd);
+    if (mode === "post" || mode === "failure") {
+      if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
+    } else if (mode === "subagent-stop") {
+      if (findings.length > 0) writeJson(additionalContext("Stop", format(findings)));
+    } else if (findings.length > 0) {
+      writeJson(stopBlock(format(findings)));
+    }
   }
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve5(process.argv[1])) {

@@ -222,17 +222,28 @@ test("invalid hook JSON fails closed", async () => {
   assert.match(result.stderr, /invalid hook JSON/u);
 });
 
-test("stop fails closed when a logo project is missing plan.contract.json", async () => {
-  const root = mkdtempSync(join(tmpdir(), "logo-plan-"));
+test("stop does not block an unrelated repo-root session with a stale logo project", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-unrelated-stop-"));
   try {
     mkdirSync(join(root, "artifacts", "logo", "orbit"), { recursive: true });
     const result = await runHook("stop", { cwd: root });
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout, "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("stop fails closed when a logo project is missing plan.contract.json", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-plan-"));
+  try {
+    const project = join(root, "artifacts", "logo", "orbit");
+    mkdirSync(project, { recursive: true });
+    const result = await runHook("stop", { cwd: project });
     assert.equal(result.code, 0);
     const output = JSON.parse(result.stdout);
     assert.equal(output.decision, "block");
     assert.match(output.reason, /PLAN_CONTRACT_MISSING/u);
 
-    const retry = await runHook("stop", { cwd: root, stop_hook_active: true });
+    const retry = await runHook("stop", { cwd: project, stop_hook_active: true });
     assert.equal(retry.code, 0);
     assert.equal(retry.stdout, "");
     assert.equal(retry.stderr, "");
@@ -267,7 +278,7 @@ test("stop does not silently ignore the thirty-third logo project", async () => 
   const root = mkdtempSync(join(tmpdir(), "logo-many-"));
   try {
     for (let index = 0; index < 33; index += 1) mkdirSync(join(root, "artifacts", "logo", `logo-${String(index).padStart(2, "0")}`), { recursive: true });
-    const result = await runHook("stop", { cwd: root });
+    const result = await runHook("stop", { cwd: join(root, "artifacts", "logo", "logo-00") });
     assert.equal(result.code, 0);
     assert.match(JSON.parse(result.stdout).reason, /logo-32/u);
   } finally { rmSync(root, { recursive: true, force: true }); }

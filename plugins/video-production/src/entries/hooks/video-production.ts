@@ -3,8 +3,9 @@
 import { relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { eventCwd, eventSessionId, eventToolName, readStdinJson, type HookEvent } from "@harness/core/hook-event";
+import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson, type HookEventName } from "@harness/core/hook-output";
+import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 import { evaluateVideoWrite, validateVideoModel } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -91,11 +92,17 @@ async function main() {
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "video")) return;
-  const { findings } = await findingsFor(cwd);
-  if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+  if (mode === "stop" && isStopHookActive(event)) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "video" })) return;
+  if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
+    const { findings } = await findingsFor(cwd);
+    if (mode === "post" || mode === "failure") {
+      if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}\n`);
+    } else if (mode === "subagent-stop") {
+      if (findings.length > 0) writeJson(context("Stop", format(findings)));
+    } else if (findings.length > 0) {
+      writeJson(stopBlock(format(findings)));
+    }
   }
 }
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8cc40fcfe5349972dfeb32048b1a7a0b55f23fb89184c448bf03d2bddb4c2d7
+// harness-source-hash: sha256:975768c4353cc33a5538c9391baadebe86ab9442322177133569c1c81b64ef8c
 import {
   issueWriterCapability
-} from "../chunks/chunk-4KLYNNKB.mjs";
+} from "../chunks/chunk-JRDBMEWU.mjs";
 import {
   computeDiagramSubjectDigest,
   evaluateDiagramWrite,
@@ -10,12 +10,61 @@ import {
   loadDiagramProject,
   resolveWorkspaceRoot,
   validateDiagramModel
-} from "../chunks/chunk-UIOPM3FT.mjs";
+} from "../chunks/chunk-MRMUGSK7.mjs";
 
 // plugins/diagram-production/src/entries/hooks/diagram-production.ts
 import { createHash } from "node:crypto";
 import { relative, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
+
+// core/src/artifact-paths.ts
+import { existsSync, readdirSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+function resolveWorkspaceRoot2(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname(current)) {
+    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
+      return dirname(dirname(dirname(current)));
+    }
+    current = dirname(current);
+  }
+  return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+function artifactJournalName(carrier) {
+  return `.${carrier}-delivery-journal.json`;
+}
+function cwdInsideArtifact(cwd, carrier) {
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  const marker = `artifacts/${carrier}`;
+  return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
+}
+function sessionEngagedArtifact(options) {
+  const cwd = resolve(options.cwd);
+  const { carrier } = options;
+  if (cwdInsideArtifact(cwd, carrier)) return true;
+  const workspace = resolveWorkspaceRoot2(cwd, carrier);
+  const artifactRoot = join(workspace, "artifacts", carrier);
+  const journal = artifactJournalName(carrier);
+  if (existsSync(artifactRoot)) {
+    try {
+      for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+      }
+    } catch {
+    }
+  }
+  return false;
+}
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -65,6 +114,9 @@ function eventToolInput(event) {
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
 }
+function isStopHookActive(event) {
+  return event.stop_hook_active === true || event.stopHookActive === true;
+}
 
 // core/src/hook-output.ts
 var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
@@ -107,29 +159,6 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve as resolve2 } from "node:path";
-
-// core/src/artifact-paths.ts
-import { basename, dirname, resolve } from "node:path";
-function resolveWorkspaceRoot2(cwd, carrier) {
-  let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
-      return dirname(dirname(dirname(current)));
-    }
-    current = dirname(current);
-  }
-  return resolve(cwd);
-}
-function touchesArtifact(options) {
-  const { cwd, carrier, command = "", paths = [] } = options;
-  const marker = `artifacts/${carrier}`;
-  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
-  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
-  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
-  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
-}
-
-// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -422,8 +451,15 @@ async function main() {
     if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
     return;
   }
-  if (mode === "stop" || mode === "subagent-stop") {
-    const findings = await projectFindings(cwd, mode === "subagent-stop");
+  if (mode === "subagent-stop") {
+    if (!sessionEngagedArtifact({ cwd, carrier: "diagram" })) return;
+    const findings = await projectFindings(cwd, true);
+    if (findings.length) writeJson(additionalContext("Stop", format(findings)));
+    return;
+  }
+  if (mode === "stop") {
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "diagram" })) return;
+    const findings = await projectFindings(cwd);
     if (findings.length) writeJson(stopBlock(format(findings)));
   }
 }

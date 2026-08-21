@@ -4,9 +4,9 @@ import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { findCarrierProjects, collectProjectFiles } from "@harness/core/artifact-scan";
-import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
+import { resolveWorkspaceRoot, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { evaluateRegisteredWriter, expandKnownPluginRoot, parseShellWords } from "@harness/core/artifact-shell";
-import { eventCwd, eventToolName, readStdinJson } from "@harness/core/hook-event";
+import { eventCwd, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
 
@@ -109,11 +109,17 @@ async function main() {
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "print")) return;
-  const findings = await findingsFor(cwd);
-  if (mode === "post" || mode === "failure") {
-    if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
-  } else if (mode === "stop" && findings.length > 0) {
-    writeJson(stopBlock(format(findings)));
+  if (mode === "stop" && isStopHookActive(event)) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "print" })) return;
+  if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
+    const findings = await findingsFor(cwd);
+    if (mode === "post" || mode === "failure") {
+      if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)));
+    } else if (mode === "subagent-stop") {
+      if (findings.length > 0) writeJson(additionalContext("Stop", format(findings)));
+    } else if (findings.length > 0) {
+      writeJson(stopBlock(format(findings)));
+    }
   }
 }
 

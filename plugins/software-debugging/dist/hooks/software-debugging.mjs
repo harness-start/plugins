@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8a6612b4e2118e710619318c1955c13d2690537928de031e5bd2d19c077c5e88
+// harness-source-hash: sha256:74da5598d9deb6a0d7e23a995efd37f3fc0f45389b518765f9cd8c0dc00b3e5d
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   readStdinJson,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-Z36EOQCW.mjs";
+} from "../chunks/chunk-AVB6ATL5.mjs";
 
 // plugins/software-debugging/src/entries/hooks/software-debugging.ts
 import { appendFileSync, existsSync, readFileSync as readFileSync2 } from "node:fs";

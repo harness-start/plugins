@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8cc40fcfe5349972dfeb32048b1a7a0b55f23fb89184c448bf03d2bddb4c2d7
+// harness-source-hash: sha256:975768c4353cc33a5538c9391baadebe86ab9442322177133569c1c81b64ef8c
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-4KLYNNKB.mjs";
+} from "../chunks/chunk-JRDBMEWU.mjs";
 import {
   assertDiagramProjectRoot,
   atomicWriteJson,
@@ -15,7 +15,7 @@ import {
   validateDiagramModel,
   validateDiagramReceipt,
   withWriterJournal
-} from "../chunks/chunk-UIOPM3FT.mjs";
+} from "../chunks/chunk-MRMUGSK7.mjs";
 
 // plugins/diagram-production/src/entries/cli/project-release.ts
 async function main() {

@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0c9603a9b2462caf0217503d1d0d8c3689f2a3bfe3e623086067cd7377286b10
+// harness-source-hash: sha256:c5a238e080ea6ea4f2820779ac89130ae8e7d1894f13471632e4b34d81ccbb92
 import {
   issueWriterCapability
-} from "../chunks/chunk-VS5OSNEI.mjs";
+} from "../chunks/chunk-JR35CX37.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-77RZFMEG.mjs";
+} from "../chunks/chunk-JT36WITU.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-TLWPTCGP.mjs";
+} from "../chunks/chunk-74QUEJW3.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve as resolve4 } from "node:path";
+import { join as join2, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -109,11 +109,9 @@ function stopBlock(reason) {
   return { decision: "block", reason };
 }
 
-// core/src/hook-targets.ts
-import { isAbsolute, resolve as resolve2 } from "node:path";
-
 // core/src/artifact-paths.ts
-import { basename, dirname, resolve } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 function resolveWorkspaceRoot2(cwd, carrier) {
   let current = resolve(cwd);
   while (current !== dirname(current)) {
@@ -132,8 +130,36 @@ function touchesArtifact(options) {
   if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
   return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
 }
+function artifactJournalName(carrier) {
+  return `.${carrier}-delivery-journal.json`;
+}
+function cwdInsideArtifact(cwd, carrier) {
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  const marker = `artifacts/${carrier}`;
+  return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
+}
+function sessionEngagedArtifact(options) {
+  const cwd = resolve(options.cwd);
+  const { carrier } = options;
+  if (cwdInsideArtifact(cwd, carrier)) return true;
+  const workspace = resolveWorkspaceRoot2(cwd, carrier);
+  const artifactRoot = join(workspace, "artifacts", carrier);
+  const journal = artifactJournalName(carrier);
+  if (existsSync(artifactRoot)) {
+    try {
+      for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+      }
+    } catch {
+    }
+  }
+  return false;
+}
 
 // core/src/hook-targets.ts
+import { isAbsolute, resolve as resolve2 } from "node:path";
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -406,7 +432,7 @@ function principalId(event) {
 }
 function codexHome(capability) {
   if (capability !== "logo-review" || process.env.HARNESS_HOST !== "codex") return void 0;
-  return resolve4(process.env.CODEX_HOME || join(homedir(), ".codex"));
+  return resolve4(process.env.CODEX_HOME || join2(homedir(), ".codex"));
 }
 function targetsOf(event) {
   const input = inputOf(event);
@@ -511,6 +537,7 @@ async function main() {
     return;
   }
   if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "logo")) return;
+  if (mode === "stop" && !sessionEngagedArtifact({ cwd, carrier: "logo" })) return;
   const { findings } = await findingsFor(cwd);
   if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}

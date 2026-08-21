@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7dd4197f7388a95b8fcb0a3f0c2674cf89d8d8f71b7b2dff1e767a158f31565a
+// harness-source-hash: sha256:7dbd753bc157e61becaf4e4c98315b72361e6f0aafc7465003f54905a0acfd46
 import {
   issueWriterCapability
-} from "../chunks/chunk-QTFWG5V2.mjs";
-import "../chunks/chunk-6GTQERFB.mjs";
+} from "../chunks/chunk-DWPSMNZX.mjs";
+import "../chunks/chunk-AZMNGOZB.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -11,7 +11,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-L66YBYFZ.mjs";
+} from "../chunks/chunk-SY4XKZY6.mjs";
 
 // plugins/presentation-production/src/entries/hooks/presentation-production.ts
 import { relative as relative2, resolve as resolve5 } from "node:path";
@@ -19,10 +19,11 @@ import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/artifact-scan.ts
 import { readdir, readFile } from "node:fs/promises";
-import { join, relative, resolve as resolve2 } from "node:path";
+import { join as join2, relative, resolve as resolve2 } from "node:path";
 
 // core/src/artifact-paths.ts
-import { basename, dirname, resolve } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
 var KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 function isKebabArtifactId(name) {
   return KEBAB.test(name);
@@ -45,13 +46,40 @@ function touchesArtifact(options) {
   if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
   return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
 }
+function artifactJournalName(carrier) {
+  return `.${carrier}-delivery-journal.json`;
+}
+function cwdInsideArtifact(cwd, carrier) {
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot2(cwd, carrier).replaceAll("\\", "/");
+  const marker = `artifacts/${carrier}`;
+  return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
+}
+function sessionEngagedArtifact(options) {
+  const cwd = resolve(options.cwd);
+  const { carrier } = options;
+  if (cwdInsideArtifact(cwd, carrier)) return true;
+  const workspace = resolveWorkspaceRoot2(cwd, carrier);
+  const artifactRoot = join(workspace, "artifacts", carrier);
+  const journal = artifactJournalName(carrier);
+  if (existsSync(artifactRoot)) {
+    try {
+      for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+      }
+    } catch {
+    }
+  }
+  return false;
+}
 
 // core/src/artifact-scan.ts
 async function findCarrierProjects(cwd, carrier, options = {}) {
   const workspaceRoot = resolveWorkspaceRoot2(cwd, carrier);
-  const artifactRoot = join(workspaceRoot, "artifacts", carrier);
+  const artifactRoot = join2(workspaceRoot, "artifacts", carrier);
   try {
-    const roots = (await readdir(artifactRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && (options.requireKebab === false || isKebabArtifactId(entry.name))).slice(0, 32).map((entry) => join(artifactRoot, entry.name));
+    const roots = (await readdir(artifactRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && (options.requireKebab === false || isKebabArtifactId(entry.name))).slice(0, 32).map((entry) => join2(artifactRoot, entry.name));
     return { workspaceRoot, roots };
   } catch (error) {
     if (error.code === "ENOENT") return { workspaceRoot, roots: [] };
@@ -106,6 +134,9 @@ function eventToolInput(event) {
   const tool = nestedRecord(event, "tool");
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
+}
+function isStopHookActive(event) {
+  return event.stop_hook_active === true || event.stopHookActive === true;
 }
 
 // core/src/hook-output.ts
@@ -463,8 +494,15 @@ async function main() {
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
-  if (mode === "stop" || mode === "subagent-stop") {
-    const findings = await projectFindings(cwd, mode === "subagent-stop" ? "review" : void 0);
+  if (mode === "subagent-stop") {
+    if (!sessionEngagedArtifact({ cwd, carrier: "pptx" })) return;
+    const findings = await projectFindings(cwd, "review");
+    if (findings.length > 0) writeJson(additionalContext("Stop", formatFindings(findings)));
+    return;
+  }
+  if (mode === "stop") {
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "pptx" })) return;
+    const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }
 }
