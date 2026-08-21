@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:0ed4222e78399b9ae5cd41b90c963c1e10a19521653c980696bbf5628d892996
+// harness-source-hash: sha256:4908ed34da84bb5709f68e1ffefc82eb629720f326c27aa433ec9acdaeaba4d0
 import {
   __commonJS
-} from "./chunk-ZRJGWTYC.mjs";
+} from "./chunk-MXX2UCFW.mjs";
 
 // node_modules/@xmldom/xmldom/lib/conventions.js
 var require_conventions = __commonJS({
