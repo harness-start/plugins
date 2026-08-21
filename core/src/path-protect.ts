@@ -2,7 +2,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 export function pathUnderRoot(filePath: string, rootAbs: string): boolean {
   const rel = relative(resolve(rootAbs), resolve(filePath)).replaceAll("\\", "/");
-  return rel === "" || (!rel.startsWith("../") && !isAbsolute(rel));
+  return rel === "" || (rel !== ".." && !rel.startsWith("../") && !isAbsolute(rel));
 }
 
 function escapeRegExp(value: string): string {
