@@ -1,6 +1,8 @@
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isGenericMutationCommand } from "@harness/core/path-protect";
+
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
@@ -94,12 +96,13 @@ export function commandTouchesVideoScope(command: unknown, cwd: string, workspac
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/video/`) || /(?:^|[\s"'=])\.?\/?artifacts\/video(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/video/`);
 }
 
-export function evaluateVideoShell({ command, cwd, workspaceRoot }: {
+export function evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }: {
   command: unknown;
   cwd: string;
   workspaceRoot: string;
+  activeProjectCount?: number;
 }): VideoShellDecision {
-  if (!commandTouchesVideoScope(command, cwd, workspaceRoot)) return { decision: "allow" };
+  if (!commandTouchesVideoScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return {

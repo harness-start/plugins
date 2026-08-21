@@ -4,11 +4,12 @@ import { basename, dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { findCarrierProjects, collectProjectFiles } from "@harness/core/artifact-scan";
-import { resolveWorkspaceRoot, sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { markSessionEngagedArtifact, resolveWorkspaceRoot, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { evaluateRegisteredWriter, expandKnownPluginRoot, parseShellWords } from "@harness/core/artifact-shell";
-import { eventCwd, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
+import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { evaluatePrintWrite, validatePrintModel, type ContractFinding } from "../../lib/contract.js";
 
@@ -89,7 +90,8 @@ async function main() {
     const command = extractShellCommand(event) ?? "";
     const workspaceRoot = resolveWorkspaceRoot(cwd, "print");
     const cwdInScope = /(?:^|[\\/])artifacts[\\/]print[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope;
+    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "print")).roots.length : 0;
+    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope || activeProjectCount > 0;
     const approved = evaluateRegisteredWriter({
       command,
       cwd,
@@ -108,9 +110,13 @@ async function main() {
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Print Project Delivery Guard] active; generated outputs require registered writers."));
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "print")) return;
+  const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "print")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "print", sessionId });
+  }
   if (mode === "stop" && isStopHookActive(event)) return;
-  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "print" })) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "print", sessionId })) return;
   if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
     const findings = await findingsFor(cwd);
     if (mode === "post" || mode === "failure") {

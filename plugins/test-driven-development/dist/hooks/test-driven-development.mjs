@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bb494db3189e43fa49bfd20fb99fc1cf059f9c136591b05e3e9622cd499db94c
+// harness-source-hash: sha256:766fe4b4c065d59b9a31ad82713d5d24c83df96d4fe03b7ef5d0ff13742fa627
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { readFileSync as readFileSync4 } from "node:fs";
@@ -82,6 +82,9 @@ function writeJson(value) {
 `);
   }
 }
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 // core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([

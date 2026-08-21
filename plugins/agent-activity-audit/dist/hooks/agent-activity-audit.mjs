@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7431435054bb785e4e0ab6e1c371fb733e3ca9a158e84b2b9469ab8c73f105a5
+// harness-source-hash: sha256:b71b1a90f8485be4fb2935b6bfcdae864ae1c2df42bd25c1b0e29eb03beeb583
 
 // plugins/agent-activity-audit/src/entries/hooks/agent-activity-audit.ts
 import { resolve as resolve5 } from "node:path";
@@ -89,6 +89,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",

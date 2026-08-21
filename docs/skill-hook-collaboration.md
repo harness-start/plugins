@@ -83,7 +83,7 @@ Claude Code 与 Codex 分别维护 manifest、Hook JSON、根目录变量和输�
 
 Hook 被调用、stdout JSON 格式正确、Skill 已加载、或多走几轮模型，**都不等于完成**。
 
-完成条件必须能离线重算，例如：项目命令回执、相对 HEAD 的 git 状态、seal digest、receipt 绑定的源与输出字节、官方 writer journal 已关闭。审美、商标可注册性、印厂签字、CI「看起来绿了」或「听起来不错」不得写成 Hook 可证明的完成条件。制品交付的 Stop 只拦 cwd 在项目内或 writer journal 未关闭的会话；独立 review 的 SubagentStop 不得 fail-closed。宿主带 `stop_hook_active` 的重试必须放行。
+完成条件必须能离线重算，例如：项目命令回执、相对 HEAD 的 git 状态、seal digest、receipt 绑定的源与输出字节、官方 writer journal 已关闭。审美、商标可注册性、印厂签字、CI「看起来绿了」或「听起来不错」不得写成 Hook 可证明的完成条件。制品交付的 Stop 只拦 cwd 在项目内、writer journal 未关闭，或本宿主会话已经观察到对应制品操作的会话；最后一种参与状态必须按 workspace、carrier 与 session 做摘要键隔离并持久化到平台插件数据目录，不得写入项目树。独立 review 的 SubagentStop 不得 fail-closed。宿主带 `stop_hook_active` 的重试必须放行。
 
 ### 5.6 自动路径与显式路径共享同一规则
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4e87728a2d7095207b560441f2717ef2173f860dbe6a9b15130866ad21550706
+// harness-source-hash: sha256:ff7e11e81edc6c9450e5935120775157c949fd927db4342aa2e9c3762892b2bc
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
@@ -13,7 +13,7 @@ import {
   readStdinJson,
   renderHumanNotice,
   validateProposalDocument
-} from "../chunks/chunk-JPENDL4N.mjs";
+} from "../chunks/chunk-5KJLZBZV.mjs";
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 import { execFileSync } from "node:child_process";
@@ -62,6 +62,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",

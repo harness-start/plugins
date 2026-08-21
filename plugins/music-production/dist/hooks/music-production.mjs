@@ -1,18 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:270295f6dc4c44f7fd0084a824f37ca0fc45d0d63c0e4317eae40b7886d899f8
+// harness-source-hash: sha256:20351ccba6843a86c66353eb0040de681e248d2e49a4a1e06b60be5493e262ab
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-OG72MMCX.mjs";
+} from "../chunks/chunk-24CFPEMH.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
   isKebabArtifactId,
+  markSessionEngagedArtifact,
   resolveWorkspaceRoot,
   sessionEngagedArtifact,
   touchesArtifact,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-NMHJTGBI.mjs";
+} from "../chunks/chunk-XF3FU5G2.mjs";
 
 // plugins/music-production/src/entries/hooks/music-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -291,6 +292,21 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
+// core/src/path-protect.ts
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/music-production/src/lib/shell-policy.ts
 import { resolve as resolve4 } from "node:path";
 
@@ -384,9 +400,9 @@ var CAPABILITIES = {
   "project-stage.mjs": "music-stage",
   "project-release.mjs": "music-release"
 };
-function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory }) {
+function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory, activeProjectCount = 0 }) {
   const cwdInScope = /(?:^|[\\/])artifacts[\\/]music[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-  const commandInScope = /artifacts[\\/]music[\\/]/u.test(command) || cwdInScope;
+  const commandInScope = /artifacts[\\/]music[\\/]/u.test(command) || cwdInScope || activeProjectCount > 0 && isGenericMutationCommand(command);
   if (!commandInScope) return { decision: "outside" };
   const expanded = expandKnownPluginRoot(command);
   const words = parseShellWords(expanded);
@@ -495,18 +511,19 @@ async function main() {
       }
     }
     const command = extractShellCommand(event) ?? "";
-    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve5(PLUGIN_DIRECTORY, "dist", "cli") });
+    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "music")).roots.length : 0;
+    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve5(PLUGIN_DIRECTORY, "dist", "cli"), activeProjectCount });
     if (shell.decision === "deny") {
       writeJson(deny(`${shell.code}: ${shell.message}`));
       return;
     }
     if (shell.decision === "registered" && shell.capability) {
-      const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+      const sessionId2 = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
       if (shell.writer === "project-init.mjs") {
         try {
           const subjectDigest = createHash2("sha256").update(`music-production@0.4.0
 init\0${shell.projectRoot}`).digest("hex");
-          await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest, sessionId, ...process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {} });
+          await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest, sessionId: sessionId2, ...process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {} });
         } catch (error) {
           writeJson(deny(error instanceof Error ? error.message : String(error)));
         }
@@ -524,7 +541,7 @@ init\0${shell.projectRoot}`).digest("hex");
       try {
         if (isRecord2(model.plan) && model.plan.targetStage === "release" && shell.writer !== "project-release.mjs") throw new Error("RELEASE_STAGE_LOCKED");
         if (["project-optimize.mjs", "project-render.mjs", "project-preview.mjs", "project-review.mjs", "project-stage.mjs", "project-release.mjs"].includes(shell.writer) && validateMusicReferenceProfile(model).length > 0) throw new Error("REFERENCE_PROFILE_REQUIRED");
-        await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest: computeMusicSubjectDigest(model), sessionId, ...process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {} });
+        await issueMusicWriterCapability({ root: shell.projectRoot, capability: shell.capability, argv: shell.argv, subjectDigest: computeMusicSubjectDigest(model), sessionId: sessionId2, ...process.env.AI_EXPERTS_TRIGGER_FROM ? { triggerFrom: process.env.AI_EXPERTS_TRIGGER_FROM } : {} });
       } catch (error) {
         writeJson(deny(error instanceof Error ? error.message : String(error)));
       }
@@ -536,8 +553,12 @@ init\0${shell.projectRoot}`).digest("hex");
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Music Project Delivery Guard] active. Use $music-project-authoring for production and hand the current digest to a separate $music-project-review session."));
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "music")) return;
-  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "music" })) return;
+  const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "music")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "music", sessionId });
+  }
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "music", sessionId })) return;
   if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
     const findings = await findingsFor(cwd);
     if (mode === "post" || mode === "failure") {

@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:306c89bd7b548e93302be5bba5beffe909b25e211b211e2253d2e884541e6d56
+// harness-source-hash: sha256:4cb0b7f4fe58c75796fcf0f845e4bebe612b9cf6e31149f245c43087f26fe512
 import {
   evaluatePrintWrite,
   isKebabArtifactId,
+  markSessionEngagedArtifact,
   resolveWorkspaceRoot,
   sessionEngagedArtifact,
   touchesArtifact,
   validatePrintModel
-} from "../chunks/chunk-C5E2U4GK.mjs";
+} from "../chunks/chunk-IAWKO2KN.mjs";
 
 // plugins/print-publication-production/src/entries/hooks/print-publication-production.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -148,6 +149,17 @@ async function readStdinJson(input = process.stdin) {
   } catch {
     return { __parseError: true };
   }
+}
+function eventSessionId(event) {
+  const context = nestedRecord(event, "context");
+  return firstString(
+    event.session_id,
+    event.sessionId,
+    event.sessionID,
+    event.conversation_id,
+    event.conversationId,
+    context?.session_id
+  );
 }
 function eventCwd(event) {
   return firstString(event.cwd, event.working_directory, event.workingDirectory) || process.cwd();
@@ -340,6 +352,21 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
+// core/src/path-protect.ts
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/print-publication-production/src/entries/hooks/print-publication-production.ts
 var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
 var PLUGIN_DIRECTORY = resolve4(
@@ -414,7 +441,8 @@ async function main() {
     const command = extractShellCommand(event) ?? "";
     const workspaceRoot = resolveWorkspaceRoot(cwd, "print");
     const cwdInScope = /(?:^|[\\/])artifacts[\\/]print[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope;
+    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "print")).roots.length : 0;
+    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope || activeProjectCount > 0;
     const approved = evaluateRegisteredWriter({
       command,
       cwd,
@@ -433,9 +461,13 @@ async function main() {
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Print Project Delivery Guard] active; generated outputs require registered writers."));
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "print")) return;
+  const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "print")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "print", sessionId });
+  }
   if (mode === "stop" && isStopHookActive(event)) return;
-  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "print" })) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "print", sessionId })) return;
   if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
     const findings = await findingsFor(cwd);
     if (mode === "post" || mode === "failure") {

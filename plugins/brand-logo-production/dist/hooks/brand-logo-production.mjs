@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c5a238e080ea6ea4f2820779ac89130ae8e7d1894f13471632e4b34d81ccbb92
+// harness-source-hash: sha256:c633e514c8b6e22889b72b5d0d4eb8e6d1c8e9b4d53f21168e1cfdc3f8bbf728
 import {
   issueWriterCapability
-} from "../chunks/chunk-JR35CX37.mjs";
+} from "../chunks/chunk-GG5KTI7T.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-JT36WITU.mjs";
+} from "../chunks/chunk-S2AMY7MO.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-74QUEJW3.mjs";
+} from "../chunks/chunk-CZ3JICN3.mjs";
 
 // plugins/brand-logo-production/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join as join2, resolve as resolve4 } from "node:path";
+import { join as join3, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/hook-event.ts
@@ -110,15 +110,45 @@ function stopBlock(reason) {
 }
 
 // core/src/artifact-paths.ts
-import { existsSync, readdirSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
+import { basename, dirname as dirname2, join as join2, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
+// core/src/artifact-paths.ts
 function resolveWorkspaceRoot2(cwd, carrier) {
   let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
-      return dirname(dirname(dirname(current)));
+  while (current !== dirname2(current)) {
+    if (basename(dirname2(current)) === carrier && basename(dirname2(dirname2(current))) === "artifacts") {
+      return dirname2(dirname2(dirname2(current)));
     }
-    current = dirname(current);
+    current = dirname2(current);
   }
   return resolve(cwd);
 }
@@ -139,18 +169,52 @@ function cwdInsideArtifact(cwd, carrier) {
   const marker = `artifacts/${carrier}`;
   return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
 }
+var ARTIFACT_SESSION_SCHEMA = "artifact-session-engagement/v1";
+function artifactSessionMarker(options) {
+  const sessionId = String(options.sessionId ?? "").trim();
+  if (!sessionId || sessionId === "hook" || sessionId === "unknown") return null;
+  const dataRoot = options.dataRoot ?? (process.env.HARNESS_HOST === "codex" ? process.env.PLUGIN_DATA : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA);
+  if (!dataRoot) return null;
+  const workspaceDigest = digestKey(resolveWorkspaceRoot2(options.cwd, options.carrier));
+  const sessionDigest = digestKey(sessionId);
+  const key = digestKey(`${workspaceDigest}\0${options.carrier}\0${sessionDigest}`);
+  return { path: join2(dataRoot, "artifact-session-engagement", `${key}.json`), workspaceDigest, sessionDigest };
+}
+function markSessionEngagedArtifact(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  return atomicWriteJson(marker.path, {
+    schema: ARTIFACT_SESSION_SCHEMA,
+    workspaceDigest: marker.workspaceDigest,
+    carrier: options.carrier,
+    sessionDigest: marker.sessionDigest
+  });
+}
+function hasSessionEngagement(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  try {
+    const value = JSON.parse(readFileSync(marker.path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value;
+    return record.schema === ARTIFACT_SESSION_SCHEMA && record.workspaceDigest === marker.workspaceDigest && record.carrier === options.carrier && record.sessionDigest === marker.sessionDigest;
+  } catch {
+    return false;
+  }
+}
 function sessionEngagedArtifact(options) {
   const cwd = resolve(options.cwd);
   const { carrier } = options;
   if (cwdInsideArtifact(cwd, carrier)) return true;
+  if (hasSessionEngagement(options)) return true;
   const workspace = resolveWorkspaceRoot2(cwd, carrier);
-  const artifactRoot = join(workspace, "artifacts", carrier);
+  const artifactRoot = join2(workspace, "artifacts", carrier);
   const journal = artifactJournalName(carrier);
-  if (existsSync(artifactRoot)) {
+  if (existsSync2(artifactRoot)) {
     try {
       for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
-        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+        if (existsSync2(join2(artifactRoot, entry.name, journal))) return true;
       }
     } catch {
     }
@@ -294,10 +358,25 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
+// core/src/path-protect.ts
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/brand-logo-production/src/lib/shell-policy.ts
-import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
+import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var MODULE_DIRECTORY = dirname3(fileURLToPath(import.meta.url));
 var PLUGIN_DIRECTORY = resolve3(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
@@ -363,9 +442,9 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!words || words.length < 3 || first === void 0 || second === void 0 || third === void 0 || !["node", basename2(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
   const script = isAbsolute2(second) ? resolve3(second) : resolve3(cwd, second);
   const name = basename2(script);
-  if (dirname2(script) !== resolve3(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
+  if (dirname3(script) !== resolve3(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
   const projectRoot = isAbsolute2(third) ? resolve3(third) : resolve3(cwd, third);
-  if (dirname2(projectRoot) !== resolve3(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
+  if (dirname3(projectRoot) !== resolve3(workspaceRoot, "artifacts", "logo") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   if (name === "project-release.mjs" && words.length !== 3) return null;
   if (name === "project-lock.mjs" && words.length !== 3) return null;
   if (["project-advice.mjs", "project-review.mjs"].includes(name) && words.length !== 4) return null;
@@ -408,7 +487,7 @@ function evaluateLogoShell({
   workspaceRoot,
   activeProjectCount = 0
 }) {
-  if (!touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
+  if (!touchesLogo(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) {
@@ -432,7 +511,7 @@ function principalId(event) {
 }
 function codexHome(capability) {
   if (capability !== "logo-review" || process.env.HARNESS_HOST !== "codex") return void 0;
-  return resolve4(process.env.CODEX_HOME || join2(homedir(), ".codex"));
+  return resolve4(process.env.CODEX_HOME || join3(homedir(), ".codex"));
 }
 function targetsOf(event) {
   const input = inputOf(event);
@@ -502,14 +581,14 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const result = evaluateLogoShell({ command, cwd, workspaceRoot });
+      const roots = isGenericMutationCommand(command) ? (await findLogoProjects(cwd)).roots : [];
+      const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
       if (result.decision === "deny") {
         process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
         return;
       }
       if (!result.writer || !result.projectRoot || !result.argv) return;
-      const { roots } = await findLogoProjects(cwd);
       if (!roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}
 `);
       else {
@@ -536,8 +615,11 @@ async function main() {
 `);
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "logo")) return;
-  if (mode === "stop" && !sessionEngagedArtifact({ cwd, carrier: "logo" })) return;
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "logo")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "logo", sessionId: principalId(event) });
+  }
+  if (mode === "stop" && !sessionEngagedArtifact({ cwd, carrier: "logo", sessionId: principalId(event) })) return;
   const { findings } = await findingsFor(cwd);
   if (mode === "post" || mode === "failure") {
     if (findings.length > 0) process.stdout.write(`${JSON.stringify(context(mode === "post" ? "PostToolUse" : "PostToolUseFailure", format(findings)))}

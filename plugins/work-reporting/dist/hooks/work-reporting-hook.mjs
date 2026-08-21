@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8b6df29ba8aaac9e3dc4c92ae57340e889028e3f3cac74c254628b9634cdecc
+// harness-source-hash: sha256:2eab515879ce4ea37d278d0b8eb6f92dca2f8c68cf97e791e75bb6f4b8a3bb64
 import {
   createAcknowledgement,
   isProtectedReportPath,
@@ -10,7 +10,7 @@ import {
   sha256,
   validateAcknowledgement,
   verifyReport
-} from "../chunks/chunk-6WVI3BFM.mjs";
+} from "../chunks/chunk-HROMVM3P.mjs";
 import {
   eventAssistantMessage,
   eventCwd,
@@ -21,7 +21,7 @@ import {
   eventToolResponse,
   isRecord,
   readStdinJson
-} from "../chunks/chunk-FRHTZYCB.mjs";
+} from "../chunks/chunk-ZC3I74PT.mjs";
 
 // plugins/work-reporting/src/entries/hooks/work-reporting-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";
@@ -70,6 +70,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",

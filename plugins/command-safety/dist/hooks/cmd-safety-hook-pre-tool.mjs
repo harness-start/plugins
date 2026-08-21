@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bf63ebe9fcdc3e51a2ffd7bee945a10d2042df31e74c018aee3490efa6555db8
+// harness-source-hash: sha256:374c0be14b618ec0790b1b4c34a372368bd3d321c1f8d52a982b49a940b196db
 import {
   additionalContextOutput,
   commandInvocation,
@@ -20,7 +20,7 @@ import {
   splitShellLogicalLines,
   tokenizeShell,
   writeJson
-} from "../chunks/chunk-4X7D336R.mjs";
+} from "../chunks/chunk-OGDLU7G2.mjs";
 
 // plugins/command-safety/src/lib/matchers.ts
 var SHELL_TOOLS = /^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i;
@@ -274,6 +274,9 @@ function recursiveRmTarget(args, cwd, stdinDriven) {
     if (!optionsEnded && argument.startsWith("-")) continue;
     const homeReference = /^(?:~|\$HOME|\$\{HOME\})(?=\/|$)/u.test(argument);
     const expanded = argument.replace(/^\$\{HOME\}(?=\/|$)/u, homedir()).replace(/^\$HOME(?=\/|$)/u, homedir()).replace(/^~(?=\/|$)/u, homedir()).replace(/^\$\{PWD\}(?=\/|$)/u, cwd).replace(/^\$PWD(?=\/|$)/u, cwd).replace(/^\$\(pwd\)(?=\/|$)/u, cwd);
+    if (/[$`]/u.test(expanded)) {
+      return "recursive deletion target contains unresolved shell expansion, so the deletion scope cannot be proven safe";
+    }
     const absolute = resolve2(cwd, expanded);
     if (/^\/+$/u.test(expanded)) return "rm -r / would delete the entire filesystem";
     if (absolute === resolve2(cwd) || /^(?:\.\/)?\*+(?:\/\*+)*$/u.test(expanded)) {

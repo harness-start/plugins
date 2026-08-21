@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:306c89bd7b548e93302be5bba5beffe909b25e211b211e2253d2e884541e6d56
+// harness-source-hash: sha256:4cb0b7f4fe58c75796fcf0f845e4bebe612b9cf6e31149f245c43087f26fe512
 
 // plugins/print-publication-production/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";

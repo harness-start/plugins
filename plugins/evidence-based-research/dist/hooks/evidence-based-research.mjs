@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4873bcc545138f46460a0dd27ea078d289478418a26cc24d68b9f35de949fd05
+// harness-source-hash: sha256:1afaf9031681cc825675b70e21237e9945b80ba4175e3b8b0ce7e6204c7b6f9d
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-KYSWMVAG.mjs";
+} from "../chunks/chunk-T4HNEKS5.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -24,7 +24,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-PXLHGXD7.mjs";
+} from "../chunks/chunk-JS57URXM.mjs";
 
 // plugins/evidence-based-research/src/entries/hooks/evidence-based-research.ts
 import { join as join4, resolve as resolve3 } from "node:path";
@@ -110,6 +110,9 @@ function writeJson(value) {
 `);
   }
 }
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 // core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([

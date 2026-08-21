@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c54677c68c559996fecaffe14cdf87ca0a13dd0279afaae5a439d069bb23e8a4
-import "../chunks/chunk-ORULXDVS.mjs";
+// harness-source-hash: sha256:f55a3a57e8bdd9ef7f4a2001fb70457062faf9436c7ea7c73dda06c5dd1b733d
+import "../chunks/chunk-CLNDKKS4.mjs";
 
 // plugins/kubernetes-operations/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -101,6 +101,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -636,7 +641,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-AW4BR3CW.mjs");
+    const { DOMParser } = await import("../chunks/lib-KJF5UPCY.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:71a03caff46f3929b7d1266782d96d45b76f7413d4c3d984450946c3d1732b01
-import "../chunks/chunk-VSRTQMGP.mjs";
+// harness-source-hash: sha256:f0705791cedf25fe8f8679fce79a1daa767ed754397033900792e30daae0faba
+import "../chunks/chunk-PMZT5DPL.mjs";
 
 // plugins/nix-engineering/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -101,6 +101,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -636,7 +641,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-E2SKEYYK.mjs");
+    const { DOMParser } = await import("../chunks/lib-7JOQRRNK.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");

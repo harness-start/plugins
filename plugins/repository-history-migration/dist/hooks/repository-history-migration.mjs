@@ -1,14 +1,17 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:37ba3318871ac138633d8cdacf150ca4c42f994b05c6247bdd76d9672379450a
+// harness-source-hash: sha256:e2bd2206604b462dd6bd4c6bd6a9bfd0eceb6ba90dc58a1275a89b577ced9b03
 import {
   eventToolInput,
   eventToolName,
   readStdinJson
-} from "../chunks/chunk-GFOFKWRG.mjs";
+} from "../chunks/chunk-YTZQPWMX.mjs";
 
 // plugins/repository-history-migration/src/entries/hooks/repository-history-migration.ts
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 // core/src/hook-targets.ts
 var SHELL_TOOLS = /* @__PURE__ */ new Set([

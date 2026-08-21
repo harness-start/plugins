@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:03d18d20a325dc52bf5f629a3b077cb21fa4769573273d503348dd8dc3ae9cb5
+// harness-source-hash: sha256:7aa3eb7d3aa82beb1eeccf55ee92f5fa0596a7425e7ffeb909dbe68047510f02
 import {
   additionalContextOutput,
   conflictFileFindings,
@@ -10,7 +10,7 @@ import {
   readStdinJson,
   resolveRepoRoot,
   writeJson
-} from "../chunks/chunk-DYCLW5DJ.mjs";
+} from "../chunks/chunk-NDWCKHHF.mjs";
 
 // plugins/git-delivery/src/entries/hooks/git-delivery-hook-post-tool.ts
 import { resolve } from "node:path";

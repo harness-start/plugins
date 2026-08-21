@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:09061c60597a3a71066876ab4cca533605a4631510946c82ee81727ef665059a
+// harness-source-hash: sha256:b65276ea06bc870d1f0c863caa32360f7250a85b91c53b52f68edebc6013186b
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-DATLIIJA.mjs";
+} from "../chunks/chunk-TZVYGXYS.mjs";
 import {
   assertTrainingProjectRoot,
   atomicWriteJson,
@@ -12,7 +12,7 @@ import {
   loadTrainingProject,
   validateTrainingModel,
   withWriterJournal
-} from "../chunks/chunk-IHKARBKI.mjs";
+} from "../chunks/chunk-ST2HRLKC.mjs";
 
 // plugins/training-program-design/src/entries/cli/project-release.ts
 async function main() {

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4e87728a2d7095207b560441f2717ef2173f860dbe6a9b15130866ad21550706
+// harness-source-hash: sha256:ff7e11e81edc6c9450e5935120775157c949fd927db4342aa2e9c3762892b2bc
 import {
   forgetNotice,
   isRecord,
   parseProposal,
   validateProposalDocument
-} from "../chunks/chunk-JPENDL4N.mjs";
+} from "../chunks/chunk-5KJLZBZV.mjs";
 
 // plugins/project-capability-governance/src/entries/cli/project-capability-manage.ts
 import { resolve as resolve2 } from "node:path";

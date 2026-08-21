@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 
 import { evaluateRegisteredWriter, expandKnownPluginRoot, parseShellWords } from "@harness/core/artifact-shell";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 export const MUSIC_WRITERS = [
   "project-advice.mjs",
@@ -32,9 +33,9 @@ export type MusicShellDecision =
   | { decision: "registered"; writer: string; projectRoot: string; capability?: string; argv: string[] }
   | { decision: "deny"; code: string; message: string };
 
-export function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory }: { command: string; cwd: string; workspaceRoot: string; toolDirectory: string }): MusicShellDecision {
+export function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory, activeProjectCount = 0 }: { command: string; cwd: string; workspaceRoot: string; toolDirectory: string; activeProjectCount?: number }): MusicShellDecision {
   const cwdInScope = /(?:^|[\\/])artifacts[\\/]music[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-  const commandInScope = /artifacts[\\/]music[\\/]/u.test(command) || cwdInScope;
+  const commandInScope = /artifacts[\\/]music[\\/]/u.test(command) || cwdInScope || (activeProjectCount > 0 && isGenericMutationCommand(command));
   if (!commandInScope) return { decision: "outside" };
   const expanded = expandKnownPluginRoot(command);
   const words = parseShellWords(expanded);

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:31928c0c187a0f3ffffe0b2fd0ca745d2c48485312e06f77515b59200d0067e9
+// harness-source-hash: sha256:94e8430e001f7568216806a56a1ae139f332b1cbcce3bcc302a6b5a2b6d6a902
 
 // plugins/source-integrity/src/entries/hooks/source-integrity.ts
 import { execFileSync as execFileSync2 } from "node:child_process";
@@ -193,6 +193,11 @@ function analyzeEncoding(buffer) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",

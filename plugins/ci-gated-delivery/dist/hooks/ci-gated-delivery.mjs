@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:37b0cf88afee26833e6c0f8969102c4c6515941e5b95a179ff7c2f2c2f3f226e
+// harness-source-hash: sha256:93c0ff2f071c2ed3fcc6da42b8b6231f5f89a49456f3ddabb069bc6f9c7d5e56
 
 // plugins/ci-gated-delivery/src/entries/hooks/ci-gated-delivery.ts
 import { resolve } from "node:path";
@@ -39,6 +39,9 @@ function eventToolInput(event) {
   const value = event.tool_input ?? event.toolInput ?? tool?.input ?? event.input;
   return isRecord(value) ? value : {};
 }
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
 
 // core/src/hook-targets.ts
 var SHELL_TOOLS = /* @__PURE__ */ new Set([

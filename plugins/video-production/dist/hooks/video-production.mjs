@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:96df2574442a3de2ade2597b51acd80e5a7a09c8d8bafcc99260cace477a3ec9
+// harness-source-hash: sha256:4792ccc1b9044e92c456d58e726eba93109c87c0a770ee992bb4fe82738cdc0a
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-3GXCKMZX.mjs";
-import "../chunks/chunk-7CXYDIQ3.mjs";
+} from "../chunks/chunk-RHD2X3SL.mjs";
+import "../chunks/chunk-LROVHZDH.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-BKY5A4KU.mjs";
+} from "../chunks/chunk-EQU7CLGR.mjs";
 
 // plugins/video-production/src/entries/hooks/video-production.ts
 import { relative, resolve as resolve4 } from "node:path";
@@ -108,15 +108,45 @@ function writeJson(value) {
 }
 
 // core/src/artifact-paths.ts
-import { existsSync, readdirSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
+import { basename, dirname as dirname2, join as join2, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
+// core/src/artifact-paths.ts
 function resolveWorkspaceRoot2(cwd, carrier) {
   let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
-      return dirname(dirname(dirname(current)));
+  while (current !== dirname2(current)) {
+    if (basename(dirname2(current)) === carrier && basename(dirname2(dirname2(current))) === "artifacts") {
+      return dirname2(dirname2(dirname2(current)));
     }
-    current = dirname(current);
+    current = dirname2(current);
   }
   return resolve(cwd);
 }
@@ -137,18 +167,52 @@ function cwdInsideArtifact(cwd, carrier) {
   const marker = `artifacts/${carrier}`;
   return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
 }
+var ARTIFACT_SESSION_SCHEMA = "artifact-session-engagement/v1";
+function artifactSessionMarker(options) {
+  const sessionId = String(options.sessionId ?? "").trim();
+  if (!sessionId || sessionId === "hook" || sessionId === "unknown") return null;
+  const dataRoot = options.dataRoot ?? (process.env.HARNESS_HOST === "codex" ? process.env.PLUGIN_DATA : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA);
+  if (!dataRoot) return null;
+  const workspaceDigest = digestKey(resolveWorkspaceRoot2(options.cwd, options.carrier));
+  const sessionDigest = digestKey(sessionId);
+  const key = digestKey(`${workspaceDigest}\0${options.carrier}\0${sessionDigest}`);
+  return { path: join2(dataRoot, "artifact-session-engagement", `${key}.json`), workspaceDigest, sessionDigest };
+}
+function markSessionEngagedArtifact(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  return atomicWriteJson(marker.path, {
+    schema: ARTIFACT_SESSION_SCHEMA,
+    workspaceDigest: marker.workspaceDigest,
+    carrier: options.carrier,
+    sessionDigest: marker.sessionDigest
+  });
+}
+function hasSessionEngagement(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  try {
+    const value = JSON.parse(readFileSync(marker.path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value;
+    return record.schema === ARTIFACT_SESSION_SCHEMA && record.workspaceDigest === marker.workspaceDigest && record.carrier === options.carrier && record.sessionDigest === marker.sessionDigest;
+  } catch {
+    return false;
+  }
+}
 function sessionEngagedArtifact(options) {
   const cwd = resolve(options.cwd);
   const { carrier } = options;
   if (cwdInsideArtifact(cwd, carrier)) return true;
+  if (hasSessionEngagement(options)) return true;
   const workspace = resolveWorkspaceRoot2(cwd, carrier);
-  const artifactRoot = join(workspace, "artifacts", carrier);
+  const artifactRoot = join2(workspace, "artifacts", carrier);
   const journal = artifactJournalName(carrier);
-  if (existsSync(artifactRoot)) {
+  if (existsSync2(artifactRoot)) {
     try {
       for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
-        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+        if (existsSync2(join2(artifactRoot, entry.name, journal))) return true;
       }
     } catch {
     }
@@ -292,10 +356,25 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
+// core/src/path-protect.ts
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/video-production/src/lib/shell-policy.ts
-import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
+import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var MODULE_DIRECTORY = dirname3(fileURLToPath(import.meta.url));
 var PLUGIN_DIRECTORY = resolve3(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
   process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../.."
@@ -356,10 +435,10 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (second.startsWith("-")) return null;
   const script = isAbsolute2(second) ? resolve3(second) : resolve3(cwd, second);
   const name = basename2(script);
-  if (dirname2(resolve3(script)) !== resolve3(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
+  if (dirname3(resolve3(script)) !== resolve3(TOOL_DIRECTORY) || !WRITERS.has(name)) return null;
   const projectRoot = isAbsolute2(third) ? resolve3(third) : resolve3(cwd, third);
   const expectedParent = resolve3(workspaceRoot, "artifacts", "video");
-  if (dirname2(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
+  if (dirname3(projectRoot) !== expectedParent || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   if (name === "project-init.mjs" && (words.length !== 7 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? "") || words[5] !== "--mode" || !["guided", "autonomous"].includes(words[6] ?? ""))) return null;
   if (name === "project-admit.mjs" && words.length !== 4) return null;
   if (name === "project-review.mjs" && words.length !== 4) return null;
@@ -394,8 +473,8 @@ function commandTouchesVideoScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/video/`) || /(?:^|[\s"'=])\.?\/?artifacts\/video(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/video/`);
 }
-function evaluateVideoShell({ command, cwd, workspaceRoot }) {
-  if (!commandTouchesVideoScope(command, cwd, workspaceRoot)) return { decision: "allow" };
+function evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
+  if (!commandTouchesVideoScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return {
@@ -463,7 +542,8 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const result = evaluateVideoShell({ command, cwd, workspaceRoot });
+      const activeProjectCount = isGenericMutationCommand(command) ? (await findVideoProjects(cwd)).roots.length : 0;
+      const result = evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount });
       if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
       else if (result.writer && result.writer !== "video-lint" && result.projectRoot && result.argv) {
@@ -485,9 +565,12 @@ async function main() {
 `);
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "video")) return;
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "video")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "video", sessionId: sessionOf(event) });
+  }
   if (mode === "stop" && isStopHookActive(event)) return;
-  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "video" })) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "video", sessionId: sessionOf(event) })) return;
   if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
     const { findings } = await findingsFor(cwd);
     if (mode === "post" || mode === "failure") {

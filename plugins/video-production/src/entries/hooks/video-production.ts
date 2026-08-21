@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson, type HookEventName } from "@harness/core/hook-output";
-import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 import { evaluateVideoWrite, validateVideoModel } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
 import { findVideoProjects, loadVideoProject, resolveWorkspaceRoot } from "../../lib/project.js";
@@ -72,7 +73,8 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const result = evaluateVideoShell({ command, cwd, workspaceRoot });
+      const activeProjectCount = isGenericMutationCommand(command) ? (await findVideoProjects(cwd)).roots.length : 0;
+      const result = evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount });
       if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
       else if (result.writer && result.writer !== "video-lint" && result.projectRoot && result.argv) {
         try {
@@ -91,9 +93,12 @@ async function main() {
     if (projectCount > 0) process.stdout.write(`${JSON.stringify(context("SessionStart", `[Video Project Delivery Guard] discovered ${projectCount} project(s); generated outputs require registered writers; host session id=${sessionOf(event)}.`))}\n`);
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "video")) return;
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "video")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "video", sessionId: sessionOf(event) });
+  }
   if (mode === "stop" && isStopHookActive(event)) return;
-  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "video" })) return;
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "video", sessionId: sessionOf(event) })) return;
   if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
     const { findings } = await findingsFor(cwd);
     if (mode === "post" || mode === "failure") {

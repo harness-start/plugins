@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c626e273f5c01bd2639a08139069a8dfb46ac73cb8d81713131e5087b9988df2
-import "../chunks/chunk-4KHGATH6.mjs";
+// harness-source-hash: sha256:e17f8e898b15e24a4e249f6d54e05ea6bfc9db5ebf21e51b51bfdfda63e31cc2
+import "../chunks/chunk-Z5WJSOOR.mjs";
 
 // plugins/go-engineering/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -101,6 +101,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -636,7 +641,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-FLY6S42A.mjs");
+    const { DOMParser } = await import("../chunks/lib-SANJINK4.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:8a50969f3060d5bcb5a651cf0a56970dd3c55de03d2e6e5fadd4f151a4f65922
+// harness-source-hash: sha256:8160039de3e01087503b14d31cd664d7fa07b3e9809e899db17537cbab985ce1
 import {
   eventCwd,
   eventToolInput,
@@ -7,7 +7,7 @@ import {
   formatFindings,
   inspectChange,
   isRecord
-} from "../chunks/chunk-BE5R7WKC.mjs";
+} from "../chunks/chunk-LA24P3TV.mjs";
 
 // plugins/spec-driven-development/src/entries/hooks/spec-driven-development-hook.ts
 import { existsSync, realpathSync } from "node:fs";
@@ -16,6 +16,11 @@ import { fileURLToPath } from "node:url";
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",

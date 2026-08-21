@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7dbd753bc157e61becaf4e4c98315b72361e6f0aafc7465003f54905a0acfd46
+// harness-source-hash: sha256:9a8a7f25293e01690bc422eaddf34166725e1c46bce98b8ce0a6089624f0e82a
 import {
   pdfPageCount,
   toolVersion
-} from "../chunks/chunk-THMNOHHQ.mjs";
+} from "../chunks/chunk-4HOQQRBU.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-DWPSMNZX.mjs";
+} from "../chunks/chunk-Z3UPR4Y2.mjs";
 import {
   assertPptxProjectRoot,
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-AZMNGOZB.mjs";
+} from "../chunks/chunk-6Y5LOCJD.mjs";
 import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   DESIGN_EVIDENCE_SCHEMA,
@@ -22,7 +22,7 @@ import {
   inspectPptxPackage,
   loadPptxProject,
   validatePptxModel
-} from "../chunks/chunk-SY4XKZY6.mjs";
+} from "../chunks/chunk-GUWCSLJU.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-probe.ts
 import { readFile } from "node:fs/promises";

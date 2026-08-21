@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url";
 import { findCarrierProjects } from "@harness/core/artifact-scan";
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import {
   computePptxSubjectDigest,
@@ -39,7 +40,8 @@ async function runPre(event: HookEvent) {
 
   const command = extractShellCommand(event);
   if (command) {
-    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+    const activeProjectCount = isGenericMutationCommand(command) ? (await findPptxProjects(cwd)).length : 0;
+    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
     if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
     if (decision.writer && !["pptx-init", "pptx-lint"].includes(decision.writer) && decision.projectRoot && decision.argv) {
       try {
@@ -110,18 +112,19 @@ async function main() {
   }
   if (mode === "post" || mode === "failure") {
     if (!eventTouchesArtifact(event, "pptx")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "pptx", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" });
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
   if (mode === "subagent-stop") {
-    if (!sessionEngagedArtifact({ cwd, carrier: "pptx" })) return;
+    if (!sessionEngagedArtifact({ cwd, carrier: "pptx", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd, "review");
     if (findings.length > 0) writeJson(additionalContext("Stop", formatFindings(findings)));
     return;
   }
   if (mode === "stop") {
-    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "pptx" })) return;
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "pptx", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }

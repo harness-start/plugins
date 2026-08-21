@@ -6,8 +6,9 @@ import { fileURLToPath } from "node:url";
 
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { computePosterSubjectDigest, evaluatePosterWrite, findPosterProjects, loadPosterProject, resolveWorkspaceRoot, validatePosterModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -24,7 +25,8 @@ async function runPre(event: HookEvent) {
   }
   const command = extractShellCommand(event);
   if (!command) return undefined;
-  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+  const activeProjectCount = isGenericMutationCommand(command) ? (await findPosterProjects(cwd)).length : 0;
+  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && decision.writer !== "poster-lint" && decision.projectRoot && decision.argv) {
     try {
@@ -75,18 +77,19 @@ async function main() {
   }
   if (mode === "post" || mode === "failure") {
     if (!eventTouchesArtifact(event, "poster")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "poster", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" });
     const findings = await projectFindings(cwd);
     if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
   if (mode === "subagent-stop") {
-    if (!sessionEngagedArtifact({ cwd, carrier: "poster" })) return;
+    if (!sessionEngagedArtifact({ cwd, carrier: "poster", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd, true);
     if (findings.length) writeJson(additionalContext("Stop", formatFindings(findings)));
     return;
   }
   if (mode === "stop") {
-    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "poster" })) return;
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "poster", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd);
     if (findings.length) writeJson(stopBlock(formatFindings(findings)));
   }

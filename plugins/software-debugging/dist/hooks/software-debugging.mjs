@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:74da5598d9deb6a0d7e23a995efd37f3fc0f45389b518765f9cd8c0dc00b3e5d
+// harness-source-hash: sha256:38a4e418e6ddb62195a4c01166319d849879f64370d47fb90829cac8a469e100
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   readStdinJson,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-AVB6ATL5.mjs";
+} from "../chunks/chunk-XOBPUQZ7.mjs";
 
 // plugins/software-debugging/src/entries/hooks/software-debugging.ts
 import { appendFileSync, existsSync, readFileSync as readFileSync2 } from "node:fs";
@@ -103,6 +103,11 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",

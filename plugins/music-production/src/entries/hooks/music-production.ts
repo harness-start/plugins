@@ -8,8 +8,9 @@ import { collectProjectFiles, findCarrierProjects } from "@harness/core/artifact
 import { resolveWorkspaceRoot } from "@harness/core/artifact-paths";
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { issueMusicWriterCapability } from "../../lib/capability.js";
 import { computeMusicSubjectDigest, evaluateMusicWrite, validateMusicModel, validateMusicReferenceProfile, type MusicFinding, type MusicProjectConfig } from "../../lib/contract.js";
@@ -109,7 +110,8 @@ async function main() {
       }
     }
     const command = extractShellCommand(event) ?? "";
-    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve(PLUGIN_DIRECTORY, "dist", "cli") });
+    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "music")).roots.length : 0;
+    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve(PLUGIN_DIRECTORY, "dist", "cli"), activeProjectCount });
     if (shell.decision === "deny") {
       writeJson(deny(`${shell.code}: ${shell.message}`));
       return;
@@ -144,8 +146,12 @@ async function main() {
     if (roots.length > 0) writeJson(additionalContext("SessionStart", "[Music Project Delivery Guard] active. Use $music-project-authoring for production and hand the current digest to a separate $music-project-review session."));
     return;
   }
-  if ((mode === "post" || mode === "failure") && !eventTouchesArtifact(event, "music")) return;
-  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "music" })) return;
+  const sessionId = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown";
+  if (mode === "post" || mode === "failure") {
+    if (!eventTouchesArtifact(event, "music")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "music", sessionId });
+  }
+  if ((mode === "stop" || mode === "subagent-stop") && !sessionEngagedArtifact({ cwd, carrier: "music", sessionId })) return;
   if (mode === "subagent-stop" || mode === "post" || mode === "failure" || mode === "stop") {
     const findings = await findingsFor(cwd);
     if (mode === "post" || mode === "failure") {

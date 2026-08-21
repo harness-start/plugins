@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e8b6df29ba8aaac9e3dc4c92ae57340e889028e3f3cac74c254628b9634cdecc
+// harness-source-hash: sha256:2eab515879ce4ea37d278d0b8eb6f92dca2f8c68cf97e791e75bb6f4b8a3bb64
 import {
   runCli
-} from "../chunks/chunk-6WVI3BFM.mjs";
-import "../chunks/chunk-FRHTZYCB.mjs";
+} from "../chunks/chunk-HROMVM3P.mjs";
+import "../chunks/chunk-ZC3I74PT.mjs";
 
 // plugins/work-reporting/src/entries/cli/daily-work-report-prepare.ts
 process.exitCode = await runCli("daily", "prepare");

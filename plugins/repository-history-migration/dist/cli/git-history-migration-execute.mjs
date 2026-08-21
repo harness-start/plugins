@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:37ba3318871ac138633d8cdacf150ca4c42f994b05c6247bdd76d9672379450a
+// harness-source-hash: sha256:e2bd2206604b462dd6bd4c6bd6a9bfd0eceb6ba90dc58a1275a89b577ced9b03
 import {
   executeMigration,
   runCli
-} from "../chunks/chunk-L3O25IXX.mjs";
-import "../chunks/chunk-GFOFKWRG.mjs";
+} from "../chunks/chunk-PYWT2CFQ.mjs";
+import "../chunks/chunk-YTZQPWMX.mjs";
 
 // plugins/repository-history-migration/src/entries/cli/git-history-migration-execute.ts
 runCli("git-history-migration-execute", executeMigration, process.argv.slice(2));

@@ -5,8 +5,9 @@ import { fileURLToPath } from "node:url";
 
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
-import { sessionEngagedArtifact } from "@harness/core/artifact-paths";
+import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
+import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import {
   computeTrainingSubjectDigest,
@@ -36,7 +37,8 @@ async function runPre(event: HookEvent) {
 
   const command = extractShellCommand(event);
   if (!command) return undefined;
-  const decision = evaluateTrainingShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+  const activeProjectCount = isGenericMutationCommand(command) ? (await findTrainingProjects(cwd)).length : 0;
+  const decision = evaluateTrainingShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && ["training-render", "training-review", "training-release"].includes(decision.writer) && decision.projectRoot && decision.argv) {
     try {
@@ -125,18 +127,19 @@ async function main() {
   }
   if (mode === "post" || mode === "failure") {
     if (!eventTouchesArtifact(event, "training")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "training", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" });
     const findings = await projectFindings(cwd, undefined, { generatedOnly: true });
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
   if (mode === "subagent-stop") {
-    if (!sessionEngagedArtifact({ cwd, carrier: "training" })) return;
+    if (!sessionEngagedArtifact({ cwd, carrier: "training", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd, "review");
     if (findings.length > 0) writeJson(additionalContext("Stop", `${formatFindings(findings)}\nreviewBoundary: Reviewer output is advisory; it has no release authority.`));
     return;
   }
   if (mode === "stop") {
-    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "training" })) return;
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "training", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }

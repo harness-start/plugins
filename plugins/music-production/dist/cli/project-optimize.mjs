@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:270295f6dc4c44f7fd0084a824f37ca0fc45d0d63c0e4317eae40b7886d899f8
+// harness-source-hash: sha256:20351ccba6843a86c66353eb0040de681e248d2e49a4a1e06b60be5493e262ab
 import {
   loadCompositionDeterministic,
   optimizeComposition
-} from "../chunks/chunk-NRMECBJT.mjs";
+} from "../chunks/chunk-QIX6LV7V.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-OG72MMCX.mjs";
+} from "../chunks/chunk-24CFPEMH.mjs";
 import {
   computeMusicSubjectDigest
-} from "../chunks/chunk-NMHJTGBI.mjs";
+} from "../chunks/chunk-XF3FU5G2.mjs";
 
 // plugins/music-production/src/entries/cli/project-optimize.ts
 import { open, mkdir, readFile, readdir, rename, unlink, writeFile } from "node:fs/promises";

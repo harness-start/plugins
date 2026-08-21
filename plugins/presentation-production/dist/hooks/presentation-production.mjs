@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7dbd753bc157e61becaf4e4c98315b72361e6f0aafc7465003f54905a0acfd46
+// harness-source-hash: sha256:9a8a7f25293e01690bc422eaddf34166725e1c46bce98b8ce0a6089624f0e82a
 import {
   issueWriterCapability
-} from "../chunks/chunk-DWPSMNZX.mjs";
-import "../chunks/chunk-AZMNGOZB.mjs";
+} from "../chunks/chunk-Z3UPR4Y2.mjs";
+import "../chunks/chunk-6Y5LOCJD.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -11,7 +11,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-SY4XKZY6.mjs";
+} from "../chunks/chunk-GUWCSLJU.mjs";
 
 // plugins/presentation-production/src/entries/hooks/presentation-production.ts
 import { relative as relative2, resolve as resolve5 } from "node:path";
@@ -19,22 +19,52 @@ import { fileURLToPath as fileURLToPath2 } from "node:url";
 
 // core/src/artifact-scan.ts
 import { readdir, readFile } from "node:fs/promises";
-import { join as join2, relative, resolve as resolve2 } from "node:path";
+import { join as join3, relative, resolve as resolve2 } from "node:path";
 
 // core/src/artifact-paths.ts
-import { existsSync, readdirSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
+import { basename, dirname as dirname2, join as join2, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
+// core/src/artifact-paths.ts
 var KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 function isKebabArtifactId(name) {
   return KEBAB.test(name);
 }
 function resolveWorkspaceRoot2(cwd, carrier) {
   let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
-      return dirname(dirname(dirname(current)));
+  while (current !== dirname2(current)) {
+    if (basename(dirname2(current)) === carrier && basename(dirname2(dirname2(current))) === "artifacts") {
+      return dirname2(dirname2(dirname2(current)));
     }
-    current = dirname(current);
+    current = dirname2(current);
   }
   return resolve(cwd);
 }
@@ -55,18 +85,52 @@ function cwdInsideArtifact(cwd, carrier) {
   const marker = `artifacts/${carrier}`;
   return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
 }
+var ARTIFACT_SESSION_SCHEMA = "artifact-session-engagement/v1";
+function artifactSessionMarker(options) {
+  const sessionId = String(options.sessionId ?? "").trim();
+  if (!sessionId || sessionId === "hook" || sessionId === "unknown") return null;
+  const dataRoot = options.dataRoot ?? (process.env.HARNESS_HOST === "codex" ? process.env.PLUGIN_DATA : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA);
+  if (!dataRoot) return null;
+  const workspaceDigest = digestKey(resolveWorkspaceRoot2(options.cwd, options.carrier));
+  const sessionDigest = digestKey(sessionId);
+  const key = digestKey(`${workspaceDigest}\0${options.carrier}\0${sessionDigest}`);
+  return { path: join2(dataRoot, "artifact-session-engagement", `${key}.json`), workspaceDigest, sessionDigest };
+}
+function markSessionEngagedArtifact(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  return atomicWriteJson(marker.path, {
+    schema: ARTIFACT_SESSION_SCHEMA,
+    workspaceDigest: marker.workspaceDigest,
+    carrier: options.carrier,
+    sessionDigest: marker.sessionDigest
+  });
+}
+function hasSessionEngagement(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  try {
+    const value = JSON.parse(readFileSync(marker.path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value;
+    return record.schema === ARTIFACT_SESSION_SCHEMA && record.workspaceDigest === marker.workspaceDigest && record.carrier === options.carrier && record.sessionDigest === marker.sessionDigest;
+  } catch {
+    return false;
+  }
+}
 function sessionEngagedArtifact(options) {
   const cwd = resolve(options.cwd);
   const { carrier } = options;
   if (cwdInsideArtifact(cwd, carrier)) return true;
+  if (hasSessionEngagement(options)) return true;
   const workspace = resolveWorkspaceRoot2(cwd, carrier);
-  const artifactRoot = join(workspace, "artifacts", carrier);
+  const artifactRoot = join2(workspace, "artifacts", carrier);
   const journal = artifactJournalName(carrier);
-  if (existsSync(artifactRoot)) {
+  if (existsSync2(artifactRoot)) {
     try {
       for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
-        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+        if (existsSync2(join2(artifactRoot, entry.name, journal))) return true;
       }
     } catch {
     }
@@ -77,9 +141,9 @@ function sessionEngagedArtifact(options) {
 // core/src/artifact-scan.ts
 async function findCarrierProjects(cwd, carrier, options = {}) {
   const workspaceRoot = resolveWorkspaceRoot2(cwd, carrier);
-  const artifactRoot = join2(workspaceRoot, "artifacts", carrier);
+  const artifactRoot = join3(workspaceRoot, "artifacts", carrier);
   try {
-    const roots = (await readdir(artifactRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && (options.requireKebab === false || isKebabArtifactId(entry.name))).slice(0, 32).map((entry) => join2(artifactRoot, entry.name));
+    const roots = (await readdir(artifactRoot, { withFileTypes: true })).filter((entry) => entry.isDirectory() && (options.requireKebab === false || isKebabArtifactId(entry.name))).slice(0, 32).map((entry) => join3(artifactRoot, entry.name));
     return { workspaceRoot, roots };
   } catch (error) {
     if (error.code === "ENOENT") return { workspaceRoot, roots: [] };
@@ -314,10 +378,25 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
+// core/src/path-protect.ts
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/presentation-production/src/lib/shell-policy.ts
-import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve4 } from "node:path";
+import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var MODULE_DIRECTORY = dirname3(fileURLToPath(import.meta.url));
 var PLUGIN_DIRECTORY = resolve4(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
 var TOOL_DIRECTORY = resolve4(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
@@ -378,9 +457,9 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!first || !second || !third || !["node", basename2(process.execPath), process.execPath].includes(first) || second.startsWith("-")) return null;
   const script = isAbsolute2(second) ? resolve4(second) : resolve4(cwd, second);
   const name = basename2(script);
-  if (dirname2(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
+  if (dirname3(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
   const projectRoot = isAbsolute2(third) ? resolve4(third) : resolve4(cwd, third);
-  if (dirname2(projectRoot) !== resolve4(workspaceRoot, "artifacts", "pptx") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
+  if (dirname3(projectRoot) !== resolve4(workspaceRoot, "artifacts", "pptx") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   return { name, projectRoot, argv: [script, ...words.slice(2)] };
 }
 function readOnlyCommand(words) {
@@ -398,8 +477,8 @@ function commandTouchesPptxScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve4(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/pptx/`) || /(?:^|[\s"'=])\.?\/?artifacts\/pptx(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/pptx/`);
 }
-function evaluatePptxShell({ command, cwd, workspaceRoot }) {
-  if (!commandTouchesPptxScope(command, cwd, workspaceRoot)) return { decision: "allow" };
+function evaluatePptxShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
+  if (!commandTouchesPptxScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `pptx-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
@@ -424,7 +503,8 @@ async function runPre(event) {
   }
   const command = extractShellCommand(event);
   if (command) {
-    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+    const activeProjectCount = isGenericMutationCommand(command) ? (await findPptxProjects(cwd)).length : 0;
+    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
     if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
     if (decision.writer && !["pptx-init", "pptx-lint"].includes(decision.writer) && decision.projectRoot && decision.argv) {
       try {
@@ -490,18 +570,19 @@ async function main() {
   }
   if (mode === "post" || mode === "failure") {
     if (!eventTouchesArtifact(event, "pptx")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "pptx", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" });
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
   if (mode === "subagent-stop") {
-    if (!sessionEngagedArtifact({ cwd, carrier: "pptx" })) return;
+    if (!sessionEngagedArtifact({ cwd, carrier: "pptx", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd, "review");
     if (findings.length > 0) writeJson(additionalContext("Stop", formatFindings(findings)));
     return;
   }
   if (mode === "stop") {
-    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "pptx" })) return;
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "pptx", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd);
     if (findings.length > 0) writeJson(stopBlock(formatFindings(findings)));
   }

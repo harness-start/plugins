@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:62db3d51d8174f48dee646c2ecfea3f37302442021dab4c03f21dab79e8bb52a
+// harness-source-hash: sha256:246b9cb42fc0300103889c787336c3fc7a06a97504afac02e58a1cbc324c3023
 import {
   issueWriterCapability
-} from "../chunks/chunk-DHNJZKUV.mjs";
+} from "../chunks/chunk-QDXNA3ET.mjs";
 import {
   computePosterSubjectDigest,
   evaluatePosterWrite,
@@ -10,10 +10,10 @@ import {
   loadPosterProject,
   resolveWorkspaceRoot,
   validatePosterModel
-} from "../chunks/chunk-GULJL6H5.mjs";
+} from "../chunks/chunk-U4PFFWRQ.mjs";
 
 // plugins/poster-production/src/entries/hooks/poster-production.ts
-import { createHash } from "node:crypto";
+import { createHash as createHash2 } from "node:crypto";
 import { relative, resolve as resolve4 } from "node:path";
 import { fileURLToPath as fileURLToPath2 } from "node:url";
 
@@ -109,15 +109,45 @@ function writeJson(value) {
 }
 
 // core/src/artifact-paths.ts
-import { existsSync, readdirSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
+import { basename, dirname as dirname2, join as join2, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
+// core/src/artifact-paths.ts
 function resolveWorkspaceRoot2(cwd, carrier) {
   let current = resolve(cwd);
-  while (current !== dirname(current)) {
-    if (basename(dirname(current)) === carrier && basename(dirname(dirname(current))) === "artifacts") {
-      return dirname(dirname(dirname(current)));
+  while (current !== dirname2(current)) {
+    if (basename(dirname2(current)) === carrier && basename(dirname2(dirname2(current))) === "artifacts") {
+      return dirname2(dirname2(dirname2(current)));
     }
-    current = dirname(current);
+    current = dirname2(current);
   }
   return resolve(cwd);
 }
@@ -138,18 +168,52 @@ function cwdInsideArtifact(cwd, carrier) {
   const marker = `artifacts/${carrier}`;
   return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
 }
+var ARTIFACT_SESSION_SCHEMA = "artifact-session-engagement/v1";
+function artifactSessionMarker(options) {
+  const sessionId = String(options.sessionId ?? "").trim();
+  if (!sessionId || sessionId === "hook" || sessionId === "unknown") return null;
+  const dataRoot = options.dataRoot ?? (process.env.HARNESS_HOST === "codex" ? process.env.PLUGIN_DATA : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA);
+  if (!dataRoot) return null;
+  const workspaceDigest = digestKey(resolveWorkspaceRoot2(options.cwd, options.carrier));
+  const sessionDigest = digestKey(sessionId);
+  const key = digestKey(`${workspaceDigest}\0${options.carrier}\0${sessionDigest}`);
+  return { path: join2(dataRoot, "artifact-session-engagement", `${key}.json`), workspaceDigest, sessionDigest };
+}
+function markSessionEngagedArtifact(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  return atomicWriteJson(marker.path, {
+    schema: ARTIFACT_SESSION_SCHEMA,
+    workspaceDigest: marker.workspaceDigest,
+    carrier: options.carrier,
+    sessionDigest: marker.sessionDigest
+  });
+}
+function hasSessionEngagement(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  try {
+    const value = JSON.parse(readFileSync(marker.path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value;
+    return record.schema === ARTIFACT_SESSION_SCHEMA && record.workspaceDigest === marker.workspaceDigest && record.carrier === options.carrier && record.sessionDigest === marker.sessionDigest;
+  } catch {
+    return false;
+  }
+}
 function sessionEngagedArtifact(options) {
   const cwd = resolve(options.cwd);
   const { carrier } = options;
   if (cwdInsideArtifact(cwd, carrier)) return true;
+  if (hasSessionEngagement(options)) return true;
   const workspace = resolveWorkspaceRoot2(cwd, carrier);
-  const artifactRoot = join(workspace, "artifacts", carrier);
+  const artifactRoot = join2(workspace, "artifacts", carrier);
   const journal = artifactJournalName(carrier);
-  if (existsSync(artifactRoot)) {
+  if (existsSync2(artifactRoot)) {
     try {
       for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
-        if (existsSync(join(artifactRoot, entry.name, journal))) return true;
+        if (existsSync2(join2(artifactRoot, entry.name, journal))) return true;
       }
     } catch {
     }
@@ -293,10 +357,25 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
+// core/src/path-protect.ts
+function isGenericMutationCommand(command) {
+  const text = String(command ?? "");
+  if (!text.trim()) return false;
+  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
+  if (/<<\s*['"]?\w+/u.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
+  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
+  return false;
+}
+
 // plugins/poster-production/src/lib/shell-policy.ts
-import { basename as basename2, dirname as dirname2, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
+import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
-var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
+var MODULE_DIRECTORY = dirname3(fileURLToPath(import.meta.url));
 var PLUGIN_DIRECTORY = resolve3(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
 var TOOL_DIRECTORY = resolve3(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
@@ -358,9 +437,9 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   if (!runtime || !entry || !rootWord || !["node", basename2(process.execPath), process.execPath].includes(runtime) || entry.startsWith("-")) return null;
   const script = isAbsolute2(entry) ? resolve3(entry) : resolve3(cwd, entry);
   const name = basename2(script);
-  if (dirname2(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
+  if (dirname3(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
   const projectRoot = isAbsolute2(rootWord) ? resolve3(rootWord) : resolve3(cwd, rootWord);
-  if (dirname2(projectRoot) !== resolve3(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
+  if (dirname3(projectRoot) !== resolve3(workspaceRoot, "artifacts", "poster") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
   if (name === "project-init.mjs" && (words.length !== 5 || words[3] !== "--profile" || !PROFILES.has(words[4] ?? ""))) return null;
   if (name === "project-review.mjs" && words.length !== 4) return null;
   if (!["project-init.mjs", "project-review.mjs"].includes(name) && words.length !== 3) return null;
@@ -381,8 +460,8 @@ function commandTouchesPosterScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/poster/`) || /(?:^|[\s"'=])\.?\/?artifacts\/poster(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/poster/`);
 }
-function evaluatePosterShell({ command, cwd, workspaceRoot }) {
-  if (!commandTouchesPosterScope(command, cwd, workspaceRoot)) return { decision: "allow" };
+function evaluatePosterShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
+  if (!commandTouchesPosterScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `poster-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
@@ -392,7 +471,7 @@ function evaluatePosterShell({ command, cwd, workspaceRoot }) {
 
 // plugins/poster-production/src/entries/hooks/poster-production.ts
 var deny = (reason) => preToolDeny(`[Poster Project Delivery Guard] ${reason}`);
-var initDigest = (root) => createHash("sha256").update(`poster-init:${resolve4(root)}`).digest("hex");
+var initDigest = (root) => createHash2("sha256").update(`poster-init:${resolve4(root)}`).digest("hex");
 async function runPre(event) {
   const cwd = resolve4(eventCwd(event));
   for (const target of extractFileTargets(event, { tools: "any" })) {
@@ -401,7 +480,8 @@ async function runPre(event) {
   }
   const command = extractShellCommand(event);
   if (!command) return void 0;
-  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
+  const activeProjectCount = isGenericMutationCommand(command) ? (await findPosterProjects(cwd)).length : 0;
+  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && decision.writer !== "poster-lint" && decision.projectRoot && decision.argv) {
     try {
@@ -458,18 +538,19 @@ async function main() {
   }
   if (mode === "post" || mode === "failure") {
     if (!eventTouchesArtifact(event, "poster")) return;
+    markSessionEngagedArtifact({ cwd, carrier: "poster", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" });
     const findings = await projectFindings(cwd);
     if (findings.length) writeJson(additionalContext(mode === "post" ? "PostToolUse" : "PostToolUseFailure", formatFindings(findings)));
     return;
   }
   if (mode === "subagent-stop") {
-    if (!sessionEngagedArtifact({ cwd, carrier: "poster" })) return;
+    if (!sessionEngagedArtifact({ cwd, carrier: "poster", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd, true);
     if (findings.length) writeJson(additionalContext("Stop", formatFindings(findings)));
     return;
   }
   if (mode === "stop") {
-    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "poster" })) return;
+    if (isStopHookActive(event) || !sessionEngagedArtifact({ cwd, carrier: "poster", sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown" })) return;
     const findings = await projectFindings(cwd);
     if (findings.length) writeJson(stopBlock(formatFindings(findings)));
   }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c5a238e080ea6ea4f2820779ac89130ae8e7d1894f13471632e4b34d81ccbb92
+// harness-source-hash: sha256:c633e514c8b6e22889b72b5d0d4eb8e6d1c8e9b4d53f21168e1cfdc3f8bbf728
 import {
   validateLogoModel
-} from "../chunks/chunk-JT36WITU.mjs";
+} from "../chunks/chunk-S2AMY7MO.mjs";
 
 // plugins/brand-logo-production/src/entries/cli/project-validate.ts
 import { createHash } from "node:crypto";

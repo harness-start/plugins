@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:28d0702c617eb5ac33a3162fe05bc6b183415fb47442bc914f9d836494b548d7
+// harness-source-hash: sha256:797382a46957d65f9845c17fad72d3108b46161af908a5c427d054ccfede5c30
 
 // plugins/execution-discipline/src/entries/hooks/execution-discipline.ts
 import { relative as relative2, resolve as resolve4 } from "node:path";
@@ -333,6 +333,64 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync as existsSync2, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join as join2 } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var STALE_LOCK_MS = 3e4;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join2(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+function withPathLock(path, operation) {
+  const lockPath = `${path}.lock`;
+  mkdirSync(dirname(path), { recursive: true, mode: DIRECTORY_MODE });
+  const deadline = Date.now() + 5e3;
+  while (true) {
+    try {
+      mkdirSync(lockPath, { mode: DIRECTORY_MODE });
+      try {
+        return operation();
+      } finally {
+        rmSync(lockPath, { recursive: true, force: true });
+      }
+    } catch (error) {
+      if (error.code !== "EEXIST") throw error;
+      try {
+        if (Date.now() - statSync(lockPath).mtimeMs > STALE_LOCK_MS) {
+          rmSync(lockPath, { recursive: true, force: true });
+          continue;
+        }
+      } catch {
+        if (!existsSync2(lockPath)) continue;
+      }
+      if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock: ${lockPath}`);
+      Atomics.wait(WAIT_BUFFER, 0, 0, 10);
+    }
+  }
+}
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -489,8 +547,8 @@ function contextOutput(eventName, text) {
 }
 
 // plugins/execution-discipline/src/lib/execution-loop-policy.ts
-import { createHash } from "node:crypto";
-import { existsSync as existsSync2, lstatSync, readFileSync, realpathSync } from "node:fs";
+import { createHash as createHash2 } from "node:crypto";
+import { existsSync as existsSync3, lstatSync, readFileSync, realpathSync } from "node:fs";
 import { relative, resolve as resolve2 } from "node:path";
 var READ_ONLY_COMMAND_RE = /^\s*(?:ls|cat|head|tail|echo|git\s+(?:status|diff|log|show|ls-files)|pwd|which|wc|find|grep|rg)\b/iu;
 var TRAILING_OBSERVER_PIPE_RE = /\s*\|\s*(?:tail|head|less|more|tee|cat)\b[^|]*$/iu;
@@ -547,7 +605,7 @@ function isReadOnlyCommand(command) {
   return assignmentSubshell ? READ_ONLY_COMMAND_RE.test(stripLeadingAssignments(normalizeCommand(assignmentSubshell[1] ?? ""))) : false;
 }
 function commandHash(command) {
-  return createHash("sha256").update(normalizeCommand(command)).digest("hex");
+  return createHash2("sha256").update(normalizeCommand(command)).digest("hex");
 }
 function directCommandWords(command) {
   const words = [];
@@ -586,13 +644,13 @@ function commandInputFingerprint(command, cwd, repoRoot) {
     try {
       const real = realpathSync(candidate);
       const rel = relative(root, real).replaceAll("\\", "/");
-      if (!rel || rel === ".." || rel.startsWith("../") || !existsSync2(real) || !lstatSync(real).isFile()) continue;
-      inputs.push(`${rel}\0${createHash("sha256").update(readFileSync(real)).digest("hex")}`);
+      if (!rel || rel === ".." || rel.startsWith("../") || !existsSync3(real) || !lstatSync(real).isFile()) continue;
+      inputs.push(`${rel}\0${createHash2("sha256").update(readFileSync(real)).digest("hex")}`);
     } catch {
     }
   }
   if (inputs.length === 0) return null;
-  return createHash("sha256").update([...new Set(inputs)].sort().join("\0")).digest("hex");
+  return createHash2("sha256").update([...new Set(inputs)].sort().join("\0")).digest("hex");
 }
 function failureSignature(command, response) {
   let serialized = "";
@@ -602,7 +660,7 @@ function failureSignature(command, response) {
     serialized = String(response ?? "");
   }
   const normalizedResponse = serialized.replace(/\u001b\[[0-9;]*m/gu, "").replace(/\s+/gu, " ").trim().slice(-8192);
-  return createHash("sha256").update(`${normalizeCommand(command)}\0${normalizedResponse}`).digest("hex");
+  return createHash2("sha256").update(`${normalizeCommand(command)}\0${normalizedResponse}`).digest("hex");
 }
 function inferCommandOutcome(event, forceFailure = false) {
   if (forceFailure) return "failure";
@@ -646,8 +704,8 @@ import { mkdirSync as mkdirSync3, readFileSync as readFileSync3 } from "node:fs"
 import { dirname as dirname2, join as join4, resolve as resolve3 } from "node:path";
 
 // core/src/plugin-workdir.ts
-import { mkdirSync, readFileSync as readFileSync2, writeFileSync } from "node:fs";
-import { join as join2 } from "node:path";
+import { mkdirSync as mkdirSync2, readFileSync as readFileSync2, writeFileSync as writeFileSync2 } from "node:fs";
+import { join as join3 } from "node:path";
 var PLUGIN_WORKDIR_GITIGNORE = "*\n";
 function normalizeGitignore(text) {
   return String(text ?? "").replace(/\r\n/gu, "\n").trim();
@@ -657,8 +715,8 @@ function isStalePluginWorkdirGitignore(text) {
   return value === "" || value === "state/" || value === "sessions/";
 }
 function ensurePluginWorkdirGitignore(pluginRoot) {
-  mkdirSync(pluginRoot, { recursive: true, mode: 448 });
-  const ignore = join2(pluginRoot, ".gitignore");
+  mkdirSync2(pluginRoot, { recursive: true, mode: 448 });
+  const ignore = join3(pluginRoot, ".gitignore");
   let current = null;
   try {
     current = readFileSync2(ignore, "utf8");
@@ -667,63 +725,7 @@ function ensurePluginWorkdirGitignore(pluginRoot) {
   }
   if (current !== null && normalizeGitignore(current) === "*") return;
   if (current !== null && !isStalePluginWorkdirGitignore(current)) return;
-  writeFileSync(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
-}
-
-// core/src/state-file.ts
-import { createHash as createHash2, randomBytes } from "node:crypto";
-import { existsSync as existsSync3, mkdirSync as mkdirSync2, renameSync, rmSync, statSync, writeFileSync as writeFileSync2 } from "node:fs";
-import { dirname, join as join3 } from "node:path";
-var DIRECTORY_MODE = 448;
-var FILE_MODE = 384;
-var STALE_LOCK_MS = 3e4;
-var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
-function digestKey(value) {
-  return createHash2("sha256").update(String(value)).digest("hex");
-}
-function atomicWriteJson(path, value) {
-  const directory = dirname(path);
-  const temporary = join3(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    mkdirSync2(directory, { recursive: true, mode: DIRECTORY_MODE });
-    writeFileSync2(temporary, `${JSON.stringify(value)}
-`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try {
-      rmSync(temporary, { force: true });
-    } catch {
-    }
-    return false;
-  }
-}
-function withPathLock(path, operation) {
-  const lockPath = `${path}.lock`;
-  mkdirSync2(dirname(path), { recursive: true, mode: DIRECTORY_MODE });
-  const deadline = Date.now() + 5e3;
-  while (true) {
-    try {
-      mkdirSync2(lockPath, { mode: DIRECTORY_MODE });
-      try {
-        return operation();
-      } finally {
-        rmSync(lockPath, { recursive: true, force: true });
-      }
-    } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      try {
-        if (Date.now() - statSync(lockPath).mtimeMs > STALE_LOCK_MS) {
-          rmSync(lockPath, { recursive: true, force: true });
-          continue;
-        }
-      } catch {
-        if (!existsSync3(lockPath)) continue;
-      }
-      if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock: ${lockPath}`);
-      Atomics.wait(WAIT_BUFFER, 0, 0, 10);
-    }
-  }
+  writeFileSync2(ignore, PLUGIN_WORKDIR_GITIGNORE, { encoding: "utf8", mode: 384 });
 }
 
 // plugins/execution-discipline/src/lib/state-store.ts

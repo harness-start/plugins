@@ -1,5 +1,7 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
+
+import { atomicWriteJson, digestKey } from "./state-file.js";
 
 const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
@@ -43,10 +45,60 @@ export function cwdInsideArtifact(cwd: string, carrier: string): boolean {
   return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
 }
 
-export function sessionEngagedArtifact(options: { cwd: string; carrier: string }): boolean {
+type ArtifactSessionOptions = {
+  cwd: string;
+  carrier: string;
+  sessionId?: string;
+  dataRoot?: string;
+};
+
+const ARTIFACT_SESSION_SCHEMA = "artifact-session-engagement/v1";
+
+function artifactSessionMarker(options: ArtifactSessionOptions): { path: string; workspaceDigest: string; sessionDigest: string } | null {
+  const sessionId = String(options.sessionId ?? "").trim();
+  if (!sessionId || sessionId === "hook" || sessionId === "unknown") return null;
+  const dataRoot = options.dataRoot ?? (process.env.HARNESS_HOST === "codex"
+    ? process.env.PLUGIN_DATA
+    : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA);
+  if (!dataRoot) return null;
+  const workspaceDigest = digestKey(resolveWorkspaceRoot(options.cwd, options.carrier));
+  const sessionDigest = digestKey(sessionId);
+  const key = digestKey(`${workspaceDigest}\0${options.carrier}\0${sessionDigest}`);
+  return { path: join(dataRoot, "artifact-session-engagement", `${key}.json`), workspaceDigest, sessionDigest };
+}
+
+export function markSessionEngagedArtifact(options: ArtifactSessionOptions): boolean {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  return atomicWriteJson(marker.path, {
+    schema: ARTIFACT_SESSION_SCHEMA,
+    workspaceDigest: marker.workspaceDigest,
+    carrier: options.carrier,
+    sessionDigest: marker.sessionDigest,
+  });
+}
+
+function hasSessionEngagement(options: ArtifactSessionOptions): boolean {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  try {
+    const value: unknown = JSON.parse(readFileSync(marker.path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value as Record<string, unknown>;
+    return record.schema === ARTIFACT_SESSION_SCHEMA
+      && record.workspaceDigest === marker.workspaceDigest
+      && record.carrier === options.carrier
+      && record.sessionDigest === marker.sessionDigest;
+  } catch {
+    return false;
+  }
+}
+
+export function sessionEngagedArtifact(options: ArtifactSessionOptions): boolean {
   const cwd = resolve(options.cwd);
   const { carrier } = options;
   if (cwdInsideArtifact(cwd, carrier)) return true;
+  if (hasSessionEngagement(options)) return true;
   const workspace = resolveWorkspaceRoot(cwd, carrier);
   const artifactRoot = join(workspace, "artifacts", carrier);
   const journal = artifactJournalName(carrier);

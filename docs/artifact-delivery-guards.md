@@ -9,7 +9,7 @@
 - preview、proof、`build/`、`dist/`、`evidence*`、review、release manifest 和 receipt 都是交付血缘，不应加入 `.gitignore`。
 - 普通文件 Tool 不能写生成路径。artifact root 内只允许只读命令或严格解析的单一 writer 命令；writer 还必须消费 Pre Hook 针对 project root、完整 argv 和 host session 签发的一次性 capability。项目本地 ESLint 只能通过插件 wrapper 加载强制 preset。
 - writer 以独占 journal 和临时文件 + rename 生成输出。中断 journal 会阻断 Stop，不能把半套输出当成完成态。
-- Stop 只做有界扫描、合同与 receipt freshness 校验，不在完成阶段启动 Office、Chrome、编码器或 PDF preflight。
+- Stop 只做有界扫描、合同与 receipt freshness 校验，不在完成阶段启动 Office、Chrome、编码器或 PDF preflight。Post/Failure Hook 在平台插件数据目录按 workspace、carrier 与 session 的摘要键记录会话参与，使后续从仓库根目录触发的同会话 Stop 仍会复核；没有参与标记的无关会话不得被陈旧项目阻断。
 
 ## ESLint 与跨文件合同
 

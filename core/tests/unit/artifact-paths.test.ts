@@ -7,6 +7,7 @@ import { test } from "node:test";
 import {
   artifactJournalName,
   isKebabArtifactId,
+  markSessionEngagedArtifact,
   projectInside,
   resolveWorkspaceRoot,
   sessionEngagedArtifact,
@@ -58,6 +59,17 @@ test("sessionEngagedArtifact treats an open delivery journal as engagement", () 
   mkdirSync(project, { recursive: true });
   writeFileSync(join(project, artifactJournalName("pptx")), "{}\n");
   assert.equal(sessionEngagedArtifact({ cwd: root, carrier: "pptx" }), true);
+});
+
+test("sessionEngagedArtifact recognizes only the matching persisted session marker", () => {
+  const root = mkdtempSync(join(tmpdir(), "artifact-session-engaged-"));
+  const otherRoot = mkdtempSync(join(tmpdir(), "artifact-session-other-"));
+  const dataRoot = join(root, "plugin-data");
+  assert.equal(markSessionEngagedArtifact({ cwd: root, carrier: "logo", sessionId: "session-a", dataRoot }), true);
+  assert.equal(sessionEngagedArtifact({ cwd: root, carrier: "logo", sessionId: "session-a", dataRoot }), true);
+  assert.equal(sessionEngagedArtifact({ cwd: root, carrier: "logo", sessionId: "session-b", dataRoot }), false);
+  assert.equal(sessionEngagedArtifact({ cwd: root, carrier: "poster", sessionId: "session-a", dataRoot }), false);
+  assert.equal(sessionEngagedArtifact({ cwd: otherRoot, carrier: "logo", sessionId: "session-a", dataRoot }), false);
 });
 
 test("resolveWorkspaceRoot walks up from artifacts/<carrier>/<id>", () => {

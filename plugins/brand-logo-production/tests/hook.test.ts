@@ -147,6 +147,17 @@ test("pre hook allows repo-root reads when a logo project exists but is not touc
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
+test("pre hook denies an opaque interpreter mutation from repo root when a logo project exists", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-opaque-root-shell-"));
+  try {
+    mkdirSync(join(root, "artifacts", "logo", "orbit"), { recursive: true });
+    const command = `node -e "require('node:fs').writeFileSync(['artifacts','logo','orbit','dist','primary','mark.svg'].join('/'),'forged')"`;
+    const result = await runHook("pre", { cwd: root, tool_name: "Bash", tool_input: { command } });
+    assert.notEqual(result.stdout, "", "opaque interpreter mutations must return a deny decision");
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
 test("pre hook denies an opaque shell mutation from inside a logo project", async () => {
   const root = mkdtempSync(join(tmpdir(), "logo-opaque-shell-"));
   try {
@@ -229,6 +240,32 @@ test("stop does not block an unrelated repo-root session with a stale logo proje
     const result = await runHook("stop", { cwd: root });
     assert.equal(result.code, 0);
     assert.equal(result.stdout, "");
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("stop revalidates a logo project touched earlier by the same repo-root session", async () => {
+  const root = mkdtempSync(join(tmpdir(), "logo-engaged-stop-"));
+  const pluginData = join(root, "plugin-data");
+  const env = { ...process.env, HARNESS_HOST: "codex", PLUGIN_DATA: pluginData };
+  const sessionId = "logo-engaged-session";
+  try {
+    const project = join(root, "artifacts", "logo", "orbit");
+    mkdirSync(project, { recursive: true });
+    const post = await runHook("post", {
+      cwd: root,
+      session_id: sessionId,
+      tool_name: "Write",
+      tool_input: { file_path: "artifacts/logo/orbit/src/concept.svg", content: "<svg/>" },
+    }, null, env);
+    assert.equal(post.code, 0, post.stderr);
+    assert.match(post.stdout, /PLAN_CONTRACT_MISSING/u);
+
+    const stopped = await runHook("stop", { cwd: root, session_id: sessionId }, null, env);
+    assert.equal(stopped.code, 0, stopped.stderr);
+    assert.notEqual(stopped.stdout, "", "the session engagement must survive between hook processes");
+    const output = JSON.parse(stopped.stdout);
+    assert.equal(output.decision, "block");
+    assert.match(output.reason, /PLAN_CONTRACT_MISSING/u);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 

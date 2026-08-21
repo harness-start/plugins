@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:baa1b9f7984eb386f118ec907a8490a55446b79d5a6d7598e2ed95971703541d
+// harness-source-hash: sha256:e79664d3577085d272bf8bb94bc101d0730e42eaaa0d5a6e05ed3339ec8f60fd
 
 // plugins/interface-craft/src/entries/hooks/interface-craft.ts
 import { chmodSync, mkdirSync as mkdirSync2, readFileSync } from "node:fs";
@@ -84,6 +84,36 @@ function writeJson(value) {
 
 // core/src/hook-targets.ts
 import { isAbsolute, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
+// core/src/hook-targets.ts
 var FILE_MUTATION_TOOLS = /* @__PURE__ */ new Set([
   "applypatch",
   "createfile",
@@ -208,34 +238,6 @@ function extractFileTargets(event, options = {}) {
     if (command) raw.push(...shellWritePaths(command));
   }
   return resolveTargets(raw, cwd);
-}
-
-// core/src/state-file.ts
-import { createHash, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-var DIRECTORY_MODE = 448;
-var FILE_MODE = 384;
-var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
-function digestKey(value) {
-  return createHash("sha256").update(String(value)).digest("hex");
-}
-function atomicWriteJson(path, value) {
-  const directory = dirname(path);
-  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
-  try {
-    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
-    writeFileSync(temporary, `${JSON.stringify(value)}
-`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
-    renameSync(temporary, path);
-    return true;
-  } catch {
-    try {
-      rmSync(temporary, { force: true });
-    } catch {
-    }
-    return false;
-  }
 }
 
 // plugins/interface-craft/src/lib/detect.ts

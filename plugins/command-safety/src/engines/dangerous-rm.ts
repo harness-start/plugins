@@ -36,6 +36,9 @@ function recursiveRmTarget(args: readonly string[], cwd: string, stdinDriven: bo
       .replace(/^\$\{PWD\}(?=\/|$)/u, cwd)
       .replace(/^\$PWD(?=\/|$)/u, cwd)
       .replace(/^\$\(pwd\)(?=\/|$)/u, cwd);
+    if (/[$`]/u.test(expanded)) {
+      return "recursive deletion target contains unresolved shell expansion, so the deletion scope cannot be proven safe";
+    }
     const absolute = resolve(cwd, expanded);
     if (/^\/+$/u.test(expanded)) return "rm -r / would delete the entire filesystem";
     if (absolute === resolve(cwd) || /^(?:\.\/)?\*+(?:\/\*+)*$/u.test(expanded)) {

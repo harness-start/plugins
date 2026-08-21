@@ -348,6 +348,19 @@ test("entry denies wrapped recursive deletion", async () => {
   assert.match(output.hookSpecificOutput.permissionDecisionReason, /Dangerous Command/u);
 });
 
+test("entry denies recursive deletion through an unresolved shell variable", async () => {
+  const { code, stdout } = await runHook({
+    cwd: CWD,
+    tool_name: "Bash",
+    tool_input: { command: 'target=/; rm -rf "$target"' },
+  });
+  assert.equal(code, 0);
+  assert.notEqual(stdout, "", "dynamic recursive deletion must return a deny decision");
+  const output = JSON.parse(stdout);
+  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(output.hookSpecificOutput.permissionDecisionReason, /cannot be proven safe/u);
+});
+
 test("entry denies absolute-path timeout wrapping recursive deletion", async () => {
   const { code, stdout } = await runHook({
     cwd: CWD,
