@@ -1,6 +1,6 @@
 {
   "name": "engineering-practice",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Orchestrates first-party engineering methods for implementation, read-only review, and verification.",
   "author": {
     "name": "Harness Start",
@@ -17,6 +17,7 @@
     "capabilities": ["hooks", "skills"],
     "defaultPrompt": [
       "Apply engineering judgment to this code task.",
+      "Run one bounded engineering review checkpoint on this high-risk change.",
       "Review the current changes without editing and report evidence-backed findings.",
       "Run directly relevant verification before claiming completion."
     ]

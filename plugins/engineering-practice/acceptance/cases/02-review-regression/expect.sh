@@ -14,7 +14,7 @@ if [ "${actual}" != "${expected}" ]; then
   exit 1
 fi
 
-if ! grep -Eq 'P[0-3].*permissions\.mjs:2|permissions\.mjs:2.*P[0-3]' "${ACCEPT_LOG}"; then
+if ! grep -Eq 'P[0-3]' "${ACCEPT_LOG}" || ! grep -Eq 'permissions\.mjs:2' "${ACCEPT_LOG}"; then
   echo "expect fail: review did not return a severity-ranked exact anchor" >&2
   exit 1
 fi

@@ -39,7 +39,7 @@ Fix or recovery: a specific change or rollback path.
 Verification: the command or scenario that proves recovery.
 ```
 
-Use an exact `file:line` anchor in every finding. Do not report praise, summaries, or optional refactors as findings. If no material defect survives verification, say `No findings.` and state any material unverified area separately.
+Use a single exact `file:line` anchor in every finding; never substitute a line range such as `file:1-3`. Anchor the specific decisive line even when surrounding context spans several lines. Do not report praise, summaries, or optional refactors as findings. If no material defect survives verification, say `No findings.` and state any material unverified area separately.
 
 ## Limits
 

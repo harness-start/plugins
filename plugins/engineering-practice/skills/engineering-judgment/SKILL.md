@@ -82,3 +82,9 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## Independent Review Checkpoint
+
+After the first coherent implementation slice and its focused checks pass, use the bundled `engineering-review-checkpoint` workflow before broad verification or delivery when the change is high risk. High-risk changes cross modules or affect a public API, CLI, configuration contract, authentication, security, input boundaries, persistence, migrations, concurrency, data integrity, deployment, runtime state, recovery, rollback, or observability.
+
+The checkpoint coordinates at most one read-only reviewer. It is also available whenever the user explicitly requests a review checkpoint or asks to summon an engineering critic. Ordinary local changes do not need this extra model turn.
