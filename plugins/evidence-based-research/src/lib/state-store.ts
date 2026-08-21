@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
@@ -6,7 +6,7 @@ import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { ensurePluginWorkdirGitignore } from "@harness/core/plugin-workdir";
 
 import { cwd, sessionId } from "./hook-io.js";
-import { findActiveWorkflow, isActivePhase, readWorkflowFile, workflowPath, type ResearchWorkflow } from "./workflow-fs.js";
+import { findActiveWorkflow, isActivePhase, readWorkflowFile, sessionOwnerSha256, workflowPath, type ResearchWorkflow } from "./workflow-fs.js";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -37,10 +37,6 @@ export type ResearchHookState = {
   workflowPhase: string | null;
 };
 
-function hash(value: string): string {
-  return createHash("sha256").update(String(value)).digest("hex");
-}
-
 export const STATE_DIR_RELATIVE = ".research/state";
 
 function ensureStateDir(directory: string): void {
@@ -50,7 +46,7 @@ function ensureStateDir(directory: string): void {
 
 function directory(event: HookEvent): string {
   const session = sessionId(event) || "default";
-  const target = join(resolve(cwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
+  const target = join(resolve(cwd(event)), STATE_DIR_RELATIVE, "hook-events", sessionOwnerSha256(session));
   return target;
 }
 
@@ -85,7 +81,8 @@ export function appendStateEvent(event: HookEvent, type: string, payload: Record
 
 export function readState(event: HookEvent): ResearchHookState {
   const workspace = resolve(cwd(event));
-  const workflow = findActiveWorkflow(workspace);
+  const owner = sessionOwnerSha256(sessionId(event) || "default");
+  const ownedWorkflow = findActiveWorkflow(workspace, owner);
   const state: ResearchHookState = {
     promptEpoch: 0,
     revision: 0,
@@ -95,10 +92,10 @@ export function readState(event: HookEvent): ResearchHookState {
     completed: false,
     completedRunId: null,
     seal: null,
-    runId: workflow?.run_id ?? null,
+    runId: null,
     receipts: [],
-    workflow,
-    workflowPhase: workflow?.phase ?? null,
+    workflow: null,
+    workflowPhase: null,
   };
 
   const target = directory(event);
@@ -154,6 +151,17 @@ export function readState(event: HookEvent): ResearchHookState {
     }
   }
 
+  const begun = [...state.receipts].reverse().find((item) => item.tool === "research_begin" && typeof item.runId === "string");
+  const receiptWorkflow = begun?.runId ? readWorkflowFile(workflowPath(workspace, begun.runId)) : null;
+  const receiptOwnsWorkflow = Boolean(receiptWorkflow && (
+    receiptWorkflow.owner_session_sha256 === owner
+    || !receiptWorkflow.owner_session_sha256
+  ));
+  const workflow = receiptOwnsWorkflow ? receiptWorkflow : ownedWorkflow;
+  state.workflow = workflow;
+  state.workflowPhase = workflow?.phase ?? null;
+  state.runId = workflow?.run_id ?? (begun && !receiptWorkflow ? begun.runId ?? null : null);
+
   const runWorkflow = state.runId ? readWorkflowFile(workflowPath(workspace, state.runId)) : null;
   if (state.aborted && runWorkflow && runWorkflow.phase !== "aborted") state.aborted = false;
   if (state.completed && runWorkflow && runWorkflow.phase !== "complete") state.completed = false;
@@ -171,9 +179,8 @@ export function readState(event: HookEvent): ResearchHookState {
     if (state.seal?.runId !== state.runId) state.seal = null;
     // Seal authority remains same-session MCP PostToolUse receipts (freshness after mutations).
     // workflow.json records phase for activation and outbound gates only.
-  } else if (state.receipts.some((item) => item.tool === "research_begin")) {
+  } else if (begun && !receiptWorkflow) {
     // MCP begin observed but workflow missing/unreadable: gate until a validated Stop or exact abort.
-    const begun = [...state.receipts].reverse().find((item) => item.tool === "research_begin");
     if (begun && !state.aborted && !state.completed) {
       state.active = true;
       state.runId = begun.runId ?? state.runId;

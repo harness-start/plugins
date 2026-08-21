@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:86dec3b95bb2876620de59aceeb14006d88a57dd0193cbe80340ca2c88188183
+// harness-source-hash: sha256:ea73f53ec603e9d2b164e311df0e3fb274a359a0cae4cf44a4cf0ce6178b12b8
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -68,7 +68,7 @@ function eventAssistantMessage(event) {
 // plugins/evidence-based-research/src/lib/workflow-fs.ts
 import { mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve, isAbsolute } from "node:path";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 var WORKFLOW_SCHEMA = "research-workflow/v1";
 var OPEN_PHASES = /* @__PURE__ */ new Set(["open", "briefed", "discovering", "capturing", "claims_drafted", "sealed", "handed_off"]);
 var TERMINAL_PHASES = /* @__PURE__ */ new Set(["aborted", "complete"]);
@@ -90,8 +90,8 @@ function atomicWriteSync(path, content) {
   writeFileSync(temporary, content, { encoding: "utf8", mode: 420, flag: "wx" });
   renameSync(temporary, path);
 }
-function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEpoch = 0 }) {
-  return {
+function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEpoch = 0, ownerSessionSha256, mcpSessionSha256 }) {
+  const workflow = {
     schema: WORKFLOW_SCHEMA,
     run_id: runId,
     phase: "open",
@@ -111,6 +111,12 @@ function defaultWorkflow({ runId, question = "", scope = "", asOf = "", promptEp
     seal: null,
     outbound_handoff: null
   };
+  if (ownerSessionSha256) workflow.owner_session_sha256 = ownerSessionSha256;
+  if (mcpSessionSha256) workflow.mcp_session_sha256 = mcpSessionSha256;
+  return workflow;
+}
+function sessionOwnerSha256(sessionId) {
+  return createHash("sha256").update(String(sessionId)).digest("hex");
 }
 function readWorkflowFile(path) {
   try {
@@ -146,11 +152,26 @@ function listWorkflows(workspaceRoot) {
   }
   return out;
 }
-function findActiveWorkflow(workspaceRoot) {
-  const open = listWorkflows(workspaceRoot).filter((item) => OPEN_PHASES.has(item.phase) && !TERMINAL_PHASES.has(item.phase));
+function findActiveWorkflow(workspaceRoot, ownerSessionSha256) {
+  const open = listWorkflows(workspaceRoot).filter((item) => OPEN_PHASES.has(item.phase) && !TERMINAL_PHASES.has(item.phase) && (ownerSessionSha256 === void 0 || item.owner_session_sha256 === ownerSessionSha256));
   if (open.length === 0) return null;
   open.sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at)));
   return open[0] ?? null;
+}
+function findActiveWorkflowByMcpSession(workspaceRoot, mcpSessionSha256) {
+  const open = listWorkflows(workspaceRoot).filter((item) => isActivePhase(item.phase) && (item.mcp_session_sha256 === mcpSessionSha256 || !item.mcp_session_sha256 && item.owner_session_sha256 === mcpSessionSha256));
+  open.sort((a, b) => String(b.opened_at).localeCompare(String(a.opened_at)));
+  return open[0] ?? null;
+}
+function claimWorkflowOwner(workspaceRoot, runId, ownerSessionSha256) {
+  const workflow = readWorkflowFile(workflowPath(workspaceRoot, runId));
+  if (!workflow || !isActivePhase(workflow.phase)) return false;
+  if (workflow.owner_session_sha256 && workflow.owner_session_sha256 !== ownerSessionSha256) {
+    if (!workflow.mcp_session_sha256 || workflow.owner_session_sha256 !== workflow.mcp_session_sha256) return false;
+  }
+  workflow.owner_session_sha256 = ownerSessionSha256;
+  writeWorkflow(workspaceRoot, workflow);
+  return true;
 }
 function isActivePhase(phase) {
   return OPEN_PHASES.has(phase) && !TERMINAL_PHASES.has(phase);
@@ -194,10 +215,14 @@ function extractResearchRelativePaths(serialized) {
 function generateRunId(now = () => /* @__PURE__ */ new Date()) {
   return `r-${now().toISOString().replace(/[-:.TZ]/gu, "").slice(0, 14)}-${randomBytes(5).toString("hex")}`;
 }
-function terminalizeWorkflow(workspaceRoot, runId, phase) {
+function terminalizeWorkflow(workspaceRoot, runId, phase, ownerSessionSha256, allowUnowned = false) {
   if (!TERMINAL_PHASES.has(phase)) throw new Error(`invalid terminal workflow phase: ${phase}`);
   const workflow = readWorkflowFile(workflowPath(workspaceRoot, runId));
   if (!workflow) return false;
+  if (ownerSessionSha256 && workflow.owner_session_sha256 !== ownerSessionSha256) {
+    if (!(allowUnowned && !workflow.owner_session_sha256)) return false;
+    workflow.owner_session_sha256 = ownerSessionSha256;
+  }
   if (workflow.phase === phase) return true;
   if (TERMINAL_PHASES.has(workflow.phase)) return false;
   if (phase === "complete" && workflow.completeness?.sealed !== true) return false;
@@ -229,11 +254,14 @@ export {
   SEALED_OR_LATER,
   workflowPath,
   defaultWorkflow,
+  sessionOwnerSha256,
   readWorkflowFile,
   writeWorkflow,
   ensureRunSkeleton,
   listWorkflows,
   findActiveWorkflow,
+  findActiveWorkflowByMcpSession,
+  claimWorkflowOwner,
   isActivePhase,
   appendSkillTrace,
   classifyResearchPath,

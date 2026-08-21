@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:86dec3b95bb2876620de59aceeb14006d88a57dd0193cbe80340ca2c88188183
+// harness-source-hash: sha256:ea73f53ec603e9d2b164e311df0e3fb274a359a0cae4cf44a4cf0ce6178b12b8
 import {
   SEALED_OR_LATER,
   appendSkillTrace,
@@ -10,9 +10,10 @@ import {
   isRecord,
   listWorkflows,
   readWorkflowFile,
+  sessionOwnerSha256,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-HRKA4WZ2.mjs";
+} from "../chunks/chunk-S233XYVT.mjs";
 
 // plugins/evidence-based-research/src/entries/cli/research-workflow.ts
 import { createHash } from "node:crypto";
@@ -49,6 +50,16 @@ function loadWorkflow(cwd, runId) {
   if (!workflow) throw new Error(`workflow not found: ${path}`);
   return workflow;
 }
+function currentOwner() {
+  const session = process.env.AI_EXPERTS_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? process.env.CODEX_SESSION_ID;
+  if (!session) throw new Error("session provenance is required (AI_EXPERTS_SESSION_ID, CLAUDE_SESSION_ID, or CODEX_SESSION_ID)");
+  return sessionOwnerSha256(session);
+}
+function loadOwnedWorkflow(cwd, runId, owner) {
+  const workflow = loadWorkflow(cwd, runId);
+  if (workflow.owner_session_sha256 !== owner) throw new Error(`run ${runId} belongs to a different session`);
+  return workflow;
+}
 function requirePreSeal(workflow, command) {
   if (workflow.completeness?.sealed === true || SEALED_OR_LATER.has(workflow.phase) || workflow.phase === "aborted") {
     throw new Error(`${command} requires an open, unsealed research run`);
@@ -76,7 +87,8 @@ function saveBrief(cwd, runId, workflow) {
   writeFileSync(path, body, "utf8");
 }
 function cmdRunOpen(cwd, options) {
-  const existing = findActiveWorkflow(cwd);
+  const owner = currentOwner();
+  const existing = findActiveWorkflow(cwd, owner);
   if (existing) throw new Error(`run ${existing.run_id} is already open (phase=${existing.phase})`);
   const runId = String(options["run-id"] ?? "").trim() || generateRunId();
   ensureRunSkeleton(cwd, runId);
@@ -85,16 +97,18 @@ function cmdRunOpen(cwd, options) {
     question: String(options.question ?? "").trim(),
     scope: String(options.scope ?? "").trim(),
     asOf: String(options["as-of"] ?? options.as_of ?? "").trim(),
-    promptEpoch: Number(options["prompt-epoch"] ?? 0)
+    promptEpoch: Number(options["prompt-epoch"] ?? 0),
+    ownerSessionSha256: owner
   });
   writeWorkflow(cwd, workflow);
   appendSkillTrace(cwd, runId, { phase: "open", skill: "research-evidence-workflow", mode: "invoke", notes: "run-open" });
   output({ ok: true, run_id: runId, phase: workflow.phase, path: workflowPath(cwd, runId) });
 }
 function cmdBriefWrite(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   requirePreSeal(workflow, "brief-write");
   workflow.question = String(options.question ?? workflow.question ?? "").trim();
   workflow.scope = String(options.scope ?? workflow.scope ?? "").trim();
@@ -110,10 +124,11 @@ function cmdBriefWrite(cwd, options) {
   output({ ok: true, run_id: runId, phase: workflow.phase });
 }
 function cmdClaimsDraft(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   if (!options.file) throw new Error("--file is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   requirePreSeal(workflow, "claims-draft");
   const source = resolve(cwd, String(options.file));
   const claims = JSON.parse(readFileSync(source, "utf8"));
@@ -128,9 +143,10 @@ function cmdClaimsDraft(cwd, options) {
   output({ ok: true, run_id: runId, phase: workflow.phase, claim_count: claims.length });
 }
 function cmdCompleteness(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   const canSeal = workflow.completeness?.brief === true || Boolean(workflow.question && workflow.scope && workflow.as_of);
   const canOutbound = SEALED_OR_LATER.has(workflow.phase) || workflow.completeness?.sealed === true;
   output({
@@ -144,9 +160,10 @@ function cmdCompleteness(cwd, options) {
   });
 }
 function cmdHandoffOutbound(cwd, options) {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   if (workflow.completeness?.sealed !== true || !["sealed", "handed_off"].includes(workflow.phase)) {
     throw new Error("outbound handoff requires a sealed research run");
   }
@@ -183,7 +200,7 @@ function cmdStatus(cwd, options) {
     output(loadWorkflow(cwd, String(options["run-id"])));
     return;
   }
-  const active = findActiveWorkflow(cwd);
+  const active = findActiveWorkflow(cwd, currentOwner());
   output({ active, runs: listWorkflows(cwd).map((item) => ({ run_id: item.run_id, phase: item.phase })) });
 }
 async function main() {
@@ -209,3 +226,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1
     process.exitCode = 1;
   });
 }
+export {
+  main
+};

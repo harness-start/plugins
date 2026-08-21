@@ -13,7 +13,10 @@ import { findActiveWorkflow, readWorkflowFile, workflowPath } from "../src/lib/w
 const CLI = fileURLToPath(new URL("../dist/cli/research-workflow.mjs", import.meta.url));
 
 function runCli(args, cwd) {
-  return spawnSync(process.execPath, [CLI, ...args, "--cwd", cwd], { encoding: "utf8" });
+  return spawnSync(process.execPath, [CLI, ...args, "--cwd", cwd], {
+    encoding: "utf8",
+    env: { ...process.env, AI_EXPERTS_SESSION_ID: "cli" },
+  });
 }
 
 test("run-open creates project workflow and blocks outbound until sealed", async () => {

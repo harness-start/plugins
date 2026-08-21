@@ -1,12 +1,13 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:86dec3b95bb2876620de59aceeb14006d88a57dd0193cbe80340ca2c88188183
+// harness-source-hash: sha256:ea73f53ec603e9d2b164e311df0e3fb274a359a0cae4cf44a4cf0ce6178b12b8
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-LS6KAXFL.mjs";
+} from "../chunks/chunk-B5CARNKM.mjs";
 import {
   SEALED_OR_LATER,
+  claimWorkflowOwner,
   classifyResearchPath,
   eventAssistantMessage,
   eventCwd,
@@ -22,9 +23,10 @@ import {
   pathLooksLikeResearchWrite,
   readStdinJson,
   readWorkflowFile,
+  sessionOwnerSha256,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-HRKA4WZ2.mjs";
+} from "../chunks/chunk-S233XYVT.mjs";
 
 // plugins/evidence-based-research/src/entries/hooks/evidence-based-research.ts
 import { join as join4, resolve as resolve3 } from "node:path";
@@ -74,7 +76,7 @@ async function validateSealedArtifacts({ workspaceRoot, runId, seal, promptEpoch
 }
 
 // plugins/evidence-based-research/src/lib/state-store.ts
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { mkdirSync as mkdirSync2, readFileSync as readFileSync2, readdirSync, unlinkSync, writeFileSync as writeFileSync2 } from "node:fs";
 import { dirname, join as join3, resolve as resolve2 } from "node:path";
 
@@ -158,9 +160,6 @@ function fileMutation(event) {
 
 // plugins/evidence-based-research/src/lib/state-store.ts
 var TTL_MS = 24 * 60 * 60 * 1e3;
-function hash(value) {
-  return createHash("sha256").update(String(value)).digest("hex");
-}
 var STATE_DIR_RELATIVE = ".research/state";
 function ensureStateDir(directory2) {
   mkdirSync2(directory2, { recursive: true, mode: 448 });
@@ -168,7 +167,7 @@ function ensureStateDir(directory2) {
 }
 function directory(event) {
   const session = sessionId(event) || "default";
-  const target = join3(resolve2(eventCwd(event)), STATE_DIR_RELATIVE, "hook-events", hash(session));
+  const target = join3(resolve2(eventCwd(event)), STATE_DIR_RELATIVE, "hook-events", sessionOwnerSha256(session));
   return target;
 }
 function payloadFromUnknown(value) {
@@ -201,7 +200,8 @@ function appendStateEvent(event, type, payload = {}) {
 }
 function readState(event) {
   const workspace = resolve2(eventCwd(event));
-  const workflow = findActiveWorkflow(workspace);
+  const owner = sessionOwnerSha256(sessionId(event) || "default");
+  const ownedWorkflow = findActiveWorkflow(workspace, owner);
   const state = {
     promptEpoch: 0,
     revision: 0,
@@ -211,10 +211,10 @@ function readState(event) {
     completed: false,
     completedRunId: null,
     seal: null,
-    runId: workflow?.run_id ?? null,
+    runId: null,
     receipts: [],
-    workflow,
-    workflowPhase: workflow?.phase ?? null
+    workflow: null,
+    workflowPhase: null
   };
   const target = directory(event);
   if (target) {
@@ -269,6 +269,13 @@ function readState(event) {
       }
     }
   }
+  const begun = [...state.receipts].reverse().find((item) => item.tool === "research_begin" && typeof item.runId === "string");
+  const receiptWorkflow = begun?.runId ? readWorkflowFile(workflowPath(workspace, begun.runId)) : null;
+  const receiptOwnsWorkflow = Boolean(receiptWorkflow && (receiptWorkflow.owner_session_sha256 === owner || !receiptWorkflow.owner_session_sha256));
+  const workflow = receiptOwnsWorkflow ? receiptWorkflow : ownedWorkflow;
+  state.workflow = workflow;
+  state.workflowPhase = workflow?.phase ?? null;
+  state.runId = workflow?.run_id ?? (begun && !receiptWorkflow ? begun.runId ?? null : null);
   const runWorkflow = state.runId ? readWorkflowFile(workflowPath(workspace, state.runId)) : null;
   if (state.aborted && runWorkflow && runWorkflow.phase !== "aborted") state.aborted = false;
   if (state.completed && runWorkflow && runWorkflow.phase !== "complete") state.completed = false;
@@ -282,8 +289,7 @@ function readState(event) {
     state.active = true;
     state.runId = workflow.run_id;
     if (state.seal?.runId !== state.runId) state.seal = null;
-  } else if (state.receipts.some((item) => item.tool === "research_begin")) {
-    const begun = [...state.receipts].reverse().find((item) => item.tool === "research_begin");
+  } else if (begun && !receiptWorkflow) {
     if (begun && !state.aborted && !state.completed) {
       state.active = true;
       state.runId = begun.runId ?? state.runId;
@@ -416,11 +422,15 @@ function post(event) {
     const payload = responsePayload(event);
     const rawResponse = eventToolResponse(event);
     const responseIsError = objectLike(rawResponse) && rawResponse.isError === true;
-    if (!payload || payload.isError === true || responseIsError) return null;
+    if (!payload || payload.isError === true || responseIsError || typeof payload.run_id !== "string") return null;
+    const owner = sessionOwnerSha256(sessionId(event) || "default");
+    if ((method === "research_begin" || state.runId === payload.run_id) && !claimWorkflowOwner(resolve3(eventCwd(event)), payload.run_id, owner)) return null;
+    const workflow = readState(event).workflow;
+    if (!workflow || workflow.run_id !== payload.run_id || workflow.owner_session_sha256 !== owner) return null;
     appendStateEvent(event, "receipt", {
       tool: method,
       eventId: payload.event_id ?? null,
-      runId: payload.run_id ?? state.runId,
+      runId: payload.run_id,
       seal: payload.seal ?? null,
       promptEpoch: state.promptEpoch,
       revision: state.revision,
@@ -477,7 +487,9 @@ async function main(mode = process.argv[2]) {
       return;
     }
     if (abort) {
-      if (prior.workflow && !terminalizeWorkflow(resolve3(eventCwd(event)), prior.workflow.run_id, "aborted")) {
+      const owner = sessionOwnerSha256(sessionId(event) || "default");
+      const legacyOwnerless = Boolean(prior.workflow && !prior.workflow.owner_session_sha256);
+      if (prior.workflow && !terminalizeWorkflow(resolve3(eventCwd(event)), prior.workflow.run_id, "aborted", owner, legacyOwnerless)) {
         writeJson({ decision: "block", reason: "research workflow could not be terminalized after the abort request." });
         return;
       }
@@ -514,7 +526,11 @@ async function main(mode = process.argv[2]) {
 Recovery: open/use research-evidence-workflow, capture and anchor through research_provenance, call research_seal after the last mutation, paste its exact trailer. Outbound handoff only after seal. To abandon, submit exactly # research-abort.`
       });
     } else if (result.trailer) {
-      const terminalized = !result.state.workflow || terminalizeWorkflow(resolve3(eventCwd(event)), result.trailer.runId, "complete");
+      const owner = sessionOwnerSha256(sessionId(event) || "default");
+      const legacyOwnerless = Boolean(result.state.workflow && !result.state.workflow.owner_session_sha256);
+      const terminalized = Boolean(
+        result.state.workflow && result.state.runId === result.trailer.runId && terminalizeWorkflow(resolve3(eventCwd(event)), result.trailer.runId, "complete", owner, legacyOwnerless)
+      );
       const recorded = terminalized && appendStateEvent(event, "complete", { runId: result.trailer.runId });
       if (!recorded || !terminalized) {
         writeJson({ decision: "block", reason: "[Research Provenance Guard] Completion could not be recorded durably; retry Stop without changing the workspace." });

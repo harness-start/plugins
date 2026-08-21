@@ -16,6 +16,7 @@ import {
   listWorkflows,
   readWorkflowFile,
   SEALED_OR_LATER,
+  sessionOwnerSha256,
   writeWorkflow,
   workflowPath,
   type ResearchWorkflow,
@@ -55,6 +56,18 @@ function loadWorkflow(cwd: string, runId: string): ResearchWorkflow {
   return workflow;
 }
 
+function currentOwner(): string {
+  const session = process.env.AI_EXPERTS_SESSION_ID ?? process.env.CLAUDE_SESSION_ID ?? process.env.CODEX_SESSION_ID;
+  if (!session) throw new Error("session provenance is required (AI_EXPERTS_SESSION_ID, CLAUDE_SESSION_ID, or CODEX_SESSION_ID)");
+  return sessionOwnerSha256(session);
+}
+
+function loadOwnedWorkflow(cwd: string, runId: string, owner: string): ResearchWorkflow {
+  const workflow = loadWorkflow(cwd, runId);
+  if (workflow.owner_session_sha256 !== owner) throw new Error(`run ${runId} belongs to a different session`);
+  return workflow;
+}
+
 function requirePreSeal(workflow: ResearchWorkflow, command: string): void {
   if (workflow.completeness?.sealed === true || SEALED_OR_LATER.has(workflow.phase) || workflow.phase === "aborted") {
     throw new Error(`${command} requires an open, unsealed research run`);
@@ -84,7 +97,8 @@ function saveBrief(cwd: string, runId: string, workflow: ResearchWorkflow): void
 }
 
 function cmdRunOpen(cwd: string, options: CliOptions): void {
-  const existing = findActiveWorkflow(cwd);
+  const owner = currentOwner();
+  const existing = findActiveWorkflow(cwd, owner);
   if (existing) throw new Error(`run ${existing.run_id} is already open (phase=${existing.phase})`);
   const runId = String(options["run-id"] ?? "").trim() || generateRunId();
   ensureRunSkeleton(cwd, runId);
@@ -94,6 +108,7 @@ function cmdRunOpen(cwd: string, options: CliOptions): void {
     scope: String(options.scope ?? "").trim(),
     asOf: String(options["as-of"] ?? options.as_of ?? "").trim(),
     promptEpoch: Number(options["prompt-epoch"] ?? 0),
+    ownerSessionSha256: owner,
   });
   writeWorkflow(cwd, workflow);
   appendSkillTrace(cwd, runId, { phase: "open", skill: "research-evidence-workflow", mode: "invoke", notes: "run-open" });
@@ -101,9 +116,10 @@ function cmdRunOpen(cwd: string, options: CliOptions): void {
 }
 
 function cmdBriefWrite(cwd: string, options: CliOptions): void {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   requirePreSeal(workflow, "brief-write");
   workflow.question = String(options.question ?? workflow.question ?? "").trim();
   workflow.scope = String(options.scope ?? workflow.scope ?? "").trim();
@@ -120,10 +136,11 @@ function cmdBriefWrite(cwd: string, options: CliOptions): void {
 }
 
 function cmdClaimsDraft(cwd: string, options: CliOptions): void {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
   if (!options.file) throw new Error("--file is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   requirePreSeal(workflow, "claims-draft");
   const source = resolve(cwd, String(options.file));
   const claims: unknown = JSON.parse(readFileSync(source, "utf8"));
@@ -138,9 +155,10 @@ function cmdClaimsDraft(cwd: string, options: CliOptions): void {
 }
 
 function cmdCompleteness(cwd: string, options: CliOptions): void {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   const canSeal = workflow.completeness?.brief === true || Boolean(workflow.question && workflow.scope && workflow.as_of);
   const canOutbound = SEALED_OR_LATER.has(workflow.phase) || workflow.completeness?.sealed === true;
   output({
@@ -155,9 +173,10 @@ function cmdCompleteness(cwd: string, options: CliOptions): void {
 }
 
 function cmdHandoffOutbound(cwd: string, options: CliOptions): void {
-  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd)?.run_id ?? "").trim();
+  const owner = currentOwner();
+  const runId = String(options["run-id"] ?? findActiveWorkflow(cwd, owner)?.run_id ?? "").trim();
   if (!runId) throw new Error("--run-id or an active run is required");
-  const workflow = loadWorkflow(cwd, runId);
+  const workflow = loadOwnedWorkflow(cwd, runId, owner);
   if (workflow.completeness?.sealed !== true || !["sealed", "handed_off"].includes(workflow.phase)) {
     throw new Error("outbound handoff requires a sealed research run");
   }
@@ -195,11 +214,11 @@ function cmdStatus(cwd: string, options: CliOptions): void {
     output(loadWorkflow(cwd, String(options["run-id"])));
     return;
   }
-  const active = findActiveWorkflow(cwd);
+  const active = findActiveWorkflow(cwd, currentOwner());
   output({ active, runs: listWorkflows(cwd).map((item) => ({ run_id: item.run_id, phase: item.phase })) });
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const { options, positionals } = parseArgs(process.argv.slice(2));
   const command = positionals[0];
   const cwd = resolve(String(options.cwd ?? process.cwd()));
