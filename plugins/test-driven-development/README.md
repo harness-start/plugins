@@ -2,7 +2,7 @@
 
 `test-driven-development` 是一个基于 Git HEAD 的 test-first 文件顺序守卫。它只做一件事：源码发生变化前，对应测试必须已经进入当前 Git 变更。
 
-Hook 不解析测试命令，不判断 RED/GREEN，不保存会话状态，也不在 Stop 阶段阻止完成。真实的 RED → GREEN → REFACTOR 流程由插件内 Skill 指导，并由项目自己的测试命令验证。
+`SessionStart` 注入一段短提醒，让 agent 在第一次写实现前就知道这条顺序。`PreToolUse` 才是硬门禁。Hook 不解析测试命令，不判断 RED/GREEN，不保存会话状态，也不在 Stop 阶段阻止完成。真实的 RED → GREEN → REFACTOR 流程由插件内 Skill 指导，并由项目自己的测试命令验证。解析失败时会话提示 fail-open，实现写入仍 fail-closed。
 
 ## 规则
 
@@ -100,14 +100,14 @@ JS/TS 支持 colocated test 和 `__tests__`；Go 只认同一 package；Python �
 
 Hook 能证明的是：当前工具调用修改源码前，工作区已有对应的测试变化。它不能证明断言正确、测试真的运行过、失败原因正确或最终测试已通过。
 
-文件工具、补丁、`rm` / `mv` 和常见 shell 写入都进入同一 PreToolUse 门禁。Hook 只能约束宿主可观察到的工具调用，不是操作系统沙箱。
+文件工具、补丁、`rm` / `mv` 和常见 shell 写入都进入同一 PreToolUse 门禁。Hook 只能约束宿主可观察到的工具调用，不是操作系统沙箱。SessionStart 文案不是完成证据，也不替代这次门禁。
 
 ## 验证
 
 从仓库根目录运行：
 
 ```bash
-npx tsx --test plugins/test-driven-development/tests/*.test.ts
+npx tsx --test plugins/test-driven-development/tests/**/*.test.ts
 ./scripts/acceptance/run.sh --plugin test-driven-development
 ```
 

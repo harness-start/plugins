@@ -8,6 +8,7 @@ import type { HookEvent } from "@harness/core/hook-event";
 import { isRecord } from "@harness/core/hook-event";
 
 import {
+  additionalContext,
   cwdOf,
   extractTargets,
   preToolDeny,
@@ -145,6 +146,19 @@ function checkSourceTarget(root: string, event: HookEvent, target: ActiveTarget)
   return false;
 }
 
+function testFirstFileOrderContext(): string {
+  return [
+    "[TDD Guard] Test-first file order is enforced against git HEAD.",
+    "Change a corresponding test in a separate tool call before changing implementation.",
+    "A single patch or tool call cannot mix test and source files. A dirty test may cover later implementation edits.",
+    "This hook does not run tests and does not prove RED/GREEN. Optional method: load `tdd-red-green` for the red-green-refactor loop. Skill load is not a hook prerequisite.",
+  ].join("\n");
+}
+
+function runSessionStart(): void {
+  writeJson(additionalContext("SessionStart", testFirstFileOrderContext()));
+}
+
 async function runPre(event: HookEvent): Promise<void> {
   const root = cwdOf(event);
   const targets = targetsFor(event, root);
@@ -171,10 +185,13 @@ async function main(): Promise<void> {
     warn("hook input was not valid JSON");
     if (mode === "pre") {
       writeJson(preToolDeny("[TDD Guard] The hook could not parse this implementation event safely, so it was blocked. Fix the hook input, then retry."));
+    } else if (mode === "session-start") {
+      warn("advisory context was skipped");
     }
     return;
   }
   if (mode === "pre") await runPre(event);
+  else if (mode === "session-start") runSessionStart();
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {

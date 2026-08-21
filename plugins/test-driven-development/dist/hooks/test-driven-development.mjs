@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4531ab74ed88bd36b38195829c3f44b58640e74dcf0d9a64ea4fc136d1c42df4
+// harness-source-hash: sha256:080097090630d5a69a95b2e9070121bc7dc8f28fc865a9529df752b6db3dff11
 
 // plugins/test-driven-development/src/entries/hooks/test-driven-development.ts
 import { readFileSync as readFileSync4 } from "node:fs";
@@ -48,12 +48,31 @@ function eventToolInput(event) {
 import { isAbsolute, relative, resolve } from "node:path";
 
 // core/src/hook-output.ts
+var TOOL_LIFECYCLE_EVENTS = /* @__PURE__ */ new Set([
+  "PreToolUse",
+  "PostToolUse",
+  "PostToolUseFailure"
+]);
 function preToolDeny(reason) {
   return {
     hookSpecificOutput: {
       hookEventName: "PreToolUse",
       permissionDecision: "deny",
       permissionDecisionReason: reason
+    }
+  };
+}
+function additionalContext(hookEventName, context, options = {}) {
+  const codexToolReport = Boolean(process.env.PLUGIN_ROOT) && TOOL_LIFECYCLE_EVENTS.has(hookEventName);
+  const echoStderr = options.echoStderr ?? codexToolReport;
+  const suppressJson = codexToolReport || Boolean(options.suppressJson);
+  if (echoStderr) process.stderr.write(`${context}
+`);
+  if (suppressJson) return null;
+  return {
+    hookSpecificOutput: {
+      hookEventName,
+      additionalContext: context
     }
   };
 }
@@ -1056,6 +1075,17 @@ function checkSourceTarget(root, event, target) {
   denySourceChange(target, current);
   return false;
 }
+function testFirstFileOrderContext() {
+  return [
+    "[TDD Guard] Test-first file order is enforced against git HEAD.",
+    "Change a corresponding test in a separate tool call before changing implementation.",
+    "A single patch or tool call cannot mix test and source files. A dirty test may cover later implementation edits.",
+    "This hook does not run tests and does not prove RED/GREEN. Optional method: load `tdd-red-green` for the red-green-refactor loop. Skill load is not a hook prerequisite."
+  ].join("\n");
+}
+function runSessionStart() {
+  writeJson(additionalContext("SessionStart", testFirstFileOrderContext()));
+}
 async function runPre(event) {
   const root = cwdOf(event);
   const targets = targetsFor(event, root);
@@ -1081,10 +1111,13 @@ async function main() {
     warn("hook input was not valid JSON");
     if (mode === "pre") {
       writeJson(preToolDeny("[TDD Guard] The hook could not parse this implementation event safely, so it was blocked. Fix the hook input, then retry."));
+    } else if (mode === "session-start") {
+      warn("advisory context was skipped");
     }
     return;
   }
   if (mode === "pre") await runPre(event);
+  else if (mode === "session-start") runSessionStart();
 }
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve5(process.argv[1])) {
   main().catch((error) => {

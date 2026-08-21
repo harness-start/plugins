@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+
+import { commandsFor, eventNames, readHookManifest } from "../../../core/tests/support/hook-manifest.js";
 
 const REPO = fileURLToPath(new URL("../../..", import.meta.url));
 const COMMON = join(REPO, "scripts", "acceptance", "lib", "common.sh");
@@ -44,11 +46,23 @@ test("acceptance discovery works without GNU find -printf", () => {
   assert.equal(project.stdout, "domain/case-a\n");
 });
 
-test("TDD installs only a PreToolUse file-order guard on both platforms", () => {
-  const claude = JSON.parse(readFileSync(join(HOOKS, "claude.json"), "utf8"));
-  const codex = JSON.parse(readFileSync(join(HOOKS, "codex.json"), "utf8"));
-  assert.deepEqual(Object.keys(claude.hooks), ["PreToolUse"]);
-  assert.deepEqual(Object.keys(codex.hooks), ["PreToolUse"]);
-  assert.match(claude.hooks.PreToolUse[0].hooks[0].command, /test-driven-development\.mjs" pre claude/u);
-  assert.match(codex.hooks.PreToolUse[0].hooks[0].command, /AI_EXPERTS_SESSION_ID=.*AI_EXPERTS_TRIGGER_FROM=.*test-driven-development\.mjs" pre codex/u);
+test("TDD installs a SessionStart file-order reminder and a PreToolUse guard on both platforms", () => {
+  const claude = readHookManifest(join(HOOKS, "claude.json"));
+  const codex = readHookManifest(join(HOOKS, "codex.json"));
+  assert.deepEqual(eventNames(claude), ["PreToolUse", "SessionStart"]);
+  assert.deepEqual(eventNames(codex), ["PreToolUse", "SessionStart"]);
+
+  const claudeSession = commandsFor(claude, "SessionStart");
+  const codexSession = commandsFor(codex, "SessionStart");
+  assert.equal(claudeSession.length, 1);
+  assert.equal(codexSession.length, 1);
+  assert.match(claudeSession[0].command, /test-driven-development\.mjs" session-start claude/u);
+  assert.match(codexSession[0].command, /AI_EXPERTS_TRIGGER_FROM="test-driven-development:session-start".*session-start codex/u);
+
+  const claudePre = commandsFor(claude, "PreToolUse");
+  const codexPre = commandsFor(codex, "PreToolUse");
+  assert.equal(claudePre.length, 1);
+  assert.equal(codexPre.length, 1);
+  assert.match(claudePre[0].command, /test-driven-development\.mjs" pre claude/u);
+  assert.match(codexPre[0].command, /AI_EXPERTS_SESSION_ID=.*AI_EXPERTS_TRIGGER_FROM=.*test-driven-development\.mjs" pre codex/u);
 });

@@ -9,10 +9,10 @@ import {
   type HookEvent,
   type HookToolInput,
 } from "@harness/core/hook-event";
-import { preToolDeny, writeJson } from "@harness/core/hook-output";
+import { additionalContext, preToolDeny, writeJson } from "@harness/core/hook-output";
 import { canonicalToolName, extractShellCommand, isFileMutationTool, isShellTool } from "@harness/core/hook-targets";
 
-export { readStdinJson, preToolDeny, writeJson };
+export { additionalContext, readStdinJson, preToolDeny, writeJson };
 
 export function cwdOf(event: HookEvent): string {
   const raw = event.cwd ?? event.working_directory ?? event.workingDirectory;
