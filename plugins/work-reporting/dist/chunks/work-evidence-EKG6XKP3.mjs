@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:2eab515879ce4ea37d278d0b8eb6f92dca2f8c68cf97e791e75bb6f4b8a3bb64
+// harness-source-hash: sha256:0550a3f3c9c250976568c9b660310db038d51a4281c67c97d1cee2f9213335cf
 import {
   sanitizeSnippet
-} from "./chunk-ZC3I74PT.mjs";
+} from "./chunk-5F2ODJQD.mjs";
 
 // plugins/work-reporting/src/lib/work-evidence.ts
 import { createHash } from "node:crypto";
