@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:9a8a7f25293e01690bc422eaddf34166725e1c46bce98b8ce0a6089624f0e82a
+// harness-source-hash: sha256:b0724e172ed54ddc22873ab472372b1e5d8c9f1fa890f9a1efa0af46d06ed67b
 import {
   assertPptxProjectRoot
-} from "./chunk-6Y5LOCJD.mjs";
+} from "./chunk-AGPTBFYS.mjs";
 
 // plugins/presentation-production/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";

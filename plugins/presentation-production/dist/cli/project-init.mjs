@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9a8a7f25293e01690bc422eaddf34166725e1c46bce98b8ce0a6089624f0e82a
+// harness-source-hash: sha256:b0724e172ed54ddc22873ab472372b1e5d8c9f1fa890f9a1efa0af46d06ed67b
 import {
   assertPptxProjectRoot
-} from "../chunks/chunk-6Y5LOCJD.mjs";
+} from "../chunks/chunk-AGPTBFYS.mjs";
 import {
   DESIGN_SYSTEM_SCHEMA,
   PLAN_SCHEMA,
@@ -10,7 +10,7 @@ import {
   SKILL_COMPOSITION_SCHEMA,
   SLIDE_MANIFEST_SCHEMA,
   STORYBOARD_SCHEMA
-} from "../chunks/chunk-GUWCSLJU.mjs";
+} from "../chunks/chunk-2E6PZALY.mjs";
 
 // plugins/presentation-production/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";

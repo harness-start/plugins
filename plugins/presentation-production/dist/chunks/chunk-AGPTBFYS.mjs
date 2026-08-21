@@ -1,8 +1,8 @@
-// harness-source-hash: sha256:9a8a7f25293e01690bc422eaddf34166725e1c46bce98b8ce0a6089624f0e82a
+// harness-source-hash: sha256:b0724e172ed54ddc22873ab472372b1e5d8c9f1fa890f9a1efa0af46d06ed67b
 import {
   isPptxProjectRoot,
   resolveWorkspaceRoot
-} from "./chunk-GUWCSLJU.mjs";
+} from "./chunk-2E6PZALY.mjs";
 
 // plugins/presentation-production/src/lib/writer.ts
 import { open, mkdir, rename, unlink, writeFile } from "node:fs/promises";
