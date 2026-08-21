@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:db5c96b5b8f2ef82c10272136b79a1d08f9cb0afda2bc9941c859ce3e0603bbc
+// harness-source-hash: sha256:9bc56eb2c3ebfbeed02b7f45807ed6d4e0447edaf7d484de98395c1ccd53ca0c
 import {
   sessionContext
-} from "../chunks/chunk-O3BD2DVX.mjs";
+} from "../chunks/chunk-L5FN2RBN.mjs";
 import {
   additionalContextOutput,
   eventCwd,
@@ -12,7 +12,7 @@ import {
   readStdinJson,
   warn,
   writeJson
-} from "../chunks/chunk-5E4OVG6T.mjs";
+} from "../chunks/chunk-PAJW5UZ7.mjs";
 
 // plugins/language-output/src/entries/hooks/language-output-hook-session-start.ts
 async function main() {
