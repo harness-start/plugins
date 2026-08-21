@@ -52,6 +52,8 @@ function git(root, ...args) {
 test("command classifier enforces the Git-only strict command rules", () => {
   const denied = [
     ["git add .", /Git Add/u],
+    ["git add :/", /Git Add/u],
+    ["git add ':(glob)**'", /Git Add/u],
     ["git add -A", /Git Add/u],
     ["git reset --hard", /Dangerous Git/u],
     ["git clean -fd", /Dangerous Git/u],
@@ -77,6 +79,9 @@ test("command classifier preserves explicit and recoverable Git operations", () 
   const allowed = [
     "git add src/app.mjs",
     "git add -A src/app.mjs",
+    "git add :/src/app.mjs",
+    "git add ':(literal)src/app.mjs'",
+    "git add ':(top,literal)src/app.mjs'",
     "git clean -nd",
     "git push --force-with-lease origin feat/safe",
     "git switch -c feat/safe-delivery",
@@ -108,16 +113,18 @@ test("classifies git behind /usr/bin/sudo and timeout", () => {
   assert.match(timeout[0]?.id ?? "", /Dangerous Git/u);
 });
 
-test("pre entry emits a complete blocking contract", async () => {
-  const result = await runEntry(PRE, {
-    cwd: process.cwd(),
-    tool_name: "exec_command",
-    tool_input: { cmd: "git add ." },
-  });
-  assert.equal(result.code, 0, result.stderr);
-  const output = JSON.parse(result.stdout);
-  assert.equal(output.hookSpecificOutput.permissionDecision, "deny");
-  assert.match(output.hookSpecificOutput.permissionDecisionReason, /blockingContract:/u);
+test("pre entry emits a complete blocking contract for literal and magic bulk pathspecs", async () => {
+  for (const command of ["git add .", "git add :/"]) {
+    const result = await runEntry(PRE, {
+      cwd: process.cwd(),
+      tool_name: "exec_command",
+      tool_input: { cmd: command },
+    });
+    assert.equal(result.code, 0, result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.equal(output.hookSpecificOutput.permissionDecision, "deny", command);
+    assert.match(output.hookSpecificOutput.permissionDecisionReason, /blockingContract:/u);
+  }
 });
 
 test("pre entry denies direct writes to worktree authorization receipts", async () => {

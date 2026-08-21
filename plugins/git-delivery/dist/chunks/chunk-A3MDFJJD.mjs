@@ -1,9 +1,9 @@
-// harness-source-hash: sha256:7aa3eb7d3aa82beb1eeccf55ee92f5fa0596a7425e7ffeb909dbe68047510f02
+// harness-source-hash: sha256:08022b3f76244418bf39b77da50863a316c33f33e1579c2ad86f5a9cd9ee9340
 import {
   atomicWriteJson,
   digestKey,
   isRecord
-} from "./chunk-NDWCKHHF.mjs";
+} from "./chunk-GKDJHY7F.mjs";
 
 // plugins/git-delivery/src/lib/worktree-intent.ts
 import { mkdirSync as mkdirSync2, readFileSync as readFileSync2 } from "node:fs";

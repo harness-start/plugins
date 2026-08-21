@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7aa3eb7d3aa82beb1eeccf55ee92f5fa0596a7425e7ffeb909dbe68047510f02
+// harness-source-hash: sha256:08022b3f76244418bf39b77da50863a316c33f33e1579c2ad86f5a9cd9ee9340
 import {
   WORKTREE_STATE_DIR,
   commandReferencesWorktreeAuthorizationState,
@@ -7,7 +7,7 @@ import {
   isWorktreeCreatePermitted,
   readWorktreeCreateReceipt,
   worktreeIsolationRequested
-} from "../chunks/chunk-U3RYV4HS.mjs";
+} from "../chunks/chunk-A3MDFJJD.mjs";
 import {
   additionalContextOutput,
   eventCwd,
@@ -22,7 +22,7 @@ import {
   readStdinJson,
   resolveRepoRoot,
   writeJson
-} from "../chunks/chunk-NDWCKHHF.mjs";
+} from "../chunks/chunk-GKDJHY7F.mjs";
 
 // plugins/git-delivery/src/checks/command-rules.ts
 import { lstatSync, readFileSync } from "node:fs";
@@ -402,7 +402,7 @@ function gitInvocations(command, initialCwd) {
 function gitAdd(invocation, command) {
   if (invocation.subcommand !== "add") return null;
   const args = invocation.args;
-  if (args.some((token) => [".", "./", "*", "./*"].includes(token) || token.startsWith("--pathspec-from-file"))) {
+  if (args.some((token) => bulkAddPathspec(token) || token.startsWith("--pathspec-from-file"))) {
     return finding(
       "deny",
       "Git Add Guard",
@@ -428,6 +428,18 @@ function gitAdd(invocation, command) {
     );
   }
   return null;
+}
+function bulkAddPathspec(token) {
+  if ([".", "./", "*", "./*", ":/", ":(top)"].includes(token)) return true;
+  if (token.startsWith(":!") || token.startsWith(":^")) return true;
+  if (token.startsWith(":/")) return /[*?[\]]/u.test(token.slice(2));
+  if (!token.startsWith(":(")) return /[*?[\]]/u.test(token);
+  const close = token.indexOf(")");
+  if (close < 0) return false;
+  const magic = token.slice(2, close).split(",").map((part) => part.trim()).filter(Boolean);
+  const pattern = token.slice(close + 1);
+  const literalOnly = magic.every((part) => part === "literal" || part === "top");
+  return !pattern || !literalOnly || /[*?[\]]/u.test(pattern);
 }
 function destructiveGit(invocation, command) {
   const subcommand = invocation.subcommand;

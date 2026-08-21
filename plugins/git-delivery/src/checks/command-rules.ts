@@ -70,7 +70,7 @@ export function gitInvocations(command: unknown, initialCwd: string): GitInvocat
 function gitAdd(invocation: GitInvocation, command: string): DeliveryFinding | null {
   if (invocation.subcommand !== "add") return null;
   const args = invocation.args;
-  if (args.some((token) => [".", "./", "*", "./*"].includes(token) || token.startsWith("--pathspec-from-file"))) {
+  if (args.some((token) => bulkAddPathspec(token) || token.startsWith("--pathspec-from-file"))) {
     return finding(
       "deny", "Git Add Guard", "bulk staging may include changes from other tasks", command,
       "stage each file explicitly with git add <specific-file-path>",
@@ -90,6 +90,19 @@ function gitAdd(invocation: GitInvocation, command: string): DeliveryFinding | n
     );
   }
   return null;
+}
+
+function bulkAddPathspec(token: string): boolean {
+  if ([".", "./", "*", "./*", ":/", ":(top)"].includes(token)) return true;
+  if (token.startsWith(":!") || token.startsWith(":^")) return true;
+  if (token.startsWith(":/")) return /[*?[\]]/u.test(token.slice(2));
+  if (!token.startsWith(":(")) return /[*?[\]]/u.test(token);
+  const close = token.indexOf(")");
+  if (close < 0) return false;
+  const magic = token.slice(2, close).split(",").map((part) => part.trim()).filter(Boolean);
+  const pattern = token.slice(close + 1);
+  const literalOnly = magic.every((part) => part === "literal" || part === "top");
+  return !pattern || !literalOnly || /[*?[\]]/u.test(pattern);
 }
 
 function destructiveGit(invocation: GitInvocation, command: string): DeliveryFinding | null {
