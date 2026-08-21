@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:c48323ef2b904e74f653a74922bd5e5c6215188e3def4f9c5cacd35920a6a3e6
+// harness-source-hash: sha256:5b0e1abf8862e038f7398d506be7151ef4bcd9eddde6aadadf569b6bc517c1a5
 import {
   consumeNoticeDelta,
   ensureCapabilityWorkspace,
@@ -13,7 +13,7 @@ import {
   readStdinJson,
   renderHumanNotice,
   validateProposalDocument
-} from "../chunks/chunk-OWB7754U.mjs";
+} from "../chunks/chunk-YHMWQYGZ.mjs";
 
 // plugins/project-capability-governance/src/entries/hooks/project-capability-governance-hook.ts
 import { execFileSync } from "node:child_process";
@@ -215,7 +215,7 @@ function extractWriteContent(event) {
   const value = input.content ?? input.file_text ?? input.text;
   if (typeof value === "string") return value;
   if (!/^(?:apply_patch|ApplyPatch)$/u.test(String(eventToolName(event)))) return null;
-  const patch = input.patch ?? input.input ?? "";
+  const patch = input.patch ?? input.input ?? input.command ?? "";
   if (typeof patch !== "string") return null;
   const lines = patch.split("\n");
   const directives = lines.map((line, index) => ({ line, index })).filter(({ line }) => /^\*\*\*\s+(?:Add|Update|Delete) File:\s+/u.test(line));

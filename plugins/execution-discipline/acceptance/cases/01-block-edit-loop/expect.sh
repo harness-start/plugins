@@ -15,8 +15,8 @@ if [ -d "${ACCEPT_WORKSPACE}/.execution-discipline/.state" ]; then
   echo "expect fail: legacy .execution-discipline/.state was created" >&2
   exit 1
 fi
-if [ ! -f "${local_gitignore}" ] || [ "$(cat "${local_gitignore}")" != "state/" ]; then
-  echo "expect fail: .execution-discipline/.gitignore must contain state/" >&2
+if [ ! -f "${local_gitignore}" ] || [ "$(cat "${local_gitignore}")" != "*" ]; then
+  echo "expect fail: .execution-discipline/.gitignore must contain *" >&2
   exit 1
 fi
 if [ "$(cat "${ACCEPT_WORKSPACE}/.gitignore")" != "vendor/" ]; then

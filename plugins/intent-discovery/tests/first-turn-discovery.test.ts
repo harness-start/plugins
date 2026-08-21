@@ -144,8 +144,10 @@ test("concurrent prompt hooks emit one discovery injection per session", async (
 
 test("missing session identity fails open without creating sticky state", async () => {
   const dataRoot = mkdtempSync(join(tmpdir(), "intent-no-session-"));
-  const env = platformEnv("codex", dataRoot);
-  delete env.AI_EXPERTS_SESSION_ID;
+  const env = {
+    ...platformEnv("codex", dataRoot),
+    AI_EXPERTS_SESSION_ID: "",
+  };
 
   const first = await runEntry({ cwd: dataRoot, prompt: "First" }, env);
   const second = await runEntry({ cwd: dataRoot, prompt: "Second" }, env);

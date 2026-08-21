@@ -14,10 +14,9 @@ if [ "${ACCEPT_HOST}" = "claude" ]; then
   # Claude's debug log records tool dispatches but omits Bash command text.
   analyzer_runs="$(grep -Ec 'tool_dispatch_start tool=Bash' "${ACCEPT_LOG}" || true)"
   claude_reply="$(sed '/^===== claude-debug-file =====$/q' "${ACCEPT_LOG}")"
+  printf '%s' "${claude_reply}" | grep -Eiq 'analy[sz]er|before.*after'
   printf '%s' "${claude_reply}" | grep -Eiq \
-    '(analy[sz]er|before/after).*[1-9][0-9]*.*(finding|total)|[1-9][0-9]*.*(analy[sz]er|finding)'
-  printf '%s' "${claude_reply}" | grep -Eiq \
-    '(analy[sz]er|before/after).*(0|zero).*(finding|total)|(0|zero).*(finding|total)'
+    '[1-9][0-9]*[^[:cntrl:]]{0,80}(→|->|to)[[:space:]]*0'
 else
   for skill in writing-english-prose writing-markdown-ai-style; do
     grep -Eq "/skills/${skill}/SKILL\\.md" "${ACCEPT_LOG}"

@@ -43,7 +43,7 @@ export function extractWriteContent(event: HookEvent): string | null {
   const value = input.content ?? input.file_text ?? input.text;
   if (typeof value === "string") return value;
   if (!/^(?:apply_patch|ApplyPatch)$/u.test(String(extractToolName(event)))) return null;
-  const patch = input.patch ?? input.input ?? "";
+  const patch = input.patch ?? input.input ?? input.command ?? "";
   if (typeof patch !== "string") return null;
   const lines = patch.split("\n");
   const directives = lines

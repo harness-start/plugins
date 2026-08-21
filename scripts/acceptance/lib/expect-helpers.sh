@@ -221,7 +221,7 @@ require_research_seal_receipt() {
       "${receipt}" >/dev/null 2>&1; then
       return 0
     fi
-  done < <(find "${ACCEPT_OUT:?}" -path '*/evidence-based-research/hook-events/*.json' -type f -print0)
+  done < <(find "${ACCEPT_WORKSPACE:?}/.research/state/hook-events" -type f -name '*.json' -print0 2>/dev/null)
   echo "expect fail: no matching research_seal PostToolUse receipt" >&2
   return 1
 }

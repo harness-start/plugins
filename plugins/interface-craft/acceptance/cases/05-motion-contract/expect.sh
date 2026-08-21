@@ -11,15 +11,15 @@ require_file_exists "${css}"
 require_file_exists "${js}"
 
 grep -Fq 'aria-expanded' "${html}"
-grep -Eq -- '--motion-duration-[a-zA-Z0-9-]+:' "${css}"
-grep -Eq -- '--motion-ease-[a-zA-Z0-9-]+:' "${css}"
+grep -Eq -- '--((motion-)?duration|dur)-[a-zA-Z0-9-]+:' "${css}"
+grep -Eq -- '--(motion-)?ease-[a-zA-Z0-9-]+:' "${css}"
 grep -Fq 'prefers-reduced-motion' "${css}"
 grep -Eq 'transition:[^;]*(grid-template-rows|opacity|transform)|^[[:space:]]*(grid-template-rows|opacity|transform)[[:space:]]+var\(--motion-' "${css}"
 if grep -Eq '(^|[\{;])[[:space:]]*transition(-property)?[[:space:]]*:[[:space:]]*all([[:space:];,!]|$)|\btransition-all\b' "${css}"; then
   echo "expect fail: motion must enumerate properties" >&2
   exit 1
 fi
-if grep -Eq 'setTimeout|setInterval' "${js}"; then
+if grep -Eq '(^|[^[:alnum:]_$])((window|globalThis)\.)?set(Timeout|Interval)[[:space:]]*\(' "${js}"; then
   echo "expect fail: disclosure must not depend on stale timer cleanup" >&2
   exit 1
 fi

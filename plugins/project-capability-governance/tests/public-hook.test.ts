@@ -138,6 +138,30 @@ test("any parent-owned file tool may create one schema-valid pending proposal", 
   }
 });
 
+test("Codex command-form apply_patch may create one schema-valid pending proposal", async () => {
+  const root = mkdtempSync(join(tmpdir(), "project-capability-codex-patch-"));
+  const base = { cwd: root, session_id: "codex-patch-session" };
+  try {
+    await runHook("session", base);
+    const content = proposal("pc-release-check");
+    const patch = [
+      "*** Begin Patch",
+      "*** Add File: .project-capabilities/inbox/pending/pc-release-check.md",
+      ...content.split("\n").map((line) => `+${line}`),
+      "*** End Patch",
+    ].join("\n");
+    const accepted = await runHook("pre", {
+      ...base,
+      tool_name: "apply_patch",
+      tool_input: { command: patch },
+    });
+    assert.equal(output(accepted), null, accepted.stdout || accepted.stderr);
+    assert.equal(readFileSync(join(root, ".project-capabilities", ".gitignore"), "utf8"), "*\n");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("PreToolUse rejects non-canonical and direct shell mutations under the inbox", async () => {
   const root = mkdtempSync(join(tmpdir(), "project-capability-path-"));
   const base = { cwd: root, session_id: "path-session" };

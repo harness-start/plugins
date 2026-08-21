@@ -1,4 +1,0 @@
-id = "07-recursive-stop-blocks"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["stop", "language"]

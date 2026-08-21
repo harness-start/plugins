@@ -76,7 +76,11 @@ test("session ledger is platform-scoped, private, and disabled without a session
   const data = join(root, "codex-data");
   const css = join(root, "page.css");
   writeFileSync(css, "section { box-shadow: 8px 8px 0 black; }\n");
-  const env = { HARNESS_HOST: "codex", PLUGIN_DATA: data };
+  const env = {
+    HARNESS_HOST: "codex",
+    PLUGIN_DATA: data,
+    AI_EXPERTS_SESSION_ID: "",
+  };
   const event = {
     session_id: "private-ledger",
     cwd: root,
