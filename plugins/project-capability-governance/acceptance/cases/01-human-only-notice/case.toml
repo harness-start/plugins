@@ -1,4 +1,0 @@
-id = "01-human-only-notice"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["stop", "human-notice", "non-blocking"]

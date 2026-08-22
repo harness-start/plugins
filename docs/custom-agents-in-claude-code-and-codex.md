@@ -234,11 +234,11 @@ agent TOML 中显式固定的值
 
 最后一个仓库也提供了“不能只看 README”的反例：同一提交的 README 把 `developer_instructions` 写成带 `content` 的 TOML table，而实际 agent 文件和当前官方 schema 使用字符串。[README 示例](https://github.com/sehoon787/my-codex/blob/ff51e4e1ad60546ce937b725ed4cfea45bea532f/README.md#L471-L489) 不能替代对已安装文件和宿主解析器的验证。
 
-本仓库采用了更小的边界：不再发布中央 subagent 工作流或生命周期审计插件，也不在 debugging、first-principles、reasoning、project-capability 和 work-report 这些领域插件的根目录投放自定义 agent。对应 Skill 只在任务确实适合拆分时，用普通自然语言请求宿主创建通用子 agent；父 agent 验证结果并承担交付责任。仓库用下面的合同测试固定这条边界：
+本仓库采用了更小的边界：不再发布中央 subagent 工作流或生命周期审计插件，也不在 debugging、first-principles、reasoning 和 work-report 这些领域插件的根目录投放自定义 agent。对应 Skill 只在任务确实适合拆分时，用普通自然语言请求宿主创建通用子 agent；父 agent 验证结果并承担交付责任。仓库用下面的合同测试固定这条边界：
 
 ```bash
 # cwd: 本仓库根目录
-npx tsx --test plugins/project-capability-governance/tests/subagent-architecture.test.ts
+npx tsx --test core/tests/unit/subagent-architecture.test.ts
 ```
 
 这项测试证明仓库没有重新引入专用 agent 文件、`SubagentStart` / `SubagentStop` hook 或旧 marker/nonce 协议。它不证明宿主的通用 subagent 一定正确；正确性仍由领域产物、测试和父 agent 的复核建立。

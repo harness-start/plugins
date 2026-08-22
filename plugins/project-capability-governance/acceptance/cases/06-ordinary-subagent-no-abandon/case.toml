@@ -1,4 +1,0 @@
-id = "06-ordinary-subagent-no-abandon"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["subagent", "governance"]

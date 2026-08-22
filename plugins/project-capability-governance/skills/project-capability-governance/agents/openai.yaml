@@ -1,6 +1,0 @@
-interface:
-  display_name: "Project Capability Governance"
-  short_description: "Review and land project-local agent capabilities"
-  default_prompt: "Use $project-capability-governance to review pending project capability proposals one at a time."
-policy:
-  allow_implicit_invocation: false

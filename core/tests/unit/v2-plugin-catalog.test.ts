@@ -31,7 +31,6 @@ const expected = [
   "presentation-production",
   "print-publication-production",
   "professional-writing",
-  "project-capability-governance",
   "php-engineering",
   "python-engineering",
   "react-native-engineering",

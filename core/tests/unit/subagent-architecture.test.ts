@@ -13,11 +13,10 @@ const dedicatedPlugins = [
 
 const naturalLanguageOwners = [
   "software-debugging",
-  "project-capability-governance",
   "work-reporting",
 ];
 
-function readJson(path) {
+function readJson(path: string): { plugins: Array<{ name: string }> } {
   return JSON.parse(readFileSync(join(REPO, path), "utf8"));
 }
 
@@ -39,7 +38,7 @@ test("domain plugins do not authenticate or schedule native subagents", () => {
   for (const name of naturalLanguageOwners) {
     assert.equal(existsSync(join(REPO, "plugins", name, "agents")), false, `${name}/agents`);
     for (const host of ["claude", "codex"]) {
-      const hooks = readJson(`plugins/${name}/hooks/${host}.json`).hooks;
+      const hooks = JSON.parse(readFileSync(join(REPO, `plugins/${name}/hooks/${host}.json`), "utf8")).hooks;
       assert.equal(Object.hasOwn(hooks, "SubagentStart"), false, `${name}/${host}: SubagentStart`);
       assert.equal(Object.hasOwn(hooks, "SubagentStop"), false, `${name}/${host}: SubagentStop`);
     }
@@ -49,7 +48,6 @@ test("domain plugins do not authenticate or schedule native subagents", () => {
 test("domain skill prompts use plain delegation without shared handoff protocols", () => {
   const skillPaths = [
     "plugins/software-debugging/skills/debug-workflow/SKILL.md",
-    "plugins/project-capability-governance/skills/project-capability-governance/SKILL.md",
     "plugins/reasoning-methods/skills/first-principles/SKILL.md",
     "plugins/reasoning-methods/skills/reasoning-methods/SKILL.md",
     "plugins/evidence-based-research/skills/research-evidence-workflow/SKILL.md",

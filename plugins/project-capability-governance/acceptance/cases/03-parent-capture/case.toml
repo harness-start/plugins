@@ -1,4 +1,0 @@
-id = "03-parent-capture"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["parent-owned", "proposal", "stop"]

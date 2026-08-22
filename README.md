@@ -160,7 +160,6 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | `video-production` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
 | `music-production` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
 | `work-reporting` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
-| `project-capability-governance` | 记录 schema 校验的项目能力提案，并只在人工确认后采用项目级能力 |
 | `spec-driven-development` | 编排社区 SDD 方法的当前上游版本，并由 Hook 独立校验当前 spec、plan 与 tasks |
 | `ci-gated-delivery` | 编排短生命周期分支、独立审查、远端 CI、合并与合并后验证 |
 | `repository-history-migration` | 在源仓只读、提交封存和目标验证约束下迁移 Git 历史 |
@@ -168,7 +167,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 
 ## 插件分类与设计
 
-39 个插件按职责分为八类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
+38 个插件按职责分为八类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
 | 类别 | 插件 | 核心机制 |
 | --- | --- | --- |
@@ -177,7 +176,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development`、`interface-craft` | 内部 Skill 组织步骤；方法正文捆绑在插件内 |
 | 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
 | 领域生产 | `brand-logo-production`、`diagram-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
-| 项目与交付治理 | `project-capability-governance`、`ci-gated-delivery`、`repository-history-migration` | 管理能力采用、远端交付状态机和跨仓历史迁移 |
+| 项目与交付治理 | `ci-gated-delivery`、`repository-history-migration` | 管理远端交付状态机和跨仓历史迁移 |
 | 输出治理 | `language-output` | 用平台独立 Hook 维持会话语言，不依赖其他插件 |
 | 培训赋能 | `training-program-design` | 用混合水平受众方法、同源材料、只读评审与阶段门禁闭合培训设计和改编 |
 

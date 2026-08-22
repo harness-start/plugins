@@ -133,11 +133,6 @@
       "description": "Creates guided daily, weekly, and range work reports from local transcripts, then protects confirmed bodies with SHA-256 seals and append-only additions."
     },
     {
-      "name": "project-capability-governance",
-      "source": "./plugins/project-capability-governance",
-      "description": "Captures schema-validated project capability proposals and guides human-confirmed project-local adoption without blocking ordinary work."
-    },
-    {
       "name": "spec-driven-development",
       "source": "./plugins/spec-driven-development",
       "description": "Guides lightweight SDD and validates recognized spec, plan, and tasks writes with digest freshness."

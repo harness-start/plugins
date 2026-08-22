@@ -9,7 +9,7 @@
 
 ## 为什么保留
 
-`harness-starter` 的 `project-instruction-maintenance` 同时提供 reconcile、verify 和三个生命周期 Hook。当前 `ai-experts` 没有对应 runtime 组件，只在自身根指令中维护项目级合同，因此不能把它计作第二份实现。本仓的 `project-capability-governance` 只记录待人工采纳的能力提案，明确不保证已经修改的 `AGENTS.md` / `CLAUDE.md` 仍自洽。
+`harness-starter` 的 `project-instruction-maintenance` 同时提供 reconcile、verify 和三个生命周期 Hook。当前 `ai-experts` 没有对应 runtime 组件，只在自身根指令中维护项目级合同，因此不能把它计作第二份实现。本仓也没有验证已修改的 `AGENTS.md` / `CLAUDE.md` 是否仍自洽的运行时组件。
 
 源实现会在任意 workspace mutation 后要求项目指令评估。Marketplace 版本应收窄：只在根级指令文件本身被触碰后 arm，避免每次代码改动都增加 Stop 噪音。
 

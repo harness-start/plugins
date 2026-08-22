@@ -1,1 +1,0 @@
-Read the current `README.md` and reply with its first line only. A Stop hook may display a project capability notice for the human; it is not an AI task, so do not invoke another Skill or perform more work because of that notice.
