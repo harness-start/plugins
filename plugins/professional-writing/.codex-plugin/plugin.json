@@ -1,7 +1,7 @@
 {
   "name": "professional-writing",
-  "version": "1.2.0",
-  "description": "Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills.",
+  "version": "1.3.0",
+  "description": "Orchestrates language-aware writing Skills and automatically reports deterministic AI-style signals after observed Markdown writes.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -11,7 +11,7 @@
   "interface": {
     "displayName": "专业写作",
     "shortDescription": "Makes responses actionable, easier to understand, and natural in the target language.",
-    "longDescription": "Selects bundled Skills for actionable responses, minimal visual explanations, and English, Chinese, or Markdown prose while preserving facts, safety boundaries, and user-requested formats.",
+    "longDescription": "Selects bundled Skills for actionable responses, visual explanations, and language-aware prose, then reports deterministic AI-style signals after observed Markdown writes without automatically rewriting or blocking the document.",
     "developerName": "Harness Start",
     "category": "Productivity",
     "capabilities": ["skills", "hooks"],

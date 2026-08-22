@@ -1,12 +1,25 @@
 {
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"professional-writing:post\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/professional-writing.mjs\" post",
+            "statusMessage": "Scanning observed Markdown prose",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
             "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"professional-writing:session-start\" HARNESS_HOST=codex node \"${PLUGIN_ROOT}/dist/hooks/professional-writing.mjs\"",
-            "statusMessage": "Loading selective engineering Skill routes",
+            "statusMessage": "Loading selective professional writing Skill routes",
             "timeout": 10000,
             "additionalContextLimit": 2400
           }

@@ -16,6 +16,6 @@ Load only the Skills the current prose needs:
 | Chinese prose | `writing-chinese-prose` and bundled `ai-flavor-remover` |
 | Human-readable Markdown | also `writing-markdown-ai-style` |
 
-Preserve facts, numbers, URLs, identifiers, citations, and Markdown structure. SessionStart routing is not proof that the rewrite is good.
+Preserve facts, numbers, URLs, identifiers, citations, and Markdown structure. SessionStart routing is not proof that the rewrite is good. The installed PostToolUse Hook reports deterministic signals after observed Markdown writes even when this Skill is not loaded; treat those signals as review evidence, not rewrite commands.
 
 Use `actionable-response` by default for action-heavy replies without waiting for explicit ADHD wording. It can be combined with `visual-explanation`, but do not turn actionability into extreme compression or add a visual to a simple question.

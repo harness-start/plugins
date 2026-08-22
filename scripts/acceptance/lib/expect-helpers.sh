@@ -80,6 +80,34 @@ require_hook_prompt_signal() {
   return 1
 }
 
+# require_tool_feedback_signal <regex>
+# Claude exposes PostToolUse additionalContext in its debug log. Codex records
+# model-visible PostToolUse feedback as the originating custom tool output.
+require_tool_feedback_signal() {
+  local re="${1:?tool feedback regex required}"
+  if [ "${ACCEPT_HOST:-}" = "claude" ]; then
+    if grep -Eq "${re}" "${ACCEPT_LOG}"; then
+      return 0
+    fi
+  elif [ "${ACCEPT_HOST:-}" = "codex" ]; then
+    local rollout
+    while IFS= read -r -d '' rollout; do
+      if jq -se --arg re "${re}" '
+        any(.[ ];
+          .type == "response_item"
+          and .payload.type == "custom_tool_call_output"
+          and (.payload.output | type == "string")
+          and (.payload.output | test($re))
+        )
+      ' "${rollout}" >/dev/null 2>&1; then
+        return 0
+      fi
+    done < <(find "${ACCEPT_OUT:?}/codex-home/sessions" -type f -name '*.jsonl' -print0 2>/dev/null)
+  fi
+  echo "expect fail: no model-visible tool feedback matching: ${re}" >&2
+  return 1
+}
+
 # Codex 0.147 no longer persists rollout JSONL under CODEX_HOME/sessions. For
 # this non-blocking prompt hook, pair the host completion marker with the
 # plugin-owned first-prompt receipt instead of treating model prose as proof.

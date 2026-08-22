@@ -16,5 +16,6 @@
 - `06-markdown-analyzer`：Markdown 正文额外加载 `remove-ai-style`，保留受保护内容并留下修改前后两次分析器证据。
 - `07-actionable-response`: routes an ordinary user-executed migration through the actionable method, preserves commands and paths, and adds no diagnosis, unsupported duration, or filler ending.
 - `08-visual-explanation`: preserves a four-node data flow in one minimal inline visual without creating HTML or other files.
+- `09-markdown-post-hook`: writes a seeded Markdown sentence directly, then requires a real PostToolUse analyzer signal tied to that file on both hosts. The Hook signal, rather than model-reported behavior, is the acceptance gate.
 
 验收只证明这些固定场景中的依赖安装、平台化路由注入和结果，不把模型是否每次主动调用或读取 Skill 当作稳定硬门禁，也不外推为所有任务的质量保证。实际加载仍保留在 live 日志中供观测。

@@ -147,7 +147,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
 | `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；遇到实质新任务可由原生 Skill 路由复用，继续与纠正不重复探索 |
 | `engineering-practice` | 提供第一方实现判断、只读代码审查与完成前验证方法；具体故障调试归 `software-debugging` |
-| `professional-writing` | Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills; executes only path- and SHA-256-audited scripts |
+| `professional-writing` | Orchestrates actionable responses and language-aware writing Skills, then reports deterministic AI-style signals after observed Markdown writes |
 | `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
 | `interface-craft` | 提供视觉方向、项目设计记忆、设计系统连续性、动效、严格渲染批判与 Web 风格 UI 文件机械检查 |
 | `software-debugging` | 作为具体软件故障的唯一工作流，通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
@@ -173,7 +173,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | --- | --- | --- |
 | 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`command-safety` | 对命令、写入、测试顺序与跨技术栈共享质量实施可机械验证的硬门禁 |
 | 工程领域 | `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`kubernetes-operations`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering`、`web-frontend-engineering` | 每个领域以自建编排 Skill、捆绑业务 Skill 与本地 Hooks 组成，独立拥有语言/生态检查和依赖产物保护 |
-| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development`、`interface-craft` | 内部 Skill 组织步骤；方法正文捆绑在插件内 |
+| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development`、`interface-craft` | 内部 Skill 组织步骤；`professional-writing` 另在可观察 Markdown 写入后运行有界确定性扫描 |
 | 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
 | 领域生产 | `brand-logo-production`、`diagram-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
 | 项目与交付治理 | `ci-gated-delivery`、`repository-history-migration` | 管理远端交付状态机和跨仓历史迁移 |
@@ -209,7 +209,7 @@ plugins/<name>/
 
 ### 设计约定
 
-- **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出放行/阻断决策，stderr 输出给人读的消息；解析失败一律 fail-open。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
+- **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出结构化 Hook 结果（deny / block / `additionalContext`），stderr 输出仅供人读的诊断；解析失败一律 fail-open。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
 - **证据**：工作流插件用磁盘回执和 SHA-256 receipt 绑新鲜度；交付前要求回执和 trail 对得上。Hook 被调用、格式对、或多走几轮模型，都不算做完。
 - **fail-open / fail-closed**：解析失败和证据缺失就放行；写入安全、trail 完整性和交付新鲜度出问题就拦住。
 - **可配置**：多数守卫支持项目级配置（如 `.source-integrity.mjs`、`.language-output.mjs`），解析失败回退内置规则。

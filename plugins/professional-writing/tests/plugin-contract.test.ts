@@ -28,7 +28,7 @@ test("publishes a standalone professional-writing plugin", () => {
   for (const host of [".claude-plugin/plugin.json", ".codex-plugin/plugin.json"]) {
     const manifest = json(host);
     assert.equal(manifest.name, "professional-writing");
-    assert.equal(manifest.version, "1.2.0");
+    assert.equal(manifest.version, "1.3.0");
     assert.equal("dependencies" in manifest, false);
     assert.equal(manifest.skills, "./skills/");
   }
@@ -72,6 +72,21 @@ test("publishes separate actionable and visual response contracts", () => {
   assert.doesNotMatch(visual, /\p{Script=Han}/u);
 });
 
+test("both hosts run the deterministic Markdown analyzer after observed writes", () => {
+  const claude = json("hooks/claude.json");
+  const codex = json("hooks/codex.json");
+  for (const hooks of [claude.hooks, codex.hooks]) {
+    assert.deepEqual(Object.keys(hooks).sort(), ["PostToolUse", "SessionStart"]);
+    assert.match(hooks.PostToolUse[0].matcher, /Write/iu);
+    assert.match(hooks.PostToolUse[0].matcher, /apply_patch/iu);
+    assert.match(hooks.PostToolUse[0].matcher, /create_file/iu);
+    assert.match(hooks.PostToolUse[0].matcher, /search_replace/iu);
+    assert.match(hooks.PostToolUse[0].hooks[0].command, /professional-writing\.mjs.*post/iu);
+  }
+  assert.match(codex.hooks.PostToolUse[0].hooks[0].command, /AI_EXPERTS_SESSION_ID/iu);
+  assert.match(codex.hooks.PostToolUse[0].hooks[0].command, /AI_EXPERTS_TRIGGER_FROM/iu);
+});
+
 test("published plugin excludes maintainer benchmark corpora and target-answer markers", () => {
   const skillDirectories = directoriesUnder(resolve(root, "skills"));
   assert.equal(skillDirectories.some((path) => path.split(/[\\/]/u).includes("evals")), false);
@@ -89,7 +104,7 @@ test("published plugin excludes maintainer benchmark corpora and target-answer m
   }
 });
 
-test("live acceptance targets the bundled writing skills and analyzer CLI", () => {
+test("live acceptance targets the bundled writing skills, analyzer CLI, and write-time Hook", () => {
   const expectationByCase = new Map(
     ["04-english-natural-writing", "05-chinese-natural-writing", "06-markdown-analyzer"].map((id) => [
       id,
@@ -113,4 +128,7 @@ test("live acceptance targets the bundled writing skills and analyzer CLI", () =
     expectationByCase.get("06-markdown-analyzer") ?? "",
     /SkillTool returning\.\*skill \(\[\^ \]\+:\)\?\$\{skill\}/u,
   );
+  const hookExpectation = readFileSync(resolve(root, "acceptance/cases/09-markdown-post-hook/expect.sh"), "utf8");
+  assert.match(hookExpectation, /Markdown AI-style findings/iu);
+  assert.match(hookExpectation, /require_tool_feedback_signal/iu);
 });

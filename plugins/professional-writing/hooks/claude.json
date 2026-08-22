@@ -1,5 +1,18 @@
 {
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "HARNESS_HOST=claude node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/professional-writing.mjs\" post",
+            "statusMessage": "Scanning observed Markdown prose",
+            "timeout": 10000
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

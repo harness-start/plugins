@@ -131,6 +131,7 @@ flowchart TD
 | E 显式工作流 | 硬模式依赖账本、git、产物路径或窄命令 | 只维护已存在状态或始终在场的窄门禁 | 方法入口；提到名字不开硬模式 |
 | F 产物交付 | 生成物必须走登记 writer 与合同闭包 | 形状门禁；需要时签发 capability；Stop 重验 | 编排 / 顾问 / 独立审查；Skill 可选 |
 | G 界面工艺 | 机械检测 UI 反模式，不替代领域语法门禁 | 路由 + Post 扫描；Stop 不得冒充已回滚 | floor / critique / 显式项目设计记忆方法 |
+| H 文稿机械审阅 | 写后可确定性定位文本信号，但最终取舍依赖语境 | Post 有界扫描并报告精确位置；不得自动改写或默认阻断 | 语义判断、保护内容、语气与显式改写流程 |
 
 ---
 
@@ -325,6 +326,25 @@ sequenceDiagram
 
 Skill 提供工艺底线、审查与设计记忆方法。检测本身不得依赖 Skill 是否加载。
 
+---
+
+### H. 文稿机械审阅
+
+**必须**
+
+- `PostToolUse` 只扫描本次工具事件可观察到的、已存在且大小有界的人类可读文稿目标。
+- 确定性规则必须由插件内纯函数单独拥有；Hook 与显式 CLI 复用同一实现。
+- 报告必须包含规则 id、严重级别和精确 `file:line`，并说明命中只是待语义复核的信号。
+- Claude 返回非阻断 `additionalContext`；Codex 用 `continue:false` + `reason` 把诊断作为非阻断 tool feedback 交给下一轮模型，避免破坏 tool-call/output 配对。live acceptance 必须证明宿主实际接收该反馈。
+- Skill 保留全文阅读、误报分类、保护区域、作者语气和改写方法；Skill 是否加载不得影响扫描是否执行。
+
+**禁止**
+
+- 因词法或结构信号自动改写正文，或默认阻断一次普通文稿写入。
+- 把命中数量下降当成文稿质量、事实正确性或发布完成的证明。
+- 扫描未观察到的全仓文件、无界大文件、生成目录、依赖目录或缓存目录。
+- 复制一份仅供 Hook 使用、会与 CLI 漂移的检测规则。
+
 ## 7. 共享运行时合同
 
 ### 7.1 Hook I/O
@@ -398,7 +418,7 @@ Skill 是知识层，不是效果证据。
 | 数据目录 | Claude 用 `CLAUDE_PLUGIN_DATA`；Codex 用 `PLUGIN_DATA` |
 | 信任 | Codex 必须经 `/hooks` 审查并信任；安装成功不得写成 Hook 已在跑 |
 | 事件差 | `PostToolUseFailure` 不是双平台必选项；缺失时必须用 Post 或其它已注册事件收口，并在该插件文档写明 |
-| 工具报告 | Codex 的 `PreToolUse`、`PostToolUse`、`PostToolUseFailure` 非阻断报告只写 stderr，不把 `additionalContext` 插进尚未闭合的 tool-call 序列；deny / block 与会话级注入保持结构化输出 |
+| 工具报告 | 默认情况下，Codex 的工具生命周期非阻断报告只写 stderr；允许模式 H 使用 `continue:false` + `reason` 替代普通工具回执，把写后诊断交给模型且保持 tool-call/output 配对，并须由当前 Codex live acceptance 证明。deny / block 与会话级注入保持结构化输出 |
 | MCP | 仅在确有已登记工具时提供；声明方式按宿主，不得假设未声明的 MCP 一定可见 |
 | Provenance | Codex hook 应当设置 `AI_EXPERTS_SESSION_ID` / `AI_EXPERTS_TRIGGER_FROM` |
 

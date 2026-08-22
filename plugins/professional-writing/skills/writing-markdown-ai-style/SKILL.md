@@ -1,6 +1,6 @@
 ---
 name: writing-markdown-ai-style
-description: Review and rewrite Chinese or English prose to reduce AI-generated patterns. Use for de-AI polishing, natural-language rewrites, robotic or formulaic writing, and publication cleanup. Always run the bundled deterministic Markdown analyzer first, inspect every reported location, then read the full article for semantic patterns the rules cannot enumerate.
+description: Review and rewrite Chinese or English prose to reduce AI-generated patterns. Use for de-AI polishing, natural-language rewrites, robotic or formulaic writing, and publication cleanup. Run the bundled deterministic Markdown analyzer before editing, inspect every reported location, then read the full article for semantic patterns the rules cannot enumerate. The installed PostToolUse Hook independently rescans observed Markdown writes.
 ---
 
 # Remove AI Style
@@ -11,6 +11,8 @@ Use a two-layer workflow:
 2. Read the full article and make contextual judgments that rules cannot cover.
 
 The analyzer provides evidence, not automatic rewrite commands. A hit can be intentional, genre-appropriate, quoted text, or a false positive.
+
+The installed `PostToolUse` Hook reuses the same analyzer after observed `.md` and `.markdown` writes. It reports findings without loading this Skill, rewriting the file, or blocking the write. The semantic workflow below remains the agent's responsibility.
 
 ## Intensity
 
@@ -113,7 +115,7 @@ When invoked as a Subagent on a file, edit the file directly, then return a conc
 
 ### 7. Run the analyzer again
 
-After editing, rerun the same command and compare before/after summaries.
+After editing, confirm the PostToolUse report and rerun the same command to compare complete before/after summaries. Run the CLI explicitly when Hook trust is absent, the input came through chat or stdin, the file was changed outside an observed tool event, or the automatic size/file limit skipped it.
 
 Review remaining high/medium findings individually. A remaining hit is acceptable when it is intentional, protected, required for accuracy, or a documented false positive.
 

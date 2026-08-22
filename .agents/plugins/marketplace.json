@@ -163,7 +163,7 @@
         "authentication": "ON_INSTALL"
       },
       "category": "Productivity",
-      "description": "Orchestrates actionable responses, minimal visual explanations, and language-aware writing Skills."
+      "description": "Orchestrates language-aware writing Skills and reports deterministic AI-style signals after observed Markdown writes."
     },
     {
       "name": "reasoning-methods",
