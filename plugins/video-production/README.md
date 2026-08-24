@@ -46,7 +46,7 @@ node plugins/video-production/dist/cli/project-admit.mjs artifacts/video/demo /t
 probe 在最终 MP4 上重新测量 container、stream、fps、尺寸和精确帧数，并产生：
 
 - `evidence.audio.json`：音轨事实、integrated LUFS 与 true peak；
-- `evidence.motion.json`：每个 storyboard beat 的起/中/末解码帧摘要及运动覆盖；
+- `evidence.motion.json`：每个 storyboard beat 的起/中/末解码帧摘要、8-bit 灰度 `YAVG`/`YMAX`、运动覆盖，以及 `YAVG <= 20 && YMAX <= 32` 的近黑候选；
 - `evidence.captions.json`：字幕区间、重叠和阅读速度；
 - `evidence.reference.json`：声明为 frame-aligned 时的全视频 SSIM/PSNR；
 - `evidence.shots.json`：每个已选 recipe/style、当前实现源码摘要及指定解码帧；
@@ -69,10 +69,15 @@ review input 必须位于 artifact 外，并绑定当前 final digest：
     "assetRights": "pass", "profileFidelity": "pass"
   },
   "accessibility": { "captionsReviewed": true, "flashingReviewed": true, "contrastReviewed": true },
+  "blackFrameAssessments": [
+    { "frame": 120, "classification": "expected", "notes": "Intentional fade to black." }
+  ],
   "findings": [],
   "notes": "Review summary"
 }
 ```
+
+`blackFrameAssessments` 必须逐一覆盖 `evidence.motion.json` 的近黑候选并把它们标为 `expected` 或 `unexpected`，同时写明原因；候选帧也必须出现在 `frames` 中。任何漏评或 `unexpected` 都不会生成通过的 review。不存在候选时该数组可以省略或为空。
 
 存在镜头选择时还要求 `shotFidelity: "pass"` 且 review frames 覆盖 `plan.shots.json` 的声明；`reference-led` 还要求 `referenceFidelity: "pass"`，`micro-drama` 还要求 `characterContinuity: "pass"`。reviewer 会话必须不同于 render，会由一次性 capability 的真实 session 校验；release 会话也必须不同于 reviewer。新 scaffold 还会记录 Remotion 许可状态，发布前必须由项目责任人把 `unconfirmed` 更新为真实声明。
 

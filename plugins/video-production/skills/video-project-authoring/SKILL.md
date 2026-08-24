@@ -27,7 +27,7 @@ Read all of these before authoring:
 5. Run external media generators or editors only outside the artifact root. Never expose credentials in commands or project files. Admit declared outputs with `project-admit.mjs <root> <external-run-manifest>`.
 6. Implement visual units and audio/caption bindings whose half-open frame ranges project exactly from the storyboard. Keep each visual unit free of global scheduling, audio ownership, I/O, network, and wall-clock randomness.
 7. Run `project-lint.mjs`, render every visual and audio unit, then render final. After a source, asset, direction, script, design, timing, or shot-selection change, restart at lint.
-8. Run `project-probe.mjs`. Resolve media, timing, audio, caption, motion, shot, and conditional reference findings before review.
+8. Run `project-probe.mjs`. Resolve media, timing, audio, caption, motion, shot, and conditional reference findings before review. Pass every reported near-black candidate to the independent reviewer; do not treat a candidate as an automatic failure or silently waive it.
 9. Give only the current project root, final MP4, evidence, digests, and review-input contract to a separate `$video-project-review` session. The reviewer creates its input outside the project and invokes `project-review.mjs` itself.
 10. After a current independent pass, run `project-release.mjs`. Report only release-manifest outputs and label verification claims with execution provenance.
 

@@ -127,6 +127,19 @@ export async function extractFrameDigest(filePath: string, frame: number, fps: n
   return { frame, timestampSeconds: timestamp, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
 
+export async function measureFrameLuma(filePath: string, frame: number, fps: number, { ffmpeg = "ffmpeg", cwd }: {
+  ffmpeg?: string | undefined;
+  cwd?: string | undefined;
+} = {}) {
+  const timestamp = frame / fps;
+  const { stderr } = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-ss", timestamp.toFixed(6), "-i", filePath, "-frames:v", "1", "-vf", "format=gray,signalstats,metadata=print", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 120_000 });
+  const output = stderr.toString("utf8");
+  const yAvg = [...output.matchAll(/lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  const yMax = [...output.matchAll(/lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  if (yAvg === undefined || yMax === undefined) throw new Error(`FRAME_LUMA_PARSE_FAILED:${frame}`);
+  return { yAvg: Number(yAvg), yMax: Number(yMax) };
+}
+
 export async function measureAudioLoudness(filePath: string, { ffmpeg = "ffmpeg", cwd }: {
   ffmpeg?: string | undefined;
   cwd?: string | undefined;

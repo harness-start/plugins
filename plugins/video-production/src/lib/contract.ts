@@ -26,6 +26,7 @@ export const APPROVALS_SCHEMA = "video-production/approvals/v1";
 export const REFERENCES_SCHEMA = "video-production/references/v1";
 export const DESIGN_SYSTEM_SCHEMA = "video-production/design-system/v1";
 export const PROJECT_SCHEMA = "video-production/project/v2";
+export const BLACK_FRAME_THRESHOLD = Object.freeze({ yAvgMax: 20, yMaxMax: 32 });
 export const VIDEO_PROFILES = [
   "motion-explainer",
   "product-promo",
@@ -713,7 +714,25 @@ function validateProbeEvidence(model: VideoModel, findings: VideoFinding[]) {
   if (!validEvidenceBase(model, audio, AUDIO_EVIDENCE_SCHEMA) || audioFacts?.present !== true || !Number.isInteger(audioFacts?.sampleRate) || (audioFacts?.sampleRate as number) <= 0 || !Number.isInteger(audioFacts?.channels) || (audioFacts?.channels as number) <= 0 || audioFacts?.durationInFrames !== model.project?.durationInFrames || !Number.isFinite(measuredLufs) || !Number.isFinite(measuredPeak) || !Number.isFinite(targetLufs) || !Number.isFinite(targetPeak) || Math.abs(measuredLufs - targetLufs) > 2 || measuredPeak > targetPeak + 0.1) findings.push(finding("AUDIO_EVIDENCE_INVALID", "evidence.audio.json", "audio evidence must bind a measured stream within the declared loudness and true-peak targets"));
   const motion = evidenceObject(model, "evidence.motion.json");
   const motionBeats = Array.isArray(motion?.beats) ? motion.beats : [];
-  if (!validEvidenceBase(model, motion, MOTION_EVIDENCE_SCHEMA) || motion?.verdict !== "pass" || motionBeats.length === 0 || !motionBeats.every((beat) => isObject(beat) && typeof beat.id === "string" && Array.isArray(beat.samples) && beat.samples.length >= 1 && beat.samples.every((sample) => isObject(sample) && Number.isInteger(sample.frame) && sixDigitHash(sample.sha256)))) findings.push(finding("MOTION_EVIDENCE_INVALID", "evidence.motion.json", "motion evidence must bind decoded samples for every storyboard beat"));
+  const motionSamples = motionBeats.flatMap((beat) => isObject(beat) && Array.isArray(beat.samples) ? beat.samples : []);
+  const validMotionSample = (sample: unknown) => {
+    if (!isObject(sample) || !Number.isInteger(sample.frame) || !sixDigitHash(sample.sha256) || !isObject(sample.luma)) return false;
+    const yAvg = Number(sample.luma.yAvg);
+    const yMax = Number(sample.luma.yMax);
+    const measured = Number.isFinite(yAvg) && yAvg >= 0 && yAvg <= 255 && Number.isFinite(yMax) && yMax >= 0 && yMax <= 255;
+    return measured && sample.blackCandidate === (yAvg <= BLACK_FRAME_THRESHOLD.yAvgMax && yMax <= BLACK_FRAME_THRESHOLD.yMaxMax);
+  };
+  const threshold = nestedRecord(motion, "blackFrameThreshold");
+  const blackCandidates = Array.isArray(motion?.blackCandidates) ? motion.blackCandidates : [];
+  const expectedCandidates = new Map<number, Record<string, unknown>>();
+  for (const sample of motionSamples) if (isObject(sample) && sample.blackCandidate === true && Number.isInteger(sample.frame)) expectedCandidates.set(Number(sample.frame), sample);
+  const candidateFrames = blackCandidates.map((candidate) => isObject(candidate) ? candidate.frame : undefined);
+  const candidatesValid = blackCandidates.length === expectedCandidates.size && new Set(candidateFrames).size === candidateFrames.length && blackCandidates.every((candidate) => {
+    if (!isObject(candidate) || !Number.isInteger(candidate.frame) || !sixDigitHash(candidate.sha256) || !isObject(candidate.luma)) return false;
+    const expected = expectedCandidates.get(Number(candidate.frame));
+    return expected !== undefined && candidate.sha256 === expected.sha256 && JSON.stringify(candidate.luma) === JSON.stringify(expected.luma);
+  });
+  if (!validEvidenceBase(model, motion, MOTION_EVIDENCE_SCHEMA) || motion?.verdict !== "pass" || threshold?.yAvgMax !== BLACK_FRAME_THRESHOLD.yAvgMax || threshold?.yMaxMax !== BLACK_FRAME_THRESHOLD.yMaxMax || motionBeats.length === 0 || !motionBeats.every((beat) => isObject(beat) && typeof beat.id === "string" && Array.isArray(beat.samples) && beat.samples.length >= 1 && beat.samples.every(validMotionSample)) || !candidatesValid) findings.push(finding("MOTION_EVIDENCE_INVALID", "evidence.motion.json", "motion evidence must bind decoded samples, normalized luma measurements, and the complete near-black candidate set"));
   const captions = evidenceObject(model, "evidence.captions.json");
   const captionItems = Array.isArray(captions?.items) ? captions.items : [];
   const declaredCaptions = manifestUnits(model, "captions");
@@ -767,10 +786,12 @@ function validateReviewEvidence(model: VideoModel, findings: VideoFinding[]) {
   const duration = model.project?.durationInFrames;
   const shotPlan = evidenceObject(model, "plan.shots.json");
   const requiredShotFrames = Array.isArray(shotPlan?.selections) ? shotPlan.selections.flatMap((selection) => isObject(selection) && Array.isArray(selection.reviewFrames) ? selection.reviewFrames : []) : [];
+  const motion = evidenceObject(model, "evidence.motion.json");
+  const blackCandidateFrames = Array.isArray(motion?.blackCandidates) ? motion.blackCandidates.map((candidate) => isObject(candidate) ? candidate.frame : undefined).filter((frame): frame is number => Number.isInteger(frame)) : [];
   if (!validEvidenceBase(model, frames, FRAME_EVIDENCE_SCHEMA) || framesTool?.name !== "ffmpeg" || typeof framesTool?.version !== "string" || !framesTool.version || frameList.length < 3 || !frameList.every((item) => {
     const record = isObject(item) ? item : undefined;
     return Number.isInteger(record?.frame) && (record?.frame as number) >= 0 && (record?.frame as number) < (duration as number) && sixDigitHash(record?.sha256);
-  }) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes((duration as number) - 1) || !requiredShotFrames.every((frame) => frameIndexes.includes(frame))) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, final, and selected shot-review frame hashes"));
+  }) || new Set(frameIndexes).size !== frameIndexes.length || !frameIndexes.includes(0) || !frameIndexes.includes((duration as number) - 1) || !requiredShotFrames.every((frame) => frameIndexes.includes(frame)) || !blackCandidateFrames.every((frame) => frameIndexes.includes(frame))) findings.push(finding("FRAME_EVIDENCE_INVALID", "evidence.frames.json", "frame evidence must bind unique start, interior, final, selected shot-review, and near-black candidate frame hashes"));
   const accessibility = evidenceObject(model, "evidence.accessibility.json");
   const accessibilityChecks = nestedRecord(accessibility, "checks");
   if (!validEvidenceBase(model, accessibility, ACCESSIBILITY_EVIDENCE_SCHEMA) || accessibility?.verdict !== "pass" || !sixDigitHash(accessibility?.reviewInputSha256) || !["captionsReviewed", "flashingReviewed", "contrastReviewed"].every((key) => accessibilityChecks?.[key] === true)) findings.push(finding("ACCESSIBILITY_EVIDENCE_INVALID", "evidence.accessibility.json", "accessibility evidence requires explicit passing checks"));
@@ -780,7 +801,12 @@ function validateReviewEvidence(model: VideoModel, findings: VideoFinding[]) {
   const checks = nestedRecord(review, "checks");
   const reviewerKind = reviewer?.kind;
   const expectedShotDigest = hasFile(model, "evidence.shots.json") ? fileDigest(model, "evidence.shots.json") : undefined;
-  if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind)) || typeof reviewer?.id !== "string" || typeof reviewer?.sessionId !== "string" || reviewer?.sessionId !== review?.sessionId || reviewer?.sessionId === finalProof?.sessionId || !requiredReviewChecks(model).every((key) => checks?.[key] === "pass") || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json") || (expectedShotDigest !== undefined && review?.shotEvidenceSha256 !== expectedShotDigest)) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be independent, profile-complete, passing, and bound to frame, accessibility, and selected-shot evidence"));
+  const blackFrameAssessments = Array.isArray(review?.blackFrameAssessments) ? review.blackFrameAssessments : [];
+  const assessedFrames = blackFrameAssessments.map((assessment) => isObject(assessment) ? assessment.frame : undefined);
+  const blackFramesReviewed = blackFrameAssessments.length === blackCandidateFrames.length
+    && new Set(assessedFrames).size === assessedFrames.length
+    && blackFrameAssessments.every((assessment) => isObject(assessment) && Number.isInteger(assessment.frame) && blackCandidateFrames.includes(assessment.frame as number) && assessment.classification === "expected" && typeof assessment.notes === "string" && assessment.notes.trim().length > 0);
+  if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind)) || typeof reviewer?.id !== "string" || typeof reviewer?.sessionId !== "string" || reviewer?.sessionId !== review?.sessionId || reviewer?.sessionId === finalProof?.sessionId || !requiredReviewChecks(model).every((key) => checks?.[key] === "pass") || !blackFramesReviewed || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json") || review?.motionEvidenceSha256 !== fileDigest(model, "evidence.motion.json") || (expectedShotDigest !== undefined && review?.shotEvidenceSha256 !== expectedShotDigest)) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be independent, profile-complete, passing, and bound to frame, accessibility, motion, near-black, and selected-shot evidence"));
 }
 
 function validateReleaseEvidence(model: VideoModel, findings: VideoFinding[]) {

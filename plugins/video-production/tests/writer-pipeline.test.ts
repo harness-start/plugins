@@ -77,7 +77,7 @@ function fixture(sandbox, { shotCraft = false } = {}) {
   if (shots !== undefined) files["plan.shots.json"] = shots;
   for (const [relativePath, content] of Object.entries(files)) write(root, relativePath, content);
   write(bin, "ffprobe", `#!/usr/bin/env node\nif(process.argv.includes("-version")){process.stdout.write("ffprobe fixture 1.0\\n");process.exit(0)} const fs=require("node:fs"); const file=process.argv.at(-1); const body=fs.readFileSync(file,"utf8"); const audio=body.includes("WAV"); const final=body.includes("FINAL"); const streams=audio?[{codec_type:"audio",codec_name:"pcm_s16le",sample_rate:"48000",channels:2}]:[{codec_type:"video",codec_name:"h264",width:1920,height:1080,r_frame_rate:"30/1",avg_frame_rate:"30/1",nb_frames:"10"},...(final?[{codec_type:"audio",codec_name:"aac",sample_rate:"48000",channels:2}]:[])]; process.stdout.write(JSON.stringify({format:{format_name:audio?"wav":"mov,mp4",duration:"0.333333"},streams}));\n`, true);
-  write(bin, "ffmpeg", "#!/usr/bin/env node\nconst fs=require('node:fs'); if(process.argv.includes('-version')){process.stdout.write('ffmpeg fixture 1.0\\n');process.exit(0)} if(process.argv.includes('ebur128=peak=true')){process.stderr.write('Summary:\\n  Integrated loudness:\\n    I: -16.0 LUFS\\n  True peak:\\n    Peak: -1.0 dBFS\\n');process.exit(0)} if(process.argv.includes('-vf')){fs.mkdirSync(require('node:path').dirname(process.argv.at(-1)),{recursive:true});fs.writeFileSync(process.argv.at(-1),'PNG-CONTACT');process.exit(0)} process.stdout.write(Buffer.from(`FRAME:${process.argv.join(' ')}`));\n", true);
+  write(bin, "ffmpeg", "#!/usr/bin/env node\nconst fs=require('node:fs'); if(process.argv.includes('-version')){process.stdout.write('ffmpeg fixture 1.0\\n');process.exit(0)} if(process.argv.includes('ebur128=peak=true')){process.stderr.write('Summary:\\n  Integrated loudness:\\n    I: -16.0 LUFS\\n  True peak:\\n    Peak: -1.0 dBFS\\n');process.exit(0)} if(process.argv.some((value)=>value.includes('signalstats'))){const black=process.env.FAKE_BLACK_FRAME==='1';process.stderr.write(`lavfi.signalstats.YAVG=${black?16:64}\\nlavfi.signalstats.YMAX=${black?16:192}\\n`);process.exit(0)} if(process.argv.includes('-vf')){fs.mkdirSync(require('node:path').dirname(process.argv.at(-1)),{recursive:true});fs.writeFileSync(process.argv.at(-1),'PNG-CONTACT');process.exit(0)} process.stdout.write(Buffer.from(`FRAME:${process.argv.join(' ')}`));\n", true);
   return { root, bin, visual, audio };
 }
 
@@ -177,6 +177,94 @@ test("registered writers produce a structured render-probe-review-release closur
     const forgedCodes = validateVideoModel(forgedModel, { stage: "release" }).map(({ code }) => code);
     assert.ok(forgedCodes.includes("PROBE_EVIDENCE_INVALID"));
     assert.ok(forgedCodes.includes("FRAME_EVIDENCE_INVALID"));
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true });
+  }
+});
+
+test("near-black probe samples require explicit independent review before release", async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), "video-black-frame-review-"));
+  try {
+    const fx = fixture(sandbox);
+    const env = { PATH: `${fx.bin}:${process.env.PATH}`, FAKE_BLACK_FRAME: "1" };
+    for (const [kind, source] of [["visual", "v001-intro.f000000-f000010.tsx"], ["audio", "a001-music-bed.f000000-f000010.audio.json"], ["final", null]]) {
+      const rendered = await runAuthorized("project-render.mjs", [fx.root, kind, ...(source ? [source] : [])], { env, sessionId: "black-render-session", cwd: sandbox });
+      assert.equal(rendered.code, 0, rendered.stderr);
+    }
+
+    const probed = await runAuthorized("project-probe.mjs", [fx.root], { env, sessionId: "black-render-session", cwd: sandbox });
+    assert.equal(probed.code, 0, probed.stderr);
+    const motion = JSON.parse(readFileSync(join(fx.root, "evidence.motion.json"), "utf8"));
+    assert.deepEqual(motion.blackFrameThreshold, { yAvgMax: 20, yMaxMax: 32 });
+    assert.deepEqual(motion.blackCandidates.map(({ frame }) => frame), [0, 4, 9]);
+    assert.deepEqual(motion.blackCandidates.map(({ luma }) => luma), [
+      { yAvg: 16, yMax: 16 },
+      { yAvg: 16, yMax: 16 },
+      { yAvg: 16, yMax: 16 },
+    ]);
+
+    const reviewInput = join(sandbox, "black-review-input.json");
+    const input = {
+      schema: "video-production/review-input/v2",
+      artifactId: "demo",
+      outputSha256: sha256("FAKE_FINAL_MP4"),
+      verdict: "pass",
+      reviewer: { kind: "independent-agent", id: "black-reviewer", sessionId: "black-review-session" },
+      frames: [0, 4, 9],
+      checks: { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" },
+      accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true },
+      blackFrameAssessments: [] as Array<{ frame: number | string; classification: string; notes: string }>,
+    };
+    writeFileSync(reviewInput, JSON.stringify(input));
+    const incomplete = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "black-review-session", cwd: sandbox });
+    assert.equal(incomplete.code, 2);
+    assert.match(incomplete.stderr, /BLACK_FRAME_REVIEW_INCOMPLETE/u);
+
+    input.blackFrameAssessments = [
+      { frame: "0", classification: "expected", notes: "Wrong frame type." },
+      { frame: "4", classification: "expected", notes: "Wrong frame type." },
+      { frame: "9", classification: "expected", notes: "Wrong frame type." },
+    ];
+    writeFileSync(reviewInput, JSON.stringify(input));
+    const wrongTypes = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "black-review-session", cwd: sandbox });
+    assert.equal(wrongTypes.code, 2);
+    assert.match(wrongTypes.stderr, /BLACK_FRAME_REVIEW_INCOMPLETE/u);
+
+    input.blackFrameAssessments = [
+      { frame: 0, classification: "expected", notes: "Intentional black opening." },
+      { frame: 4, classification: "unexpected", notes: "Render dropped the middle scene." },
+      { frame: 9, classification: "expected", notes: "Intentional black closing." },
+    ];
+    writeFileSync(reviewInput, JSON.stringify(input));
+    const failed = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "black-review-session", cwd: sandbox });
+    assert.equal(failed.code, 2);
+    assert.match(failed.stderr, /BLACK_FRAME_REVIEW_FAILED/u);
+
+    input.blackFrameAssessments[1].classification = "expected";
+    input.blackFrameAssessments[1].notes = "The middle beat intentionally cuts to black.";
+    writeFileSync(reviewInput, JSON.stringify(input));
+    const reviewed = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "black-review-session", cwd: sandbox });
+    assert.equal(reviewed.code, 0, reviewed.stderr);
+    const review = JSON.parse(readFileSync(join(fx.root, "review.video.json"), "utf8"));
+    assert.deepEqual(review.blackFrameAssessments, input.blackFrameAssessments);
+
+    const released = await runAuthorized("project-release.mjs", [fx.root], { env, sessionId: "black-release-session", cwd: sandbox });
+    assert.equal(released.code, 0, released.stderr);
+    const releasedModel = await loadVideoProject(fx.root);
+    assert.deepEqual(validateVideoModel(releasedModel, { stage: "release" }), []);
+
+    const motionPath = join(fx.root, "evidence.motion.json");
+    const currentMotionBytes = readFileSync(motionPath, "utf8");
+    const duplicatedMotion = JSON.parse(currentMotionBytes);
+    duplicatedMotion.blackCandidates = duplicatedMotion.blackCandidates.map(() => duplicatedMotion.blackCandidates[0]);
+    writeFileSync(motionPath, JSON.stringify(duplicatedMotion));
+    const duplicateCandidateCodes = validateVideoModel(await loadVideoProject(fx.root), { stage: "release" }).map(({ code }) => code);
+    assert.ok(duplicateCandidateCodes.includes("MOTION_EVIDENCE_INVALID"));
+
+    writeFileSync(motionPath, currentMotionBytes);
+    writeFileSync(motionPath, JSON.stringify(JSON.parse(currentMotionBytes), null, 2));
+    const staleReviewCodes = validateVideoModel(await loadVideoProject(fx.root), { stage: "release" }).map(({ code }) => code);
+    assert.ok(staleReviewCodes.includes("VIDEO_REVIEW_INVALID"));
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }

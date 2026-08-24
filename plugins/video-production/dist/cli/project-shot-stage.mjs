@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:924cc58853e84cd81acea89c903c26d2ba046c86e5885c106ae9163c4947aea6
+// harness-source-hash: sha256:d965cd2a582f40ee1f8339821b06dc65aaa884c31454ec60256b506974a95454
 import {
   APPROVALS_SCHEMA,
   SHOT_PLAN_SCHEMA,
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-WYEFUNFT.mjs";
+} from "../chunks/chunk-I5QNJF2A.mjs";
 import {
   SHOT_LIBRARY_UPSTREAM_COMMIT,
   getShotRecipe,
   shotSourceFiles
-} from "../chunks/chunk-72NYFEVP.mjs";
+} from "../chunks/chunk-FBXJEUPB.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   withWriterJournal
-} from "../chunks/chunk-QC5OJTYM.mjs";
+} from "../chunks/chunk-G5K7MSNN.mjs";
 
 // plugins/video-production/src/entries/cli/project-shot-stage.ts
 import { createHash } from "node:crypto";

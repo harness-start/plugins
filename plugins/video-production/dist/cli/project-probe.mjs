@@ -1,16 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:924cc58853e84cd81acea89c903c26d2ba046c86e5885c106ae9163c4947aea6
+// harness-source-hash: sha256:d965cd2a582f40ee1f8339821b06dc65aaa884c31454ec60256b506974a95454
 import {
   compareVideoSimilarity,
   extractFrameDigest,
   measureAudioLoudness,
+  measureFrameLuma,
   mediaToolVersion,
   probeMedia,
   renderContactSheet,
   validateMeasuredMedia
-} from "../chunks/chunk-YKKBNWL6.mjs";
+} from "../chunks/chunk-46XFRTUN.mjs";
 import {
   AUDIO_EVIDENCE_SCHEMA,
+  BLACK_FRAME_THRESHOLD,
   CAPTION_EVIDENCE_SCHEMA,
   MOTION_EVIDENCE_SCHEMA,
   PROBE_SCHEMA,
@@ -21,8 +23,8 @@ import {
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-WYEFUNFT.mjs";
-import "../chunks/chunk-72NYFEVP.mjs";
+} from "../chunks/chunk-I5QNJF2A.mjs";
+import "../chunks/chunk-FBXJEUPB.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
@@ -30,7 +32,7 @@ import {
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-QC5OJTYM.mjs";
+} from "../chunks/chunk-G5K7MSNN.mjs";
 
 // plugins/video-production/src/entries/cli/project-probe.ts
 import { mkdir, rename, unlink } from "node:fs/promises";
@@ -77,7 +79,11 @@ async function main() {
     return [start, Math.floor((start + end - 1) / 2), end - 1];
   }), ...shotReviewFrames])].filter((frame) => Number.isInteger(frame) && Number(frame) >= 0 && Number(frame) < Number(project.durationInFrames)).sort((left, right) => left - right);
   const samples = [];
-  for (const frame of sampleFrames) samples.push(await extractFrameDigest(`${root}/${mediaPath}`, frame, Number(project.fps), { cwd: root }));
+  for (const frame of sampleFrames) {
+    const digest = await extractFrameDigest(`${root}/${mediaPath}`, frame, Number(project.fps), { cwd: root });
+    const luma = await measureFrameLuma(`${root}/${mediaPath}`, frame, Number(project.fps), { cwd: root });
+    samples.push({ ...digest, luma, blackCandidate: luma.yAvg <= BLACK_FRAME_THRESHOLD.yAvgMax && luma.yMax <= BLACK_FRAME_THRESHOLD.yMaxMax });
+  }
   const sampleMap = new Map(samples.map((sample) => [sample.frame, sample]));
   const motionBeats = beats.map((beat) => {
     const start = Number(beat.startFrame);
@@ -130,6 +136,7 @@ async function main() {
     const reviewFrames = Array.isArray(selection.reviewFrames) ? selection.reviewFrames.map((frame) => sampleMap.get(Number(frame))).filter((sample) => sample !== void 0) : [];
     return { beatId: selection.beatId, recipeId: selection.recipeId, styleId: selection.styleId, usage: selection.usage, implementationPath, implementationSha256: model.digests?.[implementationPath], reviewFrames };
   });
+  const blackCandidates = samples.filter((sample) => sample.blackCandidate).map(({ frame, timestampSeconds, sha256, luma }) => ({ frame, timestampSeconds, sha256, luma }));
   await withWriterJournal(root, "video-probe", async () => {
     const temporary = join(root, ".tmp", "video-guard", `contact-sheet.${process.pid}.png`);
     const contactPath = join(root, "evidence", "contact-sheet.png");
@@ -139,7 +146,7 @@ async function main() {
     const contact = await hashFile(contactPath, { maxBytes: 64 * 1024 * 1024 });
     await atomicWriteJson(root, "evidence.probe.json", { schema: PROBE_SCHEMA, ...base, video: media });
     await atomicWriteJson(root, "evidence.audio.json", { schema: AUDIO_EVIDENCE_SCHEMA, ...base, audio: { present: media.hasAudio, codec: media.audioCodec, sampleRate: media.sampleRate, channels: media.channels, durationInFrames: media.durationInFrames }, loudness, target: audioTarget });
-    await atomicWriteJson(root, "evidence.motion.json", { schema: MOTION_EVIDENCE_SCHEMA, ...base, verdict: motionVerdict, changedRatio, beats: motionBeats, contactSheetSha256: contact.digest });
+    await atomicWriteJson(root, "evidence.motion.json", { schema: MOTION_EVIDENCE_SCHEMA, ...base, verdict: motionVerdict, changedRatio, beats: motionBeats, blackFrameThreshold: BLACK_FRAME_THRESHOLD, blackCandidates, contactSheetSha256: contact.digest });
     await atomicWriteJson(root, "evidence.captions.json", { schema: CAPTION_EVIDENCE_SCHEMA, ...base, verdict: "pass", count: captionItems.length, overlap: false, items: captionItems });
     await atomicWriteJson(root, "evidence.reference.json", { schema: REFERENCE_EVIDENCE_SCHEMA, ...base, verdict: "pass", comparisons });
     if (isRecord(shotPlan)) await atomicWriteJson(root, "evidence.shots.json", { schema: SHOT_EVIDENCE_SCHEMA, ...base, catalogRevision: shotPlan.catalogRevision, selections: shotEvidence });

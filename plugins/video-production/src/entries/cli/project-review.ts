@@ -44,7 +44,17 @@ function validateInput(input: unknown, model: VideoModel, currentSession: string
   const frames = Array.isArray(record.frames) ? [...new Set(record.frames)] : [];
   const duration = model.project?.durationInFrames ?? Number.NaN;
   const requiredShotFrames = shotSelections.flatMap((selection) => Array.isArray(selection.reviewFrames) ? selection.reviewFrames : []);
-  if (frames.length < 3 || !frames.every((frame): frame is number => Number.isInteger(frame) && (frame as number) >= 0 && (frame as number) < duration) || !frames.includes(0) || !frames.includes(duration - 1) || !requiredShotFrames.every((frame) => frames.includes(frame))) throw new Error("FRAME_REVIEW_INCOMPLETE");
+  const motion = (() => { try { return JSON.parse(model.files?.["evidence.motion.json"] ?? "null") as unknown; } catch { return null; } })();
+  const blackCandidates = isRecord(motion) && Array.isArray(motion.blackCandidates) ? motion.blackCandidates.filter(isRecord) : [];
+  const blackCandidateFrames = blackCandidates.map((candidate) => Number(candidate.frame));
+  if (frames.length < 3 || !frames.every((frame): frame is number => Number.isInteger(frame) && (frame as number) >= 0 && (frame as number) < duration) || !frames.includes(0) || !frames.includes(duration - 1) || !requiredShotFrames.every((frame) => frames.includes(frame)) || !blackCandidateFrames.every((frame) => frames.includes(frame))) throw new Error("FRAME_REVIEW_INCOMPLETE");
+  const assessments = Array.isArray(record.blackFrameAssessments) ? record.blackFrameAssessments : [];
+  const assessedFrames = assessments.map((assessment) => isRecord(assessment) ? assessment.frame : undefined);
+  const complete = assessments.length === blackCandidateFrames.length
+    && new Set(assessedFrames).size === assessedFrames.length
+    && assessments.every((assessment) => isRecord(assessment) && Number.isInteger(assessment.frame) && blackCandidateFrames.includes(assessment.frame as number) && ["expected", "unexpected"].includes(String(assessment.classification)) && typeof assessment.notes === "string" && assessment.notes.trim().length > 0);
+  if (!complete) throw new Error("BLACK_FRAME_REVIEW_INCOMPLETE");
+  if (assessments.some((assessment) => isRecord(assessment) && assessment.classification === "unexpected")) throw new Error("BLACK_FRAME_REVIEW_FAILED");
   return frames.sort((left, right) => left - right);
 }
 
@@ -74,7 +84,7 @@ async function main() {
     await atomicWriteJson(root, "evidence.frames.json", { schema: FRAME_EVIDENCE_SCHEMA, ...base, tool, frames: frameEvidence });
     await atomicWriteJson(root, "evidence.accessibility.json", { schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, verdict: "pass", checks: inputRecord.accessibility, reviewer: inputRecord.reviewer, reviewInputSha256, notes: inputRecord.notes ?? "" });
     model = await loadVideoProject(root);
-    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], ...(model.digests?.["evidence.shots.json"] ? { shotEvidenceSha256: model.digests["evidence.shots.json"] } : {}), notes: inputRecord.notes ?? "" });
+    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], blackFrameAssessments: inputRecord.blackFrameAssessments ?? [], reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], motionEvidenceSha256: model.digests?.["evidence.motion.json"], ...(model.digests?.["evidence.shots.json"] ? { shotEvidenceSha256: model.digests["evidence.shots.json"] } : {}), notes: inputRecord.notes ?? "" });
   }, grant);
   process.stdout.write(`${JSON.stringify({ verdict: "pass", reviewer: inputRecord.reviewer })}\n`);
 }

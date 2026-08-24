@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:924cc58853e84cd81acea89c903c26d2ba046c86e5885c106ae9163c4947aea6
+// harness-source-hash: sha256:d965cd2a582f40ee1f8339821b06dc65aaa884c31454ec60256b506974a95454
 import {
   extractFrameDigest,
   mediaToolVersion
-} from "../chunks/chunk-YKKBNWL6.mjs";
+} from "../chunks/chunk-46XFRTUN.mjs";
 import {
   ACCESSIBILITY_EVIDENCE_SCHEMA,
   FRAME_EVIDENCE_SCHEMA,
@@ -14,15 +14,15 @@ import {
   finalRenderPaths,
   processWriterArgv,
   validateVideoModel
-} from "../chunks/chunk-WYEFUNFT.mjs";
-import "../chunks/chunk-72NYFEVP.mjs";
+} from "../chunks/chunk-I5QNJF2A.mjs";
+import "../chunks/chunk-FBXJEUPB.mjs";
 import {
   assertVideoProjectRoot,
   atomicWriteJson,
   loadVideoProject,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-QC5OJTYM.mjs";
+} from "../chunks/chunk-G5K7MSNN.mjs";
 
 // plugins/video-production/src/entries/cli/project-review.ts
 import { readFile } from "node:fs/promises";
@@ -68,7 +68,21 @@ function validateInput(input, model, currentSession) {
   const frames = Array.isArray(record.frames) ? [...new Set(record.frames)] : [];
   const duration = model.project?.durationInFrames ?? Number.NaN;
   const requiredShotFrames = shotSelections.flatMap((selection) => Array.isArray(selection.reviewFrames) ? selection.reviewFrames : []);
-  if (frames.length < 3 || !frames.every((frame) => Number.isInteger(frame) && frame >= 0 && frame < duration) || !frames.includes(0) || !frames.includes(duration - 1) || !requiredShotFrames.every((frame) => frames.includes(frame))) throw new Error("FRAME_REVIEW_INCOMPLETE");
+  const motion = (() => {
+    try {
+      return JSON.parse(model.files?.["evidence.motion.json"] ?? "null");
+    } catch {
+      return null;
+    }
+  })();
+  const blackCandidates = isRecord(motion) && Array.isArray(motion.blackCandidates) ? motion.blackCandidates.filter(isRecord) : [];
+  const blackCandidateFrames = blackCandidates.map((candidate) => Number(candidate.frame));
+  if (frames.length < 3 || !frames.every((frame) => Number.isInteger(frame) && frame >= 0 && frame < duration) || !frames.includes(0) || !frames.includes(duration - 1) || !requiredShotFrames.every((frame) => frames.includes(frame)) || !blackCandidateFrames.every((frame) => frames.includes(frame))) throw new Error("FRAME_REVIEW_INCOMPLETE");
+  const assessments = Array.isArray(record.blackFrameAssessments) ? record.blackFrameAssessments : [];
+  const assessedFrames = assessments.map((assessment) => isRecord(assessment) ? assessment.frame : void 0);
+  const complete = assessments.length === blackCandidateFrames.length && new Set(assessedFrames).size === assessedFrames.length && assessments.every((assessment) => isRecord(assessment) && Number.isInteger(assessment.frame) && blackCandidateFrames.includes(assessment.frame) && ["expected", "unexpected"].includes(String(assessment.classification)) && typeof assessment.notes === "string" && assessment.notes.trim().length > 0);
+  if (!complete) throw new Error("BLACK_FRAME_REVIEW_INCOMPLETE");
+  if (assessments.some((assessment) => isRecord(assessment) && assessment.classification === "unexpected")) throw new Error("BLACK_FRAME_REVIEW_FAILED");
   return frames.sort((left, right) => left - right);
 }
 async function main() {
@@ -101,7 +115,7 @@ async function main() {
     await atomicWriteJson(root, "evidence.frames.json", { schema: FRAME_EVIDENCE_SCHEMA, ...base, tool, frames: frameEvidence });
     await atomicWriteJson(root, "evidence.accessibility.json", { schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, verdict: "pass", checks: inputRecord.accessibility, reviewer: inputRecord.reviewer, reviewInputSha256, notes: inputRecord.notes ?? "" });
     model = await loadVideoProject(root);
-    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], ...model.digests?.["evidence.shots.json"] ? { shotEvidenceSha256: model.digests["evidence.shots.json"] } : {}, notes: inputRecord.notes ?? "" });
+    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], blackFrameAssessments: inputRecord.blackFrameAssessments ?? [], reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], motionEvidenceSha256: model.digests?.["evidence.motion.json"], ...model.digests?.["evidence.shots.json"] ? { shotEvidenceSha256: model.digests["evidence.shots.json"] } : {}, notes: inputRecord.notes ?? "" });
   }, grant);
   process.stdout.write(`${JSON.stringify({ verdict: "pass", reviewer: inputRecord.reviewer })}
 `);

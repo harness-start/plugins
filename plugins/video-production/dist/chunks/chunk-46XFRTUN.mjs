@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:924cc58853e84cd81acea89c903c26d2ba046c86e5885c106ae9163c4947aea6
+// harness-source-hash: sha256:d965cd2a582f40ee1f8339821b06dc65aaa884c31454ec60256b506974a95454
 
 // plugins/video-production/src/lib/media.ts
 import { spawn } from "node:child_process";
@@ -112,6 +112,15 @@ async function extractFrameDigest(filePath, frame, fps, { ffmpeg = "ffmpeg", cwd
   if (bytes.byteLength === 0) throw new Error(`FRAME_EXTRACTION_EMPTY:${frame}`);
   return { frame, timestampSeconds: timestamp, sha256: createHash("sha256").update(bytes).digest("hex") };
 }
+async function measureFrameLuma(filePath, frame, fps, { ffmpeg = "ffmpeg", cwd } = {}) {
+  const timestamp = frame / fps;
+  const { stderr } = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-ss", timestamp.toFixed(6), "-i", filePath, "-frames:v", "1", "-vf", "format=gray,signalstats,metadata=print", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 12e4 });
+  const output = stderr.toString("utf8");
+  const yAvg = [...output.matchAll(/lavfi\.signalstats\.YAVG=([0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  const yMax = [...output.matchAll(/lavfi\.signalstats\.YMAX=([0-9]+(?:\.[0-9]+)?)/gu)].at(-1)?.[1];
+  if (yAvg === void 0 || yMax === void 0) throw new Error(`FRAME_LUMA_PARSE_FAILED:${frame}`);
+  return { yAvg: Number(yAvg), yMax: Number(yMax) };
+}
 async function measureAudioLoudness(filePath, { ffmpeg = "ffmpeg", cwd } = {}) {
   const { stderr } = await runCaptured(ffmpeg, ["-hide_banner", "-nostats", "-i", filePath, "-filter_complex", "ebur128=peak=true", "-f", "null", "-"], { cwd, maxBytes: 8 * 1024 * 1024, timeoutMs: 12e4 });
   const output = stderr.toString("utf8");
@@ -142,6 +151,7 @@ export {
   probeMedia,
   validateMeasuredMedia,
   extractFrameDigest,
+  measureFrameLuma,
   measureAudioLoudness,
   compareVideoSimilarity,
   renderContactSheet
