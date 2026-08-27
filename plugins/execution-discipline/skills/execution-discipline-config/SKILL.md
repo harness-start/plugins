@@ -1,6 +1,7 @@
 ---
 name: execution-discipline-config
 description: Change execution-discipline thresholds for edit loops, command retries, polling budgets, exemptions, or bypass markers in .execution-discipline.mjs.
+disable-model-invocation: true
 version: 0.2.0
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: agent-activity-audit-config
 description: Initialize or diagnose .agent-activity-audit.mjs for the agent-activity-audit trail plugin.
+disable-model-invocation: true
 version: 0.2.0
 ---
 

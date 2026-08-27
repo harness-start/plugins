@@ -1,6 +1,7 @@
 ---
 name: source-integrity-config
 description: Change source-integrity modes and path overrides for backup artifacts, garbled text, BOMs, and invalid UTF-8 in .source-integrity.mjs.
+disable-model-invocation: true
 version: 0.3.0
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: command-safety-config
 description: "Change or diagnose project command-safety rules: shell allow/deny/report patterns, engines, and deny-escalation in .command-safety.mjs."
+disable-model-invocation: true
 version: 0.1.0
 ---
 

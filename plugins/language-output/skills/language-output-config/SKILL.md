@@ -1,6 +1,7 @@
 ---
 name: language-output-config
 description: "Change language-output defaults: response profile, drift thresholds, tool feedback, and Stop language gate in .language-output.mjs."
+disable-model-invocation: true
 version: 0.3.0
 ---
 

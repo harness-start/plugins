@@ -1,6 +1,7 @@
 ---
 name: git-delivery-config
 description: Change git-delivery project settings or commit boundary rules via .git-delivery.mjs and commit-boundaries.json.
+disable-model-invocation: true
 version: 0.3.0
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: engineering-quality-config
 description: "Change or diagnose shared line-budget and Markdown quality settings in .engineering-quality.mjs. Use for file-size ratchets, Markdown checks, or narrow path exceptions; language checks belong to domain plugins."
+disable-model-invocation: true
 version: 0.2.0
 ---
 
