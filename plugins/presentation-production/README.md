@@ -1,8 +1,16 @@
-# PPTX Project Delivery Guard
+# PPTX 项目交付守卫
 
 `presentation-production` 为从零制作的 16:9、原生可编辑 PPTX 提供一条受保护的交付链。插件内置 `pptx-deck-authoring` 编排 Skill 与 `pptx-deck-review` 独立审查 Skill，并将 source、design、render、probe、review、release 六阶段落实为可检查的工程合同。
 
 v1 不编辑现有 PPTX，也不套用外部模板。最终闭包包含同一源生成的 `.pptx`、`.pdf`、逐页 PNG、source-hash 预览、结构/设计/无障碍证据、独立审查、release manifest 与 receipt。
+
+## 目标
+
+把 16:9 原生可编辑演示文稿的故事板、设计系统、逐页源码、PPTX/PDF/PNG、探测证据和独立审查连成同源交付链，防止页序漂移、空壳文件、旧预览、自审或直接修改受保护成品。
+
+## 实现
+
+`pptx-deck-authoring` 负责编排，`pptx-deck-review` 在独立会话审查；storyboard 与视觉 critique Skill 只提供阶段建议。PptxGenJS 生成 PPTX，LibreOffice 从该 PPTX 导出 PDF，Poppler 渲染逐页 PNG。登记 CLI 完成 init、lint、render、probe、review 与 release；Hook 对精确命令发放一次性 capability，receipt 绑定全部当前产物和 evidence。
 
 ## 编排与第一方顾问
 

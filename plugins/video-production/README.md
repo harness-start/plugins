@@ -1,8 +1,16 @@
-# Video Project Delivery Guard
+# 视频项目交付守卫
 
 `video-production` 为 `artifacts/video/<video-id>/` 提供一个统一的 Remotion 视频生产编排入口、一个只读独立审查入口，以及由摘要绑定的 init → plan → admit → compose → render → probe → review → release 交付闭环。
 
 插件要求 Node.js、npm、`ffmpeg` 和 `ffprobe`。项目依赖由 artifact 内的 `package-lock.json` 固定，当前 scaffold 固定 Remotion `4.0.512` 与 React `19.2.8`。
+
+## 目标
+
+把视频方向、脚本、分镜、资产准入、Remotion 源码、分段 proof、最终 MP4、媒体探测、独立审查与 release receipt 绑定为可重验闭包。插件重点防止外部媒体越界写入、近黑帧漏评、自审和上游变化后复用旧 evidence。
+
+## 实现
+
+`video-project-authoring` 负责编排，shot recipe、媒体导入、动效、格式与视觉 Skill 提供阶段方法，`video-project-review` 只在独立会话审查。登记 CLI 完成初始化、镜头暂存、媒体准入、分段/最终渲染、ffmpeg/ffprobe 探测、review 与 release。Hook 对精确 writer 签发摘要绑定 capability，并在 Post/Stop 重算 proof、evidence、review 和 receipt。
 
 ## 编排入口
 

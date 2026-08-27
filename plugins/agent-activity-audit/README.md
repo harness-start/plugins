@@ -1,6 +1,14 @@
-# agent-activity-audit
+# Agent 活动审计
 
 `agent-activity-audit` 统一记录 Claude Code 和 Codex 里 agent 的结构化文件访问与 shell 命令。命令只记状态和耗时，不记输出正文；文件访问只记操作和相对路径。记录按项目和会话写成 JSONL，并拦住 agent 修改审计文件。
+
+## 目标
+
+为一次宿主会话建立最小、可查询的活动轨迹，同时控制敏感信息与日志体积。插件用于回答“哪个 agent 在何时读写了哪些项目路径、运行了什么命令、结果状态如何”，不记录完整工具输出，也不把日志宣称为不可篡改审计存储。
+
+## 实现
+
+Claude Code 与 Codex 分别注册 `PreToolUse`、`PostToolUse` 和失败回执适配，业务逻辑共享同一运行时。写前先追加 `pending`，写后优先以 `tool_use_id` 原地闭合末行；并行或末行不匹配时追加终态记录。审计目录由插件写入并受 Hook 保护，命令会经过截断和固定启用的凭据形状脱敏。
 
 ## 目录结构
 
@@ -67,7 +75,7 @@ export default {
 };
 ```
 
-`redactSecrets` cannot disable redaction. A false value is reported and the built-in redaction remains active so the audit trail never intentionally records credential-shaped command arguments.
+`redactSecrets` 不能关闭脱敏。设为 `false` 时插件会报告该配置，并继续使用内置脱敏，避免审计轨迹主动记录疑似凭据的命令参数。
 
 可使用 `agent-activity-audit-config` Skill 初始化配置。
 

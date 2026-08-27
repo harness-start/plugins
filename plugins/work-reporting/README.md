@@ -1,6 +1,14 @@
-# work-reporting
+# 工作报告
 
 `work-reporting` 生成一份同时服务员工与 TL 的证据化工作报告：员工能看见可观察的不足、确认或质疑改进项并承诺下一步；TL 能看到工作明细、成果影响、证据强度、数据缺口和后续核验矩阵。插件不自动计算绩效分，也不发送或上传报告。
+
+## 目标
+
+把本地会话、归属明确的 Git 记录和可选已认证 forge 元数据转换为一份可追溯报告，让事实、推断、数据缺口、员工 disposition、承诺和 TL 核验分开表达。报告保存前必须由员工对改进项明确确认或质疑。
+
+## 实现
+
+`work-report-authoring` 组织 daily、weekly 与 summary，`work-report-interview` 补证据缺口，`work-report-review` 供 TL 只读复核。CLI 负责 transcript 扫描、证据收集、候选准备、保存、追加和完整性验证；Hook 路由明确意图、保护报告树、校验一次性确认 token 和状态迁移。Markdown 与 ledger 用 SHA-256 绑定，追加内容形成连续摘要链。
 
 ## 统一入口
 

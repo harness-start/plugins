@@ -1,4 +1,4 @@
-# Music Project Delivery Guard
+# 音乐项目交付守卫
 
 `music-production` 为 Codex 和 Claude 提供一条可审计的器乐生产链：
 
@@ -7,6 +7,14 @@ brief → reference-analysis（按需）→ direction → composition → arrang
 ```
 
 当前渲染引擎仍是浏览器中的 `Tone.Offline`。插件支持固定速度/拍号、十二平均律、合成器乐器和 48 kHz 双声道 PCM16 WAV；本轮不支持采样、人声、外部音乐生成、MIDI、MP3、速度图、拍号变化或微分音。
+
+## 目标
+
+把器乐 brief、参考画像、创意方向、作曲、配器、优化、渲染、试听证据、独立听审和 release 绑定为可审计链路。插件防止旧 mix/stem 复用、自审、伪造顾问结果和普通工具直接修改受保护 evidence。
+
+## 实现
+
+`music-project-authoring` 组织生产，`music-project-review` 只允许独立会话听审；四个第一方顾问只提供建议。登记 CLI 负责项目初始化、建议/参考准入、优化、Tone.js 离线渲染、WAV 探测、review 和 release。Hook 为精确 mutation writer 签发一次性 capability，并在 Post/Failure/Stop 阶段重算 journal、摘要与 receipt。
 
 ## 两个独立 Skill
 

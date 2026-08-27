@@ -1,6 +1,14 @@
-# spec-driven-development
+# 规格驱动开发
 
 `spec-driven-development` 提供一个轻量的 Spec-Driven Development 主入口：用户调用 `$sdd`，插件按 `spec.md → plan.md → tasks.md → build` 推进。
+
+## 目标
+
+让需求、方案、任务与实现之间存在可机械重算的摘要和覆盖关系：上游发生变化时，下游在下一次写入前被判定为 stale。插件只守规格产物顺序和结构，不声称规格正确、任务已执行或实现符合需求。
+
+## 实现
+
+`sdd` 编排入口按阶段加载 `sdd-specify`、`sdd-plan`、`sdd-tasks` 与 `sdd-build`。`PreToolUse` 在写 `plan.md` 或 `tasks.md` 前校验 sibling 上游及摘要；`PostToolUse` 只报告刚写产物自身的结构问题。可选 subagent 只返回带 `brief-id` 的有界 Result Card，父 agent 仍负责写规格、检查 diff 与复跑验证。
 
 ## 产物
 

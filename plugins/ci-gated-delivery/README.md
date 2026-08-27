@@ -1,6 +1,14 @@
-# ci-gated-delivery
+# CI 门禁交付
 
 `ci-gated-delivery` 提供一个公开 Skill：`ci-gated-mr-workflow`。它把短分支、本地验证、review、远端 CI 监督、merge gate、post-merge 判定和 workspace 收尾放在同一个状态机里，避免多个宽泛 Skill 在交付中途互相接管。
+
+## 目标
+
+让一次 MR/PR 交付始终绑定当前 repository 与 head SHA，显式区分本地验证、远端 CI、review、merge 和合并后状态。远端证据不可用时流程停在 `externally blocked`，不会用本地绿色结果替代 provider 事实。
+
+## 实现
+
+Skill 保存完整交付方法，但插件不创建持久台账。唯一的 `PreToolUse` Hook 机械拒绝缺少 head SHA 的 `gh pr merge`、`glab mr merge` 以及直接推送 `main`/`master`；远端状态由当前会话的 provider 工具或结构化 API 输出提供。所有 branch、commit、push、MR/PR、merge 和清理操作仍在执行前按用户授权边界确认。
 
 Review 阶段使用有界 Task Brief 和 Result Card。Reviewer 只接收目标、非目标、允许文件、base/head、scoped diff 和验证证据，不接收完整会话、私有推理或其他 reviewer 的结论。
 

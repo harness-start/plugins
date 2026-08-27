@@ -1,8 +1,16 @@
-# Print Publication Delivery Guard
+# 印刷出版项目交付守卫
 
 `print-publication-production` 管 `artifacts/print/<publication-id>/` 下的手册、目录册和杂志。它查静态 React 出版单元、章节顺序、Paged Media CSS、四种 PDF 交付角色、preflight evidence，以及 release receipt 还新不新。
 
 文件叫 `.pdf` 不等于能印。插件不自带 Vivliostyle renderer 或 preflight 工具。HTML、PDF 和 evidence 由项目流水线生成；插件核对结构、PDF magic 和最终字节。
+
+## 目标
+
+为手册、目录册和杂志建立章节、Paged Media CSS、四类 PDF、字体/图片/分页/印前 evidence、独立 review 与 receipt 的交付合同。插件阻止空文件或改扩展名冒充 PDF，但不替代印厂 profile、设备能力与签字确认。
+
+## 实现
+
+项目的静态 React 出版单元与 manifest 是事实源，外部受信任流水线负责 HTML、proof/print PDF 和实际 preflight evidence；本插件没有登记 render/preflight writer。Hook 保护 `build/html/`、`dist/`、evidence、review 与 manifest，`project-lint.mjs` 校验结构，`project-release.mjs` 在四份 PDF、六份 evidence、独立 review 和 manifest 全部当前有效时签发摘要 receipt。
 
 ## 最小目录
 

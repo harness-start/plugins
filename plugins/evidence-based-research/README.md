@@ -1,6 +1,14 @@
-# Research Provenance Guard
+# 研究证据来源守卫
 
 `evidence-based-research` 是按需打开的研究流程，Claude Code 和 Codex 都能用。它不靠 Skill 名字猜你在做研究。`research-evidence-workflow` 和项目里的工作流文件会把来源收成捕获回执、精确 anchor、typed claim、正式报告，以及带新鲜度的 completion seal。
+
+## 目标
+
+把“找到一个页面”与“形成可引用证据”严格分开。每条正式结论必须绑定已捕获内容中的精确 anchor、claim 类型和验证状态；交付前重新计算来源、报告与 seal 的摘要，未验证限制必须显式保留。
+
+## 实现
+
+`research-evidence-workflow` 显式创建持久运行，MCP 负责 workspace 绑定、来源捕获、读取、锚定和封存，CLI 管理 brief、完整性检查与 sealed 后的对外交接。Hook 只在项目 `workflow.json` 处于 open/sealed 生命周期时启用相应写入和 `Stop` 门禁；候选发现、Skill 加载或 Hook 激活本身都不是证据。
 
 ## 入口和工作顺序
 

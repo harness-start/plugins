@@ -1,6 +1,14 @@
-# command-safety
+# 命令安全守卫
 
 为 Claude Code 和 Codex 提供确定性的 `PreToolUse` 与 `PostToolUse` 守卫，检查高风险命令和敏感源码模式。
+
+## 目标
+
+在宿主执行命令前拦截高置信、损害面大的 shell 形状，并在写入后报告少量安全相关源码信号。规则必须给出观察事实、潜在损害、解除条件和恢复路径；插件异常或配置损坏时 fail-open，但危险递归删除与 deny 升级不能被项目配置关闭。
+
+## 实现
+
+运行时由声明式规则引擎和少量需要语义解析的专用引擎组成。项目规则先于内置规则且首次命中生效；`PreToolUse` 处理删除、原地改写、heredoc、数据库、主动测试、凭据与验证完整性，`PostToolUse` 检查可观察写入中的 TLS 绕过和 PII 日志。`command-safety-config` Skill 只负责配置与诊断，不参与本次 Hook 判定。
 
 ## 规则系统
 

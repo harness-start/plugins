@@ -1,39 +1,36 @@
-# Reasoning Discipline
+# 推理方法插件
 
-`reasoning-methods` packages two focused methods for Claude Code and Codex:
+`reasoning-methods` 为 Claude Code 和 Codex 提供两种聚焦方法：`first-principles` 拆除继承标签并从基本约束重建模型，`reasoning-methods` 根据问题选择精确、因果、决策或事实核验结构。
 
-- `first-principles` removes inherited labels, finds the constraints that remain, and rebuilds a transferable mental model.
-- `reasoning-methods` selects an exact, causal, decision, or factual verification structure according to the task.
+## 目标
 
-The plugin does not create reasoning artifacts, hold a session open, or block file writes. A short answer may remain short. A difficult answer earns more work only when that work can change the conclusion.
+- 让复杂问题的推理深度由承重条件决定，而不是固定套用长流程。
+- 区分事实、推断与可证伪假设，并明确有效证据边界。
+- 先给结论和可检验依据，不输出私有逐 token 思维过程。
+- 对简单查询保持简短；只有额外工作可能改变结论时才增加分析。
 
-## Hooks
+## 实现
 
-SessionStart injects a short route: exact, causal, decision, or factual work should load this plugin's `reasoning-methods` or `first-principles` Skill. Easy lookups stay direct.
+插件仅在 `SessionStart` 注入短路由：精确计算、因果分析、硬约束决策或事实核验可加载本插件的 Skill，简单查询直接处理。它不创建推理产物、不保存账本、不阻断文件写入，也没有 `Stop` 自我纠正门禁。
 
-A `Stop` nudge remains rejected. It could prove that another model turn occurred, but not that the conclusion improved; without independent evidence, forced self-correction can preserve an error or replace a correct answer.
+未注册 `Stop` nudge 是有意设计：额外模型回合只能证明又生成了一次文本，不能证明结论改善；缺少独立证据时，强制自我纠正可能保留错误，也可能把正确答案改错。
 
-## Use
+## 使用
 
-Invoke the host-native Skill name directly when automatic routing is not enough:
+- Claude Code：`/first-principles` 或 `/reasoning-methods`
+- Codex：`$first-principles` 或 `$reasoning-methods`
 
-- Claude Code: `/first-principles` or `/reasoning-methods`
-- Codex: `$first-principles` or `$reasoning-methods`
+两个 Skill 都要求结论先行，区分已知事实和假设，并指出有价值的反例、falsifier 或未覆盖证据。Skill 加载、Hook 激活和回答长度都不是正确性证据。
 
-Both Skills lead with the conclusion, distinguish facts from assumptions, and name a useful falsifier or evidence boundary. They do not expose private token-by-token reasoning.
+## 迁移、来源与验证
 
-## Migration
+本插件替代旧的 `first-principles-gate` 与 `reasoning-methods-guard`。旧的 done/abort 生命周期、业务写屏障、五阶段 receipt 和工作区状态目录已不再属于合同；历史 `.first-principles/` 与 `.reasoning-methods/` 目录不会被删除。
 
-This plugin replaces `first-principles-gate` and `reasoning-methods-guard`. The old `done` or abort lifecycle, business-write barrier, five-stage receipt chain, and workspace state directories are no longer part of the public contract. Existing `.first-principles/` and `.reasoning-methods/` directories are historical user data and are left untouched.
+方法独立综合了 `meta-skill`、`fable-skills`、Step-Back Prompting、自我纠正局限研究和自适应推理深度研究。具体来源、固定 revision 与许可证说明见 `licenses/` 和 Skill 正文。
 
-## Design sources
+```bash
+npx tsx --test plugins/reasoning-methods/tests/*.test.ts
+./scripts/acceptance/run.sh --plugin reasoning-methods
+```
 
-The implementation independently synthesizes these ideas:
-
-- [`meta-skill` first-principles and adversarial-review methods](https://github.com/wangruofeng/meta-skill/tree/6b5fe52e10289bc974ac42ae0e9ae4b52992d077), used under its MIT license.
-- [`fable-skills` handover structure](https://github.com/oliwoodman/fable-skills/tree/e05e35af0f371f55e2ab89c47d8efa144a41630b): one rule, method, checkable standards, output, and honest limits. That audited revision has no license file, so no source text is copied.
-- [Step-Back Prompting](https://arxiv.org/abs/2310.06117), which motivates deriving a useful abstraction before solving a detailed instance.
-- [Large Language Models Cannot Self-Correct Reasoning Yet](https://arxiv.org/abs/2310.01798), which motivates preferring external feedback over an unconditional self-correction loop.
-- [Don't Overthink it](https://arxiv.org/abs/2505.17813), which motivates adaptive depth and stopping once the load-bearing condition is checked.
-
-The intended effect is behavioral, not theatrical: better conclusions or better-calibrated uncertainty on representative tasks, without regressing correct control cases.
+live acceptance 由脚本进入 `docker/host-acceptance`。版本：`1.0.0`。

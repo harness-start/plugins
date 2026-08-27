@@ -1,8 +1,16 @@
-# Logo Project Delivery Guard
+# Logo 项目交付守卫
 
-`brand-logo-production` 管 Logo 工程，不管整套 VI。v0.5 串联 `brief/context → 六类概念 → 反馈选择 → master → 合适的构图法 → variants/delivery → preview → 独立 review → release`。只改文件名、交空图、交 schema 桩、伪造外部 Skill 使用记录或伪造 wrapper，过不了。
+`brand-logo-production` 管 Logo 工程，不管整套 VI。v0.7 串联 `brief/context → 六类概念 → 反馈选择 → master → 合适的构图法 → variants/delivery → preview → 独立 review → release`。只改文件名、交空图、交 schema 桩、伪造外部 Skill 使用记录或伪造 wrapper，过不了。
 
 Fibonacci / φ 只是可选构图法：仅当 `construction.method=fibonacci` 时才要求并复算；网格、几何、字形与光学校正也是合法选择。任何构图法都不等于更好看，也不等于商标能注册。
+
+## 目标
+
+把 Logo 从品牌 brief、概念分歧、矢量 master、构图说明、多场景变体、预览、独立审查到 release 收成可重算的工程闭包。插件重点防止空壳 SVG、伪造构图关系、旧预览复用、自审和任意工具直接改写受保护证据。
+
+## 实现
+
+`logo-project-authoring` 组织生产，`logo-project-review` 在独立会话审查；四个第一方顾问只提供只读建议。登记 CLI 通过一次性 capability 完成 advice 准入、lockfile 生成、渲染、实测预览、阶段升级、审查和 release。Hook 限制 writer 路径与 shell 形状，receipt 用 SHA-256 绑定 source、master、construction、preview、review 与最终输出。
 
 ## 工程契约
 

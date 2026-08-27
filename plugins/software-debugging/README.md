@@ -1,8 +1,16 @@
-# Debugging Workflow Guard
+# 软件调试工作流守卫
 
 `software-debugging` 管具体软件故障怎么修。它带一份 `debug-workflow` Skill，并用 Hook 卡住证据顺序。语言不限。多个缺陷各自记账，不会混在一起。
 
 只加载 Skill 不会打开硬规则。要先用插件自带的 `debug-workflow` CLI 创建或恢复账本，会话才进入工作流。Hook 不靠读 prompt 判断你在干什么，也不接受对账本的直接 Edit/Write。
+
+## 目标
+
+让每个具体缺陷分别拥有修改前失败基线、假设与尝试归属、修复后原复现成功、回归结果和清理证据。多个缺陷共享一个生产修复时，每个受影响缺陷仍必须先建立自己的精确复现，避免拿 A 的证据关闭 B。
+
+## 实现
+
+`debug-workflow` Skill 提供诊断方法，CLI 是唯一账本 writer 和显式激活入口。账本采用写一次 `intent.json` 与只追加 `events.jsonl`，Hook 把当前会话可观察的命令和修改压缩成有限回执并归属 `activeBugId`。`PreToolUse` 在缺少失败基线或连续三次失败修复时阻断生产修改；`Stop` 对 closed 订单重验新鲜回执与 debug marker。
 
 ## 怎么跑
 

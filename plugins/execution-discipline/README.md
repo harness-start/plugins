@@ -1,6 +1,14 @@
-# execution-discipline
+# 执行纪律守卫
 
 `execution-discipline` 在 Claude Code 和 Codex 中识别三类无进展循环：反复编辑同一文件、重复执行相同命令，以及用大量 `sleep`、Codex wait 工具和状态查询轮询远端任务。
+
+## 目标
+
+在 agent 消耗整个会话前，用连续事件证据识别重复编辑、同形错误重试、无意义成功命令重复和过度轮询。插件只在达到明确阈值后报告或阻断，不根据单次失败、任务耗时或主观印象评判执行质量。
+
+## 实现
+
+`PreToolUse` 根据规范化命令、直接输入文件摘要、近期结果签名和轮询预算决定提示或阻断；`PostToolUse` 更新命令结果与文件编辑计数。状态按 session/workspace 摘要隔离，原子写入宿主数据目录，不保存命令输出、文件内容或明文路径。成功验证命令会清空编辑周期，`execution-discipline-config` Skill 仅帮助配置与诊断。
 
 ## 默认行为
 

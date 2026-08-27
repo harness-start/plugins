@@ -1,8 +1,16 @@
-# TDD Guard
+# 测试驱动开发守卫
 
 `test-driven-development` 是一个基于 Git HEAD 的 test-first 文件顺序守卫。它只做一件事：源码发生变化前，对应测试必须已经进入当前 Git 变更。
 
 `SessionStart` 注入一段短提醒，让 agent 在第一次写实现前就知道这条顺序。`PreToolUse` 才是硬门禁。Hook 不解析测试命令，不判断 RED/GREEN，不保存会话状态，也不在 Stop 阶段阻止完成。真实的 RED → GREEN → REFACTOR 流程由插件内 Skill 指导，并由项目自己的测试命令验证。解析失败时会话提示 fail-open，实现写入仍 fail-closed。
+
+## 目标
+
+在源码首次变化前，要求对应测试已经作为当前 Git 变更的一部分存在，从文件顺序上保护 test-first seam。匹配既要支持多语言实体，也要避免只靠同名文件造成跨模块误授权。
+
+## 实现
+
+`SessionStart` 只提示方法，`PreToolUse` 基于 Git HEAD、工具写目标、测试内容和源码身份做硬判断。PHP、Python、JavaScript、TypeScript、Rust 与 Go 优先使用 FQCN、module/package、import 或 symbol 绑定；缺少显式实体时才退化为完整目录镜像。Skill 负责 RED → GREEN → REFACTOR 方法，Hook 不解析测试输出或签发完成回执。
 
 ## 规则
 

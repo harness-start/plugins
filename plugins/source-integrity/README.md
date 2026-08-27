@@ -1,6 +1,14 @@
-# source-integrity
+# 源码完整性守卫
 
 `source-integrity` 在 Claude Code 和 Codex 编辑源码时拦截三类低误报问题：源码目录中的备份或临时文件、明显由解码损坏产生的 `U+FFFD` 替换字符，以及写入后仍带 BOM 或不是严格 UTF-8 的文本文件。
+
+## 目标
+
+在写入边界阻止可明确识别的源码污染，而不扩张成通用 lint 或内容审查。检查聚焦备份残留、成段 replacement character 和编码字节事实，单个合法 `U+FFFD`、生成物和第三方目录不会被误当成故障。
+
+## 实现
+
+`PreToolUse` 从文件工具和明确 shell 写路径中提取目标及待插入文本，执行备份产物与乱码检查；`PostToolUse` 读取本次写入后的有限文本文件，校验 BOM 与严格 UTF-8。项目配置只调整内置检查，`source-integrity-config` Skill 只帮助配置，不复制 Hook 判定。
 
 文件工具覆盖 `Edit`、`Write`、`MultiEdit`、`NotebookEdit`、`create_file`、`search_replace` 和 `apply_patch`。Shell（`Bash` / `Shell` / `exec_command` 等）只提取命令里的显式写路径：重定向、`tee`、`touch`、`sed -i`、`cp`、`mv`、`rm`，以及 `writeFile` / `open(`。乱码检查会扫这些写入的待插入文本，包括 shell 命令字面量。`ls`、`git status` 等不写出路径的命令会放行。合并冲突标记不属于本插件职责。
 

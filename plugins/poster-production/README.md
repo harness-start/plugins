@@ -1,4 +1,4 @@
-# Poster Project Delivery Guard
+# 海报项目交付守卫
 
 `poster-production` 为 `artifacts/poster/<poster-id>/` 提供统一的数字海报编排入口 `$poster-project-authoring`，并用 React/TSX、Satori、resvg、结构化 evidence 和独立审查把 brief、源码、SVG、PNG 与 release receipt 绑定起来。当前只覆盖数字交付，不宣称印刷色彩或物理打样能力。
 
@@ -8,6 +8,14 @@
 - `$poster-project-review`：只能由独立 session 使用，检查全部当前 PNG，并通过受控 writer 导入 digest-bound 结论。
 
 四个捆绑第一方 Skill 只提供只读建议：`poster-regional-culture`、`poster-mondo`、`poster-academic` 和 `poster-visual-critique`。它们不能运行脚本、写项目、签审查或发布；编排 Skill 必须记录每个顾问为 `used`、`skipped` 或 `unavailable`。
+
+## 目标
+
+把数字海报 brief、艺术方向、设计系统、variant/layer 源码、SVG/PNG、探测结果、独立审查与 release receipt 绑定为可重算闭包。当前目标是数字交付，不宣称印刷色彩、出血、纸张或物理打样能力。
+
+## 实现
+
+`poster-project-authoring` 负责主流程，`poster-project-review` 在独立会话覆盖所有当前 PNG。项目以 React/TSX layer 为事实源，经 Satori 生成 SVG、resvg 生成 PNG，再由 probe 复栅格化并检查尺寸、alpha、对比、排版、构图和非颜色编码。Hook 只允许登记 writer 修改 `dist/`、evidence、review 与 release 路径，receipt 绑定当前 source digest 和最终字节。
 
 ## v2 项目模型
 

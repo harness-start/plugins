@@ -1,6 +1,14 @@
-# engineering-quality
+# 工程质量守卫
 
 `engineering-quality` 在 Claude Code 和 Codex 写入文件后执行跨技术栈共享的质量门禁：源码文件行数预算与 Markdown 结构检查。语言语法、lint、格式化、依赖文件保护和生态工具检查由对应领域插件负责。
+
+## 目标
+
+用一组跨语言、低成本且可机械复核的规则控制文件失控增长与 Markdown 结构退化，同时避免重复拥有各语言插件的语法和生态规则。历史超大文件采用只减不增的 ratchet，减少一次性大重构的压力。
+
+## 实现
+
+插件只注册 `PostToolUse`，从文件工具和明确 shell 写入中提取最终目标。行数引擎按项目规则与内置规则的首次匹配结果执行预算、报告或跳过；Markdown 引擎逐项检查标题、空白、围栏与文件结尾。`engineering-quality-config` Skill 用于创建配置，Hook 不读取 Skill 是否加载，也不安装或执行项目提供的任意命令。
 
 ## 默认检查
 

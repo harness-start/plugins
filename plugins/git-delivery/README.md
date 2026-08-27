@@ -1,8 +1,16 @@
-# git-delivery
+# Git 本地交付守卫
 
 `git-delivery` 在 Claude Code 和 Codex 里管本地 Git 交付：拦住宽范围暂存、破坏性命令、无效分支名、含糊的提交信息、跨边界提交和批量冲突选择，并报告 partial staging、大提交，以及可以安全清掉的陈旧 Git 锁。
 
 插件还在文件工具写入后读取最终文件，阻断仍含标准合并冲突标记的文本文件。GitHub、GitLab、CI、SVN 和远端交付闭环不属于本插件。
+
+## 目标
+
+让本地 Git 交付保持可回退、可解释和原子化：避免宽范围暂存、危险历史覆盖、跨边界提交、含糊 commit、无授权 worktree 和批量冲突选择，并在文本写入后及时发现残留合并标记。
+
+## 实现
+
+`PreToolUse` 解析 Git 命令与可观察的隔离参数，执行暂存、分支、worktree、提交边界和危险操作规则；`UserPromptSubmit` 只记录用户明确要求隔离工作区的摘要回执；`PostToolUse` 扫描本次写入后的有限文本文件。`git-delivery-config` Skill 管理项目配置，提交边界由显式 JSON 或最近项目 manifest 推导。
 
 ## 默认行为
 

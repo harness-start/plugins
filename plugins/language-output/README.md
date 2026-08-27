@@ -1,8 +1,16 @@
-# language-output
+# 输出语言治理
 
 `language-output` 让 Claude Code 和 Codex 在一次会话里使用同一自然语言设置。安装器默认按系统 locale 选择语言；宿主和项目都没配置时，使用简体中文。
 
 插件只治理会话的自然语言输出语言，不控制语气、人格、详略、格式、翻译质量或工具输出。
+
+## 目标
+
+让主 agent、subagent、最终回复和模型生成的说明性文件字段遵循同一个可配置语言 profile，同时保护代码、命令、路径、标识符、枚举、原文引用和明确翻译目标不被错误改写。
+
+## 实现
+
+`SessionStart` 解析项目配置、宿主安装偏好和严格默认值；`UserPromptSubmit` 记录明确语言切换与临时翻译授权；`PostToolUse` 检查模型生成的工具输入；`Stop` 与 `SubagentStop` 检查最终散文。状态只保存 profile 和有限授权集合，以平台与 session 摘要为键，不保存 prompt、回复或文件内容。
 
 `SessionStart` 的 profile 提示覆盖 agent 编写的所有自然语言值，包括 JSON、YAML、TOML、XML、Markdown machine block、表格和生成文件里的说明性字段。schema、key、枚举、ID、标识符、代码、命令、路径、原文引用和明确要求的翻译内容不随之改写；把自然语言放进结构化数据或 code fence 不会自动获得豁免。
 
