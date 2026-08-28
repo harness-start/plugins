@@ -31,7 +31,7 @@
 通常由会话路由选择，也可以显式调用 `$professional-writing` 或某个窄 Skill。显式检查单个 Markdown 文件时使用：
 
 ```bash
-node "${PLUGIN_ROOT}/dist/cli/analyze-ai-style.mjs" path/to/document.md
+node "${PLUGIN_ROOT}/dist/cli/harness.mjs" writing analyze path/to/document.md
 ```
 
 `writing-terse-output` 只改变会话表达方式，不删减安全警告、不可逆操作确认和顺序敏感步骤。`visual-explanation` 只在图确实能降低理解成本时使用，不为简单问题默认生成 HTML。

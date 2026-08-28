@@ -42,7 +42,7 @@ Load the matching reference completely:
 Run before editing:
 
 ```bash
-node "${PLUGIN_ROOT}/dist/cli/analyze-ai-style.mjs" <article-path>
+node "${PLUGIN_ROOT}/dist/cli/harness.mjs" writing analyze <article-path>
 ```
 
 On Claude Code, replace `${PLUGIN_ROOT}` with `${CLAUDE_PLUGIN_ROOT}`.

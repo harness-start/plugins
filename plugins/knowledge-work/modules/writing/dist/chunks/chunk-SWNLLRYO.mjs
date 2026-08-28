@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:4a3a4cd5dd6eee148d7e4947bd2f6617d6b3ebe34099aaf7254f848398c2d612
+// harness-source-hash: sha256:fb559c85df508375751cc04a15de4be44ab29f55bf278caeb94fa6241a928756
 
 // plugins/knowledge-work/modules/writing/src/analyze-ai-style.ts
 var RULES = [

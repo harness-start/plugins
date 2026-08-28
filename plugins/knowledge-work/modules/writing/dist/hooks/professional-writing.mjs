@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4a3a4cd5dd6eee148d7e4947bd2f6617d6b3ebe34099aaf7254f848398c2d612
+// harness-source-hash: sha256:fb559c85df508375751cc04a15de4be44ab29f55bf278caeb94fa6241a928756
 import {
   analyzeAiStyle
-} from "../chunks/chunk-WEQSQOCL.mjs";
+} from "../chunks/chunk-SWNLLRYO.mjs";
 
 // plugins/knowledge-work/modules/writing/src/entries/hooks/professional-writing.ts
 import { readFileSync, statSync } from "node:fs";
@@ -49,6 +49,9 @@ function eventToolInput(event) {
 function eventToolResponse(event) {
   const tool = nestedRecord(event, "tool");
   return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+function eventPrompt(event) {
+  return firstString(event.prompt, event.user_prompt, event.userPrompt, event.message);
 }
 
 // core/src/hook-output.ts
@@ -230,17 +233,41 @@ function professionalWritingContext() {
     "For a knowledge-only answer or fully completed task, give the answer or result directly and do not manufacture a next action.",
     "Load `visual-explanation` when the user asks to see the topic visually, or when relationships, sequence, hierarchy, or state changes become materially clearer in the smallest useful visual. Do not force a visual onto a simple question.",
     "Use `writing-terse-output` only for an explicit terse-output request.",
-    "For English prose, require `writing-english-prose`.",
-    "For Chinese prose, require `writing-chinese-prose` and bundled `ai-flavor-remover`.",
-    "For human-readable Markdown prose, also require `writing-markdown-ai-style`. Locate signals with `node <plugin>/dist/cli/analyze-ai-style.mjs <file>`; the report is evidence, not an automatic rewrite.",
-    "For substantial mixed-language prose, use both language routes; isolated foreign terms follow the main language.",
+    "Select language-specific editing Skills only for an explicit prose rewrite, polishing, naturalness, or de-AI request. Ordinary technical, factual, and conversational responses do not load them.",
     "Exclude code, commands, configuration, machine output, quotations, and exact short replies. Preserve facts, numbers, URLs, identifiers, citations, and Markdown structure."
+  ].join("\n");
+}
+var EDITING_REQUEST = /\b(?:de-?ai|edit|humanize|natural(?:ness)?|polish|rewrite|writing style)\b|去\s*AI\s*味|改写|改成|润色|自然(?:一点|些|的)?|写得更/iu;
+var DE_AI_REQUEST = /\b(?:de-?ai|humanize)\b|去\s*AI\s*味|去机器味|去模板味|AI\s*味/iu;
+var MARKDOWN_REQUEST = /\bmarkdown\b|\.(?:md|markdown)\b/iu;
+var CHINESE_TEXT = new RegExp("\\p{Script=Han}", "u");
+var ENGLISH_TEXT = /[A-Za-z]{3}/u;
+function writingPromptContext(event) {
+  const prompt = eventPrompt(event);
+  if (!prompt || !EDITING_REQUEST.test(prompt)) return "";
+  const methods = [];
+  if (CHINESE_TEXT.test(prompt)) methods.push("`writing-chinese-prose`");
+  if (CHINESE_TEXT.test(prompt) && DE_AI_REQUEST.test(prompt)) methods.push("`ai-flavor-remover`");
+  if (ENGLISH_TEXT.test(prompt)) methods.push("`writing-english-prose`");
+  if (MARKDOWN_REQUEST.test(prompt)) methods.push("`writing-markdown-ai-style`");
+  if (!methods.length) return "";
+  return [
+    "[Professional Writing] Explicit prose-editing route",
+    `Load each listed bundled method before editing: ${[...new Set(methods)].join(", ")}.`,
+    ...MARKDOWN_REQUEST.test(prompt) ? ["Run the public analyzer as `node <plugin>/dist/cli/harness.mjs writing analyze <file>` before and after editing; findings are evidence, not automatic rewrite commands."] : [],
+    "Preserve facts, numbers, URLs, identifiers, citations, code, and requested structure."
   ].join("\n");
 }
 async function runSessionStart() {
   const event = await readStdinJson();
   if (event.__parseError) return warn("invalid hook input; advisory context was skipped");
   writeJson(additionalContext("SessionStart", professionalWritingContext()));
+}
+async function runUserPromptSubmit() {
+  const event = await readStdinJson();
+  if (event.__parseError) return warn("invalid hook input; prompt routing was skipped");
+  const context = writingPromptContext(event);
+  if (context) writeJson(additionalContext("UserPromptSubmit", context));
 }
 function displayPath(cwd, filePath) {
   const local = relative(cwd, filePath);
@@ -354,12 +381,14 @@ async function runPostToolUse(event) {
   }
 }
 if (process.argv[1] && resolve2(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const run = process.argv[2] === "post" ? runPostToolUse : runSessionStart;
+  const run = process.argv[2] === "post" ? runPostToolUse : process.argv[2] === "prompt" || process.argv[2] === "user-prompt" ? runUserPromptSubmit : runSessionStart;
   run().catch((error) => warn(error instanceof Error ? error.message : String(error)));
 }
 export {
   markdownPostToolReport,
   professionalWritingContext,
   runPostToolUse,
-  runSessionStart
+  runSessionStart,
+  runUserPromptSubmit,
+  writingPromptContext
 };

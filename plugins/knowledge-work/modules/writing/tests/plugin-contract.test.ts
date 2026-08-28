@@ -70,7 +70,9 @@ test("publishes separate actionable and visual response contracts", () => {
 test("both hosts run the deterministic Markdown analyzer after observed writes", () => {
   for (const host of ["claude", "codex"] as const) {
     const routes = readModuleRoutes(import.meta.url, host, "writing");
-    assert.deepEqual(Object.keys(routes).sort(), ["PostToolUse", "SessionStart"]);
+    assert.deepEqual(Object.keys(routes).sort(), ["PostToolUse", "SessionStart", "UserPromptSubmit"]);
+    assert.equal(routes.UserPromptSubmit[0].script, "dist/hooks/professional-writing.mjs");
+    assert.deepEqual(routes.UserPromptSubmit[0].args, ["prompt"]);
     assert.match(routes.PostToolUse[0].matcher ?? "", /Write/iu);
     assert.match(routes.PostToolUse[0].matcher ?? "", /apply_patch/iu);
     assert.match(routes.PostToolUse[0].matcher ?? "", /create_file/iu);
@@ -111,7 +113,7 @@ test("live acceptance targets the bundled writing skills, analyzer CLI, and writ
     "writing-chinese-prose",
     "writing-markdown-ai-style",
     "ai-flavor-remover",
-    "analyze-ai-style.mjs",
+    "harness.mjs writing analyze",
   ]) {
     assert.ok(normalizedExpectations.includes(required), required);
   }
