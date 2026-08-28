@@ -1,0 +1,98 @@
+{
+  "UserPromptSubmit": [
+    {
+      "module": "intent",
+      "script": "dist/hooks/intent-discovery.mjs",
+      "args": [
+        "prompt"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "intent-discovery:first-turn"
+    },
+    {
+      "module": "practice",
+      "script": "dist/hooks/engineering-practice.mjs",
+      "args": [
+        "user-prompt"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "engineering-practice:user-prompt"
+    },
+    {
+      "module": "language",
+      "script": "dist/hooks/language-output-hook-user-prompt.mjs",
+      "timeoutMs": 10000,
+      "trigger": "language-output:user-prompt-submit"
+    }
+  ],
+  "SessionStart": [
+    {
+      "module": "reasoning",
+      "script": "dist/hooks/reasoning-methods.mjs",
+      "timeoutMs": 10000,
+      "trigger": "reasoning-methods:session-start"
+    },
+    {
+      "module": "practice",
+      "script": "dist/hooks/engineering-practice.mjs",
+      "args": [
+        "session-start"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "engineering-practice:session-start"
+    },
+    {
+      "module": "language",
+      "script": "dist/hooks/language-output-hook-session-start.mjs",
+      "timeoutMs": 10000,
+      "trigger": "language-output:session-start"
+    }
+  ],
+  "PreToolUse": [
+    {
+      "module": "discipline",
+      "script": "dist/hooks/execution-discipline.mjs",
+      "args": [
+        "pre"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "execution-discipline:pre",
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command|wait|wait_agent|list_agents|write_stdin|functions.wait|functions.write_stdin|collaboration.wait_agent|collaboration.list_agents"
+    }
+  ],
+  "PostToolUse": [
+    {
+      "module": "discipline",
+      "script": "dist/hooks/execution-discipline.mjs",
+      "args": [
+        "post"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "execution-discipline:post",
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write"
+    },
+    {
+      "module": "language",
+      "script": "dist/hooks/language-output-hook-post-tool.mjs",
+      "timeoutMs": 10000,
+      "trigger": "language-output:post-tool-use",
+      "matcher": "Bash|Write|Edit|MultiEdit|apply_patch"
+    }
+  ],
+  "Stop": [
+    {
+      "module": "language",
+      "script": "dist/hooks/language-output-hook-stop.mjs",
+      "timeoutMs": 10000,
+      "trigger": "language-output:stop"
+    }
+  ],
+  "SubagentStop": [
+    {
+      "module": "language",
+      "script": "dist/hooks/language-output-hook-stop.mjs",
+      "timeoutMs": 10000,
+      "trigger": "language-output:subagent-stop"
+    }
+  ]
+}

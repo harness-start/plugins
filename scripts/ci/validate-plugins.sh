@@ -63,6 +63,23 @@ check_scripts() {
   log "Checking committed plugin bundles"
   require_cmd node
 
+  local -a private_host_surfaces=()
+  mapfile -t private_host_surfaces < <(
+    find plugins -type f -print | awk -F/ '
+      $3 == "modules" && (
+        (NF == 6 && ($5 == ".claude-plugin" || $5 == ".codex-plugin") && $6 == "plugin.json") ||
+        (NF == 5 && $5 == ".mcp.json") ||
+        (NF == 6 && $5 == "hooks" && ($6 == "claude.json" || $6 == "codex.json")) ||
+        (NF == 6 && $5 == "mcp" && $6 == "codex.json")
+      )
+    ' | sort
+  )
+  if [ "${#private_host_surfaces[@]}" -ne 0 ]; then
+    printf 'Private modules must not expose host registration files:\n' >&2
+    printf '  %s\n' "${private_host_surfaces[@]}" >&2
+    exit 1
+  fi
+
   local -a files=()
   mapfile -t files < <(
     find plugins -type f -name '*.mjs' -path '*/dist/*' | sort

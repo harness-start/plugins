@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "research_provenance": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/modules/research/dist/mcp/research-provenance-server.mjs"]
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Poster Project Review"
+  short_description: "Independently review digest-bound poster variants"
+  default_prompt: "Review the supplied poster project with $poster-project-review and submit only a digest-bound independent verdict."

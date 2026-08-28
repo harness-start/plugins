@@ -1,7 +1,0 @@
-{
-  "name": "print-publication-production",
-  "version": "0.2.0",
-  "description": "Enforces static React publication units, Paged Media sources, and print delivery evidence.",
-  "author": {"name": "Harness Start", "email": "devtools@example.com"},
-  "hooks": "./hooks/claude.json"
-}

@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"interface-design:SessionStart\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex SessionStart",
+            "statusMessage": "interface-design: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"interface-design:PostToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PostToolUse",
+            "statusMessage": "interface-design: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"interface-design:Stop\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex Stop",
+            "statusMessage": "interface-design: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ]
+  }
+}

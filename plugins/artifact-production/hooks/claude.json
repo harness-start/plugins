@@ -1,0 +1,91 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:SessionStart\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude SessionStart",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:SubagentStart\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude SubagentStart",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:PreToolUse\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PreToolUse",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:PostToolUse\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PostToolUse",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:PostToolUseFailure\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PostToolUseFailure",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:Stop\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude Stop",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"artifact-production:SubagentStop\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude SubagentStop",
+            "statusMessage": "artifact-production: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

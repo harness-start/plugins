@@ -1,0 +1,4 @@
+id = "07-explicit-language-switch"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["prompt-profile-switch", "language"]

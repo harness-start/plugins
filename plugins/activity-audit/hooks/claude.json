@@ -1,0 +1,43 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"activity-audit:PreToolUse\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PreToolUse",
+            "statusMessage": "activity-audit: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"activity-audit:PostToolUse\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PostToolUse",
+            "statusMessage": "activity-audit: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"activity-audit:PostToolUseFailure\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PostToolUseFailure",
+            "statusMessage": "activity-audit: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

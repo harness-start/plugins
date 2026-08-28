@@ -1,0 +1,78 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-governance:UserPromptSubmit\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex UserPromptSubmit",
+            "statusMessage": "session-governance: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-governance:SessionStart\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex SessionStart",
+            "statusMessage": "session-governance: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command|wait|wait_agent|list_agents|write_stdin|functions.wait|functions.write_stdin|collaboration.wait_agent|collaboration.list_agents",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-governance:PreToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PreToolUse",
+            "statusMessage": "session-governance: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|Bash|Write|Edit|MultiEdit|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-governance:PostToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PostToolUse",
+            "statusMessage": "session-governance: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-governance:Stop\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex Stop",
+            "statusMessage": "session-governance: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"session-governance:SubagentStop\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex SubagentStop",
+            "statusMessage": "session-governance: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ]
+  }
+}

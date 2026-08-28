@@ -1,0 +1,4 @@
+id = "01-hard-offset-shadow"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["hook", "ui", "honesty"]

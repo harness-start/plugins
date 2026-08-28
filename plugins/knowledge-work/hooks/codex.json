@@ -1,0 +1,79 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"knowledge-work:SessionStart\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex SessionStart",
+            "statusMessage": "knowledge-work: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"knowledge-work:UserPromptSubmit\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex UserPromptSubmit",
+            "statusMessage": "knowledge-work: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"knowledge-work:PreToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PreToolUse",
+            "statusMessage": "knowledge-work: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*|apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write|Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"knowledge-work:PostToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PostToolUse",
+            "statusMessage": "knowledge-work: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"knowledge-work:Stop\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex Stop",
+            "statusMessage": "knowledge-work: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"knowledge-work:PostToolUseFailure\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PostToolUseFailure",
+            "statusMessage": "knowledge-work: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ]
+  }
+}

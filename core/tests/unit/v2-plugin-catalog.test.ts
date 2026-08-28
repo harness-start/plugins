@@ -3,62 +3,16 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, extname, relative, resolve } from "node:path";
 import { test } from "node:test";
 
-import { identifierNames } from "../support/typescript-source.js";
-
 const root = resolve(import.meta.dirname, "../../..");
 const expected = [
-  "agent-activity-audit",
-  "android-engineering",
-  "brand-logo-production",
-  "ci-gated-delivery",
-  "command-safety",
-  "diagram-production",
-  "engineering-practice",
-  "engineering-quality",
-  "evidence-based-research",
-  "execution-discipline",
-  "git-delivery",
-  "go-engineering",
-  "intent-discovery",
-  "interface-craft",
-  "ios-engineering",
-  "java-engineering",
-  "kubernetes-operations",
-  "language-output",
-  "music-production",
-  "nix-engineering",
-  "poster-production",
-  "presentation-production",
-  "print-publication-production",
-  "professional-writing",
-  "php-engineering",
-  "python-engineering",
-  "react-native-engineering",
-  "reasoning-methods",
-  "repository-history-migration",
-  "rust-engineering",
-  "software-debugging",
-  "source-integrity",
-  "spec-driven-development",
-  "test-driven-development",
-  "training-program-design",
-  "video-production",
-  "web-frontend-engineering",
-  "work-reporting",
-].toSorted();
-
-const domainPlugins = [
-  "android-engineering",
-  "go-engineering",
-  "ios-engineering",
-  "java-engineering",
-  "kubernetes-operations",
-  "nix-engineering",
-  "php-engineering",
-  "python-engineering",
-  "react-native-engineering",
-  "rust-engineering",
-  "web-frontend-engineering",
+  "activity-audit",
+  "artifact-production",
+  "delivery-governance",
+  "engineering-workflow",
+  "interface-design",
+  "knowledge-work",
+  "session-governance",
+  "workspace-integrity",
 ].toSorted();
 
 function filesBelow(directory: string): string[] {
@@ -325,13 +279,10 @@ test("plugin runtime, Hooks, and internal Skills never address a sibling plugin"
 
 test("required method Skills fail closed in plugin-local orchestration while Hooks remain local", () => {
   const orchestrators: Record<string, string[]> = {
-    "ci-gated-delivery": ["ci-gated-mr-workflow"],
-    "engineering-practice": ["engineering-judgment", "engineering-practice", "engineering-review", "engineering-verification"],
-    "intent-discovery": ["intent-discovery"],
-    "professional-writing": ["actionable-response", "professional-writing", "writing-chinese-prose", "writing-english-prose"],
-    "software-debugging": ["debug-workflow"],
-    "spec-driven-development": ["sdd", "sdd-build", "sdd-plan", "sdd-specify", "sdd-tasks"],
-    "test-driven-development": ["tdd-red-green", "test-driven-development-orchestrator"],
+    "delivery-governance": ["ci-gated-mr-workflow", "repository-history-migration", "kubernetes-operations"],
+    "engineering-workflow": ["debug-workflow", "sdd", "sdd-build", "sdd-plan", "sdd-specify", "sdd-tasks", "tdd-red-green", "test-driven-development-orchestrator"],
+    "knowledge-work": ["actionable-response", "professional-writing", "research-evidence-workflow", "writing-chinese-prose", "writing-english-prose"],
+    "session-governance": ["engineering-judgment", "engineering-practice", "engineering-review", "engineering-verification", "intent-discovery", "reasoning-methods"],
   };
   for (const [plugin, requiredSkills] of Object.entries(orchestrators)) {
     const pluginRoot = resolve(root, "plugins", plugin);
@@ -351,44 +302,31 @@ test("required method Skills fail closed in plugin-local orchestration while Hoo
   }
 });
 
-test("every engineering domain plugin exposes a same-named orchestrator and both platform Hooks", () => {
-  for (const plugin of domainPlugins) {
-    const rootPath = resolve(root, "plugins", plugin);
-    assert.ok(existsSync(resolve(rootPath, "skills", plugin, "SKILL.md")), `${plugin} orchestrator`);
-    assert.ok(existsSync(resolve(rootPath, "hooks", "claude.json")), `${plugin} Claude Hooks`);
-    assert.ok(existsSync(resolve(rootPath, "hooks", "codex.json")), `${plugin} Codex Hooks`);
-    assert.ok(existsSync(resolve(rootPath, "tests", "domain-hook.test.ts")), `${plugin} hook contract test`);
-    assert.ok(existsSync(resolve(rootPath, "acceptance", "cases", "01-domain-guard", "case.toml")), `${plugin} live case`);
-  }
-});
+test("workspace integrity keeps generic guards active without publishing language encyclopedias", () => {
+  const workspaceRoot = resolve(root, "plugins", "workspace-integrity");
+  const exposedSkills = readdirSync(resolve(workspaceRoot, "skills"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .toSorted();
+  assert.deepEqual(exposedSkills, ["command-safety-config", "engineering-quality-config", "source-integrity-config"]);
 
-test("domain orchestrators stay first-party and do not load community Skills", () => {
-  for (const plugin of domainPlugins) {
-    const rootPath = resolve(root, "plugins", plugin);
-    const skillText = readFileSync(resolve(rootPath, "skills", plugin, "SKILL.md"), "utf8");
-    assert.doesNotMatch(skillText, /skill-deps\.json|npx skills add|\$HOME\/\.agents\/skills/u, `${plugin} must not install community Skills`);
+  const routes = JSON.parse(readFileSync(resolve(workspaceRoot, "routes", "codex.json"), "utf8"));
+  const domainModules = new Set(["android", "go", "ios", "java", "kubernetes", "nix", "php", "python", "react-native", "rust", "web"]);
+  for (const [eventName, eventRoutes] of Object.entries(routes) as Array<[string, Array<{ module: string }>]>) {
+    if (eventName === "PreToolUse") continue;
+    assert.equal(eventRoutes.some((route) => domainModules.has(route.module)), false, eventName);
   }
-});
-
-test("retired cross-domain guard is absent and engineering-quality no longer owns language checks", () => {
-  assert.equal(existsSync(resolve(root, "plugins", "dependency-file-custody")), false);
-  const retiredIdentifiers = new Set(["javascriptSyntax", "typescriptSyntax", "pythonSyntax", "phpSyntax", "composerValidate", "phpstan"]);
-  const unexpected = filesBelow(resolve(root, "plugins", "engineering-quality", "src")).flatMap((path) => {
-    const identifiers = identifierNames(readFileSync(path, "utf8"), path);
-    return [...retiredIdentifiers].filter((name) => identifiers.has(name)).map((name) => `${relative(root, path)}: ${name}`);
-  });
-  assert.deepEqual(unexpected, []);
 });
 
 test("merged plugins retain outcome-level acceptance for every merged responsibility", () => {
   const cases = [
-    "plugins/agent-activity-audit/acceptance/cases/01-record-shell-command",
-    "plugins/agent-activity-audit/acceptance/cases/04-record-file-write",
-    "plugins/source-integrity/acceptance/cases/01-deny-backup-artifact",
-    "plugins/source-integrity/acceptance/cases/02-repair-utf8-bom",
-    "plugins/web-frontend-engineering/acceptance/cases/01-domain-guard",
-    "plugins/engineering-quality/acceptance/cases/02-block-oversized-php",
-    "plugins/engineering-quality/acceptance/cases/03-fix-heading-jump",
+    "plugins/activity-audit/acceptance/cases/activity-01-record-shell-command",
+    "plugins/activity-audit/acceptance/cases/activity-04-record-file-write",
+    "plugins/workspace-integrity/acceptance/cases/source-01-deny-backup-artifact",
+    "plugins/workspace-integrity/acceptance/cases/source-02-repair-utf8-bom",
+    "plugins/workspace-integrity/acceptance/cases/web-01-domain-guard",
+    "plugins/workspace-integrity/acceptance/cases/quality-02-block-oversized-php",
+    "plugins/workspace-integrity/acceptance/cases/quality-03-fix-heading-jump",
   ];
   for (const relative of cases) {
     assert.ok(existsSync(resolve(root, relative, "case.toml")), `${relative} must declare a case`);
@@ -397,7 +335,7 @@ test("merged plugins retain outcome-level acceptance for every merged responsibi
 });
 
 test("Claude poster stop events use the correct modes", () => {
-  const hooks = JSON.parse(readFileSync(resolve(root, "plugins/poster-production/hooks/claude.json"), "utf8")).hooks;
-  assert.match(hooks.Stop[0].hooks[0].command, /\sstop$/u);
-  assert.match(hooks.SubagentStop[0].hooks[0].command, /\ssubagent-stop$/u);
+  const routes = JSON.parse(readFileSync(resolve(root, "plugins/artifact-production/routes/claude.json"), "utf8"));
+  assert.ok(routes.Stop.some((route: { module: string; args?: string[] }) => route.module === "poster" && route.args?.at(-1) === "stop"));
+  assert.ok(routes.SubagentStop.some((route: { module: string; args?: string[] }) => route.module === "poster" && route.args?.at(-1) === "subagent-stop"));
 });

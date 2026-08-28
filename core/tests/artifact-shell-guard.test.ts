@@ -6,14 +6,14 @@ import { join, resolve } from "node:path";
 import test from "node:test";
 
 const CASES = [
-  ["brand-logo-production", "brand-logo-production", "logo"],
-  ["diagram-production", "diagram-production", "diagram"],
-  ["music-production", "music-production", "music"],
-  ["poster-production", "poster-production", "poster"],
-  ["presentation-production", "presentation-production", "pptx"],
-  ["print-publication-production", "print-publication-production", "print"],
-  ["training-program-design", "training-program-design", "training"],
-  ["video-production", "video-production", "video"],
+  ["brand-logo-production", "logo", "brand-logo-production", "logo"],
+  ["diagram-production", "diagram", "diagram-production", "diagram"],
+  ["music-production", "music", "music-production", "music"],
+  ["poster-production", "poster", "poster-production", "poster"],
+  ["presentation-production", "presentation", "presentation-production", "pptx"],
+  ["print-publication-production", "print", "print-publication-production", "print"],
+  ["training-program-design", "training", "training-program-design", "training"],
+  ["video-production", "video", "video-production", "video"],
 ] as const;
 
 function runHook(entry: string, mode: string, event: unknown, env: NodeJS.ProcessEnv = process.env): Promise<{ code: number | null; stdout: string; stderr: string }> {
@@ -36,21 +36,21 @@ function runHook(entry: string, mode: string, event: unknown, env: NodeJS.Proces
   });
 }
 
-for (const [plugin, entryName, carrier] of CASES) {
+for (const [plugin, module, entryName, carrier] of CASES) {
   test(`${plugin} denies an opaque interpreter mutation when its artifact project exists`, async () => {
     const workspace = mkdtempSync(join(tmpdir(), `${carrier}-opaque-contract-`));
     const project = join(workspace, "artifacts", carrier, "demo");
     try {
       mkdirSync(project, { recursive: true });
       writeFileSync(join(project, "plan.contract.json"), `${JSON.stringify({ artifactId: "demo", targetStage: "source" })}\n`);
-      const entry = resolve(`plugins/${plugin}/dist/hooks/${entryName}.mjs`);
+      const entry = resolve(`plugins/artifact-production/modules/${module}/dist/hooks/${entryName}.mjs`);
       const command = `node -e "require('node:fs').writeFileSync(['artifacts','${carrier}','demo','dist','forged.bin'].join('/'),'forged')"`;
       const result = await runHook(entry, "pre", {
         cwd: workspace,
         session_id: "artifact-shell-contract",
         tool_name: "Bash",
         tool_input: { command },
-      });
+      }, { ...process.env, HARNESS_HOST: "codex", PLUGIN_DATA: join(workspace, "plugin-data") });
       assert.equal(result.code, 0, result.stderr);
       assert.notEqual(result.stdout, "", `${plugin} must return a deny decision`);
       assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
@@ -60,11 +60,11 @@ for (const [plugin, entryName, carrier] of CASES) {
   });
 }
 
-for (const [plugin, entryName, carrier] of CASES) {
+for (const [plugin, module, entryName, carrier] of CASES) {
   test(`${plugin} revalidates an artifact touched by the same repo-root session`, async () => {
     const workspace = mkdtempSync(join(tmpdir(), `${carrier}-session-contract-`));
     const project = join(workspace, "artifacts", carrier, "demo");
-    const entry = resolve(`plugins/${plugin}/dist/hooks/${entryName}.mjs`);
+    const entry = resolve(`plugins/artifact-production/modules/${module}/dist/hooks/${entryName}.mjs`);
     const env = { ...process.env, HARNESS_HOST: "codex", PLUGIN_DATA: join(workspace, "plugin-data") };
     const sessionId = `${carrier}-session-contract`;
     try {

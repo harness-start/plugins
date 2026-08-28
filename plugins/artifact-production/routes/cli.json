@@ -1,0 +1,234 @@
+{
+  "logo": {
+    "advice": {
+      "module": "logo",
+      "script": "dist/cli/project-advice.mjs"
+    },
+    "lint": {
+      "module": "logo",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "lock": {
+      "module": "logo",
+      "script": "dist/cli/project-lock.mjs"
+    },
+    "preview": {
+      "module": "logo",
+      "script": "dist/cli/project-preview.mjs"
+    },
+    "release": {
+      "module": "logo",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "logo",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "logo",
+      "script": "dist/cli/project-review.mjs"
+    },
+    "stage": {
+      "module": "logo",
+      "script": "dist/cli/project-stage.mjs"
+    },
+    "validate": {
+      "module": "logo",
+      "script": "dist/cli/project-validate.mjs"
+    }
+  },
+  "diagram": {
+    "import": {
+      "module": "diagram",
+      "script": "dist/cli/project-import.mjs"
+    },
+    "init": {
+      "module": "diagram",
+      "script": "dist/cli/project-init.mjs"
+    },
+    "lint": {
+      "module": "diagram",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "probe": {
+      "module": "diagram",
+      "script": "dist/cli/project-probe.mjs"
+    },
+    "release": {
+      "module": "diagram",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "diagram",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "diagram",
+      "script": "dist/cli/project-review.mjs"
+    }
+  },
+  "poster": {
+    "init": {
+      "module": "poster",
+      "script": "dist/cli/project-init.mjs"
+    },
+    "lint": {
+      "module": "poster",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "probe": {
+      "module": "poster",
+      "script": "dist/cli/project-probe.mjs"
+    },
+    "release": {
+      "module": "poster",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "poster",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "poster",
+      "script": "dist/cli/project-review.mjs"
+    }
+  },
+  "presentation": {
+    "init": {
+      "module": "presentation",
+      "script": "dist/cli/project-init.mjs"
+    },
+    "lint": {
+      "module": "presentation",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "probe": {
+      "module": "presentation",
+      "script": "dist/cli/project-probe.mjs"
+    },
+    "release": {
+      "module": "presentation",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "presentation",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "presentation",
+      "script": "dist/cli/project-review.mjs"
+    }
+  },
+  "print": {
+    "lint": {
+      "module": "print",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "release": {
+      "module": "print",
+      "script": "dist/cli/project-release.mjs"
+    }
+  },
+  "video": {
+    "admit": {
+      "module": "video",
+      "script": "dist/cli/project-admit.mjs"
+    },
+    "init": {
+      "module": "video",
+      "script": "dist/cli/project-init.mjs"
+    },
+    "lint": {
+      "module": "video",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "probe": {
+      "module": "video",
+      "script": "dist/cli/project-probe.mjs"
+    },
+    "release": {
+      "module": "video",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "video",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "video",
+      "script": "dist/cli/project-review.mjs"
+    },
+    "shot-stage": {
+      "module": "video",
+      "script": "dist/cli/project-shot-stage.mjs"
+    },
+    "catalog": {
+      "module": "video",
+      "script": "dist/cli/shot-catalog.mjs"
+    }
+  },
+  "music": {
+    "advice": {
+      "module": "music",
+      "script": "dist/cli/project-advice.mjs"
+    },
+    "init": {
+      "module": "music",
+      "script": "dist/cli/project-init.mjs"
+    },
+    "lint": {
+      "module": "music",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "optimize": {
+      "module": "music",
+      "script": "dist/cli/project-optimize.mjs"
+    },
+    "preview": {
+      "module": "music",
+      "script": "dist/cli/project-preview.mjs"
+    },
+    "reference": {
+      "module": "music",
+      "script": "dist/cli/project-reference.mjs"
+    },
+    "release": {
+      "module": "music",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "music",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "music",
+      "script": "dist/cli/project-review.mjs"
+    },
+    "stage": {
+      "module": "music",
+      "script": "dist/cli/project-stage.mjs"
+    }
+  },
+  "training": {
+    "init": {
+      "module": "training",
+      "script": "dist/cli/project-init.mjs"
+    },
+    "lint": {
+      "module": "training",
+      "script": "dist/cli/project-lint.mjs"
+    },
+    "release": {
+      "module": "training",
+      "script": "dist/cli/project-release.mjs"
+    },
+    "render": {
+      "module": "training",
+      "script": "dist/cli/project-render.mjs"
+    },
+    "review": {
+      "module": "training",
+      "script": "dist/cli/project-review.mjs"
+    }
+  }
+}

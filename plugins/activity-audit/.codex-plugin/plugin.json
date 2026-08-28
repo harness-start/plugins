@@ -1,0 +1,17 @@
+{
+  "name": "activity-audit",
+  "version": "1.0.0",
+  "description": "Always-on, protected per-session command and file activity audit.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Activity Audit",
+    "shortDescription": "Always-on, protected per-session command and file activity audit.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

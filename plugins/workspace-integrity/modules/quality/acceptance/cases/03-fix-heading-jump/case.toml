@@ -1,0 +1,4 @@
+id = "03-fix-heading-jump"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "engineering-quality", "markdown", "heading"]

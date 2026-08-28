@@ -1,0 +1,4 @@
+id = "04-codex-report-continuation"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["post-tool", "report", "transport", "continuation"]

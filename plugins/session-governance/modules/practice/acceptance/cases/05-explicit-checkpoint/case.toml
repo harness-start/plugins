@@ -1,0 +1,4 @@
+id = "05-explicit-checkpoint"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["user-prompt", "explicit", "breaker", "subagent", "read-only"]

@@ -1,0 +1,1 @@
+Continue to answer in English. State the exact profile marker injected at session start, then use the Write tool to create `answer.txt` containing exactly `Language governance keeps this response consistently in English.` followed by one newline. Do not modify any other file.

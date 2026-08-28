@@ -38,7 +38,7 @@ missing_log_home="$(make_home missing-log)"
 expect_not_ready "${missing_log_home}"
 
 partial_home="$(make_home partial-catalog)"
-printf '%s\n' 'installed brand-logo-production' >"${partial_home}/install-all.log"
+printf '%s\n' 'installed session-governance' >"${partial_home}/install-all.log"
 expect_not_ready "${partial_home}"
 
 complete_home="$(make_home complete-catalog)"
@@ -50,19 +50,19 @@ expect_ready "${complete_home}"
 missing_plugin_home="$(make_home missing-plugin)"
 jq -r '.plugins[]?.name // empty' \
   "${REPO_ROOT}/.claude-plugin/marketplace.json" \
-  | sed '/^software-debugging$/d' \
+  | sed '/^engineering-workflow$/d' \
   >"${missing_plugin_home}/install-all.log"
 expect_not_ready "${missing_plugin_home}"
 
 configured_home="$(make_home configured-claude)"
 mkdir -p "${configured_home}/.claude"
 printf '%s\n' \
-  '{"enabledPlugins":{"software-debugging@harness-start":true},"extraKnownMarketplaces":{"harness-start":{"source":{"source":"directory","path":"/marketplace"}}}}' \
+  '{"enabledPlugins":{"engineering-workflow@harness-start":true},"extraKnownMarketplaces":{"harness-start":{"source":{"source":"directory","path":"/marketplace"}}}}' \
   >"${configured_home}/.claude/settings.json"
 DEEPSEEK_API_KEY="acceptance-test-key" configure_claude_home \
   "${configured_home}" "deepseek-v4-flash"
 jq -e '
-  .enabledPlugins["software-debugging@harness-start"] == true
+  .enabledPlugins["engineering-workflow@harness-start"] == true
   and .extraKnownMarketplaces["harness-start"].source.path == "/marketplace"
   and .env.ANTHROPIC_MODEL == "deepseek-v4-flash"
   and .permissions.defaultMode == "bypassPermissions"

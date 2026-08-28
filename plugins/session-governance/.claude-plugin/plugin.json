@@ -1,0 +1,11 @@
+{
+  "name": "session-governance",
+  "version": "1.0.0",
+  "description": "Always-on session intent, reasoning, engineering practice, execution discipline, and language-output governance.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json",
+  "skills": "./skills/"
+}

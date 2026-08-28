@@ -1,0 +1,7 @@
+# Review contract
+
+Review the current final MP4 rather than producer descriptions. Inspect the opening, every storyboard beat, transitions, captioned speech, representative motion, and final frame. Check narrative, pacing, motion continuity, shot composition, typography, color, captions, audio, source integrity, asset rights, and profile fidelity. When `plan.shots.json` contains selections, inspect every declared review frame against the recipe intention and current implementation, then record `shotFidelity`. `reference-led` also checks the declared fidelity tier; `micro-drama` also checks character and scene continuity.
+
+Inspect every entry in `evidence.motion.json.blackCandidates`. Include each candidate frame in `frames` and add one matching `blackFrameAssessments` record with `classification: expected|unexpected` and concrete notes. A passing review may classify candidates only as `expected`; missing or unexpected near-black frames require correction before review can pass. An empty or omitted assessment list is valid only when the probe found no candidates.
+
+The external review input binds artifact id, final-output SHA-256, reviewed frame indexes, near-black assessments, reviewer identity, pass/fail checks, findings, and notes. The writer records the real host session. A reviewer session used for admission or rendering is invalid.

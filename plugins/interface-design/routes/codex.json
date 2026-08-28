@@ -1,0 +1,36 @@
+{
+  "SessionStart": [
+    {
+      "module": "craft",
+      "script": "dist/hooks/interface-craft.mjs",
+      "args": [
+        "session"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "interface-craft:session-start"
+    }
+  ],
+  "PostToolUse": [
+    {
+      "module": "craft",
+      "script": "dist/hooks/interface-craft.mjs",
+      "args": [
+        "post"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "interface-craft:post",
+      "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace"
+    }
+  ],
+  "Stop": [
+    {
+      "module": "craft",
+      "script": "dist/hooks/interface-craft.mjs",
+      "args": [
+        "stop"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "interface-craft:stop"
+    }
+  ]
+}

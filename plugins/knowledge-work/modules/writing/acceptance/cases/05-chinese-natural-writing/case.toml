@@ -1,0 +1,4 @@
+id = "05-chinese-natural-writing"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["session-start", "skill-routing", "writing", "chinese", "outcome"]

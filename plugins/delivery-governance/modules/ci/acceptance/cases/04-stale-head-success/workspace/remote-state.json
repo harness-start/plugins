@@ -1,0 +1,13 @@
+{
+  "repository": "example/widgets",
+  "merge_request": 17,
+  "head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "pipeline": {
+    "id": 401,
+    "status": "success",
+    "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "source": "merge_request_event"
+  },
+  "blocking_discussions_resolved": true,
+  "mergeable": true
+}

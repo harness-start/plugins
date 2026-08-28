@@ -126,59 +126,26 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 
 | 插件 | 说明 |
 | --- | --- |
-| `evidence-based-research` | 保存网页或本地资料为可引用片段，要求每条结论绑定来源；证据封存后才允许交付 |
-| `execution-discipline` | 在 agent 浪费整个会话前识别重复编辑、盲目重试命令和过度远端轮询 |
-| `source-integrity` | 写入前阻断备份产物与明显 replacement character，写入后校验严格 UTF-8 与 BOM |
-| `git-delivery` | 保护本地 Git 命令、原子提交、仓库状态和未解决合并冲突标记 |
-| `engineering-quality` | 执行跨技术栈共享的文件行数预算与 Markdown 结构检查；语言和生态检查由领域插件负责 |
-| `test-driven-development` | 先记录测试文件变化，再按 FQCN、module/package 身份或完整目录镜像允许 PHP、Python、JS、TS、Rust、Go 实现写入；已有对应测试时必须先改那些文件 |
-| `command-safety` | 拒绝宽范围递归删除、无备份 `sed` 原地编辑和写入非临时路径的 `cat` heredoc 等高风险命令 |
-| `android-engineering` | 编排 Android 工程方法，保护 Gradle lock/cache，并校验 Manifest、资源 XML 与关键 JSON |
-| `go-engineering` | 编排 Go 工程方法，保护 `go.sum`，并对修改后的 Go 源码运行有界 `gofmt` 检查 |
-| `ios-engineering` | 编排 iOS、SwiftUI、并发与测试方法，保护 SwiftPM/CocoaPods 状态并校验 Swift 与 plist |
-| `java-engineering` | 编排 JVM、Spring Boot、JUnit 与 Jakarta 迁移，保护 Gradle 状态并校验 Maven XML |
-| `kubernetes-operations` | 编排 Kubernetes/Helm 运维，保护 Helm 依赖产物并执行有界 dry-run、lint 与 JSON 校验 |
-| `nix-engineering` | 编排 Nix 工程，保护 `flake.lock` 并执行有界 Nix 解析与 JSON 校验 |
-| `php-engineering` | 编排 PHP 工程，保护 Composer lock/vendor 并执行 PHP 语法与 Composer 声明校验 |
-| `python-engineering` | 编排 Python 工程，保护包管理器 lock/环境并执行语法、Ruff 与 JSON 校验 |
-| `react-native-engineering` | 独立编排 bare React Native、导航与升级，保护 Codegen 产物并校验 Metro/TS/JSON |
-| `rust-engineering` | 编排 Rust 工程，保护 `Cargo.lock` 并对修改后的 Rust 源码运行有界 `rustfmt` 检查 |
-| `web-frontend-engineering` | 编排 React、Vue、Angular 与 TypeScript，保护 JS lock/node_modules 并执行语法、ESLint、JSON 校验 |
-| `language-output` | 让主 agent 与 subagent 的散文遵循同一可配置会话语言；安装时跟随系统 locale，未配置时严格默认简体中文 |
-| `intent-discovery` | 首个 prompt 自动前置探索项目事实、候选解释和反例；遇到实质新任务可由原生 Skill 路由复用，继续与纠正不重复探索 |
-| `engineering-practice` | 提供第一方实现判断、只读代码审查与完成前验证方法；具体故障调试归 `software-debugging` |
-| `professional-writing` | Orchestrates actionable responses and language-aware writing Skills, then reports deterministic AI-style signals after observed Markdown writes |
-| `reasoning-methods` | 提供聚焦的第一性原理与自适应推理 Skill；按任务选择验证结构，不创建账本或把思考过程变成写入门禁 |
-| `interface-craft` | 提供视觉方向、项目设计记忆、设计系统连续性、动效、严格渲染批判与 Web 风格 UI 文件机械检查 |
-| `software-debugging` | 作为具体软件故障的唯一工作流，通过聚焦 Skill 和插件 CLI 创建 Debug Work Order，为多个缺陷分别归属证据，并用 Hook 门禁不安全修复循环 |
-| `agent-activity-audit` | 将文件读写与 shell 命令统一记录到 `.agent-activity-audit/sessions/<session>.jsonl`，记录以 `kind` 区分 |
-| `brand-logo-production` | 校验 Logo 工程的向量 owner、标准制图、几何/Fibonacci 映射、变体闭包和 release receipt |
-| `poster-production` | 用统一编排 Skill、固定设计顾问、Satori/resvg writer、独立审查和 digest evidence 交付数字海报 |
-| `presentation-production` | 校验 PptxGenJS 工程的页序、单页 owner、source-hash 预览、交付闭包和 release receipt |
-| `diagram-production` | 从语义 JSON 或有限 Mermaid/draw.io 输入生成 SVG、PNG、自包含 HTML 与可选 draw.io，并用 probe、独立审查和摘要回执闭合交付 |
-| `print-publication-production` | 校验静态印刷出版工程的章节、Paged Media CSS、四种 PDF role、preflight evidence 和 receipt |
-| `video-production` | 校验 Remotion 工程的视音频帧区间、MP4/WAV proof、媒体边界和 release evidence |
-| `music-production` | 编排 brief、外部中英文顾问、Tone.js 作曲与渲染，并用独立听审、一次性 writer 和 digest receipt 约束发布 |
-| `work-reporting` | 从 Claude/Codex 会话生成引导式日报、周报和阶段总结，并用 SHA-256 封印确认正文、仅允许在标签后追加内容 |
-| `spec-driven-development` | 编排社区 SDD 方法的当前上游版本，并由 Hook 独立校验当前 spec、plan 与 tasks |
-| `ci-gated-delivery` | 编排短生命周期分支、独立审查、远端 CI、合并与合并后验证 |
-| `repository-history-migration` | 在源仓只读、提交封存和目标验证约束下迁移 Git 历史 |
-| `training-program-design` | 为起点差异明显的受众编排 brief、课程设计、材料生成、质量评审与摘要绑定的发布闭包 |
+| `session-governance` | 会话意图、推理方法、工程实践、执行纪律与语言输出治理 |
+| `activity-audit` | 受保护的会话级命令与文件活动审计 |
+| `workspace-integrity` | 命令、源码、生成文件、依赖锁与工作区完整性保护；不公开语言百科 Skill，不自动运行语言 lint/format |
+| `engineering-workflow` | 与语言无关的调试、规格驱动、测试驱动和实现方法 |
+| `delivery-governance` | Git、CI、仓库历史迁移与 Kubernetes 交付治理 |
+| `knowledge-work` | 证据研究、专业写作和工作报告 |
+| `interface-design` | 跨框架界面设计、视觉批判与机械质量门禁 |
+| `artifact-production` | Logo、图表、海报、演示、印刷、视频、音乐和培训制品生产 |
 
 ## 插件分类与设计
 
-38 个插件按职责分为八类。每个插件可独立安装，不声明或读取其他本项目插件；领域插件之间也不存在依赖。每个插件捆绑自己的 Skill、脚本和 Hook，不依赖 `skill-deps.json` 或 `vendor-skills/`。
+Marketplace 固定发布以上 8 个 owner；一键安装始终安装全部插件，没有能力 profile、按角色分支或 FDE/OPC 运行时模式。FDE、OPC 只是同一套能力的使用者。
 
-| 类别 | 插件 | 核心机制 |
-| --- | --- | --- |
-| 工程执行与安全 | `execution-discipline`、`source-integrity`、`git-delivery`、`engineering-quality`、`test-driven-development`、`command-safety` | 对命令、写入、测试顺序与跨技术栈共享质量实施可机械验证的硬门禁 |
-| 工程领域 | `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`kubernetes-operations`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering`、`web-frontend-engineering` | 每个领域以自建编排 Skill、捆绑业务 Skill 与本地 Hooks 组成，独立拥有语言/生态检查和依赖产物保护 |
-| 方法编排 | `intent-discovery`、`engineering-practice`、`professional-writing`、`reasoning-methods`、`software-debugging`、`spec-driven-development`、`interface-craft` | 内部 Skill 组织步骤；`professional-writing` 另在可观察 Markdown 写入后运行有界确定性扫描 |
-| 证据与审计 | `evidence-based-research`、`agent-activity-audit`、`work-reporting` | 捕获可验证来源、统一记录活动或生成有证据约束的工作报告 |
-| 领域生产 | `brand-logo-production`、`diagram-production`、`poster-production`、`presentation-production`、`print-publication-production`、`video-production`、`music-production` | 领域 SOP、受控 writer、独立审查与摘要绑定的发布闭包 |
-| 项目与交付治理 | `ci-gated-delivery`、`repository-history-migration` | 管理远端交付状态机和跨仓历史迁移 |
-| 输出治理 | `language-output` | 用平台独立 Hook 维持会话语言，不依赖其他插件 |
-| 培训赋能 | `training-program-design` | 用混合水平受众方法、同源材料、只读评审与阶段门禁闭合培训设计和改编 |
+每个 owner 都是可独立安装、升级和回滚的自包含插件。原有细粒度实现被收进 owner 的 `modules/`，不再作为公开插件。每个生命周期事件由 owner 的单一 dispatcher 调度内部模块；对外需要确定性工具的 owner 统一提供：
+
+```text
+node "${PLUGIN_ROOT}/dist/cli/harness.mjs" <resource> <action> [arguments]
+```
+
+各 owner 捆绑自己的 Skill、Hook、Script、内部模块和验收材料，不声明跨 owner 运行时依赖，也不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
 ### Subagent 原则
 
@@ -196,14 +163,16 @@ plugins/<name>/
 ├── .codex-plugin/plugin.json    # Codex manifest（版本必须与 Claude 一致）
 ├── hooks/claude.json            # 双平台 Hook 之一
 ├── hooks/codex.json             # 双平台 Hook 之一
-├── src/                         # TypeScript 源码；entries/hooks|cli|mcp 为多入口
-├── dist/                        # 已提交的 Node ESM bundle；插件安装后直接运行
+├── routes/                      # owner dispatcher 与统一 CLI 的内部路由
+├── src/                         # owner Hook dispatcher 与可选 harness CLI
+├── dist/                        # 已提交的 owner Node ESM bundle
 ├── skills/                      # 捆绑编排与业务 Skill
+├── modules/                     # owner 私有能力实现；没有独立宿主注册面
 ├── acceptance/cases/            # 宿主验收用例（case.toml + prompt.md + expect.sh + workspace/）
 └── tests/*.test.ts              # 与源码同名或同职责的离线测试
 ```
 
-纯内容插件可以没有 `src/` 和 `dist/`。代码插件的运行时依赖由 esbuild 打进各自 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一插件目录即可安装和运行。
+owner 与内部模块的运行时依赖都由 esbuild 打进各自 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一 owner 目录即可安装和运行。`modules/` 不是 marketplace 发布面，也不能被其他 owner 引用。private module 保留 `src/`、`dist/`、Skill、测试和必要的平台适配实现，但不得拥有 `.claude-plugin/`、`.codex-plugin/`、`hooks/claude.json`、`hooks/codex.json`、`.mcp.json` 或 `mcp/codex.json`；宿主 manifest、Hook 注册和 MCP 暴露统一归 owner。测试 fixture 为模拟消费者环境而创建的 `.claude/` 或 `.codex/` 不属于注册面，不做无差别删除。
 
 两个宿主的字段名、环境变量与生命周期事件不同，因此 marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护，业务脚本在插件目录内共享。Hook 事件覆盖：`SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`PostToolUseFailure`、`Stop`、`SubagentStart`、`SubagentStop`、`PreCompact`、`PostCompact`。
 
@@ -234,7 +203,7 @@ npm run verify
 bash scripts/ci/validate-plugins.sh
 ```
 
-`npm run build` 会从每个 `src/entries/**/*.ts` 生成对应的 `dist/**/*.mjs`；每个生成文件都写入 `harness-source-hash`，摘要覆盖插件自身 `src/**/*.ts` 与共享 `core/src/**/*.ts` 的相对路径和文件字节。提交前必须把这些产物一并提交。`npm run ensure:dist` 以内存重建并只刷新不一致的插件；`npm run check:dist` 做同样的逐字节检查但不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
+`npm run build` 会构建每个 owner 及其 `modules/*/src/entries/**/*.ts`；每个生成文件都写入 `harness-source-hash`，摘要覆盖对应构建单元的 `src/**/*.ts` 与共享 `core/src/**/*.ts`。提交前必须把这些产物一并提交。`npm run ensure:dist` 以内存重建并只刷新不一致的构建单元；`npm run check:dist` 做同样的逐字节检查但不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
 
 宿主已安装时运行：
 

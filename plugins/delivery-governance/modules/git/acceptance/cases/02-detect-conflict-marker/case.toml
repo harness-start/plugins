@@ -1,0 +1,4 @@
+id = "02-detect-conflict-marker"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "git", "conflict"]

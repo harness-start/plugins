@@ -1,0 +1,1 @@
+Add an exported `canAllocateBatch(requests, remaining)` to `src/capacity.mjs`. It should allow a batch exactly when the sum of its requests does not exceed the remaining capacity. Preserve the existing export and update the existing test file. Do not create unrelated files. Finish with one short factual status line.

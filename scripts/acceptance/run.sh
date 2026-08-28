@@ -166,7 +166,7 @@ if [ "${SMOKE_ONLY}" -eq 1 ]; then
   configure_claude_home "${HOME}" "${DEEPSEEK_MODEL}"
   claude_log="${OUT_DIR}/deepseek-host-smoke-claude.log"
   set +e
-  run_claude_session "${smoke_ws}" "${REPO_ROOT}/plugins/command-safety" \
+  run_claude_session "${smoke_ws}" "${REPO_ROOT}/plugins/workspace-integrity" \
     <(printf 'Reply with exactly: PONG\n') "${claude_log}" 90
   set -e
   if ! grep -q 'PONG' "${claude_log}"; then

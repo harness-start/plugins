@@ -1,156 +1,18 @@
 {
   "name": "harness-start",
-  "description": "Harness Start plugins for Claude Code and Codex.",
+  "description": "Eight independent, always-on AIO governance and production plugins for Claude Code and Codex.",
   "owner": {
     "name": "Harness Start",
     "email": "devtools@example.com"
   },
   "plugins": [
-    {
-      "name": "evidence-based-research",
-      "source": "./plugins/evidence-based-research",
-      "description": "Enforces captured, anchored, fresh, machine-verifiable evidence for explicit research tasks."
-    },
-    {
-      "name": "execution-discipline",
-      "source": "./plugins/execution-discipline",
-      "description": "Detects repeated edits, blind command retries, and excessive remote polling before agents waste a session."
-    },
-    {
-      "name": "source-integrity",
-      "source": "./plugins/source-integrity",
-      "description": "Protects source filenames, replacement characters, and strict UTF-8 encoding."
-    },
-    {
-      "name": "git-delivery",
-      "source": "./plugins/git-delivery",
-      "description": "Guards local Git commands, atomic commits, repository state, and unresolved merge markers."
-    },
-    {
-      "name": "engineering-quality",
-      "source": "./plugins/engineering-quality",
-      "description": "Enforces language-neutral line budgets and Markdown structure."
-    },
-    { "name": "android-engineering", "source": "./plugins/android-engineering", "description": "Android, Gradle, AGP, Compose, testing, and R8 engineering." },
-    { "name": "go-engineering", "source": "./plugins/go-engineering", "description": "Go module, service, CLI, concurrency, and test engineering." },
-    { "name": "ios-engineering", "source": "./plugins/ios-engineering", "description": "Swift, UIKit, SwiftUI, concurrency, testing, and dependency engineering." },
-    { "name": "java-engineering", "source": "./plugins/java-engineering", "description": "Java, Spring Boot, Maven, Gradle, JUnit, and Jakarta engineering." },
-    { "name": "kubernetes-operations", "source": "./plugins/kubernetes-operations", "description": "Kubernetes, Helm, Kustomize, RBAC, storage, and safe operations." },
-    { "name": "nix-engineering", "source": "./plugins/nix-engineering", "description": "Nix language, flakes, NixOS, Home Manager, and reproducible environments." },
-    { "name": "php-engineering", "source": "./plugins/php-engineering", "description": "Multi-framework PHP and Composer engineering." },
-    { "name": "python-engineering", "source": "./plugins/python-engineering", "description": "Python packaging, typing, testing, async, service, and CLI engineering." },
-    { "name": "react-native-engineering", "source": "./plugins/react-native-engineering", "description": "Bare React Native, Metro, navigation, upgrade, Codegen, and native boundary engineering." },
-    { "name": "rust-engineering", "source": "./plugins/rust-engineering", "description": "Rust ownership, errors, async, unsafe, API, test, and Cargo engineering." },
-    { "name": "web-frontend-engineering", "source": "./plugins/web-frontend-engineering", "description": "React, Vue, Angular, TypeScript, testing, and frontend performance engineering." },
-    {
-      "name": "test-driven-development",
-      "source": "./plugins/test-driven-development",
-      "description": "Requires an observed failing test before implementation and a relevant passing test before completion."
-    },
-    {
-      "name": "command-safety",
-      "source": "./plugins/command-safety",
-      "description": "Command safety guards: deny broad recursive deletion, unbacked sed in-place edits, and cat heredoc writes outside temporary directories."
-    },
-    {
-      "name": "language-output",
-      "source": "./plugins/language-output",
-      "description": "Keeps agent prose aligned with a stable, configurable session language across Claude Code and Codex."
-    },
-    {
-      "name": "intent-discovery",
-      "source": "./plugins/intent-discovery",
-      "description": "Front-loads first-turn context and bounded adversarial review, and can be routed again for a materially new task without an interview gate."
-    },
-    {
-      "name": "interface-craft",
-      "source": "./plugins/interface-craft",
-      "description": "Supplies visual direction, project design memory, motion, rendered critique, and mechanical interface checks."
-    },
-    {
-      "name": "engineering-practice",
-      "source": "./plugins/engineering-practice",
-      "description": "Orchestrates first-party implementation, read-only review, and completion-verification methods."
-    },
-    {
-      "name": "professional-writing",
-      "source": "./plugins/professional-writing",
-      "description": "Orchestrates language-aware writing Skills and reports deterministic AI-style signals after observed Markdown writes."
-    },
-    {
-      "name": "reasoning-methods",
-      "source": "./plugins/reasoning-methods",
-      "description": "Provides adaptive first-principles and verification-oriented reasoning methods without a file-backed workflow."
-    },
-    {
-      "name": "agent-activity-audit",
-      "source": "./plugins/agent-activity-audit",
-      "description": "Records protected per-session file and command activity."
-    },
-    {
-      "name": "software-debugging",
-      "source": "./plugins/software-debugging",
-      "description": "Activates evidence-first, multi-bug debugging only through an explicit on-disk Debug Work Order."
-    },
-    {
-      "name": "presentation-production",
-      "source": "./plugins/presentation-production",
-      "description": "Guards PptxGenJS slide modules, hash-bound SVG diagram assets, source-bound previews, generated writers, and release evidence."
-    },
-    {
-      "name": "diagram-production",
-      "source": "./plugins/diagram-production",
-      "description": "Produces deterministic diagrams from semantic JSON or bounded Mermaid/draw.io imports, with SVG/PNG/HTML/draw.io outputs and release evidence."
-    },
-    {
-      "name": "poster-production",
-      "source": "./plugins/poster-production",
-      "description": "Guards ordered Satori layers, paired proofs, generated writers, and poster release evidence."
-    },
-    {
-      "name": "video-production",
-      "source": "./plugins/video-production",
-      "description": "Guards Remotion visual/audio frame projections, media proofs, and final video evidence."
-    },
-    {
-      "name": "brand-logo-production",
-      "source": "./plugins/brand-logo-production",
-      "description": "Guards logo concepts, native-vector masters, construction sheets, variants, and release evidence."
-    },
-    {
-      "name": "print-publication-production",
-      "source": "./plugins/print-publication-production",
-      "description": "Guards static publication units, Paged Media sources, print PDFs, and preflight evidence."
-    },
-    {
-      "name": "music-production",
-      "source": "./plugins/music-production",
-      "description": "Guards brief-to-release Tone.js music projects with current-source advisers, independent review, one-shot writers, and digest-bound WAV evidence."
-    },
-    {
-      "name": "work-reporting",
-      "source": "./plugins/work-reporting",
-      "description": "Creates guided daily, weekly, and range work reports from local transcripts, then protects confirmed bodies with SHA-256 seals and append-only additions."
-    },
-    {
-      "name": "spec-driven-development",
-      "source": "./plugins/spec-driven-development",
-      "description": "Guides lightweight SDD and validates recognized spec, plan, and tasks writes with digest freshness."
-    },
-    {
-      "name": "ci-gated-delivery",
-      "source": "./plugins/ci-gated-delivery",
-      "description": "Guides code and configuration changes through branch, review, remote CI, merge, post-merge verification, and cleanup."
-    },
-    {
-      "name": "repository-history-migration",
-      "source": "./plugins/repository-history-migration",
-      "description": "Plans and executes sealed, source-read-only Git history extraction into a new repository."
-    },
-    {
-      "name": "training-program-design",
-      "source": "./plugins/training-program-design",
-      "description": "Designs and guards evidence-bound training packages for audiences with varied starting levels."
-    }
+    { "name": "session-governance", "source": "./plugins/session-governance", "description": "Always-on session intent, reasoning, engineering practice, execution discipline, and language-output governance." },
+    { "name": "activity-audit", "source": "./plugins/activity-audit", "description": "Always-on, protected per-session command and file activity audit." },
+    { "name": "workspace-integrity", "source": "./plugins/workspace-integrity", "description": "Always-on command, source, generated-file, dependency-lock, and workspace integrity guards." },
+    { "name": "engineering-workflow", "source": "./plugins/engineering-workflow", "description": "Language-independent debugging, specification, testing, and implementation workflows." },
+    { "name": "delivery-governance", "source": "./plugins/delivery-governance", "description": "Git, CI, repository-history migration, and Kubernetes delivery governance." },
+    { "name": "knowledge-work", "source": "./plugins/knowledge-work", "description": "Evidence-based research, professional writing, and work-reporting workflows." },
+    { "name": "interface-design", "source": "./plugins/interface-design", "description": "Cross-framework interface craft, visual direction, critique, and mechanical quality gates." },
+    { "name": "artifact-production", "source": "./plugins/artifact-production", "description": "Logo, diagram, poster, presentation, print, video, music, and training artifact production." }
   ]
 }

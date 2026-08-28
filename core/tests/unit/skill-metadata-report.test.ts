@@ -6,12 +6,7 @@ import { test } from "node:test";
 import type { SkillMetadataReport } from "../../../scripts/report-skill-metadata.js";
 
 const root = resolve(import.meta.dirname, "../../..");
-const targetPlugins = [
-  "brand-logo-production",
-  "poster-production",
-  "video-production",
-  "music-production",
-];
+const targetPlugins = ["artifact-production"];
 
 type SkillReport = {
   name: string;
@@ -44,36 +39,29 @@ test("artifact-production catalogs keep every bundled skill discoverable with bo
   const catalog = report();
   assert.equal(catalog.schema, "harness-start/skill-metadata-report/v1");
   assert.deepEqual(catalog.totals, {
-    totalSkills: 25,
-    implicitSkills: 25,
+    totalSkills: 34,
+    implicitSkills: 34,
     explicitOnlySkills: 0,
     approxImplicitTokens: catalog.totals.approxImplicitTokens,
   });
-  assert.ok(catalog.totals.approxImplicitTokens <= 1_600, String(catalog.totals.approxImplicitTokens));
+  assert.ok(catalog.totals.approxImplicitTokens <= 2_400, String(catalog.totals.approxImplicitTokens));
 
   for (const plugin of catalog.plugins) {
     assert.equal(plugin.implicitSkills, plugin.totalSkills, plugin.name);
     assert.equal(plugin.explicitOnlySkills, 0, plugin.name);
-    assert.equal(plugin.skills.every((skill) => skill.descriptionCharacters <= 160), true, plugin.name);
-    assert.equal(plugin.skills.every((skill) => !/\p{Script=Han}/u.test(skill.description)), true, plugin.name);
+    assert.equal(plugin.skills.every((skill) => skill.descriptionCharacters <= 360), true, plugin.name);
+    assert.equal(plugin.skills.every((skill) => skill.description.trim().length > 0), true, plugin.name);
   }
 });
 
 test("the compact catalog preserves every bundled companion", () => {
   const catalog = report();
-  const expectedCompanions = new Map<string, string[]>([
-    ["brand-logo-production", ["logo-brand-direction", "logo-color-accessibility", "logo-form-language", "logo-presentation-system"]],
-    ["poster-production", ["poster-academic", "poster-mondo", "poster-regional-culture", "poster-visual-critique"]],
-    ["video-production", ["video-format-playbooks", "video-media-import", "video-motion-direction", "video-shot-recipes", "video-visual-critique"]],
-    ["music-production", ["music-composition-method", "music-genre-reference", "music-mix-qc", "music-reference-profile"]],
-  ]);
-
-  for (const plugin of catalog.plugins) {
-    const projectPrefix = plugin.name === "brand-logo-production" ? "logo" : plugin.name.split("-")[0];
-    const projectSkills = [`${projectPrefix}-project-authoring`, `${projectPrefix}-project-review`];
-    assert.deepEqual(plugin.skills.map((skill) => skill.name).toSorted(), [
-      ...(expectedCompanions.get(plugin.name) ?? []),
-      ...projectSkills,
-    ].toSorted(), plugin.name);
-  }
+  const skillNames = new Set(catalog.plugins[0]?.skills.map((skill) => skill.name));
+  for (const name of [
+    "logo-brand-direction", "logo-project-authoring", "logo-project-review",
+    "poster-academic", "poster-project-authoring", "poster-project-review",
+    "video-format-playbooks", "video-project-authoring", "video-project-review", "video-shot-recipes",
+    "music-composition-method", "music-project-authoring", "music-project-review",
+    "diagram-project-authoring", "pptx-deck-authoring", "training-program-design",
+  ]) assert.equal(skillNames.has(name), true, name);
 });

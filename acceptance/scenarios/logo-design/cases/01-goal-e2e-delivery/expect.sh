@@ -29,7 +29,7 @@ if [ "${#logo_ids[@]}" -eq 0 ]; then
   bad "no artifacts/logo/<id> project was delivered"
 fi
 
-validator="${REPO}/plugins/brand-logo-production/dist/cli/project-validate.mjs"
+validator="${REPO}/plugins/artifact-production/dist/cli/harness.mjs"
 for id in "${logo_ids[@]:-}"; do
   [ -n "${id}" ] || continue
   base="${logo_root}/${id}"
@@ -40,7 +40,7 @@ for id in "${logo_ids[@]:-}"; do
   fi
 
   set +e
-  node "${validator}" "${base}" --stage release --json >"${validation}" 2>>"${notes}"
+  node "${validator}" logo validate "${base}" --stage release --json >"${validation}" 2>>"${notes}"
   probe_rc=$?
   set -e
   if [ "${probe_rc}" -eq 0 ] && jq -e '.ok == true and (.findings | length == 0)' "${validation}" >/dev/null 2>&1; then

@@ -1,0 +1,1 @@
+Create `src/app.js.bak` with complete content exactly `temporary backup` using Write or apply_patch. Bash, shell, exec, Python, Node, and every command-based file writer are forbidden. Do not modify any other file. If a hook denies the write, leave the workspace unchanged and report the hook's bracketed title exactly as observed.

@@ -1,0 +1,77 @@
+{
+  "research": {
+    "*": {
+      "module": "research",
+      "script": "dist/cli/research-workflow.mjs",
+      "forwardAction": true
+    }
+  },
+  "writing": {
+    "analyze": {
+      "module": "writing",
+      "script": "dist/cli/analyze-ai-style.mjs"
+    }
+  },
+  "report": {
+    "daily-collect": {
+      "module": "reporting",
+      "script": "dist/cli/daily-work-report-collect.mjs"
+    },
+    "daily-prepare": {
+      "module": "reporting",
+      "script": "dist/cli/daily-work-report-prepare.mjs"
+    },
+    "daily-save": {
+      "module": "reporting",
+      "script": "dist/cli/daily-work-report-save.mjs"
+    },
+    "daily-transcript-scan": {
+      "module": "reporting",
+      "script": "dist/cli/daily-work-report-transcript-scan.mjs"
+    },
+    "weekly-collect": {
+      "module": "reporting",
+      "script": "dist/cli/weekly-work-report-collect.mjs"
+    },
+    "weekly-prepare": {
+      "module": "reporting",
+      "script": "dist/cli/weekly-work-report-prepare.mjs"
+    },
+    "weekly-save": {
+      "module": "reporting",
+      "script": "dist/cli/weekly-work-report-save.mjs"
+    },
+    "weekly-transcript-scan": {
+      "module": "reporting",
+      "script": "dist/cli/weekly-work-report-transcript-scan.mjs"
+    },
+    "addition-prepare": {
+      "module": "reporting",
+      "script": "dist/cli/work-reporting-addition-prepare.mjs"
+    },
+    "append": {
+      "module": "reporting",
+      "script": "dist/cli/work-reporting-append.mjs"
+    },
+    "verify": {
+      "module": "reporting",
+      "script": "dist/cli/work-reporting-verify.mjs"
+    },
+    "summary-collect": {
+      "module": "reporting",
+      "script": "dist/cli/work-summary-report-collect.mjs"
+    },
+    "summary-prepare": {
+      "module": "reporting",
+      "script": "dist/cli/work-summary-report-prepare.mjs"
+    },
+    "summary-save": {
+      "module": "reporting",
+      "script": "dist/cli/work-summary-report-save.mjs"
+    },
+    "summary-transcript-scan": {
+      "module": "reporting",
+      "script": "dist/cli/work-summary-report-transcript-scan.mjs"
+    }
+  }
+}

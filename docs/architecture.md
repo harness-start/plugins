@@ -2,7 +2,7 @@
 
 > 状态：Working Architecture
 >
-> 最近核对：2026-08-17
+> 最近核对：2026-08-28
 >
 > 适用对象：插件作者、维护者和评审者
 
@@ -12,7 +12,7 @@
 
 ## 1. 目标
 
-这个仓库通过多个可独立安装的插件组成 harness。每个插件负责一组可解释的不变量，并能独立升级、验证和回滚。
+这个仓库通过 8 个可独立安装的 AIO owner 组成 harness。每个 owner 负责一组可解释的不变量，并能独立升级、验证和回滚。
 
 当前工作方向是 **机械约束交给 Hook，开放式工作交给 agent**：
 
@@ -24,17 +24,18 @@
 
 ## 2. 当前事实
 
-截至最近核对，两个 Marketplace 各登记 39 个同名插件。完整清单和分类以根目录 [README](../README.md) 为准。Skill / Hook 协作的规范性要求见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
+截至最近核对，两个 Marketplace 各登记 8 个同名 owner。完整清单和分类以根目录 [README](../README.md) 为准。Skill / Hook 协作的规范性要求见 [Skill 与 Hook 协作准则](skill-hook-collaboration.md)。
 
 当前实现共同体现了以下事实：
 
-- 每个插件都有独立目录、双平台 manifest 和平台专属 Hook 配置。
+- 每个 owner 都有独立目录、双平台 manifest、平台专属 Hook 配置和单一事件 dispatcher。
 - 两个平台共享插件内业务脚本，但使用各自的根目录变量和 Hook 配置。
+- 原细粒度插件实现只作为 owner 私有的 `modules/` 存在，不再进入 Marketplace，也不形成跨 owner 依赖。private module 不得包含 `.claude-plugin/`、`.codex-plugin/`、平台 Hook manifest 或 MCP manifest；这些宿主注册面只由 owner 持有。
+- 安装面固定全量启用，没有能力 profile 或 FDE/OPC 运行时分支；FDE、OPC 只是使用者。
 - 自动门禁只用于可机械验证的条件；需要模型理解、探索或取舍的流程留在 Skill 和 agent 工作流中。
-- 业务脚本由 `src/**/*.ts` 构建为已提交、自包含的 `dist/**/*.mjs`，发布前必须校验构建摘要和产物新鲜度。
+- owner 与内部模块的业务脚本分别由 `src/**/*.ts` 构建为已提交、自包含的 `dist/**/*.mjs`，发布前必须校验构建摘要和产物新鲜度。
 - 插件运行时不引用另一个插件的相对路径。
-- Android、Go、iOS、Java、Kubernetes、Nix、PHP、Python、React Native、Rust 与 Web 前端各自形成独立插件；语言/生态检查和依赖产物保护归对应领域所有。
-- React Native 是独立跨端领域：不依赖 Web、Android 或 iOS 插件；其 JavaScript/TypeScript、Metro、Codegen 与原生桥接边界由自身 Skill 和 Hook 负责。
+- `workspace-integrity` 保留跨技术栈的 lock、vendor、generated 等通用保护，但不公开语言百科 Skill，也不自动执行语言 lint/format；项目原生验证由显式工程工作流负责。
 - 仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可自然语言委派普通子 agent，父 agent 负责证据、写入、验证和最终交付。
 
 ## 3. 运行链路
@@ -43,13 +44,13 @@
 Marketplace
   -> platform manifest
     -> platform hook config
-      -> lifecycle event dispatcher
-        -> plugin-local checks / state
+      -> owner lifecycle event dispatcher
+        -> owner-local module checks / state
           -> platform output adapter
             -> deny | report | context | receipt | state transition
 
 explicit user or agent intent
-  -> Skill / CLI / future MCP surface
+  -> Skill / harness <resource> <action> / future MCP surface
     -> plugin config or plugin-local script
       -> same documented invariant and state model
 ```
@@ -72,7 +73,7 @@ Hook 不能替用户或模型推断开放式意图，也不能把一次 Hook 激
 
 ### 5.1 插件是部署和回滚边界
 
-一个插件携带运行所需的 manifest、Hook 配置、Scripts、测试、验收用例和必要文档。宿主只复制或加载单个插件目录，因此运行时不能依赖仓库根目录或其他插件。
+一个 owner 携带运行所需的 manifest、Hook 配置、routes、Scripts、内部 modules、测试、验收用例和必要文档。宿主只复制或加载单个 owner 目录，因此运行时不能依赖仓库根目录或其他 owner。
 
 跨插件出现相似辅助函数时，通用 hook I/O、写目标抽取、shell 分词、交付路径/writer 识别、JSONL trail 锁和可执行配置加载属于 `core/src`，由 esbuild 打进各插件 `dist/`。领域判定仍必须留在插件内。插件运行时不能引用另一个插件或仓库外的共享包。
 
@@ -82,7 +83,7 @@ Hook 不能替用户或模型推断开放式意图，也不能把一次 Hook 激
 
 ### 5.3 一个事件面只保留少量入口
 
-同一插件、同一生命周期事件优先使用一个 dispatcher，在进程内按明确顺序执行检查。不要为每条细规则注册一个 command Hook。这样可以控制进程启动成本、输出顺序和 first-match/aggregate 语义。默认全开时，Hook 脚本仍会启动；入口必须先做廉价相关性判断，只有事件可能触及本插件不变量时才进入 git、制品扫描、校验器或其他重逻辑。
+同一 owner、同一生命周期事件只发布一个 dispatcher，由它按明确顺序调用 owner 私有模块。不要为每条细规则注册一个公开 command Hook。这样可以控制公开 Hook 面、输出顺序和 first-match/aggregate 语义。默认全开时，dispatcher 仍会启动；入口必须先做廉价相关性判断，只有事件可能触及本 owner 不变量时才进入 git、制品扫描、校验器或其他重逻辑。
 
 ### 5.4 平台绑定分开，业务语义共享
 

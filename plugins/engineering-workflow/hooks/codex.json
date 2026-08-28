@@ -1,0 +1,54 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-workflow:SessionStart\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex SessionStart",
+            "statusMessage": "engineering-workflow: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-workflow:PreToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PreToolUse",
+            "statusMessage": "engineering-workflow: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-workflow:PostToolUse\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex PostToolUse",
+            "statusMessage": "engineering-workflow: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"engineering-workflow:Stop\" node \"${PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" codex Stop",
+            "statusMessage": "engineering-workflow: applying always-on governance",
+            "timeout": 120000
+          }
+        ]
+      }
+    ]
+  }
+}

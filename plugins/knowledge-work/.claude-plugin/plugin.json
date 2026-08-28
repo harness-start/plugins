@@ -1,0 +1,11 @@
+{
+  "name": "knowledge-work",
+  "version": "1.0.0",
+  "description": "Evidence-based research, professional writing, and work-reporting workflows.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json",
+  "skills": "./skills/"
+}

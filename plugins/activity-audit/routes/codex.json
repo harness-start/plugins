@@ -1,0 +1,38 @@
+{
+  "PreToolUse": [
+    {
+      "module": "activity",
+      "script": "dist/hooks/agent-activity-audit.mjs",
+      "args": [
+        "pre"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "agent-activity-audit:pre",
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write"
+    }
+  ],
+  "PostToolUse": [
+    {
+      "module": "activity",
+      "script": "dist/hooks/agent-activity-audit.mjs",
+      "args": [
+        "post"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "agent-activity-audit:post",
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write|create_file|search_replace"
+    }
+  ],
+  "PostToolUseFailure": [
+    {
+      "module": "activity",
+      "script": "dist/hooks/agent-activity-audit.mjs",
+      "args": [
+        "failure"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "agent-activity-audit:failure",
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+    }
+  ]
+}

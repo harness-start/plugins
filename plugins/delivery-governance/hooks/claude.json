@@ -1,0 +1,42 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Agent|agent|apply_patch|ApplyPatch|Bash|bash|create_file|Edit|edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|Shell|shell|shell_command|spawn_agent|Task|task|TaskCreate|Write|write|Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"delivery-governance:PreToolUse\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PreToolUse",
+            "statusMessage": "delivery-governance: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"delivery-governance:UserPromptSubmit\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude UserPromptSubmit",
+            "statusMessage": "delivery-governance: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"delivery-governance:PostToolUse\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude PostToolUse",
+            "statusMessage": "delivery-governance: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

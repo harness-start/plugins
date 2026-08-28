@@ -1,0 +1,4 @@
+id = "02-artifact-order-recovery"
+hosts = ["claude", "codex"]
+timeout_sec = 360
+tags = ["pre-tool", "artifact-order", "recovery"]

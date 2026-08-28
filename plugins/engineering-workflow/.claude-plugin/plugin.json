@@ -1,0 +1,11 @@
+{
+  "name": "engineering-workflow",
+  "version": "1.0.0",
+  "description": "Language-independent debugging, specification, testing, and implementation workflows.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json",
+  "skills": "./skills/"
+}

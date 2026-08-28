@@ -1,0 +1,4 @@
+id = "09-markdown-post-hook"
+hosts = ["claude", "codex"]
+timeout_sec = 180
+tags = ["post-tool-use", "hook", "writing", "markdown", "analyzer", "outcome"]

@@ -1,8 +1,0 @@
-{
-  "name": "diagram-production",
-  "version": "0.1.0",
-  "description": "Produces deterministic, multi-format diagrams with bounded imports, visual probes, independent review, and digest-bound release evidence.",
-  "author": { "name": "Harness Start", "email": "devtools@example.com" },
-  "skills": "./skills/",
-  "hooks": "./hooks/claude.json"
-}

@@ -1,0 +1,4 @@
+id = "02-simple-direct"
+hosts = ["claude", "codex"]
+timeout_sec = 120
+tags = ["user-prompt", "intent-discovery", "control"]

@@ -1,0 +1,17 @@
+{
+  "name": "interface-design",
+  "version": "1.0.0",
+  "description": "Cross-framework interface craft, visual direction, critique, and mechanical quality gates.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Interface Design",
+    "shortDescription": "Cross-framework interface craft, visual direction, critique, and mechanical quality gates.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

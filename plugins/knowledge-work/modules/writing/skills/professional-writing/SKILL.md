@@ -1,0 +1,21 @@
+---
+name: professional-writing
+description: Route prose editing to this plugin's first-party writing Skills. Use for human-readable Markdown or chat prose, not code or machine output.
+---
+
+# Professional Writing
+
+Load only the Skills the current prose needs:
+
+| Situation | Skill |
+|---|---|
+| The user must perform a procedure, troubleshoot, choose, recover, or continue unfinished work | `actionable-response` |
+| A visual would materially clarify relationships, sequence, hierarchy, or state changes | `visual-explanation` |
+| User asked for fewer tokens or caveman mode | `writing-terse-output` |
+| English prose | `writing-english-prose` |
+| Chinese prose | `writing-chinese-prose` and bundled `ai-flavor-remover` |
+| Human-readable Markdown | also `writing-markdown-ai-style` |
+
+Preserve facts, numbers, URLs, identifiers, citations, and Markdown structure. SessionStart routing is not proof that the rewrite is good. The installed PostToolUse Hook reports deterministic signals after observed Markdown writes even when this Skill is not loaded; treat those signals as review evidence, not rewrite commands.
+
+Use `actionable-response` by default for action-heavy replies without waiting for explicit ADHD wording. It can be combined with `visual-explanation`, but do not turn actionability into extreme compression or add a visual to a simple question.

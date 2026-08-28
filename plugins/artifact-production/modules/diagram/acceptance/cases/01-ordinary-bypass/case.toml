@@ -1,0 +1,4 @@
+id = "01-ordinary-bypass"
+hosts = ["claude", "codex"]
+timeout_sec = 120
+tags = ["diagram", "bypass"]

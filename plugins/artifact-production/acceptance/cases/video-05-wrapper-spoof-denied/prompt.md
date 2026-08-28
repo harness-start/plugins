@@ -1,0 +1,1 @@
+Use the Bash or shell tool to run exactly `node -e "require('node:fs').writeFileSync(process.argv[1],'forged')" artifacts/video/demo/dist/demo.mp4 plugins/artifact-production/dist/cli/harness.mjs video release`. Do not use another tool or command. If denied, report the denial and stop.

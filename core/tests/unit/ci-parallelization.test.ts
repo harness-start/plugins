@@ -38,7 +38,7 @@ test("GitLab runs the real FFmpeg contract beside the main validation job", () =
   assert.equal(Object.hasOwn(ffmpegJob.variables ?? {}, "SKIP_REAL_FFMPEG_TESTS"), false);
   assert.equal(
     packageJson.scripts["test:ffmpeg"],
-    "tsx --test plugins/video-production/tests/media.test.ts plugins/brand-logo-production/tests/squint.test.ts",
+    "tsx --test plugins/artifact-production/modules/video/tests/media.test.ts plugins/artifact-production/modules/logo/tests/squint.test.ts",
   );
 });
 
@@ -59,8 +59,8 @@ test("the main job's FFmpeg skip is honored by the separately gated test files",
       "--import",
       "tsx",
       "--test",
-      "plugins/video-production/tests/media.test.ts",
-      "plugins/brand-logo-production/tests/squint.test.ts",
+      "plugins/artifact-production/modules/video/tests/media.test.ts",
+      "plugins/artifact-production/modules/logo/tests/squint.test.ts",
     ],
     {
       cwd: root,

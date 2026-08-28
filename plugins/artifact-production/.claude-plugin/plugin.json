@@ -1,0 +1,11 @@
+{
+  "name": "artifact-production",
+  "version": "1.0.0",
+  "description": "Logo, diagram, poster, presentation, print, video, music, and training artifact production.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/claude.json",
+  "skills": "./skills/"
+}

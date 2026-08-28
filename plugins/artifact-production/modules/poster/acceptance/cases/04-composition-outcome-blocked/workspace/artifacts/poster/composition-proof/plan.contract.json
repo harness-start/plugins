@@ -1,0 +1,10 @@
+{
+  "schema": "poster-production/plan/v2",
+  "artifactId": "composition-proof",
+  "profile": "editorial",
+  "targetStage": "release",
+  "audience": "digital readers",
+  "objective": "prove the release gate requires measured composition",
+  "language": "en",
+  "assumptions": []
+}

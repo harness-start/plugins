@@ -1,0 +1,4 @@
+id = "08-red-implementation-iteration"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["pre-tool-use", "red-green", "iteration", "outcome"]

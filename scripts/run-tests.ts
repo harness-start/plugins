@@ -15,23 +15,47 @@ function filesBelow(directory: string): string[] {
 export function discoverTypeScriptTests(root = projectRoot): string[] {
   const candidates = [resolve(root, "core", "tests")];
   for (const plugin of readdirSync(resolve(root, "plugins"), { withFileTypes: true })) {
-    if (plugin.isDirectory()) candidates.push(resolve(root, "plugins", plugin.name, "tests"));
+    if (!plugin.isDirectory()) continue;
+    candidates.push(resolve(root, "plugins", plugin.name, "tests"));
+    const modulesRoot = resolve(root, "plugins", plugin.name, "modules");
+    try {
+      for (const module of readdirSync(modulesRoot, { withFileTypes: true })) {
+        if (module.isDirectory()) candidates.push(resolve(modulesRoot, module.name, "tests"));
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
   return candidates
-    .flatMap((directory) => filesBelow(directory))
+    .flatMap((directory) => {
+      try {
+        return filesBelow(directory);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+        throw error;
+      }
+    })
     .filter((path) => path.endsWith(".test.ts"))
     .map((path) => relative(root, path).split("\\").join("/"))
     .toSorted();
 }
 
-function main(): void {
-  const files = discoverTypeScriptTests();
+export function runTypeScriptTests(
+  files = discoverTypeScriptTests(),
+  cwd = projectRoot,
+  stdio: "inherit" | "pipe" = "inherit",
+): number {
+  const environment = { ...process.env };
+  delete environment.NODE_TEST_CONTEXT;
   const result = spawnSync(process.execPath, ["--import", "tsx", "--test", ...files], {
-    cwd: projectRoot,
-    stdio: "inherit",
+    cwd,
+    env: environment,
+    stdio,
   });
   if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
+  return result.status ?? 1;
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  process.exit(runTypeScriptTests());
+}

@@ -1,0 +1,17 @@
+{
+  "repository": "example/widgets",
+  "merge_request": 19,
+  "head_sha": "dddddddddddddddddddddddddddddddddddddddd",
+  "mr_pipeline": {
+    "id": 403,
+    "status": "success",
+    "sha": "dddddddddddddddddddddddddddddddddddddddd"
+  },
+  "merged": true,
+  "merge_commit": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "default_branch_pipeline": {
+    "id": 404,
+    "status": "failed",
+    "sha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  }
+}

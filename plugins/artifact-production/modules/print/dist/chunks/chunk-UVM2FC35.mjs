@@ -1,0 +1,376 @@
+// harness-source-hash: sha256:9d2f7f6d23fcd3907df21ad9088b47dc47f6c71f2388743a1e00eb80f6d0a3d3
+
+// core/src/artifact-paths.ts
+import { existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";
+import { basename, dirname as dirname2, join as join2, resolve } from "node:path";
+
+// core/src/state-file.ts
+import { createHash, randomBytes } from "node:crypto";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+var DIRECTORY_MODE = 448;
+var FILE_MODE = 384;
+var WAIT_BUFFER = new Int32Array(new SharedArrayBuffer(4));
+function digestKey(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+function atomicWriteJson(path, value) {
+  const directory = dirname(path);
+  const temporary = join(directory, `.${digestKey(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  try {
+    mkdirSync(directory, { recursive: true, mode: DIRECTORY_MODE });
+    writeFileSync(temporary, `${JSON.stringify(value)}
+`, { encoding: "utf8", mode: FILE_MODE, flag: "wx" });
+    renameSync(temporary, path);
+    return true;
+  } catch {
+    try {
+      rmSync(temporary, { force: true });
+    } catch {
+    }
+    return false;
+  }
+}
+
+// core/src/artifact-paths.ts
+var KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+function isKebabArtifactId(name) {
+  return KEBAB.test(name);
+}
+function resolveWorkspaceRoot(cwd, carrier) {
+  let current = resolve(cwd);
+  while (current !== dirname2(current)) {
+    if (basename(dirname2(current)) === carrier && basename(dirname2(dirname2(current))) === "artifacts") {
+      return dirname2(dirname2(dirname2(current)));
+    }
+    current = dirname2(current);
+  }
+  return resolve(cwd);
+}
+function touchesArtifact(options) {
+  const { cwd, carrier, command = "", paths = [] } = options;
+  const marker = `artifacts/${carrier}`;
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot(cwd, carrier).replaceAll("\\", "/");
+  if (cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`)) return true;
+  return [command, ...paths].join("\n").replaceAll("\\", "/").includes(marker);
+}
+function artifactJournalName(carrier) {
+  return `.${carrier}-delivery-journal.json`;
+}
+function cwdInsideArtifact(cwd, carrier) {
+  const cwdNorm = resolve(cwd).replaceAll("\\", "/");
+  const workspace = resolveWorkspaceRoot(cwd, carrier).replaceAll("\\", "/");
+  const marker = `artifacts/${carrier}`;
+  return cwdNorm === `${workspace}/${marker}` || cwdNorm.startsWith(`${workspace}/${marker}/`);
+}
+var ARTIFACT_SESSION_SCHEMA = "artifact-session-engagement/v1";
+function artifactSessionMarker(options) {
+  const sessionId = String(options.sessionId ?? "").trim();
+  if (!sessionId || sessionId === "hook" || sessionId === "unknown") return null;
+  const dataRoot = options.dataRoot ?? (process.env.HARNESS_HOST === "codex" ? process.env.PLUGIN_DATA : process.env.CLAUDE_PLUGIN_DATA || process.env.PLUGIN_DATA);
+  if (!dataRoot) return null;
+  const workspaceDigest = digestKey(resolveWorkspaceRoot(options.cwd, options.carrier));
+  const sessionDigest = digestKey(sessionId);
+  const key = digestKey(`${workspaceDigest}\0${options.carrier}\0${sessionDigest}`);
+  return { path: join2(dataRoot, "artifact-session-engagement", `${key}.json`), workspaceDigest, sessionDigest };
+}
+function markSessionEngagedArtifact(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  return atomicWriteJson(marker.path, {
+    schema: ARTIFACT_SESSION_SCHEMA,
+    workspaceDigest: marker.workspaceDigest,
+    carrier: options.carrier,
+    sessionDigest: marker.sessionDigest
+  });
+}
+function hasSessionEngagement(options) {
+  const marker = artifactSessionMarker(options);
+  if (!marker) return false;
+  try {
+    const value = JSON.parse(readFileSync(marker.path, "utf8"));
+    if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+    const record = value;
+    return record.schema === ARTIFACT_SESSION_SCHEMA && record.workspaceDigest === marker.workspaceDigest && record.carrier === options.carrier && record.sessionDigest === marker.sessionDigest;
+  } catch {
+    return false;
+  }
+}
+function sessionEngagedArtifact(options) {
+  const cwd = resolve(options.cwd);
+  const { carrier } = options;
+  if (cwdInsideArtifact(cwd, carrier)) return true;
+  if (hasSessionEngagement(options)) return true;
+  const workspace = resolveWorkspaceRoot(cwd, carrier);
+  const artifactRoot = join2(workspace, "artifacts", carrier);
+  const journal = artifactJournalName(carrier);
+  if (existsSync2(artifactRoot)) {
+    try {
+      for (const entry of readdirSync(artifactRoot, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (existsSync2(join2(artifactRoot, entry.name, journal))) return true;
+      }
+    } catch {
+    }
+  }
+  return false;
+}
+function projectInside(relativePath = "", cwd = "", carrier) {
+  const normalized = String(relativePath ?? "").replaceAll("\\", "/");
+  const escaped = carrier.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  const fromPath = normalized.match(new RegExp(`(?:^|/)artifacts/${escaped}/[^/]+/(?<inside>.+)$`, "u"));
+  if (fromPath?.groups?.inside) return fromPath.groups.inside;
+  const cwdNorm = String(cwd ?? "").replaceAll("\\", "/");
+  if (new RegExp(`(?:^|/)artifacts/${escaped}/[^/]+(?:/|$)`, "u").test(cwdNorm)) {
+    return normalized.replace(/^\.\//u, "");
+  }
+  return "";
+}
+
+// plugins/artifact-production/modules/print/src/lib/contract.ts
+import { createHash as createHash2 } from "node:crypto";
+var SECTION_SOURCE = /^(?<index>[0-9]{3})-(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)\.section\.tsx$/u;
+var GENERATED_PATH = /^(?:build\/html\/|dist\/|evidence(?:\/|\.[^/]+\.json$)|evidence\.accessibility\.json$|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$)/u;
+var UNIT_VIOLATION = /(?:\b(?:useState|useEffect|useLayoutEffect|useReducer|hydrateRoot|createRoot|createPortal|fetch|setTimeout|setInterval)\s*\(|from\s+["'](?:react-router|react-router-dom|node:fs|node:child_process)["']|https?:\/\/|\b(?:Date\.now|Math\.random)\s*\()/u;
+var RECEIPT_EXCLUDED_PATH = /^(?:build\/|dist\/|evidence(?:\.|\/)|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.print-delivery-journal\.json$)/u;
+var PLUGIN = "print-publication-production";
+var REVIEW_SCHEMA = `${PLUGIN}/review/v2`;
+var RELEASE_MANIFEST_SCHEMA = `${PLUGIN}/release-manifest/v2`;
+var EVIDENCE_SCHEMAS = {
+  "evidence/pdf.json": `${PLUGIN}/pdf-evidence/v1`,
+  "evidence/fonts.json": `${PLUGIN}/fonts-evidence/v1`,
+  "evidence/images.json": `${PLUGIN}/images-evidence/v1`,
+  "evidence/pagination.json": `${PLUGIN}/pagination-evidence/v1`,
+  "evidence/preflight.json": `${PLUGIN}/preflight-evidence/v1`,
+  "evidence.accessibility.json": `${PLUGIN}/accessibility-evidence/v1`
+};
+var sha256 = (value) => createHash2("sha256").update(value).digest("hex");
+var finding = (code, path, message) => ({ code, path, message });
+var isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var rec = (value) => isObject(value) ? value : void 0;
+var asList = (value) => Array.isArray(value) ? value : [];
+var textOf = (value) => Buffer.isBuffer(value) ? value.toString("utf8") : typeof value === "string" ? value : "";
+function validateIndependentReviewFile(model, filePath, findings) {
+  const files = model.files ?? {};
+  let review;
+  try {
+    review = JSON.parse(files[filePath] === void 0 ? "null" : textOf(files[filePath]));
+  } catch {
+    review = null;
+  }
+  const reviewRec = rec(review);
+  if (!review || reviewRec?.schema !== REVIEW_SCHEMA || reviewRec?.plugin !== PLUGIN || reviewRec?.artifactId !== model.artifactId || reviewRec?.subjectDigest !== computePrintSubjectDigest(model) || reviewRec?.verdict !== "pass") {
+    findings.push(finding("REVIEW_INVALID", filePath, "review must be a passing independent review bound to the current artifact"));
+    return;
+  }
+  const reviewer = rec(reviewRec?.reviewer);
+  if (!["human", "independent-agent"].includes(reviewer?.kind) || typeof reviewer?.sessionId !== "string" || !reviewer.sessionId) {
+    findings.push(finding("REVIEWER_INVALID", filePath, "reviewer must declare kind and sessionId"));
+    return;
+  }
+  if (reviewer.sessionId === (process.env.AI_EXPERTS_SESSION_ID || "unknown")) {
+    findings.push(finding("REVIEW_SELF", filePath, "reviewer session must differ from the current release session"));
+  }
+  const coverage = asList(reviewRec.coverage).map(rec);
+  const expectedPaths = printReviewCoveragePaths(model);
+  if (coverage.length !== expectedPaths.length || coverage.some((entry, index) => entry?.path !== expectedPaths[index] || entry?.sha256 !== fileDigest(model, expectedPaths[index] ?? ""))) {
+    findings.push(finding("REVIEW_COVERAGE_INVALID", filePath, "review coverage must bind every current PDF and evidence digest"));
+  }
+  const checks = asList(reviewRec.checks).map(rec);
+  if (!["typography", "pagination", "preflight"].every((id) => checks.some((check) => check?.id === id && check?.status === "pass"))) {
+    findings.push(finding("REVIEW_CHECKS_INVALID", filePath, "review must pass typography, pagination, and preflight checks"));
+  }
+}
+var fileDigest = (model, filePath) => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
+function computePrintSubjectDigest(model) {
+  const records = Object.entries(model?.files ?? {}).filter(([filePath, value]) => typeof value === "string" && !RECEIPT_EXCLUDED_PATH.test(filePath)).sort(([left], [right]) => left.localeCompare(right)).map(([filePath]) => `${filePath}\0${fileDigest(model, filePath)}
+`).join("");
+  return sha256(records);
+}
+function printPdfPaths(model) {
+  return [
+    `dist/${model?.artifactId}.interior.proof.pdf`,
+    `dist/${model?.artifactId}.interior.print.pdf`,
+    `dist/${model?.artifactId}.cover.proof.pdf`,
+    `dist/${model?.artifactId}.cover.print.pdf`
+  ];
+}
+function printReviewCoveragePaths(model) {
+  return [...printPdfPaths(model), ...Object.keys(EVIDENCE_SCHEMAS)].sort();
+}
+function printOutputPaths(model) {
+  return [...printReviewCoveragePaths(model), "review.print.json", "release.manifest.json"];
+}
+function passingChecks(value) {
+  const checks = asList(value?.checks).map(rec);
+  return checks.length > 0 && checks.every((check) => check?.status === "pass" && typeof check.id === "string" && check.id.trim());
+}
+function validateEvidence(model, findings) {
+  const files = model.files ?? {};
+  const subjectDigest = computePrintSubjectDigest(model);
+  for (const [filePath, schema] of Object.entries(EVIDENCE_SCHEMAS)) {
+    let value;
+    try {
+      value = rec(JSON.parse(textOf(files[filePath])));
+    } catch {
+      value = void 0;
+    }
+    let valid = value?.schema === schema && value.artifactId === model.artifactId && value.subjectDigest === subjectDigest && value.verdict === "pass" && passingChecks(value);
+    if (filePath === "evidence/fonts.json") {
+      const fonts = asList(value?.fonts).map(rec);
+      const typography = asList(value?.typography).map(rec);
+      valid = valid && fonts.length > 0 && fonts.every((font) => typeof font?.family === "string" && font.family.trim() && font.embedded === true && font.glyphCoverage === true) && typography.length > 0 && typography.every((role) => typeof role?.role === "string" && typeof role.fontFamily === "string" && Number(role.fontSizePt) > 0 && Number(role.lineHeightPt) >= Number(role.fontSizePt) && Number.isFinite(Number(role.letterSpacingPt)) && Number(role.maxLineLength) > 0);
+    } else if (filePath === "evidence/pagination.json") {
+      valid = valid && Number.isInteger(value?.pages) && Number(value?.pages) > 0 && asList(value?.checks).map(rec).some((check) => check?.id === "widows-orphans" && check.status === "pass");
+    } else if (filePath === "evidence/preflight.json") {
+      valid = valid && typeof value?.printerProfile === "string" && value.printerProfile.trim().length > 0;
+    }
+    if (!valid) findings.push(finding("EVIDENCE_INVALID", filePath, `${filePath} must contain current passing business evidence`));
+  }
+}
+function validateReleaseManifest(model, findings) {
+  let manifest;
+  try {
+    manifest = rec(JSON.parse(textOf(model.files?.["release.manifest.json"])));
+  } catch {
+    manifest = void 0;
+  }
+  const expectedPaths = printReviewCoveragePaths(model);
+  const outputs = asList(manifest?.outputs).map(rec);
+  if (manifest?.schema !== RELEASE_MANIFEST_SCHEMA || manifest.plugin !== PLUGIN || manifest.artifactId !== model.artifactId || manifest.subjectDigest !== computePrintSubjectDigest(model) || outputs.length !== expectedPaths.length || outputs.some((entry, index) => entry?.path !== expectedPaths[index] || entry?.sha256 !== fileDigest(model, expectedPaths[index] ?? ""))) {
+    findings.push(finding("RELEASE_MANIFEST_INVALID", "release.manifest.json", "release manifest must bind every current PDF and evidence digest"));
+  }
+}
+function createPrintReceipt(model) {
+  return {
+    schemaVersion: 1,
+    plugin: "print-publication-production",
+    artifactId: model?.artifactId,
+    stage: "release",
+    subjectDigest: computePrintSubjectDigest(model),
+    outputs: Object.fromEntries(printOutputPaths(model).map((filePath) => [filePath, fileDigest(model, filePath)]))
+  };
+}
+function validatePrintReceipt(model) {
+  try {
+    const actual = JSON.parse(textOf(model?.files?.["receipt.release.json"]));
+    const expected = createPrintReceipt(model);
+    if (!isObject(actual)) return false;
+    return actual.schemaVersion === expected.schemaVersion && actual.plugin === expected.plugin && actual.artifactId === expected.artifactId && actual.stage === expected.stage && actual.subjectDigest === expected.subjectDigest && JSON.stringify(actual.outputs) === JSON.stringify(expected.outputs);
+  } catch {
+    return false;
+  }
+}
+function parseJson(files, filePath, findings) {
+  if (typeof files[filePath] !== "string") {
+    findings.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
+    return null;
+  }
+  try {
+    return JSON.parse(files[filePath]);
+  } catch {
+    findings.push(finding("JSON_INVALID", filePath, `${filePath} must contain valid JSON`));
+    return null;
+  }
+}
+function validateRequired(files, findings) {
+  for (const filePath of [
+    ".gitignore",
+    "package.json",
+    "package-lock.json",
+    "plan.contract.json",
+    "plan.assets.json",
+    "print.project.json",
+    "tsconfig.json",
+    "vivliostyle.config.js",
+    "src/render.tsx",
+    "src/publication.manifest.json",
+    "src/cover/Front.cover.tsx",
+    "src/cover/Spine.cover.tsx",
+    "src/cover/Back.cover.tsx",
+    "src/styles/tokens.css",
+    "src/styles/page.css",
+    "src/styles/components.css",
+    "src/styles/publication.css"
+  ]) if (!(filePath in files)) findings.push(finding("REQUIRED_PATH_MISSING", filePath, `${filePath} is required`));
+}
+function validateArtifactGitignore(files, findings) {
+  const text = files[".gitignore"];
+  if (typeof text !== "string") return;
+  text.split(/\r?\n/u).forEach((raw, offset) => {
+    const line = raw.trim();
+    const normalized = line.replace(/^\//u, "");
+    if (line && !line.startsWith("#") && !line.startsWith("!") && (/^(?:dist|build|evidence)(?:\/|$)/u.test(normalized) || /^(?:receipt|review|release)(?:\.|\/|$)/u.test(normalized) || /^(?:\*\*\/)?\*\.(?:png|svg|pdf|pptx|mp4|wav)$/u.test(normalized))) findings.push(finding("DELIVERY_PATH_IGNORED", `.gitignore:${offset + 1}`, `artifact delivery path must not be ignored: ${line}`));
+  });
+}
+function validateUnit(files, filePath, findings) {
+  const source = files[filePath];
+  if (typeof source !== "string") {
+    findings.push(finding("PUBLICATION_UNIT_MISSING", filePath, "publication unit is missing"));
+    return;
+  }
+  if (UNIT_VIOLATION.test(source)) findings.push(finding("PUBLICATION_UNIT_VIOLATION", filePath, "publication units must be static React without client runtime, I/O, network, or nondeterminism"));
+  if ((source.match(/export\s+function\s+[A-Za-z][A-Za-z0-9]*\s*\(/gu) ?? []).length !== 1) findings.push(finding("PUBLICATION_EXPORT_INVALID", filePath, "publication unit must export exactly one component"));
+}
+function validatePrintModel(model, { stage = "source" } = {}) {
+  const findings = [];
+  const files = model?.files ?? {};
+  if (".print-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".print-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
+  validateRequired(files, findings);
+  validateArtifactGitignore(files, findings);
+  if (rec(model?.project)?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "print.project.json", "project artifactId must match directory id"));
+  const manifest = parseJson(files, "src/publication.manifest.json", findings);
+  const sections = asList(rec(manifest)?.sections);
+  const ids = /* @__PURE__ */ new Set();
+  let prior = -1;
+  sections.forEach((entry) => {
+    const item = rec(entry);
+    const match = typeof item?.source === "string" ? item.source.match(SECTION_SOURCE) : null;
+    const filePath = `src/sections/${item?.source ?? "manifest.json"}`;
+    if (!match || Number(match.groups?.index) !== item?.index) findings.push(finding("SECTION_NAME_INVALID", filePath, "section source must use NNN-slug.section.tsx and match manifest index"));
+    if (!Number.isInteger(item?.index) || Number(item?.index) <= prior || ids.has(item?.id)) findings.push(finding("SECTION_ORDER_INVALID", "src/publication.manifest.json", "section indexes must be unique and strictly increasing"));
+    prior = item?.index;
+    ids.add(item?.id);
+    validateUnit(files, filePath, findings);
+  });
+  for (const cover of ["Front", "Spine", "Back"]) validateUnit(files, `src/cover/${cover}.cover.tsx`, findings);
+  const pageCss = files["src/styles/page.css"];
+  const renderTsx = files["src/render.tsx"];
+  if (typeof pageCss === "string" && !/@page(?:\s|\{)/u.test(pageCss)) findings.push(finding("PAGED_MEDIA_MISSING", "src/styles/page.css", "page stylesheet must declare @page"));
+  if (typeof renderTsx === "string" && !/renderPublication/u.test(renderTsx)) findings.push(finding("RENDER_OWNER_INVALID", "src/render.tsx", "render.tsx must own the static publication render"));
+  if (stage === "release") {
+    const outputs = printOutputPaths(model);
+    const pdfs = printPdfPaths(model);
+    for (const filePath of [...outputs, "receipt.release.json"]) {
+      if (!(filePath in files)) findings.push(finding("RELEASE_PATH_MISSING", filePath, `${filePath} is required for release`));
+    }
+    for (const filePath of pdfs) {
+      const pdf = files[filePath];
+      if (typeof pdf === "string" && !pdf.startsWith("%PDF-")) findings.push(finding("PDF_MAGIC_INVALID", filePath, "PDF output must have PDF magic and be directly probed"));
+    }
+    validateEvidence(model, findings);
+    validateReleaseManifest(model, findings);
+    if ("receipt.release.json" in files && !validatePrintReceipt(model)) findings.push(finding("RECEIPT_INVALID", "receipt.release.json", "release receipt must bind current publication sources and outputs"));
+    validateIndependentReviewFile(model, "review.print.json", findings);
+  }
+  return findings.sort((left, right) => left.code.localeCompare(right.code) || left.path.localeCompare(right.path));
+}
+function evaluatePrintWrite({ relativePath = "", toolName = "", writer = "", cwd = "" } = {}) {
+  const inside = projectInside(relativePath, cwd, "print");
+  if (!inside) return { decision: "allow" };
+  if (GENERATED_PATH.test(inside) && !writer.startsWith("print-")) return { decision: "deny", code: "PROTECTED_WRITER_REQUIRED", message: `${inside} must be written by a print guard tool, not ${toolName || "an unregistered tool"}` };
+  return { decision: "allow" };
+}
+
+export {
+  isKebabArtifactId,
+  resolveWorkspaceRoot,
+  touchesArtifact,
+  markSessionEngagedArtifact,
+  sessionEngagedArtifact,
+  createPrintReceipt,
+  validatePrintReceipt,
+  validatePrintModel,
+  evaluatePrintWrite
+};

@@ -1,0 +1,94 @@
+{
+  "SessionStart": [
+    {
+      "module": "debugging",
+      "script": "dist/hooks/software-debugging.mjs",
+      "args": [
+        "session"
+      ],
+      "timeoutMs": 10000
+    },
+    {
+      "module": "testing",
+      "script": "dist/hooks/test-driven-development.mjs",
+      "args": [
+        "session-start",
+        "claude"
+      ],
+      "timeoutMs": 10000
+    }
+  ],
+  "PreToolUse": [
+    {
+      "module": "debugging",
+      "script": "dist/hooks/software-debugging.mjs",
+      "args": [
+        "pre"
+      ],
+      "timeoutMs": 10000,
+      "matcher": "Read|Grep|apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+    },
+    {
+      "module": "specification",
+      "script": "dist/hooks/spec-driven-development-hook.mjs",
+      "args": [
+        "pre",
+        "claude"
+      ],
+      "timeoutMs": 10000,
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+    },
+    {
+      "module": "testing",
+      "script": "dist/hooks/test-driven-development.mjs",
+      "args": [
+        "pre",
+        "claude"
+      ],
+      "timeoutMs": 10000,
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+    }
+  ],
+  "PostToolUse": [
+    {
+      "module": "debugging",
+      "script": "dist/hooks/software-debugging.mjs",
+      "args": [
+        "post"
+      ],
+      "timeoutMs": 10000,
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+    },
+    {
+      "module": "specification",
+      "script": "dist/hooks/spec-driven-development-hook.mjs",
+      "args": [
+        "post",
+        "claude"
+      ],
+      "timeoutMs": 10000,
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+    }
+  ],
+  "PostToolUseFailure": [
+    {
+      "module": "debugging",
+      "script": "dist/hooks/software-debugging.mjs",
+      "args": [
+        "failure"
+      ],
+      "timeoutMs": 10000,
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+    }
+  ],
+  "Stop": [
+    {
+      "module": "debugging",
+      "script": "dist/hooks/software-debugging.mjs",
+      "args": [
+        "stop"
+      ],
+      "timeoutMs": 10000
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "CI-gated MR Workflow"
+  short_description: "Close branch, review, CI, merge, and cleanup loops."
+  default_prompt: "Use $ci-gated-mr-workflow to deliver this change through CI and merge."

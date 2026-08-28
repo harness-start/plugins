@@ -1,0 +1,5 @@
+id = "03-design-memory"
+hosts = ["claude", "codex"]
+timeout_sec = 420
+allowed_host_exits_codex = [0, 124]
+tags = ["ui", "design-memory", "outcome"]

@@ -1,0 +1,1 @@
+Continue answering in Japanese. Show the exact profile marker injected at session start, then use the Write tool to put exactly `これは日本語の回答です。設定された言語を維持します。` followed by one newline in `answer.txt`. Do not modify any other file.

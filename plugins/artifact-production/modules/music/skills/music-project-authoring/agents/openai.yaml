@@ -1,0 +1,4 @@
+interface:
+  display_name: "Music Project Authoring"
+  short_description: "Orchestrate deterministic music through review handoff"
+  default_prompt: "Use $music-project-authoring to orchestrate a brief, external advice, deterministic composition, arrangement, render, preview, and independent review handoff."

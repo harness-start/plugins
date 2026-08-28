@@ -1,0 +1,4 @@
+id = "07-direct-admitted-denied"
+hosts = ["claude", "codex"]
+timeout_sec = 120
+tags = ["video", "pre-tool", "admission", "deny"]

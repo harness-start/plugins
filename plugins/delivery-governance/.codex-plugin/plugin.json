@@ -1,0 +1,17 @@
+{
+  "name": "delivery-governance",
+  "version": "1.0.0",
+  "description": "Git, CI, repository-history migration, and Kubernetes delivery governance.",
+  "author": {
+    "name": "Harness Start",
+    "email": "devtools@example.com"
+  },
+  "hooks": "./hooks/codex.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Delivery Governance",
+    "shortDescription": "Git, CI, repository-history migration, and Kubernetes delivery governance.",
+    "developerName": "Harness Start",
+    "category": "Productivity"
+  }
+}

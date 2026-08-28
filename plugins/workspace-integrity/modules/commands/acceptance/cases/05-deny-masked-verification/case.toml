@@ -1,0 +1,4 @@
+id = "05-deny-masked-verification"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["deny", "verification", "exit-status"]
