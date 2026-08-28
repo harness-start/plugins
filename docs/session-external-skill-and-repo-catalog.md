@@ -68,7 +68,7 @@
 | `grill-me` / `grilling` | [mattpocock/skills/grill-me](https://www.skills.sh/mattpocock/skills/grill-me) | Grok 做过 hooks 自动化设计；后来以 `grilling` 落地 | 已声明并 vendor：`work-reporting` |
 | `research` | [mattpocock/skills](https://github.com/mattpocock/skills) | 用户把方向收束到 research 插件 | 已声明并 vendor：`evidence-based-research` |
 | `arxiv-search` | [langchain-ai/deepagents](https://github.com/langchain-ai/deepagents) | research 数据源扩展 | 已声明并 vendor |
-| `firecrawl` | [firecrawl/cli](https://github.com/firecrawl/cli) | research 数据源扩展 | 已声明并 vendor |
+| `firecrawl` | [firecrawl/cli](https://github.com/firecrawl/cli) | research 数据源扩展 | 历史参考；不再随插件发布，运行时改用宿主内建联网搜索 |
 
 ### 3.3 工程师思维与去 AI 味
 
@@ -227,7 +227,7 @@ PPT / 工程重构相关会话里，助手还对比过一批 SDD 仓。它们出
 
 | 仓库 | 会话数（约） | 落地 |
 | --- | ---: | --- |
-| [firecrawl/cli](https://github.com/firecrawl/cli) | 35 | `firecrawl` 已声明并 vendor |
+| [firecrawl/cli](https://github.com/firecrawl/cli) | 35 | 历史参考；未作为运行时依赖发布 |
 | [langchain-ai/deepagents](https://github.com/langchain-ai/deepagents) | 13 | `arxiv-search` 已声明并 vendor |
 | [scrapegraphai/just-scrape](https://github.com/scrapegraphai/just-scrape) | 1 | 无 |
 | [tavily-ai/skills](https://github.com/tavily-ai/skills) | 1 | 无 |
@@ -345,7 +345,7 @@ PPT / 工程重构相关会话里，助手还对比过一批 SDD 仓。它们出
 | github.com/SJY051/music-composition | music-composition | music-production | 是 |
 | github.com/all666666all/miaoxiang-music.skill | miaoxiang-music | music-production | 是 |
 | github.com/damionrashford/media-os | workflow-analysis-quality, workflow-audio-production | music-production | 是 |
-| github.com/firecrawl/cli | firecrawl | evidence-based-research | 是 |
+| github.com/firecrawl/cli | firecrawl | knowledge-work/research | 否；仅保留历史设计参考 |
 | github.com/langchain-ai/deepagents | arxiv-search | evidence-based-research | 是 |
 | github.com/addyosmani/agent-skills | spec-driven-development | spec-driven-development | 是 |
 | github.com/affaan-m/ecc | growth-log | work-reporting | 是 |

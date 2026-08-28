@@ -29,7 +29,7 @@ test("Claude MCP config inherits the platform plugin-data directory", async () =
   assert.equal(server.env, undefined, "self-referential env values remain literal and create workspace artifacts");
 });
 
-test("stdio MCP exposes seven tools and binds research_begin through roots/list", async (context) => {
+test("stdio MCP exposes six evidence tools without a provider-specific discovery tool", async (context) => {
   const root = await mkdtemp(join(tmpdir(), "research-mcp-"));
   const workspace = join(root, "workspace");
   await mkdir(workspace);
@@ -59,7 +59,8 @@ test("stdio MCP exposes seven tools and binds research_begin through roots/list"
   send({ jsonrpc: "2.0", method: "notifications/initialized" });
   send({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
   const listed = await take((message) => message.id === 2);
-  assert.equal(listed.result.tools.length, 7);
+  assert.equal(listed.result.tools.length, 6);
+  assert.equal(listed.result.tools.some((tool) => tool.name === "source_discover"), false);
   const sealTool = listed.result.tools.find((tool) => tool.name === "research_seal");
   assert.deepEqual(sealTool.inputSchema.properties.claims.items.properties.status.enum, ["anchored", "multi_anchored", "inferred", "contested", "unverified"]);
   send({ jsonrpc: "2.0", id: 20, method: "tools/call", params: { name: "source_read", arguments: { source_id: "S999" } } });

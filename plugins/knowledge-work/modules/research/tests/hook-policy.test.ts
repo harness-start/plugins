@@ -61,7 +61,7 @@ test("SessionStart injects orchestrator routing priority", async () => {
   assert.match(body.hookSpecificOutput.additionalContext, /research-evidence-workflow/u);
   assert.match(
     body.hookSpecificOutput.additionalContext,
-    /standalone Firecrawl CLI or unanchored candidate-search helpers/iu,
+    /host's built-in web search.*provider API keys/isu,
   );
 });
 

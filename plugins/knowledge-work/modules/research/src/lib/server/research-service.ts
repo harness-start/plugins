@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { spawn } from "node:child_process";
 
 import { canonicalJson, sealPayload, sha256 } from "./integrity.js";
 import { safeFetchText, type FetchedText } from "./safe-fetch.js";
@@ -28,7 +27,6 @@ export type ResearchServiceOptions = {
   dataRoot: string;
   sessionId: string;
   fetchText?: FetchText;
-  discoveryExecutable?: string;
   now?: () => Date;
 };
 
@@ -99,14 +97,6 @@ export type ResearchBeginResult = {
   workflow_path: string;
 };
 
-export type ResearchDiscoverResult = {
-  event_id: string;
-  discovery_only: true;
-  available: boolean;
-  results: unknown;
-  limitation?: string;
-};
-
 export type ResearchCaptureResult = SourceRecord & { event_id: string };
 
 export type ResearchReadResult = {
@@ -140,18 +130,11 @@ export type ResearchSealResult = {
 
 export type ResearchCallResult =
   | ResearchBeginResult
-  | ResearchDiscoverResult
   | ResearchCaptureResult
   | ResearchReadResult
   | ResearchAnchorResult
   | ResearchStatusResult
   | ResearchSealResult;
-
-type DiscoveryResult = {
-  available: boolean;
-  output: string;
-  limitation: string | null;
-};
 
 function assertObject(value: unknown, label: string): asserts value is Record<string, unknown> {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object`);
@@ -275,18 +258,16 @@ export class ResearchService {
   dataRoot: string;
   sessionId: string;
   fetchText: FetchText;
-  discoveryExecutable: string;
   now: () => Date;
   run: ResearchRun | null;
   sources: Map<string, StoredSource>;
   anchors: Map<string, AnchorRecord>;
 
-  constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, discoveryExecutable = process.env.FIRECRAWL_BIN || "firecrawl", now = () => new Date() }: ResearchServiceOptions) {
+  constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, now = () => new Date() }: ResearchServiceOptions) {
     this.workspaceRoot = resolve(requiredString(workspaceRoot, "workspaceRoot"));
     this.dataRoot = resolve(requiredString(dataRoot, "dataRoot"));
     this.sessionId = requiredString(sessionId, "sessionId", 512);
     this.fetchText = fetchText;
-    this.discoveryExecutable = discoveryExecutable;
     this.now = now;
     this.run = null;
     this.sources = new Map();
@@ -311,7 +292,6 @@ export class ResearchService {
     if (name === "research_begin") return this.begin(args);
     if (!this.run) throw new Error("research_begin must be called first");
     if (this.run.sealed && !SEALED_READ_METHODS.has(name)) throw new Error("research run is sealed; evidence and canonical artifacts are immutable");
-    if (name === "source_discover") return this.discover(args);
     if (name === "source_capture") return this.capture(args);
     if (name === "source_read") return this.read(args);
     if (name === "source_anchor") return this.anchor(args);
@@ -388,51 +368,9 @@ export class ResearchService {
     }
   }
 
-  async discover(args: Record<string, unknown>): Promise<ResearchDiscoverResult> {
-    assertExactKeys(args, ["query", "category", "limit"], "source_discover");
-    const query = requiredString(args.query, "query");
-    const category = args.category ?? "web";
-    if (typeof category !== "string" || !SOURCE_KINDS.has(category) || category === "workspace") throw new Error("invalid discovery category");
-    const limit = Number(args.limit ?? 5);
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) throw new Error("discovery limit must be an integer from 1 to 20");
-    const discovery = await new Promise<DiscoveryResult>((resolvePromise, reject) => {
-      const child = spawn(this.discoveryExecutable, ["search", query, "--limit", String(limit), "--json"], {
-        shell: false,
-        env: { ...process.env, FIRECRAWL_NO_SEARCH_FEEDBACK: "1", FIRECRAWL_DISABLE_SEARCH_FEEDBACK: "1", FIRECRAWL_NO_ENDPOINT_FEEDBACK: "1" },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-      const chunks: Buffer[] = [];
-      let bytes = 0;
-      const timer = setTimeout(() => child.kill("SIGKILL"), 20_000);
-      child.stdout.on("data", (chunk: Buffer) => { bytes += chunk.length; if (bytes > 2 * 1024 * 1024) child.kill("SIGKILL"); else chunks.push(chunk); });
-      child.stderr.resume();
-      child.on("error", (error: NodeJS.ErrnoException) => {
-        clearTimeout(timer);
-        if (error?.code === "ENOENT") {
-          resolvePromise({ available: false, output: "", limitation: "Discovery executable is not installed; discover with the host search tool, then capture a known URL or workspace source." });
-        } else reject(error);
-      });
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code === 0) resolvePromise({ available: true, output: Buffer.concat(chunks).toString("utf8"), limitation: null });
-        else reject(new Error("Firecrawl discovery is unavailable; capture a known URL or workspace source instead"));
-      });
-    });
-    if (!discovery.available) {
-      const eventId = await this.event("source_discover", { query_sha256: sha256(query), category, count: 0, available: false });
-      const result: ResearchDiscoverResult = { event_id: eventId, discovery_only: true, available: false, results: [] };
-      if (discovery.limitation) result.limitation = discovery.limitation;
-      return result;
-    }
-    let results: unknown;
-    try { results = JSON.parse(discovery.output); } catch { throw new Error("Firecrawl returned invalid JSON"); }
-    const eventId = await this.event("source_discover", { query_sha256: sha256(query), category, count: Array.isArray(results) ? results.length : null });
-    return { event_id: eventId, discovery_only: true, available: true, results };
-  }
-
   async capture(args: Record<string, unknown>): Promise<ResearchCaptureResult> {
     assertExactKeys(args, ["kind", "path", "url", "via"], "source_capture");
-    if (args.via !== undefined && args.via !== "direct") throw new Error("source_capture via must be direct; Firecrawl is discovery-only in this version");
+    if (args.via !== undefined && args.via !== "direct") throw new Error("source_capture via must be direct");
     if ((args.path !== undefined) === (args.url !== undefined)) throw new Error("source_capture requires exactly one of path or url");
     const kind = args.kind ?? (args.path ? "workspace" : "web");
     if (typeof kind !== "string" || !SOURCE_KINDS.has(kind)) throw new Error("invalid source kind");

@@ -53,12 +53,20 @@ test("academic discovery degrades without installing packages or losing paper ve
     pluginFile("skills/research-evidence-workflow/references/skill-composition.md"),
     "utf8",
   );
-  const discovery = await readFile(
-    pluginFile("skills/research-evidence-workflow/references/discovery-via-mcp.md"),
+  const claudeDiscovery = await readFile(
+    pluginFile("skills/research-evidence-workflow/references/discovery-claude-code.md"),
+    "utf8",
+  );
+  const codexDiscovery = await readFile(
+    pluginFile("skills/research-evidence-workflow/references/discovery-codex.md"),
     "utf8",
   );
 
   assert.match(composition, /do not loop or install packages/iu);
-  assert.match(discovery, /\/abs\/<id>vN/iu);
-  assert.match(discovery, /MCP `source_discover`/u);
+  assert.match(`${claudeDiscovery}\n${codexDiscovery}`, /\/abs\/<id>vN/iu);
+  assert.match(claudeDiscovery, /`WebSearch`.*`WebFetch`/su);
+  assert.doesNotMatch(claudeDiscovery, /web\.run|web__run/u);
+  assert.match(codexDiscovery, /`web\.run`.*`search_query`.*`open`/su);
+  assert.doesNotMatch(codexDiscovery, /`WebSearch`|`WebFetch`/u);
+  assert.doesNotMatch(`${composition}\n${claudeDiscovery}\n${codexDiscovery}`, /source_discover|FIRECRAWL_API_KEY/iu);
 });

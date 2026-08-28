@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmod, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -111,39 +111,12 @@ test("post-seal artifact mutation invalidates the digest", async () => {
   assert.ok(findings.some((finding) => finding.includes("report hash mismatch")));
 });
 
-test("Firecrawl discovery drains noisy stderr without deadlocking", async () => {
-  const { root, workspace, dataRoot } = await fixture();
-  const bin = join(root, "bin");
-  const executable = join(bin, "firecrawl");
-  await mkdir(bin);
-  await writeFile(executable, `#!/usr/bin/env node\nprocess.stderr.write("x".repeat(1024 * 1024));\nprocess.stdout.write("[]");\n`, "utf8");
-  await chmod(executable, 0o755);
-  const originalPath = process.env.PATH;
-  process.env.PATH = `${bin}:${originalPath}`;
-  try {
-    const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "noisy-discovery" });
-    await service.call("research_begin", { question: "Q", scope: "S", as_of: "2026-08-08", prompt_epoch: 1 });
-    const discovered = await Promise.race([
-      service.call("source_discover", { query: "fixture", limit: 1 }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("discovery deadlocked on stderr")), 1_000)),
-    ]);
-    assert.deepEqual(discovered.results, []);
-  } finally {
-    process.env.PATH = originalPath;
-  }
-});
-
-test("missing optional discovery executable degrades without an ENOENT failure", async () => {
+test("provider-specific discovery is absent from the public service", async () => {
   const { workspace, dataRoot } = await fixture();
-  const service = new ResearchService({
-    workspaceRoot: workspace,
-    dataRoot,
-    sessionId: "missing-discovery",
-    discoveryExecutable: "/definitely/missing/firecrawl",
-  });
+  const service = new ResearchService({ workspaceRoot: workspace, dataRoot, sessionId: "host-discovery" });
   await service.call("research_begin", { question: "Q", scope: "S", as_of: "2026-08-08", prompt_epoch: 1 });
-  const discovered = await service.call("source_discover", { query: "fixture", limit: 1 });
-  assert.equal(discovered.available, false);
-  assert.deepEqual(discovered.results, []);
-  assert.match(discovered.limitation, /known URL|workspace source/u);
+  await assert.rejects(
+    service.call("source_discover", { query: "fixture", limit: 1 }),
+    /unknown tool: source_discover/u,
+  );
 });

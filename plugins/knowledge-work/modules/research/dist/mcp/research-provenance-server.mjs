@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:2028e9f921539206f9fc8b40215d90e2727c0391f8b2a584f88eda317e506f6e
+// harness-source-hash: sha256:17048b60cc2420d21ca4e159ffd0e86ed232deb0d2f22a03ecb26d9b7ed65f33
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-AQFBDATZ.mjs";
+} from "../chunks/chunk-N7PQIL4T.mjs";
 import {
   defaultWorkflow,
   ensureRunSkeleton,
@@ -13,7 +13,7 @@ import {
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-IRAS2RW3.mjs";
+} from "../chunks/chunk-AHDK6VVG.mjs";
 
 // plugins/knowledge-work/modules/research/src/entries/mcp/research-provenance-server.ts
 import { realpath as realpath2 } from "node:fs/promises";
@@ -24,7 +24,6 @@ import { createInterface } from "node:readline";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
-import { spawn } from "node:child_process";
 
 // plugins/knowledge-work/modules/research/src/lib/server/safe-fetch.ts
 import { lookup } from "node:dns/promises";
@@ -258,17 +257,15 @@ var ResearchService = class {
   dataRoot;
   sessionId;
   fetchText;
-  discoveryExecutable;
   now;
   run;
   sources;
   anchors;
-  constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, discoveryExecutable = process.env.FIRECRAWL_BIN || "firecrawl", now = () => /* @__PURE__ */ new Date() }) {
+  constructor({ workspaceRoot, dataRoot, sessionId, fetchText = safeFetchText, now = () => /* @__PURE__ */ new Date() }) {
     this.workspaceRoot = resolve(requiredString(workspaceRoot, "workspaceRoot"));
     this.dataRoot = resolve(requiredString(dataRoot, "dataRoot"));
     this.sessionId = requiredString(sessionId, "sessionId", 512);
     this.fetchText = fetchText;
-    this.discoveryExecutable = discoveryExecutable;
     this.now = now;
     this.run = null;
     this.sources = /* @__PURE__ */ new Map();
@@ -291,7 +288,6 @@ var ResearchService = class {
     if (name === "research_begin") return this.begin(args);
     if (!this.run) throw new Error("research_begin must be called first");
     if (this.run.sealed && !SEALED_READ_METHODS.has(name)) throw new Error("research run is sealed; evidence and canonical artifacts are immutable");
-    if (name === "source_discover") return this.discover(args);
     if (name === "source_capture") return this.capture(args);
     if (name === "source_read") return this.read(args);
     if (name === "source_anchor") return this.anchor(args);
@@ -370,58 +366,9 @@ var ResearchService = class {
       }
     }
   }
-  async discover(args) {
-    assertExactKeys(args, ["query", "category", "limit"], "source_discover");
-    const query = requiredString(args.query, "query");
-    const category = args.category ?? "web";
-    if (typeof category !== "string" || !SOURCE_KINDS.has(category) || category === "workspace") throw new Error("invalid discovery category");
-    const limit = Number(args.limit ?? 5);
-    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) throw new Error("discovery limit must be an integer from 1 to 20");
-    const discovery = await new Promise((resolvePromise, reject) => {
-      const child = spawn(this.discoveryExecutable, ["search", query, "--limit", String(limit), "--json"], {
-        shell: false,
-        env: { ...process.env, FIRECRAWL_NO_SEARCH_FEEDBACK: "1", FIRECRAWL_DISABLE_SEARCH_FEEDBACK: "1", FIRECRAWL_NO_ENDPOINT_FEEDBACK: "1" },
-        stdio: ["ignore", "pipe", "pipe"]
-      });
-      const chunks = [];
-      let bytes = 0;
-      const timer = setTimeout(() => child.kill("SIGKILL"), 2e4);
-      child.stdout.on("data", (chunk) => {
-        bytes += chunk.length;
-        if (bytes > 2 * 1024 * 1024) child.kill("SIGKILL");
-        else chunks.push(chunk);
-      });
-      child.stderr.resume();
-      child.on("error", (error) => {
-        clearTimeout(timer);
-        if (error?.code === "ENOENT") {
-          resolvePromise({ available: false, output: "", limitation: "Discovery executable is not installed; discover with the host search tool, then capture a known URL or workspace source." });
-        } else reject(error);
-      });
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code === 0) resolvePromise({ available: true, output: Buffer.concat(chunks).toString("utf8"), limitation: null });
-        else reject(new Error("Firecrawl discovery is unavailable; capture a known URL or workspace source instead"));
-      });
-    });
-    if (!discovery.available) {
-      const eventId2 = await this.event("source_discover", { query_sha256: sha256(query), category, count: 0, available: false });
-      const result = { event_id: eventId2, discovery_only: true, available: false, results: [] };
-      if (discovery.limitation) result.limitation = discovery.limitation;
-      return result;
-    }
-    let results;
-    try {
-      results = JSON.parse(discovery.output);
-    } catch {
-      throw new Error("Firecrawl returned invalid JSON");
-    }
-    const eventId = await this.event("source_discover", { query_sha256: sha256(query), category, count: Array.isArray(results) ? results.length : null });
-    return { event_id: eventId, discovery_only: true, available: true, results };
-  }
   async capture(args) {
     assertExactKeys(args, ["kind", "path", "url", "via"], "source_capture");
-    if (args.via !== void 0 && args.via !== "direct") throw new Error("source_capture via must be direct; Firecrawl is discovery-only in this version");
+    if (args.via !== void 0 && args.via !== "direct") throw new Error("source_capture via must be direct");
     if (args.path !== void 0 === (args.url !== void 0)) throw new Error("source_capture requires exactly one of path or url");
     const kind = args.kind ?? (args.path ? "workspace" : "web");
     if (typeof kind !== "string" || !SOURCE_KINDS.has(kind)) throw new Error("invalid source kind");
@@ -560,7 +507,6 @@ Research-Seal: ${seal}` };
 // plugins/knowledge-work/modules/research/src/entries/mcp/research-provenance-server.ts
 var TOOL_SPECS = [
   { name: "research_begin", description: "Begin a hard-mode research run bound to the client workspace root. Optional run_id binds an existing project workflow opened by research-evidence-workflow.", properties: { question: "string", scope: "string", as_of: "string", prompt_epoch: "integer", run_id: "string" }, required: ["question", "scope", "as_of", "prompt_epoch"] },
-  { name: "source_discover", description: "Discover candidate sources through Firecrawl. Discovery output is not evidence until captured.", properties: { query: "string", category: "string", limit: "integer" }, required: ["query"] },
   { name: "source_capture", description: "Capture a workspace file or public http(s) URL into immutable private plugin data.", properties: { kind: "string", path: "string", url: "string", via: "string" }, required: [] },
   { name: "source_read", description: "Read a bounded slice of captured untrusted source content.", properties: { source_id: "string", offset: "integer", limit: "integer" }, required: ["source_id"] },
   { name: "source_anchor", description: "Create an exact quote, line range, or RFC 6901 JSON pointer anchor.", properties: { source_id: "string", kind: "string", value: "string", start_line: "integer", end_line: "integer" }, required: ["source_id", "kind"] },
@@ -580,7 +526,7 @@ var TOOLS = TOOL_SPECS.map((spec) => ({
     readOnlyHint: ["source_read", "research_status"].includes(spec.name),
     destructiveHint: false,
     idempotentHint: ["source_read", "research_status"].includes(spec.name),
-    openWorldHint: ["source_discover", "source_capture"].includes(spec.name)
+    openWorldHint: spec.name === "source_capture"
   }
 }));
 function requireTool(name) {
@@ -588,9 +534,6 @@ function requireTool(name) {
   if (!tool) throw new Error(`missing tool definition: ${name}`);
   return tool;
 }
-var sourceDiscover = requireTool("source_discover");
-if (!sourceDiscover.inputSchema.properties) sourceDiscover.inputSchema.properties = {};
-sourceDiscover.inputSchema.properties.category = { type: "string", enum: ["web", "news", "github", "research", "pdf", "developer"] };
 requireTool("source_capture").inputSchema = {
   type: "object",
   additionalProperties: false,

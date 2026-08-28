@@ -34,7 +34,7 @@ Do not open a sealed research workflow for a simple lookup or explanation that n
 
 `SessionStart` restores relevant research/report state and provides lightweight writing routing. `UserPromptSubmit` recognizes explicit research and reporting intent. `PreToolUse`, post-tool, failure, and `Stop` events enforce only active research/report workflows and protected paths. Writing's post-tool analyzer scans bounded observed Markdown writes and reports findings without automatically rewriting or blocking them.
 
-The research module distinguishes candidate discovery from evidence: only content captured and anchored through `research_provenance` can support canonical claims. Reporting distinguishes attributed local evidence, unverified ownership, inference, employee disposition, and future TL checks.
+The research module uses the current host's built-in web search for candidate discovery without provider API keys. Only content captured and anchored through `research_provenance` can support canonical claims. Reporting distinguishes attributed local evidence, unverified ownership, inference, employee disposition, and future TL checks.
 
 ## Public interfaces
 
@@ -50,7 +50,7 @@ Resources:
 - `writing`: exposes `analyze` for deterministic Markdown style analysis;
 - `report`: exposes daily, weekly, and summary `collect`, `prepare`, `save`, and transcript-scan actions plus `addition-prepare`, `append`, and `verify`.
 
-The public MCP server is named `research_provenance`. It provides workspace-bound research begin, source discovery/capture/read/anchor, claim/seal, and related provenance operations through the host's MCP namespace.
+The public MCP server is named `research_provenance`. It provides workspace-bound research begin, source capture/read/anchor, claim/seal, and related provenance operations through the host's MCP namespace. Discovery is intentionally absent from the MCP surface: Claude Code uses `WebSearch`/`WebFetch`, while Codex uses its registered web search tool.
 
 ## Configuration and state
 

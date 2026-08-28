@@ -16,12 +16,12 @@ import {
 } from "../../lib/workflow-fs.js";
 import { assistantMessage, cwd, fileMutation, prompt, readStdinJson, shellCommand, toolInput, toolName, toolResponse, writeJson } from "../../lib/hook-io.js";
 
-const MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_discover|source_capture|source_read|source_anchor|research_status|research_seal)$/iu;
+const MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_capture|source_read|source_anchor|research_status|research_seal)$/iu;
 
 const SESSION_CONTEXT = [
   "[Research Provenance Guard] Research entry routing",
   "For research, investigation of APIs/docs/specs/facts, source-backed findings, or multi-source evidence work, invoke research-evidence-workflow first and open a project run under .research/runs/.",
-  "Do not start such tasks by invoking standalone Firecrawl CLI or unanchored candidate-search helpers. Use the bundled primary-source and academic-discovery methods under the orchestrator; optional ordinary helpers return leads that the parent must verify.",
+  "Use the current host's built-in web search for candidate discovery: Claude Code uses WebSearch/WebFetch; Codex uses its registered web search tool. Do not require provider API keys or standalone search CLIs.",
   "Invoke the bundled handoff method only after the run is sealed and handoffs/outbound files exist.",
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open—not because this SessionStart text appeared.",
   "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence.",
@@ -138,7 +138,7 @@ function preDecision(event: HookEvent, state: ResearchHookState): string | null 
 
   const command = shellCommand(event);
   if (callsFirecrawlCli(command)) {
-    return "Active research runs must use source_discover/source_capture through the research_provenance MCP service; direct Firecrawl CLI calls are blocked.";
+    return "Active research runs must use the host's built-in web search for discovery and source_capture for evidence; direct Firecrawl CLI calls are blocked.";
   }
 
   const classes = writeTargetClasses(event);

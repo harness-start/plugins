@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:2028e9f921539206f9fc8b40215d90e2727c0391f8b2a584f88eda317e506f6e
+// harness-source-hash: sha256:17048b60cc2420d21ca4e159ffd0e86ed232deb0d2f22a03ecb26d9b7ed65f33
 
 // plugins/knowledge-work/modules/research/src/lib/server/integrity.ts
 import { createHash } from "node:crypto";

@@ -15,9 +15,9 @@
 ## 入口和工作顺序
 
 1. 安装插件。方法正文捆绑在 `research-evidence-workflow` 的 references 中。
-2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，不能直接跑 Firecrawl CLI 或把未锚定候选当证据。
+2. `SessionStart` 注入路由优先级：研究任务必须先进入 `research-evidence-workflow`，并使用当前宿主的内建联网搜索发现候选；不能要求用户配置供应商 Key，也不能把未锚定候选当证据。
 3. orchestrator 在 `.research/runs/<run-id>/workflow.json` 下创建持久运行。
-4. 只有该运行处于 open 时，Firecrawl CLI 阻断、`Stop` seal 校验和 outbound 门禁等硬行为才生效。
+4. 只有该运行处于 open 时，外部 Firecrawl CLI 阻断、`Stop` seal 校验和 outbound 门禁等硬行为才生效。
 
 没有 `$research` 或 `/research` 激活别名；在对话中提到 Skill 名称不会打开硬模式。用户只能用精确文本 `# research-abort` 中止，终态 `aborted` 由 Hook 负责，workflow CLI 不能自行授权中止或完成。
 
@@ -55,7 +55,7 @@ Hook 被调用、`SessionStart` 打了字，或多走几轮模型，都不算研
   report.md              # 仅 seal 写入
 ```
 
-捕获的 source body 与 MCP event stream 保存在平台插件数据目录并使用私有权限。若不希望运行记录进入版本控制，应忽略 `.research/`。`.firecrawl/` 输出只有重新通过 MCP 捕获后才能作为证据。
+捕获的 source body 与 MCP event stream 保存在平台插件数据目录并使用私有权限。若不希望运行记录进入版本控制，应忽略 `.research/`。宿主搜索结果只是候选，只有重新通过 MCP 捕获并锚定后才能作为证据。
 
 | 路径 | 允许 writer |
 | --- | --- |
@@ -64,7 +64,7 @@ Hook 被调用、`SessionStart` 打了字，或多走几轮模型，都不算研
 | `research.json`、`report.md` | 仅 `research_seal` |
 | `handoffs/outbound/**` | phase 为 `sealed` 后的 `handoff-outbound` CLI |
 
-`research_begin` 将一个运行绑定到 MCP workspace root 并同步 `workflow.json`。MCP 工具标识带宿主 namespace，应选择以 `__research_begin`、`__source_capture` 等结尾的已注册标识，不能输出裸短函数名。`source_discover` 可在内部使用 Firecrawl；若可选 executable 未安装，它会返回 `available=false` 和恢复说明，agent 可用宿主搜索发现 URL 后继续 `source_capture`，不会再以 `spawn ... ENOENT` 中断。发现本身不是证据；`source_capture`、`source_read`、`source_anchor` 才建立证据，`research_seal` 校验 claim 并写 canonical report。
+`research_begin` 将一个运行绑定到 MCP workspace root 并同步 `workflow.json`。MCP 工具标识带宿主 namespace，应选择以 `__research_begin`、`__source_capture` 等结尾的已注册标识，不能输出裸短函数名。MCP 不提供搜索工具，也不依赖外部 executable 或搜索供应商 Key。Claude Code 使用 `WebSearch` / `WebFetch`，Codex 使用其已注册的内建 web search tool；找到权威 URL 后再调用 `source_capture`。发现本身不是证据；`source_capture`、`source_read`、`source_anchor` 才建立证据，`research_seal` 校验 claim 并写 canonical report。
 
 seal 后拒绝修改证据和重复 seal。通过校验的 `Stop` 会把 workflow 变为 `complete`，后续普通 prompt 不再处于硬模式。活动运行期间，直接修改 `workflow.json`、canonical seal 文件或 outbound handoff 路径会被阻断。
 
@@ -100,7 +100,7 @@ node "${RESEARCH_WORKFLOW}" handoff-outbound --cwd "$PWD" --handoff-file /tmp/re
 捆绑方法是阶段技术，不是替代入口：
 
 - 一手来源方法：供父 agent 或可选普通 helper 使用的发现/阅读方法；返回内容只是待核实线索；
-- 发现策略：硬运行仍使用 MCP `source_discover` / `source_capture`，直接 Firecrawl CLI 会被 Hook 拒绝；
+- 发现策略：Claude Code 和 Codex 分别使用各自宿主的内建联网搜索；MCP 从 `source_capture` 开始建立证据，直接 Firecrawl CLI 会被 Hook 拒绝；
 - 学术候选：只用于候选发现；标题和摘要是不可信线索，必须解析到权威论文页面并经 MCP 捕获、锚定；
 - handoff 方法：seal 后跨会话交接，精确 prompt 必须写入项目 `outbound/prompt.md`。
 
@@ -115,11 +115,11 @@ seal 前的普通 workspace 修改会增加 Hook revision。seal 后 canonical m
 - 直接 HTTP 在每次 redirect 上执行 DNS public check。
 - seal digest 只表示可观察工作流内的完整性，不是抵抗恶意同用户进程的签名。
 
-缺少 Firecrawl 只影响发现。缺少 plugin data、有效单一 MCP root，或窄范围 Codex launch-root fallback 时，权威路径 fail-closed。未验证 claim 必须显示限制。正常最终答复可以出现在精确 trailer 之前；trailer 和 sealed artifacts 仍是证据完整性的权威边界。
+宿主没有内建联网搜索时，只能捕获已知 URL 或 workspace 来源，并把剩余缺口标为 `unverified`。缺少 plugin data、有效单一 MCP root，或窄范围 Codex launch-root fallback 时，权威路径 fail-closed。正常最终答复可以出现在精确 trailer 之前；trailer 和 sealed artifacts 仍是证据完整性的权威边界。
 
 ## 验证
 
 ```bash
-npx tsx --test plugins/evidence-based-research/tests/*.test.ts
-./scripts/acceptance/run.sh --plugin evidence-based-research
+node --test --import tsx plugins/knowledge-work/modules/research/tests/*.test.ts
+./scripts/acceptance/run.sh --plugin knowledge-work
 ```

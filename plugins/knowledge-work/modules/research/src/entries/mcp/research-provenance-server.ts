@@ -46,7 +46,6 @@ type PendingRequest = {
 
 const TOOL_SPECS: ToolSpec[] = [
   { name: "research_begin", description: "Begin a hard-mode research run bound to the client workspace root. Optional run_id binds an existing project workflow opened by research-evidence-workflow.", properties: { question: "string", scope: "string", as_of: "string", prompt_epoch: "integer", run_id: "string" }, required: ["question", "scope", "as_of", "prompt_epoch"] },
-  { name: "source_discover", description: "Discover candidate sources through Firecrawl. Discovery output is not evidence until captured.", properties: { query: "string", category: "string", limit: "integer" }, required: ["query"] },
   { name: "source_capture", description: "Capture a workspace file or public http(s) URL into immutable private plugin data.", properties: { kind: "string", path: "string", url: "string", via: "string" }, required: [] },
   { name: "source_read", description: "Read a bounded slice of captured untrusted source content.", properties: { source_id: "string", offset: "integer", limit: "integer" }, required: ["source_id"] },
   { name: "source_anchor", description: "Create an exact quote, line range, or RFC 6901 JSON pointer anchor.", properties: { source_id: "string", kind: "string", value: "string", start_line: "integer", end_line: "integer" }, required: ["source_id", "kind"] },
@@ -67,7 +66,7 @@ const TOOLS: McpToolDefinition[] = TOOL_SPECS.map((spec) => ({
     readOnlyHint: ["source_read", "research_status"].includes(spec.name),
     destructiveHint: false,
     idempotentHint: ["source_read", "research_status"].includes(spec.name),
-    openWorldHint: ["source_discover", "source_capture"].includes(spec.name),
+    openWorldHint: spec.name === "source_capture",
   },
 }));
 
@@ -76,10 +75,6 @@ function requireTool(name: string): McpToolDefinition {
   if (!tool) throw new Error(`missing tool definition: ${name}`);
   return tool;
 }
-
-const sourceDiscover = requireTool("source_discover");
-if (!sourceDiscover.inputSchema.properties) sourceDiscover.inputSchema.properties = {};
-sourceDiscover.inputSchema.properties.category = { type: "string", enum: ["web", "news", "github", "research", "pdf", "developer"] };
 
 requireTool("source_capture").inputSchema = {
   type: "object",
