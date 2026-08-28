@@ -1,1 +1,1 @@
-Review the current implementation of `src/permissions.mjs` for material correctness problems. Do not modify files. Return only verified findings.
+审计 `src/permissions.mjs` 的当前代码实现，检查实质性正确性问题。不要修改文件，只返回已验证的问题。
