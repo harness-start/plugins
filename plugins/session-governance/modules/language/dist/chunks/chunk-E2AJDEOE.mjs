@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:79ac4709881682e11ae1105400c3a4411820b98c7ab471b44a0566bcc62b10a1
+// harness-source-hash: sha256:d8c95fd90e5a64a2eb23aaee2937c38a8ce97493b87f8cd3b557fe464cdfbdf7
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -149,10 +149,11 @@ function profileFor(value) {
 // plugins/session-governance/modules/language/src/lib/config.ts
 var CONFIG_NAME = ".language-output.mjs";
 var USER_CONFIG_RELATIVE_PATH = "harness-start/language-output.json";
-var TOP_LEVEL_KEYS = /* @__PURE__ */ new Set(["defaultProfile", "toolFeedback", "stop", "detection"]);
+var TOP_LEVEL_KEYS = /* @__PURE__ */ new Set(["defaultProfile", "artifactProfile", "toolFeedback", "stop", "detection"]);
 var DETECTION_KEYS = /* @__PURE__ */ new Set(["minScriptCharacters", "minLetterRatio"]);
 var DEFAULT_CONFIG = Object.freeze({
   defaultProfile: "zh-CN",
+  artifactProfile: null,
   toolFeedback: "report",
   stop: "block",
   detection: Object.freeze({
@@ -179,6 +180,9 @@ function resolveConfig(source) {
   if (source.defaultProfile !== void 0 && !isProfileId(source.defaultProfile)) {
     throw new Error("defaultProfile must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
   }
+  if (source.artifactProfile !== void 0 && source.artifactProfile !== null && !isProfileId(source.artifactProfile)) {
+    throw new Error("artifactProfile must be null, zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
+  }
   if (source.toolFeedback !== void 0 && !isToolFeedbackMode(source.toolFeedback)) {
     throw new Error("toolFeedback must be report or off");
   }
@@ -202,6 +206,7 @@ function resolveConfig(source) {
   }
   return {
     defaultProfile: isProfileId(source.defaultProfile) ? source.defaultProfile : DEFAULT_CONFIG.defaultProfile,
+    artifactProfile: isProfileId(source.artifactProfile) ? source.artifactProfile : null,
     toolFeedback: isToolFeedbackMode(source.toolFeedback) ? source.toolFeedback : DEFAULT_CONFIG.toolFeedback,
     stop: isStopMode(source.stop) ? source.stop : DEFAULT_CONFIG.stop,
     detection: { minScriptCharacters, minLetterRatio }

@@ -22,11 +22,13 @@ test("empty configuration resolves to the strict Chinese defaults", () => {
 test("configuration selects a profile, surface modes, and bounded thresholds", () => {
   assert.deepEqual(resolveConfig({
     defaultProfile: "th-TH",
+    artifactProfile: "en-US",
     toolFeedback: "off",
     stop: "off",
     detection: { minScriptCharacters: 20, minLetterRatio: 0.5 },
   }), {
     defaultProfile: "th-TH",
+    artifactProfile: "en-US",
     toolFeedback: "off",
     stop: "off",
     detection: { minScriptCharacters: 20, minLetterRatio: 0.5 },
@@ -35,6 +37,7 @@ test("configuration selects a profile, surface modes, and bounded thresholds", (
 
 for (const source of [
   { defaultProfile: "fr-FR" },
+  { artifactProfile: "fr-FR" },
   { toolFeedback: "block" },
   { stop: "report" },
   { detection: { minScriptCharacters: 0 } },

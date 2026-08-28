@@ -23,14 +23,15 @@ async function main() {
   const text = generatedToolText(event);
   if (!text) return;
   const state = readState(event, config.defaultProfile);
+  const artifactProfile = config.artifactProfile ?? state.preferredProfile;
   const [finding] = detectLanguageDrift(text, {
-    preferredProfile: state.preferredProfile,
+    preferredProfile: artifactProfile,
     authorizedProfiles: state.authorizedProfiles,
     detection: config.detection,
   });
   if (!finding || !claimToolFeedback(event, config.defaultProfile)) return;
   writeJson(postToolFeedbackOutput(
-    toolFeedback(state.preferredProfile, finding, extractFileTargets(event)),
+    toolFeedback(artifactProfile, finding, extractFileTargets(event)),
   ));
 }
 

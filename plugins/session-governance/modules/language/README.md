@@ -1,64 +1,51 @@
-# 输出语言治理
+# Language output governance
 
 > **Private AIO module.** This directory is not independently installable or published. Host manifests, Hook registration, and MCP exposure belong to the `session-governance` owner. This module retains only its implementation, bundled methods and assets, tests, and acceptance material.
 
-`language-output` 让 Claude Code 和 Codex 在一次会话里使用同一自然语言设置。安装器默认按系统 locale 选择语言；宿主和项目都没配置时，使用简体中文。
+`language-output` keeps response language consistent across a Claude Code or Codex session while allowing generated files to follow a separate project artifact-language contract. The installer selects the response profile from the system locale by default. If neither the host nor project supplies a preference, the strict default is Simplified Chinese.
 
-插件只治理会话的自然语言输出语言，不控制语气、人格、详略、格式、翻译质量或工具输出。
+The module governs natural-language script selection. It does not control tone, personality, detail, formatting, translation quality, or tool output.
 
-## 目标
+## Profiles
 
-让主 agent、subagent、最终回复和模型生成的说明性文件字段遵循同一个可配置语言 profile，同时保护代码、命令、路径、标识符、枚举、原文引用和明确翻译目标不被错误改写。
-
-## 实现
-
-`SessionStart` 解析项目配置、宿主安装偏好和严格默认值；`UserPromptSubmit` 记录明确语言切换与临时翻译授权；`PostToolUse` 检查模型生成的工具输入；`Stop` 与 `SubagentStop` 检查最终散文。状态只保存 profile 和有限授权集合，以平台与 session 摘要为键，不保存 prompt、回复或文件内容。
-
-`SessionStart` 的 profile 提示覆盖 agent 编写的所有自然语言值，包括 JSON、YAML、TOML、XML、Markdown machine block、表格和生成文件里的说明性字段。schema、key、枚举、ID、标识符、代码、命令、路径、原文引用和明确要求的翻译内容不随之改写；把自然语言放进结构化数据或 code fence 不会自动获得豁免。
-
-## 语言 Profile
-
-| Profile | 允许的自然语言文字系统 |
+| Profile | Allowed natural-language scripts |
 | --- | --- |
-| `zh-CN` | Han |
-| `zh-TW` | Han；提示词要求繁体中文 |
-| `en-US` | Latin 技术文本与散文；检查 Han、Hangul、Kana 和 Thai |
-| `ja-JP` | Han 和 Kana |
+| `zh-CN` | Han, with Simplified Chinese guidance |
+| `zh-TW` | Han, with Traditional Chinese guidance |
+| `en-US` | Latin; checks Han, Hangul, Kana, and Thai |
+| `ja-JP` | Han and Kana |
 | `ko-KR` | Hangul |
 | `th-TH` | Thai |
 
-Latin 始终允许，避免命令、API、类型、标识符和技术术语造成误报。检测器不会尝试区分同样使用 Han 字符的中文和日文。
+Latin remains allowed for every profile so commands, APIs, types, identifiers, and technical terms do not create false positives. The detector does not attempt general language classification.
 
-## 生命周期与状态
+## Lifecycle and state
 
-- `SessionStart` 加载默认配置并注入活动 profile 标记；startup/clear 会话重置，resume/compact 会话保留状态。
-- `UserPromptSubmit` 记录明确的回复语言请求。普通会话语言请求可替换首选 profile；翻译请求只授权目标语言，不改变首选 profile。
-- `PostToolUse` 只检查模型为 Bash、Write、Edit、MultiEdit 和 apply_patch 生成的工具输入。带引号的 shell payload 会作为独立候选片段检查，避免命令语法稀释自然语言比例。命令和工具输出从不扫描，每个会话最多报告一次。
-- `Stop` 和 `SubagentStop` 在最终散文含未授权文字系统时要求完整重写；宿主带 `stop_hook_active` 的重试放行，避免回合死循环。
+- `SessionStart` loads configuration, initializes session state, and publishes both the response and artifact profiles.
+- `UserPromptSubmit` records explicit response-language changes and temporary translation authorization. Translation does not replace the preferred response profile.
+- `PostToolUse` checks model-generated Bash, Write, Edit, MultiEdit, and apply-patch inputs against the artifact profile. It never scans command or tool output and reports at most once per session.
+- `Stop` and `SubagentStop` check final prose against the response profile. A host retry marked with `stop_hook_active` is allowed to prevent an infinite loop.
 
-状态包含 `preferredProfile`、有限的 `authorizedProfiles` 集合和 `toolFeedbackDelivered`。主 agent 与 subagent 共享父会话的 session ID。状态不保存 prompt、回复、命令或文件内容；它以宿主平台名和 session ID 的 SHA-256 为键，原子写到当前工作目录的 `.language-output/state/`，因此 Claude 与 Codex 的同名会话不会共享状态。缺少可信 session ID 时插件不创建共享默认状态。`.language-output/.gitignore` 忽略该工作目录的全部内容，插件不会修改项目根目录的 `.gitignore`。状态 24 小时后过期，当前没有逐轮 profile 或撤销协议。
+State contains `preferredProfile`, a bounded `authorizedProfiles` set, and `toolFeedbackDelivered`. It does not store prompts, replies, commands, or file content. The state key hashes the host platform and trusted session ID, is written atomically under `.language-output/state/`, and expires after 24 hours. Missing trusted session identity does not create shared sticky state.
 
-Claude 通过 `hookSpecificOutput.additionalContext` 接收 `PostToolUse` 反馈；Codex 的 tool-lifecycle Hook 按宿主协议通过 stderr 接收同一文本。插件不按 provider 维护语义不同的检测分支。
+Claude receives PostToolUse feedback through `hookSpecificOutput.additionalContext`. Codex receives the same semantic feedback through the host tool-lifecycle protocol on stderr.
 
-## 配置优先级
+## Configuration
 
-配置优先级为：Git 根目录 `.language-output.mjs` → 宿主级安装偏好 → 严格默认值。
+Configuration precedence is:
 
-安装器可持久化宿主级偏好：
+1. Git-root `.language-output.mjs`
+2. Host preference written by the installer
+3. Strict defaults
 
-```bash
-bash scripts/install-all.sh --language en-US
-```
+The host preference contains only `defaultProfile`. Claude reads it below `CLAUDE_CONFIG_DIR` (default `~/.claude`); Codex reads it below `CODEX_HOME` (default `~/.codex`). Both use `harness-start/language-output.json` as the relative path.
 
-未传 `--language` 且未设置 `HARNESS_LANGUAGE_PROFILE` 时，安装器按 `LC_ALL`、`LC_MESSAGES`、`LANG` 的顺序读取系统 locale。简体中文、繁体中文、英文、日文、韩文和泰文 locale 分别映射到对应内置 profile；未知 locale 会告警并使用 `en-US`。`C` 和 `POSIX` 也使用 `en-US`。显式参数或环境变量始终优先。
-
-Claude Code 从 `CLAUDE_CONFIG_DIR`（默认 `~/.claude`）下的 `harness-start/language-output.json` 读取；Codex 从 `CODEX_HOME`（默认 `~/.codex`）下的同一相对路径读取。JSON 只包含 `defaultProfile`。
-
-项目覆盖配置示例：
+Project override example:
 
 ```js
 export default {
   defaultProfile: "zh-CN",
+  artifactProfile: "en-US",
   toolFeedback: "report", // report | off
   stop: "block",          // block | off
   detection: {
@@ -68,27 +55,27 @@ export default {
 };
 ```
 
-配置只接受以下字段：`defaultProfile`、`toolFeedback`、`stop`、`detection.minScriptCharacters` 和 `detection.minLetterRatio`。`defaultProfile` 可使用 `zh-CN`、`zh-TW`、`en-US`、`ja-JP`、`ko-KR` 或 `th-TH`。任一未知或非法字段都会使完整项目配置回退严格默认值。字符阈值范围为 `1..100`，字母比例范围为 `0.01..1`。自定义检测回调、任意其他 profile、路径覆盖和读取旧 `in-chinese` 配置均不在契约内。
+`defaultProfile` governs responses and session language intent. `artifactProfile` is optional; when omitted, generated files use the active response profile. Set it when a project has a stable file-language contract that differs from conversation. Explicit user and project-owned artifact-language requirements take precedence in agent guidance, while `artifactProfile` supplies the deterministic PostToolUse profile.
 
-`.language-output.mjs` 是项目拥有、通过 `import()` 加载的可信可执行配置。可使用内置 `language-output-config` Skill 初始化或诊断。
+The accepted top-level fields are `defaultProfile`, `artifactProfile`, `toolFeedback`, `stop`, and `detection`. Both profile fields accept `zh-CN`, `zh-TW`, `en-US`, `ja-JP`, `ko-KR`, or `th-TH`; `artifactProfile` may also be `null`. Detection accepts `minScriptCharacters` from 1 through 100 and `minLetterRatio` from 0.01 through 1. Any unknown or invalid field makes the complete project configuration fall back to strict defaults.
 
-## 检测边界
+`.language-output.mjs` is trusted project-owned executable configuration loaded through `import()`. Use the bundled `language-output-config` Skill to initialize or diagnose it.
 
-检测器会分别检查每一行和完整候选文本。profile 与显式授权形成允许的 Unicode Script 并集；其余 Han、Hangul、Kana 或 Thai 字符达到配置的最小数量和 Unicode 字母比例时才触发，Latin 不受守卫。
+## Detection boundaries
 
-Han 还会再做一层字形判断：`zh-CN` 会拦成段繁体专用字，`zh-TW` 会拦成段简体专用字，`ja-JP` 会拦没有假名的成段汉字（当作中文）。两边都授权时不报。一对多异体（后/发/里/台 等）不参与计分，避免误报。
+The detector checks individual lines and the complete candidate. It excludes fenced code, inline code, Markdown quotation lines, URLs, and link targets before counting. PostToolUse considers generated input, including quoted shell payloads, file content, replacement strings, and added patch lines. Stop considers only the host-provided final assistant message.
 
-计数前会排除 fenced code、inline code、Markdown 引用行、URL 和链接目标。`PostToolUse` 只提取生成输入，包括命令文本及其带引号 payload、文件内容、替换字符串或 patch 新增行；`Stop` 只检查宿主提供的最终 assistant message。这是确定性的 Unicode Script 守卫，不是通用自然语言分类器。
+Han receives additional variant checks: `zh-CN` rejects substantial Traditional-only characters, `zh-TW` rejects substantial Simplified-only characters, and `ja-JP` rejects substantial Han text without Kana as likely Chinese. Ambiguous one-to-many variants are not scored.
 
-结构化字段值的语言一致性属于预防性提示契约。Latin 仍始终允许，插件不会把中文 profile 中的英文散文升级为硬阻断；这样可以避免误伤技术术语、API、类型和标识符。
+This is a deterministic Unicode-script guard. Latin prose is not blocked on Chinese profiles because doing so would create excessive technical false positives.
 
-## 验证
+## Verification
 
-在 marketplace 根目录运行：
+From the marketplace root:
 
 ```bash
-npx tsx --test plugins/language-output/tests/*.test.ts
-./scripts/acceptance/run.sh --plugin language-output
+node --import tsx --test plugins/session-governance/modules/language/tests/*.test.ts plugins/session-governance/modules/language/tests/entries/hooks/*.test.ts
+./scripts/acceptance/run.sh --plugin session-governance
 ```
 
-验收命令需要 Docker，以及仓库验收 runner 所述的 DeepSeek 凭据。
+Live acceptance requires Docker and the credentials documented by the repository acceptance runner.

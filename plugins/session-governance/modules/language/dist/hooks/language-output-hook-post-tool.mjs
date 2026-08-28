@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:79ac4709881682e11ae1105400c3a4411820b98c7ab471b44a0566bcc62b10a1
+// harness-source-hash: sha256:d8c95fd90e5a64a2eb23aaee2937c38a8ce97493b87f8cd3b557fe464cdfbdf7
 import {
   detectLanguageDrift,
   toolFeedback
-} from "../chunks/chunk-AZB2NJRT.mjs";
+} from "../chunks/chunk-C64HASW7.mjs";
 import {
   claimToolFeedback,
   eventCwd,
@@ -16,7 +16,7 @@ import {
   supportsPostToolFeedback,
   warn,
   writeJson
-} from "../chunks/chunk-XXU46M4R.mjs";
+} from "../chunks/chunk-E2AJDEOE.mjs";
 
 // plugins/session-governance/modules/language/src/entries/hooks/language-output-hook-post-tool.ts
 async function main() {
@@ -28,14 +28,15 @@ async function main() {
   const text = generatedToolText(event);
   if (!text) return;
   const state = readState(event, config.defaultProfile);
+  const artifactProfile = config.artifactProfile ?? state.preferredProfile;
   const [finding] = detectLanguageDrift(text, {
-    preferredProfile: state.preferredProfile,
+    preferredProfile: artifactProfile,
     authorizedProfiles: state.authorizedProfiles,
     detection: config.detection
   });
   if (!finding || !claimToolFeedback(event, config.defaultProfile)) return;
   writeJson(postToolFeedbackOutput(
-    toolFeedback(state.preferredProfile, finding, extractFileTargets(event))
+    toolFeedback(artifactProfile, finding, extractFileTargets(event))
   ));
 }
 main().catch((error) => warn(`PostToolUse failed open: ${error.message}`));

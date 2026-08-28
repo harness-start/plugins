@@ -10,7 +10,7 @@ import { isProfileId, type ProfileId } from "./profiles.js";
 
 const CONFIG_NAME = ".language-output.mjs";
 const USER_CONFIG_RELATIVE_PATH = "harness-start/language-output.json";
-const TOP_LEVEL_KEYS = new Set(["defaultProfile", "toolFeedback", "stop", "detection"]);
+const TOP_LEVEL_KEYS = new Set(["defaultProfile", "artifactProfile", "toolFeedback", "stop", "detection"]);
 const DETECTION_KEYS = new Set(["minScriptCharacters", "minLetterRatio"]);
 
 export type ToolFeedbackMode = "report" | "off";
@@ -23,6 +23,7 @@ export type DetectionConfig = {
 
 export type LanguageConfig = {
   defaultProfile: ProfileId;
+  artifactProfile: ProfileId | null;
   toolFeedback: ToolFeedbackMode;
   stop: StopMode;
   detection: DetectionConfig;
@@ -30,6 +31,7 @@ export type LanguageConfig = {
 
 export const DEFAULT_CONFIG: Readonly<LanguageConfig> = Object.freeze({
   defaultProfile: "zh-CN",
+  artifactProfile: null,
   toolFeedback: "report",
   stop: "block",
   detection: Object.freeze({
@@ -60,6 +62,9 @@ export function resolveConfig(source: unknown): LanguageConfig {
   if (source.defaultProfile !== undefined && !isProfileId(source.defaultProfile)) {
     throw new Error("defaultProfile must be zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
   }
+  if (source.artifactProfile !== undefined && source.artifactProfile !== null && !isProfileId(source.artifactProfile)) {
+    throw new Error("artifactProfile must be null, zh-CN, zh-TW, en-US, ja-JP, ko-KR, or th-TH");
+  }
   if (source.toolFeedback !== undefined && !isToolFeedbackMode(source.toolFeedback)) {
     throw new Error("toolFeedback must be report or off");
   }
@@ -83,6 +88,7 @@ export function resolveConfig(source: unknown): LanguageConfig {
   }
   return {
     defaultProfile: isProfileId(source.defaultProfile) ? source.defaultProfile : DEFAULT_CONFIG.defaultProfile,
+    artifactProfile: isProfileId(source.artifactProfile) ? source.artifactProfile : null,
     toolFeedback: isToolFeedbackMode(source.toolFeedback) ? source.toolFeedback : DEFAULT_CONFIG.toolFeedback,
     stop: isStopMode(source.stop) ? source.stop : DEFAULT_CONFIG.stop,
     detection: { minScriptCharacters, minLetterRatio },

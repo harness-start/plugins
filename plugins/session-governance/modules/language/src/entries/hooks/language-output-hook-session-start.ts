@@ -18,7 +18,7 @@ async function main() {
   const source = extractSource(event);
   const reset = source === "startup" || source === "clear";
   const state = initializeState(event, config.defaultProfile, reset);
-  writeJson(additionalContextOutput("SessionStart", sessionContext(state.preferredProfile)));
+  writeJson(additionalContextOutput("SessionStart", sessionContext(state.preferredProfile, config.artifactProfile)));
 }
 
 main().catch((error) => warn(`SessionStart failed open: ${error.message}`));

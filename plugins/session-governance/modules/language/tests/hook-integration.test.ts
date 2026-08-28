@@ -56,13 +56,14 @@ test("SessionStart initializes and resumes the configured profile", async () => 
   assert.match(context, /profile=ja-JP/u);
   assert.match(
     context,
-    /agent-authored natural-language values.*session language profile/isu,
+    /response language profile/isu,
   );
   assert.match(context, /JSON.*YAML.*Markdown machine blocks/isu);
   assert.match(
     context,
     /schema names.*keys.*enum literals.*identifiers.*remain unchanged/isu,
   );
+  assert.match(context, /generated files.*user or project.*artifact language/isu);
 
   await runEntry("user-prompt", event(cwd, "profile", { prompt: "Please continue to answer in Korean." }), env);
   const resumed = await runEntry("session-start", event(cwd, "profile", { source: "resume" }), env);
@@ -183,7 +184,7 @@ test("PostToolUse reports generated input once and never scans tool output", asy
   assert.match(output.hookSpecificOutput.additionalContext, /answer\.txt/u);
   assert.match(
     output.hookSpecificOutput.additionalContext,
-    /agent-authored natural-language values.*session language profile/isu,
+    /artifact language profile/isu,
   );
 
   const second = await runEntry("post-tool", event(cwd, "tool", {
@@ -198,6 +199,32 @@ test("PostToolUse reports generated input once and never scans tool output", asy
     tool_response: { stdout: "가나다라마바사아자차카타" },
   }), { PLUGIN_DATA: data });
   assert.equal(outputOnly.stdout, "");
+});
+
+test("artifactProfile governs generated files without changing the response profile", async () => {
+  const cwd = root();
+  const data = root();
+  writeFileSync(
+    join(cwd, ".language-output.mjs"),
+    "export default { defaultProfile: 'zh-CN', artifactProfile: 'ja-JP' };\n",
+  );
+  const env = { PLUGIN_DATA: data };
+  const started = await runEntry("session-start", event(cwd, "artifact-profile"), env);
+  const context = JSON.parse(started.stdout).hookSpecificOutput.additionalContext;
+  assert.match(context, /profile=zh-CN/u);
+  assert.match(context, /artifact-profile=ja-JP/u);
+
+  const artifact = await runEntry("post-tool", event(cwd, "artifact-profile", {
+    tool_name: "Write",
+    tool_input: { file_path: "guide.md", content: "設定を保存してからテストを実行してください。" },
+  }), env);
+  assert.equal(artifact.stdout, "");
+
+  const response = await runEntry("stop", event(cwd, "artifact-profile", {
+    last_assistant_message: "設定を保存してからテストを実行してください。",
+  }), env);
+  assert.equal(JSON.parse(response.stdout).decision, "block");
+  assert.match(JSON.parse(response.stdout).reason, /profile zh-CN/u);
 });
 
 test("PostToolUse checks quoted natural-language payloads without shell syntax dilution", async () => {
@@ -261,7 +288,7 @@ test("Stop blocks drift once, then allows the host retry", async () => {
   assert.match(blockedOutput.reason, /profile zh-CN/u);
   assert.match(
     blockedOutput.reason,
-    /agent-authored natural-language values.*session language profile/isu,
+    /response language profile/isu,
   );
 
   const retry = await runEntry("stop", event(cwd, "stop", {

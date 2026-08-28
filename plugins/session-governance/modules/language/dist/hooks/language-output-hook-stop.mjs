@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:79ac4709881682e11ae1105400c3a4411820b98c7ab471b44a0566bcc62b10a1
+// harness-source-hash: sha256:d8c95fd90e5a64a2eb23aaee2937c38a8ce97493b87f8cd3b557fe464cdfbdf7
 import {
   detectLanguageDrift,
   driftBlockReason
-} from "../chunks/chunk-AZB2NJRT.mjs";
+} from "../chunks/chunk-C64HASW7.mjs";
 import {
   eventAssistantMessage,
   eventCwd,
@@ -14,7 +14,7 @@ import {
   stopBlock,
   warn,
   writeJson
-} from "../chunks/chunk-XXU46M4R.mjs";
+} from "../chunks/chunk-E2AJDEOE.mjs";
 
 // plugins/session-governance/modules/language/src/entries/hooks/language-output-hook-stop.ts
 async function main() {

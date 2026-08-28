@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:79ac4709881682e11ae1105400c3a4411820b98c7ab471b44a0566bcc62b10a1
+// harness-source-hash: sha256:d8c95fd90e5a64a2eb23aaee2937c38a8ce97493b87f8cd3b557fe464cdfbdf7
 import {
   profileFor
-} from "./chunk-XXU46M4R.mjs";
+} from "./chunk-E2AJDEOE.mjs";
 
 // plugins/session-governance/modules/language/src/lib/han-variants.ts
 var HAN_VARIANT_PAIRS = Object.freeze([
@@ -302,14 +302,17 @@ function detectLanguageDrift(text, {
 }
 
 // plugins/session-governance/modules/language/src/lib/policy.ts
-var STRUCTURED_CONTENT = "All agent-authored natural-language values, including values inside JSON, YAML, TOML, XML, Markdown machine blocks, tables, and generated files, must use the session language profile.";
+var RESPONSE_CONTENT = "All agent-authored natural-language values in responses, including values inside JSON, YAML, TOML, XML, Markdown machine blocks, and tables, must use the response language profile.";
+var ARTIFACT_CONTENT = "Generated natural-language values in files must use the artifact language profile.";
 var TECHNICAL_EXCEPTION = "Schema names, keys, enum literals, IDs, identifiers, variables, code, commands, paths, flags, APIs, and types remain unchanged. Verbatim quotations and explicitly requested translation content may retain their source or target language. A natural-language value is not exempt merely because it appears inside structured data or a code fence.";
-function sessionContext(profileId) {
+function sessionContext(profileId, artifactProfileId) {
   const profile = profileFor(profileId);
+  const artifactProfile = artifactProfileId ? profileFor(artifactProfileId) : profile;
   return [
-    `[language-output] profile=${profile.id}`,
+    `[language-output] profile=${profile.id} artifact-profile=${artifactProfile.id}`,
     profile.sessionInstruction,
-    STRUCTURED_CONTENT,
+    RESPONSE_CONTENT,
+    `For generated files, an explicit user or project-owned artifact language requirement takes precedence; otherwise use the artifact language profile ${artifactProfile.id}.`,
     TECHNICAL_EXCEPTION,
     "An explicit user request for another response language updates the session profile; a translation request authorizes only its target language."
   ].join("\n");
@@ -319,10 +322,10 @@ function toolFeedback(profileId, finding, targets = []) {
   const repair = targets.length > 0 ? `Review and correct the generated natural-language text in: ${targets.join(", ")}.` : "Do not roll back the completed command; correct subsequent generated natural-language text.";
   return [
     "[Language Output Feedback] unauthorized language drift detected",
-    `Detected ${SCRIPT_LABELS[finding.script] ?? finding.script} text outside the session language profile ${profile.id}.`,
+    `Detected ${SCRIPT_LABELS[finding.script] ?? finding.script} text outside the artifact language profile ${profile.id}.`,
     repair,
-    profile.rewriteInstruction,
-    STRUCTURED_CONTENT,
+    `Correct the generated file text in ${profile.label}.`,
+    ARTIFACT_CONTENT,
     TECHNICAL_EXCEPTION
   ].join("\n");
 }
@@ -330,10 +333,10 @@ function driftBlockReason(profileId, finding) {
   const profile = profileFor(profileId);
   return [
     "[Language Output Gate] unauthorized language drift detected",
-    `Detected ${SCRIPT_LABELS[finding.script] ?? finding.script} prose outside the session language profile ${profile.id}.`,
+    `Detected ${SCRIPT_LABELS[finding.script] ?? finding.script} prose outside the response language profile ${profile.id}.`,
     profile.rewriteInstruction,
     "Preserve every fact, verification receipt, conclusion, and recovery instruction from the previous response.",
-    STRUCTURED_CONTENT,
+    RESPONSE_CONTENT,
     TECHNICAL_EXCEPTION
   ].join("\n");
 }
