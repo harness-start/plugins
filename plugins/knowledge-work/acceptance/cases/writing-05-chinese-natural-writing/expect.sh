@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'Chinese prose.*writing-chinese-prose.*ai-flavor-remover'
+require_prompt_context_signal 'writing-chinese-prose.*ai-flavor-remover'
 
 if [ "${ACCEPT_HOST}" = "claude" ]; then
   for skill in writing-chinese-prose ai-flavor-remover; do
@@ -37,4 +37,4 @@ if printf '%s' "${reply}" | grep -Eq '(^|[^你])我(们)?'; then
   exit 1
 fi
 
-echo "OK Chinese route loaded both bundled editors and preserved facts without invented voice"
+echo "OK Chinese de-AI route loaded both scoped editors and preserved facts without invented voice"

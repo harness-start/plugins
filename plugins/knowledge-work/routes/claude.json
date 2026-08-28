@@ -25,6 +25,14 @@
   ],
   "UserPromptSubmit": [
     {
+      "module": "writing",
+      "script": "dist/hooks/professional-writing.mjs",
+      "args": [
+        "prompt"
+      ],
+      "timeoutMs": 10000
+    },
+    {
       "module": "research",
       "script": "dist/hooks/evidence-based-research.mjs",
       "args": [

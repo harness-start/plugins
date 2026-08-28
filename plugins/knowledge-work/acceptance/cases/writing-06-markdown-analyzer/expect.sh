@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'Markdown prose.*writing-markdown-ai-style.*analy'
+require_prompt_context_signal 'writing-markdown-ai-style.*harness\.mjs writing analyze'
 require_file_exists "${ACCEPT_WORKSPACE}/release-note.md"
 
 if [ "${ACCEPT_HOST}" = "claude" ]; then
@@ -15,13 +15,13 @@ if [ "${ACCEPT_HOST}" = "claude" ]; then
   analyzer_runs="$(grep -Ec 'tool_dispatch_start tool=Bash' "${ACCEPT_LOG}" || true)"
   claude_reply="$(sed '/^===== claude-debug-file =====$/q' "${ACCEPT_LOG}")"
   printf '%s' "${claude_reply}" | grep -Eiq 'analy[sz]er|before.*after'
-  printf '%s' "${claude_reply}" | grep -Eiq \
-    '[1-9][0-9]*[^[:cntrl:]]{0,80}(→|->|to)[[:space:]]*0'
+  printf '%s' "${claude_reply}" | grep -Eiq 'before[^[:cntrl:]]*[1-9][0-9]*|[1-9][0-9]*[^[:cntrl:]]*before'
+  printf '%s' "${claude_reply}" | grep -Eiq 'after[^[:cntrl:]]*0|0[^[:cntrl:]]*after'
 else
   for skill in writing-english-prose writing-markdown-ai-style; do
     grep -Eq "/skills/${skill}/SKILL\\.md" "${ACCEPT_LOG}"
   done
-  analyzer_runs="$(grep -Ec 'analyze-ai-style\.mjs' "${ACCEPT_LOG}" || true)"
+  analyzer_runs="$(grep -Ec 'harness\.mjs writing analyze' "${ACCEPT_LOG}" || true)"
 fi
 
 if [ "${analyzer_runs}" -lt 2 ]; then
