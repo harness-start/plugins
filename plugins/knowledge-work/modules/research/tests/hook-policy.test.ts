@@ -46,10 +46,12 @@ test("ordinary non-research completion bypasses the gate", async () => {
 
 test("skill name in prompt does not activate hard mode", async () => {
   const { workspace, dataRoot, event } = await fixture("skill-name");
-  appendStateEvent(event, "prompt", { abort: false });
   const result = runHook("prompt", { ...event, prompt: "Tell me about research-evidence-workflow casually" }, dataRoot);
   assert.equal(result.status, 0);
+  assert.equal(result.stdout, "");
   assert.equal(readState(event).active, false);
+  assert.equal(existsSync(dataRoot), false);
+  assert.equal(existsSync(join(workspace, ".research")), false);
   assert.equal(workspace, event.cwd);
 });
 
@@ -63,6 +65,11 @@ test("SessionStart injects orchestrator routing priority", async () => {
     body.hookSpecificOutput.additionalContext,
     /host's built-in web search.*provider API keys/isu,
   );
+  assert.match(
+    body.hookSpecificOutput.additionalContext,
+    /final deliverable.*multiple sourced claims.*durable evidence package.*persistent research state/isu,
+  );
+  assert.doesNotMatch(body.hookSpecificOutput.additionalContext, /when unsure|when in doubt/iu);
 });
 
 test("open project workflow activates gate without prompt aliases", async () => {
@@ -130,6 +137,31 @@ test("read-only inspection commands do not stale research state", async () => {
     tool_response: { exit_code: 0, stdout: "{}" },
   }, dataRoot);
   assert.equal(result.status, 0);
+  assert.equal(readState(event).revision, 0);
+});
+
+test("compound read-only inspection remains allowed and does not stale research state", async () => {
+  const { workspace, dataRoot, event } = await fixture("compound-readonly-inspection");
+  const runId = openWorkflow(workspace);
+  appendStateEvent(event, "prompt", { abort: false });
+  appendStateEvent(event, "receipt", { tool: "research_begin", runId, promptEpoch: 1, revision: 0 });
+  const command = `sed -n '1,40p' .research/runs/${runId}/workflow.json; find .research/runs/${runId} -maxdepth 1 -type f -print | head -5`;
+
+  const pre = runHook("pre", {
+    ...event,
+    tool_name: "exec_command",
+    tool_input: { cmd: command },
+  }, dataRoot);
+  assert.equal(pre.status, 0);
+  assert.equal(pre.stdout, "");
+
+  const post = runHook("post", {
+    ...event,
+    tool_name: "exec_command",
+    tool_input: { cmd: command },
+    tool_response: { exit_code: 0, stdout: "workflow.json" },
+  }, dataRoot);
+  assert.equal(post.status, 0);
   assert.equal(readState(event).revision, 0);
 });
 

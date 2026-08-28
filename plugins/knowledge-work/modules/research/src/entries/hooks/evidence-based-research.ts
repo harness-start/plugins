@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { HookEvent } from "@harness/core/hook-event";
+import { shellCommandInvocations } from "@harness/core/shell-parse";
 
 import { validateSealedArtifacts, parseTrailer, type ResearchTrailer } from "../../lib/seal-validator.js";
 import { appendStateEvent, readState, type ResearchHookState } from "../../lib/state-store.js";
@@ -20,11 +21,11 @@ const MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_capture|sou
 
 const SESSION_CONTEXT = [
   "[Research Provenance Guard] Research entry routing",
-  "For research, investigation of APIs/docs/specs/facts, source-backed findings, or multi-source evidence work, invoke research-evidence-workflow first and open a project run under .research/runs/.",
+  "Invoke research-evidence-workflow and open a project run under .research/runs/ when the final deliverable requires multiple sourced claims, a durable evidence package, or persistent research state.",
   "Use the current host's built-in web search for candidate discovery: Claude Code uses WebSearch/WebFetch; Codex uses its registered web search tool. Do not require provider API keys or standalone search CLIs.",
   "Invoke the bundled handoff method only after the run is sealed and handoffs/outbound files exist.",
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open—not because this SessionStart text appeared.",
-  "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence.",
+  "Keep single-URL fetches, single-fact checks, pure local code Q&A, and user-explicit skips on the direct path unless the requested deliverable needs that durable research contract.",
 ].join("\n");
 
 type McpResponsePayload = {
@@ -86,12 +87,18 @@ function callsFirecrawlCli(command: string | null): boolean {
 
 function shellCommandIsReadOnly(command: string | null): boolean {
   const value = String(command ?? "").trim();
-  if (!value || /[\n;&|><`]|\$\(/u.test(value)) return false;
-  return /^(?:cat|pwd|ls|rg|grep|head|tail|jq|wc|stat|file)\b/iu.test(value)
-    || (/^sed\b/iu.test(value) && !/(?:^|\s)-(?:[^\s]*i|--in-place)(?:\s|=|$)/iu.test(value))
-    || (/^find\b/iu.test(value) && !/(?:-delete|-exec|-execdir|>)/iu.test(value))
-    || (/^git\s+(?:status|diff|log|show|rev-parse)\b/iu.test(value) && !/--output(?:=|\s)/iu.test(value))
-    || /^node\s+--check\b/iu.test(value);
+  if (!value || /[<>`]|\$\(/u.test(value)) return false;
+  const invocations = shellCommandInvocations(value);
+  if (invocations.length === 0) return false;
+  return invocations.every(({ executable, args }) => {
+    if (new Set(["cat", "file", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"]).has(executable)) {
+      return executable !== "rg" || !args.some((arg) => arg === "--pre" || arg.startsWith("--pre="));
+    }
+    if (executable === "sed") return !args.some((arg) => arg === "--in-place" || arg.startsWith("--in-place=") || /^-[^-]*i/u.test(arg));
+    if (executable === "find") return !args.some((arg) => ["-delete", "-exec", "-execdir", "-fprint", "-fprint0", "-fprintf", "-fls", "-ok", "-okdir"].includes(arg));
+    if (executable === "git") return ["diff", "log", "rev-parse", "show", "status"].includes(args[0] ?? "") && !args.some((arg) => arg === "--output" || arg.startsWith("--output="));
+    return executable === "node" && args[0] === "--check";
+  });
 }
 
 function trustedWorkflowCommand(command: string | null, subcommand: string): boolean {
@@ -229,6 +236,7 @@ async function main(mode: string | undefined = process.argv[2]): Promise<void> {
     const text = prompt(event).trim();
     const abort = text === "# research-abort";
     const prior = readState(event);
+    if (!abort && !prior.active) return;
     if (!appendStateEvent(event, "prompt", { abort, runId: prior.runId }) && abort) {
       writeJson({ decision: "block", reason: "research plugin data is unavailable; cannot record research abort." });
       return;

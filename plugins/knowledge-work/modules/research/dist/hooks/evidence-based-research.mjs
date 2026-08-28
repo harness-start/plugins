@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:17048b60cc2420d21ca4e159ffd0e86ed232deb0d2f22a03ecb26d9b7ed65f33
+// harness-source-hash: sha256:e42abd0756838cb2a9c97c33381a5e1aa28b7df71eca25bbfa6fd5876e595feb
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-N7PQIL4T.mjs";
+} from "../chunks/chunk-PHDHH6TL.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -24,11 +24,333 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-AHDK6VVG.mjs";
+} from "../chunks/chunk-YCLB2PUO.mjs";
 
 // plugins/knowledge-work/modules/research/src/entries/hooks/evidence-based-research.ts
 import { join as join4, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// core/src/shell-parse.ts
+function decodeAnsiCQuoteEscape(command, slashIndex) {
+  const marker = command[slashIndex + 1] ?? "";
+  const simple = /* @__PURE__ */ new Map([
+    ["a", "\x07"],
+    ["b", "\b"],
+    ["e", "\x1B"],
+    ["E", "\x1B"],
+    ["f", "\f"],
+    ["n", "\n"],
+    ["r", "\r"],
+    ["t", "	"],
+    ["v", "\v"],
+    ["\\", "\\"],
+    ["'", "'"],
+    ['"', '"']
+  ]);
+  if (simple.has(marker)) {
+    return { value: simple.get(marker) ?? "", endIndex: slashIndex + 1 };
+  }
+  const numeric = marker === "x" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,2}/iu) : marker === "u" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,4}/iu) : marker === "U" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,8}/iu) : command.slice(slashIndex + 1).match(/^[0-7]{1,3}/u);
+  if (numeric?.[0]) {
+    const radix = marker === "x" || marker === "u" || marker === "U" ? 16 : 8;
+    const codePoint = Number.parseInt(numeric[0], radix);
+    if (codePoint <= 1114111) {
+      const offset = marker === "x" || marker === "u" || marker === "U" ? 2 : 1;
+      return {
+        value: String.fromCodePoint(codePoint),
+        endIndex: slashIndex + offset + numeric[0].length - 1
+      };
+    }
+  }
+  if (marker === "\n") return { value: "", endIndex: slashIndex + 1 };
+  return { value: `\\${marker}`, endIndex: slashIndex + 1 };
+}
+var EMPTY_OPTIONS = /* @__PURE__ */ new Set();
+var SIMPLE_COMMAND_WRAPPERS = /* @__PURE__ */ new Set(["command", "exec", "nohup", "busybox", "time"]);
+var SUDO_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-C",
+  "-D",
+  "-g",
+  "-h",
+  "-p",
+  "-R",
+  "-T",
+  "-u",
+  "--chdir",
+  "--close-from",
+  "--group",
+  "--host",
+  "--prompt",
+  "--role",
+  "--type",
+  "--user"
+]);
+var ENV_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-C",
+  "-S",
+  "-u",
+  "--chdir",
+  "--split-string",
+  "--unset"
+]);
+var XARGS_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-a",
+  "-d",
+  "-E",
+  "-I",
+  "-L",
+  "-n",
+  "-P",
+  "-s",
+  "--arg-file",
+  "--delimiter",
+  "--eof",
+  "--max-args",
+  "--max-chars",
+  "--max-lines",
+  "--max-procs",
+  "--replace"
+]);
+var TIMEOUT_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-s",
+  "--signal",
+  "-k",
+  "--kill-after"
+]);
+var NICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set(["-n", "--adjustment"]);
+var STDBUF_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-i",
+  "--input",
+  "-o",
+  "--output",
+  "-e",
+  "--error"
+]);
+var IONICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-c",
+  "--class",
+  "-n",
+  "--classdata",
+  "-p",
+  "--pid"
+]);
+var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
+function skipWrapperOptions(tokens, start, optionsWithValue) {
+  let index = start;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token?.startsWith("-")) break;
+    if (token === "--") return index + 1;
+    index += optionsWithValue.has(token) ? 2 : 1;
+  }
+  return index;
+}
+function tokenBasename(token) {
+  return token.split("/").at(-1) ?? "";
+}
+function commandInvocation(tokens) {
+  let index = 0;
+  let stdinDriven = false;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token) break;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
+      index += 1;
+      continue;
+    }
+    const name = tokenBasename(token);
+    if (SIMPLE_COMMAND_WRAPPERS.has(name)) {
+      index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
+      continue;
+    }
+    if (name === "sudo") {
+      index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "env") {
+      index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "xargs") {
+      stdinDriven = true;
+      index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "timeout") {
+      index = skipWrapperOptions(tokens, index + 1, TIMEOUT_OPTIONS_WITH_VALUE);
+      if (index < tokens.length && tokens[index] && !COMMAND_SEPARATORS.has(tokens[index] ?? "")) {
+        index += 1;
+      }
+      continue;
+    }
+    if (name === "nice") {
+      index = skipWrapperOptions(tokens, index + 1, NICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "stdbuf") {
+      index = skipWrapperOptions(tokens, index + 1, STDBUF_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "ionice") {
+      index = skipWrapperOptions(tokens, index + 1, IONICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    return {
+      executable: name || token,
+      args: tokens.slice(index + 1),
+      stdinDriven
+    };
+  }
+  return null;
+}
+function tokenizeShell(command) {
+  const tokens = [];
+  let current = "";
+  let tokenStarted = false;
+  let quote = null;
+  let ansiCQuote = false;
+  let escaped = false;
+  const pushCurrent = () => {
+    if (tokenStarted) {
+      tokens.push(current);
+      current = "";
+      tokenStarted = false;
+    }
+  };
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index] ?? "";
+    const next = command[index + 1];
+    if (escaped) {
+      current += char;
+      tokenStarted = true;
+      escaped = false;
+      continue;
+    }
+    if (quote) {
+      if (ansiCQuote && char === "\\") {
+        const decoded = decodeAnsiCQuoteEscape(command, index);
+        current += decoded.value;
+        tokenStarted = true;
+        index = decoded.endIndex;
+        continue;
+      }
+      if (quote === '"' && char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        quote = null;
+        ansiCQuote = false;
+        continue;
+      }
+      current += char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "$" && (next === '"' || next === "'")) {
+      quote = next;
+      ansiCQuote = next === "'";
+      tokenStarted = true;
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      tokenStarted = true;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      pushCurrent();
+      continue;
+    }
+    if (char === "#" && !tokenStarted) break;
+    if (char === "&" && next === "&") {
+      pushCurrent();
+      tokens.push("&&");
+      index += 1;
+      continue;
+    }
+    if (char === "&") {
+      pushCurrent();
+      tokens.push("&");
+      continue;
+    }
+    if (char === "|" && next === "|") {
+      pushCurrent();
+      tokens.push("||");
+      index += 1;
+      continue;
+    }
+    if (char === ";" || char === "|") {
+      pushCurrent();
+      tokens.push(char);
+      continue;
+    }
+    current += char;
+    tokenStarted = true;
+  }
+  pushCurrent();
+  return tokens;
+}
+function splitShellLogicalLines(command) {
+  const lines = [];
+  let current = "";
+  let quote = null;
+  let escaped = false;
+  for (const char of command) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      current += char;
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "\n") {
+      if (current.trim()) lines.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) lines.push(current);
+  return lines;
+}
+function shellCommandInvocations(command) {
+  const invocations = [];
+  for (const logicalLine of splitShellLogicalLines(command)) {
+    const tokens = tokenizeShell(logicalLine);
+    let segment = [];
+    for (let index = 0; index <= tokens.length; index += 1) {
+      const token = tokens[index];
+      if (token !== void 0 && !COMMAND_SEPARATORS.has(token)) {
+        segment.push(token);
+        continue;
+      }
+      const invocation = commandInvocation(segment);
+      if (invocation) invocations.push(invocation);
+      segment = [];
+    }
+  }
+  return invocations;
+}
 
 // plugins/knowledge-work/modules/research/src/lib/seal-validator.ts
 import { readFile } from "node:fs/promises";
@@ -300,11 +622,11 @@ function readState(event) {
 var MCP_TOOL = /(?:^|_)research_provenance__(research_begin|source_capture|source_read|source_anchor|research_status|research_seal)$/iu;
 var SESSION_CONTEXT = [
   "[Research Provenance Guard] Research entry routing",
-  "For research, investigation of APIs/docs/specs/facts, source-backed findings, or multi-source evidence work, invoke research-evidence-workflow first and open a project run under .research/runs/.",
+  "Invoke research-evidence-workflow and open a project run under .research/runs/ when the final deliverable requires multiple sourced claims, a durable evidence package, or persistent research state.",
   "Use the current host's built-in web search for candidate discovery: Claude Code uses WebSearch/WebFetch; Codex uses its registered web search tool. Do not require provider API keys or standalone search CLIs.",
   "Invoke the bundled handoff method only after the run is sealed and handoffs/outbound files exist.",
   "Hard enforcement (CLI block, Stop seal) starts only after a durable project workflow run is open\u2014not because this SessionStart text appeared.",
-  "Narrow escape: single-URL fetch with no multi-claim research intent, pure local code Q&A, or user-explicit skip may omit the orchestrator. Prefer the orchestrator when unsure if claims will be treated as evidence."
+  "Keep single-URL fetches, single-fact checks, pure local code Q&A, and user-explicit skips on the direct path unless the requested deliverable needs that durable research contract."
 ].join("\n");
 function objectLike(value) {
   return typeof value === "object" && value !== null;
@@ -346,8 +668,18 @@ function callsFirecrawlCli(command) {
 }
 function shellCommandIsReadOnly(command) {
   const value = String(command ?? "").trim();
-  if (!value || /[\n;&|><`]|\$\(/u.test(value)) return false;
-  return /^(?:cat|pwd|ls|rg|grep|head|tail|jq|wc|stat|file)\b/iu.test(value) || /^sed\b/iu.test(value) && !/(?:^|\s)-(?:[^\s]*i|--in-place)(?:\s|=|$)/iu.test(value) || /^find\b/iu.test(value) && !/(?:-delete|-exec|-execdir|>)/iu.test(value) || /^git\s+(?:status|diff|log|show|rev-parse)\b/iu.test(value) && !/--output(?:=|\s)/iu.test(value) || /^node\s+--check\b/iu.test(value);
+  if (!value || /[<>`]|\$\(/u.test(value)) return false;
+  const invocations = shellCommandInvocations(value);
+  if (invocations.length === 0) return false;
+  return invocations.every(({ executable, args }) => {
+    if ((/* @__PURE__ */ new Set(["cat", "file", "grep", "head", "jq", "ls", "pwd", "rg", "stat", "tail", "wc"])).has(executable)) {
+      return executable !== "rg" || !args.some((arg) => arg === "--pre" || arg.startsWith("--pre="));
+    }
+    if (executable === "sed") return !args.some((arg) => arg === "--in-place" || arg.startsWith("--in-place=") || /^-[^-]*i/u.test(arg));
+    if (executable === "find") return !args.some((arg) => ["-delete", "-exec", "-execdir", "-fprint", "-fprint0", "-fprintf", "-fls", "-ok", "-okdir"].includes(arg));
+    if (executable === "git") return ["diff", "log", "rev-parse", "show", "status"].includes(args[0] ?? "") && !args.some((arg) => arg === "--output" || arg.startsWith("--output="));
+    return executable === "node" && args[0] === "--check";
+  });
 }
 function trustedWorkflowCommand(command, subcommand) {
   const pluginRoot = process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT;
@@ -475,6 +807,7 @@ async function main(mode = process.argv[2]) {
     const text = eventPrompt(event).trim();
     const abort = text === "# research-abort";
     const prior = readState(event);
+    if (!abort && !prior.active) return;
     if (!appendStateEvent(event, "prompt", { abort, runId: prior.runId }) && abort) {
       writeJson({ decision: "block", reason: "research plugin data is unavailable; cannot record research abort." });
       return;
