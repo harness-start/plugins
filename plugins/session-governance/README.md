@@ -44,7 +44,7 @@ This owner has no public CLI or MCP server. Claude Code and Codex consume the sa
 
 ## Configuration and state
 
-`discipline` reads project-owned `.execution-discipline.mjs` settings for edit-loop, command-repeat, polling, exemptions, and bypass markers. `language` reads `.language-output.mjs`, then the host-level preference written by the installer, then strict defaults. Runtime state is session/workspace-scoped and stores digests, counters, language authorization, and timestamps rather than prompt bodies, command output, or file content.
+`discipline` reads project-owned `.execution-discipline.mjs` settings for edit-loop, command-repeat, polling, exemptions, and bypass markers. `language` reads `.language-output.mjs`, then the host-level preference written by the installer, then strict defaults. Its response profile is session-scoped; an optional `artifactProfile` independently governs generated file content when a project has a different stable artifact-language contract. Runtime state is session/workspace-scoped and stores digests, counters, language authorization, and timestamps rather than prompt bodies, command output, or file content.
 
 Configuration Skills diagnose and initialize these files. They do not weaken fixed safety rules silently, and invalid fields fall back according to the responsible module's documented schema.
 
