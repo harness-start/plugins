@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import { promptMethodContext } from "../src/entries/hooks/engineering-practice.ts";
 
 const entry = resolve(import.meta.dirname, "../dist/hooks/engineering-practice.mjs");
 
@@ -68,11 +69,40 @@ test("routes review prompts to the bundled read-only review method", () => {
   assert.match(context, /single file:line.*not.*line range/isu);
 });
 
+test("routes Chinese engineering review prompts without matching unrelated commercial review", () => {
+  assert.match(
+    promptMethodContext({ prompt: "审计 plugins 下的实现，检查当前代码变更。" }),
+    /engineering-review.*read-only/isu,
+  );
+  const review = run("user-prompt", { prompt: "审计 plugins 下的实现，检查当前代码变更。" });
+  assert.equal(review.status, 0, review.stderr);
+  assert.match(JSON.parse(review.stdout).hookSpecificOutput.additionalContext, /engineering-review.*read-only/isu);
+
+  const unrelated = run("user-prompt", { prompt: "评审这三家供应商的报价和交付周期。" });
+  assert.equal(unrelated.status, 0, unrelated.stderr);
+  assert.equal(unrelated.stdout, "");
+});
+
+test("routes Chinese high-risk implementation prompts to one checkpoint review", () => {
+  const result = run("user-prompt", { prompt: "修改认证流程并迁移数据库 schema，然后完成验证。" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    JSON.parse(result.stdout).hookSpecificOutput.additionalContext,
+    /high-risk implementation.*engineering-review-checkpoint.*one read-only reviewer/isu,
+  );
+});
+
 test("routes verification prompts to the bundled verification method", () => {
   const result = run("user-prompt", { prompt: "Verify the change before claiming completion." });
   assert.equal(result.status, 0, result.stderr);
   const context = JSON.parse(result.stdout).hookSpecificOutput.additionalContext;
   assert.match(context, /engineering-verification.*after the last mutation.*unverified/isu);
+});
+
+test("routes Chinese verification prompts", () => {
+  const result = run("user-prompt", { prompt: "验证当前代码变更，运行测试和构建后再确认完成。" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(JSON.parse(result.stdout).hookSpecificOutput.additionalContext, /engineering-verification.*last mutation/isu);
 });
 
 test("unrelated prompts stay silent", () => {

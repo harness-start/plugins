@@ -3,7 +3,7 @@ set -euo pipefail
 . "${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}/scripts/acceptance/lib/expect-helpers.sh"
 
 require_host_session_started
-require_session_context_signal 'engineering-review.*severity.*file:line'
+require_prompt_context_signal 'engineering-review.*severity.*file:line'
 
 expected='export function canEdit(user, resource) {
   return user.role === "admin" || resource.ownerId !== user.id;

@@ -21,7 +21,11 @@ else
 fi
 test "${child_count}" -eq 1
 
-extra="$(find "${ACCEPT_WORKSPACE}" -path "${ACCEPT_WORKSPACE}/.git" -prune -o -type f ! -path "${ACCEPT_WORKSPACE}/src/access.mjs" ! -path "${ACCEPT_WORKSPACE}/test/access.test.mjs" ! -path "${ACCEPT_WORKSPACE}/package.json" -print)"
+extra="$(find "${ACCEPT_WORKSPACE}" \
+  -path "${ACCEPT_WORKSPACE}/.git" -prune -o \
+  -path "${ACCEPT_WORKSPACE}/.execution-discipline" -prune -o \
+  -path "${ACCEPT_WORKSPACE}/.language-output" -prune -o \
+  -type f ! -path "${ACCEPT_WORKSPACE}/src/access.mjs" ! -path "${ACCEPT_WORKSPACE}/test/access.test.mjs" ! -path "${ACCEPT_WORKSPACE}/package.json" -print)"
 test -z "${extra}"
 
 echo "OK high-risk authorization change passed focused behavior checks after one review checkpoint"
