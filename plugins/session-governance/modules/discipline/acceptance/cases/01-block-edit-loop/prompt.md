@@ -1,1 +1,0 @@
-Make exactly three separate Edit operations to `src/app.js`. First change `0` to `1`, then `1` to `2`, then `2` to `3`. Do not combine edits, use Write, apply_patch, Bash, shell, exec, Python, Node, or modify another file. If a hook blocks after an edit, stop and report its bracketed title exactly as observed.

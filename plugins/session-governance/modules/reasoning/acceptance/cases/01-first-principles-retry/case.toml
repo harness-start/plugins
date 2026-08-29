@@ -1,4 +1,0 @@
-id = "01-first-principles-retry"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["skill", "first-principles", "outcome", "negative-state"]

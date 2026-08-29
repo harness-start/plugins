@@ -1,4 +1,0 @@
-id = "03-simple-control"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["session-start", "skill-routing", "control", "near-miss"]

@@ -8,7 +8,7 @@ These concerns are not tied to JavaScript, Python, frontend work, or any other d
 
 ## Design
 
-Five private modules live under `modules/` and remain independently testable: `intent`, `reasoning`, `practice`, `discipline`, and `language`. One owner Hook entrypoint dispatches each lifecycle event to the relevant modules. Hooks handle mechanical observations such as first-prompt claims, retry counts, language-script checks, and completion gates. Skills contain open-ended methods such as intent discovery, first-principles analysis, engineering judgment, review, and verification.
+Five domains live under `src/domains/` and remain independently testable: `intent`, `reasoning`, `practice`, `discipline`, and `language`. One owner Hook entrypoint dispatches each lifecycle event to the relevant domains in process. Hooks handle mechanical observations such as first-prompt claims, retry counts, language-script checks, and completion gates. Skills contain open-ended methods such as intent discovery, first-principles analysis, engineering judgment, review, and verification.
 
 Installing the owner activates the complete surface for both hosts. There are no capability profiles, FDE/OPC branches, or dependencies on globally available Skills.
 
@@ -46,7 +46,7 @@ This owner has no public CLI or MCP server. Claude Code and Codex consume the sa
 
 `discipline` reads project-owned `.execution-discipline.mjs` settings for edit-loop, command-repeat, polling, exemptions, and bypass markers. `language` reads `.language-output.mjs`, then the host-level preference written by the installer, then strict defaults. Its response profile is session-scoped; an optional `artifactProfile` independently governs generated file content when a project has a different stable artifact-language contract. Runtime state is session/workspace-scoped and stores digests, counters, language authorization, and timestamps rather than prompt bodies, command output, or file content.
 
-Configuration Skills diagnose and initialize these files. They do not weaken fixed safety rules silently, and invalid fields fall back according to the responsible module's documented schema.
+Configuration Skills diagnose and initialize these files. They do not weaken fixed safety rules silently, and invalid fields fall back according to the responsible domain's documented schema.
 
 ## Boundaries
 
@@ -57,7 +57,7 @@ The plugin observes only events emitted by the host. It cannot count invisible t
 ```bash
 node --import tsx --test \
   plugins/session-governance/tests/*.test.ts \
-  plugins/session-governance/modules/*/tests/*.test.ts
+  plugins/session-governance/tests/domains/**/*.test.ts
 npm run check:dist
 ```
 

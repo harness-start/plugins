@@ -1,4 +1,0 @@
-interface:
-  display_name: "First Principles"
-  short_description: "Rebuild understanding from essential constraints"
-  default_prompt: "Use first principles to rebuild this problem from its essential constraints."

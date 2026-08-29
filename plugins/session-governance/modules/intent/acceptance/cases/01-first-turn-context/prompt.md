@@ -1,1 +1,0 @@
-Fix the whitespace-only behavior in the text normalizer. Preserve the repository's existing compatibility contract, make the smallest coherent change, and run the existing test. Work directly without asking me questions. Do not inspect plugin source or configuration.

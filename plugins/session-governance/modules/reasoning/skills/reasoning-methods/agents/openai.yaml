@@ -1,4 +1,0 @@
-interface:
-  display_name: "Reasoning Discipline"
-  short_description: "Choose and verify the right reasoning structure"
-  default_prompt: "Use adaptive reasoning discipline to solve and verify this problem."

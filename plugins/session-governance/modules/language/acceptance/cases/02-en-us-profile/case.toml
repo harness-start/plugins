@@ -1,4 +1,0 @@
-id = "02-en-us-profile"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["en-us", "session-profile"]

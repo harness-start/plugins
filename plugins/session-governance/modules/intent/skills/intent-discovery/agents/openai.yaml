@@ -1,4 +1,0 @@
-interface:
-  display_name: "Intent Discovery"
-  short_description: "Front-load context and challenge assumptions before acting."
-  default_prompt: "Explore the first request, challenge assumptions, and continue without pausing."

@@ -1,4 +1,0 @@
-id = "04-ko-kr-profile"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["ko-kr", "session-profile"]

@@ -1,1 +1,0 @@
-Continue answering in Thai. Show the exact profile marker injected at session start, then use the Write tool to put exactly `นี่คือคำตอบภาษาไทยและจะใช้ภาษาที่กำหนดต่อไป` followed by one newline in `answer.txt`. Do not modify any other file.

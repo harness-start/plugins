@@ -92,5 +92,5 @@ export default {
 
 ## Reference
 
-- Plugin design: `${CLAUDE_PLUGIN_ROOT}/modules/discipline/README.md` or the sibling `README.md`.
+- Plugin design: `${CLAUDE_PLUGIN_ROOT}/README.md`.
 - Complete example: `references/example-config.mjs`.

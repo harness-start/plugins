@@ -1,4 +1,0 @@
-id = "02-review-regression"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["session-start", "review", "read-only", "outcome"]

@@ -1,1 +1,0 @@
-Continue answering in Korean. Show the exact profile marker injected at session start, then use the Write tool to put exactly `이것은 한국어 응답이며 설정된 언어를 계속 유지합니다.` followed by one newline in `answer.txt`. Do not modify any other file.

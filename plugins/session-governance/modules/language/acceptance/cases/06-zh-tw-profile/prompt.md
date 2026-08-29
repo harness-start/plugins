@@ -1,1 +1,0 @@
-Continue answering in Traditional Chinese. Show the exact profile marker injected at session start, then use the Write tool to put exactly `語言治理會讓這段回應持續使用繁體中文。` followed by one newline in `answer.txt`. Do not modify any other file.
