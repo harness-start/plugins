@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -221,9 +221,9 @@ test("budget policy ratchets historically oversized files", () => {
   );
 });
 
-function runEntry(input) {
+function runEntry(input, phase = "post") {
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [ENTRY], {
+    const child = spawn(process.execPath, [ENTRY, phase], {
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
@@ -244,7 +244,7 @@ test("entry fails open with empty output for malformed JSON", async () => {
   assert.equal(result.stderr, "");
 });
 
-test("entry blocks an oversized file when the matching rule omits mode", async () => {
+test("PreToolUse blocks a predictable oversized write before mutation", async () => {
   const root = mkdtempSync(join(tmpdir(), "file-budget-default-mode-"));
   const sourceDir = join(root, "src");
   const target = join(sourceDir, "limited.php");
@@ -255,17 +255,116 @@ test("entry blocks an oversized file when the matching rule omits mode", async (
       join(root, ".engineering-quality.mjs"),
       "export default { rules: [{ match: /src\\/limited[.]php$/, budget: 1 }] };\n",
     );
-    writeFileSync(target, "<?php\nreturn 1;\n");
+    const result = await runEntry(JSON.stringify({
+      cwd: root,
+      tool_name: "Write",
+      tool_input: { file_path: target, content: "<?php\nreturn 1;\n" },
+    }), "pre");
+
+    assert.equal(result.code, 2, result.stderr);
+    assert.match(result.stderr, /proposed write exceeds its file line budget/u);
+    assert.match(result.stderr, /Before: 0 lines \| After: 2 lines \| Budget: 1 lines/u);
+    assert.equal(existsSync(target), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("PreToolUse projects apply_patch line growth instead of checking only the old file", async () => {
+  const root = mkdtempSync(join(tmpdir(), "file-budget-pre-patch-"));
+  const sourceDir = join(root, "src");
+  const target = join(sourceDir, "limited.php");
+  try {
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root });
+    mkdirSync(sourceDir);
+    writeFileSync(join(root, ".engineering-quality.mjs"), "export default { rules: [{ match: /src\\/limited[.]php$/, budget: 1 }] };\n");
+    writeFileSync(target, "<?php\n");
+
+    const result = await runEntry(JSON.stringify({
+      cwd: root,
+      tool_name: "apply_patch",
+      tool_input: {
+        patch: [
+          "*** Begin Patch",
+          "*** Update File: src/limited.php",
+          "@@",
+          " <?php",
+          "+return 1;",
+          "*** End Patch",
+        ].join("\n"),
+      },
+    }), "pre");
+
+    assert.equal(result.code, 2, result.stderr);
+    assert.match(result.stderr, /Before: 1 lines \| After: 2 lines \| Budget: 1 lines/u);
+    assert.equal(countLines(readFileSync(target, "utf8")), 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("PostToolUse reports an oversized mutation without claiming it was blocked", async () => {
+  const root = mkdtempSync(join(tmpdir(), "file-budget-post-report-"));
+  const target = join(root, "oversized.ts");
+  try {
+    writeFileSync(target, "const value = 1;\n".repeat(501));
 
     const result = await runEntry(JSON.stringify({
       cwd: root,
       tool_name: "Write",
-      tool_input: { file_path: target },
-    }));
+      tool_input: { file_path: target, content: "const value = 1;\n".repeat(501) },
+    }), "post");
 
-    assert.equal(result.code, 2, result.stderr);
-    assert.match(result.stderr, /exceeds its file line budget/);
-    assert.match(result.stderr, /Current: 2 lines \| Budget: 1 lines/);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stderr, /write already happened/u);
+    assert.doesNotMatch(result.stderr, /blocked/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("PostToolUse does not classify an existing oversized non-git file as new", async () => {
+  const root = mkdtempSync(join(tmpdir(), "file-budget-non-git-legacy-"));
+  const target = join(root, "Legacy.java");
+  try {
+    writeFileSync(target, "class Legacy {}\n".repeat(900));
+
+    const result = await runEntry(JSON.stringify({
+      cwd: root,
+      tool_name: "Edit",
+      tool_input: { file_path: target, old_string: "class Legacy {}", new_string: "class Legacy { }" },
+    }), "post");
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stderr, /pre-edit baseline is unavailable/u);
+    assert.doesNotMatch(result.stderr, /New files/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("PostToolUse debt prevents Stop until the oversized file is corrected", async () => {
+  const root = mkdtempSync(join(tmpdir(), "file-budget-stop-debt-"));
+  const target = join(root, "oversized.ts");
+  const sessionId = `budget-debt-${process.pid}-${Date.now()}`;
+  try {
+    writeFileSync(target, "const value = 1;\n".repeat(501));
+    const post = await runEntry(JSON.stringify({
+      cwd: root,
+      session_id: sessionId,
+      tool_name: "Bash",
+      tool_input: { command: "generator > oversized.ts" },
+    }), "post");
+    assert.equal(post.code, 0, post.stderr);
+
+    const blocked = await runEntry(JSON.stringify({ cwd: root, session_id: sessionId }), "stop");
+    assert.equal(blocked.code, 2, blocked.stderr);
+    assert.match(blocked.stderr, /cannot stop.*file line budget/isu);
+
+    writeFileSync(target, "const value = 1;\n");
+    const cleared = await runEntry(JSON.stringify({ cwd: root, session_id: sessionId }), "stop");
+    assert.equal(cleared.code, 0, cleared.stderr);
+    assert.equal(cleared.stderr, "");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

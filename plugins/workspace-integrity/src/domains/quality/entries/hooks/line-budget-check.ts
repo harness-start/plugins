@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * engineering-quality — PostToolUse hook
+ * engineering-quality — PreToolUse enforcement and PostToolUse reporting
  *
  * Ratchet-enforced file line budget mechanism.
  *
@@ -9,12 +9,14 @@
  * User config (.engineering-quality.mjs) rules are prepended to built-in rules.
  * First match wins; unmatched files pass silently.
  *
- * PostToolUse runs after Edit | Write | MultiEdit | ApplyPatch.
+ * Predictable file-tool writes are projected before mutation. PostToolUse is
+ * report-only because it cannot undo an operation that already completed.
  */
 
 import { execFileSync } from "node:child_process";
-import { existsSync, statSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { createHash } from "node:crypto";
+import { existsSync, statSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { classifyBudgetState } from "../../lib/budget-policy.js";
@@ -140,6 +142,7 @@ const DEFAULT_SETTINGS: BudgetSettings = {
   // growth still requires a split or an explicit project override.
   oversizeSoftGrowthLimit: 100,
 };
+const BUDGET_DEBT_DIR = join(tmpdir(), "harness-file-budget-debt");
 
 // ── Ratchet constants (not user-configurable) ─────────────────
 
@@ -330,6 +333,120 @@ export function extractFilePaths(event: HookEvent): string[] {
   });
 }
 
+type LineProjection = { beforeLines: number; afterLines: number };
+
+function sameTarget(rawPath: unknown, filePath: string, cwd: string): boolean {
+  if (typeof rawPath !== "string" || !rawPath.trim()) return false;
+  return resolve(cwd, rawPath) === resolve(filePath);
+}
+
+function projectDirectEdit(event: HookEvent, filePath: string): LineProjection | null {
+  const input = isRecord(event.tool_input) ? event.tool_input : isRecord(event.toolInput) ? event.toolInput : {};
+  const cwd = typeof event.cwd === "string" ? event.cwd : process.cwd();
+  const current = readTextFileCapped(filePath) ?? "";
+  let proposed = current;
+  let matched = false;
+  const operations = [input, ...(Array.isArray(input.edits) ? input.edits.filter(isRecord) : [])];
+  for (const operation of operations) {
+    const rawPath = operation.file_path ?? operation.filePath ?? operation.path;
+    if (!sameTarget(rawPath, filePath, cwd)) continue;
+    if (typeof operation.content === "string") {
+      proposed = operation.content;
+      matched = true;
+      continue;
+    }
+    const oldText = operation.old_string ?? operation.oldString;
+    const newText = operation.new_string ?? operation.newString;
+    if (typeof oldText !== "string" || typeof newText !== "string" || !oldText || !proposed.includes(oldText)) continue;
+    proposed = operation.replace_all === true || operation.replaceAll === true
+      ? proposed.split(oldText).join(newText)
+      : proposed.replace(oldText, newText);
+    matched = true;
+  }
+  return matched ? { beforeLines: countLines(current), afterLines: countLines(proposed) } : null;
+}
+
+function projectPatch(event: HookEvent, filePath: string): LineProjection | null {
+  const input = isRecord(event.tool_input) ? event.tool_input : isRecord(event.toolInput) ? event.toolInput : {};
+  const patch = typeof input.patch === "string" ? input.patch : typeof input.patch_text === "string" ? input.patch_text : null;
+  if (!patch) return null;
+  const cwd = typeof event.cwd === "string" ? event.cwd : process.cwd();
+  let active = false;
+  let kind = "";
+  let added = 0;
+  let removed = 0;
+  let found = false;
+  for (const line of patch.split(/\r?\n/u)) {
+    const header = /^\*\*\* (Add|Update|Delete) File: (.+)$/u.exec(line);
+    if (header) {
+      kind = header[1] ?? "";
+      active = sameTarget(header[2], filePath, cwd);
+      if (active) found = true;
+      continue;
+    }
+    if (!active || line.startsWith("*** ")) continue;
+    if (line.startsWith("+")) added += 1;
+    else if (line.startsWith("-")) removed += 1;
+  }
+  if (!found || kind === "Delete") return null;
+  const beforeLines = countLines(readTextFileCapped(filePath) ?? "");
+  return { beforeLines, afterLines: kind === "Add" ? added : Math.max(0, beforeLines + added - removed) };
+}
+
+export function projectLineCount(event: HookEvent, filePath: string): LineProjection | null {
+  return projectDirectEdit(event, filePath) ?? projectPatch(event, filePath);
+}
+
+type BudgetDebt = { filePath: string; budget: number };
+
+function debtPath(event: HookEvent): string {
+  const cwd = typeof event.cwd === "string" ? resolve(event.cwd) : process.cwd();
+  const sessionId = String(event.session_id ?? event.sessionId ?? process.env.AI_EXPERTS_SESSION_ID ?? "hook");
+  const key = createHash("sha256").update(`${sessionId}\0${cwd}`).digest("hex");
+  return join(BUDGET_DEBT_DIR, `${key}.json`);
+}
+
+function readDebts(event: HookEvent): BudgetDebt[] {
+  try {
+    const value: unknown = JSON.parse(readFileSync(debtPath(event), "utf8"));
+    if (!Array.isArray(value)) return [];
+    return value.filter((item): item is BudgetDebt => isRecord(item) && typeof item.filePath === "string" && typeof item.budget === "number");
+  } catch {
+    return [];
+  }
+}
+
+function writeDebts(event: HookEvent, debts: BudgetDebt[]): void {
+  const path = debtPath(event);
+  if (debts.length === 0) {
+    rmSync(path, { force: true });
+    return;
+  }
+  mkdirSync(BUDGET_DEBT_DIR, { recursive: true, mode: 0o700 });
+  writeFileSync(path, `${JSON.stringify(debts)}\n`, { encoding: "utf8", mode: 0o600 });
+}
+
+function recordDebt(event: HookEvent, debt: BudgetDebt): void {
+  const debts = readDebts(event).filter((item) => resolve(item.filePath) !== resolve(debt.filePath));
+  debts.push(debt);
+  writeDebts(event, debts);
+}
+
+function enforceDebtsAtStop(event: HookEvent): void {
+  const remaining = readDebts(event).filter(({ filePath, budget }) => {
+    const content = readTextFileCapped(filePath);
+    return content !== null && countLines(content) > budget;
+  });
+  writeDebts(event, remaining);
+  if (remaining.length === 0) return;
+  process.stderr.write([
+    "[File Budget] Cannot stop while post-write file line budget debt remains:",
+    ...remaining.map(({ filePath, budget }) => `- ${filePath}: exceeds ${budget} lines`),
+    "Reduce or split each file, then retry completion.",
+  ].join("\n") + "\n");
+  process.exitCode = 2;
+}
+
 function block(message: string): void {
   process.stderr.write(`${message}\n`);
   process.exitCode = 2;
@@ -344,8 +461,10 @@ function warn(message: string): void {
 export async function main() {
   const event = await readStdinJson();
   if (event.__parseError) return;
+  const phase = process.argv[2] === "pre" ? "pre" : process.argv[2] === "stop" ? "stop" : "post";
+  if (phase === "stop") return enforceDebtsAtStop(event);
 
-  const filePaths = extractFilePaths(event).filter((p) => existsSync(p));
+  const filePaths = extractFilePaths(event).filter((path) => phase === "pre" || existsSync(path));
   const firstPath = filePaths[0];
   if (!firstPath) {
     return;
@@ -380,6 +499,7 @@ export async function main() {
   let filePath: string | null = null;
   let rule: BudgetRule | null = null;
   let currentLines = 0;
+  let beforeLines = 0;
   let budget = 0;
   for (const candidate of filePaths) {
     let relPath = candidate;
@@ -390,13 +510,16 @@ export async function main() {
     }
     const matched = matchRule(relPath, rules);
     if (!matched || matched.mode === "skip") continue;
-    const content = readTextFileCapped(candidate);
-    if (content === null) continue;
-    const lines = countLines(content);
+    const projection = phase === "pre" ? projectLineCount(event, candidate) : null;
+    const content = phase === "post" ? readTextFileCapped(candidate) : null;
+    if (phase === "pre" && projection === null) continue;
+    if (phase === "post" && content === null) continue;
+    const lines = projection?.afterLines ?? countLines(content ?? "");
     if ((matched.mode === "report" || matched.mode === "block") && typeof matched.budget === "number") {
       filePath = candidate;
       rule = matched;
       currentLines = lines;
+      beforeLines = projection?.beforeLines ?? lines;
       budget = matched.budget;
       // Prefer the first over-budget file; otherwise keep scanning.
       if (lines > matched.budget) break;
@@ -409,7 +532,7 @@ export async function main() {
   let headLines = null;
   if (rule.mode === "block" && currentLines > budget) {
     const headContent = readGitHeadContent(filePath, repoRoot);
-    headLines = headContent !== null ? countLines(headContent) : null;
+    headLines = headContent !== null ? countLines(headContent) : phase === "pre" && existsSync(filePath) ? beforeLines : null;
   }
   const decision = classifyBudgetState({
     mode: rule.mode,
@@ -418,6 +541,20 @@ export async function main() {
     headLines,
     settings,
   });
+
+  if (phase === "post" && currentLines > budget && rule.mode === "block" && (headLines === null || decision.action === "block")) {
+    recordDebt(event, { filePath, budget });
+    const baseline = headLines === null
+      ? "The pre-edit baseline is unavailable, so this file is not classified as new."
+      : `Recorded baseline: ${headLines} lines.`;
+    return warn([
+      `[File Budget] ${filePath} exceeds its file line budget after the tool completed`,
+      `  Current: ${currentLines} lines | Budget: ${budget} lines`,
+      "",
+      `${baseline} The write already happened; PostToolUse cannot undo it.`,
+      "Reduce or split the file before completion.",
+    ].join("\n"));
+  }
 
   if (decision.kind === "report-over") {
     return warn([
@@ -440,16 +577,16 @@ export async function main() {
   }
   if (decision.kind === "new-over") {
     return block([
-      `[File Budget] ${filePath} exceeds its file line budget`,
-      `  Current: ${currentLines} lines | Budget: ${budget} lines`,
+      `[File Budget] ${filePath} proposed write exceeds its file line budget`,
+      `  Before: ${beforeLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
       "",
       "New files must remain within budget. Split this into single-responsibility files.",
     ].join("\n"));
   }
   if (decision.kind === "crossed-budget") {
     return block([
-      `[File Budget] ${filePath} exceeds its file line budget`,
-      `  Before: ${headLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
+      `[File Budget] ${filePath} proposed write exceeds its file line budget`,
+      `  Before: ${beforeLines} lines | After: ${currentLines} lines | Budget: ${budget} lines`,
       "",
       "Move logic into separate files so each file remains within budget.",
     ].join("\n"));

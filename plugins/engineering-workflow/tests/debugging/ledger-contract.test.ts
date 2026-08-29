@@ -8,7 +8,7 @@ import { test } from "node:test";
 
 import { resolveConfig } from "../../src/domains/debugging/lib/config.js";
 import { isOfficialWriterCommand, loadLedger, scanLedgers } from "../../src/domains/debugging/lib/ledger.js";
-import { activateBug, affectBugs, closeLedger, initLedger, pauseLedger, resumeLedger, statusLedger } from "../../src/domains/debugging/lib/writer.js";
+import { activateBug, affectBugs, claimHypothesis, claimRootCause, closeLedger, initLedger, pauseLedger, resumeLedger, statusLedger } from "../../src/domains/debugging/lib/writer.js";
 import {
   bindAfterWriter,
   bindWorkOrderAfterMutation,
@@ -352,6 +352,67 @@ test("official writer command is recognized and a claim event is visible", () =>
   assert.ok(lines.some((event) => event.t === "affect"));
 });
 
+test("writer help commands do not activate or refresh a work-order binding", () => {
+  for (const flag of ["--help", "-h"]) {
+    const result = bindAfterWriter({
+      cwd: process.cwd(),
+      sessionId: `help-session-${flag}`,
+      command: `node /plugins/engineering-workflow/dist/cli/harness.mjs debug claim ${flag}`,
+      stdout: "Usage: harness debug claim ...\n",
+    });
+
+    assert.equal(result.kind, "idle", flag);
+  }
+});
+
+test("closing a completed fix folds the active bug as resolved and the fix as applied", () => {
+  const root = mkdtempSync(join(tmpdir(), "debug-close-state-"));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  const created = initLedger({
+    cwd: root,
+    slug: "close-state",
+    summary: "close state",
+    userOutcome: "the closed ledger reports the completed fix",
+    expected: "the bug is resolved",
+    actual: "the bug is deferred",
+    reproduction: "node --test test/close-state.test.mjs",
+    acceptance: "node --test test/close-state-acceptance.test.mjs",
+    environment: "local",
+  });
+
+  const closed = closeLedger({ cwd: root, id: created.id });
+  assert.equal(closed.ok, true, closed.error);
+  assert.equal(closed.workOrder.status, "closed");
+  assert.equal(closed.workOrder.bugs[0].status, "resolved");
+  assert.equal(closed.workOrder.bugs[0].fix.status, "applied");
+});
+
+test("claim writers reject missing evidence identifiers instead of appending undefined fields", () => {
+  const root = mkdtempSync(join(tmpdir(), "debug-claim-validation-"));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+  const created = initLedger({
+    cwd: root,
+    slug: "claim-validation",
+    summary: "claim validation",
+    userOutcome: "invalid claims are rejected",
+    expected: "no event is appended",
+    actual: "undefined claim fields are appended",
+    reproduction: "node --test test/claim-validation.test.mjs",
+    acceptance: "node --test test/claim-validation-acceptance.test.mjs",
+    environment: "local",
+  });
+  const before = readFileSync(join(created.path, "events.jsonl"), "utf8");
+
+  const hypothesis = claimHypothesis({ cwd: root, id: created.id });
+  const rootCause = claimRootCause({ cwd: root, id: created.id, statement: "parser accepts missing evidence" });
+
+  assert.equal(hypothesis.ok, false);
+  assert.match(hypothesis.error ?? "", /bugId, hypothesisId, status, and receiptId are required/u);
+  assert.equal(rootCause.ok, false);
+  assert.match(rootCause.error ?? "", /bugId, statement, causalChain, and receiptId are required/u);
+  assert.equal(readFileSync(join(created.path, "events.jsonl"), "utf8"), before);
+});
+
 test("CLI init then pause then status is stable across two launches", async () => {
   const root = mkdtempSync(join(tmpdir(), "debug-cli-"));
   execFileSync("git", ["init", "-q"], { cwd: root });
@@ -359,9 +420,11 @@ test("CLI init then pause then status is stable across two launches", async () =
     "init",
     "--slug", "cli-login",
     "--summary", "login fails",
+    "--user-outcome", "login succeeds through the public entry point",
     "--expected", "ok",
     "--actual", "500",
     "--repro", "node --test test/login.test.mjs",
+    "--acceptance", "node --test test/login.acceptance.test.mjs",
     "--environment", "local",
   ], root);
   assert.equal(opened.code, 0, opened.stderr);
@@ -380,6 +443,25 @@ test("CLI init then pause then status is stable across two launches", async () =
   assert.equal(firstStatus.ok, true);
   assert.equal(firstStatus.workOrder.status, "paused");
   assert.deepEqual(firstStatus.workOrder.status, secondStatus.workOrder.status);
+});
+
+test("CLI requires a user-visible outcome and acceptance command for fix work orders", async () => {
+  const root = mkdtempSync(join(tmpdir(), "debug-cli-acceptance-"));
+  execFileSync("git", ["init", "-q"], { cwd: root });
+
+  const opened = await runCli([
+    "init",
+    "--slug", "missing-acceptance",
+    "--summary", "proxy verification is insufficient",
+    "--expected", "ok",
+    "--actual", "proxy check passes",
+    "--repro", "node --test test/proxy.test.mjs",
+    "--environment", "local",
+  ], root);
+
+  assert.equal(opened.code, 1, opened.stdout);
+  assert.match(opened.stdout, /userOutcome and acceptance are required/u);
+  assert.equal(existsSync(join(root, ".debug-workflow", "missing-acceptance", "intent.json")), false);
 });
 
 test("scan reports folded resumable ledgers without binding", async () => {

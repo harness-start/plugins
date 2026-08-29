@@ -1,12 +1,12 @@
-// harness-source-hash: sha256:79eb582ff70d8199af6be7045d1a61bcfac5a7992385c0dc88fd75a3d05b1601
+// harness-source-hash: sha256:94704f8db952a375e0a6e7819d3587dac9c74d76e988a0b79fc5afa01f5a2ff6
 import {
   analyzeAiStyle
-} from "../chunks/chunk-WBNLLPZG.mjs";
+} from "../chunks/chunk-3OL33ZYS.mjs";
 import {
   canonicalJson,
   sealPayload,
   sha256 as sha2562
-} from "../chunks/chunk-IGUM4FK3.mjs";
+} from "../chunks/chunk-ME7WQGIA.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -17,7 +17,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-NWS65JED.mjs";
+} from "../chunks/chunk-4YVMWSRX.mjs";
 import {
   createAcknowledgement,
   isProtectedReportPath,
@@ -28,8 +28,8 @@ import {
   sha256,
   validateAcknowledgement,
   verifyReport
-} from "../chunks/chunk-LVJX4B5D.mjs";
-import "../chunks/chunk-DFED5A4G.mjs";
+} from "../chunks/chunk-WQUUSJLB.mjs";
+import "../chunks/chunk-YRRB7KQT.mjs";
 import {
   collectOwnerHookOutput,
   eventAssistantMessage,
@@ -42,7 +42,7 @@ import {
   isRecord,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-TMBNPHXI.mjs";
+} from "../chunks/chunk-5J4MOKBS.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -101,7 +101,7 @@ async function withTimeout(operation, timeoutMs, label) {
 }
 async function dispatchHookRoutes(input) {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart" ? String(event.source ?? "startup") : String(event.tool_name ?? event.toolName ?? "");
   const outputs = [];
   const failures = [];
   for (const route of input.routes[input.eventName] ?? []) {

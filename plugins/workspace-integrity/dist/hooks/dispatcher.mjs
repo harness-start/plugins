@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:f8a8603bbe06f97be9676cd7f7dc57b724b35ebc555310133543f99e88c62a52
+// harness-source-hash: sha256:9e3512935a0dde60d4f490220a22d67288b98c382c91325f98aa9a5070eb1f52
 import {
   collectOwnerHookOutput,
   eventCwd,
@@ -12,8 +12,8 @@ import {
   isShellTool,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-G6JEU3KE.mjs";
-import "../chunks/chunk-VVD6TLCA.mjs";
+} from "../chunks/chunk-XLXUHK6F.mjs";
+import "../chunks/chunk-EPE5LAWK.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -72,7 +72,7 @@ async function withTimeout(operation, timeoutMs, label) {
 }
 async function dispatchHookRoutes(input) {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart" ? String(event.source ?? "startup") : String(event.tool_name ?? event.toolName ?? "");
   const outputs = [];
   const failures = [];
   for (const route of input.routes[input.eventName] ?? []) {
@@ -161,6 +161,9 @@ function additionalContext(hookEventName, context, options = {}) {
       additionalContext: context
     }
   };
+}
+function stopBlock(reason) {
+  return { decision: "block", reason };
 }
 function writeJson(value) {
   if (value !== null && value !== void 0) {
@@ -807,7 +810,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-TZZXOJCM.mjs");
+    const { DOMParser } = await import("../chunks/lib-NZSV55AK.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync2(filePath, "utf8"), "application/xml");
@@ -2478,11 +2481,11 @@ var policy8 = {
 import { spawnSync as spawnSync2 } from "node:child_process";
 import { fileURLToPath } from "node:url";
 var checks = ["line-budget-check.mjs", "markdown-check.mjs"];
-function runChecks(input) {
+function runChecks(input, phase) {
   let exitCode = 0;
-  for (const check of checks) {
+  for (const check of phase === "post" ? checks : checks.slice(0, 1)) {
     const entry = fileURLToPath(new URL(`./${check}`, import.meta.url));
-    const result = spawnSync2(process.execPath, [entry], {
+    const result = spawnSync2(process.execPath, [entry, phase], {
       env: process.env,
       input,
       encoding: "utf8",
@@ -3208,8 +3211,16 @@ var domainsPostHandler = ownerHookHandler(async () => {
   for (const policy12 of domainPolicies) await runDomainEngineeringHook(policy12, "post");
 });
 var qualityHandler = ({ raw }) => {
-  const exitCode = runChecks(Buffer.from(raw));
+  const exitCode = runChecks(Buffer.from(raw), "post");
   if (exitCode !== 0) throw new Error(`engineering quality checks exited with status ${exitCode}`);
+};
+var qualityPreHandler = ({ raw }) => {
+  const exitCode = runChecks(Buffer.from(raw), "pre");
+  if (exitCode !== 0) return preToolDeny("The proposed write exceeds its configured file line budget. Split or reduce it before retrying.");
+};
+var qualityStopHandler = ({ raw }) => {
+  const exitCode = runChecks(Buffer.from(raw), "stop");
+  if (exitCode !== 0) return stopBlock("Unresolved post-write file line budget debt remains. Reduce or split the reported files before completion.");
 };
 var [host, eventName] = process.argv.slice(2);
 if (!host || !eventName) throw new Error("dispatcher requires <host> <event>");
@@ -3226,6 +3237,8 @@ await runOwnerDispatcher(host, eventName, {
   "php:domain-hook": domainHandler(policy7),
   "python:domain-hook": domainHandler(policy8),
   "quality:engineering-quality-post": qualityHandler,
+  "quality:engineering-quality-pre": qualityPreHandler,
+  "quality:engineering-quality-stop": qualityStopHandler,
   "react-native:domain-hook": domainHandler(policy9),
   "rust:domain-hook": domainHandler(policy10),
   "source:source-integrity": ownerHookHandler(main3),

@@ -1,11 +1,11 @@
-// harness-source-hash: sha256:230430fd2f48ea30b2238a97dd35e0ddd2522d1a741868ea1450333d3e33c83b
+// harness-source-hash: sha256:ccd7fb231793f87ef34f4d17127378fdb4cc6bb7c7de2d6c776759c0dd767bba
 import {
   evaluatePrintWrite,
   validatePrintModel
-} from "../chunks/chunk-YFRQQQTY.mjs";
+} from "../chunks/chunk-IS3LQ4CK.mjs";
 import {
   issueWriterCapability as issueWriterCapability5
-} from "../chunks/chunk-ITT6467U.mjs";
+} from "../chunks/chunk-6EHWVY56.mjs";
 import {
   computeTrainingSubjectDigest,
   evaluateTrainingWrite,
@@ -13,22 +13,22 @@ import {
   loadTrainingProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot6,
   validateTrainingModel
-} from "../chunks/chunk-7ME2TRRS.mjs";
+} from "../chunks/chunk-X4NDUGYQ.mjs";
 import {
   evaluateVideoWrite,
   issueWriterCapability as issueWriterCapability6,
   validateVideoModel
-} from "../chunks/chunk-5RBPH2BX.mjs";
+} from "../chunks/chunk-OKY4HFMS.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot7
-} from "../chunks/chunk-CWARK7TA.mjs";
-import "../chunks/chunk-GOOWI2FX.mjs";
+} from "../chunks/chunk-6WUDJSJF.mjs";
+import "../chunks/chunk-FJJWO5MS.mjs";
 import {
   issueWriterCapability as issueWriterCapability4
-} from "../chunks/chunk-XFZ6O5CW.mjs";
-import "../chunks/chunk-WD55DXJZ.mjs";
+} from "../chunks/chunk-7VC2N7VW.mjs";
+import "../chunks/chunk-OBZNDU2A.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -36,10 +36,10 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot5,
   validatePptxModel
-} from "../chunks/chunk-PCGQKVAV.mjs";
+} from "../chunks/chunk-YTH6KOXW.mjs";
 import {
   issueWriterCapability as issueWriterCapability3
-} from "../chunks/chunk-ETDDZHSX.mjs";
+} from "../chunks/chunk-C25LHSQ3.mjs";
 import {
   computePosterSubjectDigest,
   evaluatePosterWrite,
@@ -47,42 +47,42 @@ import {
   loadPosterProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot4,
   validatePosterModel
-} from "../chunks/chunk-44QHQQLV.mjs";
+} from "../chunks/chunk-CCAWDHHY.mjs";
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-6UZBXC2X.mjs";
+} from "../chunks/chunk-ZKUSVXOI.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-6QCKWDPM.mjs";
+} from "../chunks/chunk-OYWAG7I3.mjs";
 import {
   isKebabArtifactId,
   markSessionEngagedArtifact,
   resolveWorkspaceRoot as resolveWorkspaceRoot3,
   sessionEngagedArtifact,
   touchesArtifact
-} from "../chunks/chunk-CEII2P4K.mjs";
+} from "../chunks/chunk-AGCYVXCO.mjs";
 import {
   issueWriterCapability as issueWriterCapability2
-} from "../chunks/chunk-KLSY7X4V.mjs";
+} from "../chunks/chunk-CCLC3TP3.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-SWIULHOM.mjs";
+} from "../chunks/chunk-SY2EE5CS.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot2
-} from "../chunks/chunk-YYFP4OUT.mjs";
-import "../chunks/chunk-RQQ3DLME.mjs";
-import "../chunks/chunk-FL36SZ6K.mjs";
+} from "../chunks/chunk-KCPUHPRI.mjs";
+import "../chunks/chunk-PUJQMLWW.mjs";
+import "../chunks/chunk-7REKS3VS.mjs";
 import {
   issueWriterCapability
-} from "../chunks/chunk-MVT3UIP7.mjs";
-import "../chunks/chunk-IE4NLJBE.mjs";
+} from "../chunks/chunk-WL6ZFAUJ.mjs";
+import "../chunks/chunk-VBL6ZSQA.mjs";
 import {
   computeDiagramSubjectDigest,
   evaluateDiagramWrite,
@@ -90,8 +90,8 @@ import {
   loadDiagramProject,
   resolveWorkspaceRoot,
   validateDiagramModel
-} from "../chunks/chunk-MFUPLSAE.mjs";
-import "../chunks/chunk-HL4EEBT7.mjs";
+} from "../chunks/chunk-XDPUXKOH.mjs";
+import "../chunks/chunk-NNXJRIQT.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -263,7 +263,7 @@ async function withTimeout(operation, timeoutMs, label) {
 }
 async function dispatchHookRoutes(input) {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart" ? String(event.source ?? "startup") : String(event.tool_name ?? event.toolName ?? "");
   const outputs = [];
   const failures = [];
   for (const route of input.routes[input.eventName] ?? []) {

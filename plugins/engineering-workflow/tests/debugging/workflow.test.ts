@@ -9,6 +9,7 @@ import { resolveConfig } from "../../src/domains/debugging/lib/config.js";
 import { extractWorkOrder, validateWorkOrder } from "../../src/domains/debugging/lib/work-order.js";
 import {
   bindWorkOrderAfterMutation,
+  closeBinding,
   completionFindings,
   preMutationDecision,
   recordReceipt,
@@ -222,7 +223,10 @@ test("closed architecture-review remains an explicit terminal handoff", () => {
 });
 
 test("completion rejects forged and cross-bug evidence", () => {
-  const fx = fixture();
+  const configured = order();
+  configured.bugs[0].symptom.userOutcome = "BUG-001 user-visible behavior succeeds";
+  configured.bugs[0].symptom.acceptance = "node --test BUG-001.acceptance.test.mjs";
+  const fx = fixture(configured);
   withData(fx.data, () => {
     bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [fx.path] });
     const baseline = recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "command", command: "node --test BUG-001.test.mjs", outcome: "failure" });
@@ -231,11 +235,14 @@ test("completion rejects forged and cross-bug evidence", () => {
     const changed = recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "mutation", paths: [join(fx.root, "src.js")], outcome: "success" });
     assert.equal(changed.receipt.kind, "mutation");
     const repro = recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "command", command: "node --test BUG-001.test.mjs", outcome: "success" });
+    const acceptance = recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "command", command: "node --test BUG-001.acceptance.test.mjs", outcome: "success" });
     const regression = recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "command", command: "npm test", outcome: "success" });
     const cleanup = recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "command", command: "node cleanup-check.mjs", outcome: "success" });
 
     const resolved = order({ status: "closed", run: { epoch: 1, state: "closed", mode: "investigate-and-fix" }, activeBugId: null });
     resolved.bugs[0].status = "resolved";
+    resolved.bugs[0].symptom.userOutcome = "BUG-001 user-visible behavior succeeds";
+    resolved.bugs[0].symptom.acceptance = "node --test BUG-001.acceptance.test.mjs";
     resolved.bugs[0].verification = { originalReproduction: null, regression: [], debugCleanup: null };
     resolved.bugs[1].status = "deferred";
     resolved.resume = { nextBugId: "BUG-002", nextAction: "await independent fixture", recoveryCommands: [] };
@@ -247,8 +254,31 @@ test("completion rejects forged and cross-bug evidence", () => {
       state: { receipts: live.state.receipts.filter((receipt) => receipt.id !== regression.receipt.id), mutationSeq: live.state.mutationSeq },
     }).join("\n"), /regression|cleanup/u);
     assert.doesNotMatch(completionFindings(live).join("\n"), /regression verification is missing/u);
-    assert.ok(baseline && evidence && changed && repro && cleanup);
+    assert.ok(baseline && evidence && changed && repro && acceptance && cleanup);
   });
+});
+
+test("completion requires a post-mutation receipt for the declared user-visible acceptance command", () => {
+  const finished = order({
+    status: "closed",
+    run: { epoch: 1, state: "closed", mode: "investigate-and-fix" },
+    activeBugId: null,
+  });
+  finished.bugs[0].status = "resolved";
+  finished.bugs[0].symptom.userOutcome = "BUG-001 user-visible behavior succeeds";
+  finished.bugs[0].symptom.acceptance = "node --test BUG-001.acceptance.test.mjs";
+  finished.bugs[1].status = "deferred";
+  const receipts = [
+    { id: "R-2", bugId: "BUG-001", kind: "reproduction", outcome: "failure", commandHash: null, mutationSeq: 0 },
+    { id: "R-3", bugId: "BUG-001", kind: "mutation", outcome: "success", commandHash: null, mutationSeq: 3 },
+    { id: "R-4", bugId: "BUG-001", kind: "reproduction", outcome: "success", commandHash: null, mutationSeq: 3 },
+    { id: "R-5", bugId: "BUG-001", kind: "verification", outcome: "success", commandHash: null, mutationSeq: 3 },
+    { id: "R-6", bugId: "BUG-001", kind: "command", outcome: "success", commandHash: null, mutationSeq: 3 },
+  ];
+
+  const findings = completionFindings({ kind: "inactive", workOrder: finished, state: { receipts, mutationSeq: 3 } });
+
+  assert.match(findings.join("\n"), /user-visible acceptance command/u);
 });
 
 test("completion scopes baselines and freshness to each bug's relevant mutations", () => {
@@ -315,6 +345,73 @@ test("one session cannot silently switch to a different work order", () => {
     const switched = bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [secondPath] });
     assert.equal(switched.kind, "conflict");
     assert.match(switched.findings.join("\n"), /already bound/u);
+  });
+});
+
+test("one session can bind a new work order after the previous one is aborted", () => {
+  const fx = fixture();
+  withData(fx.data, () => {
+    assert.equal(bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [fx.path] }).kind, "bound");
+    const aborted = order({
+      status: "aborted",
+      run: { epoch: 1, state: "closed", mode: "investigate-and-fix" },
+      activeBugId: null,
+    });
+    aborted.bugs[0].status = "blocked";
+    aborted.bugs[1].status = "deferred";
+    writeOrder(fx.path, aborted);
+    assert.equal(closeBinding({ cwd: fx.root, sessionId: "s1" }).kind, "inactive");
+
+    const secondPath = join(fx.root, ".debug-workflow", "20260808-second.md");
+    writeOrder(secondPath, order({ id: "DWO-20260808-second" }));
+    const switched = bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [secondPath] });
+
+    assert.equal(switched.kind, "bound", JSON.stringify(switched.findings ?? []));
+    assert.equal(switched.workOrder.id, "DWO-20260808-second");
+  });
+});
+
+test("one session can bind a new work order after a completed terminal work order", () => {
+  const fx = fixture();
+  withData(fx.data, () => {
+    assert.equal(bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [fx.path] }).kind, "bound");
+    const closed = order({
+      status: "closed",
+      run: { epoch: 1, state: "closed", mode: "investigate-and-fix" },
+      activeBugId: null,
+    });
+    closed.bugs[0].status = "deferred";
+    closed.bugs[1].status = "deferred";
+    writeOrder(fx.path, closed);
+    assert.equal(closeBinding({ cwd: fx.root, sessionId: "s1" }).kind, "inactive");
+
+    const secondPath = join(fx.root, ".debug-workflow", "20260808-after-close.md");
+    writeOrder(secondPath, order({ id: "DWO-20260808-after-close" }));
+    const switched = bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [secondPath] });
+
+    assert.equal(switched.kind, "bound", JSON.stringify(switched.findings ?? []));
+  });
+});
+
+test("one session can bind a new work order after explicitly pausing the previous one", () => {
+  const fx = fixture();
+  withData(fx.data, () => {
+    assert.equal(bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [fx.path] }).kind, "bound");
+    const paused = order({
+      status: "paused",
+      run: { epoch: 1, state: "paused", mode: "investigate-and-fix" },
+      activeBugId: null,
+    });
+    paused.bugs[0].status = "blocked";
+    paused.bugs[1].status = "queued";
+    writeOrder(fx.path, paused);
+    assert.equal(closeBinding({ cwd: fx.root, sessionId: "s1" }).kind, "inactive");
+
+    const secondPath = join(fx.root, ".debug-workflow", "20260808-after-pause.md");
+    writeOrder(secondPath, order({ id: "DWO-20260808-after-pause" }));
+    const switched = bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [secondPath] });
+
+    assert.equal(switched.kind, "bound", JSON.stringify(switched.findings ?? []));
   });
 });
 

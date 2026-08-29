@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:fe42c16c0b48df1a41dd9beb344ec97c72e250f60a708ef27ec77013679ea6ce
+// harness-source-hash: sha256:ffe2f134e6c93ae127ad3eac94c66e1a9ce7d4eb1e905073c570db3bfdc45d9a
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   parseWriterStdout,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-BA2J4J6A.mjs";
+} from "../chunks/chunk-OA6FJPXS.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -82,7 +82,7 @@ async function withTimeout(operation, timeoutMs, label) {
 }
 async function dispatchHookRoutes(input) {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart" ? String(event.source ?? "startup") : String(event.tool_name ?? event.toolName ?? "");
   const outputs = [];
   const failures = [];
   for (const route of input.routes[input.eventName] ?? []) {
@@ -646,9 +646,16 @@ function bindWorkOrderAfterMutation({ cwd, sessionId, touchedPaths, config = DEF
   if (candidates.length > 1) return { kind: "invalid", findings: ["one hook event cannot bind multiple work orders"] };
   const candidate = candidates[0];
   if (candidate === void 0) return { kind: "idle" };
-  const existing = readState(sessionId, repoRoot2);
+  let existing = readState(sessionId, repoRoot2);
   if (existing.bound && existing.workOrderPath && !sameLedgerPath(existing.workOrderPath, candidate)) {
-    return { kind: "conflict", path: candidate, findings: [`this session is already bound to ${relative(repoRoot2, existing.workOrderPath)}`] };
+    const previous = loadLedger(existing.workOrderPath, config);
+    const previousComplete = previous.valid && previous.workOrder.status === "closed" && completionFindings({ kind: "inactive", repoRoot: repoRoot2, state: existing, workOrder: previous.workOrder }).length === 0;
+    if (previous.valid && (["aborted", "paused"].includes(String(previous.workOrder.status)) || previousComplete)) {
+      releaseLease({ repoRoot: repoRoot2, workOrderId: String(previous.workOrder.id ?? ""), sessionId });
+      existing = emptyState();
+    } else {
+      return { kind: "conflict", path: candidate, findings: [`this session is already bound to ${relative(repoRoot2, existing.workOrderPath)}`] };
+    }
   }
   const checked = loadLedger(candidate, config);
   if (!checked.valid) {
@@ -807,9 +814,14 @@ function completionFindings(live) {
     const after = state.receipts.filter((receipt) => receipt.bugId === bugId && receiptSequence(receipt) > lastMutation);
     const repro = after.find((receipt) => receipt.kind === "reproduction" && receipt.outcome === "success");
     if (!repro) findings.push(`${String(bugId)}: original reproduction lacks a successful current-session receipt`);
-    const regression = after.find((receipt) => receipt.id !== repro?.id && receipt.outcome === "success");
+    const bug = workOrder.bugs.find((item) => item.id === bugId);
+    const acceptanceCommand = isRecord(bug?.symptom) ? String(bug.symptom.acceptance ?? "").trim() : "";
+    const acceptanceHash = acceptanceCommand ? hash(normalizeCommand(acceptanceCommand)) : null;
+    const acceptance = acceptanceHash ? after.find((receipt) => receipt.commandHash === acceptanceHash && receipt.outcome === "success") : void 0;
+    if (acceptanceHash && !acceptance) findings.push(`${String(bugId)}: user-visible acceptance command lacks a successful post-mutation receipt`);
+    const regression = after.find((receipt) => receipt.id !== repro?.id && receipt.id !== acceptance?.id && receipt.outcome === "success");
     if (!regression) findings.push(`${String(bugId)}: regression verification is missing`);
-    const cleanup = after.find((receipt) => receipt.id !== repro?.id && receipt.id !== regression?.id && receipt.outcome !== "failure");
+    const cleanup = after.find((receipt) => receipt.id !== repro?.id && receipt.id !== acceptance?.id && receipt.id !== regression?.id && receipt.outcome !== "failure");
     if (!cleanup) findings.push(`${String(bugId)}: debug-marker cleanup receipt is missing, cross-bug, or failed`);
     if (repro && receiptSequence(repro) <= lastMutation) findings.push(`${String(bugId)}: original reproduction predates the last relevant mutation`);
   }

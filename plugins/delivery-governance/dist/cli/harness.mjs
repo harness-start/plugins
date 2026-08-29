@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:42f4e1506ae8cf08535d18bda6faea06232f99470ecf9f75a82c5b7ca233ee1b
+// harness-source-hash: sha256:c522b45b7aea50eddd02f21bc5741460ecc982a37227329f030c8303e3b3a1a6
 
 // core/src/aio-cli.ts
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -68,10 +68,10 @@ async function runOwnerCli(argv, handlers2) {
 // plugins/delivery-governance/src/entries/cli/harness.ts
 var handlers = {
   "history:git-history-migration-execute": ownerCliModuleHandler(async () => {
-    await import("../chunks/git-history-migration-execute-G7WGT2EB.mjs");
+    await import("../chunks/git-history-migration-execute-7BL22O2Q.mjs");
   }),
   "history:git-history-migration-preflight": ownerCliModuleHandler(async () => {
-    await import("../chunks/git-history-migration-preflight-XPLOBVAZ.mjs");
+    await import("../chunks/git-history-migration-preflight-P4BVEZX4.mjs");
   })
 };
 await runOwnerCli(process.argv.slice(2), handlers);

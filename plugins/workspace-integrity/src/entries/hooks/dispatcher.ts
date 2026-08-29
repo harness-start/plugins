@@ -1,5 +1,6 @@
 import { runOwnerDispatcher, type OwnerHookHandler } from "../../../../../core/src/aio-dispatcher.js";
 import { runDomainEngineeringHook, type DomainEngineeringPolicy } from "../../../../../core/src/domain-engineering-hook.js";
+import { preToolDeny, stopBlock } from "../../../../../core/src/hook-output.js";
 import { ownerHookHandler } from "../../../../../core/src/owner-hook-runtime.js";
 
 import { policy as androidPolicy } from "../../domains/android/policy.js";
@@ -28,8 +29,16 @@ const domainsPostHandler = ownerHookHandler(async () => {
 });
 
 const qualityHandler: OwnerHookHandler = ({ raw }) => {
-  const exitCode = runQualityChecks(Buffer.from(raw));
+  const exitCode = runQualityChecks(Buffer.from(raw), "post");
   if (exitCode !== 0) throw new Error(`engineering quality checks exited with status ${exitCode}`);
+};
+const qualityPreHandler: OwnerHookHandler = ({ raw }) => {
+  const exitCode = runQualityChecks(Buffer.from(raw), "pre");
+  if (exitCode !== 0) return preToolDeny("The proposed write exceeds its configured file line budget. Split or reduce it before retrying.");
+};
+const qualityStopHandler: OwnerHookHandler = ({ raw }) => {
+  const exitCode = runQualityChecks(Buffer.from(raw), "stop");
+  if (exitCode !== 0) return stopBlock("Unresolved post-write file line budget debt remains. Reduce or split the reported files before completion.");
 };
 
 const [host, eventName] = process.argv.slice(2);
@@ -47,6 +56,8 @@ await runOwnerDispatcher(host, eventName, {
   "php:domain-hook": domainHandler(phpPolicy),
   "python:domain-hook": domainHandler(pythonPolicy),
   "quality:engineering-quality-post": qualityHandler,
+  "quality:engineering-quality-pre": qualityPreHandler,
+  "quality:engineering-quality-stop": qualityStopHandler,
   "react-native:domain-hook": domainHandler(reactNativePolicy),
   "rust:domain-hook": domainHandler(rustPolicy),
   "source:source-integrity": ownerHookHandler(runSourceIntegrity),

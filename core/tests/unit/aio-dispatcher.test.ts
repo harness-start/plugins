@@ -60,3 +60,14 @@ test("Codex model-visible tool feedback survives owner aggregation", async () =>
     reason: "inspect the Markdown finding",
   });
 });
+
+test("SessionStart route matchers use the session source and treat a missing source as startup", async () => {
+  const seen: string[] = [];
+  const routes = { SessionStart: [{ handler: "startup", matcher: "startup|resume|clear" }] };
+  const handlers = { startup: () => { seen.push("startup"); } };
+
+  await dispatcher.dispatchHookRoutes({ eventName: "SessionStart", host: "codex", raw: JSON.stringify({ source: "compact" }), routes, handlers });
+  await dispatcher.dispatchHookRoutes({ eventName: "SessionStart", host: "codex", raw: "{}", routes, handlers });
+
+  assert.deepEqual(seen, ["startup"]);
+});

@@ -81,11 +81,12 @@ export function isLedgerManagedPath(path: string, repoRoot: string, config: Plug
 
 export function isOfficialWriterCommand(command: unknown): boolean {
   const textValue = String(command ?? "");
-  return OWNER_WRITER_RE.test(textValue);
+  return !/(?:^|\s)(?:--help|-h)(?:\s|$)/u.test(textValue) && OWNER_WRITER_RE.test(textValue);
 }
 
 export function writerActionFromCommand(command: unknown): string | null {
   const textValue = String(command ?? "");
+  if (/(?:^|\s)(?:--help|-h)(?:\s|$)/u.test(textValue)) return null;
   return OWNER_WRITER_RE.exec(textValue)?.[1] || null;
 }
 
@@ -230,6 +231,10 @@ export function foldWorkOrder({ intent, events = [] }: { intent?: unknown; event
     } else if (event.t === "close") {
       status = "closed";
       runState = "closed";
+      if (activeBugId) {
+        const current = bugStatus[statusKey(activeBugId)];
+        if (current === undefined || !TERMINAL_BUG_STATUSES.has(current)) bugStatus[statusKey(activeBugId)] = "resolved";
+      }
       activeBugId = null;
     } else if (event.t === "abort") {
       status = "aborted";
@@ -265,7 +270,11 @@ export function foldWorkOrder({ intent, events = [] }: { intent?: unknown; event
       symptom: raw.symptom,
       hypotheses,
       rootCause: rootCauseState[statusKey(rawId)] || emptyRootCause(),
-      fix: { ...emptyFix(), affectedBugIds: affect || [] },
+      fix: {
+        ...emptyFix(),
+        status: derived === "resolved" && raw.goal !== "diagnose" ? "applied" : "not-started",
+        affectedBugIds: affect || [],
+      },
       verification: emptyVerification(),
       attempts: [],
       residualRisks: [],

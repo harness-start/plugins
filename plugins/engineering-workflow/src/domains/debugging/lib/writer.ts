@@ -14,9 +14,11 @@ export type WriterInput = {
   id?: unknown;
   slug?: unknown;
   summary?: unknown;
+  userOutcome?: unknown;
   expected?: unknown;
   actual?: unknown;
   reproduction?: unknown;
+  acceptance?: unknown;
   environment?: unknown;
   h1?: unknown;
   h1Falsifier?: unknown;
@@ -97,7 +99,7 @@ function yyyymmdd(now: number): string {
 function ensureExclude(root: string, config: PluginConfig): void {
   if (config.ledger.persistence !== "local") return;
   try {
-    const path = execFileSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5000 }).trim();
+    const path = execFileSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5000, stdio: ["ignore", "pipe", "ignore"] }).trim();
     const absolute = resolve(root, path);
     const entry = `/${config.ledger.root}/`;
     const existing = existsSync(absolute) ? readFileSync(absolute, "utf8") : "";
@@ -190,9 +192,11 @@ export function initLedger(input: WriterInput): WriterResult {
       duplicateOf: null,
       rootCauseGroup: null,
       symptom: {
+        userOutcome: String(input.userOutcome ?? "").trim() || undefined,
         expected: String(input.expected ?? "").trim() || "observable expected behavior",
         actual,
         reproduction,
+        acceptance: String(input.acceptance ?? "").trim() || undefined,
         environment: String(input.environment ?? "").trim() || "local",
       },
       hypotheses: defaultHypotheses(input),
@@ -222,15 +226,22 @@ export function activateBug(input: WriterInput): WriterResult {
 }
 
 export function claimHypothesis(input: WriterInput): WriterResult {
+  const bugId = String(input.bugId ?? "").trim();
+  const hypothesisId = String(input.hypothesisId ?? "").trim();
+  const status = String(input.status ?? "").trim();
+  const receiptId = String(input.receiptId ?? "").trim();
+  if (!bugId || !/^H[0-9]+$/u.test(hypothesisId) || !["open", "supported", "falsified"].includes(status) || !/^R-[0-9]+$/u.test(receiptId)) {
+    return { ok: false, error: "bugId, hypothesisId, status, and receiptId are required" };
+  }
   return appendLedgerEvent({
     ...input,
     event: {
       t: "claim",
       kind: "hypothesis",
-      bugId: input.bugId,
-      hypothesisId: input.hypothesisId,
-      status: input.status,
-      receiptIds: input.receiptIds ?? (input.receiptId ? [input.receiptId] : []),
+      bugId,
+      hypothesisId,
+      status,
+      receiptIds: input.receiptIds ?? [receiptId],
     },
   });
 }
@@ -239,15 +250,21 @@ export function claimRootCause(input: WriterInput): WriterResult {
   const chain = Array.isArray(input.causalChain)
     ? input.causalChain
     : String(input.chain ?? "").split("|").map((item) => item.trim()).filter(Boolean);
+  const bugId = String(input.bugId ?? "").trim();
+  const statement = String(input.statement ?? "").trim();
+  const receiptId = String(input.receiptId ?? "").trim();
+  if (!bugId || !statement || chain.length < 1 || !/^R-[0-9]+$/u.test(receiptId)) {
+    return { ok: false, error: "bugId, statement, causalChain, and receiptId are required" };
+  }
   return appendLedgerEvent({
     ...input,
     event: {
       t: "claim",
       kind: "root-cause",
-      bugId: input.bugId,
-      statement: input.statement,
+      bugId,
+      statement,
       causalChain: chain,
-      receiptIds: input.receiptIds ?? (input.receiptId ? [input.receiptId] : []),
+      receiptIds: input.receiptIds ?? [receiptId],
     },
   });
 }
@@ -270,9 +287,11 @@ export function addBug(input: WriterInput): WriterResult {
     duplicateOf: null,
     rootCauseGroup: null,
     symptom: {
+      userOutcome: input.userOutcome,
       expected: input.expected || "observable expected behavior",
       actual: input.actual,
       reproduction: input.reproduction,
+      acceptance: input.acceptance,
       environment: input.environment || "local",
     },
     hypotheses: defaultHypotheses(input),

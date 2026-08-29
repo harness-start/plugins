@@ -5,11 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const checks = ["line-budget-check.mjs", "markdown-check.mjs"];
 
-export function runChecks(input: Buffer): number {
+export function runChecks(input: Buffer, phase: "pre" | "post" | "stop"): number {
   let exitCode = 0;
-  for (const check of checks) {
+  for (const check of phase === "post" ? checks : checks.slice(0, 1)) {
     const entry = fileURLToPath(new URL(`./${check}`, import.meta.url));
-    const result = spawnSync(process.execPath, [entry], {
+    const result = spawnSync(process.execPath, [entry, phase], {
       env: process.env,
       input,
       encoding: "utf8",

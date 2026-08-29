@@ -18,9 +18,11 @@ const FIX_STATUSES = new Set(["not-started", "in-progress", "applied", "reverted
 const FENCE = /```json[ \t]+debug-work-order\/v1[ \t]*\r?\n([\s\S]*?)\r?\n```/gu;
 
 export type Symptom = {
+  userOutcome?: unknown;
   expected?: unknown;
   actual?: unknown;
   reproduction?: unknown;
+  acceptance?: unknown;
   environment?: unknown;
   [key: string]: unknown;
 };
@@ -220,8 +222,13 @@ export function validateWorkOrder(raw: unknown, config?: PluginConfig | null): V
 
     if (!object(bug.symptom)) findings.push(`${at}.symptom must be an object`);
     else {
-      exactKeys(bug.symptom, ["expected", "actual", "reproduction", "environment"], `${at}.symptom`, findings);
+      exactKeys(bug.symptom, ["userOutcome", "expected", "actual", "reproduction", "acceptance", "environment"], `${at}.symptom`, findings);
       for (const key of ["expected", "actual", "reproduction", "environment"]) if (!text(bug.symptom[key])) findings.push(`${at}.symptom.${key} is required`);
+      const hasUserOutcome = bug.symptom.userOutcome !== undefined;
+      const hasAcceptance = bug.symptom.acceptance !== undefined;
+      if (hasUserOutcome !== hasAcceptance) findings.push(`${at}.symptom.userOutcome and acceptance must be declared together`);
+      if (hasUserOutcome && !text(bug.symptom.userOutcome)) findings.push(`${at}.symptom.userOutcome must be non-empty`);
+      if (hasAcceptance && !text(bug.symptom.acceptance)) findings.push(`${at}.symptom.acceptance must be non-empty`);
     }
     if (!Array.isArray(bug.hypotheses) || bug.hypotheses.length < 2 || bug.hypotheses.length > maxHypotheses) findings.push(`${at}.hypotheses must contain 2..${maxHypotheses} items`);
     const hypothesisIds = new Set<unknown>();

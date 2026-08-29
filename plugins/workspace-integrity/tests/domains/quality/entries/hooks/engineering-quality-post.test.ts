@@ -5,4 +5,5 @@ import { runChecks } from "../../../../../src/domains/quality/entries/hooks/engi
 
 test("engineering quality post Hook remains an import-safe owner handler", () => {
   assert.equal(typeof runChecks, "function");
+  assert.equal(runChecks.length, 2);
 });

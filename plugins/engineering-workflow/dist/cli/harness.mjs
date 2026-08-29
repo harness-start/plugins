@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:fe42c16c0b48df1a41dd9beb344ec97c72e250f60a708ef27ec77013679ea6ce
+// harness-source-hash: sha256:ffe2f134e6c93ae127ad3eac94c66e1a9ce7d4eb1e905073c570db3bfdc45d9a
 import {
   DEFAULT_CONFIG,
   digestText,
@@ -7,7 +7,7 @@ import {
   isRecord,
   loadLedger,
   scanLedgers
-} from "../chunks/chunk-BA2J4J6A.mjs";
+} from "../chunks/chunk-OA6FJPXS.mjs";
 
 // core/src/aio-cli.ts
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -61,7 +61,6 @@ async function runOwnerCli(argv, handlers) {
 
 // plugins/engineering-workflow/src/domains/debugging/command.ts
 import { resolve as resolve4 } from "node:path";
-import { fileURLToPath } from "node:url";
 
 // plugins/engineering-workflow/src/domains/debugging/lib/writer.ts
 import { execFileSync } from "node:child_process";
@@ -169,7 +168,7 @@ function yyyymmdd(now) {
 function ensureExclude(root, config) {
   if (config.ledger.persistence !== "local") return;
   try {
-    const path = execFileSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5e3 }).trim();
+    const path = execFileSync("git", ["rev-parse", "--git-path", "info/exclude"], { cwd: root, encoding: "utf8", timeout: 5e3, stdio: ["ignore", "pipe", "ignore"] }).trim();
     const absolute = resolve3(root, path);
     const entry = `/${config.ledger.root}/`;
     const existing = existsSync2(absolute) ? readFileSync3(absolute, "utf8") : "";
@@ -256,9 +255,11 @@ function initLedger(input) {
       duplicateOf: null,
       rootCauseGroup: null,
       symptom: {
+        userOutcome: String(input.userOutcome ?? "").trim() || void 0,
         expected: String(input.expected ?? "").trim() || "observable expected behavior",
         actual,
         reproduction,
+        acceptance: String(input.acceptance ?? "").trim() || void 0,
         environment: String(input.environment ?? "").trim() || "local"
       },
       hypotheses: defaultHypotheses(input)
@@ -286,29 +287,42 @@ function activateBug(input) {
   return appendLedgerEvent({ ...input, event: { t: "activate", bugId } });
 }
 function claimHypothesis(input) {
+  const bugId = String(input.bugId ?? "").trim();
+  const hypothesisId = String(input.hypothesisId ?? "").trim();
+  const status = String(input.status ?? "").trim();
+  const receiptId = String(input.receiptId ?? "").trim();
+  if (!bugId || !/^H[0-9]+$/u.test(hypothesisId) || !["open", "supported", "falsified"].includes(status) || !/^R-[0-9]+$/u.test(receiptId)) {
+    return { ok: false, error: "bugId, hypothesisId, status, and receiptId are required" };
+  }
   return appendLedgerEvent({
     ...input,
     event: {
       t: "claim",
       kind: "hypothesis",
-      bugId: input.bugId,
-      hypothesisId: input.hypothesisId,
-      status: input.status,
-      receiptIds: input.receiptIds ?? (input.receiptId ? [input.receiptId] : [])
+      bugId,
+      hypothesisId,
+      status,
+      receiptIds: input.receiptIds ?? [receiptId]
     }
   });
 }
 function claimRootCause(input) {
   const chain = Array.isArray(input.causalChain) ? input.causalChain : String(input.chain ?? "").split("|").map((item) => item.trim()).filter(Boolean);
+  const bugId = String(input.bugId ?? "").trim();
+  const statement = String(input.statement ?? "").trim();
+  const receiptId = String(input.receiptId ?? "").trim();
+  if (!bugId || !statement || chain.length < 1 || !/^R-[0-9]+$/u.test(receiptId)) {
+    return { ok: false, error: "bugId, statement, causalChain, and receiptId are required" };
+  }
   return appendLedgerEvent({
     ...input,
     event: {
       t: "claim",
       kind: "root-cause",
-      bugId: input.bugId,
-      statement: input.statement,
+      bugId,
+      statement,
       causalChain: chain,
-      receiptIds: input.receiptIds ?? (input.receiptId ? [input.receiptId] : [])
+      receiptIds: input.receiptIds ?? [receiptId]
     }
   });
 }
@@ -327,9 +341,11 @@ function addBug(input) {
     duplicateOf: null,
     rootCauseGroup: null,
     symptom: {
+      userOutcome: input.userOutcome,
       expected: input.expected || "observable expected behavior",
       actual: input.actual,
       reproduction: input.reproduction,
+      acceptance: input.acceptance,
       environment: input.environment || "local"
     },
     hypotheses: defaultHypotheses(input)
@@ -401,6 +417,11 @@ function output(value) {
   process.stdout.write(`${JSON.stringify(value)}
 `);
 }
+function printHelp(action) {
+  const usage = action === "claim" ? "Usage: harness debug claim --bug BUG-NNN (--hypothesis HN --status supported|falsified|open | --root-cause TEXT --chain STEP|STEP) --receipt R-N" : "Usage: harness debug <init|activate|claim|affect|add-bug|pause|close|abort|resume|status> [options]";
+  process.stdout.write(`${usage}
+`);
+}
 function fail(error) {
   const message = error instanceof Error ? error.message : error;
   output({ ok: false, error: String(message ?? error) });
@@ -413,17 +434,25 @@ function list(value) {
 async function main(argv = process.argv.slice(2)) {
   const { options, positionals } = parseArgs(argv);
   const action = positionals[0];
+  if (options.help === true || positionals.includes("-h")) {
+    printHelp(action);
+    return;
+  }
   const cwd = options.cwd ? resolve4(String(options.cwd)) : process.cwd();
   const base = { cwd, id: options.id, slug: options.slug };
   let result;
   try {
     if (action === "init" || action === "open") {
-      result = initLedger({
+      if (options.goal !== "diagnose" && (!options["user-outcome"] || !options.acceptance)) {
+        result = { ok: false, error: "userOutcome and acceptance are required for fix work orders" };
+      } else result = initLedger({
         ...base,
         summary: options.summary,
+        userOutcome: options["user-outcome"],
         expected: options.expected,
         actual: options.actual,
         reproduction: options.repro || options.reproduction,
+        acceptance: options.acceptance,
         environment: options.environment,
         h1: options.h1,
         h1Falsifier: options["h1-falsifier"],
@@ -455,13 +484,17 @@ async function main(argv = process.argv.slice(2)) {
     } else if (action === "affect") {
       result = affectBugs({ ...base, bugId: options.bug, affectedBugIds: list(options.bugs) });
     } else if (action === "add-bug") {
-      result = addBug({
+      if (options.goal !== "diagnose" && (!options["user-outcome"] || !options.acceptance)) {
+        result = { ok: false, error: "userOutcome and acceptance are required for fix work orders" };
+      } else result = addBug({
         ...base,
         bugId: options.bug || options["bug-id"],
         summary: options.summary,
+        userOutcome: options["user-outcome"],
         expected: options.expected,
         actual: options.actual,
         reproduction: options.repro || options.reproduction,
+        acceptance: options.acceptance,
         environment: options.environment,
         h1: options.h1,
         h1Falsifier: options["h1-falsifier"],
@@ -495,15 +528,9 @@ async function main(argv = process.argv.slice(2)) {
   output(result);
   if (!result?.ok) process.exitCode = 1;
 }
-var isMain = process.argv[1] && resolve4(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  await main();
-}
 
 // plugins/engineering-workflow/src/domains/specification/command.ts
 import { readFileSync as readFileSync4 } from "node:fs";
-import { resolve as resolve5 } from "node:path";
-import { fileURLToPath as fileURLToPath2 } from "node:url";
 function main2(argv = process.argv.slice(2)) {
   const [command, target] = argv;
   if (command === "digest" && target) {
@@ -519,7 +546,6 @@ function main2(argv = process.argv.slice(2)) {
     process.exitCode = 2;
   }
 }
-if (process.argv[1] && resolve5(process.argv[1]) === fileURLToPath2(import.meta.url)) main2();
 
 // plugins/engineering-workflow/src/entries/cli/harness.ts
 await runOwnerCli(process.argv.slice(2), {

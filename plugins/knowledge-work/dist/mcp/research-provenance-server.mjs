@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:79eb582ff70d8199af6be7045d1a61bcfac5a7992385c0dc88fd75a3d05b1601
+// harness-source-hash: sha256:94704f8db952a375e0a6e7819d3587dac9c74d76e988a0b79fc5afa01f5a2ff6
 import {
   canonicalJson,
   sealPayload,
   sha256
-} from "../chunks/chunk-IGUM4FK3.mjs";
+} from "../chunks/chunk-ME7WQGIA.mjs";
 import {
   defaultWorkflow,
   ensureRunSkeleton,
@@ -12,10 +12,10 @@ import {
   readWorkflowFile,
   workflowPath,
   writeWorkflow
-} from "../chunks/chunk-NWS65JED.mjs";
+} from "../chunks/chunk-4YVMWSRX.mjs";
 import {
   isRecord
-} from "../chunks/chunk-TMBNPHXI.mjs";
+} from "../chunks/chunk-5J4MOKBS.mjs";
 
 // plugins/knowledge-work/src/entries/mcp/research-provenance-server.ts
 import { realpath as realpath2 } from "node:fs/promises";

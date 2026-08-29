@@ -106,7 +106,9 @@ export async function dispatchHookRoutes(input: {
   routes: OwnerHookRoutes;
 }): Promise<{ output: HookOutput | null; failures: string[] }> {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart"
+    ? String(event.source ?? "startup")
+    : String(event.tool_name ?? event.toolName ?? "");
   const outputs: HookOutput[] = [];
   const failures: string[] = [];
   for (const route of input.routes[input.eventName] ?? []) {

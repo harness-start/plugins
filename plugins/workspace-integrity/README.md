@@ -34,7 +34,7 @@ Do not use it as a substitute for project tests, compiler checks, security scann
 
 ## Runtime behavior
 
-At `PreToolUse`, the dispatcher invokes matching domain and generic handlers. Any deterministic deny is returned immediately; advisory contexts can be combined. At `PostToolUse`, the domain scans plus `commands`, `quality`, and `source` perform bounded checks on observed writes. A Skill name is never a prerequisite for enforcement.
+At `PreToolUse`, the dispatcher invokes matching domain and generic handlers. Any deterministic deny is returned immediately; advisory contexts can be combined. The quality handler projects direct `Write`, `Edit`, `MultiEdit`, and `apply_patch` content so a predictable line-budget violation is denied before mutation. At `PostToolUse`, the domain scans plus `commands`, `quality`, and `source` perform bounded checks on observed writes. A post-write line-budget finding is report-only because the completed operation cannot be undone; unpredictable shell writes therefore do not carry a hard pre-write guarantee. Instead, an observed violation creates session debt and the `Stop` Hook requires the file to be reduced or split before completion. A Skill name is never a prerequisite for enforcement.
 
 Path extraction covers host file tools, patches, moves, redirects, and common shell writers. Each module is scoped to evidence in the current tool call and repository; the presence of a language file elsewhere does not authorize broad automatic workflows.
 

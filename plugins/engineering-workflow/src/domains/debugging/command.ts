@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   abortLedger,
@@ -43,6 +42,13 @@ function output(value: unknown): void {
   process.stdout.write(`${JSON.stringify(value)}\n`);
 }
 
+function printHelp(action?: string): void {
+  const usage = action === "claim"
+    ? "Usage: harness debug claim --bug BUG-NNN (--hypothesis HN --status supported|falsified|open | --root-cause TEXT --chain STEP|STEP) --receipt R-N"
+    : "Usage: harness debug <init|activate|claim|affect|add-bug|pause|close|abort|resume|status> [options]";
+  process.stdout.write(`${usage}\n`);
+}
+
 function fail(error: unknown): void {
   const message = error instanceof Error ? error.message : error;
   output({ ok: false, error: String(message ?? error) });
@@ -57,17 +63,25 @@ function list(value: unknown): unknown[] | string[] {
 export async function main(argv: string[] = process.argv.slice(2)): Promise<void> {
   const { options, positionals } = parseArgs(argv);
   const action = positionals[0];
+  if (options.help === true || positionals.includes("-h")) {
+    printHelp(action);
+    return;
+  }
   const cwd = options.cwd ? resolve(String(options.cwd)) : process.cwd();
   const base = { cwd, id: options.id, slug: options.slug };
   let result: WriterResult;
   try {
     if (action === "init" || action === "open") {
-      result = initLedger({
+      if (options.goal !== "diagnose" && (!options["user-outcome"] || !options.acceptance)) {
+        result = { ok: false, error: "userOutcome and acceptance are required for fix work orders" };
+      } else result = initLedger({
         ...base,
         summary: options.summary,
+        userOutcome: options["user-outcome"],
         expected: options.expected,
         actual: options.actual,
         reproduction: options.repro || options.reproduction,
+        acceptance: options.acceptance,
         environment: options.environment,
         h1: options.h1,
         h1Falsifier: options["h1-falsifier"],
@@ -99,13 +113,17 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
     } else if (action === "affect") {
       result = affectBugs({ ...base, bugId: options.bug, affectedBugIds: list(options.bugs) });
     } else if (action === "add-bug") {
-      result = addBug({
+      if (options.goal !== "diagnose" && (!options["user-outcome"] || !options.acceptance)) {
+        result = { ok: false, error: "userOutcome and acceptance are required for fix work orders" };
+      } else result = addBug({
         ...base,
         bugId: options.bug || options["bug-id"],
         summary: options.summary,
+        userOutcome: options["user-outcome"],
         expected: options.expected,
         actual: options.actual,
         reproduction: options.repro || options.reproduction,
+        acceptance: options.acceptance,
         environment: options.environment,
         h1: options.h1,
         h1Falsifier: options["h1-falsifier"],
@@ -138,9 +156,4 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<void
   }
   output(result);
   if (!result?.ok) process.exitCode = 1;
-}
-
-const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) {
-  await main();
 }

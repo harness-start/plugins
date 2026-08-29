@@ -1,11 +1,11 @@
-// harness-source-hash: sha256:f8a8603bbe06f97be9676cd7f7dc57b724b35ebc555310133543f99e88c62a52
+// harness-source-hash: sha256:9e3512935a0dde60d4f490220a22d67288b98c382c91325f98aa9a5070eb1f52
 import {
   eventToolName,
   extractFileTargets,
   isRecord,
   readStdinJson
-} from "../chunks/chunk-G6JEU3KE.mjs";
-import "../chunks/chunk-VVD6TLCA.mjs";
+} from "../chunks/chunk-XLXUHK6F.mjs";
+import "../chunks/chunk-EPE5LAWK.mjs";
 
 // plugins/workspace-integrity/src/domains/quality/entries/hooks/markdown-check.ts
 import { execFileSync } from "node:child_process";

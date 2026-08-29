@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:d36db61e7b9155cf134138a014848547faeb893d870b99388a250e4e6260f179
+// harness-source-hash: sha256:199ad7efd96065e74ec4497601a7bc5ecf56f58a329f91596720f3160e9ff52f
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -179,7 +179,7 @@ async function withTimeout(operation, timeoutMs, label) {
 }
 async function dispatchHookRoutes(input) {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart" ? String(event.source ?? "startup") : String(event.tool_name ?? event.toolName ?? "");
   const outputs = [];
   const failures = [];
   for (const route of input.routes[input.eventName] ?? []) {

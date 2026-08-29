@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:42f4e1506ae8cf08535d18bda6faea06232f99470ecf9f75a82c5b7ca233ee1b
+// harness-source-hash: sha256:c522b45b7aea50eddd02f21bc5741460ecc982a37227329f030c8303e3b3a1a6
 import {
   collectOwnerHookOutput,
   eventCwd,
@@ -9,7 +9,7 @@ import {
   isRecord,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-QWRAU52J.mjs";
+} from "../chunks/chunk-7KAPTPQS.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -68,7 +68,7 @@ async function withTimeout(operation, timeoutMs, label) {
 }
 async function dispatchHookRoutes(input) {
   const event = parseEvent(input.raw);
-  const name = String(event.tool_name ?? event.toolName ?? "");
+  const name = input.eventName === "SessionStart" ? String(event.source ?? "startup") : String(event.tool_name ?? event.toolName ?? "");
   const outputs = [];
   const failures = [];
   for (const route of input.routes[input.eventName] ?? []) {

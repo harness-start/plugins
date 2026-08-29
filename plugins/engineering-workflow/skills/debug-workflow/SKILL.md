@@ -22,11 +22,15 @@ DWG="$DWG_PLUGIN_ROOT/dist/cli/harness.mjs"
 node "$DWG" debug init --cwd "$PWD" \
   --slug short-slug \
   --summary "specific externally visible failure" \
+  --user-outcome "user-visible behavior that must be restored" \
   --expected "observable expected behavior" \
   --actual "observable failing behavior" \
   --repro "exact command used as the original reproduction" \
+  --acceptance "exact command that exercises the user-visible outcome" \
   --environment "relevant runtime and fixture"
 ```
+
+For fix work orders, `--user-outcome` and `--acceptance` are required. The acceptance command must exercise the affected public path or final artifact; a setup check, installed dependency, hook activation, or other proxy is insufficient unless that proxy is itself the reported user outcome. Diagnose-only work orders may omit them with `--goal diagnose`.
 
 3. Put every known bug in one ledger (`add-bug` for extras). Keep exactly one bug active with `activate --bug BUG-00N`.
 4. State a main hypothesis and an independent backup hypothesis. Make each falsifiable. Optional `claim` events may record them; hooks do not require rewriting a snapshot.
@@ -45,7 +49,7 @@ Work one bug at a time.
 3. Trace values backward from the failure to their source. Compare good/bad inputs or revisions and change one variable per experiment.
 4. Use tests, throwaway probes, or temporary instrumentation. Prefix retained debug markers with `DBG_<sanitized-work-order-id>_<bug-id>`.
 5. Cite hook-issued receipt IDs only after inspecting their command result. A receipt proves event order and outcome, not the truth of an interpretation.
-6. Optional: `node "$DWG" debug claim --hypothesis H1 --status supported --receipt R-N` or `debug claim --root-cause "..." --chain "step|step" --receipt R-N`.
+6. Optional: `node "$DWG" debug claim --bug BUG-001 --hypothesis H1 --status supported --receipt R-N` or `debug claim --bug BUG-001 --root-cause "..." --chain "step|step" --receipt R-N`.
 
 Do not patch by intuition. If the original reproduction is unavailable, `pause --next "..."` with a concrete recovery action and keep production files unchanged.
 
@@ -55,9 +59,10 @@ Do not patch by intuition. If the original reproduction is unavailable, `pause -
 2. If an independent diagnosis would materially reduce uncertainty, ask a fresh generic read-only subagent to inspect the ledger and evidence. Describe the question in ordinary language, do not present the chosen root cause as authoritative, and treat the reply as advice that the parent must verify.
 3. After three failed post-mutation reproductions, stop editing that bug. `pause --architecture-review --next "..."` or `activate` another bug. A fresh generic read-only subagent may challenge the architecture when useful, but the parent remains responsible for the decision.
 4. Run the exact original reproduction again after the last production mutation. It must succeed.
-5. Run at least one regression check for each affected bug. Never reuse another bug's receipt.
-6. Remove debug instrumentation. Run a cleanup command that exits 0 only when the marker is absent.
-7. Close with `node "$DWG" debug close` only after those hook-observed receipts exist. Do not copy `R-N` ids into a markdown snapshot.
+5. Run the exact `symptom.acceptance` command after the last production mutation. It must prove the declared user-visible outcome, not only a prerequisite or proxy.
+6. Run at least one separate regression check for each affected bug. Never reuse another bug's receipt.
+7. Remove debug instrumentation. Run a cleanup command that exits 0 only when the marker is absent.
+8. Close with `node "$DWG" debug close` only after those hook-observed receipts exist. Do not copy `R-N` ids into a markdown snapshot.
 
 A turn may end while the ledger remains open. Pause only for a real handoff or blocker.
 

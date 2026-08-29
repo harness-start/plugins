@@ -83,3 +83,32 @@ test("fused domain Hook modules never self-execute when bundled into an owner di
     visit(domainsRoot);
   }
 });
+
+test("compact SessionStart runs only the concise language profile", () => {
+  type SessionRoute = { handler: string; matcher?: string };
+  type SessionBinding = { matcher: string };
+  const sessionOwners = ["artifact-production", "engineering-workflow", "interface-design", "knowledge-work"];
+  for (const host of ["claude", "codex"]) {
+    for (const owner of sessionOwners) {
+      const root = resolve(repositoryRoot, "plugins", owner);
+      const routes = JSON.parse(readFileSync(resolve(root, "routes", `${host}.json`), "utf8"));
+      for (const route of routes.SessionStart ?? []) {
+        assert.equal(typeof route.matcher, "string", `${owner}/${host}/${route.handler}`);
+        assert.equal(new RegExp(`^(?:${route.matcher})$`, "u").test("compact"), false, `${owner}/${host}/${route.handler}`);
+      }
+      const manifest = JSON.parse(readFileSync(resolve(root, "hooks", `${host}.json`), "utf8"));
+      for (const binding of manifest.hooks.SessionStart ?? []) {
+        assert.equal(new RegExp(`^(?:${binding.matcher})$`, "u").test("compact"), false, `${owner}/${host} manifest`);
+      }
+    }
+
+    const root = resolve(repositoryRoot, "plugins", "session-governance");
+    const routes = JSON.parse(readFileSync(resolve(root, "routes", `${host}.json`), "utf8"));
+    const compactHandlers = (routes.SessionStart ?? [])
+      .filter((route: SessionRoute) => typeof route.matcher === "string" && new RegExp(`^(?:${route.matcher})$`, "u").test("compact"))
+      .map((route: SessionRoute) => route.handler);
+    assert.deepEqual(compactHandlers, ["language:language-output-hook-session-start"]);
+    const manifest = JSON.parse(readFileSync(resolve(root, "hooks", `${host}.json`), "utf8"));
+    assert.equal((manifest.hooks.SessionStart ?? []).some((binding: SessionBinding) => new RegExp(`^(?:${binding.matcher})$`, "u").test("compact")), true);
+  }
+});
