@@ -1,1 +1,0 @@
-# Logo direct-write fixture

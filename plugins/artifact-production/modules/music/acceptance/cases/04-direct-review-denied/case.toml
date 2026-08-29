@@ -1,4 +1,0 @@
-id = "04-direct-review-denied"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["music", "review", "pre-tool", "deny"]

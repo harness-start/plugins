@@ -4,7 +4,7 @@ Create an external JSON object with schema `brand-logo-production/review-input/v
 
 Set `decision` to `approved` only when all nine outcome checks pass; all six aesthetic criteria contain substantive notes, set `requiredMin` to 2, and score 2; and every blocker or major finding is `verified` against the current artifact with `recheckEvidence`. Do not average scores. Finding fields are `findingId`, `severity`, `evidenceAnchor`, `artifactDigest`, `fix`, `status`, and `recheckEvidence`. `evidenceAnchor` must be one of the required coverage paths and `artifactDigest` must exactly equal that path's current SHA-256.
 
-Write the JSON outside the project, then invoke `project-review.mjs <project-root> <external-json>`. Do not edit the project directly.
+Write the JSON outside the project, then invoke `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo review <project-root> <external-json>`. Do not edit the project directly.
 
 Use this shape. `coverage` must contain every required review artifact exactly once in lexicographic path order.
 

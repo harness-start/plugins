@@ -1,4 +1,0 @@
-interface:
-  display_name: "Music Project Review"
-  short_description: "Independently audition and review a digest-bound music render."
-  default_prompt: "Use $music-project-review in an independent session to audition the current mix and stems and submit a digest-bound review decision."

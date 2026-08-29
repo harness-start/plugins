@@ -1,1 +1,0 @@
-# Poster direct-write fixture

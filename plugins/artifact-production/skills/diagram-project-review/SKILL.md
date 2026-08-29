@@ -9,4 +9,4 @@ Do not edit project files, regenerate outputs, accept stale digests, or release 
 
 Create `diagram-production/review-input/v1` JSON outside the project. Bind the artifact id, current subject digest, your independent session id, overall `pass` verdict, findings, and these checks: `hierarchy`, `routing`, `labels`, `accessibility`, and `fidelity`. Each check needs `status`, exact `anchor`, concrete `evidence`, and a verifiable `recovery`. Findings need severity and disposition; high or critical findings cannot be accepted.
 
-Invoke `project-review.mjs <project-root> <external-input>` from this independent session. Return the admitted result and actionable findings only.
+Invoke `node ${PLUGIN_ROOT}/dist/cli/harness.mjs diagram review <project-root> <external-input>` from this independent session. Return the admitted result and actionable findings only.

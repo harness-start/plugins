@@ -11,7 +11,7 @@ When an adviser is selected, read its exact bundled instructions from [brand dir
 | `logo-color-accessibility` | color-accessibility | reference-only | mono/reverse, gamut, contrast, and print color risk |
 | `logo-presentation-system` | presentation | reference-only | specimen/mockup, export profile, print notes, and Figma fallback |
 
-For a used worker, create its Result Card outside the project and admit it with `project-advice.mjs <project-root> <external-json>`. Never execute a reference-only dependency or read files outside its allowlist. Retry a transient unavailable worker once; otherwise mark it unavailable and continue only when its phase is non-critical.
+For a used worker, create its Result Card outside the project and admit it with `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo advice <project-root> <external-json>`. Never execute a reference-only dependency or read files outside its allowlist. Retry a transient unavailable worker once; otherwise mark it unavailable and continue only when its phase is non-critical.
 
 Use this external Result Card shape, replacing placeholders with current values:
 

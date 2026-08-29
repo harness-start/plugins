@@ -1,234 +1,180 @@
 {
   "logo": {
     "advice": {
-      "module": "logo",
-      "script": "dist/cli/project-advice.mjs"
+      "handler": "logo:project-advice"
     },
     "lint": {
-      "module": "logo",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "logo:project-lint"
     },
     "lock": {
-      "module": "logo",
-      "script": "dist/cli/project-lock.mjs"
+      "handler": "logo:project-lock"
     },
     "preview": {
-      "module": "logo",
-      "script": "dist/cli/project-preview.mjs"
+      "handler": "logo:project-preview"
     },
     "release": {
-      "module": "logo",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "logo:project-release"
     },
     "render": {
-      "module": "logo",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "logo:project-render"
     },
     "review": {
-      "module": "logo",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "logo:project-review"
     },
     "stage": {
-      "module": "logo",
-      "script": "dist/cli/project-stage.mjs"
+      "handler": "logo:project-stage"
     },
     "validate": {
-      "module": "logo",
-      "script": "dist/cli/project-validate.mjs"
+      "handler": "logo:project-validate"
     }
   },
   "diagram": {
     "import": {
-      "module": "diagram",
-      "script": "dist/cli/project-import.mjs"
+      "handler": "diagram:project-import"
     },
     "init": {
-      "module": "diagram",
-      "script": "dist/cli/project-init.mjs"
+      "handler": "diagram:project-init"
     },
     "lint": {
-      "module": "diagram",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "diagram:project-lint"
     },
     "probe": {
-      "module": "diagram",
-      "script": "dist/cli/project-probe.mjs"
+      "handler": "diagram:project-probe"
     },
     "release": {
-      "module": "diagram",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "diagram:project-release"
     },
     "render": {
-      "module": "diagram",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "diagram:project-render"
     },
     "review": {
-      "module": "diagram",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "diagram:project-review"
     }
   },
   "poster": {
     "init": {
-      "module": "poster",
-      "script": "dist/cli/project-init.mjs"
+      "handler": "poster:project-init"
     },
     "lint": {
-      "module": "poster",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "poster:project-lint"
     },
     "probe": {
-      "module": "poster",
-      "script": "dist/cli/project-probe.mjs"
+      "handler": "poster:project-probe"
     },
     "release": {
-      "module": "poster",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "poster:project-release"
     },
     "render": {
-      "module": "poster",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "poster:project-render"
     },
     "review": {
-      "module": "poster",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "poster:project-review"
     }
   },
   "presentation": {
     "init": {
-      "module": "presentation",
-      "script": "dist/cli/project-init.mjs"
+      "handler": "presentation:project-init"
     },
     "lint": {
-      "module": "presentation",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "presentation:project-lint"
     },
     "probe": {
-      "module": "presentation",
-      "script": "dist/cli/project-probe.mjs"
+      "handler": "presentation:project-probe"
     },
     "release": {
-      "module": "presentation",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "presentation:project-release"
     },
     "render": {
-      "module": "presentation",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "presentation:project-render"
     },
     "review": {
-      "module": "presentation",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "presentation:project-review"
     }
   },
   "print": {
     "lint": {
-      "module": "print",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "print:project-lint"
     },
     "release": {
-      "module": "print",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "print:project-release"
     }
   },
   "video": {
     "admit": {
-      "module": "video",
-      "script": "dist/cli/project-admit.mjs"
+      "handler": "video:project-admit"
     },
     "init": {
-      "module": "video",
-      "script": "dist/cli/project-init.mjs"
+      "handler": "video:project-init"
     },
     "lint": {
-      "module": "video",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "video:project-lint"
     },
     "probe": {
-      "module": "video",
-      "script": "dist/cli/project-probe.mjs"
+      "handler": "video:project-probe"
     },
     "release": {
-      "module": "video",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "video:project-release"
     },
     "render": {
-      "module": "video",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "video:project-render"
     },
     "review": {
-      "module": "video",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "video:project-review"
     },
     "shot-stage": {
-      "module": "video",
-      "script": "dist/cli/project-shot-stage.mjs"
+      "handler": "video:project-shot-stage"
     },
     "catalog": {
-      "module": "video",
-      "script": "dist/cli/shot-catalog.mjs"
+      "handler": "video:shot-catalog"
     }
   },
   "music": {
     "advice": {
-      "module": "music",
-      "script": "dist/cli/project-advice.mjs"
+      "handler": "music:project-advice"
     },
     "init": {
-      "module": "music",
-      "script": "dist/cli/project-init.mjs"
+      "handler": "music:project-init"
     },
     "lint": {
-      "module": "music",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "music:project-lint"
     },
     "optimize": {
-      "module": "music",
-      "script": "dist/cli/project-optimize.mjs"
+      "handler": "music:project-optimize"
     },
     "preview": {
-      "module": "music",
-      "script": "dist/cli/project-preview.mjs"
+      "handler": "music:project-preview"
     },
     "reference": {
-      "module": "music",
-      "script": "dist/cli/project-reference.mjs"
+      "handler": "music:project-reference"
     },
     "release": {
-      "module": "music",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "music:project-release"
     },
     "render": {
-      "module": "music",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "music:project-render"
     },
     "review": {
-      "module": "music",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "music:project-review"
     },
     "stage": {
-      "module": "music",
-      "script": "dist/cli/project-stage.mjs"
+      "handler": "music:project-stage"
     }
   },
   "training": {
     "init": {
-      "module": "training",
-      "script": "dist/cli/project-init.mjs"
+      "handler": "training:project-init"
     },
     "lint": {
-      "module": "training",
-      "script": "dist/cli/project-lint.mjs"
+      "handler": "training:project-lint"
     },
     "release": {
-      "module": "training",
-      "script": "dist/cli/project-release.mjs"
+      "handler": "training:project-release"
     },
     "render": {
-      "module": "training",
-      "script": "dist/cli/project-render.mjs"
+      "handler": "training:project-render"
     },
     "review": {
-      "module": "training",
-      "script": "dist/cli/project-review.mjs"
+      "handler": "training:project-review"
     }
   }
 }

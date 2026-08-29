@@ -21,10 +21,10 @@ description: 为起点、角色或经验差异明显的受众设计新培训，�
 2. 使用注册入口初始化 `artifacts/training/<artifact-id>`。Claude 使用 `${CLAUDE_PLUGIN_ROOT}`，Codex 使用 `${PLUGIN_ROOT}`；Codex 的命令环境必须保留 Hook 提供的 `AI_EXPERTS_SESSION_ID` 与 `AI_EXPERTS_TRIGGER_FROM`。
 3. 完成 `brief`：在 `plan.contract.json` 写清受众、工作目标、时长、形式、语言与可证伪假设。没有真实证据时明确标成假设，不臆造学习者画像。
 4. 完成 `design`：在 `training-package.json` 建立 audience → outcome → agenda/activity → assessment → follow-up 的双向映射。所有人完成同一个核心任务；初学者获得 entry supports，有经验者获得 stretch extensions，不能按“初/中/高”简单拆成三套孤立课程。
-5. 执行 `project-lint.mjs --stage design`。总时长、引用、练习、评价和迁移闭环全部通过后才进入下一阶段。
-6. 完成 `materials`：执行 `project-render.mjs`，由同一 JSON 源生成讲师指南、学员手册、练习与评价、幻灯片大纲、培训 brief；`adapt` 模式还生成改编报告。不要手工编辑 `dist/` 或 evidence。
-7. 完成 `review`：按 `$training-program-review` 做只读评审，生成项目外的 review input，再执行 `project-review.mjs <project-root> <external-review-input>`。发现阻断问题时只修改源合同，并从 lint → render → review 重跑。
-8. 完成 `release`：评审通过后执行 `project-release.mjs`。只把 `receipt.release.json` 已绑定的文件作为已发布结果报告。
+5. 执行 `node ${PLUGIN_ROOT}/dist/cli/harness.mjs training lint --stage design`。总时长、引用、练习、评价和迁移闭环全部通过后才进入下一阶段。
+6. 完成 `materials`：执行 `node ${PLUGIN_ROOT}/dist/cli/harness.mjs training render`，由同一 JSON 源生成讲师指南、学员手册、练习与评价、幻灯片大纲、培训 brief；`adapt` 模式还生成改编报告。不要手工编辑 `dist/` 或 evidence。
+7. 完成 `review`：按 `$training-program-review` 做只读评审，生成项目外的 review input，再执行 `node ${PLUGIN_ROOT}/dist/cli/harness.mjs training review <project-root> <external-review-input>`。发现阻断问题时只修改源合同，并从 lint → render → review 重跑。
+8. 完成 `release`：评审通过后执行 `node ${PLUGIN_ROOT}/dist/cli/harness.mjs training release`。只把 `receipt.release.json` 已绑定的文件作为已发布结果报告。
 
 命令必须是独立、精确的 wrapper 调用，不能与重定向、管道、命令替换或第二条命令串联：
 

@@ -1,4 +1,0 @@
-id = "02-direct-dist-denied"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["pptx", "pre-tool", "deny"]

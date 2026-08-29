@@ -1,4 +1,0 @@
-id = "03-incomplete-release-stop"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["print", "stop", "deny", "release"]

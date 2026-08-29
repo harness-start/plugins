@@ -148,7 +148,7 @@ Edit only source-owned files directly:
 - `music.project.json` owns track registration, audio format, and numerical quality limits.
 - `plan.brief.json`, `plan.direction.json`, and `plan.arrangement.json` own creative intent.
 - `plan.skill-composition.json` owns adviser selection, artifact kinds, evidence paths, and truthful use/skip reasons.
-- `plan.contract.json` is protected and may advance only through `project-stage.mjs`.
+- `plan.contract.json` is protected and may advance only through `node ${PLUGIN_ROOT}/dist/cli/harness.mjs music stage`.
 
 ## Compose mathematically
 
@@ -199,7 +199,7 @@ Create digest-bound preview evidence without rendering again, then optionally op
 node "${PLUGIN_ROOT}/dist/cli/harness.mjs music preview" "artifacts/music/<id>"
 ```
 
-`project-preview.mjs` records per-mix and per-stem analysis and explicitly states that availability is not proof of listening. Hand `plan.*`, score, render receipt, preview evidence, mix, and every stem to a separate `$music-project-review` session. If it returns `changes_requested`, revise source and repeat optimize → render → preview; any source change invalidates prior evidence and review.
+`node ${PLUGIN_ROOT}/dist/cli/harness.mjs music preview` records per-mix and per-stem analysis and explicitly states that availability is not proof of listening. Hand `plan.*`, score, render receipt, preview evidence, mix, and every stem to a separate `$music-project-review` session. If it returns `changes_requested`, revise source and repeat optimize → render → preview; any source change invalidates prior evidence and review.
 
 ## Release
 

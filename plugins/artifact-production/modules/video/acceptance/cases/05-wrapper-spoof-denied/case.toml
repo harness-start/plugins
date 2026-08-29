@@ -1,6 +1,0 @@
-id = "05-wrapper-spoof-denied"
-hosts = ["claude", "codex"]
-timeout_sec = 30
-allowed_host_exits_claude = [0, 1, 124]
-allowed_host_exits_codex = [0, 1, 124]
-tags = ["video", "pre-tool", "writer-capability", "deny"]

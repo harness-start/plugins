@@ -1,4 +1,0 @@
-interface:
-  display_name: "PPTX Deck Authoring"
-  short_description: "Orchestrate editable PPTX delivery with evidence gates"
-  default_prompt: "Use $pptx-deck-authoring to create and verify an editable PPTX project."

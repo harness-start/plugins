@@ -2,7 +2,7 @@
 
 ## Ownership and stages
 
-`plan.brief.json`, `plan.direction.json`, `plan.arrangement.json`, `plan.skill-composition.json`, `music.project.json`, and `src/**` are author-owned source while `targetStage` is `source`. `plan.contract.json` is protected and advances only through `project-stage.mjs` after a current independent approval.
+`plan.brief.json`, `plan.direction.json`, `plan.arrangement.json`, `plan.skill-composition.json`, `music.project.json`, and `src/**` are author-owned source while `targetStage` is `source`. `plan.contract.json` is protected and advances only through `node ${PLUGIN_ROOT}/dist/cli/harness.mjs music stage` after a current independent approval.
 
 `src/composition.mjs` is trusted deterministic executable configuration. It cannot access network, wall-clock time, unseeded randomness, rendering, recording, or transport lifecycle. Instrument modules create local Tone.js nodes connected to the supplied output; they cannot call `toDestination()` or own transport/render lifecycle.
 
@@ -16,7 +16,7 @@ The subject digest covers the engine version and all audio-affecting source and 
 
 Protected outputs are `plan.contract.json`, `build/`, `proofs/`, `evidence/`, `review.music.json`, `dist/`, release manifest, receipt, and journal. Mutating CLI entrypoints consume one-shot capabilities issued only by the PreToolUse hook for an exact command, project, argv, session, and subject digest.
 
-`project-preview.mjs` must consume the current render and must not call the renderer. Its evidence records objective analysis and availability for audition, not proof of listening.
+`node ${PLUGIN_ROOT}/dist/cli/harness.mjs music preview` must consume the current render and must not call the renderer. Its evidence records objective analysis and availability for audition, not proof of listening.
 
 ## Review and release
 

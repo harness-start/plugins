@@ -1,4 +1,0 @@
-interface:
-  display_name: "Poster Project Authoring"
-  short_description: "Orchestrate deterministic SVG/PNG poster delivery"
-  default_prompt: "Create a new poster project with $poster-project-authoring and carry it through independent review and release."

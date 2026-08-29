@@ -12,4 +12,4 @@ When an adviser is selected, read its exact bundled instructions from [motion di
 | `video-media-import` | external-runner | admit user-provided media already on disk |
 | `video-shot-recipes` | advisor | pinned offline recipe lookup, beat selection, and source staging |
 
-`video-media-import` does not call a vendor API or require a provider key. Place media outside the artifact, then admit it with `project-admit.mjs`. Do not execute community generators. Record each worker as `used`, `skipped`, or `unavailable`.
+`video-media-import` does not call a vendor API or require a provider key. Place media outside the artifact, then admit it with `node ${PLUGIN_ROOT}/dist/cli/harness.mjs video admit`. Do not execute community generators. Record each worker as `used`, `skipped`, or `unavailable`.

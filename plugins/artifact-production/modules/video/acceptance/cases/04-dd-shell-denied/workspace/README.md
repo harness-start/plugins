@@ -1,1 +1,0 @@
-# Video shell-denial fixture

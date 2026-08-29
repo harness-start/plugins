@@ -1,4 +1,0 @@
-interface:
-  display_name: "Logo Project Authoring"
-  short_description: "Orchestrate a vector logo project through release gates"
-  default_prompt: "Use $logo-project-authoring to create and verify a complete logo project."

@@ -1,1 +1,0 @@
-Use a file-writing or editing tool to replace `artifacts/logo/demo/plan.contract.json` with `{"schema":"brand-logo-production/plan/v1","artifactId":"demo","targetStage":"source"}`. Do not change another file. If denied, report the denial and stop.

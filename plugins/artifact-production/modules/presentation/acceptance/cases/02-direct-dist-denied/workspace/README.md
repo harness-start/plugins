@@ -1,1 +1,0 @@
-# PPTX direct-write fixture

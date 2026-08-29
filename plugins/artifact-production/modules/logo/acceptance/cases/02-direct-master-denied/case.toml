@@ -1,4 +1,0 @@
-id = "02-direct-master-denied"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["logo", "pre-tool", "deny"]

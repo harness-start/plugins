@@ -1,411 +1,369 @@
 {
   "SessionStart": [
     {
-      "module": "logo",
-      "script": "dist/hooks/brand-logo-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "brand-logo-production:session"
+      "trigger": "brand-logo-production:session",
+      "handler": "logo:brand-logo-production"
     },
     {
-      "module": "diagram",
-      "script": "dist/hooks/diagram-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "diagram-production:session"
+      "trigger": "diagram-production:session",
+      "handler": "diagram:diagram-production"
     },
     {
-      "module": "poster",
-      "script": "dist/hooks/poster-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "poster-production:session"
+      "trigger": "poster-production:session",
+      "handler": "poster:poster-production"
     },
     {
-      "module": "presentation",
-      "script": "dist/hooks/presentation-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "presentation-production:session"
+      "trigger": "presentation-production:session",
+      "handler": "presentation:presentation-production"
     },
     {
-      "module": "print",
-      "script": "dist/hooks/print-publication-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "print-publication-production:session"
+      "trigger": "print-publication-production:session",
+      "handler": "print:print-publication-production"
     },
     {
-      "module": "video",
-      "script": "dist/hooks/video-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "video-production:session"
+      "trigger": "video-production:session",
+      "handler": "video:video-production"
     },
     {
-      "module": "music",
-      "script": "dist/hooks/music-production.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "music-production:session"
+      "trigger": "music-production:session",
+      "handler": "music:music-production"
     },
     {
-      "module": "training",
-      "script": "dist/hooks/training-program-design.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "training-program-design:session"
+      "trigger": "training-program-design:session",
+      "handler": "training:training-program-design"
     }
   ],
   "PreToolUse": [
     {
-      "module": "logo",
-      "script": "dist/hooks/brand-logo-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "brand-logo-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "logo:brand-logo-production"
     },
     {
-      "module": "diagram",
-      "script": "dist/hooks/diagram-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "diagram-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "diagram:diagram-production"
     },
     {
-      "module": "poster",
-      "script": "dist/hooks/poster-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "poster-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "poster:poster-production"
     },
     {
-      "module": "presentation",
-      "script": "dist/hooks/presentation-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "presentation-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "presentation:presentation-production"
     },
     {
-      "module": "print",
-      "script": "dist/hooks/print-publication-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "print-publication-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "print:print-publication-production"
     },
     {
-      "module": "video",
-      "script": "dist/hooks/video-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "video-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "video:video-production"
     },
     {
-      "module": "music",
-      "script": "dist/hooks/music-production.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "music-production:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "music:music-production"
     },
     {
-      "module": "training",
-      "script": "dist/hooks/training-program-design.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "training-program-design:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "training:training-program-design"
     }
   ],
   "PostToolUse": [
     {
-      "module": "logo",
-      "script": "dist/hooks/brand-logo-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "brand-logo-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "logo:brand-logo-production"
     },
     {
-      "module": "diagram",
-      "script": "dist/hooks/diagram-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "diagram-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "diagram:diagram-production"
     },
     {
-      "module": "poster",
-      "script": "dist/hooks/poster-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "poster-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "poster:poster-production"
     },
     {
-      "module": "presentation",
-      "script": "dist/hooks/presentation-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "presentation-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "presentation:presentation-production"
     },
     {
-      "module": "print",
-      "script": "dist/hooks/print-publication-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "print-publication-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "print:print-publication-production"
     },
     {
-      "module": "video",
-      "script": "dist/hooks/video-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 120000,
       "trigger": "video-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "video:video-production"
     },
     {
-      "module": "music",
-      "script": "dist/hooks/music-production.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "music-production:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "music:music-production"
     },
     {
-      "module": "training",
-      "script": "dist/hooks/training-program-design.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "training-program-design:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "training:training-program-design"
     }
   ],
   "Stop": [
     {
-      "module": "logo",
-      "script": "dist/hooks/brand-logo-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "brand-logo-production:stop"
+      "trigger": "brand-logo-production:stop",
+      "handler": "logo:brand-logo-production"
     },
     {
-      "module": "diagram",
-      "script": "dist/hooks/diagram-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "diagram-production:stop"
+      "trigger": "diagram-production:stop",
+      "handler": "diagram:diagram-production"
     },
     {
-      "module": "poster",
-      "script": "dist/hooks/poster-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "poster-production:stop"
+      "trigger": "poster-production:stop",
+      "handler": "poster:poster-production"
     },
     {
-      "module": "presentation",
-      "script": "dist/hooks/presentation-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "presentation-production:stop"
+      "trigger": "presentation-production:stop",
+      "handler": "presentation:presentation-production"
     },
     {
-      "module": "print",
-      "script": "dist/hooks/print-publication-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "print-publication-production:stop"
+      "trigger": "print-publication-production:stop",
+      "handler": "print:print-publication-production"
     },
     {
-      "module": "video",
-      "script": "dist/hooks/video-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 120000,
-      "trigger": "video-production:stop"
+      "trigger": "video-production:stop",
+      "handler": "video:video-production"
     },
     {
-      "module": "music",
-      "script": "dist/hooks/music-production.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "music-production:stop"
+      "trigger": "music-production:stop",
+      "handler": "music:music-production"
     },
     {
-      "module": "training",
-      "script": "dist/hooks/training-program-design.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "training-program-design:stop"
+      "trigger": "training-program-design:stop",
+      "handler": "training:training-program-design"
     }
   ],
   "PostToolUseFailure": [
     {
-      "module": "diagram",
-      "script": "dist/hooks/diagram-production.mjs",
       "args": [
         "failure"
       ],
       "timeoutMs": 10000,
       "trigger": "diagram-production:failure",
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "diagram:diagram-production"
     },
     {
-      "module": "poster",
-      "script": "dist/hooks/poster-production.mjs",
       "args": [
         "failure"
       ],
       "timeoutMs": 10000,
       "trigger": "poster-production:failure",
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "poster:poster-production"
     },
     {
-      "module": "music",
-      "script": "dist/hooks/music-production.mjs",
       "args": [
         "failure"
       ],
       "timeoutMs": 10000,
       "trigger": "music-production:failure",
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "music:music-production"
     }
   ],
   "SubagentStop": [
     {
-      "module": "diagram",
-      "script": "dist/hooks/diagram-production.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "diagram-production:subagent-stop"
+      "trigger": "diagram-production:subagent-stop",
+      "handler": "diagram:diagram-production"
     },
     {
-      "module": "poster",
-      "script": "dist/hooks/poster-production.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "poster-production:subagent-stop"
+      "trigger": "poster-production:subagent-stop",
+      "handler": "poster:poster-production"
     },
     {
-      "module": "presentation",
-      "script": "dist/hooks/presentation-production.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "presentation-production:subagent-stop"
+      "trigger": "presentation-production:subagent-stop",
+      "handler": "presentation:presentation-production"
     },
     {
-      "module": "print",
-      "script": "dist/hooks/print-publication-production.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "print-publication-production:subagent-stop"
+      "trigger": "print-publication-production:subagent-stop",
+      "handler": "print:print-publication-production"
     },
     {
-      "module": "video",
-      "script": "dist/hooks/video-production.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 120000,
-      "trigger": "video-production:subagent-stop"
+      "trigger": "video-production:subagent-stop",
+      "handler": "video:video-production"
     },
     {
-      "module": "music",
-      "script": "dist/hooks/music-production.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "music-production:subagent-stop"
+      "trigger": "music-production:subagent-stop",
+      "handler": "music:music-production"
     },
     {
-      "module": "training",
-      "script": "dist/hooks/training-program-design.mjs",
       "args": [
         "subagent-stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "training-program-design:subagent-stop"
+      "trigger": "training-program-design:subagent-stop",
+      "handler": "training:training-program-design"
     }
   ]
 }

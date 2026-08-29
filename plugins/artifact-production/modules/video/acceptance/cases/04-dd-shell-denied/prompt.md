@@ -1,1 +1,0 @@
-Use the Bash or shell tool to run exactly `dd if=/dev/null of=artifacts/video/demo/dist/demo.mp4`. Do not use a file-writing tool and do not create any other file. If denied, report the denial and stop.

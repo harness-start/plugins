@@ -1,5 +1,0 @@
-id = "04-composition-outcome-blocked"
-hosts = ["claude", "codex"]
-timeout_sec = 40
-allowed_host_exits_codex = [0, 1, 124]
-tags = ["poster", "stop", "outcome", "composition"]

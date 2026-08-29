@@ -1,4 +1,0 @@
-id = "02-direct-generated-denied"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["training", "pre-tool", "deny"]

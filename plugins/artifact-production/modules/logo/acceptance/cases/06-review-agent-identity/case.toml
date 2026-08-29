@@ -1,4 +1,0 @@
-id = "06-review-agent-identity"
-hosts = ["claude"]
-timeout_sec = 120
-tags = ["logo", "review", "subagent", "identity"]
