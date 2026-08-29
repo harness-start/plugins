@@ -30,12 +30,12 @@
 
 - 每个 owner 都有独立目录、双平台 manifest、平台专属 Hook 配置和单一事件 dispatcher。
 - 两个平台共享插件内业务脚本，但使用各自的根目录变量和 Hook 配置。
-- `engineering-workflow` 已将原细粒度实现拆入同一 owner 的 `src/domains/`，共享 Hook、CLI、测试、验收、Skill、license 和构建边界。其他 owner 下仍存在的 `modules/` 是待迁移遗留结构，不是目标架构，也不得继续扩展。
+- 所有 owner 都已将原细粒度实现拆入各自的 `src/domains/`，共享 Hook、CLI、测试、验收、Skill、license 和构建边界；`plugins/*/modules/` 不再是允许的实现结构。
 - 安装面固定全量启用，没有能力 profile 或 FDE/OPC 运行时分支；FDE、OPC 只是使用者。
 - 自动门禁只用于可机械验证的条件；需要模型理解、探索或取舍的流程留在 Skill 和 agent 工作流中。
-- 已融合 owner 只从 owner 的 `src/**/*.ts` 构建一份已提交、自包含的 `dist/**/*.mjs`；待迁移 owner 暂时保留旧 build unit。发布前必须校验全部构建摘要和产物新鲜度。
+- 每个 owner 只从自己的 `src/**/*.ts` 构建一份已提交、自包含的 `dist/**/*.mjs`。发布前必须校验全部构建摘要和产物新鲜度。
 - 插件运行时不引用另一个插件的相对路径。
-- `workspace-integrity` 保留跨技术栈的 lock、vendor、generated 等通用保护，但不公开语言百科 Skill，也不自动执行语言 lint/format；项目原生验证由显式工程工作流负责。
+- `workspace-integrity` 保留跨技术栈的 lock、vendor、generated 等通用保护，并随 owner 捆绑相关工程参考 Skill，但不会把 Skill 加载作为 Hook 前提，也不自动执行语言 lint/format；项目原生验证由显式工程工作流负责。
 - 仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可自然语言委派普通子 agent，父 agent 负责证据、写入、验证和最终交付。
 
 ## 3. 运行链路
@@ -73,7 +73,7 @@ Hook 不能替用户或模型推断开放式意图，也不能把一次 Hook 激
 
 ### 5.1 插件是部署和回滚边界
 
-一个 owner 携带运行所需的 manifest、Hook 配置、routes、Scripts、内部 modules、测试、验收用例和必要文档。宿主只复制或加载单个 owner 目录，因此运行时不能依赖仓库根目录或其他 owner。
+一个 owner 携带运行所需的 manifest、Hook 配置、routes、Scripts、`src/domains/` 领域实现、测试、验收用例和必要文档。宿主只复制或加载单个 owner 目录，因此运行时不能依赖仓库根目录或其他 owner。
 
 跨插件出现相似辅助函数时，通用 hook I/O、写目标抽取、shell 分词、交付路径/writer 识别、JSONL trail 锁和可执行配置加载属于 `core/src`，由 esbuild 打进各插件 `dist/`。领域判定仍必须留在插件内。插件运行时不能引用另一个插件或仓库外的共享包。
 

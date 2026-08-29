@@ -139,13 +139,13 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 
 Marketplace 固定发布以上 8 个 owner；一键安装始终安装全部插件，没有能力 profile、按角色分支或 FDE/OPC 运行时模式。FDE、OPC 只是同一套能力的使用者。
 
-每个 owner 都是可独立安装、升级和回滚的自包含插件。原有细粒度实现被收进 owner 的 `modules/`，不再作为公开插件。每个生命周期事件由 owner 的单一 dispatcher 调度内部模块；对外需要确定性工具的 owner 统一提供：
+每个 owner 都是可独立安装、升级和回滚的自包含插件。原有细粒度实现已拆入 owner 的 `src/domains/`，共享同一个 Hook、CLI、测试、验收、Skill、license 和构建边界。每个生命周期事件由 owner 的单一 dispatcher 在进程内调度领域处理器；对外需要确定性工具的 owner 统一提供：
 
 ```text
 node "${PLUGIN_ROOT}/dist/cli/harness.mjs" <resource> <action> [arguments]
 ```
 
-各 owner 捆绑自己的 Skill、Hook、Script、内部模块和验收材料，不声明跨 owner 运行时依赖，也不依赖 `skill-deps.json` 或 `vendor-skills/`。
+各 owner 捆绑自己的 Skill、Hook、Script、领域实现和验收材料，不声明跨 owner 运行时依赖，也不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
 ### Subagent 原则
 
@@ -164,15 +164,14 @@ plugins/<name>/
 ├── hooks/claude.json            # 双平台 Hook 之一
 ├── hooks/codex.json             # 双平台 Hook 之一
 ├── routes/                      # owner dispatcher 与统一 CLI 的内部路由
-├── src/                         # owner Hook dispatcher 与可选 harness CLI
+├── src/                         # owner 入口与 src/domains/ 领域实现
 ├── dist/                        # 已提交的 owner Node ESM bundle
 ├── skills/                      # 捆绑编排与业务 Skill
-├── modules/                     # owner 私有能力实现；没有独立宿主注册面
 ├── acceptance/cases/            # 宿主验收用例（case.toml + prompt.md + expect.sh + workspace/）
 └── tests/*.test.ts              # 与源码同名或同职责的离线测试
 ```
 
-owner 与内部模块的运行时依赖都由 esbuild 打进各自 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一 owner 目录即可安装和运行。`modules/` 不是 marketplace 发布面，也不能被其他 owner 引用。private module 保留 `src/`、`dist/`、Skill、测试和必要的平台适配实现，但不得拥有 `.claude-plugin/`、`.codex-plugin/`、`hooks/claude.json`、`hooks/codex.json`、`.mcp.json` 或 `mcp/codex.json`；宿主 manifest、Hook 注册和 MCP 暴露统一归 owner。测试 fixture 为模拟消费者环境而创建的 `.claude/` 或 `.codex/` 不属于注册面，不做无差别删除。
+owner 与领域实现的运行时依赖都由 esbuild 打进 owner 的单一 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一 owner 目录即可安装和运行。领域实现位于 `src/domains/`，不拥有独立 `dist/`、Skill 根、测试根、验收根或宿主注册面，也不能被其他 owner 引用。宿主 manifest、Hook 注册、CLI 和 MCP 暴露统一归 owner。测试 fixture 为模拟消费者环境而创建的 `.claude/` 或 `.codex/` 不属于注册面，不做无差别删除。
 
 两个宿主的字段名、环境变量与生命周期事件不同，因此 marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护，业务脚本在插件目录内共享。Hook 事件覆盖：`SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`PostToolUseFailure`、`Stop`、`SubagentStart`、`SubagentStop`、`PreCompact`、`PostCompact`。
 
@@ -203,7 +202,7 @@ npm run verify
 bash scripts/ci/validate-plugins.sh
 ```
 
-`npm run build` 会构建每个 owner 及其 `modules/*/src/entries/**/*.ts`；每个生成文件都写入 `harness-source-hash`，摘要覆盖对应构建单元的 `src/**/*.ts` 与共享 `core/src/**/*.ts`。提交前必须把这些产物一并提交。`npm run ensure:dist` 以内存重建并只刷新不一致的构建单元；`npm run check:dist` 做同样的逐字节检查但不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
+`npm run build` 会从每个 owner 的 `src/entries/**/*.ts` 构建一份 owner 运行时；每个生成文件都写入 `harness-source-hash`，摘要覆盖该 owner 的全部 `src/**/*.ts` 与共享 `core/src/**/*.ts`。提交前必须把这些产物一并提交。`npm run ensure:dist` 以内存重建并只刷新不一致的 owner；`npm run check:dist` 做同样的逐字节检查但不会改写工作区。验证脚本还会校验 JSON、bundle 语法、双平台 manifest 版本、离线单元测试、双宿主 acceptance case 结构、惰性日志诚实性和 Claude/Codex marketplace 加载。
 
 宿主已安装时运行：
 

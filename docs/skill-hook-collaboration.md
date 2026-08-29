@@ -278,7 +278,7 @@ stateDiagram-v2
 
 **mutating writer 路径必须**
 
-- Pre 只对精确 `node <plugin>/dist/cli/<writer>.mjs <projectRoot> …` 签发一次性、短时、绑定 argv / session / subject digest 的 capability。
+- Pre 只对精确 `node <plugin>/dist/cli/harness.mjs <resource> <action> <projectRoot> …` 签发一次性、短时、绑定 argv / session / subject digest 的 capability。
 - writer 必须 `consumeWriterCapability` 一次，并用独占 journal + 临时文件 rename。
 - 普通文件工具或非精确 wrapper 写 generated 路径必须 `preToolDeny`。
 
@@ -383,7 +383,7 @@ stopBlock(reason)             // { decision: "block", reason }
 | 能力 | 模块 / 位置 | 要求 |
 | --- | --- | --- |
 | 发现工程根 | `artifact-paths.ts` / `artifact-scan.ts` | 只认约定 carrier 目录 |
-| writer 形状 | `artifact-shell.ts` `evaluateRegisteredWriter` | 只接受精确 `node …/dist/cli/<writer>.mjs <root> …` |
+| writer 形状 | `artifact-shell.ts` `evaluateRegisteredWriter` | 只接受精确 `node …/dist/cli/harness.mjs <resource> <action> <root> …` |
 | 新鲜度 | `artifact-receipt.ts` | SHA-256 绑定非生成输入与最终输出字节 |
 | 原子写出 | `release-journal.ts` | 独占 journal + rename；未关 journal 阻断 Stop |
 | mutating capability | 插件内 `capability.ts` | 短时、一次性、绑定 argv / session / subject |

@@ -13,7 +13,7 @@
 
 ## ESLint 与跨文件合同
 
-存在可执行 TS/TSX 单元的插件，用 `src/lib/eslint/preset.ts` 和 `src/lib/eslint/local-rules/` 处理单文件 AST 能可靠表达的 owner 边界；只有结构化 JSON 源的图表插件直接执行 schema、引用和密度合同。需要 ESLint 时，运行时 `dist/cli/project-lint.mjs` 从 artifact 自己的 `package.json` 解析本地依赖，不使用全局包或 `npx`。
+存在可执行 TS/TSX 单元的插件，用各 owner 的 `src/domains/<domain>/lib/eslint/` 处理单文件 AST 能可靠表达的边界；只有结构化 JSON 源的图表领域直接执行 schema、引用和密度合同。需要 ESLint 时，通过 owner 的 `dist/cli/harness.mjs <resource> lint` 从 artifact 自己的 `package.json` 解析本地依赖，不使用全局包或 `npx`。
 
 文件名、manifest 顺序、source-hash proof、跨文件依赖、最终输出和 receipt 由 `src/lib/contract.ts` 复核，并随各 entry 打入 bundle。正则合同不是 ESLint 的降级替代，而是 Hook 在没有 artifact toolchain 时仍能 fail closed 的最小闭包。
 
