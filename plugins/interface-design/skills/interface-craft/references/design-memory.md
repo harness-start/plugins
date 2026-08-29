@@ -18,6 +18,7 @@ Start from [the template](design-memory-template.md). Record:
 
 - **Evidence** — facts tied to paths, supplied URLs, screenshots, or observed computed values; inferences that explain the evidence; assumptions that are falsifiable and name how to verify them.
 - **Direction** — audience, primary job and action, visual language, hierarchy, layout variance, motion intensity, and information density.
+- **Communication core** — product promise, intended audience outcome, exact one-sentence retell target, one semantically causal signature cue with a component/state/surface anchor, the semantic link, invariants, and prohibited drift.
 - **Semantic tokens** — roles for color, type, spacing, radius, border, elevation, and motion. Reuse actual project names and values instead of inventing aliases.
 - **Component patterns and states** — public primitives, role variants, and the applicable default, hover, focus, active, selected, disabled, loading, error, success, and empty states.
 - **Responsive and motion contracts** — reflow, content order, reachable actions, motion purpose, interruption, exit, and reduced-motion behavior.

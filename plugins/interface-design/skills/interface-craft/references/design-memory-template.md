@@ -22,6 +22,16 @@
 - Visual language: `<observable description>`
 - Layout variance / motion intensity / information density: `<low | medium | high, with reason>`
 
+### Communication core
+
+- Product promise: `<one concrete value or operating belief>`
+- Audience outcome: `<what the audience should understand or do>`
+- Retell target: `<one exact sentence a reviewer should be able to repeat>`
+- Signature cue and anchor: `<recognizable cue>` at `<component, state, or surface anchor>`
+- Semantic link: `<why this form causally expresses the promise>`
+- Invariants: `<properties that must survive routes, states, and breakpoints>`
+- Prohibited drift: `<recognizable but semantically wrong directions>`
+
 ### Semantic tokens
 
 - Color roles: `<existing project tokens>`

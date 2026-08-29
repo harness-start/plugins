@@ -66,6 +66,14 @@ test("visual critique requires severity, exact anchors, evidence, recovery, and 
   assert.match(critique, /Hook fact is not automatically a design defect/iu);
 });
 
+test("visual critique stops blind-read tool exploration when the host cannot inspect images", () => {
+  const critique = text("skills/interface-visual-critique/SKILL.md");
+  assert.match(critique, /image input/iu);
+  assert.match(critique, /do not substitute/iu);
+  assert.match(critique, /computed style/iu);
+  assert.match(critique, /mark.*unverified/iu);
+});
+
 test("motion references cover semantic tokens, usage matching, interruption, exits, and nine recipes", () => {
   const tokens = text("skills/interface-craft/references/motion-tokens.md");
   const method = text("skills/interface-craft/references/motion.md");

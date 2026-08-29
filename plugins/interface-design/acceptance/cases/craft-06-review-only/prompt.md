@@ -1,1 +1,1 @@
-Use interface-visual-critique to audit the committed page in this workspace. Do not edit any file.
+Use interface-visual-critique to audit the committed page in this workspace. First inspect it without reading any design contract and record your first-read focal action and one-sentence retell. Then read any available design intent or infer a bounded target, compare the intended communication core and signature cue against that independent first read, and finish the evidence-backed critique. Do not edit any file.

@@ -9,11 +9,12 @@ This Skill is **read-only**. It cannot write UI files, update `DESIGN.md`, apply
 
 ## Review sequence
 
-1. **Scope and intent** — bound the surface or diff. Read the managed `DESIGN.md` block when present and review against its ratified direction. State any missing intent as an assumption.
-2. **Whole-render pass** — inspect representative desktop and mobile views before source details. Identify the focal element, hierarchy, density rhythm, palette commitment, clipping, and responsive reflow. Use a squint test: hierarchy should survive when details blur.
-3. **Independent lenses** — check hierarchy; typography and contrast; surfaces and depth; composition and spacing; component states and motion; reuse, semantics, and content coherence.
-4. **False-positive filter** — drop personal preference, coherent bold choices, ratified exceptions, untouched out-of-scope code, and lint concerns. A Hook fact is not automatically a design defect.
-5. **Verdict** — synthesize only evidence-backed findings and state one bounded verdict.
+1. **Scope and blind first read** — bound the surface or diff. Before reading `DESIGN.md` or another intent contract, inspect representative desktop and mobile renders. Record the focal action, the signature cue you actually notice, and a one-sentence pre-contract retell. If no render exists, or the host cannot inspect image inputs, stop visual-tool exploration and mark this pass unverified. Do not substitute source inspection, computed styles, DOM metrics, pixel sampling, or a custom measurement harness for a human-visible first read; continue with the remaining contract and source checks while preserving that limitation.
+2. **Contract comparison** — read the managed `DESIGN.md` block when present. Compare the product promise, intended retell, signature cue, semantic link, invariants, and prohibited drift against the blind first read. State missing intent as an assumption and never silently rewrite the target.
+3. **Whole-render pass** — identify hierarchy, density rhythm, palette commitment, clipping, and responsive reflow. Use a squint test: hierarchy and the signature cue should survive when details blur.
+4. **Independent lenses** — check hierarchy; typography and contrast; surfaces and depth; composition and spacing; component states and motion; reuse, semantics, content coherence, signature-cue continuity, and causal fit to the product promise.
+5. **False-positive filter** — drop personal preference, coherent bold choices, ratified exceptions, untouched out-of-scope code, and lint concerns. A Hook fact is not automatically a design defect.
+6. **Verdict** — report the pre-contract retell, intended target, alignment (`pass`, `partial`, or `fail`), and limitation; then synthesize only evidence-backed findings and state one bounded verdict.
 
 ## Finding contract
 
