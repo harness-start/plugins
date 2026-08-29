@@ -71,7 +71,7 @@ check_project_honesty() {
   local honesty_out="${OUT_DIR}/honesty"
   mkdir -p "${honesty_out}"
   local failed=0 checked=0
-  local case_id case_dir expect_sh prompt_md host work inert_log run_id rc safe_id
+  local case_id case_dir expect_sh prompt_md host work inert_log run_id rc safe_id accept_out accept_home
 
   local -a cases=()
   while IFS= read -r case_id; do cases+=("${case_id}"); done < <(list_project_cases "${SCENARIOS_ROOT}")
@@ -114,20 +114,23 @@ check_project_honesty() {
         echo "session complete without tool calls."
       } >"${inert_log}"
 
-      export ACCEPT_REPO="${REPO_ROOT}"
-      export ACCEPT_WORKSPACE="${work}"
-      export ACCEPT_LOG="${inert_log}"
-      export ACCEPT_HOST="${host}"
-      export ACCEPT_PLUGIN="project"
-      export ACCEPT_CASE="${case_id}"
-      export ACCEPT_SUITE="project"
-      export ACCEPT_PLUGIN_DIR=""
-      export ACCEPT_OUT="${honesty_out}/${run_id}"
-      export HOME="${honesty_out}/${run_id}/home"
-      mkdir -p "${HOME}" "${ACCEPT_OUT}"
+      accept_out="${honesty_out}/${run_id}"
+      accept_home="${accept_out}/home"
+      mkdir -p "${accept_home}" "${accept_out}"
 
       set +e
-      bash "${expect_sh}" >"${honesty_out}/${run_id}/expect.out" 2>&1
+      env \
+        ACCEPT_REPO="${REPO_ROOT}" \
+        ACCEPT_WORKSPACE="${work}" \
+        ACCEPT_LOG="${inert_log}" \
+        ACCEPT_HOST="${host}" \
+        ACCEPT_PLUGIN="project" \
+        ACCEPT_CASE="${case_id}" \
+        ACCEPT_SUITE="project" \
+        ACCEPT_PLUGIN_DIR="" \
+        ACCEPT_OUT="${accept_out}" \
+        HOME="${accept_home}" \
+        bash "${expect_sh}" >"${accept_out}/expect.out" 2>&1
       rc=$?
       set -e
       if [ "${rc}" -eq 0 ]; then

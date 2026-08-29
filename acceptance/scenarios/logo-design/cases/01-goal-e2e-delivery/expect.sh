@@ -17,10 +17,10 @@ note() { printf '%s\n' "$*" | tee -a "${notes}" >&2; }
 ok() { note "- PASS: $*"; }
 bad() { note "- FAIL: $*"; fail=$((fail + 1)); }
 
-if [ -s "${HOME}/install-all.log" ] && grep -Eq 'brand-logo-production' "${HOME}/install-all.log"; then
-  ok "clean install catalog contains brand-logo-production"
+if [ -s "${HOME}/install-all.log" ] && grep -Eq 'artifact-production' "${HOME}/install-all.log"; then
+  ok "clean install catalog contains artifact-production"
 else
-  bad "install-all evidence for brand-logo-production is missing"
+  bad "install-all evidence for artifact-production is missing"
 fi
 
 logo_root="${ACCEPT_WORKSPACE}/artifacts/logo"

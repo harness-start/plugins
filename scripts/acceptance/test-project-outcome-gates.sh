@@ -121,12 +121,21 @@ printf '%s\n' \
 expect_fail "${research_case}" "${research_tamper}"
 
 logo_case="logo-design/01-goal-e2e-delivery"
+logo_expect="${REPO_ROOT}/acceptance/scenarios/logo-design/cases/01-goal-e2e-delivery/expect.sh"
+if ! grep -Eq "install-all evidence for artifact-production|catalog contains artifact-production" "${logo_expect}"; then
+  printf 'logo outcome gate does not require the fused artifact-production owner\n' >&2
+  exit 1
+fi
+if grep -Eq "install-all evidence for brand-logo-production|catalog contains brand-logo-production" "${logo_expect}"; then
+  printf 'logo outcome gate still requires the removed brand-logo-production module\n' >&2
+  exit 1
+fi
 logo_theater="$(prepare_case "${logo_case}" logo-theater)"
 mkdir -p "${logo_theater}/home" "${logo_theater}/bin" \
   "${logo_theater}/workspace/artifacts/logo/theater/src/master" \
   "${logo_theater}/workspace/artifacts/logo/theater/src/concepts" \
   "${logo_theater}/workspace/artifacts/logo/theater/build/master"
-printf '%s\n' 'installed brand-logo-production' >"${logo_theater}/home/install-all.log"
+printf '%s\n' 'installed artifact-production' >"${logo_theater}/home/install-all.log"
 for rel in plan.contract.json plan.brief.json plan.skill-composition.json logo.project.json src/concepts/manifest.json; do
   printf '%s\n' '{}' >"${logo_theater}/workspace/artifacts/logo/theater/${rel}"
 done
