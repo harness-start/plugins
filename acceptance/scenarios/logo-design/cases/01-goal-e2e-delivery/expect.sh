@@ -57,7 +57,7 @@ for id in "${logo_ids[@]:-}"; do
   fi
   if jq -e '
     . as $review
-    | .schema == "brand-logo-production/review/v2"
+    | .schema == "brand-logo-production/review/v3"
     and .decision == "approved"
     and (.reviewer.kind == "human" or .reviewer.kind == "independent-agent")
     and (.reviewer.sessionId | type == "string" and length > 0)
@@ -66,6 +66,11 @@ for id in "${logo_ids[@]:-}"; do
     and (["structureConsistency","opticalCorrection","singleMemoryPoint","semanticIntegration","markWordmarkSystem","restraint"]
       | all(. as $id | ($review.criteria[$id].score == 2 and $review.criteria[$id].requiredMin >= 2 and ($review.criteria[$id].note | type == "string" and length >= 8))))
     and (.coverage | type == "array" and length > 0 and all(.[]; (.path | type == "string" and length > 0) and (.sha256 | test("^[a-f0-9]{64}$"))))
+    and (.reviewerRetell.observedBeforeContract | type == "string" and length > 0)
+    and (.reviewerRetell.intendedTarget | type == "string" and length > 0)
+    and .reviewerRetell.alignment == "pass"
+    and (["coreFidelity","signatureCue","semanticCausality","retellAlignment","invariantContinuity"]
+      | all(. as $id | ($review.communicationReview[$id].status == "pass" and ($review.communicationReview[$id].anchor | type == "string" and length > 0) and ($review.communicationReview[$id].evidence | type == "string" and length > 0) and ($review.communicationReview[$id].recovery | type == "string" and length > 0))))
     and all(.findings[]?; ((.severity == "blocker" or .severity == "major") | not) or (.status == "verified" and (.recheckEvidence | type == "string" and length > 0)))
   ' "${review}" >/dev/null 2>&1; then
     ok "${id} has complete independent outcome checks, per-criterion scores, digest coverage, and finding recovery"
