@@ -1,6 +1,7 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { inflateSync } from "node:zlib";
 
+import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 import { decodePngToRgba } from "./png-decode.js";
 
 export type FileContent = string | Buffer;
@@ -85,14 +86,14 @@ const PATH_ARITY = { A: 7, C: 6, H: 1, L: 2, M: 2, Q: 4, S: 4, T: 2, V: 1, Z: 0 
 type PathCommand = keyof typeof PATH_ARITY;
 
 export const PLAN_SCHEMA = "brand-logo-production/plan/v1";
-export const BRIEF_SCHEMA = "brand-logo-production/brief/v2";
+export const BRIEF_SCHEMA = "brand-logo-production/brief/v3";
 export const WORDMARK_MANIFEST_SCHEMA = "brand-logo-production/wordmark-manifest/v1";
 export const BRAND_CONTEXT_SCHEMA = "brand-logo-production/brand-context/v1";
 export const ASSET_PLAN_SCHEMA = "brand-logo-production/assets/v1";
 export const COLOR_SYSTEM_SCHEMA = "brand-logo-production/color-system/v1";
 export const DELIVERY_PROFILE_SCHEMA = "brand-logo-production/delivery-profile/v1";
 export const INTEGRATION_PLAN_SCHEMA = "brand-logo-production/integration/v1";
-export const CONCEPT_SELECTION_SCHEMA = "brand-logo-production/concept-selection/v1";
+export const CONCEPT_SELECTION_SCHEMA = "brand-logo-production/concept-selection/v2";
 export const SKILL_COMPOSITION_SCHEMA = "brand-logo-production/skill-composition/v2";
 export const SKILL_ADVICE_SCHEMA = "brand-logo-production/skill-advice/v1";
 export const SKILL_ADVICE_INPUT_SCHEMA = "brand-logo-production/skill-advice-input/v1";
@@ -104,8 +105,8 @@ export const FIBONACCI_SCHEMA = "brand-logo-production/fibonacci/v1";
 export const CONSTRUCTION_MANIFEST_SCHEMA = "brand-logo-production/construction-manifest/v1";
 export const ACCESSIBILITY_SCHEMA = "brand-logo-production/accessibility/v1";
 export const RENDER_EVIDENCE_SCHEMA = "brand-logo-production/render-evidence/v1";
-export const REVIEW_INPUT_SCHEMA = "brand-logo-production/review-input/v1";
-export const REVIEW_SCHEMA = "brand-logo-production/review/v2";
+export const REVIEW_INPUT_SCHEMA = "brand-logo-production/review-input/v2";
+export const REVIEW_SCHEMA = "brand-logo-production/review/v3";
 export const RELEASE_MANIFEST_SCHEMA = "brand-logo-production/release-manifest/v2";
 
 const PLUGIN = "brand-logo-production";
@@ -367,6 +368,7 @@ function validateRequired(files: FileMap, findings: ContractFinding[]): void {
 function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFinding[]): void {
   const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
   const letterform = rec(brief?.letterform);
+  const markStrategy = rec(brief?.markStrategy);
   if (!brief || brief.schema !== BRIEF_SCHEMA || brief.artifactId !== model.artifactId
     || ["brandName", "wordmarkText", "audience", "brandPositioning", "language", "scriptPolicy", "casePolicy"].some((key) => typeof brief[key] !== "string" || !String(brief[key]).trim())
     || !["cjk-simplified", "cjk-traditional", "latin", "mixed", "other"].includes(String(brief.scriptPolicy))
@@ -374,6 +376,18 @@ function validateBriefAndSkillComposition(model: LogoModel, findings: ContractFi
     || ["typeClass", "strokeProfile", "structure", "edgeFinish", "sceneReference"].some((key) => typeof letterform?.[key] !== "string" || !String(letterform[key]).trim())
     || ["constraints", "prohibitedDirections", "successCriteria"].some((key) => !Array.isArray(brief[key]))) {
     findings.push(finding("BRIEF_INVALID", "plan.brief.json", "brief must bind exact wordmark copy, script/case policy, letterform dimensions, audience, positioning, constraints, prohibited directions, and success criteria"));
+  }
+  if (!communicationCoreValid(brief?.communicationCore)) findings.push(finding("COMMUNICATION_CORE_INVALID", "plan.brief.json", "brief communicationCore must bind intent, audience outcome, retell target, semantic cue, invariants, and prohibited drift"));
+  if (!markStrategy || !["symbol", "wordmark", "lettermark", "monogram", "combination"].includes(String(markStrategy.carrier))
+    || !["use", "avoid", "not-applicable"].includes(String(markStrategy.initialismDecision))
+    || typeof markStrategy.rationale !== "string" || markStrategy.rationale.trim().length < 12) {
+    findings.push(finding("MARK_STRATEGY_INVALID", "plan.brief.json", "markStrategy must choose a supported carrier and explicitly decide whether initials are appropriate"));
+  }
+  if (["lettermark", "monogram"].includes(String(markStrategy?.carrier))) {
+    const strategy = rec(brief?.letterformStrategy);
+    if (!strategy || ["target", "operation", "semanticCue", "strokeControl", "counterControl", "axisControl", "negativeSpaceControl", "legibilityRisk"].some((key) => typeof strategy[key] !== "string" || !String(strategy[key]).trim())) {
+      findings.push(finding("LETTERFORM_STRATEGY_INVALID", "plan.brief.json", "letter-based carriers require anatomy-aware transformation and legibility controls"));
+    }
   }
 
   const context = rec(parseJson(model.files, "plan.context.json", findings, "BRAND_CONTEXT_INVALID"));
@@ -729,7 +743,9 @@ function asList(value: unknown): unknown[] {
 
 function validateConcepts(model: LogoModel, findings: ContractFinding[]): void {
   const manifest = parseJson(model.files, "src/concepts/manifest.json", findings);
-  const concepts = asList(rec(manifest)?.concepts);
+  const manifestRecord = rec(manifest);
+  const concepts = asList(manifestRecord?.concepts);
+  const assessments = asList(manifestRecord?.routeAssessments).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);
   let project: unknown = null;
   try { project = JSON.parse(textOf(model.files?.["logo.project.json"])); } catch { /* reported by project validation */ }
   const selectedConcept = rec(project)?.selectedConcept;
@@ -737,13 +753,21 @@ function validateConcepts(model: LogoModel, findings: ContractFinding[]): void {
   const sources = concepts.map((entry) => rec(entry)?.source);
   const buckets = concepts.map((entry) => rec(entry)?.bucket);
   if (concepts.length === 0 || new Set(ids).size !== ids.length || new Set(sources).size !== sources.length || concepts.filter((entry) => rec(entry)?.id === selectedConcept).length !== 1) findings.push(finding("CONCEPT_MANIFEST_INVALID", "src/concepts/manifest.json", "concept ids and sources must be unique, ordered, and select exactly the project concept"));
-  if (concepts.length < CONCEPT_BUCKETS.length || !CONCEPT_BUCKETS.every((bucket) => buckets.includes(bucket))) findings.push(finding("CONCEPT_DIVERGENCE_INSUFFICIENT", "src/concepts/manifest.json", `at least six concepts must cover distinct buckets: ${CONCEPT_BUCKETS.join(", ")}`));
+  const assessedBuckets = assessments.map((entry) => String(entry.bucket));
+  const explored = new Set(assessments.filter((entry) => entry.decision === "explore").map((entry) => String(entry.bucket)));
+  if (assessments.length !== CONCEPT_BUCKETS.length || new Set(assessedBuckets).size !== CONCEPT_BUCKETS.length
+    || !CONCEPT_BUCKETS.every((bucket) => assessedBuckets.includes(bucket)) || explored.size < 3
+    || assessments.some((entry) => !["explore", "reject"].includes(String(entry.decision)) || typeof entry.rationale !== "string" || entry.rationale.trim().length < 12)
+    || buckets.some((bucket) => !explored.has(String(bucket))) || [...explored].some((bucket) => !buckets.includes(bucket))) {
+    findings.push(finding("CONCEPT_ROUTE_ASSESSMENT_INVALID", "src/concepts/manifest.json", "all six routes must be assessed, at least three must be explored, and concepts may exist only for explored routes"));
+  }
   concepts.forEach((entry, offset) => {
     const item = rec(entry);
     const match = typeof item?.source === "string" ? item.source.match(CONCEPT_SOURCE) : null;
     const sourcePath = `src/concepts/${item?.source ?? "manifest.json"}`;
     if (!match || typeof item?.id !== "string" || !item.id || item.index !== offset + 1 || Number(match.groups?.index) !== item.index
-      || !CONCEPT_BUCKETS.includes(String(item.bucket)) || typeof item.rationale !== "string" || item.rationale.trim().length < 12) {
+      || !CONCEPT_BUCKETS.includes(String(item.bucket)) || typeof item.rationale !== "string" || item.rationale.trim().length < 12
+      || ["coreContribution", "memoryCue", "retellLine", "invariant", "risk"].some((key) => typeof item[key] !== "string" || String(item[key]).trim().length < 8)) {
       findings.push(finding("CONCEPT_SEQUENCE_INVALID", sourcePath, "concepts must use ids and contiguous NNN-slug.logo.tsx sources"));
       return;
     }
@@ -1238,6 +1262,9 @@ function validateRelease(model: LogoModel, findings: ContractFinding[]): void {
     findings.push(finding("RENDER_EVIDENCE_INVALID", "evidence.render.json", "render evidence must bind the current subject, renderer session, and every declared output digest"));
   }
   const review = rec(validateEvidenceRecord(model, "review.logo.json", REVIEW_SCHEMA, REVIEW_CHECKS, "REVIEW_INVALID", findings));
+  const brief = rec(parseJson(model.files, "plan.brief.json", findings, "BRIEF_INVALID"));
+  const communicationCore = rec(brief?.communicationCore);
+  if (!communicationReviewValid(review, communicationCore?.retellTarget, communicationAnchors(communicationCore))) findings.push(finding("COMMUNICATION_REVIEW_INVALID", "review.logo.json", "logo review must record a two-pass retell and every communication check must bind the frozen signature cue"));
   const reviewer = rec(review?.reviewer);
   if (review?.decision !== "approved") findings.push(finding("REVIEW_INVALID", "review.logo.json", "logo review decision must be approved"));
   const reviewFindings = asList(review?.findings).map(rec).filter((entry): entry is JsonRecord => entry !== undefined);

@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { posix as path } from "node:path";
 
+import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 import { getShotRecipe, SHOT_LIBRARY_UPSTREAM_COMMIT } from "./shot-library.js";
 
 export const RENDER_PROOF_SCHEMA = "video-production/render-proof/v1";
@@ -12,14 +13,14 @@ export const REFERENCE_EVIDENCE_SCHEMA = "video-production/reference-evidence/v1
 export const SHOT_EVIDENCE_SCHEMA = "video-production/shot-evidence/v1";
 export const FRAME_EVIDENCE_SCHEMA = "video-production/frame-evidence/v1";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA = "video-production/accessibility-evidence/v1";
-export const VIDEO_REVIEW_SCHEMA = "video-production/video-review/v2";
-export const REVIEW_INPUT_SCHEMA = "video-production/review-input/v2";
+export const VIDEO_REVIEW_SCHEMA = "video-production/video-review/v3";
+export const REVIEW_INPUT_SCHEMA = "video-production/review-input/v3";
 export const RELEASE_MANIFEST_SCHEMA = "video-production/release-manifest/v2";
 export const PLAN_SCHEMA = "video-production/plan/v2";
 export const SHOT_PLAN_SCHEMA = "video-production/shot-plan/v1";
-export const DIRECTION_SCHEMA = "video-production/direction/v1";
+export const DIRECTION_SCHEMA = "video-production/direction/v2";
 export const SCRIPT_SCHEMA = "video-production/script/v1";
-export const STORYBOARD_SCHEMA = "video-production/storyboard/v2";
+export const STORYBOARD_SCHEMA = "video-production/storyboard/v3";
 export const SKILL_COMPOSITION_SCHEMA = "video-production/skill-composition/v1";
 export const ASSET_MANIFEST_SCHEMA = "video-production/assets/v2";
 export const APPROVALS_SCHEMA = "video-production/approvals/v1";
@@ -409,6 +410,7 @@ function validateDirection(model: VideoModel, stage: string | undefined, finding
   if (!isObject(direction) || direction.schema !== DIRECTION_SCHEMA || ["motionThesis", "visualMetaphor", "narrativeArc"].some((key) => typeof direction[key] !== "string" || !String(direction[key]).trim()) || !Array.isArray(direction.motionGrammar) || direction.motionGrammar.length === 0 || !Array.isArray(direction.negativeRules)) {
     findings.push(finding("DIRECTION_INVALID", "plan.direction.json", "direction must define a motion thesis, visual metaphor, narrative arc, motion grammar, and negative rules"));
   }
+  if (!isObject(direction) || !communicationCoreValid(direction.communicationCore)) findings.push(finding("COMMUNICATION_CORE_INVALID", "plan.direction.json", "video direction must bind a complete communicationCore"));
   const designRecord = isObject(design) ? design : {};
   const colors = isObject(designRecord.colors) ? designRecord.colors : {};
   const typography = isObject(designRecord.typography) ? designRecord.typography : {};
@@ -446,6 +448,12 @@ function validateStoryboard(model: VideoModel, stage: string | undefined, findin
     return Boolean(valid);
   }) && cursor === duration;
   if (!validBeats) findings.push(finding("STORYBOARD_INVALID", "plan.storyboard.json", "storyboard beats must be contiguous, indexed, motion-directed, and close exactly at the project duration"));
+  if (beats.some((beat) => !isObject(beat) || typeof beat.coreContribution !== "string" || !beat.coreContribution.trim())) findings.push(finding("STORYBOARD_COMMUNICATION_INVALID", "plan.storyboard.json", "every storyboard beat must state how it contributes to the communication core"));
+  const direction = (() => { try { return JSON.parse(model.files?.["plan.direction.json"] ?? "null") as unknown; } catch { return null; } })();
+  if (isObject(direction) && communicationCoreValid(direction.communicationCore)) {
+    const allowed = new Set(beats.filter(isObject).map((beat) => `beat:${String(beat.id)}`));
+    if (communicationAnchors(direction.communicationCore).some((anchor) => !allowed.has(anchor))) findings.push(finding("COMMUNICATION_CUE_UNBOUND", "plan.direction.json", "every video signature cue anchor must reference a current storyboard beat"));
+  }
   const plan = isObject(model.plan) ? model.plan : {};
   if (plan.profile === "short-form" && isObject(beats[0]) && Number(beats[0].endFrame) > Number(model.project?.fps) * 3) findings.push(finding("SHORT_FORM_HOOK_LATE", "plan.storyboard.json", "short-form hook must close within the first three seconds"));
   if (plan.profile === "motion-explainer" && beats.length > 0) {
@@ -807,6 +815,9 @@ function validateReviewEvidence(model: VideoModel, findings: VideoFinding[]) {
     && new Set(assessedFrames).size === assessedFrames.length
     && blackFrameAssessments.every((assessment) => isObject(assessment) && Number.isInteger(assessment.frame) && blackCandidateFrames.includes(assessment.frame as number) && assessment.classification === "expected" && typeof assessment.notes === "string" && assessment.notes.trim().length > 0);
   if (!validEvidenceBase(model, review, VIDEO_REVIEW_SCHEMA) || review?.verdict !== "pass" || !sixDigitHash(review?.reviewInputSha256) || review?.reviewInputSha256 !== accessibility?.reviewInputSha256 || (typeof reviewerKind !== "string" || !["human", "independent-agent"].includes(reviewerKind)) || typeof reviewer?.id !== "string" || typeof reviewer?.sessionId !== "string" || reviewer?.sessionId !== review?.sessionId || reviewer?.sessionId === finalProof?.sessionId || !requiredReviewChecks(model).every((key) => checks?.[key] === "pass") || !blackFramesReviewed || review?.frameEvidenceSha256 !== fileDigest(model, "evidence.frames.json") || review?.accessibilityEvidenceSha256 !== fileDigest(model, "evidence.accessibility.json") || review?.motionEvidenceSha256 !== fileDigest(model, "evidence.motion.json") || (expectedShotDigest !== undefined && review?.shotEvidenceSha256 !== expectedShotDigest)) findings.push(finding("VIDEO_REVIEW_INVALID", "review.video.json", "video review must be independent, profile-complete, passing, and bound to frame, accessibility, motion, near-black, and selected-shot evidence"));
+  const direction = evidenceObject(model, "plan.direction.json");
+  const core = isObject(direction?.communicationCore) ? direction.communicationCore : undefined;
+  if (!communicationReviewValid(review, core?.retellTarget, communicationAnchors(core))) findings.push(finding("COMMUNICATION_REVIEW_INVALID", "review.video.json", "video review must record a two-pass retell and bind every communication check to the frozen signature cue"));
 }
 
 function validateReleaseEvidence(model: VideoModel, findings: VideoFinding[]) {

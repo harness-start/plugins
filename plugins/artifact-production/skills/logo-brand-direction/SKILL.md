@@ -36,6 +36,8 @@ If brand context is missing, ask:
 
 Generate the brief in this order:
 
+Before visual styling, freeze a communication core: the brand's core intent, intended audience outcome, one exact sentence a reviewer should retell, one signature cue, why that cue causally expresses the intent, source anchors, invariants, and prohibited drift. Then choose the mark carrier and state whether an initialism preserves or discards important meaning.
+
 ---
 
 ### 01 — IDENTITY STRATEGY STATEMENT
@@ -47,6 +49,8 @@ One paragraph (3–4 sentences) that translates the brand's positioning and pers
 ### 02 — LOGO DIRECTION
 
 **Primary direction** — describe the style and approach (wordmark, lettermark, symbol + wordmark, etc.)
+
+**Carrier decision** — choose `symbol`, `wordmark`, `lettermark`, `monogram`, or `combination`; state whether an initialism is used, avoided, or not applicable, with a rationale tied to audience understanding rather than convenience
 
 **Character** — what feeling should the mark convey?
 

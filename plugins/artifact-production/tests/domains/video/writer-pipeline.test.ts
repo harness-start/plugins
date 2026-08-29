@@ -15,6 +15,22 @@ import { withWriterJournal } from "../../../src/domains/video/lib/writer.js";
 const HARNESS = fileURLToPath(new URL("../../../dist/cli/harness.mjs", import.meta.url));
 const HOOK = fileURLToPath(new URL("../../../dist/hooks/dispatcher.mjs", import.meta.url));
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const COMMUNICATION_CORE = {
+  coreIntent: "Show one signal becoming coordinated work.",
+  audienceOutcome: "Viewers can repeat how the signal resolves into a system.",
+  retellTarget: "One signal becomes coordinated work.",
+  signatureCue: { description: "The signal crossing one resolved path", semanticRole: "Core operating transformation", anchors: ["beat:demo"] },
+  semanticLink: "The visible state change directly represents coordination.",
+  invariants: ["one signal remains traceable through every state"],
+  prohibitedDrift: ["decorative motion without a state change"],
+};
+
+function communicationReviewFields() {
+  return {
+    reviewerRetell: { observedBeforeContract: COMMUNICATION_CORE.retellTarget, intendedTarget: COMMUNICATION_CORE.retellTarget, alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." },
+    communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "beat:demo", evidence: `${key} is visible in the reviewed video.`, recovery: `Revise ${key} and repeat independent review.` }])),
+  };
+}
 
 function write(root, relativePath, content, executable = false) {
   const target = join(root, relativePath);
@@ -36,9 +52,9 @@ function fixture(sandbox, { shotCraft = false } = {}) {
     },
     dependencies: { remotion: "1.0.0", "@remotion/cli": "1.0.0", ...(shotCraft ? { "@remotion/motion-blur": "1.0.0" } : {}), react: "1.0.0", "react-dom": "1.0.0" },
   };
-  const direction = JSON.stringify({ schema: "video-production/direction/v1", motionThesis: "A signal becomes a resolved outcome.", visualMetaphor: "signal path", narrativeArc: "hook, mechanism, resolution", motionGrammar: ["route", "resolve"], negativeRules: ["slide-deck pacing"] });
+  const direction = JSON.stringify({ schema: "video-production/direction/v2", communicationCore: COMMUNICATION_CORE, motionThesis: "A signal becomes a resolved outcome.", visualMetaphor: "signal path", narrativeArc: "hook, mechanism, resolution", motionGrammar: ["route", "resolve"], negativeRules: ["slide-deck pacing"] });
   const script = JSON.stringify({ schema: "video-production/script/v1", beats: [{ id: "demo", narration: "A short demonstration." }], claims: [] });
-  const storyboard = JSON.stringify({ schema: "video-production/storyboard/v2", beats: [{ index: 1, id: "demo", startFrame: 0, endFrame: 10, narrativeJob: "demonstrate", movingObject: "signal", stateChange: "moves across the frame", cameraMotion: "stable", textRole: "label", assetIds: ["bed"], pptRisk: "static card" }] });
+  const storyboard = JSON.stringify({ schema: "video-production/storyboard/v3", beats: [{ index: 1, id: "demo", startFrame: 0, endFrame: 10, narrativeJob: "demonstrate", coreContribution: "Shows the transformation named by the retell target.", movingObject: "signal", stateChange: "moves across the frame", cameraMotion: "stable", textRole: "label", assetIds: ["bed"], pptRisk: "static card" }] });
   const assets = JSON.stringify({ schema: "video-production/assets/v2", assets: [{ id: "bed", kind: "audio", source: "user", path: "public/audio/bed.wav", rights: "owned" }] });
   const workers = [
     ["video-motion-direction", "advisor"], ["video-format-playbooks", "advisor"], ["video-visual-critique", "advisor"], ["video-media-import", "external-runner"],
@@ -138,8 +154,8 @@ test("registered writers produce a structured render-probe-review-release closur
     assert.equal(probe.code, 0, probe.stderr);
 
     const reviewInput = join(sandbox, "review-input.json");
-    writeFileSync(reviewInput, JSON.stringify({
-      schema: "video-production/review-input/v2",
+    const reviewPayload = {
+      schema: "video-production/review-input/v3",
       artifactId: "demo",
       outputSha256: sha256("FAKE_FINAL_MP4"),
       verdict: "pass",
@@ -147,8 +163,16 @@ test("registered writers produce a structured render-probe-review-release closur
       frames: [0, 5, 9],
       checks: { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" },
       accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true },
+      ...communicationReviewFields(),
       notes: "fixture review",
-    }));
+    };
+    reviewPayload.communicationReview.signatureCue.anchor = "beat:missing";
+    writeFileSync(reviewInput, JSON.stringify(reviewPayload));
+    const unboundReview = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "review-session", cwd: sandbox });
+    assert.equal(unboundReview.code, 2);
+    assert.match(unboundReview.stderr, /COMMUNICATION_REVIEW_INCOMPLETE/u);
+    reviewPayload.communicationReview.signatureCue.anchor = "beat:demo";
+    writeFileSync(reviewInput, JSON.stringify(reviewPayload));
     const review = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "review-session", cwd: sandbox });
     assert.equal(review.code, 0, review.stderr);
 
@@ -167,6 +191,8 @@ test("registered writers produce a structured render-probe-review-release closur
     assert.equal(JSON.parse(model.files["dist/demo.mp4.proof.json"]).writer.capability, "video-render");
     assert.equal(JSON.parse(model.files["evidence.probe.json"]).schema, "video-production/probe-evidence/v1");
     assert.equal(JSON.parse(model.files["review.video.json"]).reviewer.sessionId, "review-session");
+    assert.equal(JSON.parse(model.files["review.video.json"]).reviewerRetell.intendedTarget, COMMUNICATION_CORE.retellTarget);
+    assert.equal(JSON.parse(model.files["review.video.json"]).communicationReview.signatureCue.status, "pass");
     assert.equal(JSON.parse(model.files["receipt.release.json"]).schemaVersion, 3);
 
     const forgedProbe = JSON.parse(model.files["evidence.probe.json"]);
@@ -207,7 +233,7 @@ test("near-black probe samples require explicit independent review before releas
 
     const reviewInput = join(sandbox, "black-review-input.json");
     const input = {
-      schema: "video-production/review-input/v2",
+      schema: "video-production/review-input/v3",
       artifactId: "demo",
       outputSha256: sha256("FAKE_FINAL_MP4"),
       verdict: "pass",
@@ -215,6 +241,7 @@ test("near-black probe samples require explicit independent review before releas
       frames: [0, 4, 9],
       checks: { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" },
       accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true },
+      ...communicationReviewFields(),
       blackFrameAssessments: [] as Array<{ frame: number | string; classification: string; notes: string }>,
     };
     writeFileSync(reviewInput, JSON.stringify(input));
@@ -294,7 +321,7 @@ test("shot-aware probe and review bind selected fidelity frames into release evi
     const reviewInput = join(sandbox, "shot-review-input.json");
     const checks: Record<string, string> = { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" };
     const input = {
-      schema: "video-production/review-input/v2",
+      schema: "video-production/review-input/v3",
       artifactId: "demo",
       outputSha256: sha256("FAKE_FINAL_MP4"),
       verdict: "pass",
@@ -302,6 +329,7 @@ test("shot-aware probe and review bind selected fidelity frames into release evi
       frames: [0, 5, 9],
       checks,
       accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true },
+      ...communicationReviewFields(),
     };
     writeFileSync(reviewInput, JSON.stringify(input));
     const incomplete = await runAuthorized("project-review.mjs", [fx.root, reviewInput], { env, sessionId: "shot-review-session", cwd: sandbox });
@@ -333,7 +361,7 @@ test("review writer rejects a self-review from the release session", async () =>
     const probed = await runAuthorized("project-probe.mjs", [fx.root], { env, sessionId: "same-session", cwd: sandbox });
     assert.equal(probed.code, 0, probed.stderr);
     const input = join(sandbox, "self-review.json");
-    writeFileSync(input, JSON.stringify({ schema: "video-production/review-input/v2", artifactId: "demo", outputSha256: sha256("FAKE_FINAL_MP4"), verdict: "pass", reviewer: { kind: "independent-agent", id: "forged-other-session", sessionId: "forged-session" }, frames: [0, 5, 9], checks: { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" }, accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true } }));
+    writeFileSync(input, JSON.stringify({ schema: "video-production/review-input/v3", artifactId: "demo", outputSha256: sha256("FAKE_FINAL_MP4"), verdict: "pass", reviewer: { kind: "independent-agent", id: "forged-other-session", sessionId: "forged-session" }, frames: [0, 5, 9], checks: { narrative: "pass", pacing: "pass", motionContinuity: "pass", shotComposition: "pass", typography: "pass", color: "pass", captions: "pass", audio: "pass", sourceIntegrity: "pass", assetRights: "pass", profileFidelity: "pass" }, accessibility: { captionsReviewed: true, flashingReviewed: true, contrastReviewed: true }, ...communicationReviewFields() }));
 
     const result = await runAuthorized("project-review.mjs", [fx.root, input], { env, sessionId: "same-session", cwd: sandbox });
 

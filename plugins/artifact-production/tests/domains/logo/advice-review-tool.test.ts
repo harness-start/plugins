@@ -7,6 +7,8 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import type {} from "../../../src/domains/logo/entries/cli/project-review.js";
+
 import { AESTHETIC_CRITERIA, REVIEW_CHECKS, REVIEW_INPUT_SCHEMA, SKILL_ADVICE_INPUT_SCHEMA, computeLogoSubjectDigest, reviewArtifactPaths, validateLogoModel } from "../../../src/domains/logo/lib/contract.js";
 import { issueWriterCapability } from "../../../src/domains/logo/lib/capability.js";
 import { loadLogoProject } from "../../../src/domains/logo/lib/project.js";
@@ -25,6 +27,23 @@ function run(entry: string, args: string[], env: NodeJS.ProcessEnv = process.env
     child.on("error", reject);
     child.on("close", (code) => resolve({ code, stdout, stderr }));
   });
+}
+
+function communicationReviewFields(retellTarget: string, anchor: string) {
+  return {
+    reviewerRetell: {
+      observedBeforeContract: retellTarget,
+      intendedTarget: retellTarget,
+      alignment: "pass",
+      limitation: "Independent reviewer proxy; not a human recall study.",
+    },
+    communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, {
+      status: "pass",
+      anchor,
+      evidence: `${key} is visible in the current reviewed output.`,
+      recovery: `Revise ${key} and repeat independent review.`,
+    }])),
+  };
 }
 
 test("advice writer admits one selected current-source worker result and consumes its capability", async () => {
@@ -65,6 +84,7 @@ test("review writer requires an independent session and complete current-hash co
     const loaded = await loadLogoProject(project);
     const subjectDigest = computeLogoSubjectDigest(loaded);
     const coverage = reviewArtifactPaths(loaded).map((path) => ({ path, sha256: loaded.digests[path] }));
+    const retellTarget = JSON.parse(String(loaded.files["plan.brief.json"])).communicationCore.retellTarget;
     const payload = {
       schema: REVIEW_INPUT_SCHEMA, artifactId: loaded.artifactId, subjectDigest, decision: "approved",
       reviewer: { kind: "independent-agent", id: "logo-reviewer", sessionId: "review-session" },
@@ -72,7 +92,16 @@ test("review writer requires an independent session and complete current-hash co
       checks: REVIEW_CHECKS.map((id) => ({ id, status: "pass" })),
       criteria: Object.fromEntries(AESTHETIC_CRITERIA.map((id) => [id, { score: 2, requiredMin: 2, note: `${id} has substantive visual evidence` }])),
       findings: [{ findingId: "visual-001", severity: "major", evidenceAnchor: coverage[0].path, artifactDigest: coverage[0].sha256, fix: "adjusted and rerendered", status: "verified", recheckEvidence: "current digest rechecked" }],
+      ...communicationReviewFields(retellTarget, "path:mark-shape"),
     };
+    const incomplete = { ...payload };
+    delete incomplete.communicationReview;
+    await writeFile(input, JSON.stringify(incomplete));
+    await issueWriterCapability({ root: project, capability: "logo-review", argv: [REVIEW_ENTRY, "logo", "review", project, input], subjectDigest, sessionId: "review-session" });
+    const missingCommunicationReview = await run(REVIEW_ENTRY, ["logo", "review", project, input]);
+    assert.equal(missingCommunicationReview.code, 2);
+    assert.match(missingCommunicationReview.stderr, /COMMUNICATION_REVIEW_INCOMPLETE/u);
+
     await writeFile(input, JSON.stringify(payload));
     await issueWriterCapability({ root: project, capability: "logo-review", argv: [REVIEW_ENTRY, "logo", "review", project, input], subjectDigest, sessionId: "review-session" });
     const reviewed = await run(REVIEW_ENTRY, ["logo", "review", project, input]);
@@ -80,6 +109,8 @@ test("review writer requires an independent session and complete current-hash co
     const admitted = JSON.parse(await readFile(join(project, "review.logo.json"), "utf8"));
     assert.equal(admitted.reviewer.sessionId, "review-session");
     assert.equal(admitted.findings[0].status, "verified");
+    assert.equal(admitted.reviewerRetell.intendedTarget, retellTarget);
+    assert.equal(admitted.communicationReview.signatureCue.status, "pass");
 
     payload.findings[0].artifactDigest = "0".repeat(64);
     await writeFile(input, JSON.stringify(payload));
@@ -115,6 +146,7 @@ test("Codex review admits the actual child transcript identity instead of bindin
     const loaded = await loadLogoProject(project);
     const subjectDigest = computeLogoSubjectDigest(loaded);
     const coverage = reviewArtifactPaths(loaded).map((path) => ({ path, sha256: loaded.digests[path] }));
+    const retellTarget = JSON.parse(String(loaded.files["plan.brief.json"])).communicationCore.retellTarget;
     mkdirSync(join(codexHome, "sessions", "2026", "08", "20"), { recursive: true });
     await writeFile(transcript, `${JSON.stringify({
       type: "session_meta",
@@ -136,6 +168,7 @@ test("Codex review admits the actual child transcript identity instead of bindin
       checks: REVIEW_CHECKS.map((id) => ({ id, status: "pass" })),
       criteria: Object.fromEntries(AESTHETIC_CRITERIA.map((id) => [id, { score: 2, requiredMin: 2, note: `${id} has substantive visual evidence` }])),
       findings: [],
+      ...communicationReviewFields(retellTarget, "path:mark-shape"),
     }));
     await issueWriterCapability({ root: project, capability: "logo-review", argv: [REVIEW_ENTRY, "logo", "review", project, input], subjectDigest, sessionId: childSessionId, codexHome });
     const grant = JSON.parse(await readFile(join(project, ".tmp", "logo-guard", "capability.logo-review.json"), "utf8"));

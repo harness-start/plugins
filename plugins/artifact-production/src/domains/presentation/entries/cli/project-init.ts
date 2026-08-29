@@ -45,8 +45,8 @@ async function main() {
   const files: Record<string, string> = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": `${JSON.stringify({ name: `pptx-${artifactId}`, private: true, type: "module", scripts: { "pptx:render": "tsx src/deck.ts" }, dependencies: { pptxgenjs: "4.0.1" }, devDependencies: { tsx: "4.23.12", typescript: "6.0.3", eslint: "9.39.5", "typescript-eslint": "8.67.0" } }, null, 2)}\n`,
-    "plan.contract.json": `${JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "source", audience: "TODO", objective: "TODO", language: "zh-CN", assumptions: [] }, null, 2)}\n`,
-    "plan.storyboard.json": `${JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "TODO", role: "opening", visualType: "hero" }] }, null, 2)}\n`,
+    "plan.contract.json": `${JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "source", audience: "TODO", objective: "TODO", language: "zh-CN", assumptions: [], communicationCore: { coreIntent: "Make one decision or argument easy to recover.", audienceOutcome: "The audience can repeat the deck's primary conclusion.", retellTarget: "This deck leads to one explicit decision.", signatureCue: { description: "The opening decision statement", semanticRole: "Primary narrative promise", anchors: ["slide:opening"] }, semanticLink: "The opening assertion exposes the decision the remaining slides must support.", invariants: ["every slide advances the same decision chain"], prohibitedDrift: ["isolated slides that do not contribute to the primary conclusion"] } }, null, 2)}\n`,
+    "plan.storyboard.json": `${JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "TODO", role: "opening", visualType: "hero", assertion: "This deck leads to one explicit decision.", narrativeJob: "state the decision", transition: "establish the question before supporting evidence", coreContribution: "States the exact retell target." }] }, null, 2)}\n`,
     "plan.skill-composition.json": `${JSON.stringify(
       {
         schema: SKILL_COMPOSITION_SCHEMA,

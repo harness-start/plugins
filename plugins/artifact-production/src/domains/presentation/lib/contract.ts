@@ -16,9 +16,10 @@ import { TextDecoder } from "node:util";
 
 import { DOMParser } from "@xmldom/xmldom";
 import { unzipSync } from "fflate";
+import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 
-export const PLAN_SCHEMA = "presentation-production/plan/v2";
-export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v2";
+export const PLAN_SCHEMA = "presentation-production/plan/v3";
+export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v3";
 export const SKILL_COMPOSITION_SCHEMA =
   "presentation-production/skill-composition/v1";
 export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v2";
@@ -33,7 +34,8 @@ export const DESIGN_EVIDENCE_SCHEMA =
   "presentation-production/design-evidence/v1";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA =
   "presentation-production/accessibility-evidence/v2";
-export const REVIEW_SCHEMA = "presentation-production/review/v2";
+export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v2";
+export const REVIEW_SCHEMA = "presentation-production/review/v3";
 export const RELEASE_MANIFEST_SCHEMA =
   "presentation-production/release-manifest/v2";
 export const RECEIPT_SCHEMA = "presentation-production/receipt/v2";
@@ -446,6 +448,11 @@ function validateSourceSchemas(
     findings,
   );
   const storyboardSlides = list(storyboard?.slides);
+  if (!communicationCoreValid(plan?.communicationCore)) findings.push(finding("COMMUNICATION_CORE_INVALID", "plan.contract.json", "presentation plan must bind a complete communicationCore"));
+  else {
+    const allowed = new Set(storyboardSlides.map((entry) => `slide:${String(rec(entry)?.id ?? "")}`));
+    if (communicationAnchors(plan?.communicationCore).some((anchor) => !allowed.has(anchor))) findings.push(finding("COMMUNICATION_CUE_UNBOUND", "plan.contract.json", "every presentation signature cue anchor must reference a storyboard slide"));
+  }
   if (
     storyboard &&
     (!storyboardSlides.length ||
@@ -455,7 +462,10 @@ function validateSourceSchemas(
           typeof rec(entry)?.id === "string" &&
           typeof rec(entry)?.title === "string" &&
           typeof rec(entry)?.role === "string" &&
-          typeof rec(entry)?.visualType === "string",
+          typeof rec(entry)?.visualType === "string" &&
+          typeof rec(entry)?.assertion === "string" && Boolean(String(rec(entry)?.assertion).trim()) &&
+          typeof rec(entry)?.narrativeJob === "string" && Boolean(String(rec(entry)?.narrativeJob).trim()) &&
+          typeof rec(entry)?.transition === "string" && Boolean(String(rec(entry)?.transition).trim()),
       ))
   )
     findings.push(
@@ -465,6 +475,7 @@ function validateSourceSchemas(
         "storyboard slides must be non-empty, contiguous, and declare id, title, role, and visualType",
       ),
     );
+  if (storyboard && storyboardSlides.some((entry) => typeof rec(entry)?.coreContribution !== "string" || !String(rec(entry)?.coreContribution).trim())) findings.push(finding("STORYBOARD_COMMUNICATION_INVALID", "plan.storyboard.json", "every slide must state how it contributes to the communication core"));
   for (const [index, entry] of storyboardSlides.entries()) {
     const slide = rec(entry);
     if (slide?.visualType !== "diagram") continue;
@@ -1076,6 +1087,9 @@ function validateReview(
         "review must be independent, cover every current page, and disposition every finding",
       ),
     );
+  const plan = rec(parseJson(files, "plan.contract.json"));
+  const core = rec(plan?.communicationCore);
+  if (!communicationReviewValid(review, core?.retellTarget, communicationAnchors(core))) findings.push(finding("COMMUNICATION_REVIEW_INVALID", "review.pptx.json", "presentation review must record a two-pass retell and bind every communication check to the frozen signature cue"));
 }
 
 export function createPptxReleaseManifest(model: PptxModel) {

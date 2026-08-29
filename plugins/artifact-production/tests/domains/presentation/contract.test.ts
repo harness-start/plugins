@@ -5,13 +5,43 @@ import {
   createPptxReceipt,
   evaluatePptxWrite,
   inspectPptxPackage,
+  REVIEW_INPUT_SCHEMA,
   validatePptxModel,
   validatePptxReceipt,
 } from "../../../src/domains/presentation/lib/contract.js";
 import { minimalPptx, releaseModel, sha256, sourceModel } from "./fixture.js";
 
 test("accepts the strict source-stage project contract", () => {
+  assert.equal(REVIEW_INPUT_SCHEMA, "presentation-production/review-input/v2");
   assert.deepEqual(validatePptxModel(sourceModel(), { stage: "source" }), []);
+});
+
+test("requires a deck communication core and a contribution from every slide", () => {
+  const missing = sourceModel();
+  const plan = JSON.parse(String(missing.files?.["plan.contract.json"]));
+  delete plan.communicationCore;
+  missing.files!["plan.contract.json"] = JSON.stringify(plan);
+  assert.ok(validatePptxModel(missing, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CORE_INVALID"));
+
+  const drifting = sourceModel();
+  const storyboard = JSON.parse(String(drifting.files?.["plan.storyboard.json"]));
+  delete storyboard.slides[0].coreContribution;
+  drifting.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+  assert.ok(validatePptxModel(drifting, { stage: "source" }).some(({ code }) => code === "STORYBOARD_COMMUNICATION_INVALID"));
+});
+
+test("release requires a two-pass communication review", () => {
+  const model = releaseModel();
+  const review = JSON.parse(String(model.files?.["review.pptx.json"]));
+  delete review.reviewerRetell;
+  model.files!["review.pptx.json"] = JSON.stringify(review);
+  assert.ok(validatePptxModel(model, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
+
+  const unbound = releaseModel();
+  const unboundReview = JSON.parse(String(unbound.files?.["review.pptx.json"]));
+  unboundReview.communicationReview.signatureCue.anchor = "slide:missing";
+  unbound.files!["review.pptx.json"] = JSON.stringify(unboundReview);
+  assert.ok(validatePptxModel(unbound, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
 });
 
 test("rejects presentation typography without carrier-specific rhythm and script limits", () => {

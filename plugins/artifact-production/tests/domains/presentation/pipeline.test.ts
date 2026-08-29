@@ -9,13 +9,13 @@ import { fileURLToPath } from "node:url";
 import { computePptxSubjectDigest, inspectPng, inspectPptxPackage, loadPptxProject, validatePptxModel, validatePptxReceipt } from "../../../src/domains/presentation/lib/contract.js";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
-const HOOK = join(ROOT, "dist", "hooks", "presentation-production.mjs");
-const cli = (name: string) => join(ROOT, "dist", "cli", `project-${name}.mjs`);
+const HOOK = join(ROOT, "dist", "hooks", "dispatcher.mjs");
+const HARNESS = join(ROOT, "dist", "cli", "harness.mjs");
 const hasOffice = spawnSync("soffice", ["--version"], { stdio: "ignore" }).status === 0
   && spawnSync("pdftoppm", ["-v"], { stdio: "ignore" }).status === 0;
 
-function run(entry: string, args: string[], cwd: string) {
-  return execFileSync(process.execPath, [entry, ...args], {
+function run(action: string, args: string[], cwd: string) {
+  return execFileSync(process.execPath, [HARNESS, "presentation", action, ...args], {
     cwd,
     encoding: "utf8",
     env: { ...process.env, AI_EXPERTS_SESSION_ID: "pipeline-driver", AI_EXPERTS_TRIGGER_FROM: "pipeline-test" },
@@ -23,8 +23,8 @@ function run(entry: string, args: string[], cwd: string) {
   });
 }
 
-function authorize(entry: string, args: string[], cwd: string, sessionId: string) {
-  const command = ["node", entry, ...args].join(" ");
+function authorize(action: string, args: string[], cwd: string, sessionId: string) {
+  const command = ["node", HARNESS, "presentation", action, ...args].join(" ");
   const hook = spawnSync(process.execPath, [HOOK, "codex", "PreToolUse"], {
     cwd,
     encoding: "utf8",
@@ -41,19 +41,19 @@ test("real Office pipeline closes render, probe, independent review, and release
   const project = join(workspace, "artifacts", "pptx", "pipeline-deck");
   try {
     execFileSync("git", ["init", "-q"], { cwd: workspace });
-    run(cli("init"), [project], workspace);
-    run(cli("lint"), [project], workspace);
+    run("init", [project], workspace);
+    run("lint", [project], workspace);
 
-    authorize(cli("render"), [project], workspace, "producer-session");
-    run(cli("render"), [project], workspace);
-    authorize(cli("probe"), [project], workspace, "probe-session");
-    run(cli("probe"), [project], workspace);
+    authorize("render", [project], workspace, "producer-session");
+    run("render", [project], workspace);
+    authorize("probe", [project], workspace, "probe-session");
+    run("probe", [project], workspace);
 
     let model = await loadPptxProject(project);
     const pagePath = "dist/pages/001.png";
     const reviewInput = join(workspace, "review-input.json");
     writeFileSync(reviewInput, `${JSON.stringify({
-      schema: "presentation-production/review-input/v1",
+      schema: "presentation-production/review-input/v2",
       artifactId: "pipeline-deck",
       subjectDigest: computePptxSubjectDigest(model),
       verdict: "pass",
@@ -61,12 +61,14 @@ test("real Office pipeline closes render, probe, independent review, and release
       pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }],
       findings: [],
       checks: { hierarchy: "pass", legibility: "pass", clipping: "pass", consistency: "pass", accessibility: "pass" },
+      reviewerRetell: { observedBeforeContract: "This deck leads to one explicit decision.", intendedTarget: "This deck leads to one explicit decision.", alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." },
+      communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "slide:opening", evidence: `${key} is visible in the reviewed page.`, recovery: `Revise ${key} and repeat independent review.` }])),
     }, null, 2)}\n`);
 
-    authorize(cli("review"), [project, reviewInput], workspace, "review-session");
-    run(cli("review"), [project, reviewInput], workspace);
-    authorize(cli("release"), [project], workspace, "release-session");
-    run(cli("release"), [project], workspace);
+    authorize("review", [project, reviewInput], workspace, "review-session");
+    run("review", [project, reviewInput], workspace);
+    authorize("release", [project], workspace, "release-session");
+    run("release", [project], workspace);
 
     model = await loadPptxProject(project);
     assert.deepEqual(validatePptxModel(model, { stage: "release" }), []);

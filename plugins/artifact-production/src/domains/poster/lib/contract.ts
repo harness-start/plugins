@@ -4,6 +4,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { inflateSync } from "node:zlib";
 
 import { DOMParser } from "@xmldom/xmldom";
+import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 
 export const POSTER_PROFILES = [
   "regional-culture",
@@ -21,7 +22,7 @@ export const POSTER_STAGES = [
   "release",
 ] as const;
 export const PLAN_SCHEMA = "poster-production/plan/v2";
-export const ART_DIRECTION_SCHEMA = "poster-production/art-direction/v3";
+export const ART_DIRECTION_SCHEMA = "poster-production/art-direction/v4";
 export const SKILL_COMPOSITION_SCHEMA =
   "poster-production/skill-composition/v1";
 export const ASSET_MANIFEST_SCHEMA = "poster-production/assets/v2";
@@ -34,8 +35,8 @@ export const PROBE_EVIDENCE_SCHEMA = "poster-production/probe/v1";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA =
   "poster-production/accessibility/v3";
 export const COMPOSITION_EVIDENCE_SCHEMA = "poster-production/composition/v2";
-export const REVIEW_INPUT_SCHEMA = "poster-production/review-input/v3";
-export const REVIEW_SCHEMA = "poster-production/review/v3";
+export const REVIEW_INPUT_SCHEMA = "poster-production/review-input/v4";
+export const REVIEW_SCHEMA = "poster-production/review/v4";
 export const RELEASE_MANIFEST_SCHEMA = "poster-production/release-manifest/v2";
 
 export type PosterProfile = (typeof POSTER_PROFILES)[number];
@@ -731,6 +732,14 @@ function validateBase(
         "art direction must bind brief, constraints, focal and quiet regions, material, lighting, and negative rules",
       ),
     );
+  if (!communicationCoreValid(art.communicationCore)) findings.push(finding("COMMUNICATION_CORE_INVALID", "plan.art-direction.json", "poster art direction must bind a complete communicationCore"));
+  else {
+    const layerIds = Object.entries(files).filter(([path]) => /^src\/variants\/.+\/layers\/manifest\.json$/u.test(path)).flatMap(([, value]) => {
+      try { return list(record(JSON.parse(textOf(value))).layers).map((entry) => String(record(entry).id ?? "")).filter(Boolean); } catch { return []; }
+    });
+    const allowed = new Set(layerIds.map((id) => `layer:${id}`));
+    if (communicationAnchors(art.communicationCore).some((anchor) => !allowed.has(anchor))) findings.push(finding("COMMUNICATION_CUE_UNBOUND", "plan.art-direction.json", "every poster signature cue anchor must reference a current layer"));
+  }
   const skills = record(
     parseJson(files, "plan.skill-composition.json", findings),
   );
@@ -1405,6 +1414,10 @@ export function validatePosterModel(
           ),
         );
     }
+    const review = readEvidence(model, "review.poster.json");
+    const art = record(parseJson(model?.files ?? {}, "plan.art-direction.json", findings));
+    const core = record(art.communicationCore);
+    if (!communicationReviewValid(review, core.retellTarget, communicationAnchors(core))) findings.push(finding("COMMUNICATION_REVIEW_INVALID", "review.poster.json", "poster review must record a two-pass retell and bind every communication check to the frozen signature cue"));
   }
   if (stageAtLeast(typedStage, "release")) {
     try {

@@ -23,13 +23,14 @@ import {
 import { SHOT_LIBRARY_UPSTREAM_COMMIT } from "../../../src/domains/video/lib/shot-library.js";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+const communicationCore = { coreIntent: "Show one signal becoming coordinated work.", audienceOutcome: "Operators can repeat how the network resolves the input.", retellTarget: "One signal becomes a coordinated network.", signatureCue: { description: "The signal branching into a network", semanticRole: "Core operating transformation", anchors: ["beat:explain"] }, semanticLink: "The branching motion directly represents coordination.", invariants: ["one signal remains traceable through every state"], prohibitedDrift: ["decorative motion without a state change"] };
 
 function validModel() {
   const visual = "export function Intro() { const frame = useCurrentFrame(); return <div>{frame}</div>; }\n";
   const audio = JSON.stringify({ asset: "public/audio/bed.wav", trackId: "music", role: "music", startFrame: 0, endFrame: 240 });
-  const direction = JSON.stringify({ schema: DIRECTION_SCHEMA, motionThesis: "A signal branches from one node into an operating network.", visualMetaphor: "branching signal network", narrativeArc: "isolated input to coordinated outcome", motionGrammar: ["branch", "route", "resolve"], negativeRules: ["slide-deck pacing"] });
+  const direction = JSON.stringify({ schema: DIRECTION_SCHEMA, communicationCore, motionThesis: "A signal branches from one node into an operating network.", visualMetaphor: "branching signal network", narrativeArc: "isolated input to coordinated outcome", motionGrammar: ["branch", "route", "resolve"], negativeRules: ["slide-deck pacing"] });
   const script = JSON.stringify({ schema: SCRIPT_SCHEMA, beats: [{ id: "explain", narration: "One signal becomes a coordinated network." }], claims: [] });
-  const storyboard = JSON.stringify({ schema: STORYBOARD_SCHEMA, beats: [{ index: 1, id: "explain", startFrame: 0, endFrame: 240, narrativeJob: "mechanism", movingObject: "signal", stateChange: "branches into a network", cameraMotion: "slow push", textRole: "label", assetIds: ["music-bed"], pptRisk: "static diagram" }] });
+  const storyboard = JSON.stringify({ schema: STORYBOARD_SCHEMA, beats: [{ index: 1, id: "explain", startFrame: 0, endFrame: 240, narrativeJob: "mechanism", coreContribution: "Demonstrates the transformation named in the retell target.", movingObject: "signal", stateChange: "branches into a network", cameraMotion: "slow push", textRole: "label", assetIds: ["music-bed"], pptRisk: "static diagram" }] });
   const assets = JSON.stringify({ schema: "video-production/assets/v2", assets: [{ id: "music-bed", kind: "audio", source: "user", path: "public/audio/bed.wav", rights: "owned" }] });
   const workers = [
     ["video-motion-direction", "advisor"], ["video-format-playbooks", "advisor"], ["video-visual-critique", "advisor"], ["video-media-import", "external-runner"],
@@ -97,6 +98,7 @@ function v2PlanningModel() {
   const model = validModel();
   const direction = JSON.stringify({
     schema: DIRECTION_SCHEMA,
+    communicationCore,
     motionThesis: "A signal branches from one node into an operating network.",
     visualMetaphor: "branching signal network",
     narrativeArc: "isolated input to coordinated outcome",
@@ -145,6 +147,28 @@ test("v2 contract rejects a legacy unversioned plan instead of silently acceptin
   const codes = validateVideoModel(model, { stage: "source" }).map(({ code }) => code);
 
   assert.ok(codes.includes("PLAN_SCHEMA_UNSUPPORTED"));
+});
+
+test("requires a direction communication core bound to a storyboard beat", () => {
+  const missing = validModel();
+  const missingDirection = JSON.parse(missing.files["plan.direction.json"]);
+  delete missingDirection.communicationCore;
+  missing.files["plan.direction.json"] = JSON.stringify(missingDirection);
+  assert.ok(validateVideoModel(missing, { stage: "render" }).some(({ code }) => code === "COMMUNICATION_CORE_INVALID"));
+
+  const unbound = validModel();
+  const unboundDirection = JSON.parse(unbound.files["plan.direction.json"]);
+  unboundDirection.communicationCore.signatureCue.anchors = ["beat:missing"];
+  unbound.files["plan.direction.json"] = JSON.stringify(unboundDirection);
+  assert.ok(validateVideoModel(unbound, { stage: "render" }).some(({ code }) => code === "COMMUNICATION_CUE_UNBOUND"));
+});
+
+test("requires every storyboard beat to contribute to the communication core", () => {
+  const model = validModel();
+  const storyboard = JSON.parse(model.files["plan.storyboard.json"]);
+  delete storyboard.beats[0].coreContribution;
+  model.files["plan.storyboard.json"] = JSON.stringify(storyboard);
+  assert.ok(validateVideoModel(model, { stage: "render" }).some(({ code }) => code === "STORYBOARD_COMMUNICATION_INVALID"));
 });
 
 test("required shot planning fails closed when a storyboard beat has no selection or custom reason", () => {

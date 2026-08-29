@@ -10,8 +10,8 @@ Own the artifact in `artifacts/diagram/<id>/`. Keep meaning in `src/diagram.json
 ## Workflow
 
 1. Run registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs diagram init <root>` with a lowercase kebab-case id.
-2. Freeze audience, objective, language, assumptions, and terminal `targetStage` in `plan.contract.json`.
-3. Select one of the 27 declared diagram types. Prefer the smallest type that expresses the relationship. Keep labels short, group by semantics, and budget density before styling.
+2. Freeze audience, objective, language, assumptions, terminal `targetStage`, and the communication core in `plan.contract.json`. The core names the intent, audience outcome, exact retell target, one semantically causal signature cue anchored to a real `node:`, `edge:`, or `data:` id, invariants, and prohibited drift.
+3. Select one of the 27 declared diagram types. Prefer the smallest type that expresses the relationship and retell target. Keep labels short, group by semantics, and budget density before styling. A highlighted shape without a causal relationship to the core is not a signature cue.
 4. For existing material, run registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs diagram import <root> <absolute-source>`. Inspect `plan.import-ledger.json`; resolve or explicitly accept every approximation and loss. Supported Mermaid grammars are bounded; unsupported grammar must fail. draw.io imports never follow URLs or scripts.
 5. Tune `design.system.json` on the 4px grid. Use orthogonal routing for graph families, semantic color roles, readable contrast, and at least one non-color encoding for status.
 6. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs diagram lint <root>`, then registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs diagram render <root>`. The writer emits the JSON source plus self-contained SVG, deterministic PNG, self-contained HTML, and optional editable `.drawio`.

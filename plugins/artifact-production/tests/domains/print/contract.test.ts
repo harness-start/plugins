@@ -19,7 +19,7 @@ function validModel() {
       ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
       "package.json": "{}\n",
       "package-lock.json": "{}\n",
-      "plan.contract.json": "{}\n",
+      "plan.contract.json": JSON.stringify({ schema: "print-publication-production/plan/v1", artifactId: "field-manual", targetStage: "release", audience: "field operators", objective: "explain the operating procedure", language: "en", communicationCore: { coreIntent: "Make the operating sequence easy to recover.", audienceOutcome: "Field operators can locate and repeat the procedure.", retellTarget: "Follow the field procedure in order.", signatureCue: { description: "The feature section hierarchy", semanticRole: "Primary operating sequence", anchors: ["section:feature"] }, semanticLink: "The publication hierarchy makes the required sequence observable.", invariants: ["procedure order remains stable across cover and interior"], prohibitedDrift: ["decorative cover language that contradicts the interior hierarchy"] } }),
       "plan.assets.json": "{}\n",
       "print.project.json": "{}\n",
       "tsconfig.json": "{}\n",
@@ -59,7 +59,7 @@ function releaseModel() {
     .filter((path) => path.startsWith("dist/") || path.startsWith("evidence/" ) || path === "evidence.accessibility.json")
     .sort()
     .map((path) => ({ path, sha256: sha256(model.files[path]) }));
-  model.files["review.print.json"] = JSON.stringify({ schema: "print-publication-production/review/v2", plugin: "print-publication-production", artifactId: model.artifactId, subjectDigest, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "print-review-session" }, coverage, checks: [{ id: "typography", status: "pass" }, { id: "pagination", status: "pass" }, { id: "preflight", status: "pass" }] });
+  model.files["review.print.json"] = JSON.stringify({ schema: "print-publication-production/review/v3", plugin: "print-publication-production", artifactId: model.artifactId, subjectDigest, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "print-review-session" }, coverage, checks: [{ id: "typography", status: "pass" }, { id: "pagination", status: "pass" }, { id: "preflight", status: "pass" }], reviewerRetell: { observedBeforeContract: "Follow the field procedure in order.", intendedTarget: "Follow the field procedure in order.", alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." }, communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "section:feature", evidence: `${key} is visible in the reviewed publication.`, recovery: `Revise ${key} and repeat review.` }])) });
   model.files["release.manifest.json"] = JSON.stringify({ schema: "print-publication-production/release-manifest/v2", plugin: "print-publication-production", artifactId: model.artifactId, subjectDigest, outputs: coverage });
   model.files["receipt.release.json"] = JSON.stringify(createPrintReceipt(model));
   return model;
@@ -67,6 +67,34 @@ function releaseModel() {
 
 test("accepts strictly increasing static publication sections", () => {
   assert.deepEqual(validatePrintModel(validModel(), { stage: "source" }), []);
+});
+
+test("requires a publication communication core bound to a real section", () => {
+  const missing = validModel();
+  const missingPlan = JSON.parse(missing.files["plan.contract.json"]);
+  delete missingPlan.communicationCore;
+  missing.files["plan.contract.json"] = JSON.stringify(missingPlan);
+  assert.ok(validatePrintModel(missing, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CORE_INVALID"));
+
+  const unbound = validModel();
+  const unboundPlan = JSON.parse(unbound.files["plan.contract.json"]);
+  unboundPlan.communicationCore.signatureCue.anchors = ["section:missing"];
+  unbound.files["plan.contract.json"] = JSON.stringify(unboundPlan);
+  assert.ok(validatePrintModel(unbound, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CUE_UNBOUND"));
+});
+
+test("release requires a two-pass communication review", () => {
+  const model = releaseModel();
+  const review = JSON.parse(model.files["review.print.json"]);
+  delete review.communicationReview.signatureCue;
+  model.files["review.print.json"] = JSON.stringify(review);
+  assert.ok(validatePrintModel(model, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
+
+  const unbound = releaseModel();
+  const unboundReview = JSON.parse(unbound.files["review.print.json"]);
+  unboundReview.communicationReview.signatureCue.anchor = "section:missing";
+  unbound.files["review.print.json"] = JSON.stringify(unboundReview);
+  assert.ok(validatePrintModel(unbound, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
 });
 
 test("rejects client React inside a publication section", () => {

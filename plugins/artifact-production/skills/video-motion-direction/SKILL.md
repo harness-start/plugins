@@ -19,16 +19,18 @@ Make the creative decisions for a motion piece before anyone animates a frame. D
 
 **Define the motion language first, then animate to it.** A motion language is a short spec — pick *one* of each: easing family, base timing unit, transition family, stagger rhythm, motion intensity. Everything in the piece obeys it. Consistency reads as confidence; variety reads as noise. When in doubt, reuse, don't invent.
 
+Before choosing that language, freeze the communication core: what the audience should understand, the exact sentence they should retell, the one visible state change that carries that meaning, why the change is causally appropriate, what must remain invariant, and what motion would create semantic drift. Repeated easing alone is stylistic consistency; it does not establish message consistency.
+
 ## Direction workflow
 
 | Step | Decision | Output |
 |---|---|---|
-| 1. Brief | Audience, one message, platform, duration, mood (3 adjectives) | One-line creative intent |
+| 1. Brief | Audience, one message, exact retell target, signature state change, platform, duration, mood (3 adjectives) | Communication core and one-line creative intent |
 | 2. Tone & energy | Where it sits on calm↔kinetic and soft↔sharp | A point on the matrix below |
 | 3. Motion language | Lock the spec table | The motion-language spec (filled) |
 | 4. Hierarchy | Rank what moves: hero / support / texture | Motion hierarchy list |
 | 5. Restraint pass | Cut motion that doesn't carry meaning | List of what stays static |
-| 6. Shot direction | Note intent per shot, not keyframes | Direction notes (see template) |
+| 6. Shot direction | Note intent and core contribution per shot, not keyframes | Direction notes (see template) |
 | 7. Consistency check | Audit against the spec | Pass/fail per shot |
 
 ## Tone & energy matrix

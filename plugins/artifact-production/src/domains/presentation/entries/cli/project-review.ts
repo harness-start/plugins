@@ -4,9 +4,10 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { REVIEW_SCHEMA, computePptxSubjectDigest, loadPptxProject, validatePptxModel } from "../../lib/contract.js";
+import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computePptxSubjectDigest, loadPptxProject, validatePptxModel } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertPptxProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
+import { communicationAnchors, communicationReviewValid } from "../../../../lib/communication-contract.js";
 
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
@@ -30,13 +31,15 @@ async function main() {
   const manifest = record(JSON.parse(String(model.files?.["src/slides/manifest.json"])));
   const slides = Array.isArray(manifest.slides) ? manifest.slides : [];
   const pages = Array.isArray(payload.pages) ? payload.pages.map(record) : [];
-  if (payload.schema !== "presentation-production/review-input/v1" || payload.artifactId !== model.artifactId || payload.subjectDigest !== computePptxSubjectDigest(model) || payload.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
+  if (payload.schema !== REVIEW_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== computePptxSubjectDigest(model) || payload.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
   if (!["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
   if (pages.length !== slides.length || pages.some((page, index) => page.index !== index + 1 || page.sha256 !== model.digests?.[`dist/pages/${String(index + 1).padStart(3, "0")}.png`] || page.verdict !== "pass")) throw new Error("REVIEW_PAGE_COVERAGE_INVALID");
+  const core = record(record(model.plan).communicationCore);
+  if (!communicationReviewValid(payload, core.retellTarget, communicationAnchors(core))) throw new Error("COMMUNICATION_REVIEW_INCOMPLETE");
   const reviewFindings = Array.isArray(payload.findings) ? payload.findings : [];
   if (reviewFindings.some((entry) => !["resolved", "accepted"].includes(String(record(entry).disposition)))) throw new Error("REVIEW_FINDING_UNRESOLVED");
   await withWriterJournal(root, "pptx-review", async () => {
-    await atomicWriteJson(root, "review.pptx.json", { schema: REVIEW_SCHEMA, plugin: "presentation-production", artifactId: model.artifactId, subjectDigest: computePptxSubjectDigest(model), verdict: "pass", reviewer, pages, findings: reviewFindings, checks: payload.checks ?? {}, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("pptx-review", grant) });
+    await atomicWriteJson(root, "review.pptx.json", { schema: REVIEW_SCHEMA, plugin: "presentation-production", artifactId: model.artifactId, subjectDigest: computePptxSubjectDigest(model), verdict: "pass", reviewer, pages, findings: reviewFindings, checks: payload.checks ?? {}, reviewerRetell: payload.reviewerRetell, communicationReview: payload.communicationReview, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("pptx-review", grant) });
   }, grant);
   model = await loadPptxProject(root);
   process.stdout.write(`${JSON.stringify({ verdict: "pass", sha256: model.digests?.["review.pptx.json"] })}\n`);

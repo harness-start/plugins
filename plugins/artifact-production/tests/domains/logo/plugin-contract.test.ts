@@ -53,7 +53,9 @@ test("orchestrator declares the complete phase chain and registered writers", ()
   assert.match(skill, /at most three|最多 3/iu);
   assert.match(skill, /bundled companion Skills.*no project writer, review, or release authority/iu);
   assert.match(skill, /Never substitute a similarly named Skill exposed by the runtime/iu);
-  assert.match(skill, /six|六/iu);
+  for (const route of ["symbolic", "typographic", "monogram", "negative-space", "geometric", "narrative"]) assert.match(skill, new RegExp(route, "iu"));
+  assert.match(skill, /explore at least three/iu);
+  assert.match(skill, /reject.*rationale/iu);
   assert.match(skill, /Fibonacci.*optional|斐波那契.*可选/iu);
   assert.match(skill, /Figma.*fallback|Figma.*回退/iu);
 });

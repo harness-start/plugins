@@ -1,173 +1,173 @@
-// harness-source-hash: sha256:ccd7fb231793f87ef34f4d17127378fdb4cc6bb7c7de2d6c776759c0dd767bba
+// harness-source-hash: sha256:0c811d66170e751d4c95f49bfca01deb84cbe9025b35ec552ae2ab9dd9de90a7
 import {
   ownerCliModuleHandler,
   runOwnerCli
-} from "../chunks/chunk-VBL6ZSQA.mjs";
-import "../chunks/chunk-NNXJRIQT.mjs";
+} from "../chunks/chunk-WSR4DPVF.mjs";
+import "../chunks/chunk-4DTUINPK.mjs";
 
 // plugins/artifact-production/src/entries/cli/harness.ts
 var handlers = {
   "diagram:project-import": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-import-5CGFB4HW.mjs");
+    await import("../chunks/project-import-3RQCNTTR.mjs");
   }),
   "diagram:project-init": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-init-KBZBVWID.mjs");
+    await import("../chunks/project-init-7L3G2TWE.mjs");
   }),
   "diagram:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-OI26CMSC.mjs");
+    await import("../chunks/project-lint-LB5X5VGI.mjs");
   }),
   "diagram:project-probe": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-probe-HEJRCR5V.mjs");
+    await import("../chunks/project-probe-V3PS6N7Q.mjs");
   }),
   "diagram:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-S6BOW4SI.mjs");
+    await import("../chunks/project-release-JHU45PXB.mjs");
   }),
   "diagram:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-S7ZC4R6U.mjs");
+    await import("../chunks/project-render-SMUL6MRD.mjs");
   }),
   "diagram:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-2RVU36EC.mjs");
+    await import("../chunks/project-review-RLO3R4WX.mjs");
   }),
   "logo:project-advice": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-advice-Q7ZCCDN7.mjs");
+    await import("../chunks/project-advice-VRYHOT7B.mjs");
   }),
   "logo:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-SHL6ETQK.mjs");
+    await import("../chunks/project-lint-FMV2WCDF.mjs");
   }),
   "logo:project-lock": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lock-7R4LH7ZM.mjs");
+    await import("../chunks/project-lock-MXJZZZYE.mjs");
   }),
   "logo:project-preview": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-preview-BGNARVMD.mjs");
+    await import("../chunks/project-preview-J2NA7GR6.mjs");
   }),
   "logo:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-J5OCF3LA.mjs");
+    await import("../chunks/project-release-YD5OSY3P.mjs");
   }),
   "logo:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-YDJ47UEM.mjs");
+    await import("../chunks/project-render-UXJKLFN3.mjs");
   }),
   "logo:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-YLAKZT76.mjs");
+    await import("../chunks/project-review-TOHVUCPG.mjs");
   }),
   "logo:project-stage": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-stage-GBKHIA2N.mjs");
+    await import("../chunks/project-stage-3TMFWC5K.mjs");
   }),
   "logo:project-validate": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-validate-SUORYPDJ.mjs");
+    await import("../chunks/project-validate-G6IC7X5P.mjs");
   }),
   "music:project-advice": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-advice-JG7XVYOM.mjs");
+    await import("../chunks/project-advice-PWRQP5EK.mjs");
   }),
   "music:project-init": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-init-RMOAQMWT.mjs");
+    await import("../chunks/project-init-76QUGJPW.mjs");
   }),
   "music:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-EUNCZKUD.mjs");
+    await import("../chunks/project-lint-PXRALMIW.mjs");
   }),
   "music:project-optimize": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-optimize-Y77I3Q5H.mjs");
+    await import("../chunks/project-optimize-GGS4QIVT.mjs");
   }),
   "music:project-preview": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-preview-WRSGEBSJ.mjs");
+    await import("../chunks/project-preview-437CI6FL.mjs");
   }),
   "music:project-reference": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-reference-XVXIU6WS.mjs");
+    await import("../chunks/project-reference-IXR5TSUX.mjs");
   }),
   "music:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-N3NE3XFQ.mjs");
+    await import("../chunks/project-release-LKPVZBXF.mjs");
   }),
   "music:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-KZMDRXMM.mjs");
+    await import("../chunks/project-render-TAH2GYYA.mjs");
   }),
   "music:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-NFEOUMWB.mjs");
+    await import("../chunks/project-review-JNVVJC66.mjs");
   }),
   "music:project-stage": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-stage-PW3FTPRJ.mjs");
+    await import("../chunks/project-stage-4UPJ3XMC.mjs");
   }),
   "poster:project-init": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-init-K25QBRHC.mjs");
+    await import("../chunks/project-init-X2WWKOSE.mjs");
   }),
   "poster:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-YXZINICX.mjs");
+    await import("../chunks/project-lint-XBMEPNTG.mjs");
   }),
   "poster:project-probe": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-probe-MC65TED2.mjs");
+    await import("../chunks/project-probe-PGKOT667.mjs");
   }),
   "poster:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-IMTDASTN.mjs");
+    await import("../chunks/project-release-TV5BZJLU.mjs");
   }),
   "poster:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-EN7E6DC7.mjs");
+    await import("../chunks/project-render-3VOT3HNQ.mjs");
   }),
   "poster:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-PSCEPA5P.mjs");
+    await import("../chunks/project-review-65WAXHPH.mjs");
   }),
   "presentation:project-init": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-init-N4VRAVPH.mjs");
+    await import("../chunks/project-init-6NZZD52Q.mjs");
   }),
   "presentation:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-46XV5T2J.mjs");
+    await import("../chunks/project-lint-UHXUITZM.mjs");
   }),
   "presentation:project-probe": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-probe-NYK7FKYU.mjs");
+    await import("../chunks/project-probe-GDM6B2TM.mjs");
   }),
   "presentation:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-RRQYWV6C.mjs");
+    await import("../chunks/project-release-LJEXEAVG.mjs");
   }),
   "presentation:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-ILQFUGYG.mjs");
+    await import("../chunks/project-render-4X7ZI7J5.mjs");
   }),
   "presentation:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-SA7NVHG5.mjs");
+    await import("../chunks/project-review-EXRHC676.mjs");
   }),
   "print:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-NSKF2K3V.mjs");
+    await import("../chunks/project-lint-HKYGO3TK.mjs");
   }),
   "print:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-OBZ3YW3H.mjs");
+    await import("../chunks/project-release-5UE5VITU.mjs");
   }),
   "training:project-init": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-init-6PXFBTJP.mjs");
+    await import("../chunks/project-init-46FM6YXT.mjs");
   }),
   "training:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-SZPZGKMP.mjs");
+    await import("../chunks/project-lint-VHWMXWCS.mjs");
   }),
   "training:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-7NU3CEFF.mjs");
+    await import("../chunks/project-release-QGT6S4J4.mjs");
   }),
   "training:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-DAUVIZ2V.mjs");
+    await import("../chunks/project-render-FDDRNQ5Z.mjs");
   }),
   "training:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-ZNC2AMWK.mjs");
+    await import("../chunks/project-review-JWRNYI2L.mjs");
   }),
   "video:project-admit": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-admit-JD6CN5DB.mjs");
+    await import("../chunks/project-admit-2RHZG4G7.mjs");
   }),
   "video:project-init": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-init-CY2ATI5U.mjs");
+    await import("../chunks/project-init-BKP4NKYX.mjs");
   }),
   "video:project-lint": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-lint-ANADISIB.mjs");
+    await import("../chunks/project-lint-U2IN6MB3.mjs");
   }),
   "video:project-probe": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-probe-PVKE5SYN.mjs");
+    await import("../chunks/project-probe-5BCUMJN5.mjs");
   }),
   "video:project-release": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-release-VQDIR4Q6.mjs");
+    await import("../chunks/project-release-IHDWZQTZ.mjs");
   }),
   "video:project-render": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-render-FYEQDZ2U.mjs");
+    await import("../chunks/project-render-QHME3NUU.mjs");
   }),
   "video:project-review": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-review-OMZGCRBY.mjs");
+    await import("../chunks/project-review-JDAF32BU.mjs");
   }),
   "video:project-shot-stage": ownerCliModuleHandler(async () => {
-    await import("../chunks/project-shot-stage-G4YFEBJU.mjs");
+    await import("../chunks/project-shot-stage-KWE2GZFJ.mjs");
   }),
   "video:shot-catalog": ownerCliModuleHandler(async () => {
-    await import("../chunks/shot-catalog-NQ2CULZG.mjs");
+    await import("../chunks/shot-catalog-HWVSRMIX.mjs");
   })
 };
 await runOwnerCli(process.argv.slice(2), handlers);

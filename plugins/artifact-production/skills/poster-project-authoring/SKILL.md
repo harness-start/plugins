@@ -21,10 +21,10 @@ Read all of these before authoring:
 ## Workflow
 
 1. Select exactly one profile and a lowercase kebab-case artifact id. Run registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs poster init <root> --profile <profile>`.
-2. Replace the scaffold brief with the user-approved audience, objective, language, assumptions, and terminal `targetStage` (normally `release`) in `plan.contract.json`; freeze the matching direction in `plan.art-direction.json`. Record every current-source advisor as `used`, `skipped`, or `unavailable`.
+2. Replace the scaffold brief with the user-approved audience, objective, language, assumptions, and terminal `targetStage` (normally `release`) in `plan.contract.json`; freeze the matching direction in `plan.art-direction.json`. Its communication core names the intent, audience outcome, exact retell target, one semantically causal signature cue anchored to a real layer id, invariants, and prohibited drift. Record every current-source advisor as `used`, `skipped`, or `unavailable`.
 3. Treat advisors as read-only. Integrate their useful advice into project-owned JSON or TSX; never run their scripts or accept their outputs as evidence, review, or release authority.
 4. Register all user, generated, licensed, and public-domain assets in `plan.assets.json` before use. AI imagery is an input asset, never the complete deliverable.
-5. Freeze `design.system.json`, exact copy in `data/<variant>.json`, variant order, dimensions, safe area, typography roles, color roles, and contrast pairs.
+5. Freeze `design.system.json`, exact copy in `data/<variant>.json`, variant order, dimensions, safe area, typography roles, color roles, and contrast pairs. Keep the signature cue recognizable at full size and thumbnail size; visual repetition alone does not establish semantic continuity.
 6. Implement isolated `buildLayer` modules. Layers do not fetch, write, spawn, use nondeterminism, assign z-index, or import sibling layers.
 7. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs poster lint`, then the registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs poster render`. The render writer generates self-contained SVG and rasterizes it deterministically to PNG.
 8. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs poster probe`. Resolve SVG safety, byte-equivalence, dimension, blank-output, typography-minimum, contrast, and accessibility failures by changing inputs, then repeat lint → render → probe.

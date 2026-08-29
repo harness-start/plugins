@@ -92,14 +92,30 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     const index = offset + 1;
     const source = `${String(index).padStart(3, "0")}-${id}.logo.tsx`;
     const code = `export function Concept(){return <svg viewBox="0 0 100 100"><circle cx="${20 + index * 5}" cy="50" r="${12 + index * 3}"/></svg>;}`;
-    return { index, id, bucket, rationale, source, code };
+    return {
+      index, id, bucket, rationale, source, code,
+      coreContribution: "Turns connected guidance into one recognizable visual mechanism.",
+      memoryCue: `${id} uses one controlled relationship as its recall cue.`,
+      retellLine: "A calm system guides connected work.",
+      invariant: "One connected directional relationship remains visible in every variant.",
+      risk: "The mechanism becomes generic or decorative when separated from the brand story.",
+    };
   });
+  const communicationCore = {
+    coreIntent: "Make complex connected work feel calm and guided.",
+    audienceOutcome: "Brand customers should recognize one coherent system instead of a fragmented tool set.",
+    retellTarget: "A calm system guides connected work.",
+    signatureCue: { description: "One connected orbital path", semanticRole: "Guidance through connected work", anchors: ["concept:geometric-orbit", "path:mark-shape"] },
+    semanticLink: "The connected path turns the product promise into an observable relationship.",
+    invariants: ["one connected path", "clear directional movement"],
+    prohibitedDrift: ["generic initial", "decorative orbit without directional meaning"],
+  };
   const files = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": JSON.stringify({ scripts: { "logo:render": "node render-fixture.mjs" } }),
     "package-lock.json": JSON.stringify({ lockfileVersion: 3, packages: { "": {} } }),
     "plan.contract.json": JSON.stringify({ schema: "brand-logo-production/plan/v1", artifactId, targetStage: stage }),
-    "plan.brief.json": JSON.stringify({ schema: BRIEF_SCHEMA, artifactId, brandName: "Orbit", wordmarkText: "Orbit", audience: "brand customers", brandPositioning: "distinctive geometric identity", language: "en", scriptPolicy: "latin", casePolicy: "exact", letterform: { typeClass: "geometric sans", strokeProfile: "uniform", structure: "stable horizontal wordmark", edgeFinish: "clean vector", sceneReference: "enterprise software identity" }, constraints: ["native vector"], prohibitedDirections: ["generic template"], successCriteria: ["legible at 16px"] }),
+    "plan.brief.json": JSON.stringify({ schema: BRIEF_SCHEMA, artifactId, brandName: "Orbit", wordmarkText: "Orbit", audience: "brand customers", brandPositioning: "distinctive geometric identity", language: "en", scriptPolicy: "latin", casePolicy: "exact", communicationCore, markStrategy: { carrier: "combination", initialismDecision: "avoid", rationale: "The full name and connected symbol communicate more than the initial alone." }, letterform: { typeClass: "geometric sans", strokeProfile: "uniform", structure: "stable horizontal wordmark", edgeFinish: "clean vector", sceneReference: "enterprise software identity" }, constraints: ["native vector"], prohibitedDirections: ["generic template"], successCriteria: ["legible at 16px"] }),
     "plan.context.json": JSON.stringify({ schema: BRAND_CONTEXT_SCHEMA, artifactId, brandStory: "A connected service that guides customers through complex work.", market: "Professional B2B workflow software", differentiation: "One calm connected system instead of a fragmented tool stack.", competitors: ["generic suite", "point solution"], references: [{ id: "provided-brief", source: "workspace/README.md", provenance: "provided" }] }),
     "plan.skill-composition.json": JSON.stringify({
       schema: SKILL_COMPOSITION_SCHEMA,
@@ -114,7 +130,7 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
     "logo.project.json": JSON.stringify({ schema: "brand-logo-production/project/v1", artifactId, selectedConcept: "geometric-orbit" }),
     "src/render.ts": "export const rendererContract = 'logo:render';\n",
     "render-fixture.mjs": RENDER_FIXTURE_SCRIPT,
-    "src/concepts/manifest.json": JSON.stringify({ concepts: concepts.map(({ code: _code, ...entry }) => entry) }),
+    "src/concepts/manifest.json": JSON.stringify({ routeAssessments: concepts.map(({ bucket }) => ({ bucket, decision: "explore", rationale: `${bucket} can express the frozen communication core.` })), concepts: concepts.map(({ code: _code, ...entry }) => entry) }),
     "src/master/Mark.logo.tsx": component("Mark", 100),
     "src/master/Wordmark.logo.tsx": component("Wordmark", 200),
     "src/master/Lockup.logo.tsx": component("Lockup", 300),
@@ -244,6 +260,8 @@ export function validLogoModel({ artifactId = "orbit-logo", stage = "release" } 
       markWordmarkSystem: { score: 2, requiredMin: 2, note: "shared geometric language" },
       restraint: { score: 2, requiredMin: 2, note: "one controlled gesture without decorative noise" },
     },
+    reviewerRetell: { observedBeforeContract: "A connected orbital path suggests calm guidance.", intendedTarget: communicationCore.retellTarget, alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." },
+    communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "path:mark-shape", evidence: `${key} is visible in the current reviewed output.`, recovery: `Revise ${key} and repeat independent review.` }])),
   });
   files["release.manifest.json"] = JSON.stringify(createLogoReleaseManifest(model));
   files["receipt.release.json"] = JSON.stringify(createLogoReceipt(model));

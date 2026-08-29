@@ -5,6 +5,7 @@ import {
   BRIEF_SCHEMA,
   COLOR_SYSTEM_SCHEMA,
   CONCEPT_SELECTION_SCHEMA,
+  REVIEW_INPUT_SCHEMA,
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   createLogoReceipt,
@@ -17,6 +18,7 @@ import {
 import { minimalPng, validLogoModel } from "./helpers/logo-fixture.js";
 
 test("accepts a semantically bound logo release", () => {
+  assert.equal(REVIEW_INPUT_SCHEMA, "brand-logo-production/review-input/v2");
   assert.deepEqual(validateLogoModel(validLogoModel(), { stage: "release" }), []);
 });
 
@@ -69,6 +71,25 @@ test("requires exact wordmark copy, script policy, and letterform dimensions", (
   assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "BRIEF_INVALID"));
 });
 
+test("requires a communication core and an explicit mark-carrier decision", () => {
+  const model = validLogoModel({ stage: "source" });
+  const brief = JSON.parse(String(model.files["plan.brief.json"]));
+  delete brief.communicationCore.semanticLink;
+  delete brief.markStrategy;
+  model.files["plan.brief.json"] = JSON.stringify(brief);
+  const codes = new Set(validateLogoModel(model, { stage: "source" }).map(({ code }) => code));
+  assert.ok(codes.has("COMMUNICATION_CORE_INVALID"));
+  assert.ok(codes.has("MARK_STRATEGY_INVALID"));
+});
+
+test("requires anatomy-aware transformation controls only for letter-based carriers", () => {
+  const model = validLogoModel({ stage: "source" });
+  const brief = JSON.parse(String(model.files["plan.brief.json"]));
+  brief.markStrategy = { carrier: "lettermark", initialismDecision: "use", rationale: "A meaningful initial is supported by the brief." };
+  model.files["plan.brief.json"] = JSON.stringify(brief);
+  assert.ok(validateLogoModel(model, { stage: "source" }).some(({ code }) => code === "LETTERFORM_STRATEGY_INVALID"));
+});
+
 test("rejects a wordmark manifest whose mapped copy differs from the brief", () => {
   const model = validLogoModel({ stage: "source" });
   model.files["src/master/wordmark.manifest.json"] = JSON.stringify({ schema: "brand-logo-production/wordmark-manifest/v1", text: "Wrong", scriptPolicy: "latin", units: [{ index: 1, text: "Wrong", pathIds: ["wordmark-shape"] }] });
@@ -90,17 +111,31 @@ test("requires parsed brand context, reference provenance, asset provenance, and
   assert.ok(codes.has("INTEGRATION_PLAN_INVALID"));
 });
 
-test("requires six divergent concept buckets and an auditable selection round", () => {
+test("requires at least three explored routes and an auditable selection round", () => {
   const model = validLogoModel({ stage: "source" });
   const manifest = JSON.parse(model.files["src/concepts/manifest.json"]);
   manifest.concepts = manifest.concepts.slice(0, 1);
+  manifest.routeAssessments = manifest.routeAssessments.map((entry, index) => ({ ...entry, decision: index === 0 ? "explore" : "reject" }));
   model.files["src/concepts/manifest.json"] = JSON.stringify(manifest);
   model.project.selectedConcept = manifest.concepts[0].id;
   model.files["logo.project.json"] = JSON.stringify(model.project);
   model.files["plan.concept-selection.json"] = JSON.stringify({ schema: CONCEPT_SELECTION_SCHEMA, artifactId: model.artifactId, selectedConcept: manifest.concepts[0].id, rounds: [] });
   const codes = new Set(validateLogoModel(model, { stage: "source" }).map(({ code }) => code));
-  assert.ok(codes.has("CONCEPT_DIVERGENCE_INSUFFICIENT"));
+  assert.ok(codes.has("CONCEPT_ROUTE_ASSESSMENT_INVALID"));
   assert.ok(codes.has("CONCEPT_SELECTION_EVIDENCE_INVALID"));
+});
+
+test("allows unsuitable concept routes to be rejected instead of forcing six outputs", () => {
+  const model = validLogoModel({ stage: "source" });
+  const manifest = JSON.parse(model.files["src/concepts/manifest.json"]);
+  const explored = new Set(["symbolic", "negative-space", "geometric"]);
+  manifest.routeAssessments = manifest.routeAssessments.map((entry) => ({ ...entry, decision: explored.has(entry.bucket) ? "explore" : "reject", rationale: explored.has(entry.bucket) ? "This route can express the core." : "This route would reduce the idea to an unsupported initial or stylistic gesture." }));
+  manifest.concepts = manifest.concepts.filter((entry) => explored.has(entry.bucket));
+  model.files["src/concepts/manifest.json"] = JSON.stringify(manifest);
+  model.files["plan.concept-selection.json"] = JSON.stringify({ schema: CONCEPT_SELECTION_SCHEMA, artifactId: model.artifactId, selectedConcept: "geometric-orbit", rounds: [{ round: 1, conceptIds: manifest.concepts.map(({ id }) => id), feedback: "Compare the three eligible semantic mechanisms." }] });
+  const codes = validateLogoModel(model, { stage: "source" }).map(({ code }) => code);
+  assert.equal(codes.includes("CONCEPT_DIVERGENCE_INSUFFICIENT"), false);
+  assert.equal(codes.includes("CONCEPT_ROUTE_ASSESSMENT_INVALID"), false);
 });
 
 test("accepts a role-based subset of bundled advisers instead of an exact fixed pool", () => {
@@ -150,6 +185,21 @@ test("requires the complete outcome-level visual rubric and delivery checks", ()
   const codes = new Set(validateLogoModel(model, { stage: "release" }).map(({ code }) => code));
   assert.ok(codes.has("AESTHETIC_CRITERIA_INCOMPLETE"));
   assert.ok(codes.has("REVIEW_INVALID"));
+});
+
+test("release requires a two-pass retell and complete communication review", () => {
+  const model = validLogoModel();
+  const review = JSON.parse(model.files["review.logo.json"]);
+  delete review.reviewerRetell.observedBeforeContract;
+  delete review.communicationReview.semanticCausality;
+  model.files["review.logo.json"] = JSON.stringify(review);
+  assert.ok(validateLogoModel(model, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
+
+  const unbound = validLogoModel();
+  const unboundReview = JSON.parse(unbound.files["review.logo.json"]);
+  unboundReview.communicationReview.signatureCue.anchor = "path:missing";
+  unbound.files["review.logo.json"] = JSON.stringify(unboundReview);
+  assert.ok(validateLogoModel(unbound, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
 });
 
 test("limits active advisers to three and requires digest-bound advice evidence", () => {

@@ -7,6 +7,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computePosterSubjectDigest, loadPosterProject, validatePosterModel } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertPosterProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
+import { communicationAnchors, communicationReviewValid } from "../../../../lib/communication-contract.js";
 
 const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 
@@ -38,10 +39,13 @@ async function main() {
     const check = record(checks[key]);
     return check.status !== "pass" || typeof check.anchor !== "string" || !check.anchor || typeof check.evidence !== "string" || !check.evidence || typeof check.recovery !== "string" || !check.recovery;
   })) throw new Error("REVIEW_CHECKS_INCOMPLETE");
+  const artDirection = record(JSON.parse(String(model.files?.["plan.art-direction.json"])));
+  const communicationCore = record(artDirection.communicationCore);
+  if (!communicationReviewValid(payload, communicationCore.retellTarget, communicationAnchors(communicationCore))) throw new Error("COMMUNICATION_REVIEW_INCOMPLETE");
   const reviewFindings = Array.isArray(payload.findings) ? payload.findings.map(record) : [];
   if (reviewFindings.some((entry) => !["resolved", "accepted"].includes(String(entry.disposition)) || !["low", "medium", "high", "critical"].includes(String(entry.severity)) || typeof entry.anchor !== "string" || typeof entry.evidence !== "string" || typeof entry.recovery !== "string" || (entry.disposition === "accepted" && ["high", "critical"].includes(String(entry.severity))))) throw new Error("REVIEW_FINDING_UNRESOLVED");
   await withWriterJournal(root, "poster-review", async () => {
-    await atomicWriteJson(root, "review.poster.json", { schema: REVIEW_SCHEMA, plugin: "poster-production", artifactId: model.artifactId, subjectDigest: computePosterSubjectDigest(model), verdict: "pass", reviewer, variants, findings: reviewFindings, checks, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("poster-review", grant) });
+    await atomicWriteJson(root, "review.poster.json", { schema: REVIEW_SCHEMA, plugin: "poster-production", artifactId: model.artifactId, subjectDigest: computePosterSubjectDigest(model), verdict: "pass", reviewer, variants, findings: reviewFindings, checks, reviewerRetell: payload.reviewerRetell, communicationReview: payload.communicationReview, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("poster-review", grant) });
   }, grant);
   model = await loadPosterProject(root);
   process.stdout.write(`${JSON.stringify({ verdict: "pass", sha256: model.digests?.["review.poster.json"] })}\n`);

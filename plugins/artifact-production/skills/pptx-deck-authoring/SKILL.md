@@ -20,7 +20,7 @@ Read all of these before authoring:
 ## Workflow
 
 1. Choose a lowercase kebab-case artifact id. Run the registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation init` wrapper for `artifacts/pptx/<artifact-id>`.
-2. Replace every scaffold placeholder. Freeze `plan.contract.json`, `plan.storyboard.json`, and `plan.skill-composition.json` before slide source work.
+2. Replace every scaffold placeholder. Freeze `plan.contract.json`, `plan.storyboard.json`, and `plan.skill-composition.json` before slide source work. The plan communication core names the intent, audience outcome, exact retell target, one semantically causal signature cue anchored to a real `slide:<id>`, invariants, and prohibited drift. Every slide states one assertion, narrative job, transition, and contribution to that core.
 3. Acquire optional external workers only for their declared phase. Record each current-source worker's `used`, `skipped`, or `unavailable` status. Treat their output as advice; integrate it into project-owned JSON or TypeScript yourself.
 4. Freeze `design.system.json`. Make color, typography, spacing, chart, and accessibility decisions semantic and measurable.
 5. Implement `src/deck.ts`, `src/theme.ts`, and exactly one `src/slides/NNN-slug.ts` module per manifest slide. A slide module modifies only the supplied slide and does not create slides, write files, fetch, spawn, or use nondeterminism.

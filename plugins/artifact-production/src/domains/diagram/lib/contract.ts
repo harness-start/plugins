@@ -2,15 +2,17 @@ import { createHash, type BinaryLike } from "node:crypto";
 import { lstat, readdir, readFile } from "node:fs/promises";
 import { basename, dirname, extname, join, posix, relative, resolve, sep } from "node:path";
 
-export const PLAN_SCHEMA = "diagram-production/plan/v1";
+import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
+
+export const PLAN_SCHEMA = "diagram-production/plan/v2";
 export const DESIGN_SYSTEM_SCHEMA = "diagram-production/design-system/v1";
 export const PROJECT_SCHEMA = "diagram-production/project/v1";
 export const SOURCE_SCHEMA = "diagram-production/source/v1";
 export const IMPORT_LEDGER_SCHEMA = "diagram-production/import-ledger/v1";
 export const RENDER_EVIDENCE_SCHEMA = "diagram-production/render-evidence/v1";
 export const PROBE_EVIDENCE_SCHEMA = "diagram-production/probe-evidence/v1";
-export const REVIEW_INPUT_SCHEMA = "diagram-production/review-input/v1";
-export const REVIEW_SCHEMA = "diagram-production/review/v1";
+export const REVIEW_INPUT_SCHEMA = "diagram-production/review-input/v2";
+export const REVIEW_SCHEMA = "diagram-production/review/v2";
 export const RELEASE_MANIFEST_SCHEMA = "diagram-production/release-manifest/v1";
 export const RECEIPT_SCHEMA = "diagram-production/receipt/v1";
 
@@ -205,7 +207,16 @@ export function validateDiagramModel(model: DiagramModel | null | undefined, opt
   const project = schemaRecord(files, "diagram.project.json", PROJECT_SCHEMA, "PROJECT_INVALID", findings);
   const projectOutputs = list(project?.outputs);
   if (project && (project.artifactId !== model?.artifactId || project.source !== "src/diagram.json" || project.designSystem !== "design.system.json" || !Array.isArray(project.outputs) || !["svg", "png", "html"].every((format) => projectOutputs.includes(format)) || projectOutputs.some((format) => !["svg", "png", "html", "drawio"].includes(String(format))))) findings.push(finding("PROJECT_INVALID", "diagram.project.json", "project must bind source/design paths and svg/png/html outputs; drawio is optional"));
-  validateSource(schemaRecord(files, "src/diagram.json", SOURCE_SCHEMA, "DIAGRAM_SOURCE_INVALID", findings), findings);
+  const source = schemaRecord(files, "src/diagram.json", SOURCE_SCHEMA, "DIAGRAM_SOURCE_INVALID", findings);
+  validateSource(source, findings);
+  if (!communicationCoreValid(plan?.communicationCore)) findings.push(finding("COMMUNICATION_CORE_INVALID", "plan.contract.json", "diagram plan must bind a complete communicationCore"));
+  else {
+    const nodeIds = list(source?.nodes).map((entry) => String(rec(entry)?.id ?? "")).filter(Boolean);
+    const edgeIds = list(source?.edges).map((entry) => `${String(rec(entry)?.from ?? "")}->${String(rec(entry)?.to ?? "")}`);
+    const dataIds = [...list(source?.data), ...list(source?.items)].map((entry) => String(rec(entry)?.id ?? "")).filter(Boolean);
+    const allowed = new Set([...nodeIds.map((id) => `node:${id}`), ...edgeIds.map((id) => `edge:${id}`), ...dataIds.map((id) => `data:${id}`)]);
+    if (communicationAnchors(plan?.communicationCore).some((anchor) => !allowed.has(anchor))) findings.push(finding("COMMUNICATION_CUE_UNBOUND", "plan.contract.json", "every diagram signature cue anchor must reference a current node, edge, or data item"));
+  }
   if ("plan.import-ledger.json" in files) {
     const ledger = schemaRecord(files, "plan.import-ledger.json", IMPORT_LEDGER_SCHEMA, "IMPORT_LEDGER_INVALID", findings);
     if (ledger && (typeof ledger.sourceFormat !== "string" || typeof ledger.sourceName !== "string" || ![ledger.preserved, ledger.approximations, ledger.losses].every((entries) => Array.isArray(entries) && entries.every((entry) => typeof entry === "string")))) findings.push(finding("IMPORT_LEDGER_INVALID", "plan.import-ledger.json", "import ledger must declare its source and string lists for preserved, approximated, and lost semantics"));
@@ -223,7 +234,11 @@ export function validateDiagramModel(model: DiagramModel | null | undefined, opt
     validateEvidence(model ?? {}, "evidence.render.json", RENDER_EVIDENCE_SCHEMA, "RENDER_EVIDENCE_INVALID", findings);
   }
   if (stageAtLeast(typedStage, "probe")) validateEvidence(model ?? {}, "evidence.probe.json", PROBE_EVIDENCE_SCHEMA, "PROBE_EVIDENCE_INVALID", findings);
-  if (stageAtLeast(typedStage, "review")) validateEvidence(model ?? {}, "review.diagram.json", REVIEW_SCHEMA, "REVIEW_INVALID", findings);
+  if (stageAtLeast(typedStage, "review")) {
+    const review = validateEvidence(model ?? {}, "review.diagram.json", REVIEW_SCHEMA, "REVIEW_INVALID", findings);
+    const core = rec(plan?.communicationCore);
+    if (!communicationReviewValid(review, core?.retellTarget, communicationAnchors(core))) findings.push(finding("COMMUNICATION_REVIEW_INVALID", "review.diagram.json", "diagram review must record a two-pass retell and bind every communication check to the frozen signature cue"));
+  }
   if (stageAtLeast(typedStage, "release")) {
     const release = schemaRecord(files, "release.manifest.json", RELEASE_MANIFEST_SCHEMA, "RELEASE_MANIFEST_INVALID", findings);
     const expected = createDiagramReleaseManifest(model ?? {});

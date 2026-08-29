@@ -79,6 +79,12 @@ test("project initializer creates a source-stage v2 scaffold through a capabilit
     const model = await loadVideoProject(root);
     assert.deepEqual(validateVideoModel(model, { stage: "source" }), []);
     assert.equal(JSON.parse(String(model.files?.["plan.contract.json"])).profile, "short-form");
+    const direction = JSON.parse(String(model.files?.["plan.direction.json"]));
+    const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+    assert.equal(direction.schema, "video-production/direction/v2");
+    assert.equal(direction.communicationCore.signatureCue.anchors[0], "beat:opening");
+    assert.equal(storyboard.schema, "video-production/storyboard/v3");
+    assert.equal(storyboard.beats[0].coreContribution.length > 0, true);
   } finally {
     rmSync(sandbox, { recursive: true, force: true });
   }
@@ -111,7 +117,7 @@ test("shot staging snapshots the pinned recipe and invalidates storyboard approv
   try {
     const env = fakeToolchain(sandbox);
     const root = await initialize(sandbox, env, "product-promo");
-    writeFileSync(join(root, "plan.storyboard.json"), JSON.stringify({ schema: "video-production/storyboard/v2", beats: [{ index: 1, id: "hook", startFrame: 0, endFrame: 90, narrativeJob: "hook", movingObject: "cards", stateChange: "deal into place", cameraMotion: "track", textRole: "headline", assetIds: [], pptRisk: "static grid" }] }));
+    writeFileSync(join(root, "plan.storyboard.json"), JSON.stringify({ schema: "video-production/storyboard/v3", beats: [{ index: 1, id: "hook", startFrame: 0, endFrame: 90, narrativeJob: "hook", coreContribution: "Introduces the promised transformation.", movingObject: "cards", stateChange: "deal into place", cameraMotion: "track", textRole: "headline", assetIds: [], pptRisk: "static grid" }] }));
     const args = [root, "hook", "deck-deal-flyin", "deck-deal-flyin"];
     await authorize("project-shot-stage.mjs", args, sandbox, "shot-stage-session");
 
@@ -146,12 +152,16 @@ test("admission copies a declared external asset and records declared provenance
     composition.workers.find((worker: { name: string }) => worker.name === "video-media-import").status = "used";
     writeFileSync(compositionPath, JSON.stringify(composition));
     const script = JSON.stringify({ schema: "video-production/script/v1", beats: [{ id: "hook", narration: "Hook" }, { id: "body", narration: "Body" }], claims: [] });
-    const storyboard = JSON.stringify({ schema: "video-production/storyboard/v2", beats: [{ index: 1, id: "hook", startFrame: 0, endFrame: 90, narrativeJob: "hook", movingObject: "title", stateChange: "reveals", cameraMotion: "push", textRole: "headline", assetIds: [], pptRisk: "static title" }, { index: 2, id: "body", startFrame: 90, endFrame: 900, narrativeJob: "explain", movingObject: "waveform", stateChange: "expands", cameraMotion: "track", textRole: "label", assetIds: ["voice"], pptRisk: "static card" }] });
+    const storyboard = JSON.stringify({ schema: "video-production/storyboard/v3", beats: [{ index: 1, id: "hook", startFrame: 0, endFrame: 90, narrativeJob: "hook", coreContribution: "Introduces the promised transformation.", movingObject: "title", stateChange: "reveals", cameraMotion: "push", textRole: "headline", assetIds: [], pptRisk: "static title" }, { index: 2, id: "body", startFrame: 90, endFrame: 900, narrativeJob: "explain", coreContribution: "Demonstrates the resolved audience outcome.", movingObject: "waveform", stateChange: "expands", cameraMotion: "track", textRole: "label", assetIds: ["voice"], pptRisk: "static card" }] });
     const assets = JSON.stringify({ schema: "video-production/assets/v2", assets: [{ id: "voice", kind: "audio", source: "external-run", runId: "tts-1", path: "public/admitted/voice.wav", rights: "generated-and-licensed" }] });
     writeFileSync(join(root, "plan.script.json"), script);
     writeFileSync(join(root, "plan.storyboard.json"), storyboard);
     writeFileSync(join(root, "plan.assets.json"), assets);
-    const direction = readFileSync(join(root, "plan.direction.json"), "utf8");
+    const directionPath = join(root, "plan.direction.json");
+    const directionRecord = JSON.parse(readFileSync(directionPath, "utf8"));
+    directionRecord.communicationCore.signatureCue.anchors = ["beat:hook"];
+    const direction = JSON.stringify(directionRecord);
+    writeFileSync(directionPath, direction);
     const hash = (value: string) => createHash("sha256").update(value).digest("hex");
     writeFileSync(join(root, "plan.approvals.json"), JSON.stringify({ schema: "video-production/approvals/v1", mode: "guided", gates: [{ stage: "direction", status: "approved", subjectSha256: hash(direction), actor: "fixture", reason: "" }, { stage: "storyboard", status: "approved", subjectSha256: hash(`plan.script.json\0${hash(script)}\nplan.storyboard.json\0${hash(storyboard)}\n`), actor: "fixture", reason: "" }, { stage: "assets", status: "approved", subjectSha256: hash(assets), actor: "fixture", reason: "" }] }));
     const candidate = join(sandbox, "external", "voice.wav");

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   DIAGRAM_TYPES,
+  REVIEW_INPUT_SCHEMA,
   inspectDiagramSvg,
   validateDiagramModel,
   type DiagramModel,
@@ -15,12 +16,21 @@ const sourceModel = (): DiagramModel => ({
     "package.json": "{}\n",
     "package-lock.json": "{}\n",
     "plan.contract.json": JSON.stringify({
-      schema: "diagram-production/plan/v1",
+      schema: "diagram-production/plan/v2",
       artifactId: "service-flow",
       targetStage: "release",
       audience: "engineering",
       objective: "explain request flow",
       language: "zh-CN",
+      communicationCore: {
+        coreIntent: "Explain how one request reaches the service boundary.",
+        audienceOutcome: "Engineering readers can identify the handoff into the API.",
+        retellTarget: "The client request enters through the API.",
+        signatureCue: { description: "The labeled client-to-API connection", semanticRole: "Primary system handoff", anchors: ["node:api", "edge:client->api"] },
+        semanticLink: "The anchored connection is the relationship the diagram exists to explain.",
+        invariants: ["client precedes API"],
+        prohibitedDrift: ["decorative emphasis on an unrelated node"],
+      },
     }),
     "design.system.json": JSON.stringify({
       schema: "diagram-production/design-system/v1",
@@ -50,6 +60,7 @@ const sourceModel = (): DiagramModel => ({
 });
 
 test("publishes exactly the 27 diagram types promised by the plugin", () => {
+  assert.equal(REVIEW_INPUT_SCHEMA, "diagram-production/review-input/v2");
   assert.equal(DIAGRAM_TYPES.length, 27);
   assert.deepEqual(new Set(DIAGRAM_TYPES).size, 27);
   assert.ok(DIAGRAM_TYPES.includes("architecture"));
@@ -58,6 +69,20 @@ test("publishes exactly the 27 diagram types promised by the plugin", () => {
 
 test("accepts a valid source-stage diagram project", () => {
   assert.deepEqual(validateDiagramModel(sourceModel(), { stage: "source" }), []);
+});
+
+test("rejects a missing communication core or a cue anchored outside the source", () => {
+  const missing = sourceModel();
+  const missingPlan = JSON.parse(String(missing.files?.["plan.contract.json"]));
+  delete missingPlan.communicationCore;
+  missing.files!["plan.contract.json"] = JSON.stringify(missingPlan);
+  assert.ok(validateDiagramModel(missing, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CORE_INVALID"));
+
+  const unbound = sourceModel();
+  const unboundPlan = JSON.parse(String(unbound.files?.["plan.contract.json"]));
+  unboundPlan.communicationCore.signatureCue.anchors = ["node:missing"];
+  unbound.files!["plan.contract.json"] = JSON.stringify(unboundPlan);
+  assert.ok(validateDiagramModel(unbound, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CUE_UNBOUND"));
 });
 
 test("classifies relative references and CSS imports as unsafe SVG", () => {
@@ -89,6 +114,9 @@ test("accepts a source contract for every published diagram type", () => {
     if (quantitative.has(type)) {
       delete source.nodes; delete source.edges;
       source.data = [{ id: "one", label: "One", value: 1 }, { id: "two", label: "Two", value: 2 }];
+      const plan = JSON.parse(String(model.files?.["plan.contract.json"]));
+      plan.communicationCore.signatureCue.anchors = ["data:one"];
+      model.files!["plan.contract.json"] = JSON.stringify(plan);
     }
     model.files!["src/diagram.json"] = JSON.stringify(source);
     assert.deepEqual(validateDiagramModel(model, { stage: "source" }), [], type);

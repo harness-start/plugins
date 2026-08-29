@@ -59,12 +59,13 @@ function hydrate(model: PptxModel) {
 
 export function sourceModel(artifactId = "deck"): PptxModel {
   const slide = "export function renderSlide(slide, ctx) { slide.addText(ctx.copy.title); }\n";
+  const communicationCore = { coreIntent: "Make the operating decision explicit.", audienceOutcome: "Leadership can repeat the decision and its reason.", retellTarget: "Approve the coordinated operating model.", signatureCue: { description: "The opening decision statement", semanticRole: "Narrative spine", anchors: ["slide:opening"] }, semanticLink: "The opening assertion states the decision every later slide must support.", invariants: ["one decision-led title chain"], prohibitedDrift: ["topic labels without assertions"] };
   const files: Record<string, FileContent> = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": "{}\n",
     "package-lock.json": "{}\n",
-    "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "release", audience: "leadership", objective: "inform", language: "zh-CN" }),
-    "plan.storyboard.json": JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "Opening", role: "opening", visualType: "statement" }] }),
+    "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "release", audience: "leadership", objective: "inform", language: "zh-CN", communicationCore }),
+    "plan.storyboard.json": JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "Opening", role: "opening", visualType: "statement", assertion: "Approve the coordinated operating model.", narrativeJob: "state-decision", transition: "establish the decision before evidence", coreContribution: "States the exact retell target." }] }),
     "plan.skill-composition.json": JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "presentation-storyboard", status: "used" }, { name: "presentation-visual-critique", status: "used" }] }),
     "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F4F6F8", textPrimary: "111827", textSecondary: "374151", accent: "1D4ED8", success: "15803D", warning: "A16207", error: "B91C1C" } }, typography: { roles: Object.fromEntries(["display", "title", "section", "body", "caption", "numeric"].map((role) => [role, { fontFamily: "Noto Sans CJK SC", fontSizePt: role === "body" ? 22 : 28, lineSpacingMultiple: role === "body" ? 1.35 : 1.15, charSpacingPt: 0, maxLines: role === "body" ? 6 : 2, scriptPolicy: "mixed" }])) }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.125, blockGapIn: 0.3, paragraphGapIn: 0.18 } }),
     "pptx.project.json": JSON.stringify({ schema: PROJECT_SCHEMA, artifactId, layout: "LAYOUT_16X9", entry: "src/deck.ts", slideManifest: "src/slides/manifest.json", designSystem: "design.system.json" }),
@@ -98,7 +99,8 @@ export function releaseModel(artifactId = "deck") {
   ] });
   files["evidence.accessibility.json"] = JSON.stringify({ schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, outputSha256: model.digests?.[pptxPath], verdict: "pass", checks: [{ source: "tool-report", status: "pass" }] });
   hydrate(model);
-  files["review.pptx.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }], findings: [] });
+  const communicationCore = JSON.parse(String(files["plan.contract.json"])).communicationCore;
+  files["review.pptx.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }], reviewerRetell: { observedBeforeContract: "The deck asks leadership to approve one coordinated operating model.", intendedTarget: communicationCore.retellTarget, alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." }, communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "slide:opening", evidence: `${key} is visible in the reviewed page.`, recovery: `Revise ${key} and repeat review.` }])), findings: [] });
   hydrate(model);
   files["release.manifest.json"] = JSON.stringify(createPptxReleaseManifest(model));
   hydrate(model);

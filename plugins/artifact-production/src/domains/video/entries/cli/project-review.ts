@@ -9,6 +9,7 @@ import { consumeWriterCapability, processWriterArgv } from "../../lib/capability
 import { extractFrameDigest, mediaToolVersion } from "../../lib/media.js";
 import { loadVideoProject } from "../../lib/project.js";
 import { assertVideoProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
+import { communicationAnchors, communicationReviewValid } from "../../../../lib/communication-contract.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -55,6 +56,9 @@ function validateInput(input: unknown, model: VideoModel, currentSession: string
     && assessments.every((assessment) => isRecord(assessment) && Number.isInteger(assessment.frame) && blackCandidateFrames.includes(assessment.frame as number) && ["expected", "unexpected"].includes(String(assessment.classification)) && typeof assessment.notes === "string" && assessment.notes.trim().length > 0);
   if (!complete) throw new Error("BLACK_FRAME_REVIEW_INCOMPLETE");
   if (assessments.some((assessment) => isRecord(assessment) && assessment.classification === "unexpected")) throw new Error("BLACK_FRAME_REVIEW_FAILED");
+  const direction = (() => { try { return JSON.parse(model.files?.["plan.direction.json"] ?? "null") as unknown; } catch { return null; } })();
+  const communicationCore = isRecord(direction) && isRecord(direction.communicationCore) ? direction.communicationCore : {};
+  if (!communicationReviewValid(record, communicationCore.retellTarget, communicationAnchors(communicationCore))) throw new Error("COMMUNICATION_REVIEW_INCOMPLETE");
   return frames.sort((left, right) => left - right);
 }
 
@@ -84,7 +88,7 @@ async function main() {
     await atomicWriteJson(root, "evidence.frames.json", { schema: FRAME_EVIDENCE_SCHEMA, ...base, tool, frames: frameEvidence });
     await atomicWriteJson(root, "evidence.accessibility.json", { schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, verdict: "pass", checks: inputRecord.accessibility, reviewer: inputRecord.reviewer, reviewInputSha256, notes: inputRecord.notes ?? "" });
     model = await loadVideoProject(root);
-    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], blackFrameAssessments: inputRecord.blackFrameAssessments ?? [], reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], motionEvidenceSha256: model.digests?.["evidence.motion.json"], ...(model.digests?.["evidence.shots.json"] ? { shotEvidenceSha256: model.digests["evidence.shots.json"] } : {}), notes: inputRecord.notes ?? "" });
+    await atomicWriteJson(root, "review.video.json", { schema: VIDEO_REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: inputRecord.reviewer, checks: inputRecord.checks, findings: inputRecord.findings ?? [], blackFrameAssessments: inputRecord.blackFrameAssessments ?? [], reviewerRetell: inputRecord.reviewerRetell, communicationReview: inputRecord.communicationReview, reviewInputSha256, frameEvidenceSha256: model.digests?.["evidence.frames.json"], accessibilityEvidenceSha256: model.digests?.["evidence.accessibility.json"], motionEvidenceSha256: model.digests?.["evidence.motion.json"], ...(model.digests?.["evidence.shots.json"] ? { shotEvidenceSha256: model.digests["evidence.shots.json"] } : {}), notes: inputRecord.notes ?? "" });
   }, grant);
   process.stdout.write(`${JSON.stringify({ verdict: "pass", reviewer: inputRecord.reviewer })}\n`);
 }

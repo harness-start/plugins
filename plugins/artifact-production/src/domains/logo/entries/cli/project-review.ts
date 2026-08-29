@@ -9,6 +9,7 @@ import { consumeWriterCapability, processWriterArgv } from "../../lib/capability
 import { validateCodexReviewIdentity } from "../../lib/codex-review-identity.js";
 import { assertLogoProjectRoot, loadLogoProject } from "../../lib/project.js";
 import { atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
+import { communicationAnchors, communicationReviewValid } from "../../../../lib/communication-contract.js";
 
 const record = (value: unknown): JsonRecord => value !== null && typeof value === "object" && !Array.isArray(value) ? value as JsonRecord : {};
 
@@ -66,8 +67,11 @@ async function main() {
   const findings = Array.isArray(payload.findings) ? payload.findings.map(record) : [];
   if (findings.some((entry) => typeof entry.evidenceAnchor === "string" && expectedPaths.includes(entry.evidenceAnchor) && entry.artifactDigest !== model.digests[entry.evidenceAnchor])) throw new Error("REVIEW_FINDING_DIGEST_MISMATCH");
   if (findings.some((entry) => !["blocker", "major", "minor", "info"].includes(String(entry.severity)) || typeof entry.findingId !== "string" || !entry.findingId.trim() || typeof entry.evidenceAnchor !== "string" || !expectedPaths.includes(entry.evidenceAnchor) || !/^[a-f0-9]{64}$/u.test(String(entry.artifactDigest)) || typeof entry.fix !== "string" || !entry.fix.trim() || !["open", "fixed_pending_recheck", "verified"].includes(String(entry.status)) || (["blocker", "major"].includes(String(entry.severity)) && (entry.status !== "verified" || typeof entry.recheckEvidence !== "string" || !entry.recheckEvidence.trim())))) throw new Error("REVIEW_FINDING_UNRESOLVED");
+  const brief = record(JSON.parse(String(model.files["plan.brief.json"])));
+  const communicationCore = record(brief.communicationCore);
+  if (!communicationReviewValid(payload, communicationCore.retellTarget, communicationAnchors(communicationCore))) throw new Error("COMMUNICATION_REVIEW_INCOMPLETE");
   const stripPath = expectedPaths.find((path) => /evidence\/preview\/strip\..+\.png$/u.test(path)) ?? "";
-  const output = { schema: REVIEW_SCHEMA, plugin: "brand-logo-production", artifactId: model.artifactId, subjectDigest, masterDigest: masterSubjectDigest(model), squintStripDigest: model.digests[stripPath], decision: "approved", reviewer: admittedReviewer, coverage, checks, criteria, findings, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("logo-review", grant) };
+  const output = { schema: REVIEW_SCHEMA, plugin: "brand-logo-production", artifactId: model.artifactId, subjectDigest, masterDigest: masterSubjectDigest(model), squintStripDigest: model.digests[stripPath], decision: "approved", reviewer: admittedReviewer, coverage, checks, criteria, findings, reviewerRetell: payload.reviewerRetell, communicationReview: payload.communicationReview, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("logo-review", grant) };
   await withWriterJournal(root, "logo-review", grant, () => atomicWriteJson(root, "review.logo.json", output));
   process.stdout.write(`${JSON.stringify({ decision: "approved", sha256: createHash("sha256").update(`${JSON.stringify(output, null, 2)}\n`).digest("hex") })}\n`);
 }

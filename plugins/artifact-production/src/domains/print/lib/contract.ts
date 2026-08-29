@@ -1,5 +1,6 @@
 import { createHash, type BinaryLike } from "node:crypto";
 import { projectInside } from "@harness/core/artifact-paths";
+import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 
 export type FileContent = string | Buffer;
 export type FileMap = Record<string, FileContent>;
@@ -44,7 +45,8 @@ const GENERATED_PATH = /^(?:build\/html\/|dist\/|evidence(?:\/|\.[^/]+\.json$)|e
 const UNIT_VIOLATION = /(?:\b(?:useState|useEffect|useLayoutEffect|useReducer|hydrateRoot|createRoot|createPortal|fetch|setTimeout|setInterval)\s*\(|from\s+["'](?:react-router|react-router-dom|node:fs|node:child_process)["']|https?:\/\/|\b(?:Date\.now|Math\.random)\s*\()/u;
 const RECEIPT_EXCLUDED_PATH = /^(?:build\/|dist\/|evidence(?:\.|\/)|review\.print\.json$|release\.manifest\.json$|receipt\.[^/]+\.json$|\.print-delivery-journal\.json$)/u;
 const PLUGIN = "print-publication-production";
-const REVIEW_SCHEMA = `${PLUGIN}/review/v2`;
+export const PLAN_SCHEMA = `${PLUGIN}/plan/v1`;
+export const REVIEW_SCHEMA = `${PLUGIN}/review/v3`;
 const RELEASE_MANIFEST_SCHEMA = `${PLUGIN}/release-manifest/v2`;
 const EVIDENCE_SCHEMAS: Record<string, string> = {
   "evidence/pdf.json": `${PLUGIN}/pdf-evidence/v1`,
@@ -88,6 +90,9 @@ function validateIndependentReviewFile(model: PrintModel, filePath: string, find
   if (!["typography", "pagination", "preflight"].every((id) => checks.some((check) => check?.id === id && check?.status === "pass"))) {
     findings.push(finding("REVIEW_CHECKS_INVALID", filePath, "review must pass typography, pagination, and preflight checks"));
   }
+  const plan = rec(parseJson(model.files ?? {}, "plan.contract.json", findings));
+  const core = rec(plan?.communicationCore);
+  if (!communicationReviewValid(reviewRec, core?.retellTarget, communicationAnchors(core))) findings.push(finding("COMMUNICATION_REVIEW_INVALID", filePath, "print review must record a two-pass retell and bind every communication check to the frozen signature cue"));
 }
 const fileDigest = (model: PrintModel | null | undefined, filePath: string): string => model?.digests?.[filePath] ?? sha256(model?.files?.[filePath] ?? "");
 
@@ -224,9 +229,17 @@ export function validatePrintModel(model: PrintModel | null | undefined, { stage
   if (".print-delivery-journal.json" in files) findings.push(finding("MUTATION_JOURNAL_OPEN", ".print-delivery-journal.json", "an interrupted generated writer must be resumed or rolled back"));
   validateRequired(files, findings);
   validateArtifactGitignore(files, findings);
+  const plan = rec(parseJson(files, "plan.contract.json", findings));
+  if (!plan || plan.schema !== PLAN_SCHEMA || plan.artifactId !== model?.artifactId || !["source", "release"].includes(String(plan.targetStage))
+    || ["audience", "objective", "language"].some((key) => typeof plan[key] !== "string" || !String(plan[key]).trim())) findings.push(finding("PLAN_INVALID", "plan.contract.json", "print plan must bind schema, artifact, stage, audience, objective, and language"));
   if (rec(model?.project)?.artifactId !== model?.artifactId) findings.push(finding("ARTIFACT_ID_MISMATCH", "print.project.json", "project artifactId must match directory id"));
   const manifest = parseJson(files, "src/publication.manifest.json", findings);
   const sections = asList(rec(manifest)?.sections);
+  if (!communicationCoreValid(plan?.communicationCore)) findings.push(finding("COMMUNICATION_CORE_INVALID", "plan.contract.json", "print plan must bind a complete communicationCore"));
+  else {
+    const allowed = new Set(sections.map((entry) => `section:${String(rec(entry)?.id ?? "")}`));
+    if (communicationAnchors(plan?.communicationCore).some((anchor) => !allowed.has(anchor))) findings.push(finding("COMMUNICATION_CUE_UNBOUND", "plan.contract.json", "every print signature cue anchor must reference a current publication section"));
+  }
   const ids = new Set<unknown>();
   let prior = -1;
   sections.forEach((entry) => {

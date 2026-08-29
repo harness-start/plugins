@@ -20,18 +20,46 @@ import {
 } from "../../../src/domains/poster/lib/contract.js";
 import { makePng, sha256, validPosterModel } from "./fixture.js";
 
-test("publishes the breaking v3 visual contracts", () => {
-  assert.equal(ART_DIRECTION_SCHEMA, "poster-production/art-direction/v3");
+test("publishes the breaking v4 communication contracts", () => {
+  assert.equal(ART_DIRECTION_SCHEMA, "poster-production/art-direction/v4");
   assert.equal(DESIGN_SYSTEM_SCHEMA, "poster-production/design-system/v3");
   assert.equal(VARIANT_MANIFEST_SCHEMA, "poster-production/variant-manifest/v3");
   assert.equal(LAYER_MANIFEST_SCHEMA, "poster-production/layer-manifest/v3");
   assert.equal(ACCESSIBILITY_EVIDENCE_SCHEMA, "poster-production/accessibility/v3");
   assert.equal(COMPOSITION_EVIDENCE_SCHEMA, "poster-production/composition/v2");
-  assert.equal(REVIEW_SCHEMA, "poster-production/review/v3");
+  assert.equal(REVIEW_SCHEMA, "poster-production/review/v4");
 });
 
 test("accepts the complete v3 source contract", () => {
   assert.deepEqual(validatePosterModel(validPosterModel("source"), { stage: "source" }), []);
+});
+
+test("requires a semantically anchored communication core", () => {
+  const missing = validPosterModel("source");
+  const missingDirection = JSON.parse(String(missing.files!["plan.art-direction.json"]));
+  delete missingDirection.communicationCore;
+  missing.files!["plan.art-direction.json"] = JSON.stringify(missingDirection);
+  assert.ok(validatePosterModel(missing, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CORE_INVALID"));
+
+  const unbound = validPosterModel("source");
+  const unboundDirection = JSON.parse(String(unbound.files!["plan.art-direction.json"]));
+  unboundDirection.communicationCore.signatureCue.anchors = ["layer:missing"];
+  unbound.files!["plan.art-direction.json"] = JSON.stringify(unboundDirection);
+  assert.ok(validatePosterModel(unbound, { stage: "source" }).some(({ code }) => code === "COMMUNICATION_CUE_UNBOUND"));
+});
+
+test("release requires a two-pass communication review", () => {
+  const model = validPosterModel("release");
+  const review = JSON.parse(String(model.files!["review.poster.json"]));
+  delete review.communicationReview.retellAlignment;
+  model.files!["review.poster.json"] = JSON.stringify(review);
+  assert.ok(validatePosterModel(model, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
+
+  const unbound = validPosterModel("release");
+  const unboundReview = JSON.parse(String(unbound.files!["review.poster.json"]));
+  unboundReview.communicationReview.signatureCue.anchor = "layer:missing";
+  unbound.files!["review.poster.json"] = JSON.stringify(unboundReview);
+  assert.ok(validatePosterModel(unbound, { stage: "release" }).some(({ code }) => code === "COMMUNICATION_REVIEW_INVALID"));
 });
 
 test("source rejects typography roles without measurable spacing and script policy", () => {
