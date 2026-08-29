@@ -17,14 +17,6 @@ export function discoverTypeScriptTests(root = projectRoot): string[] {
   for (const plugin of readdirSync(resolve(root, "plugins"), { withFileTypes: true })) {
     if (!plugin.isDirectory()) continue;
     candidates.push(resolve(root, "plugins", plugin.name, "tests"));
-    const modulesRoot = resolve(root, "plugins", plugin.name, "modules");
-    try {
-      for (const module of readdirSync(modulesRoot, { withFileTypes: true })) {
-        if (module.isDirectory()) candidates.push(resolve(modulesRoot, module.name, "tests"));
-      }
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
   }
   return candidates
     .flatMap((directory) => {

@@ -2,6 +2,7 @@ import { builtinModules } from "node:module";
 import { createHash } from "node:crypto";
 import { access, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { build, type BuildResult, type OutputFile } from "esbuild";
 
@@ -130,7 +131,7 @@ async function writeOutput(pluginRoot: string, outputFiles: OutputFile[]): Promi
   }
 }
 
-async function main(): Promise<void> {
+export async function runBuild(): Promise<void> {
   if (checkOnly && ensureOnly) throw new Error("--check and --ensure are mutually exclusive");
   await access(pluginsRoot);
   const entries = await readdir(pluginsRoot, { withFileTypes: true });
@@ -142,38 +143,25 @@ async function main(): Promise<void> {
   if (selectedPlugin && pluginNames.length === 0) throw new Error(`unknown plugin: ${selectedPlugin}`);
   for (const name of pluginNames) {
     const pluginRoot = resolve(pluginsRoot, name);
-    const moduleEntries = await readdir(resolve(pluginRoot, "modules"), { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
-      if (error.code === "ENOENT") return [];
-      throw error;
-    });
-    const buildUnits = [
-      { label: name, root: pluginRoot },
-      ...moduleEntries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => ({ label: `${name}/modules/${entry.name}`, root: resolve(pluginRoot, "modules", entry.name) }))
-        .toSorted((left, right) => left.label.localeCompare(right.label)),
-    ];
-    for (const unit of buildUnits) {
-      const outputFiles = await compilePlugin(unit.root);
-      if (outputFiles.length === 0) {
-        const staleFiles = await filesUnder(resolve(unit.root, "dist"));
-        if (staleFiles.length > 0) throw new Error(`${unit.label} has dist/ files but no TypeScript entries`);
-        continue;
-      }
-      const differences = (checkOnly || ensureOnly)
-        ? await outputDifferences(unit.root, outputFiles)
-        : [];
-      if (checkOnly && differences.length > 0) throw new Error(differences.join("\n"));
-      if (ensureOnly && differences.length > 0) await writeOutput(unit.root, outputFiles);
-      if (!checkOnly && !ensureOnly) await writeOutput(unit.root, outputFiles);
-      const action = checkOnly
-        ? "checked"
-        : ensureOnly
-          ? differences.length > 0 ? "rebuilt" : "current"
-          : "built";
-      process.stdout.write(`${action} ${unit.label}: ${outputFiles.length} file(s)\n`);
+    const outputFiles = await compilePlugin(pluginRoot);
+    if (outputFiles.length === 0) {
+      const staleFiles = await filesUnder(resolve(pluginRoot, "dist"));
+      if (staleFiles.length > 0) throw new Error(`${name} has dist/ files but no TypeScript entries`);
+      continue;
     }
+    const differences = (checkOnly || ensureOnly)
+      ? await outputDifferences(pluginRoot, outputFiles)
+      : [];
+    if (checkOnly && differences.length > 0) throw new Error(differences.join("\n"));
+    if (ensureOnly && differences.length > 0) await writeOutput(pluginRoot, outputFiles);
+    if (!checkOnly && !ensureOnly) await writeOutput(pluginRoot, outputFiles);
+    const action = checkOnly
+      ? "checked"
+      : ensureOnly
+        ? differences.length > 0 ? "rebuilt" : "current"
+        : "built";
+    process.stdout.write(`${action} ${name}: ${outputFiles.length} file(s)\n`);
   }
 }
 
-await main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) await runBuild();
