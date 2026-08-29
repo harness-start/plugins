@@ -35,15 +35,14 @@ test("every AIO owner README explains its consumer contract", () => {
     for (const section of requiredSections) {
       assert.match(readme, new RegExp(`^## ${section}$`, "mu"), `${owner} is missing ${section}`);
     }
-    if (owner === "engineering-workflow") {
-      assert.equal(existsSync(resolve(ownerRoot, "modules")), false, `${owner} retains private modules`);
-      assert.doesNotMatch(readme, /modules\//u, `${owner} documents the retired private-module design`);
-    } else {
-      for (const module of readdirSync(resolve(ownerRoot, "modules"), { withFileTypes: true })) {
-        if (!module.isDirectory()) continue;
-        assert.match(readme, new RegExp("`" + module.name + "`", "u"), `${owner} omits private module ${module.name}`);
+    assert.equal(existsSync(resolve(ownerRoot, "modules")), false, `${owner} retains private modules`);
+    assert.doesNotMatch(readme, /modules\//u, `${owner} documents the retired private-module design`);
+    const domainsRoot = resolve(ownerRoot, "src", "domains");
+    if (existsSync(domainsRoot)) {
+      for (const domain of readdirSync(domainsRoot, { withFileTypes: true })) {
+        if (!domain.isDirectory()) continue;
+        assert.match(readme, new RegExp("`" + domain.name + "`", "u"), `${owner} omits fused domain ${domain.name}`);
       }
-      assert.match(readme, /modules\//u, `${owner} omits its private-module design`);
     }
     assert.match(readme, /Claude Code/u, `${owner} omits Claude Code`);
     assert.match(readme, /Codex/u, `${owner} omits Codex`);

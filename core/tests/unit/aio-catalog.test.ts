@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { relative, resolve } from "node:path";
+import { resolve } from "node:path";
 import { test } from "node:test";
 
 const root = resolve(import.meta.dirname, "../../..");
@@ -25,31 +25,9 @@ const cliOwners = [
 type RuntimeRoute = { module?: string; script?: string; handler?: string };
 
 function assertRouteTarget(owner: string, route: RuntimeRoute, label: string): void {
-  if (owner === "engineering-workflow") {
-    assert.equal(typeof route.handler, "string", `${label} must name an owner handler`);
-    assert.equal(route.module, undefined, `${label} retains a private module`);
-    assert.equal(route.script, undefined, `${label} retains a private script`);
-    return;
-  }
-  assert.equal(typeof route.module, "string", `${label} module`);
-  assert.equal(typeof route.script, "string", `${label} script`);
-  const target = resolve(root, "plugins", owner, "modules", route.module!, route.script!);
-  assert.ok(existsSync(target), `${label} -> ${target}`);
-}
-
-function privateHostRegistrations(moduleRoot: string): string[] {
-  const forbidden = [
-    ".claude-plugin/plugin.json",
-    ".codex-plugin/plugin.json",
-    ".mcp.json",
-    "hooks/claude.json",
-    "hooks/codex.json",
-    "mcp/codex.json",
-  ];
-  return forbidden
-    .map((path) => resolve(moduleRoot, path))
-    .filter((path) => existsSync(path))
-    .map((path) => relative(root, path));
+  assert.equal(typeof route.handler, "string", `${label} must name an owner handler`);
+  assert.equal(route.module, undefined, `${label} retains a private module`);
+  assert.equal(route.script, undefined, `${label} retains a private script`);
 }
 
 test("AIO publishes exactly the fixed eight-owner catalog", () => {
@@ -93,7 +71,7 @@ test("AIO installer has one fixed catalog and no capability profile surface", ()
   assert.match(installer, /install all catalog plugins/iu);
 });
 
-test("every owner route resolves to a bundled private module entrypoint", () => {
+test("every owner route resolves to an in-process owner handler", () => {
   for (const owner of expected) {
     const ownerRoot = resolve(root, "plugins", owner);
     for (const host of ["claude", "codex"]) {
@@ -113,26 +91,12 @@ test("every owner route resolves to a bundled private module entrypoint", () => 
   }
 });
 
-test("private modules contain implementations but no host registration surface", () => {
-  const findings: string[] = [];
+test("owners contain fused domain implementations and no private module directories", () => {
   for (const owner of expected) {
     const modulesRoot = resolve(root, "plugins", owner, "modules");
-    if (owner === "engineering-workflow") {
-      assert.equal(existsSync(modulesRoot), false, `${owner} must be fused into its owner runtime`);
-      continue;
-    }
-    for (const module of readdirSync(modulesRoot, { withFileTypes: true })) {
-      if (!module.isDirectory()) continue;
-      const moduleRoot = resolve(modulesRoot, module.name);
-      findings.push(...privateHostRegistrations(moduleRoot));
-      assert.match(
-        readFileSync(resolve(moduleRoot, "README.md"), "utf8"),
-        /Private AIO module/u,
-        `${owner}/${module.name} must document its private boundary`,
-      );
-    }
+    assert.equal(existsSync(modulesRoot), false, `${owner} must be fused into its owner runtime`);
+    assert.equal(existsSync(resolve(root, "plugins", owner, "src/domains")), true, `${owner} domain source boundary`);
   }
-  assert.deepEqual(findings.toSorted(), []);
 });
 
 test("workspace language modules protect mutations without automatic post-tool language workflows", () => {
@@ -143,7 +107,7 @@ test("workspace language modules protect mutations without automatic post-tool l
     const routes = JSON.parse(readFileSync(resolve(root, `plugins/workspace-integrity/routes/${host}.json`), "utf8")) as Record<string, RuntimeRoute[]>;
     for (const [event, entries] of Object.entries(routes)) {
       if (event === "PreToolUse") continue;
-      assert.equal(entries.some((route) => typeof route.module === "string" && languageModules.has(route.module)), false, `${host} ${event}`);
+      assert.equal(entries.some((route) => typeof route.handler === "string" && languageModules.has(route.handler.split(":", 1)[0] ?? "")), false, `${host} ${event}`);
     }
   }
 });

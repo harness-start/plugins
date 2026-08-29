@@ -1,3 +1,5 @@
+import { collectOwnerHookOutput } from "./owner-hook-runtime.js";
+
 export type HookEventName =
   | "PreToolUse"
   | "PostToolUse"
@@ -53,6 +55,7 @@ export function stopBlock(reason: string): Record<string, unknown> {
 
 export function writeJson(value: unknown): void {
   if (value !== null && value !== undefined) {
+    if (collectOwnerHookOutput(value)) return;
     process.stdout.write(`${JSON.stringify(value)}\n`);
   }
 }

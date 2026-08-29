@@ -1,15 +1,6 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
-
-type CliRoute = {
-  module: string;
-  script: string;
-  args?: string[];
-  forwardAction?: boolean;
-};
-
-type CliRoutes = Record<string, Record<string, CliRoute>>;
 
 export type OwnerCliRoute = {
   handler: string;
@@ -19,6 +10,28 @@ export type OwnerCliRoute = {
 
 type OwnerCliRoutes = Record<string, Record<string, OwnerCliRoute>>;
 export type OwnerCliHandler = (args: string[]) => number | void | Promise<number | void>;
+
+const ownerCliInvocation = new AsyncLocalStorage<string[]>();
+
+export function currentOwnerCliArgv(): string[] {
+  return ownerCliInvocation.getStore() ?? [resolve(process.argv[1] ?? ""), ...process.argv.slice(2)];
+}
+
+export function ownerCliModuleHandler(loader: () => void | Promise<void>): OwnerCliHandler {
+  return async (args) => {
+    const originalArgv = process.argv;
+    const originalExitCode = process.exitCode;
+    process.argv = [originalArgv[0] ?? process.execPath, originalArgv[1] ?? "owner-cli", ...args];
+    process.exitCode = undefined;
+    try {
+      await loader();
+      return typeof process.exitCode === "number" ? process.exitCode : 0;
+    } finally {
+      process.argv = originalArgv;
+      process.exitCode = originalExitCode;
+    }
+  };
+}
 
 function pluginRoot(): string {
   const configured = process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
@@ -40,7 +53,8 @@ export async function dispatchCliRoute(input: {
   const handler = input.handlers[route.handler];
   if (!handler) throw new Error(`${route.handler}: owner CLI handler is not registered`);
   const args = [...(route.args ?? []), ...(route.forwardAction ? [action, ...rest] : rest)];
-  const result = await handler(args);
+  const publicArgv = [resolve(process.argv[1] ?? ""), ...input.argv];
+  const result = await ownerCliInvocation.run(publicArgv, () => handler(args));
   return typeof result === "number" ? result : typeof process.exitCode === "number" ? process.exitCode : 0;
 }
 
@@ -69,55 +83,4 @@ export async function runOwnerCli(
     return;
   }
   process.exitCode = await dispatchCliRoute({ argv, handlers, routes });
-}
-
-export function runAioCli(argv?: string[]): void;
-export function runAioCli(argv: string[], handlers: Record<string, OwnerCliHandler>): Promise<void>;
-export function runAioCli(
-  argv = process.argv.slice(2),
-  handlers?: Record<string, OwnerCliHandler>,
-): void | Promise<void> {
-  const [resource, action, ...rest] = argv;
-  if (!resource || !action) {
-    process.stderr.write("Usage: harness <resource> <action> [arguments]\n");
-    process.exitCode = 2;
-    return;
-  }
-
-  const root = pluginRoot();
-  let routes: CliRoutes | OwnerCliRoutes;
-  try {
-    routes = JSON.parse(readFileSync(resolve(root, "routes", "cli.json"), "utf8")) as CliRoutes | OwnerCliRoutes;
-  } catch (error) {
-    process.stderr.write(`[harness] unable to load CLI routes: ${String(error)}\n`);
-    process.exitCode = 1;
-    return;
-  }
-  const route = routes[resource]?.[action] ?? routes[resource]?.["*"];
-  if (!route) {
-    process.stderr.write(`[harness] unsupported command: ${resource} ${action}\n`);
-    process.exitCode = 2;
-    return;
-  }
-
-  if (handlers) {
-    return dispatchCliRoute({ argv, handlers, routes: routes as OwnerCliRoutes })
-      .then((status) => { process.exitCode = status; });
-  }
-
-  const legacyRoute = route as CliRoute;
-  const moduleRoot = resolve(root, "modules", legacyRoute.module);
-  const args = [...(legacyRoute.args ?? []), ...(legacyRoute.forwardAction ? [action, ...rest] : rest)];
-  const result = spawnSync(process.execPath, [resolve(moduleRoot, legacyRoute.script), ...args], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      PLUGIN_ROOT: moduleRoot,
-      CLAUDE_PLUGIN_ROOT: moduleRoot,
-      AI_EXPERTS_TRIGGER_FROM: process.env.AI_EXPERTS_TRIGGER_FROM ?? `harness:${resource}:${action}`,
-    },
-  });
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
 }

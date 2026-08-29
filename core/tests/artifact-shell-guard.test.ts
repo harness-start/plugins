@@ -16,9 +16,11 @@ const CASES = [
   ["video-production", "video", "video-production", "video"],
 ] as const;
 
-function runHook(entry: string, mode: string, event: unknown, env: NodeJS.ProcessEnv = process.env): Promise<{ code: number | null; stdout: string; stderr: string }> {
+const eventName = { pre: "PreToolUse", post: "PostToolUse", stop: "Stop" } as const;
+
+function runHook(entry: string, mode: keyof typeof eventName, event: unknown, env: NodeJS.ProcessEnv = process.env): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [entry, mode], {
+    const child = spawn(process.execPath, [entry, "codex", eventName[mode]], {
       env: {
         ...env,
         AI_EXPERTS_SESSION_ID: "artifact-shell-contract",
@@ -36,14 +38,14 @@ function runHook(entry: string, mode: string, event: unknown, env: NodeJS.Proces
   });
 }
 
-for (const [plugin, module, entryName, carrier] of CASES) {
+for (const [plugin, , , carrier] of CASES) {
   test(`${plugin} ignores an unrelated repo-root interpreter when its artifact project exists`, async () => {
     const workspace = mkdtempSync(join(tmpdir(), `${carrier}-opaque-contract-`));
     const project = join(workspace, "artifacts", carrier, "demo");
     try {
       mkdirSync(project, { recursive: true });
       writeFileSync(join(project, "plan.contract.json"), `${JSON.stringify({ artifactId: "demo", targetStage: "source" })}\n`);
-      const entry = resolve(`plugins/artifact-production/modules/${module}/dist/hooks/${entryName}.mjs`);
+      const entry = resolve("plugins/artifact-production/dist/hooks/dispatcher.mjs");
       const command = "node --input-type=module <<'NODE'\nimport { chromium } from 'playwright';\nconsole.log(chromium);\nNODE";
       const result = await runHook(entry, "pre", {
         cwd: workspace,
@@ -59,11 +61,11 @@ for (const [plugin, module, entryName, carrier] of CASES) {
   });
 }
 
-for (const [plugin, module, entryName, carrier] of CASES) {
+for (const [plugin, , , carrier] of CASES) {
   test(`${plugin} revalidates an artifact touched by the same repo-root session`, async () => {
     const workspace = mkdtempSync(join(tmpdir(), `${carrier}-session-contract-`));
     const project = join(workspace, "artifacts", carrier, "demo");
-    const entry = resolve(`plugins/artifact-production/modules/${module}/dist/hooks/${entryName}.mjs`);
+    const entry = resolve("plugins/artifact-production/dist/hooks/dispatcher.mjs");
     const env = { ...process.env, HARNESS_HOST: "codex", PLUGIN_DATA: join(workspace, "plugin-data") };
     const sessionId = `${carrier}-session-contract`;
     try {

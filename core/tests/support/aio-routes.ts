@@ -39,7 +39,9 @@ export function readModuleRoutes(
   const ownerRoutes = readOwnerRoutes(testUrl, host);
   return Object.fromEntries(
     Object.entries(ownerRoutes)
-      .map(([event, routes]) => [event, routes.filter((route) => route.module === moduleName)] as const)
+      .map(([event, routes]) => [event, routes.filter((route) =>
+        route.module === moduleName || route.handler?.startsWith(`${moduleName}:`) === true,
+      )] as const)
       .filter(([, routes]) => routes.length > 0),
   );
 }

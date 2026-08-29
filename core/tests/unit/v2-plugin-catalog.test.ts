@@ -302,19 +302,36 @@ test("required method Skills fail closed in plugin-local orchestration while Hoo
   }
 });
 
-test("workspace integrity keeps generic guards active without publishing language encyclopedias", () => {
+test("workspace integrity bundles domain methods without making Skills Hook prerequisites", () => {
   const workspaceRoot = resolve(root, "plugins", "workspace-integrity");
   const exposedSkills = readdirSync(resolve(workspaceRoot, "skills"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .toSorted();
-  assert.deepEqual(exposedSkills, ["command-safety-config", "engineering-quality-config", "source-integrity-config"]);
+  for (const expected of [
+    "command-safety-config",
+    "engineering-quality-config",
+    "source-integrity-config",
+    "android-engineering",
+    "ios-engineering",
+    "kubernetes-operations",
+    "web-frontend-engineering",
+  ]) {
+    assert.equal(exposedSkills.includes(expected), true, expected);
+  }
+  assert.equal(existsSync(resolve(workspaceRoot, "skill-deps.json")), false);
 
   const routes = JSON.parse(readFileSync(resolve(workspaceRoot, "routes", "codex.json"), "utf8"));
-  const domainModules = new Set(["android", "go", "ios", "java", "kubernetes", "nix", "php", "python", "react-native", "rust", "web"]);
-  for (const [eventName, eventRoutes] of Object.entries(routes) as Array<[string, Array<{ module: string }>]>) {
-    if (eventName === "PreToolUse") continue;
-    assert.equal(eventRoutes.some((route) => domainModules.has(route.module)), false, eventName);
+  assert.equal(
+    routes.PostToolUse.some((route: { handler?: string }) => route.handler === "domains:post-tool"),
+    true,
+  );
+  for (const eventRoutes of Object.values(routes) as Array<Array<{ handler?: string; module?: string; script?: string }>>) {
+    for (const route of eventRoutes) {
+      assert.equal(typeof route.handler, "string");
+      assert.equal(route.module, undefined);
+      assert.equal(route.script, undefined);
+    }
   }
 });
 
@@ -336,6 +353,6 @@ test("merged plugins retain outcome-level acceptance for every merged responsibi
 
 test("Claude poster stop events use the correct modes", () => {
   const routes = JSON.parse(readFileSync(resolve(root, "plugins/artifact-production/routes/claude.json"), "utf8"));
-  assert.ok(routes.Stop.some((route: { module: string; args?: string[] }) => route.module === "poster" && route.args?.at(-1) === "stop"));
-  assert.ok(routes.SubagentStop.some((route: { module: string; args?: string[] }) => route.module === "poster" && route.args?.at(-1) === "subagent-stop"));
+  assert.ok(routes.Stop.some((route: { handler: string; args?: string[] }) => route.handler === "poster:poster-production" && route.args?.at(-1) === "stop"));
+  assert.ok(routes.SubagentStop.some((route: { handler: string; args?: string[] }) => route.handler === "poster:poster-production" && route.args?.at(-1) === "subagent-stop"));
 });

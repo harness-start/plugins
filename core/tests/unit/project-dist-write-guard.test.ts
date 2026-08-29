@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { Readable } from "node:stream";
 import path from "node:path";
 
+import * as buildPlugins from "../../../scripts/build-plugins.js";
+
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const policyModule = await import(new URL("../../hooks/project-dist-write-guard.mjs", import.meta.url).href);
 const { evaluateEvent, runHook } = policyModule;
@@ -56,6 +58,16 @@ test("every generated plugin runtime records the hash of its current sources", (
       assert.match(firstLines, new RegExp(`(?:^|\\n)// harness-source-hash: sha256:${sourceHash}(?:\\n|$)`, "u"), filePath);
     }
   }
+});
+
+test("dist build owns one fused unit per published owner", () => {
+  const buildScript = readFileSync(path.join(projectRoot, "scripts", "build-plugins.ts"), "utf8");
+  assert.doesNotMatch(buildScript, /resolve\(pluginRoot,\s*"modules"/u);
+  assert.match(buildScript, /compilePlugin\(pluginRoot\)/u);
+});
+
+test("dist build script is import-safe for verification", () => {
+  assert.equal(typeof buildPlugins.runBuild, "function");
 });
 
 test("denies file-tool writes only inside a plugin dist directory", () => {

@@ -39,3 +39,24 @@ test("malformed Hook input still reaches a matched fail-closed owner handler", a
   assert.deepEqual(calls, [true]);
   assert.equal(result.output?.hookSpecificOutput?.permissionDecision, "deny");
 });
+
+test("Codex model-visible tool feedback survives owner aggregation", async () => {
+  const result = await dispatcher.dispatchHookRoutes({
+    eventName: "PostToolUse",
+    host: "codex",
+    raw: JSON.stringify({ tool_name: "Edit" }),
+    routes: { PostToolUse: [{ handler: "review", matcher: "Edit" }] },
+    handlers: {
+      review: () => ({
+        continue: false,
+        stopReason: "review feedback",
+        reason: "inspect the Markdown finding",
+      }),
+    },
+  });
+  assert.deepEqual(result.output, {
+    continue: false,
+    stopReason: "review feedback",
+    reason: "inspect the Markdown finding",
+  });
+});

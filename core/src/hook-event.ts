@@ -1,3 +1,5 @@
+import { currentOwnerHookEvent } from "./owner-hook-runtime.js";
+
 export type HookEvent = Record<string, unknown> & {
   __parseError?: true;
 };
@@ -23,6 +25,10 @@ function nestedRecord(event: HookEvent, key: string): Record<string, unknown> | 
 export async function readStdinJson(
   input: AsyncIterable<Uint8Array | string> = process.stdin,
 ): Promise<HookEvent> {
+  if (input === process.stdin) {
+    const current = currentOwnerHookEvent();
+    if (current) return current;
+  }
   let raw = "";
   for await (const chunk of input) raw += chunk.toString();
   if (!raw.trim()) return {};

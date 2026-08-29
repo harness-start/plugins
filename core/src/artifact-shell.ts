@@ -62,15 +62,18 @@ export function evaluateRegisteredWriter(options: {
   carrier: string;
   writers: readonly string[];
   toolDirectory: string;
+  resource: string;
 }): RegisteredWriterResult {
   const words = parseShellWords(expandKnownPluginRoot(options.command));
-  if (!words || words.length < 3) return { ok: false };
+  if (!words || words.length < 5) return { ok: false };
   if (!["node", basename(process.execPath), process.execPath].includes(words[0] ?? "")) return { ok: false };
   if (words[1]?.startsWith("-")) return { ok: false };
   const script = isAbsolute(words[1] ?? "") ? resolve(words[1] ?? "") : resolve(options.cwd, words[1] ?? "");
-  const name = basename(script);
-  if (dirname(script) !== resolve(options.toolDirectory) || !options.writers.includes(name)) return { ok: false };
-  const projectRoot = isAbsolute(words[2] ?? "") ? resolve(words[2] ?? "") : resolve(options.cwd, words[2] ?? "");
+  if (dirname(script) !== resolve(options.toolDirectory) || basename(script) !== "harness.mjs") return { ok: false };
+  if (words[2] !== options.resource) return { ok: false };
+  const name = `project-${words[3] ?? ""}.mjs`;
+  if (!options.writers.includes(name)) return { ok: false };
+  const projectRoot = isAbsolute(words[4] ?? "") ? resolve(words[4] ?? "") : resolve(options.cwd, words[4] ?? "");
   if (
     dirname(projectRoot) !== resolve(options.workspaceRoot, "artifacts", options.carrier)
     || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))
