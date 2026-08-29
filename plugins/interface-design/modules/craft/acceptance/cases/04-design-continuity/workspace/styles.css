@@ -1,5 +1,0 @@
-:root { --color-accent: #d97706; --space-2: 8px; --space-4: 16px; --border: #d1d5db; }
-body { margin: 0; font: 16px/1.5 system-ui, sans-serif; }
-main { max-width: 720px; margin: 48px auto; padding: var(--space-4); }
-.primary { display: inline-flex; min-height: 44px; align-items: center; color: var(--color-accent); }
-section { margin-top: 32px; border-top: 1px solid var(--border); }

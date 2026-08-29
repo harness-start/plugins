@@ -31,7 +31,7 @@ if [ "${ACCEPT_IN_CONTAINER:-0}" != "1" ]; then
 fi
 
 behavior="${ACCEPT_OUT}/disclosure-behavior.json"
-node "${ACCEPT_REPO}/plugins/interface-design/modules/craft/acceptance/check-layout.mjs" "file://${html}" disclosure >"${behavior}"
+node "${ACCEPT_REPO}/plugins/interface-design/acceptance/check-layout.mjs" "file://${html}" disclosure >"${behavior}"
 jq -e '
   .normal.latestOpen
   and .normal.panelVisible

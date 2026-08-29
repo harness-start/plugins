@@ -8,7 +8,7 @@ Interface work often passes functional tests while still failing in hierarchy, s
 
 ## Design
 
-One private module, `craft`, lives under `modules/`. The `interface-craft` Skill owns open-ended direction and repair. `interface-visual-critique` provides read-only review. `interface-craft-floor` describes mechanical constraints to apply immediately before editing UI. Hooks observe session context and changed interface files, then return bounded feedback or completion findings.
+The `craft` domain lives under `src/domains/` and shares the owner's single Hook, Skill, test, acceptance, license, and build boundaries. The `interface-craft` Skill owns open-ended direction and repair. `interface-visual-critique` provides read-only review. `interface-craft-floor` describes mechanical constraints to apply immediately before editing UI. Hooks observe session context and changed interface files, then return bounded feedback or completion findings.
 
 The plugin is self-contained for Claude Code and Codex. Installing it activates the complete surface; there are no capability profiles, framework profiles, or cross-owner Skill dependencies.
 
@@ -34,7 +34,7 @@ Do not use it for posters, logos, presentation decks, diagrams, print publicatio
 
 `SessionStart` supplies bounded craft context for relevant UI work. `PostToolUse` inspects host-observed interface changes and reports mechanical findings. `Stop` can surface unresolved craft-floor issues for an active interface task. The Hook does not require the user or agent to mention a Skill name, and Skill activation alone never establishes visual quality.
 
-The module deliberately separates mechanically detectable issues from visual judgment. Hooks can identify known patterns and changed paths; the agent must still inspect the rendered interface, understand product context, and make design tradeoffs.
+The domain deliberately separates mechanically detectable issues from visual judgment. Hooks can identify known patterns and changed paths; the agent must still inspect the rendered interface, understand product context, and make design tradeoffs.
 
 ## Public interfaces
 
@@ -53,7 +53,7 @@ The plugin does not render a browser, inspect pixels by itself, or prove that a 
 ```bash
 node --import tsx --test \
   plugins/interface-design/tests/*.test.ts \
-  plugins/interface-design/modules/craft/tests/*.test.ts
+  plugins/interface-design/tests/domains/craft/*.test.ts
 npm run check:dist
 ```
 

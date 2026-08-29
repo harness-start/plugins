@@ -43,7 +43,7 @@ test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -
 test "$(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "${mobile}")" = "390x844"
 
 layout="${ACCEPT_OUT}/interface-layout.json"
-node "${ACCEPT_REPO}/plugins/interface-design/modules/craft/acceptance/check-layout.mjs" "${page}" >"${layout}"
+node "${ACCEPT_REPO}/plugins/interface-design/acceptance/check-layout.mjs" "${page}" >"${layout}"
 jq -e '
   .desktop.scrollWidth <= (.desktop.innerWidth + 1)
   and .mobile.scrollWidth <= (.mobile.innerWidth + 1)
