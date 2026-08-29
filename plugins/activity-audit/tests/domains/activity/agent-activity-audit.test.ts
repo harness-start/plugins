@@ -13,25 +13,31 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { main as agentActivityAuditMain } from "../../../src/domains/activity/entries/hooks/agent-activity-audit.js";
+
 import {
   durationMs,
   inferCommandStatus,
   redactCommand,
-} from "../src/lib/command-policy.js";
-import { resolveConfig } from "../src/lib/config.js";
+} from "../../../src/domains/activity/lib/command-policy.js";
+
+test("agent activity Hook remains an import-safe owner handler", () => {
+  assert.equal(typeof agentActivityAuditMain, "function");
+});
+import { resolveConfig } from "../../../src/domains/activity/lib/config.js";
 import {
   appendRecord,
   findPendingByToolUseId,
   rewriteTip,
-} from "../src/lib/jsonl-trail.js";
+} from "../../../src/domains/activity/lib/jsonl-trail.js";
 import {
   commandMentionsAuditRoot,
   isAuditMutationCommand,
   shellMutatesAuditRoot,
-} from "../src/lib/protect.js";
-import { sameToolUseId } from "../src/lib/command-policy.js";
+} from "../../../src/domains/activity/lib/protect.js";
+import { sameToolUseId } from "../../../src/domains/activity/lib/command-policy.js";
 
-const ENTRY = fileURLToPath(new URL("../dist/hooks/agent-activity-audit.mjs", import.meta.url));
+const ENTRY = fileURLToPath(new URL("../../../dist/hooks/dispatcher.mjs", import.meta.url));
 
 function workspace(prefix = "agent-activity-audit-") {
   const root = mkdtempSync(join(tmpdir(), prefix));
@@ -41,7 +47,7 @@ function workspace(prefix = "agent-activity-audit-") {
 
 function runEntry(mode, event) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [ENTRY, mode], {
+    const child = spawn(process.execPath, [ENTRY, "codex", ({ "session-start": "SessionStart", pre: "PreToolUse", post: "PostToolUse", failure: "PostToolUseFailure", stop: "Stop", session: "SessionStart", prompt: "UserPromptSubmit", "user-prompt": "UserPromptSubmit", subagent: "SubagentStart", "subagent-stop": "SubagentStop" } as Record<string, string>)[mode] ?? mode], {
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
     });

@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import {
@@ -128,7 +127,7 @@ function matchingPendingTip(sessionPath: string, toolUseId: unknown): Record<str
   return null;
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const mode = modeFromArgv();
   const event = await readStdinJson();
   if (event.__parseError) return;
@@ -216,14 +215,4 @@ async function main(): Promise<void> {
   } catch (error: unknown) {
     warn(`failed to record command finish: ${errorText(error)}`);
   }
-}
-
-const entryPath = process.argv[1];
-const isMain = Boolean(entryPath) && fileURLToPath(import.meta.url) === resolve(entryPath ?? "");
-
-if (isMain) {
-  main().catch((error: unknown) => {
-    warn(errorText(error));
-    process.exitCode = 0;
-  });
 }

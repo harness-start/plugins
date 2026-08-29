@@ -8,7 +8,7 @@ Agent sessions can change many files and run many commands before a human review
 
 ## Design
 
-The owner contains one private implementation module, `activity`, under `modules/`. The owner exposes a single Hook entrypoint per host and dispatches `PreToolUse`, `PostToolUse`, and `PostToolUseFailure` events to that module. The module records a pending event before a tool runs and closes or appends the terminal event after the result is observed.
+The owner contains an `activity` domain under `src/domains/`. It exposes a single Hook entrypoint per host and dispatches `PreToolUse`, `PostToolUse`, and `PostToolUseFailure` events to that domain in process. The domain records a pending event before a tool runs and closes or appends the terminal event after the result is observed.
 
 The plugin is self-contained: its Hook runtime, configuration Skill, tests, and storage logic ship together. Installing it activates the complete surface; there are no capability profiles and no dependency on Skills installed elsewhere.
 
@@ -60,7 +60,7 @@ From the marketplace repository root:
 ```bash
 node --import tsx --test \
   plugins/activity-audit/tests/*.test.ts \
-  plugins/activity-audit/modules/activity/tests/*.test.ts
+  plugins/activity-audit/tests/domains/activity/*.test.ts
 npm run check:dist
 ```
 

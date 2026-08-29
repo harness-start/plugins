@@ -1,35 +1,32 @@
 {
   "PreToolUse": [
     {
-      "module": "activity",
-      "script": "dist/hooks/agent-activity-audit.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
+      "handler": "activity:agent-activity-audit"
     }
   ],
   "PostToolUse": [
     {
-      "module": "activity",
-      "script": "dist/hooks/agent-activity-audit.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "activity:agent-activity-audit"
     }
   ],
   "PostToolUseFailure": [
     {
-      "module": "activity",
-      "script": "dist/hooks/agent-activity-audit.mjs",
       "args": [
         "failure"
       ],
       "timeoutMs": 10000,
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "activity:agent-activity-audit"
     }
   ]
 }

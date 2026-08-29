@@ -14,18 +14,18 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { resolveConfig } from "../src/lib/config.js";
-import { extractStructuredFileAccess, extractToolUseId } from "../src/lib/hook-io.js";
+import { resolveConfig } from "../../../src/domains/activity/lib/config.js";
+import { extractStructuredFileAccess, extractToolUseId } from "../../../src/domains/activity/lib/hook-io.js";
 import {
   appendRecord,
   rewriteTip,
   sanitizeSessionKey,
-} from "../src/lib/jsonl-trail.js";
+} from "../../../src/domains/activity/lib/jsonl-trail.js";
 import {
   shellMutatesAuditRoot,
-} from "../src/lib/protect.js";
+} from "../../../src/domains/activity/lib/protect.js";
 
-const ENTRY = fileURLToPath(new URL("../dist/hooks/agent-activity-audit.mjs", import.meta.url));
+const ENTRY = fileURLToPath(new URL("../../../dist/hooks/dispatcher.mjs", import.meta.url));
 
 function workspace(prefix = "agent-activity-audit-") {
   const root = mkdtempSync(join(tmpdir(), prefix));
@@ -37,7 +37,7 @@ function workspace(prefix = "agent-activity-audit-") {
 
 function runEntry(mode, event) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [ENTRY, mode], {
+    const child = spawn(process.execPath, [ENTRY, "codex", ({ "session-start": "SessionStart", pre: "PreToolUse", post: "PostToolUse", failure: "PostToolUseFailure", stop: "Stop", session: "SessionStart", prompt: "UserPromptSubmit", "user-prompt": "UserPromptSubmit", subagent: "SubagentStart", "subagent-stop": "SubagentStop" } as Record<string, string>)[mode] ?? mode], {
       env: { ...process.env },
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -225,7 +225,7 @@ test("pre denies edit of audit session file", async () => {
 
 test("malformed stdin fails open", async () => {
   const result = await new Promise((resolvePromise, reject) => {
-    const child = spawn(process.execPath, [ENTRY, "post"], {
+    const child = spawn(process.execPath, [ENTRY, "codex", "PostToolUse"], {
       stdio: ["pipe", "pipe", "pipe"],
     });
     let stdout = "";
