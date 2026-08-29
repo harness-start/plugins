@@ -26,3 +26,21 @@ test("writer capabilities are session, argv, subject, expiry, and one-shot bound
     await rm(parent, { recursive: true, force: true });
   }
 });
+
+test("an invalid bootstrap grant does not create its prospective project root", async () => {
+  const parent = await mkdtemp(join(tmpdir(), "music-capability-invalid-init-"));
+  const root = join(parent, "artifacts", "music", "study");
+  try {
+    await assert.rejects(() => issueMusicWriterCapability({
+      root,
+      capability: "music-init",
+      argv: ["/plugin/dist/cli/project-init.mjs", root],
+      subjectDigest: "invalid",
+      sessionId: "init-session",
+      triggerFrom: "test",
+    }), /WRITER_SUBJECT_INVALID/u);
+    await assert.rejects(() => stat(root), /ENOENT/u);
+  } finally {
+    await rm(parent, { recursive: true, force: true });
+  }
+});

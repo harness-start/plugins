@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ac5b59deb1154f3de9fc48d266a0dda71698e374ff81993353d80069d5766fe4
+// harness-source-hash: sha256:370f9db476cbb0b946700bec5fe34c55a297fe8308b5bd733a1c0d3b4f4ce5e7
 import {
   withWriterJournal
-} from "../chunks/chunk-PIRK3OBQ.mjs";
+} from "../chunks/chunk-GPVYZE6U.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-5AGM3KPE.mjs";
+} from "../chunks/chunk-DBLB772I.mjs";
 import {
   computeLogoSubjectDigest
-} from "../chunks/chunk-DNBEH7KW.mjs";
+} from "../chunks/chunk-IOV4IKM6.mjs";
 import {
   assertLogoProjectRoot,
   loadLogoProject
-} from "../chunks/chunk-NQE6SP2U.mjs";
+} from "../chunks/chunk-WS3HCX7P.mjs";
 
 // plugins/artifact-production/modules/logo/src/entries/cli/project-lock.ts
 import { spawn } from "node:child_process";

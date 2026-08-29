@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -31,4 +33,29 @@ test("shell policy rejects community writers and chained registered commands in 
 test("shell policy permits narrow read-only inspection inside PPTX scope", () => {
   assert.deepEqual(evaluatePptxShell({ command: "rg TODO .", cwd: projectRoot, workspaceRoot }), { decision: "allow" });
   assert.equal(evaluatePptxShell({ command: "git clean -fdx", cwd: projectRoot, workspaceRoot }).decision, "deny");
+});
+
+test("an existing PPTX project does not scope unrelated repo-root interpreters", () => {
+  assert.deepEqual(
+    evaluatePptxShell({ command: "node --input-type=module -e 'console.log(1)'", cwd: workspaceRoot, workspaceRoot, activeProjectCount: 1 }),
+    { decision: "allow" },
+  );
+});
+
+test("a project initializer canonicalizes a missing project beneath an aliased workspace path", () => {
+  const workspace = mkdtempSync(join(tmpdir(), "pptx-shell-init-alias-"));
+  try {
+    mkdirSync(join(workspace, "artifacts", "pptx"), { recursive: true });
+    const canonicalWorkspace = realpathSync(workspace);
+    const rawProject = join(workspace, "artifacts", "pptx", "new-deck");
+    const canonicalProject = join(canonicalWorkspace, "artifacts", "pptx", "new-deck");
+    const script = resolve(PLUGIN_ROOT, "dist/cli/project-init.mjs");
+    assert.deepEqual(evaluatePptxShell({
+      command: `node "${script}" "${rawProject}"`,
+      cwd: workspace,
+      workspaceRoot: canonicalWorkspace,
+    }), { decision: "allow", writer: "pptx-init", projectRoot: canonicalProject, argv: [script, canonicalProject] });
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 });

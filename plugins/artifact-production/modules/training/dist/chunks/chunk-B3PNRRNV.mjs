@@ -1,23 +1,24 @@
-// harness-source-hash: sha256:ac5b59deb1154f3de9fc48d266a0dda71698e374ff81993353d80069d5766fe4
+// harness-source-hash: sha256:2dacaf9b88d10a099c4330aa41f0c0f58ac46b041bf30fe0aa69a15b6c96e973
 import {
-  assertLogoProjectRoot
-} from "./chunk-NQE6SP2U.mjs";
+  assertTrainingProjectRoot
+} from "./chunk-3Y67TSGG.mjs";
 
-// plugins/artifact-production/modules/logo/src/lib/capability.ts
+// plugins/artifact-production/modules/training/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
 import { chmod, lstat, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { isAbsolute, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 var TTL_MS = 3e4;
-var pathOf = (root, capability) => join(root, ".tmp", "logo-guard", `capability.${capability}.json`);
+var CAPABILITY_SCHEMA = "training-program-design/writer-capability/v1";
+var grantPath = (root, capability) => join(root, ".tmp", "training-guard", `capability.${capability}.json`);
 var argvDigest = (argv) => createHash("sha256").update(JSON.stringify(argv)).digest("hex");
 var errorCode = (error) => typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : void 0;
-async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, codexHome, triggerFrom }) {
-  const root = await assertLogoProjectRoot(rawRoot);
-  if (!/^logo-(?:advice|lock|render|preview|stage|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
+async function issueWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, triggerFrom }) {
+  const root = assertTrainingProjectRoot(rawRoot);
+  if (!/^training-(?:render|review|release)$/u.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown") throw new Error("WRITER_SESSION_MISSING");
-  const directory = join(root, ".tmp", "logo-guard");
-  const target = pathOf(root, capability);
+  const directory = join(root, ".tmp", "training-guard");
+  const target = grantPath(root, capability);
   await mkdir(directory, { recursive: true });
   try {
     const existing = JSON.parse(await readFile(target, "utf8"));
@@ -30,14 +31,13 @@ async function issueWriterCapability({ root: rawRoot, capability, argv, subjectD
     });
   }
   const grant = {
-    schema: "brand-logo-production/writer-capability/v1",
+    schema: CAPABILITY_SCHEMA,
     id: randomUUID(),
     capability,
     root,
     argvSha256: argvDigest(argv),
     subjectDigest,
     sessionId,
-    ...codexHome ? { codexHome: resolve(codexHome) } : {},
     triggerFrom: triggerFrom || "PreToolUse",
     issuedAt: (/* @__PURE__ */ new Date()).toISOString(),
     expiresAt: Date.now() + TTL_MS
@@ -48,8 +48,8 @@ async function issueWriterCapability({ root: rawRoot, capability, argv, subjectD
   return grant;
 }
 async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
-  const root = await assertLogoProjectRoot(rawRoot);
-  const target = pathOf(root, capability);
+  const root = assertTrainingProjectRoot(rawRoot);
+  const target = grantPath(root, capability);
   let bytes;
   try {
     const metadata = await lstat(target);
@@ -67,9 +67,9 @@ async function consumeWriterCapability({ root: rawRoot, capability, argv }) {
     throw new Error("WRITER_CAPABILITY_INVALID");
   }
   if (typeof grant !== "object" || grant === null) throw new Error("WRITER_CAPABILITY_INVALID");
-  const value = grant;
-  if (value.schema !== "brand-logo-production/writer-capability/v1" || value.capability !== capability || value.root !== root || value.argvSha256 !== argvDigest(argv) || !Number.isFinite(value.expiresAt) || Number(value.expiresAt) < Date.now() || typeof value.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(value.subjectDigest) || typeof value.sessionId !== "string" || !value.sessionId || value.sessionId === "unknown" || value.codexHome !== void 0 && (typeof value.codexHome !== "string" || !isAbsolute(value.codexHome))) throw new Error("WRITER_CAPABILITY_INVALID");
-  return value;
+  const record = grant;
+  if (record.schema !== CAPABILITY_SCHEMA || record.capability !== capability || record.root !== root || record.argvSha256 !== argvDigest(argv) || !Number.isFinite(record.expiresAt) || Number(record.expiresAt) < Date.now() || typeof record.subjectDigest !== "string" || !/^[a-f0-9]{64}$/u.test(record.subjectDigest) || typeof record.sessionId !== "string" || !record.sessionId || record.sessionId === "unknown") throw new Error("WRITER_CAPABILITY_INVALID");
+  return record;
 }
 function processWriterArgv() {
   return [resolve(process.argv[1] ?? ""), ...process.argv.slice(2)];

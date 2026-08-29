@@ -269,6 +269,7 @@ stateDiagram-v2
 **所有产物插件必须**
 
 - 工程根为 `artifacts/<carrier>/<kebab-case-id>/`。
+- `SessionStart` 发现工程只允许报告，不得仅因仓库中存在工程就把无 carrier 路径的 repo-root 解释器命令纳入硬门禁；Hook 不是解释器沙箱。
 - Stop / Post 按 `plan.targetStage`（缺省 `source`）重跑该插件自己的 `validate*Model`。
 - stage 集由该插件合同声明，不得假定全球只有 `source|release`。两极 stage、中间累计 stage（`stageAtLeast`）都合法。
 - 顾问 Skill（若有）不得写 generated 路径、不得签审查、不得执行 release。

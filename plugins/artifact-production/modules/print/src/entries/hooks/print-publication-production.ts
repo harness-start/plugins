@@ -9,7 +9,6 @@ import { evaluateRegisteredWriter, expandKnownPluginRoot, parseShellWords } from
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { evaluatePrintWrite, validatePrintModel, type ContractFinding } from "../../lib/contract.js";
 
@@ -90,8 +89,7 @@ async function main() {
     const command = extractShellCommand(event) ?? "";
     const workspaceRoot = resolveWorkspaceRoot(cwd, "print");
     const cwdInScope = /(?:^|[\\/])artifacts[\\/]print[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "print")).roots.length : 0;
-    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope || activeProjectCount > 0;
+    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope;
     const approved = evaluateRegisteredWriter({
       command,
       cwd,

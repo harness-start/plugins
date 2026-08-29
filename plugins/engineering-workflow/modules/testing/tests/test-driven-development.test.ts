@@ -14,8 +14,11 @@ import {
   sourceAuthorizedByTest,
 } from "../src/lib/patterns.js";
 import { proposedContent } from "../src/lib/hook-io.js";
+import * as hookEntry from "../src/entries/hooks/test-driven-development.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/test-driven-development.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 function runRawHook(mode, input, env = {}, platform = "codex") {
   return new Promise((resolvePromise, reject) => {
@@ -1713,6 +1716,151 @@ test("git-dirty Node test allows the matching module without a test command", as
       hookEnv(fx.data),
     );
     assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("a dirty source-inspection contract authorizes its exact JavaScript module", async () => {
+  const fx = fixture("test-driven-development-source-contract-");
+  try {
+    gitInit(fx.root);
+    mkdirSync(join(fx.root, "tests", "contracts", "routes"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "routes"), { recursive: true });
+    const testPath = "tests/contracts/routes/models.contract.test.ts";
+    writeFileSync(join(fx.root, testPath), [
+      "import { readFileSync } from 'node:fs';",
+      "import { resolve } from 'node:path';",
+      "import { expect, it } from 'vitest';",
+      "function source(path: string): string {",
+      "  return readFileSync(resolve(process.cwd(), path), 'utf8');",
+      "}",
+      "it('redirects the legacy route', () => {",
+      "  const route = source('src/routes/admin.models.$modelId.index.tsx');",
+      "  expect(route).toContain('/edit');",
+      "});",
+      "",
+    ].join("\n"));
+    const allowed = await runHook("pre", writeEvent(
+      fx.root,
+      "src/routes/admin.models.$modelId.index.tsx",
+      "export const redirectTarget = '/edit';\n",
+      "source-contract-route",
+    ), hookEnv(fx.data));
+    assert.equal(allowed.code, 0, allowed.stderr);
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("a source helper must pass its path parameter to readFileSync before it authorizes a module", () => {
+  const testPath = "tests/contracts/routes/models.contract.test.ts";
+  const testRecord = {
+    path: testPath,
+    language: "typescript",
+    evidence: extractTestEvidence("typescript", [
+      "import { readFileSync } from 'node:fs';",
+      "import { expect, it } from 'vitest';",
+      "function source(path: string): string {",
+      "  console.log(path);",
+      "  return readFileSync('fixtures/route.txt', 'utf8');",
+      "}",
+      "it('checks a fixture', () => {",
+      "  const route = source('src/routes/admin.models.$modelId.index.tsx');",
+      "  expect(route).toContain('/edit');",
+      "});",
+      "",
+    ].join("\n"), testPath),
+  };
+  assert.equal(sourceAuthorizedByTest({
+    path: "src/routes/admin.models.$modelId.index.tsx",
+    language: "typescript",
+    content: "export const redirectTarget = '/edit';\n",
+  }, testRecord), false);
+});
+
+test("deleting the only dirty corresponding test is denied while its implementation remains dirty", async () => {
+  const fx = fixture("test-driven-development-test-delete-");
+  try {
+    gitInit(fx.root);
+    const pair = phpOrderServicePair();
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+    writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+    writeFileSync(join(fx.root, pair.sourcePath), pair.sourceContent);
+
+    const blocked = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "apply_patch",
+      tool_use_id: "delete-only-test",
+      tool_input: { patch: `*** Delete File: ${pair.testPath}` },
+    }, hookEnv(fx.data));
+
+    assert.equal(blocked.code, 0, blocked.stderr);
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
+    assert.match(blocked.stdout, /dirty implementation|对应实现/iu);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("deleting one dirty test remains allowed when another dirty test authorizes the implementation", async () => {
+  const fx = fixture("test-driven-development-test-delete-alternative-");
+  try {
+    gitInit(fx.root);
+    const pair = phpOrderServicePair();
+    const alternativePath = "tests/Feature/Service/OrderServiceTest.php";
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "tests", "Feature", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+    writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+    writeFileSync(join(fx.root, alternativePath), pair.testContent);
+    writeFileSync(join(fx.root, pair.sourcePath), pair.sourceContent);
+
+    const allowed = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "apply_patch",
+      tool_use_id: "delete-redundant-test",
+      tool_input: { patch: `*** Delete File: ${pair.testPath}` },
+    }, hookEnv(fx.data));
+
+    assert.equal(allowed.code, 0, allowed.stderr);
+    assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("deleting all dirty authorizing tests in one command is denied", async () => {
+  const fx = fixture("test-driven-development-test-delete-batch-");
+  try {
+    gitInit(fx.root);
+    const pair = phpOrderServicePair();
+    const alternativePath = "tests/Feature/Service/OrderServiceTest.php";
+    mkdirSync(join(fx.root, "tests", "Unit", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "tests", "Feature", "Service"), { recursive: true });
+    mkdirSync(join(fx.root, "src", "Service"), { recursive: true });
+    writeFileSync(join(fx.root, pair.testPath), pair.testContent);
+    writeFileSync(join(fx.root, alternativePath), pair.testContent);
+    writeFileSync(join(fx.root, pair.sourcePath), pair.sourceContent);
+
+    const blocked = await runHook("pre", {
+      cwd: fx.root,
+      session_id: "session-1",
+      tool_name: "exec_command",
+      tool_use_id: "delete-all-tests",
+      tool_input: { cmd: `rm ${pair.testPath} ${alternativePath}` },
+    }, hookEnv(fx.data));
+
+    assert.equal(blocked.code, 0, blocked.stderr);
+    assert.equal(JSON.parse(blocked.stdout).hookSpecificOutput.permissionDecision, "deny");
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });

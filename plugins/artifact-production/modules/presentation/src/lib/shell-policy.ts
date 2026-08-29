@@ -1,13 +1,20 @@
+import { realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIRECTORY = resolve(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
 const TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
 const WRITERS = new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
 const READ_ONLY = new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
+
+function canonicalPath(path: string) {
+  const absolute = resolve(path);
+  try { return realpathSync(absolute); } catch {
+    const parent = dirname(absolute);
+    return parent === absolute ? absolute : resolve(canonicalPath(parent), basename(absolute));
+  }
+}
 
 export type PptxShellDecision = { decision: "allow"; writer?: string; projectRoot?: string; argv?: string[] } | { decision: "deny"; code: string; message: string };
 
@@ -47,8 +54,10 @@ function wrapperInvocation(words: string[] | null, cwd: string, workspaceRoot: s
   const name = basename(script);
   if (dirname(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
   const projectRoot = isAbsolute(third) ? resolve(third) : resolve(cwd, third);
-  if (dirname(projectRoot) !== resolve(workspaceRoot, "artifacts", "pptx") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(projectRoot))) return null;
-  return { name, projectRoot, argv: [script, ...words.slice(2)] };
+  const canonicalProjectRoot = canonicalPath(projectRoot);
+  const canonicalCarrierRoot = canonicalPath(resolve(workspaceRoot, "artifacts", "pptx"));
+  if (dirname(canonicalProjectRoot) !== canonicalCarrierRoot || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename(canonicalProjectRoot))) return null;
+  return { name, projectRoot: canonicalProjectRoot, argv: [script, canonicalProjectRoot, ...words.slice(3)] };
 }
 
 function readOnlyCommand(words: string[] | null) {
@@ -65,11 +74,11 @@ export function commandTouchesPptxScope(command: unknown, cwd: string, workspace
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
   const normalizedCwd = resolve(cwd).replaceAll("\\", "/");
   const normalizedRoot = resolve(workspaceRoot).replaceAll("\\", "/");
-  return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/pptx/`) || /(?:^|[\s"'=])\.?\/?artifacts\/pptx(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/pptx/`);
+  return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/pptx/`) || /(?:^|[\\/])artifacts[\\/]pptx[\\/]/u.test(normalizedCommand) || /(?:^|[\s"'=])\.?\/?artifacts\/pptx(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/pptx/`);
 }
 
-export function evaluatePptxShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }: { command: unknown; cwd: string; workspaceRoot: string; activeProjectCount?: number }): PptxShellDecision {
-  if (!commandTouchesPptxScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+export function evaluatePptxShell({ command, cwd, workspaceRoot }: { command: unknown; cwd: string; workspaceRoot: string; activeProjectCount?: number }): PptxShellDecision {
+  if (!commandTouchesPptxScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `pptx-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };

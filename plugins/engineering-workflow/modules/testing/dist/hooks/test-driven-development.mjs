@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:a463a9fb44ce70c1640fb0776da2c02e8fb26ed3e36d65fdacea7785012d4dae
+// harness-source-hash: sha256:1c9de1287e40228f25b06d3da5a459095c1d3a9c5d5f18df4c89e986fee00eae
 
 // plugins/engineering-workflow/modules/testing/src/entries/hooks/test-driven-development.ts
 import { readFileSync as readFileSync4 } from "node:fs";
@@ -999,6 +999,23 @@ function javascriptTargets(code, testPath) {
     const bindings = identifiers(match[1] ?? "");
     addModule(match[2] ?? "", bindings);
   }
+  const sourceReaders = /* @__PURE__ */ new Set(["readFileSync"]);
+  for (const match of code.matchAll(/\bfunction\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(\s*([A-Za-z_$][A-Za-z0-9_$]*)(?:\s*:[^,)]*)?[^)]*\)\s*(?::[^{]+)?\{([\s\S]{0,1200}?)\n?\}/gu)) {
+    const helper = match[1] ?? "";
+    const parameter = match[2] ?? "";
+    const helperBody = match[3] ?? "";
+    const escapedParameter = parameter.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const readsParameter = new RegExp(`\\breadFileSync\\s*\\([^;\\n]{0,500}\\b${escapedParameter}\\b[^;\\n]{0,500}\\)`, "u").test(helperBody);
+    if (readsParameter) sourceReaders.add(helper);
+  }
+  for (const match of code.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\(\s*["']([^"']+)["']\s*\)/gu)) {
+    const binding = match[1] ?? "";
+    const reader = match[2] ?? "";
+    const sourcePath = normalize(match[3] ?? "");
+    const remainder = code.slice((match.index ?? 0) + match[0].length);
+    if (!sourceReaders.has(reader) || !identifierUsed(remainder, binding) || !/^(?:app|lib|src)\//u.test(sourcePath)) continue;
+    targets.push(`javascript-module:${stripExtension(sourcePath)}`);
+  }
   return unique(targets);
 }
 function rustTargets(code, context) {
@@ -1173,39 +1190,39 @@ function mirrorIdentity(path, language, kind) {
   const name = kind === "test" ? removeTestSuffix(rest.pop(), language) : stripExtension(rest.pop());
   return `${descriptor.scope}#${[...rest, name].join("/")}`;
 }
-function mirrorMatches(source, testRecord) {
+function mirrorMatches(source, testRecord2) {
   const sourceIdentity = mirrorIdentity(source.path, source.language, "source");
-  const testIdentity = mirrorIdentity(testRecord.path, source.language, "test");
+  const testIdentity = mirrorIdentity(testRecord2.path, source.language, "test");
   return Boolean(sourceIdentity && testIdentity && sourceIdentity === testIdentity);
 }
-function pythonPackageReexportMatches(source, testRecord) {
-  if (source.language !== "python" || !mirrorMatches(source, testRecord)) return false;
+function pythonPackageReexportMatches(source, testRecord2) {
+  if (source.language !== "python" || !mirrorMatches(source, testRecord2)) return false;
   const module = sourceModule(source.path);
   const separator = module.lastIndexOf(".");
   if (separator < 0) return false;
   const packageName = module.slice(0, separator);
-  const targets = new Set(testRecord.evidence?.targets ?? []);
+  const targets = new Set(testRecord2.evidence?.targets ?? []);
   return extractSourceSymbols("python", source.content).some((symbol) => targets.has(`python:${packageName}#${symbol}`));
 }
-function goPackageMatches(source, testRecord) {
+function goPackageMatches(source, testRecord2) {
   if (source.language !== "go") return false;
   const sourceDirectory = posix.dirname(normalize(source.path));
-  const testDirectory = posix.dirname(normalize(testRecord.path));
+  const testDirectory = posix.dirname(normalize(testRecord2.path));
   const sourcePackage = goPackage(withoutComments("go", source.content));
-  const testPackage = String(testRecord.evidence?.package ?? "").replace(/_test$/u, "");
+  const testPackage = String(testRecord2.evidence?.package ?? "").replace(/_test$/u, "");
   const symbols = new Set(extractSourceSymbols("go", source.content));
-  const references = testRecord.evidence?.references ?? [];
+  const references = testRecord2.evidence?.references ?? [];
   if (sourceDirectory === testDirectory && sourcePackage && sourcePackage === testPackage && references.some((value) => symbols.has(value))) return true;
   return false;
 }
-function sourceAuthorizedByTest(source, testRecord, context = {}) {
-  if (!source || !testRecord || source.language !== testRecord.language || !testRecord.evidence?.valid) return false;
-  const testTargets = new Set(testRecord.evidence.targets ?? []);
+function sourceAuthorizedByTest(source, testRecord2, context = {}) {
+  if (!source || !testRecord2 || source.language !== testRecord2.language || !testRecord2.evidence?.valid) return false;
+  const testTargets = new Set(testRecord2.evidence.targets ?? []);
   if (explicitSourceTargets(source, context).some((target) => testTargets.has(target))) return true;
-  if (pythonPackageReexportMatches(source, testRecord)) return true;
+  if (pythonPackageReexportMatches(source, testRecord2)) return true;
   if (testTargets.size > 0) return false;
-  if (goPackageMatches(source, testRecord)) return true;
-  return mirrorMatches(source, testRecord);
+  if (goPackageMatches(source, testRecord2)) return true;
+  return mirrorMatches(source, testRecord2);
 }
 function pascal(value) {
   return String(value).split(/[-_]/u).filter(Boolean).map((part) => (part[0]?.toUpperCase() ?? "") + part.slice(1)).join("");
@@ -1390,6 +1407,16 @@ function listHeadPaths(root) {
   if (listed.status !== 0) return [];
   return listed.stdout.split("\n").map((path) => path.trim()).filter(Boolean);
 }
+function listDirtyPaths(root) {
+  if (!hasGitHead(root)) return [];
+  const changed = runGit(root, ["diff", "--name-only", "HEAD", "--"]);
+  const untracked = runGit(root, ["ls-files", "--others", "--exclude-standard"]);
+  const paths = [
+    ...changed.status === 0 ? changed.stdout.split("\n") : [],
+    ...untracked.status === 0 ? untracked.stdout.split("\n") : []
+  ];
+  return [...new Set(paths.map((path) => path.trim().replaceAll("\\", "/")).filter(Boolean))];
+}
 function restoresHeadState(root, relativePath2, { missing = false, content = "" } = {}) {
   const head = gitShowHead(root, relativePath2);
   if (head === null) return missing === true;
@@ -1461,6 +1488,53 @@ function restoresBaseline(root, event, target) {
     content: deleting ? "" : proposedContent(event, target.absolutePath, current)
   });
 }
+function dirtySourceTargets(root) {
+  return listDirtyPaths(root).map((path) => {
+    const absolutePath = resolve5(root, path);
+    return { absolutePath, path, ...classifyPath(path) };
+  }).filter((target) => isActiveTarget(target) && target.kind === "source" && gitPathState(root, target.path).present);
+}
+function testRecord(root, event, target, proposed) {
+  const deleting = proposed && targetOperation(event, target.absolutePath) === "delete";
+  if (deleting) return null;
+  const content = proposed ? proposedContent(event, target.absolutePath, readText(target.absolutePath)) : readText(target.absolutePath);
+  const context = resolveLanguageContext(root, target.path, target.language);
+  return {
+    path: target.path,
+    language: target.language,
+    evidence: extractTestEvidence(target.language, content, target.path, context),
+    dirty: gitShowHead(root, target.path) !== content
+  };
+}
+function testChangeBreaksAuthorization(root, event, target, eventTargets) {
+  const current = testRecord(root, event, target, false);
+  if (!current?.dirty) return null;
+  const proposed = testRecord(root, event, target, true);
+  for (const dirtySource of dirtySourceTargets(root)) {
+    if (dirtySource.language !== target.language) continue;
+    const source = sourceForTarget(root, event, dirtySource, false);
+    const context = resolveLanguageContext(root, dirtySource.path, dirtySource.language);
+    if (!sourceAuthorizedByTest(source, current, context)) continue;
+    if (proposed?.dirty && sourceAuthorizedByTest(source, proposed, context)) continue;
+    const candidates = /* @__PURE__ */ new Set([
+      ...dirtyLiveTests(root, source, context),
+      ...eventTargets.filter((candidate) => candidate.kind === "test" && candidate.language === target.language).map((candidate) => candidate.path)
+    ]);
+    candidates.delete(target.path);
+    const hasAlternative = [...candidates].some((path) => {
+      const changedTarget = eventTargets.find((candidate) => candidate.kind === "test" && candidate.path === path);
+      const record = changedTarget ? testRecord(root, event, changedTarget, true) : testRecord(root, event, {
+        absolutePath: resolve5(root, path),
+        path,
+        kind: "test",
+        language: target.language
+      }, false);
+      return record?.dirty === true && sourceAuthorizedByTest(source, record, context);
+    });
+    if (!hasAlternative) return dirtySource.path;
+  }
+  return null;
+}
 function sourceForTarget(root, event, target, deleting) {
   const current = readText(target.absolutePath);
   return {
@@ -1518,7 +1592,17 @@ async function runPre(event) {
     writeJson(preToolDeny(mixedWriteFinding()));
     return;
   }
-  if (!kinds.has("source")) return;
+  if (!kinds.has("source")) {
+    for (const target of targets) {
+      if (target.kind !== "test") continue;
+      const affectedSource = testChangeBreaksAuthorization(root, event, target, targets);
+      if (affectedSource) {
+        writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: deleting or weakening this test would leave dirty implementation ${affectedSource} without a changed corresponding test. Restore the implementation first or keep another changed corresponding test.`));
+        return;
+      }
+    }
+    return;
+  }
   if (!hasGitHead(root)) {
     writeJson(preToolDeny("[TDD Guard] Blocked implementation change: this workspace has no git HEAD. Initialize a git repository with a commit, then change a corresponding test before retrying."));
     return;

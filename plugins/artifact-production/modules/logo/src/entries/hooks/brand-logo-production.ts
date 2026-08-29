@@ -9,7 +9,6 @@ import { eventAgentId, eventCwd, eventSessionId, eventToolInput, eventToolName, 
 import { additionalContext, preToolDeny, stopBlock, type HookEventName } from "@harness/core/hook-output";
 import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 import { computeLogoSubjectDigest, evaluateLogoWrite, validateLogoModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
 import { findLogoProjects, loadLogoProject, resolveWorkspaceRoot } from "../../lib/project.js";
@@ -94,10 +93,10 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const roots: string[] = isGenericMutationCommand(command) ? (await findLogoProjects(cwd)).roots : [];
-      const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
+      const result = evaluateLogoShell({ command, cwd, workspaceRoot });
       if (result.decision === "deny") { process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`); return; }
       if (!result.writer || !result.projectRoot || !result.argv) return;
+      const { roots } = await findLogoProjects(cwd);
       if (!roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}\n`);
       else {
         try {

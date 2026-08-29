@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:eed40058e5610605add7b49c25242add1449244ae443a72fe98d8165501b222e
+// harness-source-hash: sha256:2dacaf9b88d10a099c4330aa41f0c0f58ac46b041bf30fe0aa69a15b6c96e973
 import {
   assertTrainingProjectRoot,
   loadTrainingProject,
   validateTrainingModel
-} from "../chunks/chunk-BM6COV65.mjs";
+} from "../chunks/chunk-3Y67TSGG.mjs";
 
 // plugins/artifact-production/modules/training/src/entries/cli/project-lint.ts
 async function main() {

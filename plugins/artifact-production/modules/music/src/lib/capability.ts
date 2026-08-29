@@ -43,10 +43,12 @@ export async function issueMusicWriterCapability({ root: rawRoot, capability, ar
   sessionId: string;
   triggerFrom?: string;
 }) {
-  const root = capability === "music-init" ? prospectiveRoot(rawRoot) : await canonicalRoot(rawRoot);
   if (!CAPABILITY.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown" || sessionId === "hook") throw new Error("WRITER_SESSION_MISSING");
+  const prospective = capability === "music-init" ? prospectiveRoot(rawRoot) : undefined;
+  if (prospective) await mkdir(prospective, { recursive: true, mode: 0o700 });
+  const root = await canonicalRoot(prospective ?? rawRoot);
   const target = grantPath(root, capability);
   const capabilityDirectory = join(root, ".tmp", "music-guard");
   await mkdir(capabilityDirectory, { recursive: true, mode: 0o700 });

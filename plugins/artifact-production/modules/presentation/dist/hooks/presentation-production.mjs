@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0a639452ef0eb6053113f112bd4189317c96b23fc55331ad1e2167fd46294b78
+// harness-source-hash: sha256:06ce2d2861aa44084779ec38887836d81a8968d3d5c47812817335411bdb0436
 import {
   issueWriterCapability
-} from "../chunks/chunk-NMBH22U7.mjs";
-import "../chunks/chunk-BQWOX4OU.mjs";
+} from "../chunks/chunk-WHFQUVGN.mjs";
+import "../chunks/chunk-FJSGMWSN.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -11,7 +11,7 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot,
   validatePptxModel
-} from "../chunks/chunk-DSB6J2SV.mjs";
+} from "../chunks/chunk-4Q5RE6PT.mjs";
 
 // plugins/artifact-production/modules/presentation/src/entries/hooks/presentation-production.ts
 import { relative as relative2, resolve as resolve5 } from "node:path";
@@ -378,22 +378,8 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/presentation/src/lib/shell-policy.ts
+import { realpathSync } from "node:fs";
 import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
 var MODULE_DIRECTORY = dirname3(fileURLToPath(import.meta.url));
@@ -401,6 +387,15 @@ var PLUGIN_DIRECTORY = resolve4(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PL
 var TOOL_DIRECTORY = resolve4(PLUGIN_DIRECTORY, "dist", "cli");
 var WRITERS = /* @__PURE__ */ new Set(["project-init.mjs", "project-lint.mjs", "project-probe.mjs", "project-release.mjs", "project-render.mjs", "project-review.mjs"]);
 var READ_ONLY = /* @__PURE__ */ new Set(["file", "find", "git", "grep", "head", "jq", "ls", "pwd", "rg", "sed", "stat", "tail", "wc"]);
+function canonicalPath(path) {
+  const absolute = resolve4(path);
+  try {
+    return realpathSync(absolute);
+  } catch {
+    const parent = dirname3(absolute);
+    return parent === absolute ? absolute : resolve4(canonicalPath(parent), basename2(absolute));
+  }
+}
 function parseShellWords(command) {
   const words = [];
   let current = "";
@@ -459,8 +454,10 @@ function wrapperInvocation(words, cwd, workspaceRoot) {
   const name = basename2(script);
   if (dirname3(script) !== TOOL_DIRECTORY || !WRITERS.has(name)) return null;
   const projectRoot = isAbsolute2(third) ? resolve4(third) : resolve4(cwd, third);
-  if (dirname3(projectRoot) !== resolve4(workspaceRoot, "artifacts", "pptx") || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(projectRoot))) return null;
-  return { name, projectRoot, argv: [script, ...words.slice(2)] };
+  const canonicalProjectRoot = canonicalPath(projectRoot);
+  const canonicalCarrierRoot = canonicalPath(resolve4(workspaceRoot, "artifacts", "pptx"));
+  if (dirname3(canonicalProjectRoot) !== canonicalCarrierRoot || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(basename2(canonicalProjectRoot))) return null;
+  return { name, projectRoot: canonicalProjectRoot, argv: [script, canonicalProjectRoot, ...words.slice(3)] };
 }
 function readOnlyCommand(words) {
   if (!words?.length) return false;
@@ -475,10 +472,10 @@ function commandTouchesPptxScope(command, cwd, workspaceRoot) {
   const normalizedCommand = String(command ?? "").replaceAll("\\", "/");
   const normalizedCwd = resolve4(cwd).replaceAll("\\", "/");
   const normalizedRoot = resolve4(workspaceRoot).replaceAll("\\", "/");
-  return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/pptx/`) || /(?:^|[\s"'=])\.?\/?artifacts\/pptx(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/pptx/`);
+  return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/pptx/`) || /(?:^|[\\/])artifacts[\\/]pptx[\\/]/u.test(normalizedCommand) || /(?:^|[\s"'=])\.?\/?artifacts\/pptx(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/pptx/`);
 }
-function evaluatePptxShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
-  if (!commandTouchesPptxScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+function evaluatePptxShell({ command, cwd, workspaceRoot }) {
+  if (!commandTouchesPptxScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `pptx-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
@@ -503,8 +500,7 @@ async function runPre(event) {
   }
   const command = extractShellCommand(event);
   if (command) {
-    const activeProjectCount = isGenericMutationCommand(command) ? (await findPptxProjects(cwd)).length : 0;
-    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
     if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
     if (decision.writer && !["pptx-init", "pptx-lint"].includes(decision.writer) && decision.projectRoot && decision.argv) {
       try {

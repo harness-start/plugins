@@ -72,3 +72,12 @@ test("allows shot staging only with an exact beat, recipe, and style tuple", () 
   assert.equal(allowed.writer, "video-shot-stage");
   assert.equal(missingStyle.decision, "deny");
 });
+
+test("an existing video project does not scope unrelated repo-root interpreters", () => {
+  assert.deepEqual(evaluateVideoShell({
+    command: "node --input-type=module -e 'console.log(1)'",
+    cwd: "/workspace",
+    workspaceRoot: "/workspace",
+    activeProjectCount: 1,
+  }), { decision: "allow" });
+});

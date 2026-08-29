@@ -7,8 +7,11 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { readModuleRoutes } from "../../../../../core/tests/support/aio-routes.js";
+import * as hookEntry from "../src/entries/hooks/diagram-production.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/diagram-production.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 test("Claude and Codex owner routes register failure and stop enforcement", () => {
   for (const host of ["claude", "codex"] as const) {

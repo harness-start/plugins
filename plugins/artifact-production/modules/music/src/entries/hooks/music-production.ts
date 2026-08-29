@@ -10,7 +10,6 @@ import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJso
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { issueMusicWriterCapability } from "../../lib/capability.js";
 import { computeMusicSubjectDigest, evaluateMusicWrite, validateMusicModel, validateMusicReferenceProfile, type MusicFinding, type MusicProjectConfig } from "../../lib/contract.js";
@@ -110,8 +109,7 @@ async function main() {
       }
     }
     const command = extractShellCommand(event) ?? "";
-    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "music")).roots.length : 0;
-    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve(PLUGIN_DIRECTORY, "dist", "cli"), activeProjectCount });
+    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve(PLUGIN_DIRECTORY, "dist", "cli") });
     if (shell.decision === "deny") {
       writeJson(deny(`${shell.code}: ${shell.message}`));
       return;

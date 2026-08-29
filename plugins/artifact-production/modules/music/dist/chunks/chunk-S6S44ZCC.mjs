@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:a12a031a56b397d5b29f818dec46cd623eb1b9fc8eccd7c71cf6281d1a9b6cc1
+// harness-source-hash: sha256:fc7c19bc4d8914439d6e3416e5710ae537c4947f54691186a3b2c9462eaf8ea2
 
 // plugins/artifact-production/modules/music/src/lib/capability.ts
 import { createHash, randomUUID } from "node:crypto";
@@ -21,10 +21,12 @@ function prospectiveRoot(rawRoot) {
   return root;
 }
 async function issueMusicWriterCapability({ root: rawRoot, capability, argv, subjectDigest, sessionId, triggerFrom = "PreToolUse" }) {
-  const root = capability === "music-init" ? prospectiveRoot(rawRoot) : await canonicalRoot(rawRoot);
   if (!CAPABILITY.test(capability)) throw new Error("WRITER_CAPABILITY_INVALID");
   if (!/^[a-f0-9]{64}$/u.test(subjectDigest)) throw new Error("WRITER_SUBJECT_INVALID");
   if (!sessionId || sessionId === "unknown" || sessionId === "hook") throw new Error("WRITER_SESSION_MISSING");
+  const prospective = capability === "music-init" ? prospectiveRoot(rawRoot) : void 0;
+  if (prospective) await mkdir(prospective, { recursive: true, mode: 448 });
+  const root = await canonicalRoot(prospective ?? rawRoot);
   const target = grantPath(root, capability);
   const capabilityDirectory = join(root, ".tmp", "music-guard");
   await mkdir(capabilityDirectory, { recursive: true, mode: 448 });

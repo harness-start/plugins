@@ -41,7 +41,7 @@ Do not let the producing session self-approve an artifact when the contract requ
 
 ## Runtime behavior
 
-At `SessionStart`, format modules report relevant existing projects without activating unrelated hard gates. `PreToolUse` protects generated outputs and restricts mutations to registered, capability-bound writers when a governed artifact project is in scope. `PostToolUse` and failure events update evidence or recovery information. `Stop` and `SubagentStop` validate the active project's declared stage and prevent a false completion claim when current evidence, review, or release receipts are missing.
+At `SessionStart`, format modules report relevant existing projects without activating unrelated hard gates. `PreToolUse` protects generated outputs and restricts mutations to registered, capability-bound writers when a governed artifact project is in scope. Shell scope requires the command or current directory to identify the carrier path; merely having an existing or released artifact project does not turn unrelated repo-root interpreters into artifact mutations. `PostToolUse` and failure events update evidence or recovery information. `Stop` and `SubagentStop` validate the active project's declared stage and prevent a false completion claim when current evidence, review, or release receipts are missing.
 
 The dispatcher evaluates only routes whose matcher applies. A module is scoped by the artifact path and project contract, so installing this all-in owner does not cause every format validator to run against every repository write. Hook activation or a successfully formatted file is not proof of visual quality; rendered outputs and outcome-level review remain required.
 

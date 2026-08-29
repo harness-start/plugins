@@ -19,10 +19,11 @@
 | 操作 | 允许 | 拒绝 |
 | --- | --- | --- |
 | 新建或修改源码 | 至少一个当前仍对应源码的测试已新建或相对 HEAD 修改 | 对应测试不存在，或全部仍与 HEAD 相同 |
+| 修改或删除测试 | 相关脏实现仍有至少一个当前对应的脏测试，或该实现已回退 | 该测试变化会让脏实现失去唯一的对应测试 |
 | 删除源码 | HEAD 中对应的测试全部已经修改或删除 | 仍有对应历史测试未变化 |
 | 回退源码 | 写回 HEAD 内容，或删除 HEAD 中不存在的新源码 | 无 |
 
-同一个工具调用不能同时修改测试和源码。先单独修改测试，再修改实现。一个脏测试可以支持当前 Git 变更中的多次实现修正；Hook 不要求每次实现编辑前再次改测试。
+同一个工具调用不能同时修改测试和源码。先单独修改测试，再修改实现。一个脏测试可以支持当前 Git 变更中的多次实现修正；Hook 不要求每次实现编辑前再次改测试。实现仍然脏时，不能再删除或弱化其唯一对应测试。
 
 没有 Git HEAD 时，源码变更会被拒绝。测试文件仍可写入，先创建初始提交后再修改实现。
 
@@ -75,8 +76,8 @@ Run PHPUnit and confirm GREEN
 | --- | --- | --- | --- |
 | PHP | `#[CoversClass(Foo::class)]`、`@covers`，解析 `use` 和 alias | `namespace` + class/interface/trait/enum/function | FQCN |
 | Python | 实际使用的绝对或包内相对 import；支持 `__init__.py` 显式重导出 | module path + class/function | module + symbol |
-| JavaScript | 被测试体使用的相对 `import` / `require` | 解析后的相对文件路径 | module file path |
-| TypeScript | 被测试体使用的相对 `import` / `require`，含 named/type alias | 解析后的相对文件路径 | module file path |
+| JavaScript | 被测试体使用的相对 `import` / `require`，或通过本地 `readFileSync` helper 精确读取并断言的 `app/`、`lib/`、`src/` 源码 | 解析后的相对文件路径 | module file path |
+| TypeScript | 被测试体使用的相对 `import` / `require`，或通过本地 `readFileSync` helper 精确读取并断言的 `app/`、`lib/`、`src/` 源码；含 named/type alias | 解析后的相对文件路径 | module file path |
 | Rust | 外部测试中的 `use crate_name::module::Item` | crate + module + item | crate + module + item |
 | Go | 同 package symbol，或外部测试的 import alias + qualified symbol | module + package + symbol | module + package + symbol |
 

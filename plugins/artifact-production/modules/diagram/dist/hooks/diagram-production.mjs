@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9e7635a32a1d6008cea4769c84263cdc68e521313dc0612d4b1fb7dcaaf797a7
+// harness-source-hash: sha256:0625411026998a4e94470ef1c127977acd81f7b3490fd609ed6a61e3a57f5c1e
 import {
   issueWriterCapability
-} from "../chunks/chunk-YGIZNSHD.mjs";
+} from "../chunks/chunk-3LV4HXPI.mjs";
 import {
   computeDiagramSubjectDigest,
   evaluateDiagramWrite,
@@ -10,7 +10,7 @@ import {
   loadDiagramProject,
   resolveWorkspaceRoot,
   validateDiagramModel
-} from "../chunks/chunk-UBLTSLB6.mjs";
+} from "../chunks/chunk-6V4MDNXG.mjs";
 
 // plugins/artifact-production/modules/diagram/src/entries/hooks/diagram-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -357,21 +357,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/diagram/src/lib/shell-policy.ts
 import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -458,8 +443,8 @@ function commandTouchesDiagramScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/diagram/`) || /(?:^|[\s"'=])\.?\/?artifacts\/diagram(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/diagram/`);
 }
-function evaluateDiagramShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
-  if (!commandTouchesDiagramScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+function evaluateDiagramShell({ command, cwd, workspaceRoot }) {
+  if (!commandTouchesDiagramScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const registered = invocation(words, cwd, workspaceRoot);
   if (registered) return { decision: "allow", writer: `diagram-${registered.name.slice("project-".length, -".mjs".length)}`, projectRoot: registered.projectRoot, argv: registered.argv };
@@ -478,8 +463,7 @@ async function runPre(event) {
   }
   const command = extractShellCommand(event);
   if (!command) return void 0;
-  const activeProjectCount = isGenericMutationCommand(command) ? (await findDiagramProjects(cwd)).length : 0;
-  const decision = evaluateDiagramShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+  const decision = evaluateDiagramShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && decision.writer !== "diagram-lint" && decision.projectRoot && decision.argv) {
     try {

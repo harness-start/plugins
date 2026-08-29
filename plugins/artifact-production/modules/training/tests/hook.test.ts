@@ -7,7 +7,11 @@ import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import * as hookEntry from "../src/entries/hooks/training-program-design.js";
+
 const ENTRY = fileURLToPath(new URL("../dist/hooks/training-program-design.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 function runHook(mode: string, event: Record<string, unknown>) {
   return new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {

@@ -1,7 +1,7 @@
-// harness-source-hash: sha256:a12a031a56b397d5b29f818dec46cd623eb1b9fc8eccd7c71cf6281d1a9b6cc1
+// harness-source-hash: sha256:fc7c19bc4d8914439d6e3416e5710ae537c4947f54691186a3b2c9462eaf8ea2
 import {
   MUSIC_ENGINE
-} from "./chunk-WFXCVJEZ.mjs";
+} from "./chunk-MYMZ3E4E.mjs";
 
 // plugins/artifact-production/modules/music/src/lib/composition-loader.ts
 import { spawn } from "node:child_process";

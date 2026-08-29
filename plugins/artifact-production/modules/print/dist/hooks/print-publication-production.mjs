@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9d2f7f6d23fcd3907df21ad9088b47dc47f6c71f2388743a1e00eb80f6d0a3d3
+// harness-source-hash: sha256:d77ef085bdc97e283e5c820fe2d4c482d8563f0bb9c5cba7138275b3f7dc69b4
 import {
   evaluatePrintWrite,
   isKebabArtifactId,
@@ -8,7 +8,7 @@ import {
   sessionEngagedArtifact,
   touchesArtifact,
   validatePrintModel
-} from "../chunks/chunk-UVM2FC35.mjs";
+} from "../chunks/chunk-43YDPPSY.mjs";
 
 // plugins/artifact-production/modules/print/src/entries/hooks/print-publication-production.ts
 import { basename as basename2, dirname as dirname2, relative as relative2, resolve as resolve4 } from "node:path";
@@ -352,21 +352,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/print/src/entries/hooks/print-publication-production.ts
 var MODULE_DIRECTORY = dirname2(fileURLToPath(import.meta.url));
 var PLUGIN_DIRECTORY = resolve4(
@@ -441,8 +426,7 @@ async function main() {
     const command = extractShellCommand(event) ?? "";
     const workspaceRoot = resolveWorkspaceRoot(cwd, "print");
     const cwdInScope = /(?:^|[\\/])artifacts[\\/]print[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "print")).roots.length : 0;
-    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope || activeProjectCount > 0;
+    const inScope = /artifacts[\\/]print[\\/]/u.test(command) || cwdInScope;
     const approved = evaluateRegisteredWriter({
       command,
       cwd,

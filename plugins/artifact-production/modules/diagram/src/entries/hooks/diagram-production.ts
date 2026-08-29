@@ -8,7 +8,6 @@ import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/cor
 import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJson, type HookEvent } from "@harness/core/hook-event";
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { computeDiagramSubjectDigest, evaluateDiagramWrite, findDiagramProjects, loadDiagramProject, resolveWorkspaceRoot, validateDiagramModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -21,8 +20,7 @@ async function runPre(event: HookEvent) {
   const cwd = resolve(eventCwd(event));
   for (const target of extractFileTargets(event, { tools: "any" })) { const result = evaluateDiagramWrite({ relativePath: relative(cwd, resolve(cwd, target)), toolName: eventToolName(event), cwd }); if (result.decision === "deny") return deny(`${result.code}: ${result.message}`); }
   const command = extractShellCommand(event); if (!command) return undefined;
-  const activeProjectCount = isGenericMutationCommand(command) ? (await findDiagramProjects(cwd)).length : 0;
-  const decision = evaluateDiagramShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount }); if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
+  const decision = evaluateDiagramShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) }); if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && decision.writer !== "diagram-lint" && decision.projectRoot && decision.argv) {
     try { const subjectDigest = decision.writer === "diagram-init" ? initDigest(decision.projectRoot) : computeDiagramSubjectDigest(await loadDiagramProject(decision.projectRoot)); await issueWriterCapability({ root: decision.projectRoot, capability: decision.writer, argv: decision.argv, subjectDigest, sessionId: eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "unknown", triggerFrom: `diagram-production:pre:${decision.writer}` }); }
     catch (error) { return deny(`WRITER_CAPABILITY_DENIED: ${error instanceof Error ? error.message : String(error)}`); }

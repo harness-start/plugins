@@ -335,6 +335,23 @@ function javascriptTargets(code: string, testPath: string): string[] {
     const bindings = identifiers(match[1] ?? "");
     addModule(match[2] ?? "", bindings);
   }
+  const sourceReaders = new Set(["readFileSync"]);
+  for (const match of code.matchAll(/\bfunction\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*\(\s*([A-Za-z_$][A-Za-z0-9_$]*)(?:\s*:[^,)]*)?[^)]*\)\s*(?::[^{]+)?\{([\s\S]{0,1200}?)\n?\}/gu)) {
+    const helper = match[1] ?? "";
+    const parameter = match[2] ?? "";
+    const helperBody = match[3] ?? "";
+    const escapedParameter = parameter.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    const readsParameter = new RegExp(`\\breadFileSync\\s*\\([^;\\n]{0,500}\\b${escapedParameter}\\b[^;\\n]{0,500}\\)`, "u").test(helperBody);
+    if (readsParameter) sourceReaders.add(helper);
+  }
+  for (const match of code.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\(\s*["']([^"']+)["']\s*\)/gu)) {
+    const binding = match[1] ?? "";
+    const reader = match[2] ?? "";
+    const sourcePath = normalize(match[3] ?? "");
+    const remainder = code.slice((match.index ?? 0) + match[0].length);
+    if (!sourceReaders.has(reader) || !identifierUsed(remainder, binding) || !/^(?:app|lib|src)\//u.test(sourcePath)) continue;
+    targets.push(`javascript-module:${stripExtension(sourcePath)}`);
+  }
   return unique(targets);
 }
 

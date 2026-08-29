@@ -1,8 +1,6 @@
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isGenericMutationCommand } from "@harness/core/path-protect";
-
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIRECTORY = resolve(process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY, process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT ? "." : "../..");
 const TOOL_DIRECTORY = resolve(PLUGIN_DIRECTORY, "dist", "cli");
@@ -68,8 +66,8 @@ export function commandTouchesTrainingScope(command: unknown, cwd: string, works
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/training/`) || /(?:^|[\s"'=])\.?\/?artifacts\/training(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/training/`);
 }
 
-export function evaluateTrainingShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }: { command: unknown; cwd: string; workspaceRoot: string; activeProjectCount?: number }): TrainingShellDecision {
-  if (!commandTouchesTrainingScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+export function evaluateTrainingShell({ command, cwd, workspaceRoot }: { command: unknown; cwd: string; workspaceRoot: string; activeProjectCount?: number }): TrainingShellDecision {
+  if (!commandTouchesTrainingScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `training-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:a12a031a56b397d5b29f818dec46cd623eb1b9fc8eccd7c71cf6281d1a9b6cc1
+// harness-source-hash: sha256:fc7c19bc4d8914439d6e3416e5710ae537c4947f54691186a3b2c9462eaf8ea2
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-TNJWHV3V.mjs";
+} from "../chunks/chunk-S6S44ZCC.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
@@ -13,7 +13,7 @@ import {
   touchesArtifact,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-WFXCVJEZ.mjs";
+} from "../chunks/chunk-MYMZ3E4E.mjs";
 
 // plugins/artifact-production/modules/music/src/entries/hooks/music-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -292,21 +292,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/music/src/lib/shell-policy.ts
 import { resolve as resolve4 } from "node:path";
 
@@ -400,9 +385,9 @@ var CAPABILITIES = {
   "project-stage.mjs": "music-stage",
   "project-release.mjs": "music-release"
 };
-function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory, activeProjectCount = 0 }) {
+function evaluateMusicShell({ command, cwd, workspaceRoot, toolDirectory }) {
   const cwdInScope = /(?:^|[\\/])artifacts[\\/]music[\\/][^\\/]+(?:[\\/]|$)/u.test(cwd);
-  const commandInScope = /artifacts[\\/]music[\\/]/u.test(command) || cwdInScope || activeProjectCount > 0 && isGenericMutationCommand(command);
+  const commandInScope = /artifacts[\\/]music[\\/]/u.test(command) || cwdInScope;
   if (!commandInScope) return { decision: "outside" };
   const expanded = expandKnownPluginRoot(command);
   const words = parseShellWords(expanded);
@@ -511,8 +496,7 @@ async function main() {
       }
     }
     const command = extractShellCommand(event) ?? "";
-    const activeProjectCount = isGenericMutationCommand(command) ? (await findCarrierProjects(cwd, "music")).roots.length : 0;
-    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve5(PLUGIN_DIRECTORY, "dist", "cli"), activeProjectCount });
+    const shell = evaluateMusicShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd, "music"), toolDirectory: resolve5(PLUGIN_DIRECTORY, "dist", "cli") });
     if (shell.decision === "deny") {
       writeJson(deny(`${shell.code}: ${shell.message}`));
       return;

@@ -7,7 +7,6 @@ import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJso
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import {
   computeTrainingSubjectDigest,
@@ -37,8 +36,7 @@ async function runPre(event: HookEvent) {
 
   const command = extractShellCommand(event);
   if (!command) return undefined;
-  const activeProjectCount = isGenericMutationCommand(command) ? (await findTrainingProjects(cwd)).length : 0;
-  const decision = evaluateTrainingShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+  const decision = evaluateTrainingShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && ["training-render", "training-review", "training-release"].includes(decision.writer) && decision.projectRoot && decision.argv) {
     try {

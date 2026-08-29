@@ -8,7 +8,6 @@ import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJso
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import { computePosterSubjectDigest, evaluatePosterWrite, findPosterProjects, loadPosterProject, resolveWorkspaceRoot, validatePosterModel, type ContractFinding } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
@@ -25,8 +24,7 @@ async function runPre(event: HookEvent) {
   }
   const command = extractShellCommand(event);
   if (!command) return undefined;
-  const activeProjectCount = isGenericMutationCommand(command) ? (await findPosterProjects(cwd)).length : 0;
-  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && decision.writer !== "poster-lint" && decision.projectRoot && decision.argv) {
     try {

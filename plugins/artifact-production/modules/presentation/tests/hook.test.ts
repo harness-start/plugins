@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { releaseModel, writeModel } from "./fixture.js";
+import * as hookEntry from "../src/entries/hooks/presentation-production.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/presentation-production.mjs", import.meta.url));
 const RENDER_ENTRY = fileURLToPath(new URL("../dist/cli/project-render.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 function runHook(mode, event) {
   return new Promise((resolve, reject) => {
@@ -113,7 +116,7 @@ test("pre hook issues an argv- and session-bound capability for the exact render
     const grant = JSON.parse(readFileSync(join(projectRoot, ".tmp", "pptx-guard", "capability.pptx-render.json"), "utf8"));
     assert.equal(grant.capability, "pptx-render");
     assert.equal(grant.sessionId, "host-session");
-    assert.equal(grant.root, projectRoot);
+    assert.equal(grant.root, realpathSync(projectRoot));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:eed40058e5610605add7b49c25242add1449244ae443a72fe98d8165501b222e
+// harness-source-hash: sha256:2dacaf9b88d10a099c4330aa41f0c0f58ac46b041bf30fe0aa69a15b6c96e973
 import {
   issueWriterCapability
-} from "../chunks/chunk-XSNB2GIM.mjs";
+} from "../chunks/chunk-B3PNRRNV.mjs";
 import {
   computeTrainingSubjectDigest,
   evaluateTrainingWrite,
@@ -10,7 +10,7 @@ import {
   loadTrainingProject,
   resolveWorkspaceRoot,
   validateTrainingModel
-} from "../chunks/chunk-BM6COV65.mjs";
+} from "../chunks/chunk-3Y67TSGG.mjs";
 
 // plugins/artifact-production/modules/training/src/entries/hooks/training-program-design.ts
 import { relative, resolve as resolve4 } from "node:path";
@@ -356,21 +356,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/training/src/lib/shell-policy.ts
 import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -455,8 +440,8 @@ function commandTouchesTrainingScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/training/`) || /(?:^|[\s"'=])\.?\/?artifacts\/training(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/training/`);
 }
-function evaluateTrainingShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
-  if (!commandTouchesTrainingScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+function evaluateTrainingShell({ command, cwd, workspaceRoot }) {
+  if (!commandTouchesTrainingScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `training-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
@@ -478,8 +463,7 @@ async function runPre(event) {
   }
   const command = extractShellCommand(event);
   if (!command) return void 0;
-  const activeProjectCount = isGenericMutationCommand(command) ? (await findTrainingProjects(cwd)).length : 0;
-  const decision = evaluateTrainingShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+  const decision = evaluateTrainingShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && ["training-render", "training-review", "training-release"].includes(decision.writer) && decision.projectRoot && decision.argv) {
     try {

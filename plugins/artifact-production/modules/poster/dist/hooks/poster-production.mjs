@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:e00120bb5285fb66403382224024cb3bd52efb02ab3d74d400d3448e2b8636da
+// harness-source-hash: sha256:bd265d620bc663ff6d6a2491495b1edfb0f5c489283b9c5be063e2cc15436c81
 import {
   issueWriterCapability
-} from "../chunks/chunk-CGL4SI7N.mjs";
+} from "../chunks/chunk-CEMEKR75.mjs";
 import {
   computePosterSubjectDigest,
   evaluatePosterWrite,
@@ -10,7 +10,7 @@ import {
   loadPosterProject,
   resolveWorkspaceRoot,
   validatePosterModel
-} from "../chunks/chunk-W57WN4XI.mjs";
+} from "../chunks/chunk-4BH6ZEKT.mjs";
 
 // plugins/artifact-production/modules/poster/src/entries/hooks/poster-production.ts
 import { createHash as createHash2 } from "node:crypto";
@@ -357,21 +357,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/poster/src/lib/shell-policy.ts
 import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -460,8 +445,8 @@ function commandTouchesPosterScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/poster/`) || /(?:^|[\s"'=])\.?\/?artifacts\/poster(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/poster/`);
 }
-function evaluatePosterShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
-  if (!commandTouchesPosterScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+function evaluatePosterShell({ command, cwd, workspaceRoot }) {
+  if (!commandTouchesPosterScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return { decision: "allow", writer: `poster-${invocation.name.slice("project-".length, -".mjs".length)}`, projectRoot: invocation.projectRoot, argv: invocation.argv };
@@ -480,8 +465,7 @@ async function runPre(event) {
   }
   const command = extractShellCommand(event);
   if (!command) return void 0;
-  const activeProjectCount = isGenericMutationCommand(command) ? (await findPosterProjects(cwd)).length : 0;
-  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+  const decision = evaluatePosterShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
   if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
   if (decision.writer && decision.writer !== "poster-lint" && decision.projectRoot && decision.argv) {
     try {

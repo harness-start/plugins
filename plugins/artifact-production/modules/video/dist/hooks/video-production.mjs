@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ffd517e46fb1a2824017357bfc2bc74469ca19f363f912dfd229786bc368cead
+// harness-source-hash: sha256:e43e79a4b1e44439529b9ae9133002565cac23a9b902524ba2c130520c2c6331
 import {
   evaluateVideoWrite,
   issueWriterCapability,
   validateVideoModel
-} from "../chunks/chunk-3XUI2V55.mjs";
-import "../chunks/chunk-2EO5NQK7.mjs";
+} from "../chunks/chunk-WLIWUDS2.mjs";
+import "../chunks/chunk-BUPZJ3VI.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-4VTHAUE5.mjs";
+} from "../chunks/chunk-XK7SS2NG.mjs";
 
 // plugins/artifact-production/modules/video/src/entries/hooks/video-production.ts
 import { relative, resolve as resolve4 } from "node:path";
@@ -356,21 +356,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/video/src/lib/shell-policy.ts
 import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -473,8 +458,8 @@ function commandTouchesVideoScope(command, cwd, workspaceRoot) {
   const normalizedRoot = resolve3(workspaceRoot).replaceAll("\\", "/");
   return normalizedCwd.startsWith(`${normalizedRoot}/artifacts/video/`) || /(?:^|[\s"'=])\.?\/?artifacts\/video(?:\/|[\s"']|$)/u.test(normalizedCommand) || normalizedCommand.includes(`${normalizedRoot}/artifacts/video/`);
 }
-function evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount = 0 }) {
-  if (!commandTouchesVideoScope(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+function evaluateVideoShell({ command, cwd, workspaceRoot }) {
+  if (!commandTouchesVideoScope(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) return {
@@ -542,8 +527,7 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const activeProjectCount = isGenericMutationCommand(command) ? (await findVideoProjects(cwd)).roots.length : 0;
-      const result = evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount });
+      const result = evaluateVideoShell({ command, cwd, workspaceRoot });
       if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
       else if (result.writer && result.writer !== "video-lint" && result.projectRoot && result.argv) {

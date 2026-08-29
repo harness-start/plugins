@@ -7,11 +7,15 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { consumeMusicWriterCapability } from "../src/lib/capability.js";
+import * as hookEntry from "../src/entries/hooks/music-production.js";
+import { evaluateMusicShell } from "../src/lib/shell-policy.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/music-production.mjs", import.meta.url));
 const RENDER_ENTRY = fileURLToPath(new URL("../dist/cli/project-render.mjs", import.meta.url));
 const REFERENCE_ENTRY = fileURLToPath(new URL("../dist/cli/project-reference.mjs", import.meta.url));
 const INIT_ENTRY = fileURLToPath(new URL("../dist/cli/project-init.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 async function runPre(command, cwd = process.cwd(), env = process.env) {
   return new Promise((resolve, reject) => {
@@ -51,6 +55,21 @@ test("denies a shell payload that merely smuggles a registered wrapper path as a
 test("denies unregistered in-place shell writers in music scope", async () => {
   const result = await runPre("sed -i s/a/b/ artifacts/music/study/build/score.dead.json");
   assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+});
+
+test("allows an unrelated repo-root interpreter when a music project exists", async () => {
+  const cwd = await mkdtemp(join(tmpdir(), "music-hook-unrelated-"));
+  await mkdir(join(cwd, "artifacts", "music", "study"), { recursive: true });
+  assert.deepEqual(evaluateMusicShell({
+    command: "node --input-type=module -e 'console.log(1)'",
+    cwd,
+    workspaceRoot: cwd,
+    toolDirectory: join(cwd, "dist", "cli"),
+    activeProjectCount: 1,
+  }), { decision: "outside" });
+  const result = await runPre("node --input-type=module -e 'console.log(1)'", cwd);
+  assert.equal(result.code, 0);
+  assert.equal(result.stdout, "");
 });
 
 test("issues a one-shot capability only for an exact registered writer command", async () => {

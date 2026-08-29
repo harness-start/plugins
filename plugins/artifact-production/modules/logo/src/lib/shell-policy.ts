@@ -1,8 +1,6 @@
 import { basename, dirname, isAbsolute, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { isGenericMutationCommand } from "@harness/core/path-protect";
-
 const MODULE_DIRECTORY = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_DIRECTORY = resolve(
   process.env.PLUGIN_ROOT ?? process.env.CLAUDE_PLUGIN_ROOT ?? MODULE_DIRECTORY,
@@ -108,14 +106,13 @@ export function evaluateLogoShell({
   command,
   cwd,
   workspaceRoot,
-  activeProjectCount = 0,
 }: {
   command: unknown;
   cwd: string;
   workspaceRoot: string;
   activeProjectCount?: number;
 }): LogoShellDecision {
-  if (!touchesLogo(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+  if (!touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) {

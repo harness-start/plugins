@@ -9,7 +9,12 @@ import { evaluateLogoShell } from "../../src/lib/shell-policy.js";
 test("logo shell policy ignores repo-root work when the command does not touch artifacts/logo", () => {
   const cwd = mkdtempSync(join(tmpdir(), "logo-shell-scope-"));
   const workspaceRoot = cwd;
-  for (const command of ["sed -n '1,20p' README.md", "pnpm test", "rg -n foo SKILL.md"]) {
+  for (const command of [
+    "sed -n '1,20p' README.md",
+    "pnpm test",
+    "rg -n foo SKILL.md",
+    "node --input-type=module -e 'console.log(1)'",
+  ]) {
     assert.deepEqual(
       evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: 1 }),
       { decision: "allow" },

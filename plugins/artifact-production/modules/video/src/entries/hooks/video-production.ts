@@ -7,7 +7,6 @@ import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJso
 import { additionalContext, preToolDeny, stopBlock, writeJson, type HookEventName } from "@harness/core/hook-output";
 import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 import { evaluateVideoWrite, validateVideoModel } from "../../lib/contract.js";
 import { issueWriterCapability } from "../../lib/capability.js";
 import { findVideoProjects, loadVideoProject, resolveWorkspaceRoot } from "../../lib/project.js";
@@ -73,8 +72,7 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const activeProjectCount = isGenericMutationCommand(command) ? (await findVideoProjects(cwd)).roots.length : 0;
-      const result = evaluateVideoShell({ command, cwd, workspaceRoot, activeProjectCount });
+      const result = evaluateVideoShell({ command, cwd, workspaceRoot });
       if (result.decision === "deny") process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}\n`);
       else if (result.writer && result.writer !== "video-lint" && result.projectRoot && result.argv) {
         try {

@@ -8,7 +8,6 @@ import { eventCwd, eventSessionId, eventToolName, isStopHookActive, readStdinJso
 import { additionalContext, preToolDeny, stopBlock, writeJson } from "@harness/core/hook-output";
 import { markSessionEngagedArtifact, sessionEngagedArtifact } from "@harness/core/artifact-paths";
 import { eventTouchesArtifact, extractFileTargets, extractShellCommand } from "@harness/core/hook-targets";
-import { isGenericMutationCommand } from "@harness/core/path-protect";
 
 import {
   computePptxSubjectDigest,
@@ -40,8 +39,7 @@ async function runPre(event: HookEvent) {
 
   const command = extractShellCommand(event);
   if (command) {
-    const activeProjectCount = isGenericMutationCommand(command) ? (await findPptxProjects(cwd)).length : 0;
-    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd), activeProjectCount });
+    const decision = evaluatePptxShell({ command, cwd, workspaceRoot: resolveWorkspaceRoot(cwd) });
     if (decision.decision === "deny") return deny(`${decision.code}: ${decision.message}`);
     if (decision.writer && !["pptx-init", "pptx-lint"].includes(decision.writer) && decision.projectRoot && decision.argv) {
       try {

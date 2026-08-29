@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:eed40058e5610605add7b49c25242add1449244ae443a72fe98d8165501b222e
+// harness-source-hash: sha256:2dacaf9b88d10a099c4330aa41f0c0f58ac46b041bf30fe0aa69a15b6c96e973
 
 // plugins/artifact-production/modules/training/src/lib/contract.ts
 import { createHash } from "node:crypto";

@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:a12a031a56b397d5b29f818dec46cd623eb1b9fc8eccd7c71cf6281d1a9b6cc1
+// harness-source-hash: sha256:fc7c19bc4d8914439d6e3416e5710ae537c4947f54691186a3b2c9462eaf8ea2
 import {
   loadCompositionDeterministic,
   optimizeComposition
-} from "../chunks/chunk-LZ2DICVO.mjs";
+} from "../chunks/chunk-NHHPMMT4.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-CG7FL26B.mjs";
+} from "../chunks/chunk-CDUGBIPI.mjs";
 import {
   validateMusicModel
-} from "../chunks/chunk-WFXCVJEZ.mjs";
+} from "../chunks/chunk-MYMZ3E4E.mjs";
 
 // plugins/artifact-production/modules/music/src/entries/cli/project-lint.ts
 import { createRequire } from "node:module";

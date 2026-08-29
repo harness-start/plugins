@@ -37,14 +37,14 @@ function runHook(entry: string, mode: string, event: unknown, env: NodeJS.Proces
 }
 
 for (const [plugin, module, entryName, carrier] of CASES) {
-  test(`${plugin} denies an opaque interpreter mutation when its artifact project exists`, async () => {
+  test(`${plugin} ignores an unrelated repo-root interpreter when its artifact project exists`, async () => {
     const workspace = mkdtempSync(join(tmpdir(), `${carrier}-opaque-contract-`));
     const project = join(workspace, "artifacts", carrier, "demo");
     try {
       mkdirSync(project, { recursive: true });
       writeFileSync(join(project, "plan.contract.json"), `${JSON.stringify({ artifactId: "demo", targetStage: "source" })}\n`);
       const entry = resolve(`plugins/artifact-production/modules/${module}/dist/hooks/${entryName}.mjs`);
-      const command = `node -e "require('node:fs').writeFileSync(['artifacts','${carrier}','demo','dist','forged.bin'].join('/'),'forged')"`;
+      const command = "node --input-type=module <<'NODE'\nimport { chromium } from 'playwright';\nconsole.log(chromium);\nNODE";
       const result = await runHook(entry, "pre", {
         cwd: workspace,
         session_id: "artifact-shell-contract",
@@ -52,8 +52,7 @@ for (const [plugin, module, entryName, carrier] of CASES) {
         tool_input: { command },
       }, { ...process.env, HARNESS_HOST: "codex", PLUGIN_DATA: join(workspace, "plugin-data") });
       assert.equal(result.code, 0, result.stderr);
-      assert.notEqual(result.stdout, "", `${plugin} must return a deny decision`);
-      assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+      assert.equal(result.stdout, "", `${plugin} must leave unrelated repo-root interpreters outside artifact scope`);
     } finally {
       rmSync(workspace, { recursive: true, force: true });
     }

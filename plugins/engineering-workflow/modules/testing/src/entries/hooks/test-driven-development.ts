@@ -25,6 +25,7 @@ import {
   gitPathState,
   gitShowHead,
   hasGitHead,
+  listDirtyPaths,
   listHeadPaths,
   restoresHeadState,
 } from "../../lib/git-workspace.js";
@@ -113,6 +114,58 @@ function restoresBaseline(root: string, event: HookEvent, target: ActiveTarget):
   });
 }
 
+function dirtySourceTargets(root: string): ActiveTarget[] {
+  return listDirtyPaths(root).map((path) => {
+    const absolutePath = resolve(root, path);
+    return { absolutePath, path, ...classifyPath(path) };
+  }).filter((target): target is ActiveTarget => isActiveTarget(target) && target.kind === "source" && gitPathState(root, target.path).present);
+}
+
+function testRecord(root: string, event: HookEvent, target: ActiveTarget, proposed: boolean) {
+  const deleting = proposed && targetOperation(event, target.absolutePath) === "delete";
+  if (deleting) return null;
+  const content = proposed
+    ? proposedContent(event, target.absolutePath, readText(target.absolutePath))
+    : readText(target.absolutePath);
+  const context = resolveLanguageContext(root, target.path, target.language);
+  return {
+    path: target.path,
+    language: target.language,
+    evidence: extractTestEvidence(target.language, content, target.path, context),
+    dirty: gitShowHead(root, target.path) !== content,
+  };
+}
+
+function testChangeBreaksAuthorization(root: string, event: HookEvent, target: ActiveTarget, eventTargets: ActiveTarget[]): string | null {
+  const current = testRecord(root, event, target, false);
+  if (!current?.dirty) return null;
+  const proposed = testRecord(root, event, target, true);
+  for (const dirtySource of dirtySourceTargets(root)) {
+    if (dirtySource.language !== target.language) continue;
+    const source = sourceForTarget(root, event, dirtySource, false);
+    const context = resolveLanguageContext(root, dirtySource.path, dirtySource.language);
+    if (!sourceAuthorizedByTest(source, current, context)) continue;
+    if (proposed?.dirty && sourceAuthorizedByTest(source, proposed, context)) continue;
+    const candidates = new Set([
+      ...dirtyLiveTests(root, source, context),
+      ...eventTargets.filter((candidate) => candidate.kind === "test" && candidate.language === target.language).map((candidate) => candidate.path),
+    ]);
+    candidates.delete(target.path);
+    const hasAlternative = [...candidates].some((path) => {
+      const changedTarget = eventTargets.find((candidate) => candidate.kind === "test" && candidate.path === path);
+      const record = changedTarget ? testRecord(root, event, changedTarget, true) : testRecord(root, event, {
+        absolutePath: resolve(root, path),
+        path,
+        kind: "test",
+        language: target.language,
+      }, false);
+      return record?.dirty === true && sourceAuthorizedByTest(source, record, context);
+    });
+    if (!hasAlternative) return dirtySource.path;
+  }
+  return null;
+}
+
 function sourceForTarget(root: string, event: HookEvent, target: ActiveTarget, deleting: boolean): SourceLike {
   const current = readText(target.absolutePath);
   return {
@@ -177,7 +230,17 @@ async function runPre(event: HookEvent): Promise<void> {
     writeJson(preToolDeny(mixedWriteFinding()));
     return;
   }
-  if (!kinds.has("source")) return;
+  if (!kinds.has("source")) {
+    for (const target of targets) {
+      if (target.kind !== "test") continue;
+      const affectedSource = testChangeBreaksAuthorization(root, event, target, targets);
+      if (affectedSource) {
+        writeJson(preToolDeny(`[TDD Guard] Blocked ${target.path}: deleting or weakening this test would leave dirty implementation ${affectedSource} without a changed corresponding test. Restore the implementation first or keep another changed corresponding test.`));
+        return;
+      }
+    }
+    return;
+  }
   if (!hasGitHead(root)) {
     writeJson(preToolDeny("[TDD Guard] Blocked implementation change: this workspace has no git HEAD. Initialize a git repository with a commit, then change a corresponding test before retrying."));
     return;

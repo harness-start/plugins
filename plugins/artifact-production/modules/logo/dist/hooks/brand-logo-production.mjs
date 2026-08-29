@@ -1,18 +1,18 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ac5b59deb1154f3de9fc48d266a0dda71698e374ff81993353d80069d5766fe4
+// harness-source-hash: sha256:370f9db476cbb0b946700bec5fe34c55a297fe8308b5bd733a1c0d3b4f4ce5e7
 import {
   issueWriterCapability
-} from "../chunks/chunk-5AGM3KPE.mjs";
+} from "../chunks/chunk-DBLB772I.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-DNBEH7KW.mjs";
+} from "../chunks/chunk-IOV4IKM6.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot
-} from "../chunks/chunk-NQE6SP2U.mjs";
+} from "../chunks/chunk-WS3HCX7P.mjs";
 
 // plugins/artifact-production/modules/logo/src/entries/hooks/brand-logo-production.ts
 import { access } from "node:fs/promises";
@@ -358,21 +358,6 @@ function eventTouchesArtifact(event, carrier) {
   });
 }
 
-// core/src/path-protect.ts
-function isGenericMutationCommand(command) {
-  const text = String(command ?? "");
-  if (!text.trim()) return false;
-  if (/(?:^|[^0-9])>{1,2}\s*(?:"[^"]*"|'[^']*'|\S+)/u.test(text)) return true;
-  if (/<<\s*['"]?\w+/u.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:\/(?:usr\/)?bin\/)?(?:rm|mv|cp|tee|truncate|shred|unlink|chmod|chown|rsync|dd|install)\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])find\b[\s\S]*\s-delete\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])git\s+clean\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])sed\s+(?:-i\b|\S*i\S*\b)/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
-  if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
-  return false;
-}
-
 // plugins/artifact-production/modules/logo/src/lib/shell-policy.ts
 import { basename as basename2, dirname as dirname3, isAbsolute as isAbsolute2, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -484,10 +469,9 @@ function touchesLogo(command, cwd, workspaceRoot) {
 function evaluateLogoShell({
   command,
   cwd,
-  workspaceRoot,
-  activeProjectCount = 0
+  workspaceRoot
 }) {
-  if (!touchesLogo(command, cwd, workspaceRoot) && !(activeProjectCount > 0 && isGenericMutationCommand(String(command ?? "")))) return { decision: "allow" };
+  if (!touchesLogo(command, cwd, workspaceRoot)) return { decision: "allow" };
   const words = parseShellWords(expandKnownPluginRoot(command));
   const invocation = wrapperInvocation(words, cwd, workspaceRoot);
   if (invocation) {
@@ -581,14 +565,14 @@ async function main() {
     }
     const command = extractShellCommand(event) ?? "";
     if (command) {
-      const roots = isGenericMutationCommand(command) ? (await findLogoProjects(cwd)).roots : [];
-      const result = evaluateLogoShell({ command, cwd, workspaceRoot, activeProjectCount: roots.length });
+      const result = evaluateLogoShell({ command, cwd, workspaceRoot });
       if (result.decision === "deny") {
         process.stdout.write(`${JSON.stringify(deny(`${result.code}: ${result.message}`))}
 `);
         return;
       }
       if (!result.writer || !result.projectRoot || !result.argv) return;
+      const { roots } = await findLogoProjects(cwd);
       if (!roots.includes(result.projectRoot)) process.stdout.write(`${JSON.stringify(deny("PROJECT_ROOT_UNREGISTERED: registered writers require a discovered non-symlink logo project root"))}
 `);
       else {

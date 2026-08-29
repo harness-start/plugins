@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { readModuleRoutes } from "../../../../../core/tests/support/aio-routes.js";
+import * as hookEntry from "../src/entries/hooks/print-publication-production.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/print-publication-production.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 async function runPreHook(event) {
   return new Promise((resolve, reject) => {
@@ -48,6 +51,23 @@ test("pre hook denies unregistered shell mutators in print scope", async () => {
 
     assert.equal(result.code, 0);
     assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("pre hook allows an unrelated repo-root interpreter when a print project exists", async () => {
+  const root = mkdtempSync(join(tmpdir(), "print-hook-unrelated-"));
+  try {
+    const project = join(root, "artifacts", "print", "manual");
+    mkdirSync(project, { recursive: true });
+    const result = await runPreHook({
+      cwd: root,
+      tool_name: "exec_command",
+      tool_input: { cmd: "node --input-type=module -e 'console.log(1)'" },
+    });
+    assert.equal(result.code, 0);
+    assert.equal(result.stdout, "");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

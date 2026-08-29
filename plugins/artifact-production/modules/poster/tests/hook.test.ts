@@ -7,8 +7,12 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { readModuleRoutes } from "../../../../../core/tests/support/aio-routes.js";
+import * as hookEntry from "../src/entries/hooks/poster-production.js";
+import { evaluatePosterShell } from "../src/lib/shell-policy.js";
 
 const ENTRY = fileURLToPath(new URL("../dist/hooks/poster-production.mjs", import.meta.url));
+
+test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 test("Claude and Codex owner routes both register PostToolUseFailure", () => {
   assert.ok(readModuleRoutes(import.meta.url, "claude", "poster").PostToolUseFailure);
@@ -147,17 +151,21 @@ test(`pre hook allows an exact registered ${writer} invocation`, async () => {
 });
 }
 
-test("pre hook still allows an unrelated repo-root shell", async () => {
+test("pre hook still allows unrelated repo-root shell and interpreter commands", async () => {
   const root = mkdtempSync(join(tmpdir(), "poster-unrelated-"));
   try {
     mkdirSync(join(root, "artifacts", "poster", "launch"), { recursive: true });
-    const result = await run({
+    assert.deepEqual(evaluatePosterShell({
+      command: "node --input-type=module -e 'console.log(1)'",
       cwd: root,
-      tool_name: "Bash",
-      tool_input: { command: "npm test" },
-    });
-    assert.equal(result.code, 0);
-    assert.equal(result.stdout, "");
+      workspaceRoot: root,
+      activeProjectCount: 1,
+    }), { decision: "allow" });
+    for (const command of ["npm test", "node --input-type=module -e 'console.log(1)'"]) {
+      const result = await run({ cwd: root, tool_name: "Bash", tool_input: { command } });
+      assert.equal(result.code, 0);
+      assert.equal(result.stdout, "");
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -23,3 +23,10 @@ test("mutating find and interpreter escape hatches are denied in diagram scope",
   assert.equal(evaluateDiagramShell({ command: "find . -fprint output.txt", cwd: projectRoot, workspaceRoot }).decision, "deny");
   assert.equal(evaluateDiagramShell({ command: "node -e process.exit()", cwd: projectRoot, workspaceRoot }).decision, "deny");
 });
+
+test("an existing diagram project does not scope unrelated repo-root interpreters", () => {
+  assert.deepEqual(
+    evaluateDiagramShell({ command: "node --input-type=module -e 'console.log(1)'", cwd: workspaceRoot, workspaceRoot, activeProjectCount: 1 }),
+    { decision: "allow" },
+  );
+});

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:9d2f7f6d23fcd3907df21ad9088b47dc47f6c71f2388743a1e00eb80f6d0a3d3
+// harness-source-hash: sha256:d77ef085bdc97e283e5c820fe2d4c482d8563f0bb9c5cba7138275b3f7dc69b4
 
 // core/src/artifact-paths.ts
 import { existsSync as existsSync2, readFileSync, readdirSync } from "node:fs";

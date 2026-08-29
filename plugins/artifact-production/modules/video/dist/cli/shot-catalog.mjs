@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ffd517e46fb1a2824017357bfc2bc74469ca19f363f912dfd229786bc368cead
+// harness-source-hash: sha256:e43e79a4b1e44439529b9ae9133002565cac23a9b902524ba2c130520c2c6331
 import {
   getShotRecipe,
   searchShotLibrary,
   shotLibraryStats
-} from "../chunks/chunk-2EO5NQK7.mjs";
+} from "../chunks/chunk-BUPZJ3VI.mjs";
 
 // plugins/artifact-production/modules/video/src/entries/cli/shot-catalog.ts
 function usage() {

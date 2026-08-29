@@ -32,3 +32,10 @@ test("shell policy allows bounded read-only inspection", () => {
   assert.deepEqual(evaluateTrainingShell({ command: "rg TODO .", cwd: projectRoot, workspaceRoot }), { decision: "allow" });
   assert.equal(evaluateTrainingShell({ command: "git clean -fdx", cwd: projectRoot, workspaceRoot }).decision, "deny");
 });
+
+test("an existing training project does not scope unrelated repo-root interpreters", () => {
+  assert.deepEqual(
+    evaluateTrainingShell({ command: "node --input-type=module -e 'console.log(1)'", cwd: workspaceRoot, workspaceRoot, activeProjectCount: 1 }),
+    { decision: "allow" },
+  );
+});
