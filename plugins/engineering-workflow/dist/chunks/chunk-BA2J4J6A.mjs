@@ -1,4 +1,8 @@
-// harness-source-hash: sha256:bc70d033a8cfb1f46c896d35ac3fa5efaf6dd2cdd96c490b04d5708c42485ce8
+// harness-source-hash: sha256:fe42c16c0b48df1a41dd9beb344ec97c72e250f60a708ef27ec77013679ea6ce
+
+// core/src/owner-hook-runtime.ts
+import { AsyncLocalStorage } from "node:async_hooks";
+var invocationStorage = new AsyncLocalStorage();
 
 // core/src/hook-event.ts
 function isRecord(value) {
@@ -446,9 +450,7 @@ function isWorkOrderPath(path, repoRoot, config) {
 
 // plugins/engineering-workflow/src/domains/debugging/lib/ledger.ts
 var WRITER_ACTION = "(init|open|resume|activate|claim|affect|pause|close|abort|status|add-bug)";
-var WRITER_RE = new RegExp(`debug-workflow\\.(?:mjs|ts)\\s+${WRITER_ACTION}\\b`, "u");
 var OWNER_WRITER_RE = new RegExp(`harness\\.(?:mjs|ts)\\s+debug\\s+${WRITER_ACTION}\\b`, "u");
-var WRITER_ALIAS_RE = new RegExp(`(?:\\$DWG\\b|debug-workflow)\\s+${WRITER_ACTION}\\b`, "u");
 var EVENT_TYPES = /* @__PURE__ */ new Set(["opened", "activate", "claim", "affect", "queued-bug", "pause", "resume", "close", "abort", "architecture-review"]);
 var ACTIVE_BUG_STATUSES2 = /* @__PURE__ */ new Set(["investigating", "fixing", "verifying"]);
 var TERMINAL_BUG_STATUSES2 = /* @__PURE__ */ new Set(["resolved", "blocked", "deferred", "duplicate", "architecture-review"]);
@@ -479,12 +481,11 @@ function isLedgerManagedPath(path, repoRoot, config) {
 }
 function isOfficialWriterCommand(command) {
   const textValue = String(command ?? "");
-  if (WRITER_RE.test(textValue) || OWNER_WRITER_RE.test(textValue) || WRITER_ALIAS_RE.test(textValue)) return true;
-  return /\$DWG\b|debug-workflow\.(?:mjs|ts)\b|harness\.(?:mjs|ts)\s+debug\b/u.test(textValue) && new RegExp(`\\b${WRITER_ACTION}\\b`, "u").test(textValue);
+  return OWNER_WRITER_RE.test(textValue);
 }
 function writerActionFromCommand(command) {
   const textValue = String(command ?? "");
-  return WRITER_RE.exec(textValue)?.[1] || OWNER_WRITER_RE.exec(textValue)?.[1] || WRITER_ALIAS_RE.exec(textValue)?.[1] || null;
+  return OWNER_WRITER_RE.exec(textValue)?.[1] || null;
 }
 function commandFlag(command, name) {
   const matched = String(command ?? "").match(new RegExp(`--${name}(?:\\s+|=)(?:"([^"]+)"|'([^']+)'|(\\S+))`, "u"));

@@ -7,9 +7,7 @@ import type { PluginConfig } from "./config.js";
 import { loadWorkOrder, type WorkOrder, type Bug } from "./work-order.js";
 
 const WRITER_ACTION = "(init|open|resume|activate|claim|affect|pause|close|abort|status|add-bug)";
-const WRITER_RE = new RegExp(`debug-workflow\\.(?:mjs|ts)\\s+${WRITER_ACTION}\\b`, "u");
 const OWNER_WRITER_RE = new RegExp(`harness\\.(?:mjs|ts)\\s+debug\\s+${WRITER_ACTION}\\b`, "u");
-const WRITER_ALIAS_RE = new RegExp(`(?:\\$DWG\\b|debug-workflow)\\s+${WRITER_ACTION}\\b`, "u");
 const EVENT_TYPES = new Set(["opened", "activate", "claim", "affect", "queued-bug", "pause", "resume", "close", "abort", "architecture-review"]);
 const ACTIVE_BUG_STATUSES = new Set(["investigating", "fixing", "verifying"]);
 const TERMINAL_BUG_STATUSES = new Set(["resolved", "blocked", "deferred", "duplicate", "architecture-review"]);
@@ -83,14 +81,12 @@ export function isLedgerManagedPath(path: string, repoRoot: string, config: Plug
 
 export function isOfficialWriterCommand(command: unknown): boolean {
   const textValue = String(command ?? "");
-  if (WRITER_RE.test(textValue) || OWNER_WRITER_RE.test(textValue) || WRITER_ALIAS_RE.test(textValue)) return true;
-  return /\$DWG\b|debug-workflow\.(?:mjs|ts)\b|harness\.(?:mjs|ts)\s+debug\b/u.test(textValue)
-    && new RegExp(`\\b${WRITER_ACTION}\\b`, "u").test(textValue);
+  return OWNER_WRITER_RE.test(textValue);
 }
 
 export function writerActionFromCommand(command: unknown): string | null {
   const textValue = String(command ?? "");
-  return WRITER_RE.exec(textValue)?.[1] || OWNER_WRITER_RE.exec(textValue)?.[1] || WRITER_ALIAS_RE.exec(textValue)?.[1] || null;
+  return OWNER_WRITER_RE.exec(textValue)?.[1] || null;
 }
 
 export function commandFlag(command: unknown, name: string): string | null {

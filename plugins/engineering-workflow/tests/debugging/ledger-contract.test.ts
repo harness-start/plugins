@@ -330,9 +330,9 @@ test("writer resume with the same id and a higher epoch rebinds the session", ()
 });
 
 test("official writer command is recognized and a claim event is visible", () => {
-  assert.equal(isOfficialWriterCommand("node /plugins/software-debugging/dist/cli/debug-workflow.mjs init --slug login"), true);
   assert.equal(isOfficialWriterCommand("node /plugins/engineering-workflow/dist/cli/harness.mjs debug init --slug login"), true);
-  assert.equal(isOfficialWriterCommand("node \"$DWG\" init --cwd \"$PWD\" --slug login"), true);
+  assert.equal(isOfficialWriterCommand("node /plugins/software-debugging/dist/cli/debug-workflow.mjs init --slug login"), false);
+  assert.equal(isOfficialWriterCommand("node \"$DWG\" init --cwd \"$PWD\" --slug login"), false);
   assert.equal(isOfficialWriterCommand("python3 -c \"open('.debug-workflow/x/intent.json','w').write('x')\""), false);
   const root = mkdtempSync(join(tmpdir(), "debug-claim-"));
   execFileSync("git", ["init", "-q"], { cwd: root });

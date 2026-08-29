@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:bc70d033a8cfb1f46c896d35ac3fa5efaf6dd2cdd96c490b04d5708c42485ce8
+// harness-source-hash: sha256:fe42c16c0b48df1a41dd9beb344ec97c72e250f60a708ef27ec77013679ea6ce
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   parseWriterStdout,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-KDAHDPBD.mjs";
+} from "../chunks/chunk-BA2J4J6A.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -54,6 +54,14 @@ function parseEvent(raw) {
 function combinedOutput(eventName2, outputs) {
   for (const output of outputs) {
     if (output.decision === "block" || output.hookSpecificOutput?.permissionDecision === "deny") return output;
+  }
+  const codexFeedback = outputs.filter((output) => output.continue === false && Boolean(output.reason));
+  if (codexFeedback.length > 0) {
+    return {
+      continue: false,
+      stopReason: codexFeedback.map((output) => output.stopReason).filter(Boolean).join("\n") || "Plugin review feedback replaced the ordinary tool success output.",
+      reason: codexFeedback.map((output) => output.reason).filter(Boolean).join("\n\n")
+    };
   }
   const contexts = outputs.map((output) => output.hookSpecificOutput?.additionalContext).filter((context2) => Boolean(context2));
   if (contexts.length === 0) return null;

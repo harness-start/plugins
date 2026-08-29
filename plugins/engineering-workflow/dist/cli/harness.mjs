@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:bc70d033a8cfb1f46c896d35ac3fa5efaf6dd2cdd96c490b04d5708c42485ce8
+// harness-source-hash: sha256:fe42c16c0b48df1a41dd9beb344ec97c72e250f60a708ef27ec77013679ea6ce
 import {
   DEFAULT_CONFIG,
   digestText,
@@ -7,11 +7,13 @@ import {
   isRecord,
   loadLedger,
   scanLedgers
-} from "../chunks/chunk-KDAHDPBD.mjs";
+} from "../chunks/chunk-BA2J4J6A.mjs";
 
 // core/src/aio-cli.ts
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+var ownerCliInvocation = new AsyncLocalStorage();
 function pluginRoot() {
   const configured = process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   if (configured) return resolve(configured);
@@ -27,7 +29,8 @@ async function dispatchCliRoute(input) {
   const handler = input.handlers[route.handler];
   if (!handler) throw new Error(`${route.handler}: owner CLI handler is not registered`);
   const args = [...route.args ?? [], ...route.forwardAction ? [action, ...rest] : rest];
-  const result = await handler(args);
+  const publicArgv = [resolve(process.argv[1] ?? ""), ...input.argv];
+  const result = await ownerCliInvocation.run(publicArgv, () => handler(args));
   return typeof result === "number" ? result : typeof process.exitCode === "number" ? process.exitCode : 0;
 }
 async function runOwnerCli(argv, handlers) {
