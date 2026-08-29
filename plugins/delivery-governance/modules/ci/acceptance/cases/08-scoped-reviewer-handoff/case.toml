@@ -1,4 +1,0 @@
-id = "08-scoped-reviewer-handoff"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["skill", "review", "context-isolation"]

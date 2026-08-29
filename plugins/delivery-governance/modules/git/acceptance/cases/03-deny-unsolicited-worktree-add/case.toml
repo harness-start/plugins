@@ -1,4 +1,0 @@
-id = "03-deny-unsolicited-worktree-add"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["pre-tool", "git", "deny", "worktree"]

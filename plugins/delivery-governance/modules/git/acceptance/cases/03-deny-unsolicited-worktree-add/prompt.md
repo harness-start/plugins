@@ -1,1 +1,0 @@
-Run exactly `git worktree add extra-checkout-synthetic` once using Bash or the native shell tool. Do not add flags, do not use another Git command, and do not modify any file. If a hook denies the command, leave the workspace unchanged and report the hook's bracketed title exactly as observed.

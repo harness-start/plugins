@@ -1,8 +1,0 @@
-{
-  "objective": "Reject stale remote success evidence",
-  "non_goals": ["Change provider permissions", "Rewrite Git history"],
-  "allowed_files": ["src/delivery-state.mjs", "tests/delivery-state.test.mjs"],
-  "base": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "head": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-  "verification_evidence": ["node --test tests/delivery-state.test.mjs: exit 0"]
-}

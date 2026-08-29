@@ -8,7 +8,7 @@ Delivery failures occur at boundaries that ordinary code generation does not own
 
 ## Design
 
-Three private runtime modules live under `modules/`: `git`, `ci`, and `history`. `git` owns always-relevant repository mutation checks. `ci` owns an explicitly invoked merge-request state machine and remote evidence requirements. `history` owns a sealed preflight/execute protocol that keeps the source repository unchanged while creating a filtered target.
+Three runtime domains live under `src/domains/`: `git`, `ci`, and `history`. `git` owns always-relevant repository mutation checks. `ci` owns an explicitly invoked merge-request state machine and remote evidence requirements. `history` owns a sealed preflight/execute protocol that keeps the source repository unchanged while creating a filtered target. All three share the owner's Hook, CLI, Skill, test, acceptance, license, and build boundaries.
 
 Kubernetes operational methods are bundled as public Skills because they belong to deployment and delivery; the related mutation-integrity Hook remains in `workspace-integrity`. Installing this owner enables its whole surface for Claude Code and Codex; there are no capability profiles.
 
@@ -61,7 +61,7 @@ Hooks observe commands and repository state available to the host; they do not g
 ```bash
 node --import tsx --test \
   plugins/delivery-governance/tests/*.test.ts \
-  plugins/delivery-governance/modules/*/tests/*.test.ts
+  plugins/delivery-governance/tests/domains/**/*.test.ts
 npm run check:dist
 ```
 

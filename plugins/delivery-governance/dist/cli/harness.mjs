@@ -1,9 +1,25 @@
-// harness-source-hash: sha256:87edcd1579b4ff2d54622f1cf214f0ef3b926d4443a88bb193de2d2038e5df07
+// harness-source-hash: sha256:42f4e1506ae8cf08535d18bda6faea06232f99470ecf9f75a82c5b7ca233ee1b
 
 // core/src/aio-cli.ts
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+var ownerCliInvocation = new AsyncLocalStorage();
+function ownerCliModuleHandler(loader) {
+  return async (args) => {
+    const originalArgv = process.argv;
+    const originalExitCode = process.exitCode;
+    process.argv = [originalArgv[0] ?? process.execPath, originalArgv[1] ?? "owner-cli", ...args];
+    process.exitCode = void 0;
+    try {
+      await loader();
+      return typeof process.exitCode === "number" ? process.exitCode : 0;
+    } finally {
+      process.argv = originalArgv;
+      process.exitCode = originalExitCode;
+    }
+  };
+}
 function pluginRoot() {
   const configured = process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   if (configured) return resolve(configured);
@@ -19,11 +35,12 @@ async function dispatchCliRoute(input) {
   const handler = input.handlers[route.handler];
   if (!handler) throw new Error(`${route.handler}: owner CLI handler is not registered`);
   const args = [...route.args ?? [], ...route.forwardAction ? [action, ...rest] : rest];
-  const result = await handler(args);
+  const publicArgv = [resolve(process.argv[1] ?? ""), ...input.argv];
+  const result = await ownerCliInvocation.run(publicArgv, () => handler(args));
   return typeof result === "number" ? result : typeof process.exitCode === "number" ? process.exitCode : 0;
 }
-function runAioCli(argv = process.argv.slice(2), handlers) {
-  const [resource, action, ...rest] = argv;
+async function runOwnerCli(argv, handlers2) {
+  const [resource, action] = argv;
   if (!resource || !action) {
     process.stderr.write("Usage: harness <resource> <action> [arguments]\n");
     process.exitCode = 2;
@@ -39,34 +56,22 @@ function runAioCli(argv = process.argv.slice(2), handlers) {
     process.exitCode = 1;
     return;
   }
-  const route = routes[resource]?.[action] ?? routes[resource]?.["*"];
-  if (!route) {
+  if (!routes[resource]?.[action] && !routes[resource]?.["*"]) {
     process.stderr.write(`[harness] unsupported command: ${resource} ${action}
 `);
     process.exitCode = 2;
     return;
   }
-  if (handlers) {
-    return dispatchCliRoute({ argv, handlers, routes }).then((status) => {
-      process.exitCode = status;
-    });
-  }
-  const legacyRoute = route;
-  const moduleRoot = resolve(root, "modules", legacyRoute.module);
-  const args = [...legacyRoute.args ?? [], ...legacyRoute.forwardAction ? [action, ...rest] : rest];
-  const result = spawnSync(process.execPath, [resolve(moduleRoot, legacyRoute.script), ...args], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      PLUGIN_ROOT: moduleRoot,
-      CLAUDE_PLUGIN_ROOT: moduleRoot,
-      AI_EXPERTS_TRIGGER_FROM: process.env.AI_EXPERTS_TRIGGER_FROM ?? `harness:${resource}:${action}`
-    }
-  });
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
+  process.exitCode = await dispatchCliRoute({ argv, handlers: handlers2, routes });
 }
 
 // plugins/delivery-governance/src/entries/cli/harness.ts
-runAioCli();
+var handlers = {
+  "history:git-history-migration-execute": ownerCliModuleHandler(async () => {
+    await import("../chunks/git-history-migration-execute-G7WGT2EB.mjs");
+  }),
+  "history:git-history-migration-preflight": ownerCliModuleHandler(async () => {
+    await import("../chunks/git-history-migration-preflight-XPLOBVAZ.mjs");
+  })
+};
+await runOwnerCli(process.argv.slice(2), handlers);

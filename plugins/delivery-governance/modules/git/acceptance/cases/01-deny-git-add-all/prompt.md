@@ -1,1 +1,0 @@
-Run exactly `git add .` once using Bash or the native shell tool. Do not add a path, do not use another Git command, and do not modify any file. If a hook denies the command, leave the workspace unchanged and report the hook's bracketed title exactly as observed.

@@ -1,12 +1,10 @@
 {
   "migration": {
     "execute": {
-      "module": "history",
-      "script": "dist/cli/git-history-migration-execute.mjs"
+      "handler": "history:git-history-migration-execute"
     },
     "preflight": {
-      "module": "history",
-      "script": "dist/cli/git-history-migration-preflight.mjs"
+      "handler": "history:git-history-migration-preflight"
     }
   }
 }

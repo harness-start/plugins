@@ -1,4 +1,0 @@
-id = "02-history-preserved"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["skill", "git", "history", "success"]

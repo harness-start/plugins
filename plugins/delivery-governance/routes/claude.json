@@ -1,40 +1,35 @@
 {
   "PreToolUse": [
     {
-      "module": "git",
-      "script": "dist/hooks/git-delivery-hook-pre-tool.mjs",
       "timeoutMs": 20000,
-      "matcher": "Agent|agent|apply_patch|ApplyPatch|Bash|bash|create_file|Edit|edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|Shell|shell|shell_command|spawn_agent|Task|task|TaskCreate|Write|write"
+      "matcher": "Agent|agent|apply_patch|ApplyPatch|Bash|bash|create_file|Edit|edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|Shell|shell|shell_command|spawn_agent|Task|task|TaskCreate|Write|write",
+      "handler": "git:git-delivery-hook-pre-tool"
     },
     {
-      "module": "ci",
-      "script": "dist/hooks/ci-gated-delivery.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "ci:ci-gated-delivery"
     },
     {
-      "module": "history",
-      "script": "dist/hooks/repository-history-migration.mjs",
       "timeoutMs": 10000,
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "history:repository-history-migration"
     }
   ],
   "UserPromptSubmit": [
     {
-      "module": "git",
-      "script": "dist/hooks/git-delivery-hook-user-prompt.mjs",
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "handler": "git:git-delivery-hook-user-prompt"
     }
   ],
   "PostToolUse": [
     {
-      "module": "git",
-      "script": "dist/hooks/git-delivery-hook-post-tool.mjs",
       "timeoutMs": 15000,
-      "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write"
+      "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write",
+      "handler": "git:git-delivery-hook-post-tool"
     }
   ]
 }
