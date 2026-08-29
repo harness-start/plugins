@@ -1,4 +1,0 @@
-id = "03-deny-timeout-rm"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["pre-tool", "deny", "shell", "dangerous-rm"]

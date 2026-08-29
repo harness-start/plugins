@@ -1,157 +1,150 @@
 {
   "PreToolUse": [
     {
-      "module": "commands",
-      "script": "dist/hooks/cmd-safety-hook-pre-tool.mjs",
       "timeoutMs": 15000,
       "trigger": "command-safety:pre-tool-use",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
+      "handler": "commands:cmd-safety-hook-pre-tool"
     },
     {
-      "module": "source",
-      "script": "dist/hooks/source-integrity.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "source-integrity:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "source:source-integrity"
     },
     {
-      "module": "android",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "android-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "android:domain-hook"
     },
     {
-      "module": "go",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "go-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "go:domain-hook"
     },
     {
-      "module": "ios",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "ios-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "ios:domain-hook"
     },
     {
-      "module": "java",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "java-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "java:domain-hook"
     },
     {
-      "module": "kubernetes",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "kubernetes-operations:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "kubernetes:domain-hook"
     },
     {
-      "module": "nix",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "nix-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "nix:domain-hook"
     },
     {
-      "module": "php",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "php-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "php:domain-hook"
     },
     {
-      "module": "python",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "python-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "python:domain-hook"
     },
     {
-      "module": "react-native",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "react-native-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "react-native:domain-hook"
     },
     {
-      "module": "rust",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "rust-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "rust:domain-hook"
     },
     {
-      "module": "web",
-      "script": "dist/hooks/domain-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "web-frontend-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "web:domain-hook"
     }
   ],
   "PostToolUse": [
     {
-      "module": "commands",
-      "script": "dist/hooks/cmd-safety-hook-post-tool.mjs",
-      "timeoutMs": 15000,
-      "trigger": "command-safety:post-tool-use",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write"
+      "args": [
+        "post"
+      ],
+      "timeoutMs": 60000,
+      "trigger": "domain-engineering:post",
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "domains:post-tool"
     },
     {
-      "module": "source",
-      "script": "dist/hooks/source-integrity.mjs",
+      "timeoutMs": 15000,
+      "trigger": "command-safety:post-tool-use",
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+      "handler": "commands:cmd-safety-hook-post-tool"
+    },
+    {
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "source-integrity:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "source:source-integrity"
     },
     {
-      "module": "quality",
-      "script": "dist/hooks/engineering-quality-post.mjs",
       "timeoutMs": 60000,
       "trigger": "engineering-quality:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
+      "handler": "quality:engineering-quality-post"
     }
   ]
 }

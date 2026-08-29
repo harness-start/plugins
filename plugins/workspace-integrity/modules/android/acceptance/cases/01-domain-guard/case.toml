@@ -1,4 +1,0 @@
-id = "01-domain-guard"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["pre-tool", "domain", "deny"]

@@ -1,4 +1,0 @@
-id = "02-deny-package-lockfile"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["pre-tool", "react-native", "lockfile"]

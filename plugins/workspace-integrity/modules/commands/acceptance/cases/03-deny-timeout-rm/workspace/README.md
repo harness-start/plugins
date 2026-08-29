@@ -1,1 +1,0 @@
-timeout rm fixture

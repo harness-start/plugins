@@ -8,9 +8,9 @@ Many agent failures are independent of the requested feature: rewriting a lockfi
 
 ## Design
 
-The owner dispatches Hook events to private modules under `modules/`. Generic responsibilities are owned by `commands`, `source`, and `quality`. Domain mutation guards are implemented by `android`, `go`, `ios`, `java`, `kubernetes`, `nix`, `php`, `python`, `react-native`, `rust`, and `web`.
+The owner dispatches Hook events in process to implementations under `src/domains/`. Generic responsibilities are owned by `commands`, `source`, and `quality`. Domain mutation guards are implemented by `android`, `go`, `ios`, `java`, `kubernetes`, `nix`, `php`, `python`, `react-native`, `rust`, and `web`. Every domain shares the owner's Hook, Skill, test, acceptance, license, and build boundaries.
 
-Domain modules participate only in `PreToolUse`: they classify protected paths and dangerous mutation shapes before a write. They do not run automatic language lint or format workflows after every edit, and their large language reference Skills are not exposed at the owner level. Installing the owner activates all protections; there are no capability profiles.
+Domain guards classify protected paths and dangerous mutation shapes before a write, and selected bounded source scans can report findings after an observed mutation. They do not run automatic language lint or format workflows after every edit. Their bundled engineering Skills remain available from this owner without becoming Hook prerequisites. Installing the owner activates all protections; there are no capability profiles.
 
 ## Capabilities
 
@@ -34,19 +34,19 @@ Do not use it as a substitute for project tests, compiler checks, security scann
 
 ## Runtime behavior
 
-At `PreToolUse`, the dispatcher invokes matching domain and generic modules. Any deterministic deny is returned immediately; advisory contexts can be combined. At `PostToolUse`, only `commands`, `quality`, and `source` perform bounded checks on observed writes. A Skill name is never a prerequisite for enforcement.
+At `PreToolUse`, the dispatcher invokes matching domain and generic handlers. Any deterministic deny is returned immediately; advisory contexts can be combined. At `PostToolUse`, the domain scans plus `commands`, `quality`, and `source` perform bounded checks on observed writes. A Skill name is never a prerequisite for enforcement.
 
 Path extraction covers host file tools, patches, moves, redirects, and common shell writers. Each module is scoped to evidence in the current tool call and repository; the presence of a language file elsewhere does not authorize broad automatic workflows.
 
 ## Public interfaces
 
-The public Skills are deliberately limited to configuration and diagnosis:
+The public Skills include configuration and diagnosis methods plus the domain engineering references bundled with this owner. The configuration Skills are:
 
 - `command-safety-config` for `.command-safety.mjs`;
 - `source-integrity-config` for `.source-integrity.mjs`;
 - `engineering-quality-config` for `.engineering-quality.mjs`.
 
-This owner exposes no public CLI or MCP server. Its runtime interface is the platform-specific Hook manifest plus the three project configuration files above.
+Domain Skills include Android, Go, iOS, Java, Kubernetes, Nix, PHP, Python, React Native, Rust, and web engineering methods under `skills/`. This owner exposes no public CLI or MCP server. Its runtime interface is the platform-specific Hook manifest plus the three project configuration files above.
 
 ## Configuration and state
 
@@ -54,14 +54,14 @@ Project-owned JavaScript configuration can add narrow path rules, change support
 
 ## Boundaries
 
-Hooks can constrain only tool activity visible to Claude Code or Codex; they are not an operating-system sandbox. A denied write proves that a known unsafe shape was stopped, while an allowed write does not prove correctness. Domain modules intentionally cover mutation integrity rather than comprehensive language expertise. Generated-file ownership and lockfile rules still depend on recognizable project evidence and cannot infer undocumented custom generators.
+Hooks can constrain only tool activity visible to Claude Code or Codex; they are not an operating-system sandbox. A denied write proves that a known unsafe shape was stopped, while an allowed write does not prove correctness. Domain handlers intentionally cover mutation integrity rather than comprehensive language enforcement. Generated-file ownership and lockfile rules still depend on recognizable project evidence and cannot infer undocumented custom generators.
 
 ## Verification
 
 ```bash
 node --import tsx --test \
   plugins/workspace-integrity/tests/*.test.ts \
-  plugins/workspace-integrity/modules/*/tests/*.test.ts
+  plugins/workspace-integrity/tests/domains/**/*.test.ts
 npm run check:dist
 ```
 

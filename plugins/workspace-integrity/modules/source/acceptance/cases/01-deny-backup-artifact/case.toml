@@ -1,4 +1,0 @@
-id = "01-deny-backup-artifact"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["pre-tool", "source-sanity", "deny"]

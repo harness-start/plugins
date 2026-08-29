@@ -176,5 +176,5 @@ console.log("ok", (cfg.rules ?? []).length, "rules");
 
 ## Reference
 
-- 插件文档：`${CLAUDE_PLUGIN_ROOT}/modules/commands/README.md` 或同级 `README.md`。
+- Plugin documentation: `${CLAUDE_PLUGIN_ROOT}/README.md`.
 - Examples: `references/example-config.mjs` in this skill directory.

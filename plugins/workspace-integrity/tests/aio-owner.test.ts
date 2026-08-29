@@ -3,6 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { test } from "node:test";
 
+import type {} from "../src/entries/hooks/dispatcher.js";
+import type {} from "../src/entries/hooks/line-budget-check.js";
+import type {} from "../src/entries/hooks/markdown-check.js";
+
 const root = resolve(import.meta.dirname, "..");
 
 test("workspace-integrity exposes one self-contained AIO entrypoint", () => {
@@ -12,4 +16,9 @@ test("workspace-integrity exposes one self-contained AIO entrypoint", () => {
     assert.equal(typeof hooks.hooks, "object");
   }
   assert.ok(existsSync(resolve(root, "src/entries/hooks/dispatcher.ts")));
+  const dispatcher = readFileSync(resolve(root, "src/entries/hooks/dispatcher.ts"), "utf8");
+  assert.match(dispatcher, /runOwnerDispatcher/u);
+  assert.doesNotMatch(dispatcher, /runAioDispatcher/u);
+  assert.ok(existsSync(resolve(root, "src/entries/hooks/line-budget-check.ts")));
+  assert.ok(existsSync(resolve(root, "src/entries/hooks/markdown-check.ts")));
 });
