@@ -1,143 +1,129 @@
 {
   "SessionStart": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "evidence-based-research:session"
+      "trigger": "evidence-based-research:session",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "writing",
-      "script": "dist/hooks/professional-writing.mjs",
       "timeoutMs": 10000,
-      "trigger": "professional-writing:session-start"
+      "trigger": "professional-writing:session-start",
+      "handler": "writing:professional-writing"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "work-reporting:session"
+      "trigger": "work-reporting:session",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "UserPromptSubmit": [
     {
-      "module": "writing",
-      "script": "dist/hooks/professional-writing.mjs",
       "args": [
         "prompt"
       ],
       "timeoutMs": 10000,
-      "trigger": "professional-writing:prompt"
+      "trigger": "professional-writing:prompt",
+      "handler": "writing:professional-writing"
     },
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "prompt"
       ],
       "timeoutMs": 10000,
-      "trigger": "evidence-based-research:prompt"
+      "trigger": "evidence-based-research:prompt",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "prompt"
       ],
       "timeoutMs": 10000,
-      "trigger": "work-reporting:prompt"
+      "trigger": "work-reporting:prompt",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "PreToolUse": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "evidence-based-research:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
       "trigger": "work-reporting:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "PostToolUse": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "evidence-based-research:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "writing",
-      "script": "dist/hooks/professional-writing.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "professional-writing:post",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write",
+      "handler": "writing:professional-writing"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
       "trigger": "work-reporting:post",
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "Stop": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "evidence-based-research:stop"
+      "trigger": "evidence-based-research:stop",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "stop"
       ],
       "timeoutMs": 10000,
-      "trigger": "work-reporting:stop"
+      "trigger": "work-reporting:stop",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "PostToolUseFailure": [
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "failure"
       ],
       "timeoutMs": 10000,
       "trigger": "work-reporting:failure",
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "reporting:work-reporting-hook"
     }
   ]
 }

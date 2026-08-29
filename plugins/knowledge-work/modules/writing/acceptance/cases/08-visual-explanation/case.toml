@@ -1,4 +1,0 @@
-id = "08-visual-explanation"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["session-start", "skill-routing", "response", "visual", "outcome"]

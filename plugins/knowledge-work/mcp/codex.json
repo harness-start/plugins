@@ -1,7 +1,7 @@
 {
   "research_provenance": {
     "command": "node",
-    "args": ["./modules/research/dist/mcp/research-provenance-server.mjs"],
+    "args": ["./dist/mcp/research-provenance-server.mjs"],
     "cwd": ".",
     "env": {
       "RESEARCH_PROVENANCE_HOST": "codex",

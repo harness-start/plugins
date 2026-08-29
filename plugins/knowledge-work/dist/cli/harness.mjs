@@ -1,9 +1,25 @@
-// harness-source-hash: sha256:1d549e602b47b6eb5959bf80d179deb20f8294ea9dc24e9cb6ca3094814a392a
+// harness-source-hash: sha256:79eb582ff70d8199af6be7045d1a61bcfac5a7992385c0dc88fd75a3d05b1601
 
 // core/src/aio-cli.ts
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { spawnSync } from "node:child_process";
+var ownerCliInvocation = new AsyncLocalStorage();
+function ownerCliModuleHandler(loader) {
+  return async (args) => {
+    const originalArgv = process.argv;
+    const originalExitCode = process.exitCode;
+    process.argv = [originalArgv[0] ?? process.execPath, originalArgv[1] ?? "owner-cli", ...args];
+    process.exitCode = void 0;
+    try {
+      await loader();
+      return typeof process.exitCode === "number" ? process.exitCode : 0;
+    } finally {
+      process.argv = originalArgv;
+      process.exitCode = originalExitCode;
+    }
+  };
+}
 function pluginRoot() {
   const configured = process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   if (configured) return resolve(configured);
@@ -19,11 +35,12 @@ async function dispatchCliRoute(input) {
   const handler = input.handlers[route.handler];
   if (!handler) throw new Error(`${route.handler}: owner CLI handler is not registered`);
   const args = [...route.args ?? [], ...route.forwardAction ? [action, ...rest] : rest];
-  const result = await handler(args);
+  const publicArgv = [resolve(process.argv[1] ?? ""), ...input.argv];
+  const result = await ownerCliInvocation.run(publicArgv, () => handler(args));
   return typeof result === "number" ? result : typeof process.exitCode === "number" ? process.exitCode : 0;
 }
-function runAioCli(argv = process.argv.slice(2), handlers) {
-  const [resource, action, ...rest] = argv;
+async function runOwnerCli(argv, handlers2) {
+  const [resource, action] = argv;
   if (!resource || !action) {
     process.stderr.write("Usage: harness <resource> <action> [arguments]\n");
     process.exitCode = 2;
@@ -39,34 +56,68 @@ function runAioCli(argv = process.argv.slice(2), handlers) {
     process.exitCode = 1;
     return;
   }
-  const route = routes[resource]?.[action] ?? routes[resource]?.["*"];
-  if (!route) {
+  if (!routes[resource]?.[action] && !routes[resource]?.["*"]) {
     process.stderr.write(`[harness] unsupported command: ${resource} ${action}
 `);
     process.exitCode = 2;
     return;
   }
-  if (handlers) {
-    return dispatchCliRoute({ argv, handlers, routes }).then((status) => {
-      process.exitCode = status;
-    });
-  }
-  const legacyRoute = route;
-  const moduleRoot = resolve(root, "modules", legacyRoute.module);
-  const args = [...legacyRoute.args ?? [], ...legacyRoute.forwardAction ? [action, ...rest] : rest];
-  const result = spawnSync(process.execPath, [resolve(moduleRoot, legacyRoute.script), ...args], {
-    cwd: process.cwd(),
-    stdio: "inherit",
-    env: {
-      ...process.env,
-      PLUGIN_ROOT: moduleRoot,
-      CLAUDE_PLUGIN_ROOT: moduleRoot,
-      AI_EXPERTS_TRIGGER_FROM: process.env.AI_EXPERTS_TRIGGER_FROM ?? `harness:${resource}:${action}`
-    }
-  });
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
+  process.exitCode = await dispatchCliRoute({ argv, handlers: handlers2, routes });
 }
 
 // plugins/knowledge-work/src/entries/cli/harness.ts
-runAioCli();
+var handlers = {
+  "reporting:daily-work-report-collect": ownerCliModuleHandler(async () => {
+    await import("../chunks/daily-work-report-collect-ABIG7UJH.mjs");
+  }),
+  "reporting:daily-work-report-prepare": ownerCliModuleHandler(async () => {
+    await import("../chunks/daily-work-report-prepare-MSFATEQ4.mjs");
+  }),
+  "reporting:daily-work-report-save": ownerCliModuleHandler(async () => {
+    await import("../chunks/daily-work-report-save-3NMNICZI.mjs");
+  }),
+  "reporting:daily-work-report-transcript-scan": ownerCliModuleHandler(async () => {
+    await import("../chunks/daily-work-report-transcript-scan-CKV5EKZP.mjs");
+  }),
+  "reporting:weekly-work-report-collect": ownerCliModuleHandler(async () => {
+    await import("../chunks/weekly-work-report-collect-3IUHM4XZ.mjs");
+  }),
+  "reporting:weekly-work-report-prepare": ownerCliModuleHandler(async () => {
+    await import("../chunks/weekly-work-report-prepare-XBJPN5RO.mjs");
+  }),
+  "reporting:weekly-work-report-save": ownerCliModuleHandler(async () => {
+    await import("../chunks/weekly-work-report-save-HACNKIAU.mjs");
+  }),
+  "reporting:weekly-work-report-transcript-scan": ownerCliModuleHandler(async () => {
+    await import("../chunks/weekly-work-report-transcript-scan-6OVVJ5AX.mjs");
+  }),
+  "reporting:work-reporting-addition-prepare": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-reporting-addition-prepare-U6XWCK2X.mjs");
+  }),
+  "reporting:work-reporting-append": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-reporting-append-RUQOT3TJ.mjs");
+  }),
+  "reporting:work-reporting-verify": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-reporting-verify-OODVEQNM.mjs");
+  }),
+  "reporting:work-summary-report-collect": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-summary-report-collect-ZWR4GX4K.mjs");
+  }),
+  "reporting:work-summary-report-prepare": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-summary-report-prepare-FGFWP4FD.mjs");
+  }),
+  "reporting:work-summary-report-save": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-summary-report-save-NMU6UPDI.mjs");
+  }),
+  "reporting:work-summary-report-transcript-scan": ownerCliModuleHandler(async () => {
+    await import("../chunks/work-summary-report-transcript-scan-ORB7WD2T.mjs");
+  }),
+  "research:research-workflow": ownerCliModuleHandler(async () => {
+    const { main } = await import("../chunks/research-workflow-37WTE53X.mjs");
+    await main();
+  }),
+  "writing:analyze-ai-style": ownerCliModuleHandler(async () => {
+    await import("../chunks/analyze-ai-style-43ZXBECZ.mjs");
+  })
+};
+await runOwnerCli(process.argv.slice(2), handlers);

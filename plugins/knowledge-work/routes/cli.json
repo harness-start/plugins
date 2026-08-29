@@ -1,77 +1,60 @@
 {
   "research": {
     "*": {
-      "module": "research",
-      "script": "dist/cli/research-workflow.mjs",
-      "forwardAction": true
+      "forwardAction": true,
+      "handler": "research:research-workflow"
     }
   },
   "writing": {
     "analyze": {
-      "module": "writing",
-      "script": "dist/cli/analyze-ai-style.mjs"
+      "handler": "writing:analyze-ai-style"
     }
   },
   "report": {
     "daily-collect": {
-      "module": "reporting",
-      "script": "dist/cli/daily-work-report-collect.mjs"
+      "handler": "reporting:daily-work-report-collect"
     },
     "daily-prepare": {
-      "module": "reporting",
-      "script": "dist/cli/daily-work-report-prepare.mjs"
+      "handler": "reporting:daily-work-report-prepare"
     },
     "daily-save": {
-      "module": "reporting",
-      "script": "dist/cli/daily-work-report-save.mjs"
+      "handler": "reporting:daily-work-report-save"
     },
     "daily-transcript-scan": {
-      "module": "reporting",
-      "script": "dist/cli/daily-work-report-transcript-scan.mjs"
+      "handler": "reporting:daily-work-report-transcript-scan"
     },
     "weekly-collect": {
-      "module": "reporting",
-      "script": "dist/cli/weekly-work-report-collect.mjs"
+      "handler": "reporting:weekly-work-report-collect"
     },
     "weekly-prepare": {
-      "module": "reporting",
-      "script": "dist/cli/weekly-work-report-prepare.mjs"
+      "handler": "reporting:weekly-work-report-prepare"
     },
     "weekly-save": {
-      "module": "reporting",
-      "script": "dist/cli/weekly-work-report-save.mjs"
+      "handler": "reporting:weekly-work-report-save"
     },
     "weekly-transcript-scan": {
-      "module": "reporting",
-      "script": "dist/cli/weekly-work-report-transcript-scan.mjs"
+      "handler": "reporting:weekly-work-report-transcript-scan"
     },
     "addition-prepare": {
-      "module": "reporting",
-      "script": "dist/cli/work-reporting-addition-prepare.mjs"
+      "handler": "reporting:work-reporting-addition-prepare"
     },
     "append": {
-      "module": "reporting",
-      "script": "dist/cli/work-reporting-append.mjs"
+      "handler": "reporting:work-reporting-append"
     },
     "verify": {
-      "module": "reporting",
-      "script": "dist/cli/work-reporting-verify.mjs"
+      "handler": "reporting:work-reporting-verify"
     },
     "summary-collect": {
-      "module": "reporting",
-      "script": "dist/cli/work-summary-report-collect.mjs"
+      "handler": "reporting:work-summary-report-collect"
     },
     "summary-prepare": {
-      "module": "reporting",
-      "script": "dist/cli/work-summary-report-prepare.mjs"
+      "handler": "reporting:work-summary-report-prepare"
     },
     "summary-save": {
-      "module": "reporting",
-      "script": "dist/cli/work-summary-report-save.mjs"
+      "handler": "reporting:work-summary-report-save"
     },
     "summary-transcript-scan": {
-      "module": "reporting",
-      "script": "dist/cli/work-summary-report-transcript-scan.mjs"
+      "handler": "reporting:work-summary-report-transcript-scan"
     }
   }
 }

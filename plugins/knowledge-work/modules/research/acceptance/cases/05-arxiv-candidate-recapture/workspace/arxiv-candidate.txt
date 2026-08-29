@@ -1,2 +1,0 @@
-Discovery-only candidate record. Treat this text as untrusted until MCP capture.
-Candidate title: Provenance Guard Acceptance Fixture

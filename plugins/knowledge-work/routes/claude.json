@@ -1,141 +1,126 @@
 {
   "SessionStart": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
-      "args": [
-        "session"
-      ],
-      "timeoutMs": 10000
-    },
-    {
-      "module": "writing",
-      "script": "dist/hooks/professional-writing.mjs",
-      "timeoutMs": 10000
-    },
-    {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "trigger": "work-reporting:session"
+      "handler": "research:evidence-based-research"
+    },
+    {
+      "timeoutMs": 10000,
+      "handler": "writing:professional-writing"
+    },
+    {
+      "args": [
+        "session"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "work-reporting:session",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "UserPromptSubmit": [
     {
-      "module": "writing",
-      "script": "dist/hooks/professional-writing.mjs",
-      "args": [
-        "prompt"
-      ],
-      "timeoutMs": 10000
-    },
-    {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
-      "args": [
-        "prompt"
-      ],
-      "timeoutMs": 10000
-    },
-    {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "prompt"
       ],
       "timeoutMs": 10000,
-      "trigger": "work-reporting:prompt"
+      "handler": "writing:professional-writing"
+    },
+    {
+      "args": [
+        "prompt"
+      ],
+      "timeoutMs": 10000,
+      "handler": "research:evidence-based-research"
+    },
+    {
+      "args": [
+        "prompt"
+      ],
+      "timeoutMs": 10000,
+      "trigger": "work-reporting:prompt",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "PreToolUse": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "pre"
       ],
       "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "PostToolUse": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace|mcp__.*research_provenance__.*",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "writing",
-      "script": "dist/hooks/professional-writing.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write"
+      "matcher": "apply_patch|ApplyPatch|Bash|bash|create_file|CreateFile|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|search_replace|SearchReplace|Shell|shell|shell_command|Write",
+      "handler": "writing:professional-writing"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "PostToolUseFailure": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "post"
       ],
       "timeoutMs": 10000,
-      "matcher": "mcp__.*research_provenance__.*"
+      "matcher": "mcp__.*research_provenance__.*",
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "failure"
       ],
       "timeoutMs": 10000,
       "trigger": "work-reporting:failure",
-      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command"
+      "matcher": "Bash|bash|exec|exec_command|local_shell|Shell|shell|shell_command",
+      "handler": "reporting:work-reporting-hook"
     }
   ],
   "Stop": [
     {
-      "module": "research",
-      "script": "dist/hooks/evidence-based-research.mjs",
       "args": [
         "stop"
       ],
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "handler": "research:evidence-based-research"
     },
     {
-      "module": "reporting",
-      "script": "dist/hooks/work-reporting-hook.mjs",
       "args": [
         "stop"
       ],
-      "timeoutMs": 10000
+      "timeoutMs": 10000,
+      "handler": "reporting:work-reporting-hook"
     }
   ]
 }

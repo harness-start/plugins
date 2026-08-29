@@ -1,4 +1,0 @@
-id = "06-markdown-analyzer"
-hosts = ["claude", "codex"]
-timeout_sec = 300
-tags = ["session-start", "skill-routing", "writing", "markdown", "analyzer", "outcome"]

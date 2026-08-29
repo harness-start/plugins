@@ -1,4 +1,0 @@
-id = "04-english-natural-writing"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["session-start", "skill-routing", "writing", "english", "outcome"]

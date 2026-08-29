@@ -8,7 +8,7 @@ Research, prose, and reports share a core problem: plausible text is easy to gen
 
 ## Design
 
-Three private modules live under `modules/`: `research`, `writing`, and `reporting`. `research` uses project workflow files, an owner-exposed MCP server, deterministic writers, and Hook gates to bind claims to captured sources. `writing` supplies first-party prose methods plus a bounded Markdown analyzer. `reporting` collects local evidence, separates fact from inference, requires employee acknowledgement, and produces digest-bound reports and ledgers.
+Three domains live under `src/domains/`: `research`, `writing`, and `reporting`. `research` uses project workflow files, an owner-exposed MCP server, deterministic writers, and Hook gates to bind claims to captured sources. `writing` supplies first-party prose methods plus a bounded Markdown analyzer. `reporting` collects local evidence, separates fact from inference, requires employee acknowledgement, and produces digest-bound reports and ledgers. They share one owner Hook, CLI, MCP, Skill, test, acceptance, license, and build boundary.
 
 Installing the owner activates all bundled Hooks and Skills; there are no capability profiles. Hard workflows activate from durable project state and official commands, not from a Skill-name mention.
 
@@ -65,7 +65,7 @@ A research seal proves consistency inside the observable workflow; it is not a c
 ```bash
 node --import tsx --test \
   plugins/knowledge-work/tests/*.test.ts \
-  plugins/knowledge-work/modules/*/tests/*.test.ts
+  plugins/knowledge-work/tests/domains/**/*.test.ts
 npm run check:dist
 ```
 

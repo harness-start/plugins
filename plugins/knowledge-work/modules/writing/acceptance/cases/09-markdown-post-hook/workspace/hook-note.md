@@ -1,3 +1,0 @@
-# Hook note
-
-PLACEHOLDER

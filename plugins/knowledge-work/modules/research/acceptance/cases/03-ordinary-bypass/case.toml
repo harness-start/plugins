@@ -1,4 +1,0 @@
-id = "03-ordinary-bypass"
-hosts = ["claude", "codex"]
-timeout_sec = 120
-tags = ["research", "bypass", "stop"]

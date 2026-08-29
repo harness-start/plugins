@@ -1,1 +1,0 @@
-Explain this data flow with one minimal visual. Do not create files or output HTML. Preserve every node and direction: `Browser` sends a request to `API`; `API` reads `Cache` and `Database` concurrently, then returns the result to `Browser`. Give one visual and one necessary sentence.

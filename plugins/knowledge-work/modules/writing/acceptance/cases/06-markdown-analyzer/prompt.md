@@ -1,1 +1,0 @@
-Edit `release-note.md` in place so its English prose is direct and natural. Preserve every fact, the heading, code block, command, URL, date, and measurement exactly. Do not create or modify any other file. Follow the prompt-specific writing route, including its public analyzer workflow.

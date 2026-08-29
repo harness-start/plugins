@@ -1,4 +1,0 @@
-id = "05-arxiv-candidate-recapture"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["mcp", "research", "arxiv", "candidate", "anchor", "seal"]
