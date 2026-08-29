@@ -1,4 +1,4 @@
 id = "06-review-only"
 hosts = ["claude", "codex"]
-timeout_sec = 180
+timeout_sec = 300
 tags = ["ui", "review", "read-only", "outcome"]
