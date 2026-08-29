@@ -1,6 +1,7 @@
 {
   "SessionStart": [
     {
+      "matcher": "startup|resume|clear",
       "args": [
         "session"
       ],
@@ -8,10 +9,12 @@
       "handler": "research:evidence-based-research"
     },
     {
+      "matcher": "startup|resume|clear",
       "timeoutMs": 10000,
       "handler": "writing:professional-writing"
     },
     {
+      "matcher": "startup|resume|clear",
       "args": [
         "session"
       ],

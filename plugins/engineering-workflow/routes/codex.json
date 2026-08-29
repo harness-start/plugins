@@ -1,6 +1,7 @@
 {
   "SessionStart": [
     {
+      "matcher": "startup|resume|clear",
       "handler": "debugging",
       "args": [
         "session"
@@ -9,6 +10,7 @@
       "trigger": "software-debugging:session"
     },
     {
+      "matcher": "startup|resume|clear",
       "handler": "testing",
       "args": [
         "session-start",

@@ -21,10 +21,12 @@
   ],
   "SessionStart": [
     {
+      "matcher": "startup|resume|clear",
       "timeoutMs": 10000,
       "handler": "reasoning:reasoning-methods"
     },
     {
+      "matcher": "startup|resume|clear",
       "args": [
         "session-start"
       ],
@@ -32,6 +34,7 @@
       "handler": "practice:engineering-practice"
     },
     {
+      "matcher": "startup|resume|clear|compact",
       "timeoutMs": 10000,
       "handler": "language:language-output-hook-session-start"
     }

@@ -1,6 +1,7 @@
 {
   "SessionStart": [
     {
+      "matcher": "startup|resume|clear",
       "args": [
         "session"
       ],
@@ -14,6 +15,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "diagram-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "diagram:diagram-production"
     },
     {
@@ -22,6 +24,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "poster-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "poster:poster-production"
     },
     {
@@ -30,6 +33,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "presentation-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "presentation:presentation-production"
     },
     {
@@ -38,6 +42,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "print-publication-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "print:print-publication-production"
     },
     {
@@ -46,6 +51,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "video-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "video:video-production"
     },
     {
@@ -54,6 +60,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "music-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "music:music-production"
     },
     {
@@ -62,6 +69,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "training-program-design:session",
+      "matcher": "startup|resume|clear",
       "handler": "training:training-program-design"
     }
   ],

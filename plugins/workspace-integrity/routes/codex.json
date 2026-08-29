@@ -1,6 +1,12 @@
 {
   "PreToolUse": [
     {
+      "timeoutMs": 60000,
+      "trigger": "engineering-quality:pre",
+      "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write|create_file|search_replace",
+      "handler": "quality:engineering-quality-pre"
+    },
+    {
       "timeoutMs": 15000,
       "trigger": "command-safety:pre-tool-use",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Read|Shell|shell|shell_command|Write",
@@ -145,6 +151,13 @@
       "trigger": "engineering-quality:post",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write",
       "handler": "quality:engineering-quality-post"
+    }
+  ],
+  "Stop": [
+    {
+      "timeoutMs": 60000,
+      "trigger": "engineering-quality:stop",
+      "handler": "quality:engineering-quality-stop"
     }
   ]
 }

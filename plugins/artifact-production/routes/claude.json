@@ -1,6 +1,7 @@
 {
   "SessionStart": [
     {
+      "matcher": "startup|resume|clear",
       "args": [
         "session"
       ],
@@ -13,6 +14,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "diagram-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "diagram:diagram-production"
     },
     {
@@ -20,28 +22,32 @@
         "session"
       ],
       "timeoutMs": 10000,
-      "handler": "poster:poster-production"
+      "handler": "poster:poster-production",
+      "matcher": "startup|resume|clear"
     },
     {
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "handler": "presentation:presentation-production"
+      "handler": "presentation:presentation-production",
+      "matcher": "startup|resume|clear"
     },
     {
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "handler": "print:print-publication-production"
+      "handler": "print:print-publication-production",
+      "matcher": "startup|resume|clear"
     },
     {
       "args": [
         "session"
       ],
       "timeoutMs": 10000,
-      "handler": "video:video-production"
+      "handler": "video:video-production",
+      "matcher": "startup|resume|clear"
     },
     {
       "args": [
@@ -49,6 +55,7 @@
       ],
       "timeoutMs": 10000,
       "trigger": "music-production:session",
+      "matcher": "startup|resume|clear",
       "handler": "music:music-production"
     },
     {
@@ -56,7 +63,8 @@
         "session"
       ],
       "timeoutMs": 10000,
-      "handler": "training:training-program-design"
+      "handler": "training:training-program-design",
+      "matcher": "startup|resume|clear"
     }
   ],
   "SubagentStart": [

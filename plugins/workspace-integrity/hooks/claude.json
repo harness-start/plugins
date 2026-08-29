@@ -25,6 +25,18 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "AI_EXPERTS_SESSION_ID=\"${AI_EXPERTS_SESSION_ID:-hook}\" AI_EXPERTS_TRIGGER_FROM=\"workspace-integrity:Stop\" node \"${CLAUDE_PLUGIN_ROOT}/dist/hooks/dispatcher.mjs\" claude Stop",
+            "statusMessage": "workspace-integrity: applying always-on governance",
+            "timeout": 120
+          }
+        ]
+      }
     ]
   }
 }

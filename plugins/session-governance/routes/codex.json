@@ -24,11 +24,13 @@
   ],
   "SessionStart": [
     {
+      "matcher": "startup|resume|clear",
       "timeoutMs": 10000,
       "trigger": "reasoning-methods:session-start",
       "handler": "reasoning:reasoning-methods"
     },
     {
+      "matcher": "startup|resume|clear",
       "args": [
         "session-start"
       ],
@@ -37,6 +39,7 @@
       "handler": "practice:engineering-practice"
     },
     {
+      "matcher": "startup|resume|clear|compact",
       "timeoutMs": 10000,
       "trigger": "language-output:session-start",
       "handler": "language:language-output-hook-session-start"
