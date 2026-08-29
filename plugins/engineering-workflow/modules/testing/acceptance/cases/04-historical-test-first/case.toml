@@ -1,4 +1,0 @@
-id = "04-historical-test-first"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["pre-tool", "test-first", "historical", "deny"]

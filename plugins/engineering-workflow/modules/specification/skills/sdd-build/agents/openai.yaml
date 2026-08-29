@@ -1,4 +1,0 @@
-interface:
-  display_name: "SDD Build"
-  short_description: "Implement SDD tasks with context isolation."
-  default_prompt: "Use $sdd-build to implement the validated tasks with fresh verification."

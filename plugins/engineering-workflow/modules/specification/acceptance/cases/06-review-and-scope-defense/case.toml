@@ -1,4 +1,0 @@
-id = "06-review-and-scope-defense"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["review", "scope", "subagent"]

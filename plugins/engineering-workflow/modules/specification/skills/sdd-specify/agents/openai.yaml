@@ -1,4 +1,0 @@
-interface:
-  display_name: "SDD Specify"
-  short_description: "Define requirements, scenarios, and non-goals."
-  default_prompt: "Use $sdd-specify to write a focused specification for this change."

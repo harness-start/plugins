@@ -1,15 +1,13 @@
 {
   "debug": {
     "*": {
-      "module": "debugging",
-      "script": "dist/cli/debug-workflow.mjs",
+      "handler": "debugging",
       "forwardAction": true
     }
   },
   "spec": {
     "check": {
-      "module": "specification",
-      "script": "dist/cli/spec-driven-development-validate.mjs",
+      "handler": "specification",
       "args": [
         "validate"
       ]

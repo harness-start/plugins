@@ -1,4 +1,0 @@
-id = "05-historical-fix-allow"
-hosts = ["claude", "codex"]
-timeout_sec = 480
-tags = ["pre-tool", "historical", "already-red", "allow"]

@@ -1,4 +1,0 @@
-interface:
-  display_name: "SDD"
-  short_description: "Guide spec, plan, tasks, build, and verification."
-  default_prompt: "Use $sdd to guide this change through the lightweight SDD workflow."

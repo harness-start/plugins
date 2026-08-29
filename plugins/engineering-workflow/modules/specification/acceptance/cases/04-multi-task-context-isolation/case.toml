@@ -1,4 +1,0 @@
-id = "04-multi-task-context-isolation"
-hosts = ["claude", "codex"]
-timeout_sec = 180
-tags = ["subagent", "context-isolation", "bounded-result"]

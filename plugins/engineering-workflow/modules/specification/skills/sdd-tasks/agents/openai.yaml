@@ -1,4 +1,0 @@
-interface:
-  display_name: "SDD Tasks"
-  short_description: "Decompose a current plan into safe tasks."
-  default_prompt: "Use $sdd-tasks to produce an executable task DAG."

@@ -1,4 +1,0 @@
-id = "05-resume-from-artifacts"
-hosts = ["claude", "codex"]
-timeout_sec = 360
-tags = ["resume", "artifact", "remaining-task"]

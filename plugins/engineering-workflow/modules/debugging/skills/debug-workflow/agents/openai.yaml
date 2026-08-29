@@ -1,4 +1,0 @@
-interface:
-  display_name: "Debug Workflow"
-  short_description: "Investigate and fix concrete bugs with an evidence ledger"
-  default_prompt: "Diagnose this concrete failure with a Debug Work Order."

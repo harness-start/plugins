@@ -1,4 +1,0 @@
-id = "01-block-source-first"
-hosts = ["claude", "codex"]
-timeout_sec = 240
-tags = ["pre-tool", "test-first", "deny"]

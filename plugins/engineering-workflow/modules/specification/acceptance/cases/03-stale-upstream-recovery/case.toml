@@ -1,4 +1,0 @@
-id = "03-stale-upstream-recovery"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["hash", "stale", "recovery"]

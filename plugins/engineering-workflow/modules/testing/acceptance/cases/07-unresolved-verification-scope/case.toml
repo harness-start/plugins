@@ -1,4 +1,0 @@
-id = "07-unresolved-verification-scope"
-hosts = ["claude", "codex"]
-timeout_sec = 420
-tags = ["stop", "verification-scope", "outcome"]
