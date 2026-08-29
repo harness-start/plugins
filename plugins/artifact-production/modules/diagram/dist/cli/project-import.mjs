@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:0625411026998a4e94470ef1c127977acd81f7b3490fd609ed6a61e3a57f5c1e
+// harness-source-hash: sha256:96450b76707b49d6cf88e7353b81a09c2ceb3d5ac716f037a5a526d3923840bd
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-3LV4HXPI.mjs";
+} from "../chunks/chunk-4FIKZS3W.mjs";
 import {
   IMPORT_LEDGER_SCHEMA,
   SOURCE_SCHEMA,
@@ -15,7 +15,7 @@ import {
   loadDiagramProject,
   validateDiagramModel,
   withWriterJournal
-} from "../chunks/chunk-6V4MDNXG.mjs";
+} from "../chunks/chunk-BU7RQJOL.mjs";
 
 // node_modules/@xmldom/xmldom/lib/conventions.js
 var require_conventions = __commonJS({

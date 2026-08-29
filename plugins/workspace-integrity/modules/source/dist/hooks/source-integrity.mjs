@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:7d8533ea6810adc587d395c143a093ef78f9db9c1286288f33998a26cf8dd5ce
+// harness-source-hash: sha256:89b2f425cf8fde9cda8839159dbc4976ff0c80fa3766ead2c724dd95d5b5759c
 
 // plugins/workspace-integrity/modules/source/src/entries/hooks/source-integrity.ts
 import { execFileSync as execFileSync2 } from "node:child_process";

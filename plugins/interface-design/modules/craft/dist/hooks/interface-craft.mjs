@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:ba94c3ef428f96906d104e8a70196d93ffd014b3992159f57e2c7b2c821007fc
+// harness-source-hash: sha256:39c512d4f2e5f49e0bdbb4d3a91441ebad611e33c12331d3e94d70ec778fe3e6
 
 // plugins/interface-design/modules/craft/src/entries/hooks/interface-craft.ts
 import { chmodSync, mkdirSync as mkdirSync2, readFileSync } from "node:fs";

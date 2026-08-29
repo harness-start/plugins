@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fb559c85df508375751cc04a15de4be44ab29f55bf278caeb94fa6241a928756
+// harness-source-hash: sha256:c314461651259ab0f68d8ea564b98584f1efb3f2204958a7b7b8d5be9fa191f5
 import {
   analyzeAiStyle,
   formatAnalyzerReport
-} from "../chunks/chunk-SWNLLRYO.mjs";
+} from "../chunks/chunk-WBXFX47A.mjs";
 
 // plugins/knowledge-work/modules/writing/src/entries/cli/analyze-ai-style.ts
 import { readFileSync } from "node:fs";

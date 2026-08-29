@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:f99e65a7ac4d77c348c2445bb9b53632e46852e32dfdbc60c8f9cfab74cd1609
+// harness-source-hash: sha256:8f989616407b5b8be1f90a6a3f6d10d9bb6fdeaab25dd188e0838235cfe3c1fd
 
 // plugins/delivery-governance/modules/ci/src/entries/hooks/ci-gated-delivery.ts
 import { resolve } from "node:path";

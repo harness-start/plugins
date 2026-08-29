@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:370f9db476cbb0b946700bec5fe34c55a297fe8308b5bd733a1c0d3b4f4ce5e7
+// harness-source-hash: sha256:a63353a7304357157105cbe265b95644693164d66b736057cce84e47585ce959
 import {
   assertLogoProjectRoot
-} from "../chunks/chunk-WS3HCX7P.mjs";
+} from "../chunks/chunk-OBFYD4NW.mjs";
 
 // plugins/artifact-production/modules/logo/src/entries/cli/project-lint.ts
 import { resolve as resolve2 } from "node:path";

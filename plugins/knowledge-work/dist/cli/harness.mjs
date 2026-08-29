@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:85a414e2f988062bd7bb2bf07e77b3535267e5d91642b8b1087c9e434f758cd1
+// harness-source-hash: sha256:1d549e602b47b6eb5959bf80d179deb20f8294ea9dc24e9cb6ca3094814a392a
 
 // core/src/aio-cli.ts
 import { readFileSync } from "node:fs";
@@ -11,7 +11,18 @@ function pluginRoot() {
   if (!entry) return process.cwd();
   return resolve(dirname(entry), "../..");
 }
-function runAioCli(argv = process.argv.slice(2)) {
+async function dispatchCliRoute(input) {
+  const [resource, action, ...rest] = input.argv;
+  if (!resource || !action) return 2;
+  const route = input.routes[resource]?.[action] ?? input.routes[resource]?.["*"];
+  if (!route) return 2;
+  const handler = input.handlers[route.handler];
+  if (!handler) throw new Error(`${route.handler}: owner CLI handler is not registered`);
+  const args = [...route.args ?? [], ...route.forwardAction ? [action, ...rest] : rest];
+  const result = await handler(args);
+  return typeof result === "number" ? result : typeof process.exitCode === "number" ? process.exitCode : 0;
+}
+function runAioCli(argv = process.argv.slice(2), handlers) {
   const [resource, action, ...rest] = argv;
   if (!resource || !action) {
     process.stderr.write("Usage: harness <resource> <action> [arguments]\n");
@@ -35,9 +46,15 @@ function runAioCli(argv = process.argv.slice(2)) {
     process.exitCode = 2;
     return;
   }
-  const moduleRoot = resolve(root, "modules", route.module);
-  const args = [...route.args ?? [], ...route.forwardAction ? [action, ...rest] : rest];
-  const result = spawnSync(process.execPath, [resolve(moduleRoot, route.script), ...args], {
+  if (handlers) {
+    return dispatchCliRoute({ argv, handlers, routes }).then((status) => {
+      process.exitCode = status;
+    });
+  }
+  const legacyRoute = route;
+  const moduleRoot = resolve(root, "modules", legacyRoute.module);
+  const args = [...legacyRoute.args ?? [], ...legacyRoute.forwardAction ? [action, ...rest] : rest];
+  const result = spawnSync(process.execPath, [resolve(moduleRoot, legacyRoute.script), ...args], {
     cwd: process.cwd(),
     stdio: "inherit",
     env: {

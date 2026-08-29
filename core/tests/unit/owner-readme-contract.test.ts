@@ -35,15 +35,20 @@ test("every AIO owner README explains its consumer contract", () => {
     for (const section of requiredSections) {
       assert.match(readme, new RegExp(`^## ${section}$`, "mu"), `${owner} is missing ${section}`);
     }
-    for (const module of readdirSync(resolve(ownerRoot, "modules"), { withFileTypes: true })) {
-      if (!module.isDirectory()) continue;
-      assert.match(readme, new RegExp("`" + module.name + "`", "u"), `${owner} omits private module ${module.name}`);
+    if (owner === "engineering-workflow") {
+      assert.equal(existsSync(resolve(ownerRoot, "modules")), false, `${owner} retains private modules`);
+      assert.doesNotMatch(readme, /modules\//u, `${owner} documents the retired private-module design`);
+    } else {
+      for (const module of readdirSync(resolve(ownerRoot, "modules"), { withFileTypes: true })) {
+        if (!module.isDirectory()) continue;
+        assert.match(readme, new RegExp("`" + module.name + "`", "u"), `${owner} omits private module ${module.name}`);
+      }
+      assert.match(readme, /modules\//u, `${owner} omits its private-module design`);
     }
     assert.match(readme, /Claude Code/u, `${owner} omits Claude Code`);
     assert.match(readme, /Codex/u, `${owner} omits Codex`);
     assert.match(readme, /\bHook(?:s)?\b/u, `${owner} omits Hooks`);
     assert.match(readme, /\bSkill(?:s)?\b/u, `${owner} omits Skills`);
-    assert.match(readme, /modules\//u, `${owner} omits its private-module design`);
     assert.match(readme, /no capability profiles/iu, `${owner} omits the all-in installation contract`);
     assert.doesNotMatch(readme, /\/srv\/workspaces|\.tmp-harness-aio/u, `${owner} leaks a development-machine path`);
   }

@@ -14,6 +14,9 @@ test("default test discovery includes direct and nested TypeScript tests", () =>
     "plugins/artifact-production/modules/logo/tests/hook.test.ts",
     "plugins/artifact-production/modules/logo/tests/lib/codex-review-identity.test.ts",
     "plugins/delivery-governance/modules/ci/tests/entries/hooks/ci-gated-delivery.test.ts",
+    "plugins/engineering-workflow/tests/debugging/software-debugging.test.ts",
+    "plugins/engineering-workflow/tests/specification/hook.test.ts",
+    "plugins/engineering-workflow/tests/testing/entries/hooks/test-driven-development.test.ts",
   ]) {
     assert.ok(files.includes(expected), expected);
   }

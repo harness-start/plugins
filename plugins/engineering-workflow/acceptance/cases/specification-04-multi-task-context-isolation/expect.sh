@@ -81,10 +81,19 @@ if [[ "${ACCEPT_HOST}" == "claude" ]]; then
           and $event.type == "user"
           and any($event.message.content[]?;
             .type == "tool_result"
-            and .tool_use_id == $orchard_calls[0].id
             and ((.is_error // false) == false)
-            and (([.content[]? | select(.type == "text") | .text] | first // "")
-              == "Result Card: ORCHARD_READY brief-id=orchard-8f3c"))
+            and (
+              (
+                .tool_use_id == $orchard_calls[0].id
+                and (([.content[]? | select(.type == "text") | .text] | first // "")
+                  == "Result Card: ORCHARD_READY brief-id=orchard-8f3c")
+              )
+              or (
+                (.content | type) == "string"
+                and (.content | startswith("<retrieval_status>success</retrieval_status>"))
+                and (.content | endswith("<output>\nResult Card: ORCHARD_READY brief-id=orchard-8f3c\n</output>"))
+              )
+            ))
         )
       | $index] as $orchard_evidence
     | [to_entries[]
@@ -96,10 +105,19 @@ if [[ "${ACCEPT_HOST}" == "claude" ]]; then
           and $event.type == "user"
           and any($event.message.content[]?;
             .type == "tool_result"
-            and .tool_use_id == $harbor_calls[0].id
             and ((.is_error // false) == false)
-            and (([.content[]? | select(.type == "text") | .text] | first // "")
-              == "Result Card: HARBOR_READY brief-id=harbor-2a7d"))
+            and (
+              (
+                .tool_use_id == $harbor_calls[0].id
+                and (([.content[]? | select(.type == "text") | .text] | first // "")
+                  == "Result Card: HARBOR_READY brief-id=harbor-2a7d")
+              )
+              or (
+                (.content | type) == "string"
+                and (.content | startswith("<retrieval_status>success</retrieval_status>"))
+                and (.content | endswith("<output>\nResult Card: HARBOR_READY brief-id=harbor-2a7d\n</output>"))
+              )
+            ))
         )
       | $index] as $harbor_evidence
     | ($orchard_evidence + $harbor_evidence) as $completion_evidence
@@ -206,7 +224,7 @@ test -n "${parent_transcript}"
 parent_session_id="$(jq -sr '.[0].payload.session_id' "${parent_transcript}")"
 test -n "${parent_session_id}"
 
-jq -se -f "${ACCEPT_REPO}/plugins/engineering-workflow/modules/specification/acceptance/lib/codex-wait-receipt.jq" "${parent_transcript}" >/dev/null
+jq -se -f "${ACCEPT_REPO}/plugins/engineering-workflow/acceptance/lib/codex-wait-receipt.jq" "${parent_transcript}" >/dev/null
 wait_timed_out="$(jq -sr '
   ([.[] | select(.type == "response_item" and .payload.type == "function_call" and .payload.name == "wait_agent")] | first) as $wait
   | ([.[] | select(
@@ -350,7 +368,7 @@ else
     || "${harbor_cards}" -ne 1 ]]
   require_file_exists "${ACCEPT_WORKSPACE}/rejection.txt"
   test "$(cat "${ACCEPT_WORKSPACE}/rejection.txt")" = "parent rejected unverified workers"
-  jq -se -f "${ACCEPT_REPO}/plugins/engineering-workflow/modules/specification/acceptance/lib/codex-parent-lane.jq" "${parent_transcript}" >/dev/null
+  jq -se -f "${ACCEPT_REPO}/plugins/engineering-workflow/acceptance/lib/codex-parent-lane.jq" "${parent_transcript}" >/dev/null
   lane_side_effects=0
   mapfile -t changed_paths < <(git -C "${ACCEPT_WORKSPACE}" status --porcelain --untracked-files=all)
   for entry in "${changed_paths[@]}"; do

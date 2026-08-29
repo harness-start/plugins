@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:03f90ffe2052d6a0f4f9dfb72ccccdc9c6192a89d5d0066fb001c89738cab3a9
+// harness-source-hash: sha256:e6675df35732fb0fcbf42a59d0c95c56902c93acde0a1d8d63c24b74ce9b45ca
 import {
   createAcknowledgement,
   isProtectedReportPath,
@@ -10,7 +10,7 @@ import {
   sha256,
   validateAcknowledgement,
   verifyReport
-} from "../chunks/chunk-MBJZLP5C.mjs";
+} from "../chunks/chunk-L7G63RHC.mjs";
 import {
   eventAssistantMessage,
   eventCwd,
@@ -21,7 +21,7 @@ import {
   eventToolResponse,
   isRecord,
   readStdinJson
-} from "../chunks/chunk-5RLQTG6W.mjs";
+} from "../chunks/chunk-BTFHWLHE.mjs";
 
 // plugins/knowledge-work/modules/reporting/src/entries/hooks/work-reporting-hook.ts
 import { readFile as readFile3 } from "node:fs/promises";

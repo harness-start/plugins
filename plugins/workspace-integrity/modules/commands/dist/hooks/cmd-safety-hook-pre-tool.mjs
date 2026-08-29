@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:9cd48a2f8f531ac386a73510558ad707e3e4c6453515052b08426c05cf67dbbf
+// harness-source-hash: sha256:93177d68f9e58ebd76b40bbd6052e5cda5ea3efd36d28a12b06f6823d27fe295
 import {
   additionalContextOutput,
   commandInvocation,
@@ -20,7 +20,7 @@ import {
   splitShellLogicalLines,
   tokenizeShell,
   writeJson
-} from "../chunks/chunk-DMX2XWQW.mjs";
+} from "../chunks/chunk-UKUPI5VG.mjs";
 
 // plugins/workspace-integrity/modules/commands/src/lib/matchers.ts
 var SHELL_TOOLS = /^(Bash|Shell|bash|shell|shell_command|exec_command|exec|local_shell)$/i;

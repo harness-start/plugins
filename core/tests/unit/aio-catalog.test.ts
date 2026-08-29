@@ -22,10 +22,18 @@ const cliOwners = [
   "knowledge-work",
 ];
 
-type RuntimeRoute = { module: string; script: string };
+type RuntimeRoute = { module?: string; script?: string; handler?: string };
 
 function assertRouteTarget(owner: string, route: RuntimeRoute, label: string): void {
-  const target = resolve(root, "plugins", owner, "modules", route.module, route.script);
+  if (owner === "engineering-workflow") {
+    assert.equal(typeof route.handler, "string", `${label} must name an owner handler`);
+    assert.equal(route.module, undefined, `${label} retains a private module`);
+    assert.equal(route.script, undefined, `${label} retains a private script`);
+    return;
+  }
+  assert.equal(typeof route.module, "string", `${label} module`);
+  assert.equal(typeof route.script, "string", `${label} script`);
+  const target = resolve(root, "plugins", owner, "modules", route.module!, route.script!);
   assert.ok(existsSync(target), `${label} -> ${target}`);
 }
 
@@ -109,6 +117,10 @@ test("private modules contain implementations but no host registration surface",
   const findings: string[] = [];
   for (const owner of expected) {
     const modulesRoot = resolve(root, "plugins", owner, "modules");
+    if (owner === "engineering-workflow") {
+      assert.equal(existsSync(modulesRoot), false, `${owner} must be fused into its owner runtime`);
+      continue;
+    }
     for (const module of readdirSync(modulesRoot, { withFileTypes: true })) {
       if (!module.isDirectory()) continue;
       const moduleRoot = resolve(modulesRoot, module.name);
@@ -131,7 +143,7 @@ test("workspace language modules protect mutations without automatic post-tool l
     const routes = JSON.parse(readFileSync(resolve(root, `plugins/workspace-integrity/routes/${host}.json`), "utf8")) as Record<string, RuntimeRoute[]>;
     for (const [event, entries] of Object.entries(routes)) {
       if (event === "PreToolUse") continue;
-      assert.equal(entries.some((route) => languageModules.has(route.module)), false, `${host} ${event}`);
+      assert.equal(entries.some((route) => typeof route.module === "string" && languageModules.has(route.module)), false, `${host} ${event}`);
     }
   }
 });

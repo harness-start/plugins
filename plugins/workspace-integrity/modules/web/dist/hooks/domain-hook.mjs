@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:1202c317a5017b6b42cc9675e4553ae9546b49babd4e46be2bc81e3c9709d29b
-import "../chunks/chunk-VRCUC3HD.mjs";
+// harness-source-hash: sha256:88c12ac10d32f3937efb0224810bb69e03cf026623c1fdc3bb9f86d04a94659f
+import "../chunks/chunk-YFX5FCSJ.mjs";
 
 // plugins/workspace-integrity/modules/web/src/entries/hooks/domain-hook.ts
 import { resolve as resolve3 } from "node:path";
@@ -667,7 +667,7 @@ function commandFor(kind, filePath) {
 async function xmlValidation(filePath) {
   const errors = [];
   try {
-    const { DOMParser } = await import("../chunks/lib-CDZCRKQ3.mjs");
+    const { DOMParser } = await import("../chunks/lib-KIMCOHYZ.mjs");
     new DOMParser({ onError: (level, message) => {
       if (level === "fatalError" || level === "error") errors.push(message);
     } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");

@@ -1,27 +1,27 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:06ce2d2861aa44084779ec38887836d81a8968d3d5c47812817335411bdb0436
+// harness-source-hash: sha256:c6fe2ecb1c1840d63a5af93678b234d808a055d8923146da6058ce76d697ddea
 import {
   pdfPageCount,
   renderOfficePages,
   toolVersion
-} from "../chunks/chunk-ZMZGFBHK.mjs";
+} from "../chunks/chunk-ZNTYIFMN.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-WHFQUVGN.mjs";
+} from "../chunks/chunk-QO6DECLG.mjs";
 import {
   assertPptxProjectRoot,
   atomicWriteJson,
   sessionMetadata,
   withWriterJournal
-} from "../chunks/chunk-FJSGMWSN.mjs";
+} from "../chunks/chunk-MMZIHF4Q.mjs";
 import {
   RENDER_EVIDENCE_SCHEMA,
   computePptxSubjectDigest,
   inspectPptxPackage,
   loadPptxProject,
   validatePptxModel
-} from "../chunks/chunk-4Q5RE6PT.mjs";
+} from "../chunks/chunk-7CJMPL4F.mjs";
 
 // plugins/artifact-production/modules/presentation/src/entries/cli/project-render.ts
 import { spawn } from "node:child_process";

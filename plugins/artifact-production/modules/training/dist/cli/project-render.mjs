@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:2dacaf9b88d10a099c4330aa41f0c0f58ac46b041bf30fe0aa69a15b6c96e973
+// harness-source-hash: sha256:ef695d6fd2eb6e7e4a94f216f9124f5bcfe57ab9a48536ec76395ea740d53b97
 import {
   createRenderEvidence,
   renderTrainingMaterials
-} from "../chunks/chunk-G25EEZGR.mjs";
+} from "../chunks/chunk-22RPU5DH.mjs";
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-B3PNRRNV.mjs";
+} from "../chunks/chunk-MIO5P3HT.mjs";
 import {
   assertTrainingProjectRoot,
   atomicWriteJson,
@@ -16,7 +16,7 @@ import {
   loadTrainingProject,
   validateTrainingModel,
   withWriterJournal
-} from "../chunks/chunk-3Y67TSGG.mjs";
+} from "../chunks/chunk-IU63PVFW.mjs";
 
 // plugins/artifact-production/modules/training/src/entries/cli/project-render.ts
 async function main() {

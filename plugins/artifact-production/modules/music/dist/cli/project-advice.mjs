@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:fc7c19bc4d8914439d6e3416e5710ae537c4947f54691186a3b2c9462eaf8ea2
+// harness-source-hash: sha256:ab3cc7aebeec586bb7f7f6b7aaf5ca176baa1ad76e10a51ea0665bec30c4a980
 import {
   atomicWriteMusicJson,
   musicSessionMetadata,
   withMusicJournal
-} from "../chunks/chunk-NRWHI27X.mjs";
+} from "../chunks/chunk-2OMELO7L.mjs";
 import {
   collectMusicModel
-} from "../chunks/chunk-CDUGBIPI.mjs";
+} from "../chunks/chunk-45JLUFZ7.mjs";
 import {
   consumeMusicWriterCapability,
   processMusicWriterArgv
-} from "../chunks/chunk-S6S44ZCC.mjs";
+} from "../chunks/chunk-6WISBQAW.mjs";
 import {
   EXTERNAL_SKILLS,
   LEGACY_SKILL_COMPOSITION_SCHEMA,
@@ -19,7 +19,7 @@ import {
   SKILL_ADVICE_SCHEMA,
   SKILL_COMPOSITION_SCHEMA,
   computeMusicSubjectDigest
-} from "../chunks/chunk-MYMZ3E4E.mjs";
+} from "../chunks/chunk-DBL3PMOB.mjs";
 
 // plugins/artifact-production/modules/music/src/entries/cli/project-advice.ts
 import { createHash } from "node:crypto";

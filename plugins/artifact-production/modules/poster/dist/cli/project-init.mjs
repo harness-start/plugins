@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:bd265d620bc663ff6d6a2491495b1edfb0f5c489283b9c5be063e2cc15436c81
+// harness-source-hash: sha256:ee3797ce54d5097ba90e3b95d408cd2d4216c913318b75395da17af88ec0492a
 import {
   consumeWriterCapability,
   processWriterArgv
-} from "../chunks/chunk-CEMEKR75.mjs";
+} from "../chunks/chunk-4HF27R7Y.mjs";
 import {
   ART_DIRECTION_SCHEMA,
   ASSET_MANIFEST_SCHEMA,
@@ -15,7 +15,7 @@ import {
   SKILL_COMPOSITION_SCHEMA,
   VARIANT_MANIFEST_SCHEMA,
   assertPosterProjectRoot
-} from "../chunks/chunk-4BH6ZEKT.mjs";
+} from "../chunks/chunk-WZ2UTVBG.mjs";
 
 // plugins/artifact-production/modules/poster/src/entries/cli/project-init.ts
 import { spawn } from "node:child_process";

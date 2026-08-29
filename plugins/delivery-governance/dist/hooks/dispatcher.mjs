@@ -1,9 +1,16 @@
-// harness-source-hash: sha256:3fe0504aae769b23febe348e1c797480bf2b10d7b68e6f7df637117ec005a684
+// harness-source-hash: sha256:87edcd1579b4ff2d54622f1cf214f0ef3b926d4443a88bb193de2d2038e5df07
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+
+// core/src/hook-event.ts
+function isRecord(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// core/src/aio-dispatcher.ts
 function pluginRoot() {
   const configured = process.env.PLUGIN_ROOT || process.env.CLAUDE_PLUGIN_ROOT;
   if (configured) return resolve(configured);
@@ -41,7 +48,72 @@ function parsedOutputs(stdout) {
   }
   return outputs;
 }
-function runAioDispatcher(host2, eventName2) {
+function parseEvent(raw) {
+  try {
+    const parsed = raw.trim() ? JSON.parse(raw) : {};
+    return isRecord(parsed) ? parsed : {};
+  } catch {
+    return { __parseError: true };
+  }
+}
+function combinedOutput(eventName2, outputs) {
+  for (const output of outputs) {
+    if (output.decision === "block" || output.hookSpecificOutput?.permissionDecision === "deny") return output;
+  }
+  const contexts = outputs.map((output) => output.hookSpecificOutput?.additionalContext).filter((context) => Boolean(context));
+  if (contexts.length === 0) return null;
+  return { hookSpecificOutput: { hookEventName: eventName2, additionalContext: contexts.join("\n\n") } };
+}
+async function withTimeout(operation, timeoutMs, label) {
+  let timer;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${timeoutMs}ms`)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+async function dispatchHookRoutes(input) {
+  const event = parseEvent(input.raw);
+  const name = String(event.tool_name ?? event.toolName ?? "");
+  const outputs = [];
+  const failures = [];
+  for (const route of input.routes[input.eventName] ?? []) {
+    if (event.__parseError !== true && !matches(route.matcher, name)) continue;
+    const handler = input.handlers[route.handler];
+    if (!handler) {
+      failures.push(`${route.handler}: owner handler is not registered`);
+      continue;
+    }
+    const trigger = route.trigger ?? `${input.host}:${input.eventName}`;
+    try {
+      const value = await withTimeout(
+        Promise.resolve(handler({
+          args: route.args ?? [],
+          event,
+          eventName: input.eventName,
+          host: input.host,
+          raw: input.raw,
+          trigger
+        })),
+        route.timeoutMs ?? 6e4,
+        route.handler
+      );
+      if (Array.isArray(value)) outputs.push(...value);
+      else if (value) outputs.push(value);
+      const output = combinedOutput(input.eventName, outputs);
+      if (output?.decision === "block" || output?.hookSpecificOutput?.permissionDecision === "deny") return { output, failures };
+    } catch (error) {
+      failures.push(`${route.handler}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return { output: combinedOutput(input.eventName, outputs), failures };
+}
+function runAioDispatcher(host2, eventName2, handlers) {
   const root = pluginRoot();
   const raw = readFileSync(0, "utf8");
   let routes;
@@ -51,6 +123,15 @@ function runAioDispatcher(host2, eventName2) {
     process.stderr.write(`[aio-dispatcher] unable to load ${host2} routes: ${String(error)}
 `);
     return;
+  }
+  if (handlers) {
+    return dispatchHookRoutes({ eventName: eventName2, handlers, host: host2, raw, routes }).then(({ output, failures }) => {
+      for (const failure of failures) process.stderr.write(`[aio-dispatcher] ${failure}
+`);
+      if (output) process.stdout.write(`${JSON.stringify(output)}
+`);
+      else if (failures.length > 0) process.exitCode = 1;
+    });
   }
   const name = toolName(raw);
   const contexts = [];

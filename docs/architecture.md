@@ -30,10 +30,10 @@
 
 - 每个 owner 都有独立目录、双平台 manifest、平台专属 Hook 配置和单一事件 dispatcher。
 - 两个平台共享插件内业务脚本，但使用各自的根目录变量和 Hook 配置。
-- 原细粒度插件实现只作为 owner 私有的 `modules/` 存在，不再进入 Marketplace，也不形成跨 owner 依赖。private module 不得包含 `.claude-plugin/`、`.codex-plugin/`、平台 Hook manifest 或 MCP manifest；这些宿主注册面只由 owner 持有。
+- `engineering-workflow` 已将原细粒度实现拆入同一 owner 的 `src/domains/`，共享 Hook、CLI、测试、验收、Skill、license 和构建边界。其他 owner 下仍存在的 `modules/` 是待迁移遗留结构，不是目标架构，也不得继续扩展。
 - 安装面固定全量启用，没有能力 profile 或 FDE/OPC 运行时分支；FDE、OPC 只是使用者。
 - 自动门禁只用于可机械验证的条件；需要模型理解、探索或取舍的流程留在 Skill 和 agent 工作流中。
-- owner 与内部模块的业务脚本分别由 `src/**/*.ts` 构建为已提交、自包含的 `dist/**/*.mjs`，发布前必须校验构建摘要和产物新鲜度。
+- 已融合 owner 只从 owner 的 `src/**/*.ts` 构建一份已提交、自包含的 `dist/**/*.mjs`；待迁移 owner 暂时保留旧 build unit。发布前必须校验全部构建摘要和产物新鲜度。
 - 插件运行时不引用另一个插件的相对路径。
 - `workspace-integrity` 保留跨技术栈的 lock、vendor、generated 等通用保护，但不公开语言百科 Skill，也不自动执行语言 lint/format；项目原生验证由显式工程工作流负责。
 - 仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可自然语言委派普通子 agent，父 agent 负责证据、写入、验证和最终交付。
@@ -45,7 +45,7 @@ Marketplace
   -> platform manifest
     -> platform hook config
       -> owner lifecycle event dispatcher
-        -> owner-local module checks / state
+        -> owner-local handler registry / shared state
           -> platform output adapter
             -> deny | report | context | receipt | state transition
 

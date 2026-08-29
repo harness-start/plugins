@@ -8,13 +8,13 @@ General engineering advice is not enough when a failure needs a reproducible cau
 
 ## Design
 
-Three private modules live under `modules/`: `debugging`, `specification`, and `testing`. Skills own diagnosis, planning, task decomposition, and red/green judgment. Hooks own only mechanically verifiable constraints such as binding an active debug ledger, protecting workflow artifacts, enforcing specification order, and requiring a corresponding test change before an implementation write.
+The owner contains three internal domains under one source tree: `debugging`, `specification`, and `testing`. They share the owner dispatcher, CLI, build, test, acceptance, Skill, and license boundaries. Skills own diagnosis, planning, task decomposition, and red/green judgment. Hooks own only mechanically verifiable constraints such as binding an active debug ledger, protecting workflow artifacts, enforcing specification order, and requiring a corresponding test change before an implementation write.
 
 The owner exposes one public dispatcher and one unified deterministic CLI. Installing it enables the complete Hook and Skill surface for Claude Code and Codex; there are no capability profiles or language-specific branches.
 
 ## Capabilities
 
-| Module | Capability | Durable artifact or gate |
+| Domain | Capability | Durable artifact or gate |
 | --- | --- | --- |
 | `debugging` | Reproduction, hypothesis tracking, root-cause evidence, multi-bug isolation, attempt receipts, pause/resume, and completion checks | Append-only `.debug-workflow` ledger and a session lease |
 | `specification` | Specify → plan → tasks → build progression with digest freshness and requirement traceability | `.specs` artifacts and ordering/freshness validation |
@@ -32,7 +32,7 @@ Do not start the debug workflow for speculative review, feature design, a produc
 
 ## Runtime behavior
 
-`SessionStart` reports resumable debug/testing context. `PreToolUse` protects debug and specification ledgers and enforces test-before-source ordering. `PostToolUse` records observed debug receipts and advances specification evidence; failures remain visible to the debug state. `Stop` blocks only an activated debug workflow whose declared completion evidence is incomplete.
+`SessionStart` reports resumable debug/testing context. `PreToolUse` protects debug and specification ledgers and enforces test-before-source ordering. `PostToolUse` records observed debug receipts and advances specification evidence; failures remain visible to the debug state. `Stop` blocks only an activated debug workflow whose declared completion evidence is incomplete. The owner parses each Hook event once and invokes matched domain handlers in the same process; it does not launch private plugin runtimes.
 
 Installing the plugin does not automatically open a debug ledger or create `.specs`. Hard workflow behavior is activated by durable project artifacts and official writer commands, not by mentioning a Skill name or merely loading a Skill.
 
@@ -53,7 +53,7 @@ Skills remain the normal entrypoint for open-ended work; the CLI is the determin
 
 ## Configuration and state
 
-The debug workflow stores repository-owned ledgers under `.debug-workflow` and binds active work to a session/epoch lease. Specification state lives in `.specs` and uses content digests to detect stale downstream artifacts. The testing module derives correspondence from repository paths, imports, symbols, and Git changes rather than keeping a separate task database. Module-specific project configuration can tune supported patterns without introducing a language profile.
+The debug workflow stores repository-owned ledgers under `.debug-workflow` and binds active work to a session/epoch lease. Specification state lives in `.specs` and uses content digests to detect stale downstream artifacts. The testing domain derives correspondence from repository paths, imports, symbols, and Git changes rather than keeping a separate task database. Domain-specific project configuration can tune supported patterns without introducing a language profile.
 
 ## Boundaries
 
@@ -63,8 +63,7 @@ The Hooks can prove ordering, artifact validity, observed command outcomes, and 
 
 ```bash
 node --import tsx --test \
-  plugins/engineering-workflow/tests/*.test.ts \
-  plugins/engineering-workflow/modules/*/tests/*.test.ts
+  plugins/engineering-workflow/tests/**/*.test.ts
 npm run check:dist
 ```
 

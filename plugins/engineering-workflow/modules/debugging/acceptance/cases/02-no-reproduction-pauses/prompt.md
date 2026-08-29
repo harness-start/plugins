@@ -1,1 +1,0 @@
-Use $debug-workflow. Diagnose the reported bug that a private payment sandbox sometimes declines a card, but this fixture has no credentials, logs, endpoint, or reproduction. Do not change `src/payment.js`. Open the ledger with the plugin CLI writer (not a markdown snapshot), pause with a concrete recovery action, and reference the ledger path or id.

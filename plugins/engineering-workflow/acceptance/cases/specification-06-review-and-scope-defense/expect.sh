@@ -12,7 +12,7 @@ node --test "${ACCEPT_WORKSPACE}/test/formatter.test.mjs" >/dev/null
 cmp "${ACCEPT_WORKSPACE}/baseline/formatter-copy.mjs" "${ACCEPT_WORKSPACE}/distractor/formatter-copy.mjs"
 require_file_exists "${ACCEPT_WORKSPACE}/review-card.md"
 test "$(stat -c %s "${ACCEPT_WORKSPACE}/review-card.md")" -le 4096
-test "$(git -C "${ACCEPT_WORKSPACE}" status --porcelain --untracked-files=all)" = $' M src/formatter.mjs\n?? review-card.md'
+test "$(git -C "${ACCEPT_WORKSPACE}" status --porcelain --untracked-files=all)" = $' M src/formatter.mjs\n M test/formatter.test.mjs\n?? review-card.md'
 
 if [[ "${ACCEPT_HOST}" == "claude" ]]; then
   parent_transcript="$(find "${ACCEPT_OUT}/home/.claude/projects" -type f -name '*.jsonl' ! -path '*/subagents/*' | head -n 1)"

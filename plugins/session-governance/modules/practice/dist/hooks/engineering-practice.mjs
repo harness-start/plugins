@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// harness-source-hash: sha256:4e406c9df7289767b7b586f9a23817eff5906a8fc1329a630a3c6932fcb66a0a
+// harness-source-hash: sha256:7b159a04253021e805340c60e8f54704a55bb07d009edd70d48fd5cb59aa89c3
 
 // plugins/session-governance/modules/practice/src/entries/hooks/engineering-practice.ts
 import { resolve } from "node:path";
