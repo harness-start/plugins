@@ -1,0 +1,7 @@
+{
+  "logs": {
+    "sanitize": {
+      "handler": "commands:runtime-log-sanitize"
+    }
+  }
+}
