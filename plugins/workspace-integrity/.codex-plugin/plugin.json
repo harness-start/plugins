@@ -1,6 +1,6 @@
 {
   "name": "workspace-integrity",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Always-on command, source, generated-file, dependency-lock, and workspace integrity guards.",
   "author": {
     "name": "Harness Start",

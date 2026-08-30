@@ -1,0 +1,4 @@
+id = "02-advisory-continuation"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "domain", "advisory"]

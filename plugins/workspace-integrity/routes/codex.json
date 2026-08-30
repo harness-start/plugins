@@ -13,119 +13,21 @@
       "handler": "commands:cmd-safety-hook-pre-tool"
     },
     {
-      "args": [
-        "pre"
-      ],
+      "args": ["pre"],
       "timeoutMs": 10000,
       "trigger": "source-integrity:pre",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
       "handler": "source:source-integrity"
     },
     {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "android-engineering:pre",
+      "timeoutMs": 60000,
+      "trigger": "domain-engineering:pre",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "android:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "go-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "go:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "ios-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "ios:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "java-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "java:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "kubernetes-operations:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "kubernetes:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "nix-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "nix:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "php-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "php:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "python-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "python:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "react-native-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "react-native:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "rust-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "rust:domain-hook"
-    },
-    {
-      "args": [
-        "pre"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "web-frontend-engineering:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
-      "handler": "web:domain-hook"
+      "handler": "domains:pre-tool"
     }
   ],
   "PostToolUse": [
     {
-      "args": [
-        "post"
-      ],
       "timeoutMs": 60000,
       "trigger": "domain-engineering:post",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
@@ -138,9 +40,7 @@
       "handler": "commands:cmd-safety-hook-post-tool"
     },
     {
-      "args": [
-        "post"
-      ],
+      "args": ["post"],
       "timeoutMs": 10000,
       "trigger": "source-integrity:post",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
@@ -154,6 +54,11 @@
     }
   ],
   "Stop": [
+    {
+      "timeoutMs": 60000,
+      "trigger": "domain-engineering:stop",
+      "handler": "domains:stop"
+    },
     {
       "timeoutMs": 60000,
       "trigger": "engineering-quality:stop",

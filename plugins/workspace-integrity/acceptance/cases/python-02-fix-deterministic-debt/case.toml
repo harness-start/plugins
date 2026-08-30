@@ -1,0 +1,4 @@
+id = "02-fix-deterministic-debt"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["post-tool", "stop", "domain", "debt"]
