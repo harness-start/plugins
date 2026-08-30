@@ -116,10 +116,9 @@ export async function main() {
   }
   if (mode === "session") {
     const roots = await findTrainingProjects(cwd);
-    const context = roots.length > 0
-      ? `${LABEL} discovered ${roots.length} active training project(s). Follow the bundled training-program-design Skill; generated materials, review, and release evidence require registered writers.`
-      : `${LABEL} no training project is active. Route to the bundled training-program-design Skill only when the user asks to design or adapt training; otherwise take no action.`;
-    writeJson(additionalContext("SessionStart", context));
+    if (roots.length > 0) {
+      writeJson(additionalContext("SessionStart", `${LABEL} discovered ${roots.length} active training project(s). Follow the bundled training-program-design Skill; generated materials, review, and release evidence require registered writers.`));
+    }
     return;
   }
   if (mode === "post" || mode === "failure") {

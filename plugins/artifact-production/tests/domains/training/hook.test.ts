@@ -82,14 +82,11 @@ test("stop hook reports structured recovery and blocks an incomplete release", a
   }
 });
 
-test("session hook advertises selective routing without activating a hard gate", async () => {
+test("session hook stays silent when no training project is active", async () => {
   const root = workspace();
   try {
     const result = await runHook("session", { cwd: root, session_id: "host-session" });
-    assert.equal(result.code, 0);
-    const output = JSON.parse(result.stdout);
-    assert.match(output.hookSpecificOutput.additionalContext, /only when the user asks to design or adapt training/iu);
-    assert.match(output.hookSpecificOutput.additionalContext, /no training project is active/iu);
+    assert.deepEqual(result, { code: 0, stdout: "", stderr: "" });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
