@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:77602d3f9aa61c2535da235cff9515fc2753c443ea3c42d361b9b68abd9706b2
+// harness-source-hash: sha256:1c7d544cb901bbc036c01ed43aa1d0bc3c8320aec3974f6b17a12d7cd10801dc
 import {
   DEFAULT_CONFIG,
   digestText,
@@ -7,7 +7,7 @@ import {
   isRecord,
   loadLedger,
   scanLedgers
-} from "../chunks/chunk-GKZQHUQ5.mjs";
+} from "../chunks/chunk-DJFYJS2X.mjs";
 
 // core/src/aio-cli.ts
 import { AsyncLocalStorage } from "node:async_hooks";

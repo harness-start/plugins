@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:77602d3f9aa61c2535da235cff9515fc2753c443ea3c42d361b9b68abd9706b2
+// harness-source-hash: sha256:1c7d544cb901bbc036c01ed43aa1d0bc3c8320aec3974f6b17a12d7cd10801dc
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   parseWriterStdout,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-GKZQHUQ5.mjs";
+} from "../chunks/chunk-DJFYJS2X.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -167,6 +167,328 @@ function isGenericMutationCommand(command) {
   if (/(?:^|[\s;|&`(])(?:perl|ruby|python3?)\s+[^\n]*\s-i\b/iu.test(text)) return true;
   if (/(?:^|[\s;|&`(])(?:node(?:js)?|deno|bun|perl|ruby|php|lua|python3?)\b/iu.test(text)) return true;
   return false;
+}
+
+// core/src/shell-parse.ts
+function decodeAnsiCQuoteEscape(command, slashIndex) {
+  const marker = command[slashIndex + 1] ?? "";
+  const simple = /* @__PURE__ */ new Map([
+    ["a", "\x07"],
+    ["b", "\b"],
+    ["e", "\x1B"],
+    ["E", "\x1B"],
+    ["f", "\f"],
+    ["n", "\n"],
+    ["r", "\r"],
+    ["t", "	"],
+    ["v", "\v"],
+    ["\\", "\\"],
+    ["'", "'"],
+    ['"', '"']
+  ]);
+  if (simple.has(marker)) {
+    return { value: simple.get(marker) ?? "", endIndex: slashIndex + 1 };
+  }
+  const numeric = marker === "x" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,2}/iu) : marker === "u" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,4}/iu) : marker === "U" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,8}/iu) : command.slice(slashIndex + 1).match(/^[0-7]{1,3}/u);
+  if (numeric?.[0]) {
+    const radix = marker === "x" || marker === "u" || marker === "U" ? 16 : 8;
+    const codePoint = Number.parseInt(numeric[0], radix);
+    if (codePoint <= 1114111) {
+      const offset = marker === "x" || marker === "u" || marker === "U" ? 2 : 1;
+      return {
+        value: String.fromCodePoint(codePoint),
+        endIndex: slashIndex + offset + numeric[0].length - 1
+      };
+    }
+  }
+  if (marker === "\n") return { value: "", endIndex: slashIndex + 1 };
+  return { value: `\\${marker}`, endIndex: slashIndex + 1 };
+}
+var EMPTY_OPTIONS = /* @__PURE__ */ new Set();
+var SIMPLE_COMMAND_WRAPPERS = /* @__PURE__ */ new Set(["command", "exec", "nohup", "busybox", "time"]);
+var SUDO_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-C",
+  "-D",
+  "-g",
+  "-h",
+  "-p",
+  "-R",
+  "-T",
+  "-u",
+  "--chdir",
+  "--close-from",
+  "--group",
+  "--host",
+  "--prompt",
+  "--role",
+  "--type",
+  "--user"
+]);
+var ENV_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-C",
+  "-S",
+  "-u",
+  "--chdir",
+  "--split-string",
+  "--unset"
+]);
+var XARGS_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-a",
+  "-d",
+  "-E",
+  "-I",
+  "-L",
+  "-n",
+  "-P",
+  "-s",
+  "--arg-file",
+  "--delimiter",
+  "--eof",
+  "--max-args",
+  "--max-chars",
+  "--max-lines",
+  "--max-procs",
+  "--replace"
+]);
+var TIMEOUT_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-s",
+  "--signal",
+  "-k",
+  "--kill-after"
+]);
+var NICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set(["-n", "--adjustment"]);
+var STDBUF_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-i",
+  "--input",
+  "-o",
+  "--output",
+  "-e",
+  "--error"
+]);
+var IONICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
+  "-c",
+  "--class",
+  "-n",
+  "--classdata",
+  "-p",
+  "--pid"
+]);
+var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
+function skipWrapperOptions(tokens, start, optionsWithValue) {
+  let index = start;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token?.startsWith("-")) break;
+    if (token === "--") return index + 1;
+    index += optionsWithValue.has(token) ? 2 : 1;
+  }
+  return index;
+}
+function tokenBasename(token) {
+  return token.split("/").at(-1) ?? "";
+}
+function commandInvocation(tokens) {
+  let index = 0;
+  let stdinDriven = false;
+  while (index < tokens.length) {
+    const token = tokens[index];
+    if (!token) break;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
+      index += 1;
+      continue;
+    }
+    const name = tokenBasename(token);
+    if (SIMPLE_COMMAND_WRAPPERS.has(name)) {
+      index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
+      continue;
+    }
+    if (name === "sudo") {
+      index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "env") {
+      index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "xargs") {
+      stdinDriven = true;
+      index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "timeout") {
+      index = skipWrapperOptions(tokens, index + 1, TIMEOUT_OPTIONS_WITH_VALUE);
+      if (index < tokens.length && tokens[index] && !COMMAND_SEPARATORS.has(tokens[index] ?? "")) {
+        index += 1;
+      }
+      continue;
+    }
+    if (name === "nice") {
+      index = skipWrapperOptions(tokens, index + 1, NICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "stdbuf") {
+      index = skipWrapperOptions(tokens, index + 1, STDBUF_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    if (name === "ionice") {
+      index = skipWrapperOptions(tokens, index + 1, IONICE_OPTIONS_WITH_VALUE);
+      continue;
+    }
+    return {
+      executable: name || token,
+      args: tokens.slice(index + 1),
+      stdinDriven
+    };
+  }
+  return null;
+}
+function tokenizeShell(command) {
+  const tokens = [];
+  let current = "";
+  let tokenStarted = false;
+  let quote = null;
+  let ansiCQuote = false;
+  let escaped = false;
+  const pushCurrent = () => {
+    if (tokenStarted) {
+      tokens.push(current);
+      current = "";
+      tokenStarted = false;
+    }
+  };
+  for (let index = 0; index < command.length; index += 1) {
+    const char = command[index] ?? "";
+    const next = command[index + 1];
+    if (escaped) {
+      current += char;
+      tokenStarted = true;
+      escaped = false;
+      continue;
+    }
+    if (quote) {
+      if (ansiCQuote && char === "\\") {
+        const decoded = decodeAnsiCQuoteEscape(command, index);
+        current += decoded.value;
+        tokenStarted = true;
+        index = decoded.endIndex;
+        continue;
+      }
+      if (quote === '"' && char === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (char === quote) {
+        quote = null;
+        ansiCQuote = false;
+        continue;
+      }
+      current += char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "$" && (next === '"' || next === "'")) {
+      quote = next;
+      ansiCQuote = next === "'";
+      tokenStarted = true;
+      index += 1;
+      continue;
+    }
+    if (char === '"' || char === "'") {
+      quote = char;
+      tokenStarted = true;
+      continue;
+    }
+    if (char === "\\") {
+      escaped = true;
+      tokenStarted = true;
+      continue;
+    }
+    if (/\s/u.test(char)) {
+      pushCurrent();
+      continue;
+    }
+    if (char === "#" && !tokenStarted) break;
+    if (char === "&" && next === "&") {
+      pushCurrent();
+      tokens.push("&&");
+      index += 1;
+      continue;
+    }
+    if (char === "&") {
+      pushCurrent();
+      tokens.push("&");
+      continue;
+    }
+    if (char === "|" && next === "|") {
+      pushCurrent();
+      tokens.push("||");
+      index += 1;
+      continue;
+    }
+    if (char === ";" || char === "|") {
+      pushCurrent();
+      tokens.push(char);
+      continue;
+    }
+    current += char;
+    tokenStarted = true;
+  }
+  pushCurrent();
+  return tokens;
+}
+function splitShellLogicalLines(command) {
+  const lines = [];
+  let current = "";
+  let quote = null;
+  let escaped = false;
+  for (const char of command) {
+    if (escaped) {
+      current += char;
+      escaped = false;
+      continue;
+    }
+    if (char === "\\") {
+      current += char;
+      escaped = true;
+      continue;
+    }
+    if (quote) {
+      if (char === quote) quote = null;
+      current += char;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      current += char;
+      continue;
+    }
+    if (char === "\n") {
+      if (current.trim()) lines.push(current);
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) lines.push(current);
+  return lines;
+}
+function shellCommandInvocations(command) {
+  const invocations2 = [];
+  for (const logicalLine of splitShellLogicalLines(command)) {
+    const tokens = tokenizeShell(logicalLine);
+    let segment = [];
+    for (let index = 0; index <= tokens.length; index += 1) {
+      const token = tokens[index];
+      if (token !== void 0 && !COMMAND_SEPARATORS.has(token)) {
+        segment.push(token);
+        continue;
+      }
+      const invocation = commandInvocation(segment);
+      if (invocation) invocations2.push(invocation);
+      segment = [];
+    }
+  }
+  return invocations2;
 }
 
 // plugins/engineering-workflow/src/domains/debugging/lib/hook-io.ts
@@ -778,6 +1100,24 @@ function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CONFIG })
   }
   return { action: "allow" };
 }
+function preCommandDecision({ cwd, sessionId, command, config = DEFAULT_CONFIG }) {
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  if (live.kind !== "active") return { action: "allow" };
+  const commandHash = hash(normalizeCommand(command));
+  const receipts = [...live.state.receipts].reverse();
+  const last = receipts[0];
+  if (!last || last.commandHash !== commandHash) return { action: "allow" };
+  let repeated = 0;
+  for (const receipt of receipts) {
+    if (receipt.commandHash !== commandHash || receipt.outcome !== last.outcome) break;
+    repeated += 1;
+  }
+  if (repeated < config.limits.maxRepeatedCommandReceipts) return { action: "allow" };
+  return {
+    action: config.mode === "block" ? "block" : "report",
+    reason: `${repeated} consecutive receipts repeated the same command and outcome; change the experiment, hypothesis, or evidence source before retrying`
+  };
+}
 function receiptSequence(receipt) {
   const matched = /^R-([0-9]+)$/u.exec(String(receipt?.id ?? ""));
   const raw = matched?.[1];
@@ -881,9 +1221,25 @@ function repoRoot(cwd) {
     return resolve6(cwd);
   }
 }
-function shellMutates(command) {
-  const withoutNullRedirects = command.replace(/(?:[0-9]*>>?|&>)\s*\/dev\/null\b/gu, "");
-  return /(?:^|[;&|]\s*)(?:sed\s+(?:-[^\s]*i)|perl\s+(?:-[^\s]*i)|tee\b|cp\b|mv\b|touch\b|mkdir\b|truncate\b|git\s+(?:apply|am|merge|rebase|cherry-pick)|npm\s+(?:install|uninstall)|pnpm\s+(?:add|remove)|yarn\s+(?:add|remove))|(?:>|>>)[^&]/iu.test(withoutNullRedirects);
+function shellCommandMutates(command) {
+  const mutating = shellCommandInvocations(command).some(({ executable, args }) => {
+    const program = executable.toLowerCase();
+    const action = args[0]?.toLowerCase();
+    if (["tee", "cp", "mv", "touch", "mkdir", "truncate"].includes(program)) return true;
+    if (["sed", "perl"].includes(program)) return args.some((arg) => /^-[^-]*i/u.test(arg) || arg === "--in-place" || arg.startsWith("--in-place="));
+    if (program === "git") return ["apply", "am", "merge", "rebase", "cherry-pick"].includes(action ?? "");
+    if (program === "npm") return ["install", "uninstall"].includes(action ?? "");
+    if (program === "pnpm" || program === "yarn") return ["add", "remove"].includes(action ?? "");
+    return false;
+  });
+  if (mutating) return true;
+  const tokens = tokenizeShell(command);
+  return tokens.some((token, index) => {
+    const redirect = token.match(/^(?:\d*)?(?:>>?|&>)(.*)$/u);
+    if (!redirect) return false;
+    const target = redirect[1] || tokens[index + 1] || "";
+    return target !== "/dev/null";
+  });
 }
 function conciseResponse(event) {
   const value = event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? "";
@@ -927,7 +1283,17 @@ async function runPre(event) {
   if (command && isOfficialWriterCommand(command)) {
     return;
   }
-  if (command && (shellMutates(command) || isGenericMutationCommand(command)) && commandMentionsRoot(command, config.ledger.root, resolve6(root, config.ledger.root))) {
+  if (command) {
+    const commandDecision = preCommandDecision({ cwd, sessionId, command, config });
+    if (commandDecision.action === "block") {
+      writeJson2(preToolDeny(`[Debugging Workflow Guard] ${commandDecision.reason}`));
+      return;
+    }
+    if (commandDecision.action === "report") {
+      writeJson2(contextOutput("PreToolUse", `[Debugging Workflow Guard] ${commandDecision.reason}`));
+    }
+  }
+  if (command && (shellCommandMutates(command) || isGenericMutationCommand(command)) && commandMentionsRoot(command, config.ledger.root, resolve6(root, config.ledger.root))) {
     writeJson2(preToolDeny("[Debugging Workflow Guard] Direct ledger mutation is denied; use the debug-workflow CLI writer."));
     return;
   }
@@ -936,7 +1302,7 @@ async function runPre(event) {
     writeJson2(preToolDeny("[Debugging Workflow Guard] Direct file-tool writes to a live ledger are denied; use the debug-workflow CLI writer."));
     return;
   }
-  if (command && shellMutates(command)) paths = [resolve6(root, "__unknown_shell_mutation__")];
+  if (command && shellCommandMutates(command)) paths = [resolve6(root, "__unknown_shell_mutation__")];
   if (paths.length === 0) return;
   const decision = preMutationDecision({ cwd, sessionId, paths, config });
   if (decision.action === "block") writeJson2(preToolDeny(`[Debugging Workflow Guard] ${decision.reason}`));
@@ -986,7 +1352,7 @@ async function runPost(event, forceFailure = false) {
   }
   if (command) {
     const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
-    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
+    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellCommandMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
     if (recorded.kind === "recorded") writeJson2(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
     if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
       const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
@@ -1178,330 +1544,6 @@ import { isAbsolute as isAbsolute5, relative as relative6, resolve as resolve12,
 
 // plugins/engineering-workflow/src/domains/testing/lib/hook-io.ts
 import { basename as basename3, isAbsolute as isAbsolute4, join as join2, relative as relative3, resolve as resolve8 } from "node:path";
-
-// core/src/shell-parse.ts
-function decodeAnsiCQuoteEscape(command, slashIndex) {
-  const marker = command[slashIndex + 1] ?? "";
-  const simple = /* @__PURE__ */ new Map([
-    ["a", "\x07"],
-    ["b", "\b"],
-    ["e", "\x1B"],
-    ["E", "\x1B"],
-    ["f", "\f"],
-    ["n", "\n"],
-    ["r", "\r"],
-    ["t", "	"],
-    ["v", "\v"],
-    ["\\", "\\"],
-    ["'", "'"],
-    ['"', '"']
-  ]);
-  if (simple.has(marker)) {
-    return { value: simple.get(marker) ?? "", endIndex: slashIndex + 1 };
-  }
-  const numeric = marker === "x" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,2}/iu) : marker === "u" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,4}/iu) : marker === "U" ? command.slice(slashIndex + 2).match(/^[0-9a-f]{1,8}/iu) : command.slice(slashIndex + 1).match(/^[0-7]{1,3}/u);
-  if (numeric?.[0]) {
-    const radix = marker === "x" || marker === "u" || marker === "U" ? 16 : 8;
-    const codePoint = Number.parseInt(numeric[0], radix);
-    if (codePoint <= 1114111) {
-      const offset = marker === "x" || marker === "u" || marker === "U" ? 2 : 1;
-      return {
-        value: String.fromCodePoint(codePoint),
-        endIndex: slashIndex + offset + numeric[0].length - 1
-      };
-    }
-  }
-  if (marker === "\n") return { value: "", endIndex: slashIndex + 1 };
-  return { value: `\\${marker}`, endIndex: slashIndex + 1 };
-}
-var EMPTY_OPTIONS = /* @__PURE__ */ new Set();
-var SIMPLE_COMMAND_WRAPPERS = /* @__PURE__ */ new Set(["command", "exec", "nohup", "busybox", "time"]);
-var SUDO_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
-  "-C",
-  "-D",
-  "-g",
-  "-h",
-  "-p",
-  "-R",
-  "-T",
-  "-u",
-  "--chdir",
-  "--close-from",
-  "--group",
-  "--host",
-  "--prompt",
-  "--role",
-  "--type",
-  "--user"
-]);
-var ENV_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
-  "-C",
-  "-S",
-  "-u",
-  "--chdir",
-  "--split-string",
-  "--unset"
-]);
-var XARGS_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
-  "-a",
-  "-d",
-  "-E",
-  "-I",
-  "-L",
-  "-n",
-  "-P",
-  "-s",
-  "--arg-file",
-  "--delimiter",
-  "--eof",
-  "--max-args",
-  "--max-chars",
-  "--max-lines",
-  "--max-procs",
-  "--replace"
-]);
-var TIMEOUT_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
-  "-s",
-  "--signal",
-  "-k",
-  "--kill-after"
-]);
-var NICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set(["-n", "--adjustment"]);
-var STDBUF_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
-  "-i",
-  "--input",
-  "-o",
-  "--output",
-  "-e",
-  "--error"
-]);
-var IONICE_OPTIONS_WITH_VALUE = /* @__PURE__ */ new Set([
-  "-c",
-  "--class",
-  "-n",
-  "--classdata",
-  "-p",
-  "--pid"
-]);
-var COMMAND_SEPARATORS = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
-function skipWrapperOptions(tokens, start, optionsWithValue) {
-  let index = start;
-  while (index < tokens.length) {
-    const token = tokens[index];
-    if (!token?.startsWith("-")) break;
-    if (token === "--") return index + 1;
-    index += optionsWithValue.has(token) ? 2 : 1;
-  }
-  return index;
-}
-function tokenBasename(token) {
-  return token.split("/").at(-1) ?? "";
-}
-function commandInvocation(tokens) {
-  let index = 0;
-  let stdinDriven = false;
-  while (index < tokens.length) {
-    const token = tokens[index];
-    if (!token) break;
-    if (/^[A-Za-z_][A-Za-z0-9_]*=/u.test(token)) {
-      index += 1;
-      continue;
-    }
-    const name = tokenBasename(token);
-    if (SIMPLE_COMMAND_WRAPPERS.has(name)) {
-      index = skipWrapperOptions(tokens, index + 1, EMPTY_OPTIONS);
-      continue;
-    }
-    if (name === "sudo") {
-      index = skipWrapperOptions(tokens, index + 1, SUDO_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (name === "env") {
-      index = skipWrapperOptions(tokens, index + 1, ENV_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (name === "xargs") {
-      stdinDriven = true;
-      index = skipWrapperOptions(tokens, index + 1, XARGS_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (name === "timeout") {
-      index = skipWrapperOptions(tokens, index + 1, TIMEOUT_OPTIONS_WITH_VALUE);
-      if (index < tokens.length && tokens[index] && !COMMAND_SEPARATORS.has(tokens[index] ?? "")) {
-        index += 1;
-      }
-      continue;
-    }
-    if (name === "nice") {
-      index = skipWrapperOptions(tokens, index + 1, NICE_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (name === "stdbuf") {
-      index = skipWrapperOptions(tokens, index + 1, STDBUF_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    if (name === "ionice") {
-      index = skipWrapperOptions(tokens, index + 1, IONICE_OPTIONS_WITH_VALUE);
-      continue;
-    }
-    return {
-      executable: name || token,
-      args: tokens.slice(index + 1),
-      stdinDriven
-    };
-  }
-  return null;
-}
-function tokenizeShell(command) {
-  const tokens = [];
-  let current = "";
-  let tokenStarted = false;
-  let quote = null;
-  let ansiCQuote = false;
-  let escaped = false;
-  const pushCurrent = () => {
-    if (tokenStarted) {
-      tokens.push(current);
-      current = "";
-      tokenStarted = false;
-    }
-  };
-  for (let index = 0; index < command.length; index += 1) {
-    const char = command[index] ?? "";
-    const next = command[index + 1];
-    if (escaped) {
-      current += char;
-      tokenStarted = true;
-      escaped = false;
-      continue;
-    }
-    if (quote) {
-      if (ansiCQuote && char === "\\") {
-        const decoded = decodeAnsiCQuoteEscape(command, index);
-        current += decoded.value;
-        tokenStarted = true;
-        index = decoded.endIndex;
-        continue;
-      }
-      if (quote === '"' && char === "\\") {
-        escaped = true;
-        continue;
-      }
-      if (char === quote) {
-        quote = null;
-        ansiCQuote = false;
-        continue;
-      }
-      current += char;
-      tokenStarted = true;
-      continue;
-    }
-    if (char === "$" && (next === '"' || next === "'")) {
-      quote = next;
-      ansiCQuote = next === "'";
-      tokenStarted = true;
-      index += 1;
-      continue;
-    }
-    if (char === '"' || char === "'") {
-      quote = char;
-      tokenStarted = true;
-      continue;
-    }
-    if (char === "\\") {
-      escaped = true;
-      tokenStarted = true;
-      continue;
-    }
-    if (/\s/u.test(char)) {
-      pushCurrent();
-      continue;
-    }
-    if (char === "#" && !tokenStarted) break;
-    if (char === "&" && next === "&") {
-      pushCurrent();
-      tokens.push("&&");
-      index += 1;
-      continue;
-    }
-    if (char === "&") {
-      pushCurrent();
-      tokens.push("&");
-      continue;
-    }
-    if (char === "|" && next === "|") {
-      pushCurrent();
-      tokens.push("||");
-      index += 1;
-      continue;
-    }
-    if (char === ";" || char === "|") {
-      pushCurrent();
-      tokens.push(char);
-      continue;
-    }
-    current += char;
-    tokenStarted = true;
-  }
-  pushCurrent();
-  return tokens;
-}
-function splitShellLogicalLines(command) {
-  const lines = [];
-  let current = "";
-  let quote = null;
-  let escaped = false;
-  for (const char of command) {
-    if (escaped) {
-      current += char;
-      escaped = false;
-      continue;
-    }
-    if (char === "\\") {
-      current += char;
-      escaped = true;
-      continue;
-    }
-    if (quote) {
-      if (char === quote) quote = null;
-      current += char;
-      continue;
-    }
-    if (char === "'" || char === '"') {
-      quote = char;
-      current += char;
-      continue;
-    }
-    if (char === "\n") {
-      if (current.trim()) lines.push(current);
-      current = "";
-      continue;
-    }
-    current += char;
-  }
-  if (current.trim()) lines.push(current);
-  return lines;
-}
-function shellCommandInvocations(command) {
-  const invocations2 = [];
-  for (const logicalLine of splitShellLogicalLines(command)) {
-    const tokens = tokenizeShell(logicalLine);
-    let segment = [];
-    for (let index = 0; index <= tokens.length; index += 1) {
-      const token = tokens[index];
-      if (token !== void 0 && !COMMAND_SEPARATORS.has(token)) {
-        segment.push(token);
-        continue;
-      }
-      const invocation = commandInvocation(segment);
-      if (invocation) invocations2.push(invocation);
-      segment = [];
-    }
-  }
-  return invocations2;
-}
-
-// plugins/engineering-workflow/src/domains/testing/lib/hook-io.ts
 function cwdOf(event) {
   const raw = event.cwd ?? event.working_directory ?? event.workingDirectory;
   if (raw !== void 0 && raw !== null && typeof raw !== "string") return resolve8(raw);
@@ -1843,6 +1885,33 @@ function tomlSection(text, name) {
   return next ? remainder.slice(0, next.index) : remainder;
 }
 function resolveLanguageContext(root, path, language) {
+  if (["javascript", "typescript"].includes(language)) {
+    const directory = dirname4(normalize(path));
+    const stem = stripExtension(posix.basename(normalize(path)));
+    const candidates = ["index.ts", "index.tsx", "index.mts", "index.js", "index.jsx", "index.mjs"];
+    const barrel = candidates.map((name) => resolve9(root, directory, name)).find(existsSync3);
+    if (!barrel) return {};
+    const text = withoutComments(language, readFileSync4(barrel, "utf8"));
+    const sourcePath = resolve9(root, normalize(path));
+    const sourceSymbols = new Set(extractSourceSymbols(
+      language,
+      existsSync3(sourcePath) ? readFileSync4(sourcePath, "utf8") : ""
+    ));
+    let exported = false;
+    for (const match of text.matchAll(/^\s*export\s+(\*|\{([^}]*)\})\s+from\s+["']\.\/([^"']+)["']/gmu)) {
+      if (stripExtension(match[3] ?? "") !== stem) continue;
+      if (match[1] === "*") {
+        exported = true;
+        break;
+      }
+      const names = (match[2] ?? "").split(",").map((item) => item.trim().split(/\s+as\s+/u)[0]).filter(Boolean);
+      if (names.some((name) => sourceSymbols.has(name ?? ""))) {
+        exported = true;
+        break;
+      }
+    }
+    return exported ? { javascriptBarrelTargets: [`javascript-module:${normalize(directory)}`] } : {};
+  }
   if (language === "python") {
     const module = sourceModule(path);
     const separator = module.lastIndexOf(".");
@@ -2194,7 +2263,11 @@ function explicitSourceTargets(source, context2) {
   }
   if (["javascript", "typescript"].includes(source.language)) {
     const module = javascriptModule(source.path);
-    return [`javascript-module:${module}`, `javascript-module:${module.replace(/\/index$/u, "")}`];
+    return [
+      `javascript-module:${module}`,
+      `javascript-module:${module.replace(/\/index$/u, "")}`,
+      ...context2.javascriptBarrelTargets ?? []
+    ];
   }
   if (source.language === "rust") {
     const descriptor = rustModule(source.path);
@@ -2208,6 +2281,78 @@ function explicitSourceTargets(source, context2) {
     return importPath ? symbols.map((symbol) => `go-import:${importPath}#${symbol}`) : [];
   }
   return [];
+}
+function rustWithoutInlineTestModules(input) {
+  const pattern = /#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/gu;
+  let result = "";
+  let cursor = 0;
+  let modules = 0;
+  for (const match of input.matchAll(pattern)) {
+    const start = match.index;
+    if (start < cursor) continue;
+    const brace = start + match[0].lastIndexOf("{");
+    let depth = 0;
+    let index = brace;
+    let quote = null;
+    let escaped = false;
+    let lineComment = false;
+    let blockCommentDepth = 0;
+    for (; index < input.length; index += 1) {
+      const char = input[index] ?? "";
+      const next = input[index + 1] ?? "";
+      if (lineComment) {
+        if (char === "\n") lineComment = false;
+        continue;
+      }
+      if (blockCommentDepth > 0) {
+        if (char === "/" && next === "*") {
+          blockCommentDepth += 1;
+          index += 1;
+        } else if (char === "*" && next === "/") {
+          blockCommentDepth -= 1;
+          index += 1;
+        }
+        continue;
+      }
+      if (quote) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === quote) quote = null;
+        continue;
+      }
+      if (char === "/" && next === "/") {
+        lineComment = true;
+        index += 1;
+        continue;
+      }
+      if (char === "/" && next === "*") {
+        blockCommentDepth = 1;
+        index += 1;
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        continue;
+      }
+      if (char === "{") depth += 1;
+      else if (char === "}" && --depth === 0) {
+        index += 1;
+        break;
+      }
+    }
+    if (depth !== 0) continue;
+    result += input.slice(cursor, start);
+    cursor = index;
+    modules += 1;
+  }
+  result += input.slice(cursor);
+  return { text: result.replace(/[ \t]+$/gmu, "").replace(/\n{3,}/gu, "\n\n").trim(), modules };
+}
+function rustInlineTestOnlyChange(current, proposed) {
+  if (current === proposed) return false;
+  const before = rustWithoutInlineTestModules(current);
+  const after = rustWithoutInlineTestModules(proposed);
+  return (before.modules > 0 || after.modules > 0) && before.text === after.text;
 }
 function removeTestSuffix(name, language) {
   let value = stripExtension(name);
@@ -2628,6 +2773,14 @@ function checkSourceTarget(root, event, target) {
     return false;
   }
   const current = findCorrespondingTests(root, source, context2);
+  if (target.language === "rust") {
+    const head = gitShowHead(root, target.path);
+    const live = readText(target.absolutePath);
+    if (head != null && rustInlineTestOnlyChange(head, live)) {
+      const evidence = extractTestEvidence("rust", live, target.path, context2);
+      if (evidence.valid) return true;
+    }
+  }
   if (dirtyLiveTests(root, source, context2).length > 0) return true;
   denySourceChange(target, current);
   return false;
@@ -2653,6 +2806,11 @@ async function runPre2(event) {
     }
     return;
   }
+  if (targets2.every((target) => {
+    if (target.kind !== "source" || target.language !== "rust") return false;
+    const current = readText(target.absolutePath);
+    return rustInlineTestOnlyChange(current, proposedContent(event, target.absolutePath, current));
+  })) return;
   const kinds = new Set(targets2.map((target) => target.kind));
   if (kinds.has("test") && kinds.has("source")) {
     writeJson3(preToolDeny(mixedWriteFinding()));

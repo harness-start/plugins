@@ -21,6 +21,7 @@ export type LanguageContext = {
   goModulePath?: string;
   goModuleRoot?: string;
   pythonReexports?: Array<{ sourceSymbol: string; publicTarget: string }>;
+  javascriptBarrelTargets?: string[];
 };
 
 export type TestEvidence = {
@@ -98,6 +99,27 @@ function tomlSection(text: string, name: string): string {
 }
 
 export function resolveLanguageContext(root: string, path: string, language: string): LanguageContext {
+  if (["javascript", "typescript"].includes(language)) {
+    const directory = dirname(normalize(path));
+    const stem = stripExtension(posix.basename(normalize(path)));
+    const candidates = ["index.ts", "index.tsx", "index.mts", "index.js", "index.jsx", "index.mjs"];
+    const barrel = candidates.map((name) => resolve(root, directory, name)).find(existsSync);
+    if (!barrel) return {};
+    const text = withoutComments(language, readFileSync(barrel, "utf8"));
+    const sourcePath = resolve(root, normalize(path));
+    const sourceSymbols = new Set(extractSourceSymbols(
+      language,
+      existsSync(sourcePath) ? readFileSync(sourcePath, "utf8") : "",
+    ));
+    let exported = false;
+    for (const match of text.matchAll(/^\s*export\s+(\*|\{([^}]*)\})\s+from\s+["']\.\/([^"']+)["']/gmu)) {
+      if (stripExtension(match[3] ?? "") !== stem) continue;
+      if (match[1] === "*") { exported = true; break; }
+      const names = (match[2] ?? "").split(",").map((item) => item.trim().split(/\s+as\s+/u)[0]).filter(Boolean);
+      if (names.some((name) => sourceSymbols.has(name ?? ""))) { exported = true; break; }
+    }
+    return exported ? { javascriptBarrelTargets: [`javascript-module:${normalize(directory)}`] } : {};
+  }
   if (language === "python") {
     const module = sourceModule(path);
     const separator = module.lastIndexOf(".");
@@ -484,7 +506,11 @@ function explicitSourceTargets(source: SourceLike, context: LanguageContext): st
   }
   if (["javascript", "typescript"].includes(source.language)) {
     const module = javascriptModule(source.path);
-    return [`javascript-module:${module}`, `javascript-module:${module.replace(/\/index$/u, "")}`];
+    return [
+      `javascript-module:${module}`,
+      `javascript-module:${module.replace(/\/index$/u, "")}`,
+      ...(context.javascriptBarrelTargets ?? []),
+    ];
   }
   if (source.language === "rust") {
     const descriptor = rustModule(source.path);
@@ -498,6 +524,58 @@ function explicitSourceTargets(source: SourceLike, context: LanguageContext): st
     return importPath ? symbols.map((symbol) => `go-import:${importPath}#${symbol}`) : [];
   }
   return [];
+}
+
+function rustWithoutInlineTestModules(input: string): { text: string; modules: number } {
+  const pattern = /#\s*\[\s*cfg\s*\(\s*test\s*\)\s*\]\s*(?:pub(?:\([^)]*\))?\s+)?mod\s+[A-Za-z_][A-Za-z0-9_]*\s*\{/gu;
+  let result = "";
+  let cursor = 0;
+  let modules = 0;
+  for (const match of input.matchAll(pattern)) {
+    const start = match.index;
+    if (start < cursor) continue;
+    const brace = start + match[0].lastIndexOf("{");
+    let depth = 0;
+    let index = brace;
+    let quote: "\"" | "'" | null = null;
+    let escaped = false;
+    let lineComment = false;
+    let blockCommentDepth = 0;
+    for (; index < input.length; index += 1) {
+      const char = input[index] ?? "";
+      const next = input[index + 1] ?? "";
+      if (lineComment) { if (char === "\n") lineComment = false; continue; }
+      if (blockCommentDepth > 0) {
+        if (char === "/" && next === "*") { blockCommentDepth += 1; index += 1; }
+        else if (char === "*" && next === "/") { blockCommentDepth -= 1; index += 1; }
+        continue;
+      }
+      if (quote) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === quote) quote = null;
+        continue;
+      }
+      if (char === "/" && next === "/") { lineComment = true; index += 1; continue; }
+      if (char === "/" && next === "*") { blockCommentDepth = 1; index += 1; continue; }
+      if (char === "\"" || char === "'") { quote = char; continue; }
+      if (char === "{") depth += 1;
+      else if (char === "}" && --depth === 0) { index += 1; break; }
+    }
+    if (depth !== 0) continue;
+    result += input.slice(cursor, start);
+    cursor = index;
+    modules += 1;
+  }
+  result += input.slice(cursor);
+  return { text: result.replace(/[ \t]+$/gmu, "").replace(/\n{3,}/gu, "\n\n").trim(), modules };
+}
+
+export function rustInlineTestOnlyChange(current: string, proposed: string): boolean {
+  if (current === proposed) return false;
+  const before = rustWithoutInlineTestModules(current);
+  const after = rustWithoutInlineTestModules(proposed);
+  return (before.modules > 0 || after.modules > 0) && before.text === after.text;
 }
 
 function removeTestSuffix(name: string | null | undefined, language: string): string {

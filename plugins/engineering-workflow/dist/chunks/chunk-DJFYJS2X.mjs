@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:77602d3f9aa61c2535da235cff9515fc2753c443ea3c42d361b9b68abd9706b2
+// harness-source-hash: sha256:1c7d544cb901bbc036c01ed43aa1d0bc3c8320aec3974f6b17a12d7cd10801dc
 
 // core/src/owner-hook-runtime.ts
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -71,6 +71,7 @@ var defaultConfig = {
     maxBugs: 50,
     maxHypothesesPerBug: 20,
     maxFailedFixAttempts: 3,
+    maxRepeatedCommandReceipts: 5,
     leaseMinutes: 120,
     maxReceipts: 200
   },
@@ -160,6 +161,7 @@ function resolveConfig(raw, warn = () => {
     config.limits.maxBugs = positiveInt(raw.limits.maxBugs, config.limits.maxBugs, 200);
     config.limits.maxHypothesesPerBug = positiveInt(raw.limits.maxHypothesesPerBug, config.limits.maxHypothesesPerBug, 100);
     config.limits.maxFailedFixAttempts = positiveInt(raw.limits.maxFailedFixAttempts, config.limits.maxFailedFixAttempts, 20);
+    config.limits.maxRepeatedCommandReceipts = positiveInt(raw.limits.maxRepeatedCommandReceipts, config.limits.maxRepeatedCommandReceipts, 50);
     config.limits.leaseMinutes = positiveInt(raw.limits.leaseMinutes, config.limits.leaseMinutes, 1440);
     config.limits.maxReceipts = positiveInt(raw.limits.maxReceipts, config.limits.maxReceipts, 1e3);
   }

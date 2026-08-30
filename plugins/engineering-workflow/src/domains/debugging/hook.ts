@@ -8,6 +8,7 @@ import { relative, resolve } from "node:path";
 import type { HookOutput, OwnerHookHandlerContext } from "@harness/core/aio-dispatcher";
 import { isRecord, type HookEvent } from "@harness/core/hook-event";
 import { commandMentionsRoot, isGenericMutationCommand } from "@harness/core/path-protect";
+import { shellCommandInvocations, tokenizeShell } from "@harness/core/shell-parse";
 
 import { loadProjectConfig, type PluginConfig } from "./lib/config.js";
 import {
@@ -37,6 +38,7 @@ import {
   completionFindings,
   configuredOutcome,
   preMutationDecision,
+  preCommandDecision,
   recordReceipt,
   refreshBoundWorkOrder,
 } from "./lib/workflow.js";
@@ -58,9 +60,25 @@ function repoRoot(cwd: string): string {
   }
   catch { return resolve(cwd); }
 }
-function shellMutates(command: string): boolean {
-  const withoutNullRedirects = command.replace(/(?:[0-9]*>>?|&>)\s*\/dev\/null\b/gu, "");
-  return /(?:^|[;&|]\s*)(?:sed\s+(?:-[^\s]*i)|perl\s+(?:-[^\s]*i)|tee\b|cp\b|mv\b|touch\b|mkdir\b|truncate\b|git\s+(?:apply|am|merge|rebase|cherry-pick)|npm\s+(?:install|uninstall)|pnpm\s+(?:add|remove)|yarn\s+(?:add|remove))|(?:>|>>)[^&]/iu.test(withoutNullRedirects);
+export function shellCommandMutates(command: string): boolean {
+  const mutating = shellCommandInvocations(command).some(({ executable, args }) => {
+    const program = executable.toLowerCase();
+    const action = args[0]?.toLowerCase();
+    if (["tee", "cp", "mv", "touch", "mkdir", "truncate"].includes(program)) return true;
+    if (["sed", "perl"].includes(program)) return args.some((arg) => /^-[^-]*i/u.test(arg) || arg === "--in-place" || arg.startsWith("--in-place="));
+    if (program === "git") return ["apply", "am", "merge", "rebase", "cherry-pick"].includes(action ?? "");
+    if (program === "npm") return ["install", "uninstall"].includes(action ?? "");
+    if (program === "pnpm" || program === "yarn") return ["add", "remove"].includes(action ?? "");
+    return false;
+  });
+  if (mutating) return true;
+  const tokens = tokenizeShell(command);
+  return tokens.some((token, index) => {
+    const redirect = token.match(/^(?:\d*)?(?:>>?|&>)(.*)$/u);
+    if (!redirect) return false;
+    const target = redirect[1] || tokens[index + 1] || "";
+    return target !== "/dev/null";
+  });
 }
 function conciseResponse(event: HookEvent): string {
   const value = event?.tool_response ?? event?.toolResponse ?? event?.tool_result ?? event?.toolResult ?? event?.response ?? event?.error ?? "";
@@ -106,7 +124,17 @@ async function runPre(event: HookEvent): Promise<void> {
   if (command && isOfficialWriterCommand(command)) {
     return;
   }
-  if (command && (shellMutates(command) || isGenericMutationCommand(command)) && commandMentionsRoot(command, config.ledger.root, resolve(root, config.ledger.root))) {
+  if (command) {
+    const commandDecision = preCommandDecision({ cwd, sessionId, command, config });
+    if (commandDecision.action === "block") {
+      writeJson(preToolDeny(`[Debugging Workflow Guard] ${commandDecision.reason}`));
+      return;
+    }
+    if (commandDecision.action === "report") {
+      writeJson(contextOutput("PreToolUse", `[Debugging Workflow Guard] ${commandDecision.reason}`));
+    }
+  }
+  if (command && (shellCommandMutates(command) || isGenericMutationCommand(command)) && commandMentionsRoot(command, config.ledger.root, resolve(root, config.ledger.root))) {
     writeJson(preToolDeny("[Debugging Workflow Guard] Direct ledger mutation is denied; use the debug-workflow CLI writer."));
     return;
   }
@@ -115,7 +143,7 @@ async function runPre(event: HookEvent): Promise<void> {
     writeJson(preToolDeny("[Debugging Workflow Guard] Direct file-tool writes to a live ledger are denied; use the debug-workflow CLI writer."));
     return;
   }
-  if (command && shellMutates(command)) paths = [resolve(root, "__unknown_shell_mutation__")];
+  if (command && shellCommandMutates(command)) paths = [resolve(root, "__unknown_shell_mutation__")];
   if (paths.length === 0) return;
   const decision = preMutationDecision({ cwd, sessionId, paths, config });
   if (decision.action === "block") writeJson(preToolDeny(`[Debugging Workflow Guard] ${decision.reason}`));
@@ -169,7 +197,7 @@ async function runPost(event: HookEvent, forceFailure = false): Promise<void> {
 
   if (command) {
     const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
-    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
+    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellCommandMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
     if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
     if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
       const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;

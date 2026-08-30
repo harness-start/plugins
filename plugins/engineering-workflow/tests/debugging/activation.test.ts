@@ -255,6 +255,26 @@ test("stderr redirection to dev null does not count as a production mutation", a
   assert.equal(state.receipts.at(-1).kind, "command");
 });
 
+test("quoted diagnostic arrows do not count as shell mutations", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-workflow-quoted-arrow-data-"));
+  const created = openLedger(root);
+  await runHook("post", writerEvent(root, created, "quoted-arrow-session"), { PLUGIN_DATA: data });
+  await runHook("post", {
+    cwd: root,
+    session_id: "quoted-arrow-session",
+    tool_name: "Bash",
+    tool_input: { command: "for f in a; do t=b; echo \"$f -> $t\"; done" },
+    tool_response: { exit_code: 0, stdout: "a -> b" },
+  }, { PLUGIN_DATA: data });
+
+  const sessions = join(root, ".debug-workflow", ".state", "sessions");
+  const stateFile = readdirSync(sessions).find((name) => name.endsWith(".json"));
+  const state = JSON.parse(readFileSync(join(sessions, stateFile), "utf8"));
+  assert.equal(state.mutationSeq, 0);
+  assert.equal(state.receipts.at(-1).kind, "command");
+});
+
 test("an invalid work-order mutation remains bound until corrected", async () => {
   const root = fixture();
   const data = mkdtempSync(join(tmpdir(), "debug-workflow-invalid-data-"));

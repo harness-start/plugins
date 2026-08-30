@@ -12,6 +12,7 @@ import {
   closeBinding,
   completionFindings,
   preMutationDecision,
+  preCommandDecision,
   recordReceipt,
   refreshBoundWorkOrder,
 } from "../../src/domains/debugging/lib/workflow.js";
@@ -173,6 +174,20 @@ test("three failed post-mutation reproductions freeze only the current bug", () 
     writeOrder(fx.path, next);
     const allowed = preMutationDecision({ cwd: fx.root, sessionId: "s1", paths: [join(fx.root, "src.js")] });
     assert.equal(allowed.action, "allow");
+  });
+});
+
+test("five identical command outcomes require a changed diagnostic experiment", () => {
+  const fx = fixture();
+  withData(fx.data, () => {
+    bindWorkOrderAfterMutation({ cwd: fx.root, sessionId: "s1", touchedPaths: [fx.path] });
+    for (let index = 0; index < 5; index += 1) {
+      recordReceipt({ cwd: fx.root, sessionId: "s1", kind: "command", command: "adb shell dumpsys activity", outcome: "success" });
+    }
+    const repeated = preCommandDecision({ cwd: fx.root, sessionId: "s1", command: "adb shell dumpsys activity" });
+    assert.equal(repeated.action, "block");
+    assert.match(repeated.reason, /change the experiment|new evidence/iu);
+    assert.equal(preCommandDecision({ cwd: fx.root, sessionId: "s1", command: "adb shell dumpsys package" }).action, "allow");
   });
 });
 

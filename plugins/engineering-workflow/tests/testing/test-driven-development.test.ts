@@ -11,6 +11,7 @@ import {
   expectedTestExample,
   extractTestEvidence,
   resolveLanguageContext,
+  rustInlineTestOnlyChange,
   sourceAuthorizedByTest,
 } from "../../src/domains/testing/lib/patterns.js";
 import { proposedContent } from "../../src/domains/testing/lib/hook-io.js";
@@ -665,6 +666,68 @@ test("Python package-relative namespace imports authorize only the exported sour
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });
   }
+});
+
+test("JavaScript and TypeScript package barrels authorize only modules they re-export", () => {
+  const fx = fixture("test-driven-development-js-barrel-");
+  try {
+    mkdirSync(join(fx.root, "packages", "compiler", "src"), { recursive: true });
+    writeFileSync(join(fx.root, "packages", "compiler", "src", "index.ts"), "export * from './routing.js';\n");
+    writeFileSync(join(fx.root, "packages", "compiler", "src", "routing.ts"), "export function compileRoute() { return true; }\n");
+    const source = {
+      path: "packages/compiler/src/routing.ts",
+      language: "typescript",
+      content: "export function compileRoute() { return true; }\n",
+    };
+    const testPath = "packages/compiler/__tests__/routing.test.ts";
+    const record = {
+      path: testPath,
+      language: "typescript",
+      evidence: extractTestEvidence(
+        "typescript",
+        "import { compileRoute } from '../src';\ntest('compiles route', () => compileRoute());\n",
+        testPath,
+      ),
+    };
+    assert.equal(sourceAuthorizedByTest(
+      source,
+      record,
+      resolveLanguageContext(fx.root, source.path, source.language),
+    ), true);
+
+    writeFileSync(join(fx.root, "packages", "compiler", "src", "index.ts"), "export * from './alternate.js';\n");
+    assert.equal(sourceAuthorizedByTest(
+      source,
+      record,
+      resolveLanguageContext(fx.root, source.path, source.language),
+    ), false);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("a barrel star export resolves before a new JavaScript source file exists", () => {
+  const fx = fixture("test-driven-development-new-js-barrel-");
+  try {
+    mkdirSync(join(fx.root, "packages", "compiler", "src"), { recursive: true });
+    writeFileSync(join(fx.root, "packages", "compiler", "src", "index.ts"), "export * from './routing.js';\n");
+    assert.deepEqual(
+      resolveLanguageContext(fx.root, "packages/compiler/src/routing.ts", "typescript").javascriptBarrelTargets,
+      ["javascript-module:packages/compiler/src"],
+    );
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("Rust inline test modules can change without authorizing production edits", () => {
+  const baseline = "pub fn route() -> bool { true }\n";
+  const withTest = `${baseline}\n#[cfg(test)]\nmod tests {\n    use super::*;\n    #[test]\n    fn routes() { assert!(route()); }\n}\n`;
+  const productionEdit = withTest.replace("{ true }", "{ false }");
+  assert.equal(rustInlineTestOnlyChange(baseline, withTest), true);
+  assert.equal(rustInlineTestOnlyChange(withTest, productionEdit), false);
 });
 
 test("recognizes concrete test declarations for every supported language", () => {

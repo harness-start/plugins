@@ -76,6 +76,13 @@ export type PreMutationInput = {
   config?: PluginConfig;
 };
 
+export type PreCommandInput = {
+  cwd: string;
+  sessionId: string | null;
+  command: string;
+  config?: PluginConfig;
+};
+
 export type MutationDecision = {
   action: "allow" | "block" | "report";
   reason?: string;
@@ -263,6 +270,25 @@ export function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CO
     if (!affectedBaseline) return { action: config.mode === "block" ? "block" : "report", reason: `${String(bug.id)} shared fix affected bug ${String(affectedId)} has no attributed failing baseline before the production mutation; switch activeBugId to ${String(affectedId)}, run its exact reproduction verbatim, then switch back` };
   }
   return { action: "allow" };
+}
+
+export function preCommandDecision({ cwd, sessionId, command, config = DEFAULT_CONFIG }: PreCommandInput): MutationDecision {
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  if (live.kind !== "active") return { action: "allow" };
+  const commandHash = hash(normalizeCommand(command));
+  const receipts = [...live.state.receipts].reverse();
+  const last = receipts[0];
+  if (!last || last.commandHash !== commandHash) return { action: "allow" };
+  let repeated = 0;
+  for (const receipt of receipts) {
+    if (receipt.commandHash !== commandHash || receipt.outcome !== last.outcome) break;
+    repeated += 1;
+  }
+  if (repeated < config.limits.maxRepeatedCommandReceipts) return { action: "allow" };
+  return {
+    action: config.mode === "block" ? "block" : "report",
+    reason: `${repeated} consecutive receipts repeated the same command and outcome; change the experiment, hypothesis, or evidence source before retrying`,
+  };
 }
 
 function receiptSequence(receipt: Receipt | undefined): number {

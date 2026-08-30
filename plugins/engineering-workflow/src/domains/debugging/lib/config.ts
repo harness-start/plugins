@@ -20,6 +20,7 @@ export type PluginConfig = {
     maxBugs: number;
     maxHypothesesPerBug: number;
     maxFailedFixAttempts: number;
+    maxRepeatedCommandReceipts: number;
     leaseMinutes: number;
     maxReceipts: number;
   };
@@ -49,6 +50,7 @@ const defaultConfig: PluginConfig = {
     maxBugs: 50,
     maxHypothesesPerBug: 20,
     maxFailedFixAttempts: 3,
+    maxRepeatedCommandReceipts: 5,
     leaseMinutes: 120,
     maxReceipts: 200,
   },
@@ -145,6 +147,7 @@ export function resolveConfig(raw: unknown, warn: ConfigWarn = () => {}): Plugin
     config.limits.maxBugs = positiveInt(raw.limits.maxBugs, config.limits.maxBugs, 200);
     config.limits.maxHypothesesPerBug = positiveInt(raw.limits.maxHypothesesPerBug, config.limits.maxHypothesesPerBug, 100);
     config.limits.maxFailedFixAttempts = positiveInt(raw.limits.maxFailedFixAttempts, config.limits.maxFailedFixAttempts, 20);
+    config.limits.maxRepeatedCommandReceipts = positiveInt(raw.limits.maxRepeatedCommandReceipts, config.limits.maxRepeatedCommandReceipts, 50);
     config.limits.leaseMinutes = positiveInt(raw.limits.leaseMinutes, config.limits.leaseMinutes, 1440);
     config.limits.maxReceipts = positiveInt(raw.limits.maxReceipts, config.limits.maxReceipts, 1000);
   }

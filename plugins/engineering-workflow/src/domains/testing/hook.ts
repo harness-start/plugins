@@ -33,6 +33,7 @@ import {
   expectedTestExample,
   extractTestEvidence,
   resolveLanguageContext,
+  rustInlineTestOnlyChange,
   sourceAuthorizedByTest,
   type ClassifiedPath,
   type Language,
@@ -205,6 +206,14 @@ function checkSourceTarget(root: string, event: HookEvent, target: ActiveTarget)
   }
 
   const current = findCorrespondingTests(root, source, context);
+  if (target.language === "rust") {
+    const head = gitShowHead(root, target.path);
+    const live = readText(target.absolutePath);
+    if (head != null && rustInlineTestOnlyChange(head, live)) {
+      const evidence = extractTestEvidence("rust", live, target.path, context);
+      if (evidence.valid) return true;
+    }
+  }
   if (dirtyLiveTests(root, source, context).length > 0) return true;
   denySourceChange(target, current);
   return false;
@@ -233,6 +242,11 @@ async function runPre(event: HookEvent): Promise<void> {
     }
     return;
   }
+  if (targets.every((target) => {
+    if (target.kind !== "source" || target.language !== "rust") return false;
+    const current = readText(target.absolutePath);
+    return rustInlineTestOnlyChange(current, proposedContent(event, target.absolutePath, current));
+  })) return;
   const kinds = new Set(targets.map((target) => target.kind));
   if (kinds.has("test") && kinds.has("source")) {
     writeJson(preToolDeny(mixedWriteFinding()));
