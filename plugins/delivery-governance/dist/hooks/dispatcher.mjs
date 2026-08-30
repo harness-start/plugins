@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:fd0ddb33e4c5f2a33a5f072ed510d755ea29f8c2ebad8036e187d7d029ede082
+// harness-source-hash: sha256:6b8c9a366eef51f6d24ec5fa2f416991c4cec25e08a485b1db7709aac62cff6e
 import {
   collectOwnerHookOutput,
   eventCwd,
@@ -9,7 +9,7 @@ import {
   isRecord,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-EYYCURQT.mjs";
+} from "../chunks/chunk-5EK3HQ5N.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -209,25 +209,25 @@ function stripMatchingQuotes(value) {
 function objectPaths(input) {
   if (!input || typeof input !== "object") return [];
   const record = input;
-  const paths = [];
+  const paths2 = [];
   for (const key of PATH_KEYS) {
     const value = record[key];
-    if (typeof value === "string" && value) paths.push(value);
+    if (typeof value === "string" && value) paths2.push(value);
   }
   if (Array.isArray(record.edits)) {
-    for (const edit of record.edits) paths.push(...objectPaths(edit));
+    for (const edit of record.edits) paths2.push(...objectPaths(edit));
   }
-  return paths;
+  return paths2;
 }
 function patchPaths(payload) {
-  const paths = [];
+  const paths2 = [];
   for (const line of payload.split("\n")) {
     const file = line.match(/^\*\*\*\s+(?:Add|Update|Delete) File:\s+(.+)$/u);
     const move = line.match(/^\*\*\*\s+Move to:\s+(.+)$/u);
-    if (file?.[1]) paths.push(stripMatchingQuotes(file[1]));
-    if (move?.[1]) paths.push(stripMatchingQuotes(move[1]));
+    if (file?.[1]) paths2.push(stripMatchingQuotes(file[1]));
+    if (move?.[1]) paths2.push(stripMatchingQuotes(move[1]));
   }
-  return paths;
+  return paths2;
 }
 function patchPayload(input) {
   if (typeof input === "string") return input;
@@ -239,10 +239,10 @@ function resolveTargets(raw, cwd) {
   )];
 }
 function shellWritePaths(command) {
-  const paths = [];
+  const paths2 = [];
   const push = (raw) => {
     const value = stripMatchingQuotes(String(raw ?? ""));
-    if (value && !value.startsWith("-")) paths.push(value);
+    if (value && !value.startsWith("-")) paths2.push(value);
   };
   for (const match of command.matchAll(/(?:^|[^0-9>])>{1,2}\s*("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
     push(match[1]);
@@ -253,7 +253,7 @@ function shellWritePaths(command) {
   for (const match of command.matchAll(/\btouch\b(?:\s+--)?\s+("[^"]+"|'[^']+'|[^\s;&|]+)/gu)) {
     push(match[1]);
   }
-  return paths;
+  return paths2;
 }
 function acceptsTool(name, tools) {
   if (tools === "any") return true;
@@ -1391,6 +1391,10 @@ var CONFIG_EXTENSIONS = /* @__PURE__ */ new Set([
   ".yaml",
   ".yml"
 ]);
+function isTestFile(file) {
+  const normalized = file.replaceAll("\\", "/");
+  return /(?:^|\/)(?:test|tests|spec|specs|__tests__)(?:\/|$)/iu.test(normalized) || /(?:^|\.)test\.[^.]+$/iu.test(basename(normalized)) || /(?:^|\.)spec\.[^.]+$/iu.test(basename(normalized)) || /_test\.go$/iu.test(normalized) || /Test\.php$/u.test(normalized);
+}
 function errorText2(error) {
   if (isRecord(error) && error.message != null) return String(error.message);
   return String(error);
@@ -1607,7 +1611,7 @@ function commitState(invocation) {
     const group = groups.get(boundary);
     if (!group) continue;
     const extension = extname(file).toLowerCase();
-    if (SOURCE_EXTENSIONS.has(extension)) group.source = true;
+    if (SOURCE_EXTENSIONS.has(extension) && !isTestFile(file)) group.source = true;
     if (CONFIG_EXTENSIONS.has(extension) || /^(?:Dockerfile|Jenkinsfile|Makefile)$/u.test(basename(file))) group.config = true;
   }
   const mixed = [...groups.values()].some((group) => group.source && group.config);
@@ -1747,6 +1751,93 @@ function isWorktreeCreatePermitted(mode, receipt) {
   return receipt?.allowed === true;
 }
 
+// plugins/delivery-governance/src/domains/git/lib/mutation-lease.ts
+import { mkdirSync as mkdirSync4, readFileSync as readFileSync7, rmdirSync } from "node:fs";
+import { join as join6, resolve as resolve7 } from "node:path";
+var LEASE_TTL_MS = 10 * 60 * 1e3;
+var MUTATING_GIT_ACTIONS = /* @__PURE__ */ new Set([
+  "add",
+  "am",
+  "checkout",
+  "cherry-pick",
+  "commit",
+  "merge",
+  "mv",
+  "pull",
+  "rebase",
+  "reset",
+  "restore",
+  "rm",
+  "stash",
+  "switch",
+  "worktree"
+]);
+function paths(root) {
+  const state = resolve7(root, WORKTREE_STATE_DIR);
+  return {
+    state,
+    lease: join6(state, "worktree-mutation-lease.json"),
+    lock: join6(state, "worktree-mutation-lease.lock")
+  };
+}
+function readLease(path) {
+  try {
+    const value = JSON.parse(readFileSync7(path, "utf8"));
+    if (!isRecord(value) || value.version !== 1 || typeof value.sessionId !== "string" || typeof value.touchedAt !== "number" || typeof value.expiresAt !== "number") return null;
+    return { version: 1, sessionId: value.sessionId, touchedAt: value.touchedAt, expiresAt: value.expiresAt };
+  } catch {
+    return null;
+  }
+}
+function withLock(root, fallback, operation) {
+  const target = paths(root);
+  mkdirSync4(target.state, { recursive: true, mode: 448 });
+  ensurePluginWorkdirGitignore(resolve7(root, ".git-delivery"));
+  try {
+    mkdirSync4(target.lock, { mode: 448 });
+  } catch {
+    return fallback;
+  }
+  try {
+    return operation(target.lease);
+  } finally {
+    try {
+      rmdirSync(target.lock);
+    } catch {
+    }
+  }
+}
+function acquireWorktreeMutationLease(root, sessionId, now = Date.now()) {
+  const missing = { action: "blocked", holder: "unknown", expiresAt: now + LEASE_TTL_MS };
+  if (!sessionId) return missing;
+  return withLock(root, missing, (leasePath) => {
+    const current = readLease(leasePath);
+    if (current && current.sessionId !== sessionId && current.expiresAt > now) {
+      return { action: "blocked", holder: current.sessionId, expiresAt: current.expiresAt };
+    }
+    const lease = { version: 1, sessionId, touchedAt: now, expiresAt: now + LEASE_TTL_MS };
+    if (!atomicWriteJson(leasePath, lease)) return missing;
+    return { action: "acquired", lease };
+  });
+}
+function releaseWorktreeMutationLease(root, sessionId) {
+  if (!sessionId) return false;
+  return withLock(root, false, (leasePath) => {
+    const current = readLease(leasePath);
+    if (!current || current.sessionId !== sessionId) return false;
+    return atomicWriteJson(leasePath, { ...current, touchedAt: Date.now(), expiresAt: 0 });
+  });
+}
+function commandMutatesGitWorktree(command, cwd) {
+  return gitInvocations(command, cwd).some((invocation) => {
+    if (!MUTATING_GIT_ACTIONS.has(invocation.subcommand)) return false;
+    const action = invocation.args[0] ?? "";
+    if (invocation.subcommand === "worktree") return action !== "" && action !== "list";
+    if (invocation.subcommand === "stash") return action !== "list" && action !== "show";
+    return true;
+  });
+}
+
 // plugins/delivery-governance/src/domains/git/entries/hooks/git-delivery-hook-pre-tool.ts
 var WORKTREE_CREATE_ID = "Worktree Create Guard";
 var WORKTREE_ISOLATION_FINDING = {
@@ -1776,19 +1867,40 @@ async function main2() {
     });
   }
   if (worktreeIsolationRequested(toolInput)) findings.push(WORKTREE_ISOLATION_FINDING);
-  if (!findings.length) return;
-  const config = await loadConflictConfig(repoRoot);
-  const receipt = readWorktreeCreateReceipt(repoRoot ?? cwd, eventSessionId(event));
-  const permitted = isWorktreeCreatePermitted(config.checks.worktreeCreate, receipt);
-  const resolved = findings.flatMap((finding3) => {
-    if (finding3.id !== WORKTREE_CREATE_ID) return [finding3];
-    if (permitted) return [];
-    if (config.checks.worktreeCreate === "report") return [{ ...finding3, action: "report" }];
-    return [finding3];
-  });
+  let resolved = [];
+  if (findings.length > 0) {
+    const config = await loadConflictConfig(repoRoot);
+    const receipt = readWorktreeCreateReceipt(repoRoot ?? cwd, eventSessionId(event));
+    const permitted = isWorktreeCreatePermitted(config.checks.worktreeCreate, receipt);
+    resolved = findings.flatMap((finding3) => {
+      if (finding3.id !== WORKTREE_CREATE_ID) return [finding3];
+      if (permitted) return [];
+      if (config.checks.worktreeCreate === "report") return [{ ...finding3, action: "report" }];
+      return [finding3];
+    });
+  }
   const denied = resolved.find((finding3) => finding3.action === "deny");
-  if (denied) writeJson(preToolDeny(formatDeliveryFinding(denied)));
-  else if (resolved.length) {
+  if (denied) {
+    writeJson(preToolDeny(formatDeliveryFinding(denied)));
+    return;
+  }
+  const writeTargets = extractWriteTargets(event);
+  const mutationIntent = writeTargets.length > 0 || Boolean(command && commandMutatesGitWorktree(command, cwd));
+  if (mutationIntent && repoRoot) {
+    const lease = acquireWorktreeMutationLease(repoRoot, eventSessionId(event));
+    if (lease.action === "blocked") {
+      const waitSeconds = Math.max(0, Math.ceil((lease.expiresAt - Date.now()) / 1e3));
+      writeJson(preToolDeny(formatDeliveryFinding({
+        action: "deny",
+        id: "Worktree Mutation Lease",
+        reason: `another agent session holds the mutation lease for this checkout (${waitSeconds}s until stale recovery)`,
+        command: writeTargets[0] ?? command ?? "mutation",
+        recovery: "wait for the other session to finish its turn, or use a user-authorized isolated worktree for concurrent changes"
+      })));
+      return;
+    }
+  }
+  if (resolved.length) {
     writeJson(additionalContextOutput(
       "PreToolUse",
       resolved.map(formatDeliveryFinding).join("\n\n")
@@ -1803,6 +1915,14 @@ async function main3() {
   if (!userRequestedWorktreeCreate(eventPrompt(event))) return;
   const cwd = eventCwd(event);
   recordWorktreeCreateAllowance(resolveRepoRoot(cwd) ?? cwd, eventSessionId(event), "user-prompt");
+}
+
+// plugins/delivery-governance/src/domains/git/entries/hooks/git-delivery-hook-stop.ts
+async function main4() {
+  const event = await readStdinJson();
+  if (event.__parseError) return;
+  const root = resolveRepoRoot(eventCwd(event));
+  if (root) releaseWorktreeMutationLease(root, eventSessionId(event));
 }
 
 // plugins/delivery-governance/src/domains/history/source-protect.ts
@@ -1905,5 +2025,6 @@ await runOwnerDispatcher(host, eventName, {
   "git:git-delivery-hook-post-tool": ownerHookHandler(main),
   "git:git-delivery-hook-pre-tool": ownerHookHandler(main2),
   "git:git-delivery-hook-user-prompt": ownerHookHandler(main3),
+  "git:git-delivery-hook-stop": ownerHookHandler(main4),
   "history:repository-history-migration": ownerHookHandler(runPreToolUse)
 });

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:fd0ddb33e4c5f2a33a5f072ed510d755ea29f8c2ebad8036e187d7d029ede082
+// harness-source-hash: sha256:6b8c9a366eef51f6d24ec5fa2f416991c4cec25e08a485b1db7709aac62cff6e
 
 // core/src/owner-hook-runtime.ts
 import { AsyncLocalStorage } from "node:async_hooks";

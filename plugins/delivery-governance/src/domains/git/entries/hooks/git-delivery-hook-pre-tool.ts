@@ -15,6 +15,9 @@ import {
   isWorktreeCreatePermitted, readWorktreeCreateReceipt, WORKTREE_STATE_DIR,
   worktreeIsolationRequested,
 } from "../../lib/worktree-intent.js";
+import {
+  acquireWorktreeMutationLease, commandMutatesGitWorktree,
+} from "../../lib/mutation-lease.js";
 
 const WORKTREE_CREATE_ID = "Worktree Create Guard";
 const WORKTREE_ISOLATION_FINDING: DeliveryFinding = {
@@ -50,19 +53,40 @@ export async function main() {
     });
   }
   if (worktreeIsolationRequested(toolInput)) findings.push(WORKTREE_ISOLATION_FINDING);
-  if (!findings.length) return;
-  const config = await loadConflictConfig(repoRoot);
-  const receipt = readWorktreeCreateReceipt(repoRoot ?? cwd, extractSessionId(event));
-  const permitted = isWorktreeCreatePermitted(config.checks.worktreeCreate, receipt);
-  const resolved = findings.flatMap((finding) => {
-    if (finding.id !== WORKTREE_CREATE_ID) return [finding];
-    if (permitted) return [];
-    if (config.checks.worktreeCreate === "report") return [{ ...finding, action: "report" as const }];
-    return [finding];
-  });
+  let resolved: DeliveryFinding[] = [];
+  if (findings.length > 0) {
+    const config = await loadConflictConfig(repoRoot);
+    const receipt = readWorktreeCreateReceipt(repoRoot ?? cwd, extractSessionId(event));
+    const permitted = isWorktreeCreatePermitted(config.checks.worktreeCreate, receipt);
+    resolved = findings.flatMap((finding) => {
+      if (finding.id !== WORKTREE_CREATE_ID) return [finding];
+      if (permitted) return [];
+      if (config.checks.worktreeCreate === "report") return [{ ...finding, action: "report" as const }];
+      return [finding];
+    });
+  }
   const denied = resolved.find((finding) => finding.action === "deny");
-  if (denied) writeJson(preToolDeny(formatDeliveryFinding(denied)));
-  else if (resolved.length) {
+  if (denied) {
+    writeJson(preToolDeny(formatDeliveryFinding(denied)));
+    return;
+  }
+  const writeTargets = extractWriteTargets(event);
+  const mutationIntent = writeTargets.length > 0 || Boolean(command && commandMutatesGitWorktree(command, cwd));
+  if (mutationIntent && repoRoot) {
+    const lease = acquireWorktreeMutationLease(repoRoot, extractSessionId(event));
+    if (lease.action === "blocked") {
+      const waitSeconds = Math.max(0, Math.ceil((lease.expiresAt - Date.now()) / 1000));
+      writeJson(preToolDeny(formatDeliveryFinding({
+        action: "deny",
+        id: "Worktree Mutation Lease",
+        reason: `another agent session holds the mutation lease for this checkout (${waitSeconds}s until stale recovery)`,
+        command: writeTargets[0] ?? command ?? "mutation",
+        recovery: "wait for the other session to finish its turn, or use a user-authorized isolated worktree for concurrent changes",
+      })));
+      return;
+    }
+  }
+  if (resolved.length) {
     writeJson(additionalContextOutput(
       "PreToolUse",
       resolved.map(formatDeliveryFinding).join("\n\n"),

@@ -47,6 +47,15 @@ type ConcernFlags = {
   config: boolean;
 };
 
+function isTestFile(file: string): boolean {
+  const normalized = file.replaceAll("\\", "/");
+  return /(?:^|\/)(?:test|tests|spec|specs|__tests__)(?:\/|$)/iu.test(normalized)
+    || /(?:^|\.)test\.[^.]+$/iu.test(basename(normalized))
+    || /(?:^|\.)spec\.[^.]+$/iu.test(basename(normalized))
+    || /_test\.go$/iu.test(normalized)
+    || /Test\.php$/u.test(normalized);
+}
+
 function errorText(error: unknown): string {
   if (isRecord(error) && error.message != null) return String(error.message);
   return String(error);
@@ -272,7 +281,7 @@ function commitState(invocation: GitInvocation): DeliveryFinding[] {
     const group = groups.get(boundary);
     if (!group) continue;
     const extension = extname(file).toLowerCase();
-    if (SOURCE_EXTENSIONS.has(extension)) group.source = true;
+    if (SOURCE_EXTENSIONS.has(extension) && !isTestFile(file)) group.source = true;
     if (CONFIG_EXTENSIONS.has(extension) || /^(?:Dockerfile|Jenkinsfile|Makefile)$/u.test(basename(file))) group.config = true;
   }
   const mixed = [...groups.values()].some((group) => group.source && group.config);
