@@ -9,6 +9,14 @@ function composeHits(codes: ReadonlySet<string>): (filePath: string, source: str
     .map((hit) => ({ line: hit.line, code: hit.code, message: hit.message }));
 }
 
+function r8Hits(pattern: RegExp, code: string, message: string): (_filePath: string, source: string) => DomainSourceScanHit[] {
+  return (_filePath, source) => source.split(/\r?\n/u).flatMap((line, index) => {
+    const rule = line.trim();
+    if (!rule || rule.startsWith("#") || !pattern.test(rule)) return [];
+    return [{ line: index + 1, code, message }];
+  });
+}
+
 export const policy: DomainEngineeringPolicy = {
  plugin:"android-engineering",
  displayName:"Android Engineering",
@@ -18,12 +26,14 @@ export const policy: DomainEngineeringPolicy = {
  { id:"android-gradle-cache", match:/(?:^|\/)\.gradle(?:\/|$)/iu, reason:"The Android Gradle cache is tool-owned.", recovery:"Change sources or declarations and let Gradle recreate the cache." },
 ],
  validators:[
- { id:"androidXml", kind:"xml", match:/(?:AndroidManifest\.xml|res\/.+\.xml)$/iu, mode:"block" },
- { id:"androidJson", kind:"json", match:/(?:^|\/)google-services\.json$/iu, mode:"block" },
+ { id:"androidXml", enforcement:"deterministic", kind:"xml", match:/(?:AndroidManifest\.xml|res\/.+\.xml)$/iu, mode:"block" },
+ { id:"androidJson", enforcement:"deterministic", kind:"json", match:/(?:^|\/)google-services\.json$/iu, mode:"block" },
 ],
  sourceScans:[
- { id:"composeCollectAsState", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["COLLECT_AS_STATE","PAGING_COLLECT_AS_STATE"])) },
- { id:"composePrimitiveState", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["PRIMITIVE_MUTABLE_STATE"])) },
- { id:"composeLiteralColor", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["HARDCODED_ON_THEME"])) },
+ { id:"composeCollectAsState", enforcement:"advisory", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["COLLECT_AS_STATE","PAGING_COLLECT_AS_STATE"])) },
+ { id:"composePrimitiveState", enforcement:"advisory", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["PRIMITIVE_MUTABLE_STATE"])) },
+ { id:"composeLiteralColor", enforcement:"advisory", match:KOTLIN_SOURCE, mode:"report", inspect:composeHits(new Set(["HARDCODED_ON_THEME"])) },
+ { id:"r8BroadKeep", enforcement:"advisory", match:/(?:^|\/)(?:proguard[^/]*|[^/]+\.pro)$/iu, mode:"report", inspect:r8Hits(/^-keep(?:,[^\s]+)?\s+(?:class|enum|interface)\s+\*\*(?:\s+\{\s*\*\s*;\s*\})?\s*$/iu,"R8_BROAD_KEEP","Broad keep rules can disable shrinking across the application; scope the rule to the reflected API surface.") },
+ { id:"r8GlobalDontWarn", enforcement:"advisory", match:/(?:^|\/)(?:proguard[^/]*|[^/]+\.pro)$/iu, mode:"report", inspect:r8Hits(/^-dontwarn\s+\*\*\s*$/iu,"R8_GLOBAL_DONTWARN","Global warning suppression hides missing-class evidence; scope it to a verified optional dependency.") },
  ],
 };

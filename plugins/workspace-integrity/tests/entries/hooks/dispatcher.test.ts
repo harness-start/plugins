@@ -23,6 +23,16 @@ test("quality line budgets are routed before and after predictable writes", () =
   }
 });
 
+test("domain checks use one aggregate route for each lifecycle phase", () => {
+  for (const host of ["claude", "codex"]) {
+    const routes = JSON.parse(readFileSync(resolve(import.meta.dirname, `../../../routes/${host}.json`), "utf8"));
+    assert.equal(routes.PreToolUse.filter((route: { handler?: string }) => route.handler === "domains:pre-tool").length, 1, host);
+    assert.equal(routes.PostToolUse.filter((route: { handler?: string }) => route.handler === "domains:post-tool").length, 1, host);
+    assert.equal(routes.Stop.filter((route: { handler?: string }) => route.handler === "domains:stop").length, 1, host);
+    assert.equal(routes.PreToolUse.some((route: { handler?: string }) => route.handler?.endsWith(":domain-hook")), false, host);
+  }
+});
+
 test("owner Stop returns a structured block for unresolved post-write budget debt", () => {
   const owner = resolve(import.meta.dirname, "../../..");
   const cwd = mkdtempSync(join(tmpdir(), "workspace-owner-budget-stop-"));

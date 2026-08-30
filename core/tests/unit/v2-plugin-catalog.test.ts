@@ -309,13 +309,10 @@ test("workspace integrity bundles domain methods without making Skills Hook prer
     .map((entry) => entry.name)
     .toSorted();
   for (const expected of [
-    "command-safety-config",
-    "engineering-quality-config",
-    "source-integrity-config",
     "android-engineering",
     "ios-engineering",
-    "kubernetes-operations",
     "web-frontend-engineering",
+    "workspace-integrity-config",
   ]) {
     assert.equal(exposedSkills.includes(expected), true, expected);
   }
@@ -326,6 +323,8 @@ test("workspace integrity bundles domain methods without making Skills Hook prer
     routes.PostToolUse.some((route: { handler?: string }) => route.handler === "domains:post-tool"),
     true,
   );
+  assert.equal(routes.PreToolUse.some((route: { handler?: string }) => route.handler === "domains:pre-tool"), true);
+  assert.equal(routes.Stop.some((route: { handler?: string }) => route.handler === "domains:stop"), true);
   for (const eventRoutes of Object.values(routes) as Array<Array<{ handler?: string; module?: string; script?: string }>>) {
     for (const route of eventRoutes) {
       assert.equal(typeof route.handler, "string");

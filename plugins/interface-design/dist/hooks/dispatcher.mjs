@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:639bcb83981dbcf0be89597bfca531de2b370271f6cb1c93671309dc0c51fc33
+// harness-source-hash: sha256:9704266fef6f04adfc65b799bbb0b6a1c8eae47beaf7dffdf126ae0f8fbc338c
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";

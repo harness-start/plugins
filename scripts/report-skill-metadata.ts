@@ -1,6 +1,6 @@
 import { Buffer } from "node:buffer";
 import { existsSync } from "node:fs";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -24,6 +24,9 @@ export type PluginSkillMetadata = {
   implicitSkills: number;
   explicitOnlySkills: number;
   approxImplicitTokens: number;
+  bundledFiles: number;
+  bundledBytes: number;
+  rasterImages: number;
   skills: SkillMetadata[];
 };
 
@@ -70,11 +73,36 @@ async function skillDirectories(skillsRoot: string): Promise<string[]> {
       if (!entry.isDirectory()) continue;
       const path = resolve(directory, entry.name);
       if (existsSync(resolve(path, "SKILL.md"))) found.push(path);
-      else await visit(path);
+      await visit(path);
     }
   };
   await visit(skillsRoot);
   return found.toSorted();
+}
+
+async function bundledInventory(skillsRoot: string): Promise<{
+  bundledFiles: number;
+  bundledBytes: number;
+  rasterImages: number;
+}> {
+  let bundledFiles = 0;
+  let bundledBytes = 0;
+  let rasterImages = 0;
+  const visit = async (directory: string): Promise<void> => {
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const path = resolve(directory, entry.name);
+      if (entry.isDirectory()) {
+        await visit(path);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      bundledFiles += 1;
+      bundledBytes += (await stat(path)).size;
+      if (/\.(?:gif|jpe?g|png|webp)$/iu.test(entry.name)) rasterImages += 1;
+    }
+  };
+  await visit(skillsRoot);
+  return { bundledFiles, bundledBytes, rasterImages };
 }
 
 async function implicitPolicy(skillRoot: string): Promise<boolean> {
@@ -97,6 +125,7 @@ async function inspectPlugin(pluginName: string): Promise<PluginSkillMetadata> {
   }
   const skillsRoot = resolve(pluginRoot, "skills");
   if (!existsSync(skillsRoot)) throw new Error(`插件没有 skills/：${pluginName}`);
+  const inventory = await bundledInventory(skillsRoot);
 
   const skills = await Promise.all((await skillDirectories(skillsRoot)).map(async (skillRoot) => {
     const skillPath = resolve(skillRoot, "SKILL.md");
@@ -124,6 +153,7 @@ async function inspectPlugin(pluginName: string): Promise<PluginSkillMetadata> {
     implicitSkills: implicitSkills.length,
     explicitOnlySkills: skills.length - implicitSkills.length,
     approxImplicitTokens: implicitSkills.reduce((sum, skill) => sum + skill.approxTokens, 0),
+    ...inventory,
     skills,
   };
 }
@@ -160,7 +190,7 @@ async function main(): Promise<void> {
     return;
   }
   for (const plugin of report.plugins) {
-    process.stdout.write(`${plugin.name}: ${plugin.implicitSkills}/${plugin.totalSkills} 默认可见，约 ${plugin.approxImplicitTokens} tokens\n`);
+    process.stdout.write(`${plugin.name}: ${plugin.implicitSkills}/${plugin.totalSkills} 默认可见，约 ${plugin.approxImplicitTokens} tokens；${plugin.bundledFiles} files，${plugin.bundledBytes} bytes，${plugin.rasterImages} raster images\n`);
   }
   process.stdout.write(`总计：${report.totals.implicitSkills}/${report.totals.totalSkills} 默认可见，约 ${report.totals.approxImplicitTokens} tokens\n`);
 }

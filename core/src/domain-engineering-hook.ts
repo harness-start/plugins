@@ -5,12 +5,16 @@ import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { eventCwd, eventSessionId, eventToolName, isRecord, readStdinJson, type HookEvent } from "./hook-event.ts";
-import { additionalContext, preToolDeny, writeJson } from "./hook-output.ts";
+import { DOMParser } from "@xmldom/xmldom";
+
+import { formatDomainDebtGuard, readPolicyDebts, synchronizePolicyDebts, type DomainDebt } from "./domain-engineering-debt.js";
+import { eventCwd, eventSessionId, eventToolName, isRecord, isStopHookActive, readStdinJson, type HookEvent } from "./hook-event.ts";
+import { additionalContext, preToolDeny, stopBlock, writeJson } from "./hook-output.ts";
 import { extractFileTargets as extractCoreFileTargets, extractShellCommand, isFileMutationTool, isShellTool } from "./hook-targets.ts";
 import { tokenizeShell } from "./shell-parse.ts";
 
 export type DomainCheckMode = "block" | "off" | "report";
+export type DomainEnforcement = "advisory" | "deterministic";
 
 export type DomainProtectionRule = {
   id: string;
@@ -39,6 +43,7 @@ export type DomainValidatorKind =
 
 export type DomainValidator = {
   id: string;
+  enforcement: DomainEnforcement;
   kind: DomainValidatorKind;
   match: RegExp;
   contentMatch?: RegExp;
@@ -53,6 +58,7 @@ export type DomainSourceScanHit = {
 
 export type DomainSourceScan = {
   id: string;
+  enforcement: DomainEnforcement;
   match: RegExp;
   mode: DomainCheckMode;
   inspect: (filePath: string, source: string) => readonly DomainSourceScanHit[];
@@ -335,6 +341,27 @@ function validMode(value: unknown): value is DomainCheckMode {
   return value === "block" || value === "report" || value === "off";
 }
 
+function effectiveMode(enforcement: DomainEnforcement, mode: DomainCheckMode): DomainCheckMode {
+  return enforcement === "advisory" && mode === "block" ? "report" : mode;
+}
+
+function checkEnforcement(check: DomainValidator | DomainSourceScan): DomainEnforcement {
+  return check.enforcement;
+}
+
+function configuredMode(
+  policy: DomainEngineeringPolicy,
+  check: DomainValidator | DomainSourceScan,
+  config: DomainConfig,
+): DomainCheckMode {
+  const requested = config.checks[check.id] ?? check.mode;
+  const mode = effectiveMode(checkEnforcement(check), requested);
+  if (requested === "block" && mode === "report") {
+    warn(policy.plugin, `${check.id} is advisory; configured block mode was clamped to report`);
+  }
+  return mode;
+}
+
 async function loadConfig(policy: DomainEngineeringPolicy, root: string | null): Promise<DomainConfig> {
   const defaults: DomainConfig = { checks: {}, rules: [], maxFiles: 12, timeoutMs: 10000, missingTools: "report-once" };
   if (!root) return defaults;
@@ -439,7 +466,6 @@ function commandFor(kind: DomainValidatorKind, filePath: string): { command: str
 async function xmlValidation(filePath: string): Promise<string | null> {
   const errors: string[] = [];
   try {
-    const { DOMParser } = await import("@xmldom/xmldom");
     new DOMParser({ onError: (level, message) => { if (level === "fatalError" || level === "error") errors.push(message); } }).parseFromString(readFileSync(filePath, "utf8"), "application/xml");
     return errors.length ? errors.join("\n") : null;
   } catch (error) {
@@ -468,9 +494,10 @@ export function sourceScanFindings(
   filePath = relativePath,
 ): DomainCheckFinding[] {
   if (mode === "off" || !regexMatches(scan.match, relativePath)) return [];
+  const resolvedMode = effectiveMode(checkEnforcement(scan), mode);
   return scan.inspect(filePath, source).map((hit) => ({
     check: scan.id,
-    mode,
+    mode: resolvedMode === "off" ? "report" : resolvedMode,
     path: `${relativePath}:${hit.line}`,
     message: `${hit.code}: ${hit.message}`,
   }));
@@ -487,11 +514,12 @@ async function validateFile(validator: DomainValidator, filePath: string, root: 
   const internal = await internalValidation(validator.kind, filePath);
   if (internal !== undefined) return internal ? { check: validator.id, mode: validator.mode === "off" ? "report" : validator.mode, path: relativePath(filePath, root), message: internal } : null;
   const spec = commandFor(validator.kind, filePath);
-  if (!spec?.command) return { check: validator.id, mode: "report", path: relativePath(filePath, root), message: "No validator implementation is available." };
+  const unverifiableMode = checkEnforcement(validator) === "deterministic" && validator.mode === "block" ? "block" : "report";
+  if (!spec?.command) return { check: validator.id, mode: unverifiableMode, path: relativePath(filePath, root), message: "No validator implementation is available." };
   const command = spec.command === process.execPath ? process.execPath : executable(spec.command, root, spec.local) ;
-  if (!command) return { check: validator.id, mode: "report", path: relativePath(filePath, root), message: `${spec.command} was not found; the check was skipped.`, missingTool: spec.command };
+  if (!command) return { check: validator.id, mode: unverifiableMode, path: relativePath(filePath, root), message: `${spec.command} was not found; the check could not be verified.`, missingTool: spec.command };
   const result = spawnSync(command, spec.args, { cwd: root, encoding: "utf8", timeout: timeoutMs, maxBuffer: 1024 * 1024 });
-  if (result.error) return { check: validator.id, mode: "report", path: relativePath(filePath, root), message: result.error.message };
+  if (result.error) return { check: validator.id, mode: unverifiableMode, path: relativePath(filePath, root), message: result.error.message };
   const output = [result.stdout, result.stderr].filter(Boolean).join("\n").trim();
   if (validator.kind === "gofmt" && result.status === 0 && output) return { check: validator.id, mode: "report", path: relativePath(filePath, root), message: output };
   if ((result.status ?? 0) !== 0) return { check: validator.id, mode: validator.mode === "off" ? "report" : validator.mode, path: relativePath(filePath, root), message: output || `checker exit code ${result.status}` };
@@ -517,11 +545,17 @@ function shouldReportMissingTool(policy: DomainEngineeringPolicy, root: string, 
 }
 
 async function runPre(policy: DomainEngineeringPolicy, event: HookEvent): Promise<void> {
-  const targets = extractDomainTargets(event);
-  if (!targets.length) return;
   const cwd = resolve(eventCwd(event));
-  if (!domainTargetsNeedPhase(policy, targets, "pre") && !configFileExists(cwd, policy.plugin)) return;
   const root = repoRoot(cwd) ?? cwd;
+  const session = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "";
+  const debts = readPolicyDebts(root, session, policy.plugin);
+  const targets = extractDomainTargets(event);
+  if (debts.length && (!targets.length || targets.some((filePath) => !debts.some((debt) => debt.path === relativePath(filePath, root))))) {
+    writeJson(preToolDeny(formatDomainDebtGuard(policy.displayName, debts)));
+    return;
+  }
+  if (!targets.length) return;
+  if (!domainTargetsNeedPhase(policy, targets, "pre") && !configFileExists(cwd, policy.plugin)) return;
   const config = await loadConfig(policy, repoRoot(cwd));
   const findings = targets.flatMap((filePath) => {
     const path = relativePath(filePath, root);
@@ -540,7 +574,8 @@ async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promi
   const discoveredRoot = repoRoot(cwd);
   const root = discoveredRoot ?? cwd;
   const config = await loadConfig(policy, discoveredRoot);
-  const session = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "hook";
+  const session = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "";
+  const deletedPaths = new Set(rawTargets.filter((filePath) => !existsSync(filePath)).map((filePath) => relativePath(filePath, root)));
   const targets = rawTargets.filter((filePath) => {
     if (!existsSync(filePath)) return false;
     try {
@@ -554,13 +589,20 @@ async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promi
     }
   }).slice(0, config.maxFiles);
   const findings: Finding[] = [];
+  const evaluatedDebts: DomainDebt[] = [];
+  const failedDebts: DomainDebt[] = [];
   for (const filePath of targets) {
     const path = relativePath(filePath, root);
     for (const validator of policy.validators) {
-      const mode = config.checks[validator.id] ?? validator.mode;
-      if (mode === "off" || !regexMatches(validator.match, path)) continue;
+      if (!regexMatches(validator.match, path)) continue;
+      const mode = configuredMode(policy, validator, config);
+      const debt = { plugin: policy.plugin, check: validator.id, kind: "validator", path, message: "" } satisfies DomainDebt;
+      if (checkEnforcement(validator) === "deterministic") evaluatedDebts.push(debt);
+      if (mode === "off") continue;
       const finding = await validateFile({ ...validator, mode }, filePath, root, config.timeoutMs);
-      if (finding && shouldReportMissingTool(policy, root, session, finding, config.missingTools)) findings.push(finding);
+      if (!finding) continue;
+      if (checkEnforcement(validator) === "deterministic" && mode === "block") failedDebts.push({ ...debt, message: finding.message });
+      if (finding.mode === "block" || shouldReportMissingTool(policy, root, session || "hook", finding, config.missingTools)) findings.push(finding);
     }
     const scans = policy.sourceScans ?? [];
     if (!scans.length) continue;
@@ -568,13 +610,27 @@ async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promi
     try {
       source = readFileSync(filePath, "utf8");
     } catch {
+      for (const scan of scans) {
+        if (!regexMatches(scan.match, path) || checkEnforcement(scan) !== "deterministic") continue;
+        const debt = { plugin: policy.plugin, check: scan.id, kind: "scan", path, message: "The source could not be read for deterministic validation." } satisfies DomainDebt;
+        evaluatedDebts.push(debt);
+        if (configuredMode(policy, scan, config) === "block") failedDebts.push(debt);
+      }
       continue;
     }
     for (const scan of scans) {
-      const mode = config.checks[scan.id] ?? scan.mode;
-      findings.push(...sourceScanFindings(scan, path, source, mode, filePath));
+      if (!regexMatches(scan.match, path)) continue;
+      const mode = configuredMode(policy, scan, config);
+      const debt = { plugin: policy.plugin, check: scan.id, kind: "scan", path, message: "" } satisfies DomainDebt;
+      if (checkEnforcement(scan) === "deterministic") evaluatedDebts.push(debt);
+      const scanFindings = sourceScanFindings(scan, path, source, mode, filePath);
+      if (checkEnforcement(scan) === "deterministic" && mode === "block" && scanFindings.length) {
+        failedDebts.push({ ...debt, message: scanFindings.map((finding) => finding.message).join("; ") });
+      }
+      findings.push(...scanFindings);
     }
   }
+  synchronizePolicyDebts({ root, session, plugin: policy.plugin, evaluated: evaluatedDebts, failed: failedDebts, deletedPaths });
   if (!findings.length) return;
   const text = [
     `[${policy.displayName}] Domain check results`,
@@ -587,10 +643,52 @@ async function runPost(policy: DomainEngineeringPolicy, event: HookEvent): Promi
   } else writeJson(additionalContext("PostToolUse", text));
 }
 
+async function runStop(policy: DomainEngineeringPolicy, event: HookEvent): Promise<void> {
+  if (isStopHookActive(event)) return;
+  const cwd = resolve(eventCwd(event));
+  const root = repoRoot(cwd) ?? cwd;
+  const session = eventSessionId(event) || process.env.AI_EXPERTS_SESSION_ID || "";
+  const debts = readPolicyDebts(root, session, policy.plugin);
+  if (!debts.length) return;
+  const config = await loadConfig(policy, repoRoot(cwd));
+  const remaining: DomainDebt[] = [];
+  for (const debt of debts) {
+    const filePath = isAbsolute(debt.path) ? debt.path : resolve(root, debt.path);
+    if (!existsSync(filePath)) continue;
+    try {
+      if (!statSync(filePath).isFile()) continue;
+    } catch {
+      remaining.push({ ...debt, message: "The target could not be inspected." });
+      continue;
+    }
+    const path = relativePath(filePath, root);
+    if (policy.active && !policy.active({ root, targetPath: filePath, relativePath: path })) continue;
+    if (debt.kind === "validator") {
+      const validator = policy.validators.find((candidate) => candidate.id === debt.check);
+      if (!validator || checkEnforcement(validator) !== "deterministic" || configuredMode(policy, validator, config) !== "block") continue;
+      const finding = await validateFile({ ...validator, mode: "block" }, filePath, root, config.timeoutMs);
+      if (finding) remaining.push({ ...debt, message: finding.message });
+      continue;
+    }
+    const scan = policy.sourceScans?.find((candidate) => candidate.id === debt.check);
+    if (!scan || checkEnforcement(scan) !== "deterministic" || configuredMode(policy, scan, config) !== "block") continue;
+    try {
+      const scanFindings = sourceScanFindings(scan, path, readFileSync(filePath, "utf8"), "block", filePath);
+      if (scanFindings.length) remaining.push({ ...debt, message: scanFindings.map((finding) => finding.message).join("; ") });
+    } catch {
+      remaining.push({ ...debt, message: "The source could not be read for deterministic validation." });
+    }
+  }
+  synchronizePolicyDebts({ root, session, plugin: policy.plugin, evaluated: debts, failed: remaining });
+  if (!remaining.length) return;
+  writeJson(stopBlock(formatDomainDebtGuard(policy.displayName, remaining)));
+}
+
 export async function runDomainEngineeringHook(policy: DomainEngineeringPolicy, phase: string | undefined): Promise<void> {
   const event = await readStdinJson();
   if (event.__parseError) return;
   if (phase === "pre") await runPre(policy, event);
   else if (phase === "post") await runPost(policy, event);
+  else if (phase === "stop") await runStop(policy, event);
   else warn(policy.plugin, `unknown hook phase ${String(phase)}`);
 }

@@ -8,7 +8,7 @@ export const policy: DomainEngineeringPolicy = {
  { id:"composer-vendor", match:/(?:^|\/)vendor(?:\/|$)/iu, reason:"vendor is owned by Composer.", recovery:"Change project sources or declarations and reinstall dependencies." },
 ],
  validators:[
- { id:"phpSyntax", kind:"php", match:/\.php$/iu, mode:"block" },
- { id:"composerValidate", kind:"composer", match:/(?:^|\/)composer\.json$/iu, mode:"block" },
+ { id:"phpSyntax", enforcement:"deterministic", kind:"php", match:/\.php$/iu, mode:"block" },
+ { id:"composerValidate", enforcement:"deterministic", kind:"composer", match:/(?:^|\/)composer\.json$/iu, mode:"block" },
 ],
 };

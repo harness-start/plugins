@@ -1,34 +1,18 @@
 ---
 name: go-engineering
-description: Orchestrates Go engineering and protects Go module checksums with lightweight source checks.
-version: 0.1.0
+description: Build and review Go modules while preserving module checksums and using repository-owned formatting, tests, and analysis.
+version: 1.0.0
 ---
 # Go Engineering
 
-## Scope
-
-Go modules、服务与 CLI、并发、错误处理、测试和发布。本 Skill 负责开放式领域工作；Hook 只负责 lockfile、依赖目录和轻量语法/配置校验。
+Use this Skill for Go services, libraries, CLIs, concurrency, tests, and release work. The Hook protects `go.sum` and runs bounded checks; it does not prove behavior.
 
 ## Workflow
 
-1. 从仓库声明、目录和工具链识别项目类型、版本、模块边界和现有命令。
-2. 明确目标、兼容范围和最小验证面，保留项目已有架构和工具约定。
-3. 使用本 Skill 和项目自身 Go 工具链；不加载外部 Skill。
-4. 只修改权威声明或源码；不得直接编辑受保护 lockfile、依赖目录或生成输出。
-5. 先运行最接近的检查，再运行项目声明的测试、构建或静态分析；Hook 通过不等于任务完成。
-6. 报告改动、验证、未覆盖环境和恢复路径。
+1. Identify the Go version, module/workspace boundaries, generated code, and project commands.
+2. Preserve package ownership and edit source or `go.mod`, never `go.sum` directly.
+3. Read [references/practices.md](references/practices.md) for API, errors, concurrency, and testing decisions.
+4. Run focused tests and formatting before broader `go test` or project checks.
+5. Report race, platform, integration, or release boundaries that were not exercised.
 
-## 业务方法
-
-本插件不捆绑外部框架 Skill。按仓库已有模块边界、测试命令和 Go 工具链工作。
-
-## Hook 配置
-
-可选配置 `.go-engineering.mjs` 支持 `rules`、`checks`、`limits.maxFiles`、`limits.timeoutMs` 和 `missingTools`。
-
-## Anti-patterns
-
-- 把 Hook 激活当成构建、测试、签名、设备或集群结果证据。
-- 直接修改 lockfile、依赖目录或生成文件。
-- 未识别版本与项目约定就套用最新模板。
-- 未识别项目约定就套用外部模板。
+Configure mechanical checks in `.go-engineering.mjs`; use `workspace-integrity-config` for configuration work.

@@ -8,8 +8,8 @@ export const policy: DomainEngineeringPolicy = {
  { id:"python-environments", match:/(?:^|\/)(?:\.venv|venv|__pypackages__)(?:\/|$)/iu, reason:"Python environments are package-manager-owned.", recovery:"Change sources or declarations and recreate the environment." },
 ],
  validators:[
- { id:"pythonSyntax", kind:"python", match:/\.py$/iu, mode:"block" },
- { id:"ruff", kind:"ruff", match:/\.py$/iu, mode:"report" },
- { id:"pythonJson", kind:"json", match:/\.json$/iu, mode:"block" },
+ { id:"pythonSyntax", enforcement:"deterministic", kind:"python", match:/\.py$/iu, mode:"block" },
+ { id:"ruff", enforcement:"advisory", kind:"ruff", match:/\.py$/iu, mode:"report" },
+ { id:"pythonJson", enforcement:"deterministic", kind:"json", match:/\.json$/iu, mode:"block" },
 ],
 };

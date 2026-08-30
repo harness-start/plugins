@@ -49,3 +49,13 @@ test("PostToolUse stays silent for lifecycle-aware collection", () => {
   assert.equal(result.status, 0, result.stderr);
   assert.doesNotMatch(output(result), /COLLECT_AS_STATE/u);
 });
+
+test("bundled XML validation accepts a valid Android manifest", () => {
+  const root = mkdtempSync(join(tmpdir(), "android-xml-valid-"));
+  spawnSync("git", ["init", "-q"], { cwd: root, encoding: "utf8" });
+  const manifest = join(root, "AndroidManifest.xml");
+  writeFileSync(manifest, "<manifest package=\"example.fixture\" />\n");
+  const result = runPost(root, manifest);
+  assert.equal(result.status, 0, result.stderr);
+  assert.doesNotMatch(output(result), /DOMParser is not a constructor/u);
+});

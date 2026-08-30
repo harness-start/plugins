@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+// harness-source-hash: sha256:094ae85928967976215355a7d8cc86aa39fa623154b1006d53784ddde5b76db8
+import {
+  consumeWriterCapability,
+  processWriterArgv
+} from "./chunk-R5EJZ3R3.mjs";
+import "./chunk-DSGB4CMW.mjs";
+import {
+  REVIEW_INPUT_SCHEMA,
+  REVIEW_SCHEMA,
+  assertDiagramProjectRoot,
+  atomicWriteJson,
+  computeDiagramSubjectDigest,
+  loadDiagramProject,
+  sessionMetadata,
+  validateDiagramModel,
+  withWriterJournal
+} from "./chunk-6OZN2WKX.mjs";
+import {
+  communicationAnchors,
+  communicationReviewValid
+} from "./chunk-PAM3R2KB.mjs";
+import "./chunk-QTVEXSL5.mjs";
+
+// plugins/artifact-production/src/domains/diagram/entries/cli/project-review.ts
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, relative, resolve } from "node:path";
+var rec = (value) => value !== null && typeof value === "object" && !Array.isArray(value) ? value : {};
+async function main() {
+  const root = assertDiagramProjectRoot(process.argv[2]);
+  const rawInputPath = process.argv[3] ?? "";
+  if (!isAbsolute(rawInputPath)) throw new Error("REVIEW_INPUT_MUST_BE_EXTERNAL");
+  const inputPath = resolve(rawInputPath);
+  const relativeInput = relative(root, inputPath);
+  if (!relativeInput.startsWith("..") && relativeInput !== "") throw new Error("REVIEW_INPUT_MUST_BE_EXTERNAL");
+  const bytes = await readFile(inputPath);
+  if (bytes.byteLength > 1024 * 1024) throw new Error("REVIEW_INPUT_SIZE_EXCEEDED");
+  let payload;
+  try {
+    payload = rec(JSON.parse(bytes.toString("utf8")));
+  } catch {
+    throw new Error("REVIEW_INPUT_JSON_INVALID");
+  }
+  let model = await loadDiagramProject(root);
+  const grant = await consumeWriterCapability({ root, capability: "diagram-review", argv: processWriterArgv() });
+  if (grant.subjectDigest !== computeDiagramSubjectDigest(model)) throw new Error("WRITER_SUBJECT_CHANGED");
+  const findings = validateDiagramModel(model, { stage: "probe" }).filter(({ code }) => code !== "REVIEW_INVALID");
+  if (findings.length) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
+  const reviewer = rec(payload.reviewer);
+  const render = rec(JSON.parse(String(model.files?.["evidence.render.json"])));
+  const checks = rec(payload.checks);
+  if (payload.schema !== REVIEW_INPUT_SCHEMA || payload.artifactId !== model.artifactId || payload.subjectDigest !== computeDiagramSubjectDigest(model) || payload.verdict !== "pass") throw new Error("REVIEW_INPUT_INVALID");
+  if (!["human", "independent-agent"].includes(String(reviewer.kind)) || typeof reviewer.id !== "string" || !reviewer.id || reviewer.sessionId !== grant.sessionId || reviewer.sessionId === render.sessionId) throw new Error("SELF_REVIEW_DENIED");
+  for (const key of ["hierarchy", "routing", "labels", "accessibility", "fidelity"]) {
+    const check = rec(checks[key]);
+    if (check.status !== "pass" || typeof check.anchor !== "string" || !check.anchor || typeof check.evidence !== "string" || !check.evidence || typeof check.recovery !== "string" || !check.recovery) throw new Error("REVIEW_CHECKS_INCOMPLETE");
+  }
+  const core = rec(rec(model.plan).communicationCore);
+  if (!communicationReviewValid(payload, core.retellTarget, communicationAnchors(core))) throw new Error("COMMUNICATION_REVIEW_INCOMPLETE");
+  const reviewFindings = Array.isArray(payload.findings) ? payload.findings.map(rec) : [];
+  if (reviewFindings.some((entry) => !["resolved", "accepted"].includes(String(entry.disposition)) || !["low", "medium", "high", "critical"].includes(String(entry.severity)) || typeof entry.anchor !== "string" || typeof entry.evidence !== "string" || typeof entry.recovery !== "string" || entry.disposition === "accepted" && ["high", "critical"].includes(String(entry.severity)))) throw new Error("REVIEW_FINDING_UNRESOLVED");
+  await withWriterJournal(root, "diagram-review", async () => {
+    await atomicWriteJson(root, "review.diagram.json", { schema: REVIEW_SCHEMA, plugin: "diagram-production", artifactId: model.artifactId, subjectDigest: computeDiagramSubjectDigest(model), verdict: "pass", reviewer, checks, findings: reviewFindings, reviewerRetell: payload.reviewerRetell, communicationReview: payload.communicationReview, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("diagram-review", grant) });
+  }, grant);
+  model = await loadDiagramProject(root);
+  process.stdout.write(`${JSON.stringify({ verdict: "pass", sha256: model.digests?.["review.diagram.json"] })}
+`);
+}
+await main().catch((error) => {
+  process.stderr.write(`[diagram-project-review] ${error instanceof Error ? error.message : String(error)}
+`);
+  process.exitCode = 2;
+});

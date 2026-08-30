@@ -1,38 +1,18 @@
 ---
 name: ios-engineering
-description: Orchestrates iOS engineering and guards SwiftPM/CocoaPods-owned state with lightweight Swift and plist checks.
-version: 0.1.0
+description: Build and review Swift, SwiftUI, concurrency, and tests while preserving SwiftPM and CocoaPods-owned state.
+version: 1.0.0
 ---
 # iOS Engineering
 
-## Scope
-
-Swift、UIKit、SwiftUI、Swift Concurrency、XCTest/Swift Testing、SwiftPM 与 CocoaPods。本 Skill 负责开放式领域工作；Hook 只负责 lockfile、依赖目录和轻量语法/配置校验。
+Use this Skill for Swift, UIKit, SwiftUI, concurrency, XCTest, Swift Testing, SwiftPM, or CocoaPods work. The Hook protects dependency state, validates changed files, and reports risky concurrency escapes.
 
 ## Workflow
 
-1. 从仓库声明、目录和工具链识别项目类型、版本、模块边界和现有命令。
-2. 明确目标、兼容范围和最小验证面，保留项目已有架构和工具约定。
-3. 路由本插件 Skill：SwiftUI 使用 `ios-swiftui`；并发使用 `ios-concurrency`；现代测试与 XCTest 迁移使用 `ios-testing`。只加载当前任务需要的 references。
-4. 只修改权威声明或源码；不得直接编辑受保护 lockfile、依赖目录或生成输出。
-5. 先运行最接近的检查，再运行项目声明的测试、构建或静态分析；Hook 通过不等于任务完成。
-6. 报告改动、验证、未覆盖环境和恢复路径。
+1. Identify the Swift/Xcode deployment targets, package or workspace boundaries, and project commands.
+2. Preserve actor isolation, data ownership, navigation, and existing test conventions.
+3. Read only the relevant section of [references/practices.md](references/practices.md): SwiftUI, concurrency, or testing.
+4. Run the narrowest test or compiler check, then required scheme, simulator, device, or archive acceptance.
+5. Report unavailable SDK, signing, runtime, and migration evidence explicitly.
 
-## 本插件业务 Skill
-
-- `ios-swiftui`
-- `ios-concurrency`
-- `ios-testing`
-
-按任务加载对应 Skill 及其 references，不要一次读完。
-
-## Hook 配置
-
-可选配置 `.ios-engineering.mjs` 支持 `rules`、`checks`、`limits.maxFiles`、`limits.timeoutMs` 和 `missingTools`。
-
-## Anti-patterns
-
-- 把 Hook 激活当成构建、测试、签名、设备或集群结果证据。
-- 直接修改 lockfile、依赖目录或生成文件。
-- 未识别版本与项目约定就套用最新模板。
-- 未加载对应业务 Skill 就凭记忆伪装执行。
+Configure checks in `.ios-engineering.mjs`; use `workspace-integrity-config` for configuration work.

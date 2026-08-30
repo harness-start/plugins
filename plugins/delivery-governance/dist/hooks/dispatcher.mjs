@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:c522b45b7aea50eddd02f21bc5741460ecc982a37227329f030c8303e3b3a1a6
+// harness-source-hash: sha256:fd0ddb33e4c5f2a33a5f072ed510d755ea29f8c2ebad8036e187d7d029ede082
 import {
   collectOwnerHookOutput,
   eventCwd,
@@ -9,7 +9,7 @@ import {
   isRecord,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-7KAPTPQS.mjs";
+} from "../chunks/chunk-EYYCURQT.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";

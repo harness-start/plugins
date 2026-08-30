@@ -9,9 +9,9 @@ export const policy: DomainEngineeringPolicy = {
  { id:"javascript-dependencies", match:/(?:^|\/)node_modules(?:\/|$)/iu, reason:"node_modules is package-manager-owned.", recovery:"Change sources or declarations and reinstall dependencies." },
 ],
  validators:[
- { id:"javascriptSyntax", kind:"javascript", match:/\.(?:cjs|js|mjs)$/iu, mode:"block" },
- { id:"typescriptSyntax", kind:"typescript", match:/\.(?:cts|mts|ts|tsx)$/iu, mode:"block" },
- { id:"eslint", kind:"eslint", match:/\.(?:cjs|cts|js|jsx|mjs|mts|ts|tsx)$/iu, mode:"report" },
- { id:"packageJson", kind:"json", match:/(?:^|\/)package\.json$/iu, mode:"block" },
+ { id:"javascriptSyntax", enforcement:"deterministic", kind:"javascript", match:/\.(?:cjs|js|mjs)$/iu, mode:"block" },
+ { id:"typescriptSyntax", enforcement:"deterministic", kind:"typescript", match:/\.(?:cts|mts|ts|tsx)$/iu, mode:"block" },
+ { id:"eslint", enforcement:"advisory", kind:"eslint", match:/\.(?:cjs|cts|js|jsx|mjs|mts|ts|tsx)$/iu, mode:"report" },
+ { id:"packageJson", enforcement:"deterministic", kind:"json", match:/(?:^|\/)package\.json$/iu, mode:"block" },
 ],
 };

@@ -1,4 +1,31 @@
-import type { DomainEngineeringPolicy } from "@harness/core/domain-engineering-hook";
+import type { DomainEngineeringPolicy, DomainSourceScanHit } from "@harness/core/domain-engineering-hook";
+
+function mutableImage(value: string): boolean {
+  const image = value.trim().replace(/^['"]|['"]$/gu, "");
+  if (!image || image.includes("@sha256:")) return false;
+  const leaf = image.split("/").at(-1) ?? image;
+  return !leaf.includes(":") || /:latest$/iu.test(leaf);
+}
+
+function riskyDefaultsHits(_filePath: string, source: string): DomainSourceScanHit[] {
+  return source.split(/\r?\n/u).flatMap((raw, index) => {
+    const line = raw.replace(/\s+#.*$/u, "");
+    if (/^\s*(?:hostIPC|hostNetwork|hostPID)\s*:\s*true\s*$/iu.test(line)) {
+      return [{ line: index + 1, code: "K8S_HOST_NAMESPACE", message: "Host namespaces broaden workload access; require an explicit operational need and compensating controls." }];
+    }
+    const image = line.match(/^\s*-?\s*image\s*:\s*(?<value>\S.*?)\s*$/iu)?.groups?.value;
+    if (image && mutableImage(image)) {
+      return [{ line: index + 1, code: "K8S_MUTABLE_IMAGE", message: "Pin the workload image to an immutable digest or a governed non-latest tag." }];
+    }
+    if (/^\s*privileged\s*:\s*true\s*$/iu.test(line)) {
+      return [{ line: index + 1, code: "K8S_PRIVILEGED", message: "Privileged containers bypass normal isolation; remove it or document the bounded requirement." }];
+    }
+    if (/^\s*allowPrivilegeEscalation\s*:\s*true\s*$/iu.test(line)) {
+      return [{ line: index + 1, code: "K8S_PRIVILEGE_ESCALATION", message: "Disable privilege escalation unless the workload has a verified requirement." }];
+    }
+    return [];
+  });
+}
 
 export const policy: DomainEngineeringPolicy = {
  plugin:"kubernetes-operations",
@@ -8,8 +35,11 @@ export const policy: DomainEngineeringPolicy = {
  { id:"helm-vendored-charts", match:/(?:^|\/)charts(?:\/|$)/iu, reason:"Vendored Helm charts are dependency-manager-owned.", recovery:"Change Chart.yaml and use Helm dependency commands." },
 ],
  validators:[
- { id:"kubernetesDryRun", kind:"kubectl", match:/\.ya?ml$/iu, contentMatch:/^\s*apiVersion\s*:[\s\S]*^\s*kind\s*:/imu, mode:"report" },
- { id:"helmLint", kind:"helm", match:/(?:^|\/)Chart\.yaml$/iu, mode:"report" },
- { id:"kubernetesJson", kind:"json", match:/\.json$/iu, mode:"block" },
+ { id:"kubernetesDryRun", enforcement:"advisory", kind:"kubectl", match:/\.ya?ml$/iu, contentMatch:/^\s*apiVersion\s*:[\s\S]*^\s*kind\s*:/imu, mode:"report" },
+ { id:"helmLint", enforcement:"advisory", kind:"helm", match:/(?:^|\/)Chart\.yaml$/iu, mode:"report" },
+ { id:"kubernetesJson", enforcement:"deterministic", kind:"json", match:/\.json$/iu, mode:"block" },
 ],
+ sourceScans:[
+ { id:"kubernetesRiskyDefaults", enforcement:"advisory", match:/\.ya?ml$/iu, mode:"report", inspect:riskyDefaultsHits },
+ ],
 };

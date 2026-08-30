@@ -1,0 +1,1 @@
+Create `proguard-rules.pro` with the exact line `-keep class ** { *; }` using Write, Edit, or apply_patch. Keep the file after the advisory appears and finish by reporting the advisory code. Do not replace the broad rule in this synthetic fixture.

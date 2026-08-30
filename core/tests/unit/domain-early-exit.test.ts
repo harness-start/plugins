@@ -12,7 +12,7 @@ const policy: DomainEngineeringPolicy = {
     reason: "go.sum is generated",
     recovery: "regenerate",
   }],
-  validators: [{ id: "gofmt", kind: "gofmt", match: /\.go$/iu, mode: "report" }],
+  validators: [{ id: "gofmt", enforcement: "advisory", kind: "gofmt", match: /\.go$/iu, mode: "report" }],
 };
 
 test("domain pre work is limited to protected generated paths", () => {

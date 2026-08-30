@@ -6,8 +6,6 @@ import { test } from "node:test";
 import type { SkillMetadataReport } from "../../../scripts/report-skill-metadata.js";
 
 const root = resolve(import.meta.dirname, "../../..");
-const targetPlugins = ["artifact-production"];
-
 type SkillReport = {
   name: string;
   implicit: boolean;
@@ -20,12 +18,15 @@ type PluginReport = {
   implicitSkills: number;
   explicitOnlySkills: number;
   approxImplicitTokens: number;
+  bundledFiles: number;
+  bundledBytes: number;
+  rasterImages: number;
   skills: SkillReport[];
 };
 
 type CatalogReport = SkillMetadataReport & { plugins: PluginReport[] };
 
-function report(): CatalogReport {
+function report(targetPlugins = ["artifact-production"]): CatalogReport {
   const result = spawnSync(
     process.execPath,
     ["--import", "tsx", "scripts/report-skill-metadata.ts", "--json", ...targetPlugins],
@@ -64,4 +65,31 @@ test("the compact catalog preserves every bundled companion", () => {
     "music-composition-method", "music-project-authoring", "music-project-review",
     "diagram-project-authoring", "pptx-deck-authoring", "training-program-design",
   ]) assert.equal(skillNames.has(name), true, name);
+});
+
+test("workspace-integrity exposes only compact domain entry skills", () => {
+  const catalog = report(["workspace-integrity"]);
+  const plugin = catalog.plugins[0];
+  assert.ok(plugin);
+  assert.equal(plugin.totalSkills, 11);
+  assert.equal(plugin.implicitSkills, 10);
+  assert.equal(plugin.explicitOnlySkills, 1);
+  assert.ok(plugin.approxImplicitTokens <= 700, String(plugin.approxImplicitTokens));
+  assert.ok(plugin.bundledFiles <= 300, String(plugin.bundledFiles));
+  assert.ok(plugin.bundledBytes < 2_000_000, String(plugin.bundledBytes));
+  assert.equal(plugin.rasterImages, 0);
+
+  assert.deepEqual(plugin.skills.map((skill) => skill.name), [
+    "android-engineering",
+    "go-engineering",
+    "ios-engineering",
+    "java-engineering",
+    "nix-engineering",
+    "php-engineering",
+    "python-engineering",
+    "react-native-engineering",
+    "rust-engineering",
+    "web-frontend-engineering",
+    "workspace-integrity-config",
+  ]);
 });

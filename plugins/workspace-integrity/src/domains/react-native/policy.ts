@@ -10,8 +10,8 @@ export const policy: DomainEngineeringPolicy = {
  { id:"react-native-codegen", match:/(?:^|\/)(?:NativeComponent\.g\.(?:h|mm)|android\/.+\/build\/generated\/source\/codegen|ios\/build\/generated\/ios)(?:\/|$)/iu, reason:"React Native Codegen output is generated from schemas.", recovery:"Change the schema or native component source and rerun Codegen." },
 ],
  validators:[
- { id:"reactNativeConfig", kind:"javascript", match:/(?:^|\/)(?:metro|babel|react-native)\.config\.(?:c?js|mjs)$/iu, mode:"block" },
- { id:"reactNativeTypescript", kind:"typescript", match:/\.(?:ts|tsx)$/iu, mode:"block" },
- { id:"reactNativeJson", kind:"json", match:/(?:^|\/)(?:package|app)\.json$/iu, mode:"block" },
+ { id:"reactNativeConfig", enforcement:"deterministic", kind:"javascript", match:/(?:^|\/)(?:metro|babel|react-native)\.config\.(?:c?js|mjs)$/iu, mode:"block" },
+ { id:"reactNativeTypescript", enforcement:"deterministic", kind:"typescript", match:/\.(?:ts|tsx)$/iu, mode:"block" },
+ { id:"reactNativeJson", enforcement:"deterministic", kind:"json", match:/(?:^|\/)(?:package|app)\.json$/iu, mode:"block" },
 ],
 };

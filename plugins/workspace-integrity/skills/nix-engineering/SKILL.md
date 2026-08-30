@@ -1,34 +1,18 @@
 ---
 name: nix-engineering
-description: Orchestrates Nix engineering and protects flake.lock with lightweight Nix parsing.
-version: 0.1.0
+description: Build and review Nix, flakes, NixOS, and Home Manager changes while preserving lockfile ownership and reproducibility.
+version: 1.0.0
 ---
 # Nix Engineering
 
-## Scope
-
-Nix language、flakes、NixOS、Home Manager 与可复现开发环境。本 Skill 负责开放式领域工作；Hook 只负责 lockfile、依赖目录和轻量语法/配置校验。
+Use this Skill for Nix language, flakes, NixOS, Home Manager, and reproducible development environments. The Hook protects `flake.lock` and performs bounded parsing when tools exist.
 
 ## Workflow
 
-1. 从仓库声明、目录和工具链识别项目类型、版本、模块边界和现有命令。
-2. 明确目标、兼容范围和最小验证面，保留项目已有架构和工具约定。
-3. 使用本 Skill 和项目已安装的 Nix 工具链。
-4. 只修改权威声明或源码；不得直接编辑受保护 lockfile、依赖目录或生成输出。
-5. 先运行最接近的检查，再运行项目声明的测试、构建或静态分析；Hook 通过不等于任务完成。
-6. 报告改动、验证、未覆盖环境和恢复路径。
+1. Identify flake boundaries, inputs, target systems, overlays, and repository-owned checks.
+2. Edit Nix declarations, never `flake.lock` directly; use Nix commands for dependency updates.
+3. Read [references/practices.md](references/practices.md) for evaluation and reproducibility guidance.
+4. Run the narrowest parse/evaluation check, then required build or VM/system acceptance.
+5. Report unavailable platforms, substituters, secrets, or deployment evidence.
 
-## 业务方法
-
-本插件不捆绑外部 Skill。按仓库 flake/Nix 声明和已安装工具链工作。
-
-## Hook 配置
-
-可选配置 `.nix-engineering.mjs` 支持 `rules`、`checks`、`limits.maxFiles`、`limits.timeoutMs` 和 `missingTools`。
-
-## Anti-patterns
-
-- 把 Hook 激活当成构建、测试、签名、设备或集群结果证据。
-- 直接修改 lockfile、依赖目录或生成文件。
-- 未识别版本与项目约定就套用最新模板。
-- 未识别项目约定就套用外部模板。
+Configure checks in `.nix-engineering.mjs`; use `workspace-integrity-config` for configuration work.

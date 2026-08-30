@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:94704f8db952a375e0a6e7819d3587dac9c74d76e988a0b79fc5afa01f5a2ff6
+// harness-source-hash: sha256:f88f276d611a00d60ae0ea3cc9395d3468e8800fcb80af7642cdf9aa9a4cabe0
 
 // core/src/aio-cli.ts
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -68,56 +68,56 @@ async function runOwnerCli(argv, handlers2) {
 // plugins/knowledge-work/src/entries/cli/harness.ts
 var handlers = {
   "reporting:daily-work-report-collect": ownerCliModuleHandler(async () => {
-    await import("../chunks/daily-work-report-collect-PYKKLZYW.mjs");
+    await import("../chunks/daily-work-report-collect-QW2IUIRA.mjs");
   }),
   "reporting:daily-work-report-prepare": ownerCliModuleHandler(async () => {
-    await import("../chunks/daily-work-report-prepare-MIA7A3VI.mjs");
+    await import("../chunks/daily-work-report-prepare-QLX35RRZ.mjs");
   }),
   "reporting:daily-work-report-save": ownerCliModuleHandler(async () => {
-    await import("../chunks/daily-work-report-save-ETCT6TGE.mjs");
+    await import("../chunks/daily-work-report-save-5WLZKV7K.mjs");
   }),
   "reporting:daily-work-report-transcript-scan": ownerCliModuleHandler(async () => {
-    await import("../chunks/daily-work-report-transcript-scan-K6F6FL3H.mjs");
+    await import("../chunks/daily-work-report-transcript-scan-LVIB2VG7.mjs");
   }),
   "reporting:weekly-work-report-collect": ownerCliModuleHandler(async () => {
-    await import("../chunks/weekly-work-report-collect-TJSK2BAD.mjs");
+    await import("../chunks/weekly-work-report-collect-G5FLF7PG.mjs");
   }),
   "reporting:weekly-work-report-prepare": ownerCliModuleHandler(async () => {
-    await import("../chunks/weekly-work-report-prepare-BOE2KW7B.mjs");
+    await import("../chunks/weekly-work-report-prepare-3T2OEODS.mjs");
   }),
   "reporting:weekly-work-report-save": ownerCliModuleHandler(async () => {
-    await import("../chunks/weekly-work-report-save-NWFJ65EZ.mjs");
+    await import("../chunks/weekly-work-report-save-4JBDJDV4.mjs");
   }),
   "reporting:weekly-work-report-transcript-scan": ownerCliModuleHandler(async () => {
-    await import("../chunks/weekly-work-report-transcript-scan-XDDCHWDK.mjs");
+    await import("../chunks/weekly-work-report-transcript-scan-XJVAWAXV.mjs");
   }),
   "reporting:work-reporting-addition-prepare": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-reporting-addition-prepare-44AKHUP3.mjs");
+    await import("../chunks/work-reporting-addition-prepare-ECVTVGN5.mjs");
   }),
   "reporting:work-reporting-append": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-reporting-append-YL4CPHTV.mjs");
+    await import("../chunks/work-reporting-append-FVESFNLF.mjs");
   }),
   "reporting:work-reporting-verify": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-reporting-verify-GY2HJMVJ.mjs");
+    await import("../chunks/work-reporting-verify-4EIUTWN4.mjs");
   }),
   "reporting:work-summary-report-collect": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-summary-report-collect-GOJVP5A3.mjs");
+    await import("../chunks/work-summary-report-collect-T7BQQ7U2.mjs");
   }),
   "reporting:work-summary-report-prepare": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-summary-report-prepare-BN54U3KC.mjs");
+    await import("../chunks/work-summary-report-prepare-NDH2W2JL.mjs");
   }),
   "reporting:work-summary-report-save": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-summary-report-save-7FEPIXPJ.mjs");
+    await import("../chunks/work-summary-report-save-ZBQCQHF4.mjs");
   }),
   "reporting:work-summary-report-transcript-scan": ownerCliModuleHandler(async () => {
-    await import("../chunks/work-summary-report-transcript-scan-L53KXQCH.mjs");
+    await import("../chunks/work-summary-report-transcript-scan-GIVXLW23.mjs");
   }),
   "research:research-workflow": ownerCliModuleHandler(async () => {
-    const { main } = await import("../chunks/research-workflow-NXFJPXGB.mjs");
+    const { main } = await import("../chunks/research-workflow-AKJD5HSO.mjs");
     await main();
   }),
   "writing:analyze-ai-style": ownerCliModuleHandler(async () => {
-    await import("../chunks/analyze-ai-style-WYTXNW5I.mjs");
+    await import("../chunks/analyze-ai-style-DUO3KNZE.mjs");
   })
 };
 await runOwnerCli(process.argv.slice(2), handlers);

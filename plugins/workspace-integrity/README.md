@@ -10,7 +10,7 @@ Many agent failures are independent of the requested feature: rewriting a lockfi
 
 The owner dispatches Hook events in process to implementations under `src/domains/`. Generic responsibilities are owned by `commands`, `source`, and `quality`. Domain mutation guards are implemented by `android`, `go`, `ios`, `java`, `kubernetes`, `nix`, `php`, `python`, `react-native`, `rust`, and `web`. Every domain shares the owner's Hook, Skill, test, acceptance, license, and build boundaries.
 
-Domain guards classify protected paths and dangerous mutation shapes before a write, and selected bounded source scans can report findings after an observed mutation. They do not run automatic language lint or format workflows after every edit. Their bundled engineering Skills remain available from this owner without becoming Hook prerequisites. Installing the owner activates all protections; there are no capability profiles.
+Domain guards classify protected paths and dangerous mutation shapes before a write, run bounded deterministic validators after an observed mutation, and report selected semantic risks. Advisory checks can be set to `report` or `off`; a project configuration that requests `block` is clamped to `report`. Deterministic checks support `block`, `report`, and `off`. The bundled engineering Skills remain available without becoming Hook prerequisites. Installing the owner activates all protections; there are no capability profiles.
 
 ## Capabilities
 
@@ -34,23 +34,23 @@ Do not use it as a substitute for project tests, compiler checks, security scann
 
 ## Runtime behavior
 
-At `PreToolUse`, the dispatcher invokes matching domain and generic handlers. Any deterministic deny is returned immediately; advisory contexts can be combined. The quality handler projects direct `Write`, `Edit`, `MultiEdit`, and `apply_patch` content so a predictable line-budget violation is denied before mutation. At `PostToolUse`, the domain scans plus `commands`, `quality`, and `source` perform bounded checks on observed writes. A post-write line-budget finding is report-only because the completed operation cannot be undone; unpredictable shell writes therefore do not carry a hard pre-write guarantee. Instead, an observed violation creates session debt and the `Stop` Hook requires the file to be reduced or split before completion. A Skill name is never a prerequisite for enforcement.
+At `PreToolUse`, one aggregate domain route invokes all matching policies alongside the generic handlers. Any deterministic deny is returned immediately; advisory contexts can be combined. The quality handler projects direct `Write`, `Edit`, `MultiEdit`, and `apply_patch` content so a predictable line-budget violation is denied before mutation. At `PostToolUse`, domain validators and scans plus `commands`, `quality`, and `source` inspect observed writes. A blocking deterministic domain finding creates plugin-data debt keyed by workspace, session, policy, check, and path. `Stop` revalidates that debt and blocks completion while the file is still invalid or cannot be verified. While debt remains, `PreToolUse` also denies unrelated actions but allows direct repair or deletion of the affected path, covering hosts that do not emit `Stop` before a completion attempt. A clean rerun or deletion clears the debt. Persistence fails open when session/plugin-data identity is unavailable, while the immediate post-write check still runs. `stop_hook_active` retries do not loop. A Skill name is never a prerequisite for enforcement.
 
 Path extraction covers host file tools, patches, moves, redirects, and common shell writers. Each module is scoped to evidence in the current tool call and repository; the presence of a language file elsewhere does not authorize broad automatic workflows.
 
 ## Public interfaces
 
-The public Skills include configuration and diagnosis methods plus the domain engineering references bundled with this owner. The configuration Skills are:
+The public catalog is intentionally compact: ten implicit domain entry Skills for Android, Go, iOS, Java, Nix, PHP, Python, React Native, Rust, and web engineering, plus the explicit-only `workspace-integrity-config` Skill. Specialized framework, testing, migration, and performance methods are progressive references inside their owning domain entry instead of independently discoverable Skills. Kubernetes operating methods remain owned by `delivery-governance`; this owner retains only the Kubernetes integrity Hook policy.
 
-- `command-safety-config` for `.command-safety.mjs`;
-- `source-integrity-config` for `.source-integrity.mjs`;
-- `engineering-quality-config` for `.engineering-quality.mjs`.
+`workspace-integrity-config` covers the existing `.command-safety.mjs`, `.source-integrity.mjs`, `.engineering-quality.mjs`, and domain `.*-engineering.mjs`/`.kubernetes-operations.mjs` files without renaming or merging their runtime schemas. This owner exposes no public CLI or MCP server.
 
-Domain Skills include Android, Go, iOS, Java, Kubernetes, Nix, PHP, Python, React Native, Rust, and web engineering methods under `skills/`. This owner exposes no public CLI or MCP server. Its runtime interface is the platform-specific Hook manifest plus the three project configuration files above.
+## 2.0 Skill migration
+
+Version 2.0 removes specialist Skill aliases. Android Compose/testing/R8 methods now live under `android-engineering`; SwiftUI/concurrency/testing under `ios-engineering`; Spring/JUnit/Jakarta under `java-engineering`; React Native navigation/performance/upgrades under `react-native-engineering`; Rust rules under `rust-engineering`; and React/Vue/Angular methods under `web-frontend-engineering`. The former three configuration Skills map to `workspace-integrity-config`. Kubernetes methods must be invoked from `delivery-governance`; only its integrity policy remains here.
 
 ## Configuration and state
 
-Project-owned JavaScript configuration can add narrow path rules, change supported check modes, and tune bounded thresholds. `commands` may keep session-local escalation state; `source` and `quality` analyze the observed target or content and do not create a second language workflow state machine. Invalid configuration entries are rejected or ignored according to each module's schema while built-in protections remain available.
+Project-owned JavaScript configuration can add narrow path rules, change supported check modes, and tune bounded thresholds. `commands` may keep session-local escalation state; `quality` and deterministic domain checks can keep completion debt under host-provided plugin data. Invalid configuration entries are rejected or ignored according to each module's schema while built-in protections remain available.
 
 ## Boundaries
 

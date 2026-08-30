@@ -1,0 +1,74 @@
+#!/usr/bin/env node
+// harness-source-hash: sha256:094ae85928967976215355a7d8cc86aa39fa623154b1006d53784ddde5b76db8
+import {
+  validateLogoModel
+} from "./chunk-WJHEHET5.mjs";
+import "./chunk-PAM3R2KB.mjs";
+import "./chunk-QTVEXSL5.mjs";
+
+// plugins/artifact-production/src/domains/logo/entries/cli/project-validate.ts
+import { createHash } from "node:crypto";
+import { readdir, readFile } from "node:fs/promises";
+import { basename, join, relative, resolve } from "node:path";
+async function collect(root, directory, files, digests, bytes) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (entry.isSymbolicLink()) throw new Error(`SYMLINK_REJECTED:${entry.name}`);
+    if (["node_modules", ".git", ".cache", ".tmp"].includes(entry.name)) continue;
+    const absolute = join(directory, entry.name);
+    if (entry.isDirectory()) await collect(root, absolute, files, digests, bytes);
+    else if (entry.isFile()) {
+      const filePath = relative(root, absolute).replaceAll("\\", "/");
+      const raw = await readFile(absolute);
+      const isBinary = /\.(png|jpg|jpeg|webp|gif|pdf)$/iu.test(filePath);
+      files[filePath] = isBinary ? raw.toString("base64") : raw.toString("utf8");
+      bytes[filePath] = raw;
+      digests[filePath] = createHash("sha256").update(raw).digest("hex");
+    }
+  }
+}
+async function main() {
+  const args = process.argv.slice(2);
+  const root = resolve(args.find((a) => !a.startsWith("--")) ?? "");
+  const stageArg = args.find((a) => a.startsWith("--stage="))?.slice("--stage=".length) ?? (args.includes("--stage") ? args[args.indexOf("--stage") + 1] : null);
+  const asJson = args.includes("--json");
+  if (!root) {
+    process.stderr.write("usage: project-validate.mjs <project-root> [--stage source|release] [--json]\n");
+    process.exitCode = 2;
+    return;
+  }
+  const files = {};
+  const digests = {};
+  const bytes = {};
+  await collect(root, root, files, digests, bytes);
+  let plan = null;
+  let project = null;
+  try {
+    plan = JSON.parse(String(files["plan.contract.json"] ?? "null"));
+  } catch {
+  }
+  try {
+    project = JSON.parse(String(files["logo.project.json"] ?? "null"));
+  } catch {
+  }
+  const stage = stageArg ?? (typeof plan === "object" && plan !== null && !Array.isArray(plan) ? plan.targetStage : void 0) ?? "source";
+  const model = { artifactId: basename(root), files, bytes, digests, plan, project };
+  const findings = validateLogoModel(model, { stage });
+  if (asJson) {
+    process.stdout.write(`${JSON.stringify({ ok: findings.length === 0, stage, artifactId: model.artifactId, findings }, null, 2)}
+`);
+  } else if (findings.length === 0) {
+    process.stdout.write(`VALID: ${stage} model passes all contract checks (${model.artifactId})
+`);
+  } else {
+    process.stderr.write(`INVALID: ${findings.length} finding(s) at stage=${stage}
+`);
+    for (const f of findings) process.stderr.write(`- [${f.code}] ${f.path}: ${f.message}
+`);
+  }
+  if (findings.length > 0) process.exitCode = 2;
+}
+await main().catch((error) => {
+  process.stderr.write(`[logo-project-validate] ${error instanceof Error ? error.message : String(error)}
+`);
+  process.exitCode = 2;
+});

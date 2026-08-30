@@ -1,0 +1,1 @@
+Deterministic domain debt fixture.

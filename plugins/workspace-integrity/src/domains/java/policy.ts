@@ -1,4 +1,39 @@
-import { repoContainsPath, type DomainEngineeringPolicy } from "@harness/core/domain-engineering-hook";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+import { repoContainsPath, type DomainEngineeringPolicy, type DomainSourceScanHit } from "@harness/core/domain-engineering-hook";
+
+function jakartaBuildEvidence(filePath: string): boolean {
+  let directory = dirname(filePath);
+  while (true) {
+    for (const name of ["pom.xml", "build.gradle", "build.gradle.kts"]) {
+      const candidate = join(directory, name);
+      if (!existsSync(candidate)) continue;
+      try {
+        const build = readFileSync(candidate, "utf8");
+        return /spring-boot(?:-starter-parent)?[\s\S]{0,600}(?:<version>\s*3\.|version\s*[=( ]\s*["']3\.)/iu.test(build)
+          || /<spring-boot\.version>\s*3\./iu.test(build)
+          || /\bid\s*["']org\.springframework\.boot["']\s+version\s+["']3\./iu.test(build)
+          || /jakarta\.(?:annotation|inject|persistence|servlet|validation|ws\.rs)(?:-api)?/iu.test(build);
+      } catch {
+        return false;
+      }
+    }
+    const parent = dirname(directory);
+    if (parent === directory) return false;
+    directory = parent;
+  }
+}
+
+function legacyJavaxHits(filePath: string, source: string): DomainSourceScanHit[] {
+  if (!jakartaBuildEvidence(filePath)) return [];
+  return source.split(/\r?\n/u).flatMap((raw, index) => {
+    const line = raw.replace(/"(?:\\.|[^"\\])*"/gu, "\"\"").replace(/\/\/.*$/u, "");
+    return /^\s*import\s+javax\.(?:annotation|inject|persistence|servlet|validation|ws\.rs)\b/u.test(line)
+      ? [{ line: index + 1, code: "LEGACY_JAVAX_ON_JAKARTA", message: "This build targets a Jakarta generation; migrate the affected javax namespace and its dependency together." }]
+      : [];
+  });
+}
 
 export const policy: DomainEngineeringPolicy = {
  plugin:"java-engineering",
@@ -9,6 +44,9 @@ export const policy: DomainEngineeringPolicy = {
  { id:"java-gradle-cache", match:/(?:^|\/)\.gradle(?:\/|$)/iu, reason:"The Gradle cache is tool-owned.", recovery:"Change sources or declarations and let Gradle rebuild the cache." },
 ],
  validators:[
- { id:"mavenXml", kind:"xml", match:/(?:^|\/)pom\.xml$/iu, mode:"block" },
+ { id:"mavenXml", enforcement:"deterministic", kind:"xml", match:/(?:^|\/)pom\.xml$/iu, mode:"block" },
 ],
+ sourceScans:[
+ { id:"legacyJavaxOnJakarta", enforcement:"advisory", match:/\.java$/iu, mode:"report", inspect:legacyJavaxHits },
+ ],
 };

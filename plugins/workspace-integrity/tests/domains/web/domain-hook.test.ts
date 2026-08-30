@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { extractDomainShellWriteTargets } from "@harness/core/domain-engineering-hook";
-import { policy } from "../../../src/domains/web/entries/hooks/domain-hook.js";
+import { policy } from "../../../src/domains/web/policy.js";
 test("web-frontend-engineering policy and shell targets",()=>{assert.equal(policy.plugin,"web-frontend-engineering");assert.equal(policy.protections.some(rule=>new RegExp(rule.match.source,rule.match.flags).test("yarn.lock")),true);assert.deepEqual(extractDomainShellWriteTargets("printf tampered > yarn.lock"),["yarn.lock"]);});
-test("web-frontend-engineering validators are bounded",()=>{assert.ok(policy.validators.length>0);assert.equal(policy.validators.every(v=>v.mode==="block"||v.mode==="report"),true);});
+test("web-frontend-engineering validators are bounded",()=>{assert.ok(policy.validators.length>0);assert.equal(policy.validators.every(v=>v.mode==="block"||v.mode==="report"),true);assert.equal(policy.validators.every(v=>v.enforcement==="deterministic"||v.enforcement==="advisory"),true);});
 test("web-frontend-engineering yields React Native package targets",()=>{
   const root=mkdtempSync(join(tmpdir(),"web-domain-"));
   try {

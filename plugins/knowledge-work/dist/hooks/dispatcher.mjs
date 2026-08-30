@@ -1,12 +1,12 @@
-// harness-source-hash: sha256:94704f8db952a375e0a6e7819d3587dac9c74d76e988a0b79fc5afa01f5a2ff6
+// harness-source-hash: sha256:f88f276d611a00d60ae0ea3cc9395d3468e8800fcb80af7642cdf9aa9a4cabe0
 import {
   analyzeAiStyle
-} from "../chunks/chunk-3OL33ZYS.mjs";
+} from "../chunks/chunk-KY2BQHLX.mjs";
 import {
   canonicalJson,
   sealPayload,
   sha256 as sha2562
-} from "../chunks/chunk-ME7WQGIA.mjs";
+} from "../chunks/chunk-6LGJ2YPI.mjs";
 import {
   SEALED_OR_LATER,
   classifyResearchPath,
@@ -17,7 +17,7 @@ import {
   readWorkflowFile,
   terminalizeWorkflow,
   workflowPath
-} from "../chunks/chunk-4YVMWSRX.mjs";
+} from "../chunks/chunk-47YKC2BX.mjs";
 import {
   createAcknowledgement,
   isProtectedReportPath,
@@ -28,8 +28,8 @@ import {
   sha256,
   validateAcknowledgement,
   verifyReport
-} from "../chunks/chunk-WQUUSJLB.mjs";
-import "../chunks/chunk-YRRB7KQT.mjs";
+} from "../chunks/chunk-YKRFHQ4B.mjs";
+import "../chunks/chunk-BFJFEGG6.mjs";
 import {
   collectOwnerHookOutput,
   eventAssistantMessage,
@@ -42,7 +42,7 @@ import {
   isRecord,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-5J4MOKBS.mjs";
+} from "../chunks/chunk-2MUL5GWN.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";

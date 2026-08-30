@@ -1,4 +1,29 @@
-import type { DomainEngineeringPolicy } from "@harness/core/domain-engineering-hook";
+import type { DomainEngineeringPolicy, DomainSourceScanHit } from "@harness/core/domain-engineering-hook";
+
+function concurrencyEscapeHits(_filePath: string, source: string): DomainSourceScanHit[] {
+  const patterns = [
+    { pattern: /@unchecked\s+Sendable\b/u, code: "SWIFT_UNCHECKED_SENDABLE", message: "Document and verify the synchronization invariant behind @unchecked Sendable." },
+    { pattern: /\bnonisolated\s*\(\s*unsafe\s*\)/u, code: "SWIFT_NONISOLATED_UNSAFE", message: "Avoid unsafe isolation escape or document the external synchronization invariant." },
+    { pattern: /\bTask\s*\.\s*detached\s*\{/u, code: "SWIFT_TASK_DETACHED", message: "Prefer structured tasks unless detached executor and lifetime ownership are required." },
+  ];
+  let blockComment = false;
+  return source.split(/\r?\n/u).flatMap((raw, index) => {
+    let line = raw;
+    if (blockComment) {
+      const end = line.indexOf("*/");
+      if (end < 0) return [];
+      line = line.slice(end + 2);
+      blockComment = false;
+    }
+    line = line.replace(/\/\*[\s\S]*?\*\//gu, "");
+    if (line.includes("/*")) {
+      line = line.slice(0, line.indexOf("/*"));
+      blockComment = true;
+    }
+    line = line.replace(/"(?:\\.|[^"\\])*"/gu, "\"\"").replace(/\/\/.*$/u, "");
+    return patterns.flatMap(({ pattern, code, message }) => pattern.test(line) ? [{ line: index + 1, code, message }] : []);
+  });
+}
 
 export const policy: DomainEngineeringPolicy = {
  plugin:"ios-engineering",
@@ -8,7 +33,10 @@ export const policy: DomainEngineeringPolicy = {
  { id:"ios-dependency-directories", match:/(?:^|\/)(?:Pods|Carthage\/Build|\.build\/checkouts)(?:\/|$)/iu, reason:"The target is inside an iOS dependency directory.", recovery:"Change declarations or sources, then reinstall dependencies." },
 ],
  validators:[
- { id:"swiftParse", kind:"swift", match:/\.swift$/iu, mode:"block" },
- { id:"plistLint", kind:"plist", match:/\.plist$/iu, mode:"block" },
+ { id:"swiftParse", enforcement:"deterministic", kind:"swift", match:/\.swift$/iu, mode:"block" },
+ { id:"plistLint", enforcement:"deterministic", kind:"plist", match:/\.plist$/iu, mode:"block" },
 ],
+ sourceScans:[
+ { id:"swiftConcurrencyEscapes", enforcement:"advisory", match:/\.swift$/iu, mode:"report", inspect:concurrencyEscapeHits },
+ ],
 };
