@@ -31,5 +31,12 @@
       "matcher": "apply_patch|ApplyPatch|Edit|MultiEdit|NotebookEdit|Write",
       "handler": "git:git-delivery-hook-post-tool"
     }
+  ],
+  "Stop": [
+    {
+      "timeoutMs": 10000,
+      "trigger": "git-delivery:stop",
+      "handler": "git:git-delivery-hook-stop"
+    }
   ]
 }
