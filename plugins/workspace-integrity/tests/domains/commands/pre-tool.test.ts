@@ -498,6 +498,31 @@ test("builtin rules cover database, active test, and audits", () => {
   assert.equal(builtIn("nmap -p- --max-rate 50 127.0.0.1"), null);
 });
 
+test("runtime logs require the bundled sanitizer before output reaches the session", () => {
+  for (const command of [
+    "adb logcat -d",
+    "docker logs proxy-runtime",
+    "kubectl logs deployment/proxy-runtime",
+    "journalctl -u proxy-runtime",
+  ]) {
+    const hit = builtIn(command);
+    assert.equal(hit?.id, "runtime-log-raw-output", command);
+    assert.equal(hit?.mode, "deny", command);
+  }
+  assert.equal(
+    builtIn("adb logcat -d | node \"$PLUGIN_ROOT/dist/cli/harness.mjs\" logs sanitize"),
+    null,
+  );
+  assert.equal(
+    builtIn("adb logcat -d; docker logs proxy | node \"$PLUGIN_ROOT/dist/cli/harness.mjs\" logs sanitize | node \"$PLUGIN_ROOT/dist/cli/harness.mjs\" logs sanitize")?.id,
+    "runtime-log-raw-output",
+  );
+  assert.equal(
+    builtIn("adb logcat -d | node \"$PLUGIN_ROOT/dist/cli/harness.mjs\" logs sanitize; docker logs proxy | node \"$PLUGIN_ROOT/dist/cli/harness.mjs\" logs sanitize"),
+    null,
+  );
+});
+
 test("mysql preflight engine denies STOP REPLICA without evidence", () => {
   const finding = mysqlReplicationPreflightFinding("mysql -e 'STOP REPLICA'");
   assert.equal(finding?.action, "deny");

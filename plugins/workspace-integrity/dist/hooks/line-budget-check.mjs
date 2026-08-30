@@ -1,10 +1,11 @@
-// harness-source-hash: sha256:f8adacd1f1b4876dddec045b984e1b7d400d9ef79d908e27cccda642707aa1e9
+// harness-source-hash: sha256:9fbebb317a20b6e425ce30504bb183d58ba62162fc6c0b0a96104f7e8df73e32
 import {
   eventToolName,
   extractFileTargets,
   isRecord,
   readStdinJson
-} from "../chunks/chunk-AAOWWK6M.mjs";
+} from "../chunks/chunk-ZOSNCDGA.mjs";
+import "../chunks/chunk-JOC5D5YB.mjs";
 
 // plugins/workspace-integrity/src/domains/quality/entries/hooks/line-budget-check.ts
 import { execFileSync } from "node:child_process";

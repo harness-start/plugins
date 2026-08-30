@@ -2,6 +2,14 @@
 
 `workspace-integrity` protects the representation and mutation boundaries of a working tree. It catches unsafe shell patterns before execution, protects generated or dependency-owned files, checks source encoding and backup artifacts, and applies narrow domain-aware mutation guards without publishing a language-skill encyclopedia.
 
+Runtime logs from adb, Docker, Kubernetes, and journald must cross the bundled redaction boundary before their output reaches a host session:
+
+```sh
+adb logcat -d | node "$PLUGIN_ROOT/dist/cli/harness.mjs" logs sanitize
+```
+
+Bound the producer query first. The sanitizer redacts common credential assignments, bearer tokens, and URL passwords and rejects input larger than 16 MiB.
+
 ## Purpose
 
 Many agent failures are independent of the requested feature: rewriting a lockfile with the wrong package manager, mutating a generated artifact directly, creating backup debris, introducing invalid UTF-8, or using a masked shell command that bypasses review. This owner provides one predictable integrity floor for Claude Code and Codex.
@@ -42,7 +50,7 @@ Path extraction covers host file tools, patches, moves, redirects, and common sh
 
 The public catalog is intentionally compact: ten implicit domain entry Skills for Android, Go, iOS, Java, Nix, PHP, Python, React Native, Rust, and web engineering, plus the explicit-only `workspace-integrity-config` Skill. Specialized framework, testing, migration, and performance methods are progressive references inside their owning domain entry instead of independently discoverable Skills. Kubernetes operating methods remain owned by `delivery-governance`; this owner retains only the Kubernetes integrity Hook policy.
 
-`workspace-integrity-config` covers the existing `.command-safety.mjs`, `.source-integrity.mjs`, `.engineering-quality.mjs`, and domain `.*-engineering.mjs`/`.kubernetes-operations.mjs` files without renaming or merging their runtime schemas. This owner exposes no public CLI or MCP server.
+`workspace-integrity-config` covers the existing `.command-safety.mjs`, `.source-integrity.mjs`, `.engineering-quality.mjs`, and domain `.*-engineering.mjs`/`.kubernetes-operations.mjs` files without renaming or merging their runtime schemas. The public `logs` CLI resource exposes only the deterministic `sanitize` action through `dist/cli/harness.mjs`; this owner exposes no MCP server.
 
 ## 2.0 Skill migration
 

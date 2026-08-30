@@ -1,7 +1,5 @@
-// harness-source-hash: sha256:f8adacd1f1b4876dddec045b984e1b7d400d9ef79d908e27cccda642707aa1e9
+// harness-source-hash: sha256:9fbebb317a20b6e425ce30504bb183d58ba62162fc6c0b0a96104f7e8df73e32
 import {
-  __commonJS,
-  __toESM,
   atomicWriteJson,
   collectOwnerHookOutput,
   digestKey,
@@ -18,7 +16,11 @@ import {
   ownerHookHandler,
   readStdinJson,
   withPathLock
-} from "../chunks/chunk-AAOWWK6M.mjs";
+} from "../chunks/chunk-ZOSNCDGA.mjs";
+import {
+  __commonJS,
+  __toESM
+} from "../chunks/chunk-JOC5D5YB.mjs";
 
 // node_modules/@xmldom/xmldom/lib/conventions.js
 var require_conventions = __commonJS({
@@ -7856,6 +7858,37 @@ function activeTestReason(command) {
 function secretLeakHit(command) {
   return shellCommandInvocations(command).some(secretLeakInvocationHit);
 }
+function runtimeLogInvocationHit({ executable: executable2, args }) {
+  const program = executable2.toLowerCase();
+  const action = args[0]?.toLowerCase();
+  return program === "adb" && action === "logcat" || program === "docker" && action === "logs" || program === "kubectl" && action === "logs" || program === "journalctl";
+}
+function runtimeLogSanitizerInvocationHit({ executable: executable2, args }) {
+  if (executable2.toLowerCase() !== "node") return false;
+  const harnessIndex = args.findIndex((arg) => /(?:^|[\\/])dist[\\/]cli[\\/]harness\.mjs$/u.test(arg));
+  return harnessIndex >= 0 && args[harnessIndex + 1] === "logs" && args[harnessIndex + 2] === "sanitize";
+}
+function unsafeRuntimeLogHit(command) {
+  const separators = /* @__PURE__ */ new Set(["&&", "||", ";", "|", "&"]);
+  const tokens = tokenizeShell(command);
+  const segments = [];
+  let current = [];
+  for (let index = 0; index <= tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token !== void 0 && !separators.has(token)) {
+      current.push(token);
+      continue;
+    }
+    segments.push({ invocation: commandInvocation(current), separator: token ?? null });
+    current = [];
+  }
+  for (const [index, segment] of segments.entries()) {
+    if (!segment.invocation || !runtimeLogInvocationHit(segment.invocation)) continue;
+    const next = segments[index + 1]?.invocation;
+    if (segment.separator !== "|" || !next || !runtimeLogSanitizerInvocationHit(next)) return true;
+  }
+  return false;
+}
 function secretLeakInvocationHit({ executable: executable2, args }) {
   const program = executable2.toLowerCase();
   const subject = args.join(" ");
@@ -8011,6 +8044,18 @@ var BUILTIN_RULES = [
     observedFacts: "The active security testing command lacks an auditable boundary.",
     harm: "It may scan outside the authorized scope or overload resources.",
     unblockWhen: "Declare the target scope and rate or thread limit."
+  },
+  {
+    id: "runtime-log-raw-output",
+    title: "Runtime Log Output Guard",
+    mode: "deny",
+    match: { test: (command) => unsafeRuntimeLogHit(command) },
+    reason: "raw runtime logs can contain credentials, authorization headers, and user data",
+    recovery: 'Pipe the bounded log command directly through `node "$PLUGIN_ROOT/dist/cli/harness.mjs" logs sanitize` before any output, file write, or additional pipeline stage.',
+    observedFacts: "The command reads adb, Docker, Kubernetes, or journal logs without the bundled sanitizer as its direct output boundary.",
+    harm: "Raw tool output is persisted in the host session and may expose credentials or personal data.",
+    unblockWhen: "Every runtime-log producer is piped directly through the bundled logs sanitize command.",
+    sensitive: true
   },
   {
     id: "secret-leak",
