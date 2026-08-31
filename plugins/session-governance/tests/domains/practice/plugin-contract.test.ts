@@ -44,6 +44,19 @@ test("review method is read-only and emits verifiable findings", () => {
   assert.match(review, /no findings/iu);
 });
 
+test("verification method scales evidence to the claim without making delivery a full-suite trigger", () => {
+  const verification = readFileSync(resolve(root, "skills", "engineering-verification", "SKILL.md"), "utf8");
+  assert.match(verification, /focused verification/iu);
+  assert.match(verification, /broader verification/iu);
+  assert.match(verification, /stable (?:public )?(?:interface|API).*direct.*oracle/isu);
+  assert.match(verification, /security.*persistence.*migration.*concurrency.*deployment/isu);
+  assert.match(verification, /commit.*pull request.*do not.*automatically.*broaden/isu);
+  assert.match(verification, /run.*selected command.*to completion/isu);
+  assert.match(verification, /claim.*scope|scope.*claim/isu);
+  assert.doesNotMatch(verification, /Partial proves nothing/iu);
+  assert.doesNotMatch(verification, /Revert fix.*MUST FAIL/isu);
+});
+
 test("both hosts implement mode C with prompt routing and no Stop gate", () => {
   for (const host of ["claude", "codex"] as const) {
     const routes = readModuleRoutes(import.meta.url, host, "practice");
@@ -56,7 +69,7 @@ test("both hosts implement mode C with prompt routing and no Stop gate", () => {
   assert.doesNotMatch(entry, /stopBlock|runStop|outcome-challenge/iu);
 });
 
-test("acceptance inventory covers implementation, review checkpoints, and a simple control", () => {
+test("acceptance inventory covers proportional verification, review checkpoints, and a simple control", () => {
   const cases = readdirSync(resolve(root, "acceptance", "cases"), { withFileTypes: true })
     .filter((entry) => entry.isDirectory() && entry.name.startsWith("practice-"))
     .map((entry) => entry.name.replace(/^practice-/u, ""))
@@ -67,5 +80,6 @@ test("acceptance inventory covers implementation, review checkpoints, and a simp
     "03-simple-control",
     "04-high-risk-checkpoint",
     "05-explicit-checkpoint",
+    "06-focused-small-change",
   ]);
 });

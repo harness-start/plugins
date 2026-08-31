@@ -1,120 +1,78 @@
 ---
 name: engineering-verification
-description: Require fresh command evidence before claiming complete, fixed, or passing. Use before completion claims, commits, or pull requests.
+description: Select the smallest sufficient verification scope and require fresh command evidence before claiming complete, fixed, or passing. Use before completion claims, commits, or pull requests.
 ---
 
-# Verification Before Completion
+# Proportional Verification Before Completion
 
-## Overview
+## Core contract
 
-**Core principle:** Evidence before claims, always.
-
-**Violating the letter of this rule is violating the spirit of this rule.**
-
-## The Iron Law
+Evidence must support the exact claim being made. Fresh focused evidence can complete a focused change; it cannot support a repository-wide claim.
 
 ```
-NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
+NO COMPLETION CLAIM BEYOND THE OBSERVED VERIFICATION SCOPE
 ```
 
-If you haven't run the verification command in this message, you cannot claim it passes.
+## Choose the verification scope
 
-## The Gate Function
+Use **focused verification** when all of these are true:
 
-```
-BEFORE claiming any status or expressing satisfaction:
+- the change affects one narrow observable behavior;
+- the public interface or API shape remains stable and a direct test or deterministic validator is the oracle;
+- the causal effect is local to one seam or package;
+- no user or project instruction requires a broader command.
 
-1. IDENTIFY: What command proves this claim?
-2. RUN: Execute the FULL command (fresh, complete)
-3. READ: Full output, check exit code, count failures
-4. VERIFY: Does output confirm the claim?
-   - If NO: State actual status with evidence
-   - If YES: State claim WITH evidence
-5. ONLY THEN: Make the claim
+A stable interface does not make every behavior fix high risk. File count and line count also do not make a change safe by themselves.
 
-Skip any step = lying, not verifying
-```
+Use **broader verification** when the change affects an interface shape, schema, configuration contract, multiple modules or packages, security or authorization, persistence or migration, concurrency or data integrity, dependencies or build behavior, release or deployment, runtime state, recovery, or rollback. Broaden when the focused oracle cannot observe a plausible regression, or when the user or repository explicitly requires it.
 
-## Common Failures
+Choose the nearest authoritative boundary: exact target test file or validator, package checks, affected integration checks, or repository suite. A package or repository default test command is broader than an exact target, even when the repository is small. Do not jump directly from a local change to a default or repository-wide command without an escalation reason.
 
-| Claim | Requires | Not Sufficient |
-|-------|----------|----------------|
-| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
-| Linter clean | Linter output: 0 errors | Partial check, extrapolation |
-| Build succeeds | Build command: exit 0 | Linter passing, logs look good |
-| Bug fixed | Test original symptom: passes | Code changed, assumed fixed |
-| Regression test works | Red-green cycle verified | Test passes once |
-| Agent completed | VCS diff shows changes | Agent reports "success" |
-| Requirements met | Line-by-line checklist | Tests passing |
+A commit or pull request does not automatically broaden verification. Delivery must still have fresh evidence, while explicit repository gates and CI requirements remain authoritative.
 
-## Red Flags - STOP
+## Verification gate
 
-- Using "should", "probably", "seems to"
-- Expressing satisfaction before verification ("Great!", "Perfect!", "Done!", etc.)
-- About to commit/push/PR without verification
-- Trusting agent success reports
-- Relying on partial verification
-- Thinking "just this once"
-- Tired and wanting work over
-- **ANY wording implying success without having run verification**
+Before claiming a status:
 
-## Rationalization Prevention
+1. **Name the claim.** State the behavior, command, artifact, or delivery fact that needs proof.
+2. **Choose the smallest sufficient scope.** Record whether it is focused or broader and why.
+3. **Run the selected command to completion.** Run it fresh after the last relevant mutation without truncating, masking, or rewriting its outcome. "Complete command" means the selected command completed; it does not mean "run the full repository suite."
+4. **Read the evidence.** Check the exit status, failures, warnings relevant to the claim, and final diff or artifact state.
+5. **Report at the observed scope.** If evidence is missing or failed, say so. If it passed, make only the claim it proves.
 
-| Excuse | Reality |
-|--------|---------|
-| "Should work now" | RUN the verification |
-| "I'm confident" | Confidence ≠ evidence |
-| "Just this once" | No exceptions |
-| "Linter passed" | Linter ≠ compiler |
-| "Agent said success" | Verify independently |
-| "I'm tired" | Exhaustion ≠ excuse |
-| "Partial check is enough" | Partial proves nothing |
-| "Different words so rule doesn't apply" | Spirit over letter |
+## Minimum evidence by change type
 
-## Key Patterns
+### Focused behavior change
 
-**Tests:**
-```
-✅ [Run test command] [See: 34/34 pass] "All tests pass"
-❌ "Should pass now" / "Looks correct"
-```
+1. Change one corresponding public-seam test.
+2. Invoke the exact target test file and observe the expected RED caused by the missing behavior; do not substitute a package-default or wildcard suite.
+3. Make the smallest production change.
+4. Run the same exact command after the last mutation and observe GREEN.
 
-**Regression tests (TDD Red-Green):**
-```
-✅ Write → Run (pass) → Revert fix → Run (MUST FAIL) → Restore → Run (pass)
-❌ "I've written a regression test" (without red-green verification)
-```
+This proves the target behavior at that seam. It does not claim that unrelated tests, builds, or packages passed.
 
-**Build:**
-```
-✅ [Run build] [See: exit 0] "Build passes"
-❌ "Linter passed" (linter doesn't check compilation)
-```
+### Focused non-code or mechanical change
 
-**Requirements:**
-```
-✅ Re-read plan → Create checklist → Verify each → Report gaps or completion
-❌ "Tests pass, phase complete"
-```
+Run the nearest deterministic oracle: parser, schema check, formatter check mode, link check, configuration validator, or exact artifact probe. Do not invent a code test for prose or a mechanical value replacement when a direct validator is stronger.
 
-**Agent delegation:**
-```
-✅ Agent reports success → Check VCS diff → Verify changes → Report actual state
-❌ Trust agent report
-```
+### Broader change
 
-## When To Apply
+Run the focused oracle first, then the nearest affected package, integration, build, type, or repository checks justified by the escalation condition. An independent review checkpoint is reserved for high-risk work; it is not completion evidence by itself.
 
-**ALWAYS before:**
-- ANY variation of success/completion claims
-- ANY expression of satisfaction
-- ANY positive statement about work state
-- Committing, PR creation, task completion
-- Moving to next task
-- Delegating to agents
+## Claim calibration
 
-**Rule applies to:**
-- Exact phrases
-- Paraphrases and synonyms
-- Implications of success
-- ANY communication suggesting completion/correctness
+| Observed evidence | Supported claim | Unsupported claim |
+| --- | --- | --- |
+| One focused test passes after RED | The target behavior passed that test | All tests pass |
+| Affected package tests pass | That package's tests pass | The repository is fully verified |
+| Typecheck passes | Typecheck passes | Runtime behavior is fixed |
+| Build exits successfully | The build command succeeded | Tests or deployment passed |
+| CI is green for the current head | Those reported CI jobs passed | Unreported environments passed |
+
+## Failure policy
+
+- Do not convert a failed command into success with pipes, ignored exit codes, or selective output.
+- Do not repair unrelated failures merely to make a broad command green; report them separately and retain the focused result.
+- Do not say “all tests pass” after a targeted command.
+- Do not rerun an expensive suite solely because work is being committed or handed off.
+- If the requested claim requires unavailable evidence, report the exact verified scope and the remaining gap.

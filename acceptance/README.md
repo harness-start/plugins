@@ -59,7 +59,7 @@ Project cases intentionally receive only capabilities installed from this checko
 | Domain | Case | Intent |
 | --- | --- | --- |
 | `logo-design` | `01-goal-e2e-delivery` | open logo brief → observe logo artifact tree and quality notes |
-| `software-change` | `01-fix-retry-delay` | failing regression → passing behavior with production-only scope |
+| `software-change` | `01-fix-retry-delay` | narrow regression → focused RED/GREEN without unrelated full-suite execution |
 | `research` | `01-rollout-decision-brief` | local evidence → sourced decision brief with explicit limitations |
 | `configuration-change` | `01-update-retry-policy` | constrained request → exact config update with unrelated values preserved |
 

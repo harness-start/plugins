@@ -52,7 +52,7 @@ digraph tdd_cycle {
     red [label="RED\nWrite failing test", shape=box, style=filled, fillcolor="#ffcccc"];
     verify_red [label="Verify fails\ncorrectly", shape=diamond];
     green [label="GREEN\nMinimal code", shape=box, style=filled, fillcolor="#ccffcc"];
-    verify_green [label="Verify passes\nAll green", shape=diamond];
+    verify_green [label="Verify focused test\nGREEN", shape=diamond];
     refactor [label="REFACTOR\nClean up", shape=box, style=filled, fillcolor="#ccccff"];
     next [label="Next", shape=ellipse];
 
@@ -174,13 +174,12 @@ npm test path/to/test.test.ts
 ```
 
 Confirm:
-- Test passes
-- Other tests still pass
-- Output pristine (no errors, warnings)
+- The same focused test command used for RED now passes
+- The observed output is complete and has no target-test errors or warnings
 
 **Test fails?** Fix code, not test.
 
-**Other tests fail?** Fix now.
+This focused GREEN proves the TDD seam. Use the bundled `engineering-verification` method to decide whether broader verification is justified by risk, project rules, or the user's request; TDD does not require a full suite by itself.
 
 ### REFACTOR - Clean Up
 
@@ -189,7 +188,7 @@ After green only:
 - Improve names
 - Extract helpers
 
-Keep tests green. Don't add behavior.
+Keep the focused test green. Don't add behavior.
 
 ### Repeat
 
@@ -257,7 +256,7 @@ test('rejects empty email', async () => {
 
 **Verify RED**
 ```bash
-$ npm test
+$ npm test path/to/email.test.ts
 FAIL: expected 'Email required', got undefined
 ```
 
@@ -273,7 +272,7 @@ function submitForm(data: FormData) {
 
 **Verify GREEN**
 ```bash
-$ npm test
+$ npm test path/to/email.test.ts
 PASS
 ```
 
@@ -288,8 +287,9 @@ Before marking work complete:
 - [ ] Watched each test fail before implementing
 - [ ] Each test failed for expected reason (feature missing, not typo)
 - [ ] Wrote minimal code to pass each test
-- [ ] All tests pass
-- [ ] Output pristine (no errors, warnings)
+- [ ] The same focused test command passes after the last production mutation
+- [ ] Focused output is complete and has no target-test errors or warnings
+- [ ] Any broader verification selected by `engineering-verification` is reported separately
 - [ ] Tests use real code (mocks only if unavoidable)
 - [ ] Edge cases and errors covered
 

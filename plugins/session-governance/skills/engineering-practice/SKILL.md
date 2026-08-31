@@ -15,3 +15,5 @@ Use only the optional method guides that help this task; working directly is val
 | About to claim complete, fixed, passing, commit, or PR | `engineering-verification` |
 
 Hooks remain independent enforcement. Loading a Skill or injecting SessionStart context is neither a prerequisite nor completion evidence. Completion claims need fresh verification against the changed public behavior.
+
+Verification is proportional to the claim. A narrow, low-risk change with a stable interface and direct oracle uses focused verification; high-risk or cross-boundary work uses broader verification. Commit or pull-request intent alone does not expand the local command set, while explicit project and CI gates remain authoritative.

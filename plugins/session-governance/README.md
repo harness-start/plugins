@@ -18,7 +18,7 @@ Installing the owner activates the complete surface for both hosts. There are no
 | --- | --- | --- |
 | `intent` | First-task and materially-new-task discovery | Front-loads relevant repository facts and asks only when an unresolved interpretation changes the implementation |
 | `reasoning` | First-principles and exact reasoning methods | Selects a compact method for causal, logical, evidence-heavy, or consequential questions |
-| `practice` | Engineering judgment, review checkpoints, read-only review, and completion verification | Encourages scoped changes and fresh evidence without turning ordinary tasks into mandatory ceremony |
+| `practice` | Engineering judgment, review checkpoints, read-only review, and proportional completion verification | Uses focused evidence for narrow low-risk changes and broadens only at explicit or high-risk boundaries |
 | `discipline` | Repeated edit, repeated command, and polling detection | Reports or blocks demonstrably unproductive loops after configured thresholds |
 | `language` | Session-wide output-language governance | Keeps prose in the chosen language while preserving code, commands, paths, identifiers, and verbatim material |
 
@@ -35,6 +35,8 @@ Do not treat it as a replacement for a domain workflow. Concrete bug investigati
 `UserPromptSubmit` routes intent, language, and engineering-practice context. `SessionStart` restores language/practice/reasoning context. `PreToolUse`, `PostToolUse`, and failure events feed only the execution-discipline counters and language feedback that can be mechanically observed. `Stop` and `SubagentStop` enforce the configured output-language boundary. The owner aggregates module feedback but preserves a module's deny decision.
 
 Simple and already-specific requests remain direct. A Skill is never required for a Hook to enforce its mechanical contract, and merely loading a Skill does not prove that a task is complete.
+
+Completion verification is claim-scoped. A stable, local behavior change with a direct oracle can finish on a focused RED/GREEN command; repository-wide tests, builds, and review checkpoints are reserved for explicit project requirements or changes whose risk crosses the focused seam. Commit and pull-request intent do not independently widen the local verification scope.
 
 ## Public interfaces
 

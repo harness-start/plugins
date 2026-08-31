@@ -1,0 +1,4 @@
+id = "06-focused-small-change"
+hosts = ["claude", "codex"]
+timeout_sec = 240
+tags = ["session-start", "implementation", "verification-scope", "outcome"]

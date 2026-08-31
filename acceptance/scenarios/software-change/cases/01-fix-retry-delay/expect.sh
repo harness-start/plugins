@@ -6,7 +6,8 @@ REPO="${ACCEPT_REPO:-$(cd "$(dirname "$0")/../../../../.." && pwd)}"
 
 require_host_session_started
 
-npm --prefix "${ACCEPT_WORKSPACE}" test >/dev/null
+require_file_absent "${ACCEPT_WORKSPACE}/.full-suite-ran"
+node --test "${ACCEPT_WORKSPACE}/test/retry-delay.test.mjs" >/dev/null
 
 node --input-type=module -e '
   import assert from "node:assert/strict";
@@ -19,9 +20,10 @@ node --input-type=module -e '
   assert.throws(() => retryDelay(0), RangeError);
 ' "${ACCEPT_WORKSPACE}/src/retry-delay.mjs"
 
-changed="$(git -C "${ACCEPT_WORKSPACE}" diff --name-only HEAD --)"
-if [ "${changed}" != "src/retry-delay.mjs" ]; then
-  printf 'expect fail: tracked change must be exactly src/retry-delay.mjs, got: %s\n' \
+changed="$(git -C "${ACCEPT_WORKSPACE}" diff --name-only HEAD -- | sort)"
+expected="$(printf '%s\n' src/retry-delay.mjs test/retry-delay.test.mjs | sort)"
+if [ "${changed}" != "${expected}" ]; then
+  printf 'expect fail: tracked change must be the implementation and focused test, got: %s\n' \
     "${changed:-<none>}" >&2
   exit 1
 fi
@@ -36,4 +38,4 @@ if [ -n "${unexpected}" ]; then
   exit 1
 fi
 
-printf 'OK software outcome: retry behavior repaired without widening scope\n'
+printf 'OK software outcome: retry behavior repaired with focused evidence and without widening scope\n'

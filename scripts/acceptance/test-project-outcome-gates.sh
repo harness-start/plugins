@@ -56,7 +56,17 @@ software_case="software-change/01-fix-retry-delay"
 software_ok="$(prepare_case "${software_case}" software-ok)"
 perl -0pi -e 's/2 \*\* attempt/2 ** (attempt - 1)/' \
   "${software_ok}/workspace/src/retry-delay.mjs"
+perl -0pi -e 's/assert\.equal\(retryDelay\(1\), 100\);/assert.equal(retryDelay(1), 100);\n  assert.equal(retryDelay(1, { baseDelayMs: 75, maxDelayMs: 900 }), 75);/' \
+  "${software_ok}/workspace/test/retry-delay.test.mjs"
 expect_pass "${software_case}" "${software_ok}"
+
+software_full_suite="$(prepare_case "${software_case}" software-full-suite)"
+perl -0pi -e 's/2 \*\* attempt/2 ** (attempt - 1)/' \
+  "${software_full_suite}/workspace/src/retry-delay.mjs"
+perl -0pi -e 's/assert\.equal\(retryDelay\(1\), 100\);/assert.equal(retryDelay(1), 100);\n  assert.equal(retryDelay(1, { baseDelayMs: 75, maxDelayMs: 900 }), 75);/' \
+  "${software_full_suite}/workspace/test/retry-delay.test.mjs"
+(cd "${software_full_suite}/workspace" && node --test >/dev/null)
+expect_fail "${software_case}" "${software_full_suite}"
 
 software_tamper="$(prepare_case "${software_case}" software-test-tamper)"
 printf '%s\n' \

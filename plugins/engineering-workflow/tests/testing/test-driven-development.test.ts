@@ -19,6 +19,15 @@ import * as hookEntry from "../../src/domains/testing/hook.js";
 
 const ENTRY = fileURLToPath(new URL("../../dist/hooks/dispatcher.mjs", import.meta.url));
 
+test("TDD method keeps RED and GREEN focused and delegates broader verification", () => {
+  const skill = readFileSync(fileURLToPath(new URL("../../skills/tdd-red-green/SKILL.md", import.meta.url)), "utf8");
+  assert.match(skill, /same focused test command/iu);
+  assert.match(skill, /engineering-verification.*broader verification/isu);
+  assert.doesNotMatch(skill, /^\$ npm test$/mu);
+  assert.doesNotMatch(skill, /Other tests still pass/iu);
+  assert.doesNotMatch(skill, /Other tests fail\?\*\* Fix now/iu);
+});
+
 test("hook entry imports without executing", () => { assert.ok(hookEntry); });
 
 function runRawHook(mode, input, env = {}, platform = "codex") {

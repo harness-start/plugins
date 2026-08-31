@@ -1,0 +1,1 @@
+`normalizeLabel("   ")` should return an empty string instead of `"(empty)"`. This is a narrow behavior change with a stable API and a direct test oracle. Update the existing public-seam test first, observe the relevant RED, make the smallest implementation change, and verify completion. Do not modify unrelated tests or package metadata, and do not add dependencies.
