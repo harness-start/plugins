@@ -158,6 +158,33 @@ seed_project_install_home() {
   return 0
 }
 
+# Preserve the marketplace and enabled-plugin tables produced by install-all
+# after acceptance writes its isolated model/provider configuration.
+merge_project_codex_plugin_config() {
+  local installed_config="$1"
+  local runtime_config="$2"
+  local plugin_tables
+
+  if [ ! -s "${installed_config}" ] || [ ! -s "${runtime_config}" ]; then
+    printf 'project-accept: missing Codex install or runtime config for merge\n' >&2
+    return 1
+  fi
+
+  plugin_tables="$(awk '
+    /^\[/ { keep = ($0 ~ /^\[(marketplaces|plugins)\./) }
+    keep { print }
+  ' "${installed_config}")"
+  if ! printf '%s\n' "${plugin_tables}" | grep -Eq '^\[plugins\.'; then
+    printf 'project-accept: installed Codex config has no enabled plugin tables\n' >&2
+    return 1
+  fi
+
+  {
+    printf '\n'
+    printf '%s\n' "${plugin_tables}"
+  } >>"${runtime_config}"
+}
+
 # Assert install-all completed with every plugin in the current marketplace.
 assert_project_install_ready() {
   local dest_home="$1"

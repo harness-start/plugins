@@ -68,6 +68,28 @@ jq -e '
   and .permissions.defaultMode == "bypassPermissions"
 ' "${configured_home}/.claude/settings.json" >/dev/null
 
+configured_codex_source="$(make_home configured-codex-source)"
+configured_codex_dest="$(make_home configured-codex-dest)"
+mkdir -p "${configured_codex_source}/.codex"
+cat >"${configured_codex_source}/.codex/config.toml" <<'EOF'
+[marketplaces.harness-start]
+source_type = "local"
+source = "/marketplace"
+
+[plugins."session-governance@harness-start"]
+enabled = true
+EOF
+printf '{}\n' >"${configured_codex_source}/models.json"
+DEEPSEEK_API_KEY="acceptance-test-key" configure_codex_home \
+  "${configured_codex_dest}" "deepseek-v4-flash" "${configured_codex_source}/models.json"
+merge_project_codex_plugin_config \
+  "${configured_codex_source}/.codex/config.toml" \
+  "${configured_codex_dest}/config.toml"
+grep -Fq 'model = "deepseek-v4-flash"' "${configured_codex_dest}/config.toml"
+grep -Fq '[marketplaces.harness-start]' "${configured_codex_dest}/config.toml"
+grep -Fq '[plugins."session-governance@harness-start"]' "${configured_codex_dest}/config.toml"
+grep -Fq 'enabled = true' "${configured_codex_dest}/config.toml"
+
 fixture_root="${tmp_root}/project-case-fixture"
 mkdir -p \
   "${fixture_root}/lib" \

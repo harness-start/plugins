@@ -129,6 +129,9 @@ elif [ "${HOST}" = "codex" ]; then
     cp -a "${HOME}/.codex/." "${CODEX_HOME}/" 2>/dev/null || true
   fi
   configure_codex_home "${CODEX_HOME}" "${DEEPSEEK_MODEL}" "${MODELS_JSON}"
+  merge_project_codex_plugin_config \
+    "${HOME}/.codex/config.toml" \
+    "${CODEX_HOME}/config.toml"
   set +e
   run_codex_session_installed \
     "${ACCEPT_WORKSPACE}" \
