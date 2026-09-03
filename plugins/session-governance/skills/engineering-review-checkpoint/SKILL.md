@@ -24,7 +24,7 @@ Use the first matching profile in this order:
 
 1. **breaker** — authentication, authorization, security, untrusted input, concurrency, data integrity, or failure-path risk;
 2. **operator** — migration, deployment, runtime state, recovery, rollback, or observability risk;
-3. **maintainer** — public compatibility, cross-module coupling, unnecessary complexity, upgrade behavior, and all other qualifying changes.
+3. **maintainer** — public compatibility, cross-module coupling, evidence for newly introduced abstractions, unnecessary complexity, upgrade behavior, and all other qualifying changes.
 
 These are professional review lenses, not imitations of real people. Require direct, neutral, evidence-backed language.
 

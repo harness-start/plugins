@@ -1,9 +1,9 @@
 ---
 name: engineering-judgment
-description: Reduce common coding mistakes with explicit assumptions, surgical edits, and verifiable success criteria. Use for non-trivial implementation or refactoring. Do not use for read-only code review or concrete software failures.
+description: Reduce common coding mistakes with explicit assumptions, surgical edits, bounded ablation, and verifiable success criteria. Use for non-trivial implementation or refactoring. Do not use for read-only code review or concrete software failures.
 ---
 
-# Karpathy Guidelines
+# Engineering Judgment
 
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
@@ -27,7 +27,7 @@ Before implementing:
 - No abstractions for single-use code.
 - No "flexibility" or "configurability" that wasn't requested.
 - No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
+- Prefer the smallest design whose responsibilities are justified by the observable contract.
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
@@ -43,13 +43,25 @@ Before choosing an implementation for a non-trivial fix, derive the applicable o
 
 A passing reproduction of one example is not complete evidence. Add the cheapest independent counterexample that could falsify the proposed mechanism. Prefer an existing repository primitive when it already establishes the contract, and do not search for hidden evaluator artifacts or solution patches.
 
-For a boundary fix, identify the first lossy transform in the established pipeline: broadcasting, flattening, coercion, deduplication, sorting, or aggregation can erase distinctions that the result must preserve. Challenge multi-input boundaries with mixed states, not only the symmetric case: use unequal cardinality such as one empty component beside a singleton, one invalid component beside a valid one, and different shapes where the public contract permits them. Treat the behavior requested by the issue as the contract candidate; the current exception or rejection is not compatibility evidence unless local documentation or callers require it. Do not replace silent data loss with a newly invented mixed-state exception and call that preservation. Assert that every output component equals its corresponding input in value and shape instead of merely checking shapes or preserving the exception. Branch before the lossy step when required, then rejoin the shared return assembler or postprocessor; otherwise reuse the normal pipeline. A branch-local synthesized result remains suspect because it can silently change container, shape, ordering, metadata, or alternate calling forms.
+For a boundary fix, identify the first transform that can erase a required distinction, such as coercion, flattening, deduplication, sorting, or aggregation. Challenge it with asymmetric boundary cases, not only a single happy path. Evolve the named public seam rather than introducing a private parallel implementation with different semantics, and reuse an established repository or standard-library primitive before writing a new algorithm.
 
-When the requirement expands arity or composition, evolve the named seam rather than introducing a private parallel implementation with different semantics. Keep every proven accepted call form working, and add or extend durable tests for zero, one, two, and many inputs through that seam. Compatibility protects documented results and accepted call syntax; it does not justify a one-input fast path that preserves an incidental container or internal representation without evidence.
+## 3. Bounded Ablation
 
-For ordering or dependency behavior, search the entire repository and language standard library for an existing stable primitive before implementing a graph or merge algorithm. Use search concepts such as `stable`, `topological`, and `dependency`, then inspect candidate callers and tests. If no suitable primitive exists, define the unresolved degrees of freedom explicitly. Before completion, add a direct durable test with two completely disjoint chains containing at least two items each to prove stable ready-frontier behavior: discovery order `[a1, a2, b1, b2]` with chains `a1→a2` and `b1→b2` yields `[a1, b1, a2, b2]`, not `[a1, a2, b1, b2]`. Single-item chains and a three-chain example with a cross-chain dependency are not equivalent. Test an adjacent duplicate inside one chain, which must not become a self-dependency or cycle; testing only duplicates shared across separate chains does not establish this. Route zero, one, two, and many inputs from public callers through the same deduplication and result-container mechanism; moving a raw one-input passthrough into a caller is no more compatible than placing it inside the variadic seam. Also cover a genuine cycle and its fallback, and the exact warning or error contract. When the request disputes diagnostic content, preserve and render the complete original caller-supplied constraint groups instead of an element pair extracted from them or arbitrary internal graph nodes. A single requested ordering cannot prove those semantics, and flattened first-appearance order or one-at-a-time greedy readiness is not automatically a valid stable partial-order rule.
+**Treat every new layer as a hypothesis, then remove only what evidence shows is unnecessary.**
 
-## 3. Surgical Changes
+After the first coherent implementation slice passes its focused checks:
+
+1. Inspect only structures introduced or changed by the current task: wrappers, interfaces, generic parameters, branches, configuration, dependencies, tools, agents, or workflow stages.
+2. For each candidate, name the observable responsibility it is supposed to provide.
+3. Remove or inline one candidate at a time. Run the same focused test, validator, or oracle used before the removal.
+4. Keep the simpler variant only when the observable contract and required non-test constraints still hold. Otherwise restore that candidate without disturbing other accepted changes.
+5. Stop when no candidate can be removed safely, or when another experiment would cross the authorized scope.
+
+For a plan or design without an implementation, perform the same comparison on paper: test the simpler candidate against the stated success criteria and the cheapest falsifying counterexample.
+
+Do not use deleted lines, file count, or number of abstractions as the success metric. A green focused test does not authorize removing load-bearing security, compatibility, platform separation, persistence, recovery, or project ownership boundaries that the oracle cannot observe.
+
+## 4. Surgical Changes
 
 **Touch only what you must. Clean up only your own mess.**
 
@@ -65,7 +77,7 @@ When your changes create orphans:
 
 The test: Every changed line should trace directly to the user's request.
 
-## 4. Goal-Driven Execution
+## 5. Goal-Driven Execution
 
 **Define success criteria. Loop until verified.**
 

@@ -57,6 +57,16 @@ test("verification method scales evidence to the claim without making delivery a
   assert.doesNotMatch(verification, /Revert fix.*MUST FAIL/isu);
 });
 
+test("judgment method defines bounded one-factor ablation without deleting load-bearing behavior", () => {
+  const judgment = readFileSync(resolve(root, "skills", "engineering-judgment", "SKILL.md"), "utf8");
+  assert.match(judgment, /bounded ablation/iu);
+  assert.match(judgment, /one candidate at a time/iu);
+  assert.match(judgment, /same.*(?:test|validator|oracle)/isu);
+  assert.match(judgment, /current (?:task|change)/iu);
+  assert.match(judgment, /security.*compatibility.*platform/isu);
+  assert.match(judgment, /do not.*(?:line|file|deletion).*(?:metric|success)/isu);
+});
+
 test("both hosts implement mode C with prompt routing and no Stop gate", () => {
   for (const host of ["claude", "codex"] as const) {
     const routes = readModuleRoutes(import.meta.url, host, "practice");
@@ -81,5 +91,7 @@ test("acceptance inventory covers proportional verification, review checkpoints,
     "04-high-risk-checkpoint",
     "05-explicit-checkpoint",
     "06-focused-small-change",
+    "07-ablation-simplifies",
+    "08-ablation-preserves-contract",
   ]);
 });

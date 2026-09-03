@@ -1,0 +1,1 @@
+Refactor `src/allocation.mjs` without changing the public `canAllocate(requested, remaining)` export or its behavior. Keep the change scoped to that module, do not modify the existing test, add no dependencies, and finish with one short factual status line.

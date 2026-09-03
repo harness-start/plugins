@@ -40,6 +40,8 @@ Before claiming a status:
 4. **Read the evidence.** Check the exit status, failures, warnings relevant to the claim, and final diff or artifact state.
 5. **Report at the observed scope.** If evidence is missing or failed, say so. If it passed, make only the claim it proves.
 
+When the implementation used bounded ablation, the selected command must run after the last retained removal or restoration. Reusing an earlier GREEN does not verify the final variant.
+
 ## Minimum evidence by change type
 
 ### Focused behavior change

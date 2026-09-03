@@ -1,0 +1,1 @@
+Refactor `src/cache-key.mjs` to make it easier to follow without changing the public `normalizeCacheKey(platform, value)` contract. Keep the change scoped to that module, do not modify the existing test, add no dependencies, and finish with one short factual status line.
