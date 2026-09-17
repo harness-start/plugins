@@ -15,16 +15,16 @@ const owners = [
   "workspace-integrity",
 ];
 const requiredSections = [
-  "Purpose",
-  "Design",
-  "Capabilities",
-  "When to use it",
-  "When not to use it",
-  "Runtime behavior",
-  "Public interfaces",
-  "Configuration and state",
-  "Boundaries",
-  "Verification",
+  "用途",
+  "设计",
+  "能力",
+  "适用场景",
+  "不适用场景",
+  "运行时行为",
+  "公开接口",
+  "配置与状态",
+  "边界",
+  "验证",
 ];
 
 test("every AIO owner README explains its consumer contract", () => {
@@ -48,8 +48,47 @@ test("every AIO owner README explains its consumer contract", () => {
     assert.match(readme, /Codex/u, `${owner} omits Codex`);
     assert.match(readme, /\bHook(?:s)?\b/u, `${owner} omits Hooks`);
     assert.match(readme, /\bSkill(?:s)?\b/u, `${owner} omits Skills`);
-    assert.match(readme, /no capability profiles/iu, `${owner} omits the all-in installation contract`);
+    assert.match(readme, /没有能力 profile/u, `${owner} omits the all-in installation contract`);
     assert.doesNotMatch(readme, /\/srv\/workspaces|\.tmp-harness-aio/u, `${owner} leaks a development-machine path`);
+    if (owner === "workspace-integrity") {
+      const skillsRoot = resolve(ownerRoot, "skills");
+      for (const skill of readdirSync(skillsRoot, { withFileTypes: true })) {
+        if (!skill.isDirectory()) continue;
+        assert.match(
+          readme,
+          new RegExp("`" + skill.name + "`", "u"),
+          `${owner} omits public Skill ${skill.name}`,
+        );
+      }
+    }
+    if (owner === "artifact-production") {
+      assert.match(readme, /SubagentStart/u, `${owner} omits SubagentStart`);
+      assert.match(
+        readme,
+        /logo:brand-logo-production/u,
+        `${owner} omits the SubagentStart logo handler`,
+      );
+      assert.match(readme, /subagent/u, `${owner} omits the SubagentStart subagent argument`);
+    }
+  }
+});
+
+test("root README lists only Hook events that owners actually register", () => {
+  const readme = readFileSync(resolve(root, "README.md"), "utf8");
+  assert.doesNotMatch(readme, /PreCompact|PostCompact/u, "root README claims unregistered compact Hook events");
+  const registered = new Set<string>();
+  for (const owner of owners) {
+    for (const host of ["claude", "codex"] as const) {
+      const manifest = JSON.parse(
+        readFileSync(resolve(root, "plugins", owner, "hooks", `${host}.json`), "utf8"),
+      ) as { hooks?: Record<string, unknown> };
+      for (const event of Object.keys(manifest.hooks ?? {})) registered.add(event);
+    }
+  }
+  assert.equal(registered.has("PreCompact"), false);
+  assert.equal(registered.has("PostCompact"), false);
+  for (const event of registered) {
+    assert.match(readme, new RegExp("`" + event + "`", "u"), `root README omits registered Hook ${event}`);
   }
 });
 

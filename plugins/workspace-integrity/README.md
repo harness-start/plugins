@@ -1,70 +1,66 @@
 # workspace-integrity
 
-`workspace-integrity` protects the representation and mutation boundaries of a working tree. It catches unsafe shell patterns before execution, protects generated or dependency-owned files, checks source encoding and backup artifacts, and applies narrow domain-aware mutation guards without publishing a language-skill encyclopedia.
+`workspace-integrity` 保护工作树的表示与改写边界。它在执行前拦截不安全的 shell 形态，保护生成文件或依赖管理器拥有的路径，检查源码编码和备份残留，并施加窄的领域感知改写守卫，而不发布语言百科全书式 Skill。
 
-Runtime logs from adb, Docker, Kubernetes, and journald must cross the bundled redaction boundary before their output reaches a host session:
+adb、Docker、Kubernetes 和 journald 的运行时日志必须先经过捆绑的脱敏边界，才能进入宿主会话：
 
 ```sh
 adb logcat -d | node "$PLUGIN_ROOT/dist/cli/harness.mjs" logs sanitize
 ```
 
-Bound the producer query first. The sanitizer redacts common credential assignments, bearer tokens, and URL passwords and rejects input larger than 16 MiB.
+先收窄生产者查询。脱敏器会遮盖常见凭据赋值、bearer token 和 URL 密码，并拒绝超过 16 MiB 的输入。
 
-## Purpose
+## 用途
 
-Many agent failures are independent of the requested feature: rewriting a lockfile with the wrong package manager, mutating a generated artifact directly, creating backup debris, introducing invalid UTF-8, or using a masked shell command that bypasses review. This owner provides one predictable integrity floor for Claude Code and Codex.
+许多 agent 失败与所请求的功能无关：用错误的包管理器改写 lockfile、直接改生成物、留下备份垃圾、引入非法 UTF-8，或用被掩盖的 shell 命令绕过复核。本 owner 为 Claude Code 与 Codex 提供一层可预期的完整性地板。
 
-## Design
+## 设计
 
-The owner dispatches Hook events in process to implementations under `src/domains/`. Generic responsibilities are owned by `commands`, `source`, and `quality`. Domain mutation guards are implemented by `android`, `go`, `ios`, `java`, `kubernetes`, `nix`, `php`, `python`, `react-native`, `rust`, and `web`. Every domain shares the owner's Hook, Skill, test, acceptance, license, and build boundaries.
+owner 把 Hook 事件在进程内派发到 `src/domains/` 下的实现。通用职责由 `commands`、`source` 和 `quality` 拥有。领域改写守卫由 `android`、`go`、`ios`、`java`、`kubernetes`、`nix`、`php`、`python`、`react-native`、`rust` 和 `web` 实现。每个域共享 owner 的 Hook、Skill、测试、验收、license 和构建边界。
 
-Domain guards classify protected paths and dangerous mutation shapes before a write, run bounded deterministic validators after an observed mutation, and report selected semantic risks. Advisory checks can be set to `report` or `off`; a project configuration that requests `block` is clamped to `report`. Deterministic checks support `block`, `report`, and `off`. The bundled engineering Skills remain available without becoming Hook prerequisites. Installing the owner activates all protections; there are no capability profiles.
+领域守卫在写入前分类受保护路径和危险改写形态，在观察到改写后运行有界确定性校验器，并报告选定的语义风险。建议性检查可设为 `report` 或 `off`；项目配置若请求 `block` 会被钳到 `report`。确定性检查支持 `block`、`report` 和 `off`。捆绑的工程 Skill 可用，但不是 Hook 前提。安装 owner 即激活全部保护，没有能力 profile。
 
-## Capabilities
+## 能力
 
-| Area | Modules | What is protected |
+| 范围 | 模块 | 保护内容 |
 | --- | --- | --- |
-| Shell and command safety | `commands` | Destructive or opaque shell mutations, masked verification, sensitive reads, and project-defined allow/deny/report rules |
-| Source representation | `source` | Backup artifacts, garbled replacement characters, BOMs, invalid UTF-8, and path-specific overrides |
-| Shared quality floor | `quality` | Source-file line budgets and deterministic Markdown structure checks |
-| Mobile and Apple projects | `android`, `ios`, `react-native` | Generated project files, dependency locks, manifests, and framework-specific mutation boundaries |
-| Backend and systems languages | `go`, `java`, `php`, `python`, `rust` | Language-specific generated files, locks, metadata, and bounded protected targets |
-| Web projects | `web` | Frontend package targets and lock ownership while yielding React Native-specific targets to its module |
-| Declarative operations | `kubernetes`, `nix` | Helm/Kubernetes dependency state, manifests, and Nix-generated or lock-owned paths |
+| Shell 与命令安全 | `commands` | 破坏性或不透明的 shell 改写、掩盖验证、敏感读取，以及项目定义的 allow/deny/report 规则 |
+| 源码表示 | `source` | 备份残留、乱码替换字符、BOM、非法 UTF-8，以及按路径的覆盖 |
+| 共享质量地板 | `quality` | 源文件行数预算与确定性 Markdown 结构检查 |
+| 移动与 Apple 项目 | `android`、`ios`、`react-native` | 生成的项目文件、依赖锁、清单和框架特定改写边界 |
+| 后端与系统语言 | `go`、`java`、`php`、`python`、`rust` | 语言特定生成文件、锁、元数据和有界受保护目标 |
+| Web 项目 | `web` | 前端包目标与锁所有权；React Native 特有目标让给对应模块 |
+| 声明式运维 | `kubernetes`、`nix` | Helm/Kubernetes 依赖状态、清单，以及 Nix 生成或锁拥有的路径 |
 
-## When to use it
+## 适用场景
 
-Use it for any repository where agents can run shell commands or modify source. It is particularly valuable in polyglot workspaces, generated-code projects, mobile repositories, package-managed applications, infrastructure repositories, and teams that want a common command/source integrity contract before domain workflows begin.
+任何 agent 能跑 shell 或改源码的仓库都应使用。多语言工作区、生成代码项目、移动仓库、包管理应用、基础设施仓库，以及希望在领域工作流开始前先有共同命令/源码完整性合同的团队尤其有价值。
 
-## When not to use it
+## 不适用场景
 
-Do not use it as a substitute for project tests, compiler checks, security scanning, code review, or a language IDE. It does not promise to lint or format every supported language, teach language engineering, or validate arbitrary business semantics. Kubernetes operational methods are exposed by `delivery-governance`; this owner only applies the matching workspace integrity protections.
+不要用它替代项目测试、编译器检查、安全扫描、代码评审或语言 IDE。它不承诺为每种支持语言做 lint 或 format，不教语言工程，也不验证任意业务语义。Kubernetes 运维方法由 `delivery-governance` 暴露；本 owner 只施加对应的工作区完整性保护。
 
-## Runtime behavior
+## 运行时行为
 
-At `PreToolUse`, one aggregate domain route invokes all matching policies alongside the generic handlers. Any deterministic deny is returned immediately; advisory contexts can be combined. The quality handler projects direct `Write`, `Edit`, `MultiEdit`, and `apply_patch` content so a predictable line-budget violation is denied before mutation. At `PostToolUse`, domain validators and scans plus `commands`, `quality`, and `source` inspect observed writes. A blocking deterministic domain finding creates plugin-data debt keyed by workspace, session, policy, check, and path. `Stop` revalidates that debt and blocks completion while the file is still invalid or cannot be verified. While debt remains, `PreToolUse` also denies unrelated actions but allows direct repair or deletion of the affected path, covering hosts that do not emit `Stop` before a completion attempt. A clean rerun or deletion clears the debt. Persistence fails open when session/plugin-data identity is unavailable, while the immediate post-write check still runs. `stop_hook_active` retries do not loop. A Skill name is never a prerequisite for enforcement.
+`PreToolUse` 上，一条聚合领域路由与通用处理器一起调用所有匹配策略。任何确定性 deny 立即返回；建议性上下文可以合并。质量处理器会投影直接的 `Write`、`Edit`、`MultiEdit` 和 `apply_patch` 内容，从而在改写前拒绝可预测的行数预算违规。`PostToolUse` 上，领域校验器与扫描，加上 `commands`、`quality` 和 `source`，检查观察到的写入。确定性领域阻断会按工作区、会话、策略、检查和路径在插件数据中记债。`Stop` 重新验证该债，文件仍无效或无法核验时阻止完成。债未清时，`PreToolUse` 还会拒绝无关动作，但允许直接修复或删除受影响路径，覆盖那些在尝试完成前不发 `Stop` 的宿主。干净重跑或删除会清债。会话/插件数据身份不可用时持久化 fail-open，但立即的写后检查仍会跑。带 `stop_hook_active` 的重试不循环。Skill 名从来不是强制执行的前提。
 
-Path extraction covers host file tools, patches, moves, redirects, and common shell writers. Each module is scoped to evidence in the current tool call and repository; the presence of a language file elsewhere does not authorize broad automatic workflows.
+路径抽取覆盖宿主文件工具、补丁、移动、重定向和常见 shell writer。每个模块限定在当前工具调用和仓库中的证据；别处存在某个语言文件，并不授权大范围自动工作流。
 
-## Public interfaces
+## 公开接口
 
-The public catalog is intentionally compact: ten implicit domain entry Skills for Android, Go, iOS, Java, Nix, PHP, Python, React Native, Rust, and web engineering, plus the explicit-only `workspace-integrity-config` Skill. Specialized framework, testing, migration, and performance methods are progressive references inside their owning domain entry instead of independently discoverable Skills. Kubernetes operating methods remain owned by `delivery-governance`; this owner retains only the Kubernetes integrity Hook policy.
+公开目录刻意紧凑：十个隐式领域入口 Skill 是 `android-engineering`、`go-engineering`、`ios-engineering`、`java-engineering`、`nix-engineering`、`php-engineering`、`python-engineering`、`react-native-engineering`、`rust-engineering` 和 `web-frontend-engineering`，加上仅显式调用的 `workspace-integrity-config` Skill。专门的框架、测试、迁移和性能方法作为所属领域入口内的渐进参考，而不是可独立发现的 Skill。Kubernetes 操作方法必须从 `delivery-governance` 调用；本 owner 只保留其完整性 Hook 策略。
 
-`workspace-integrity-config` covers the existing `.command-safety.mjs`, `.source-integrity.mjs`, `.engineering-quality.mjs`, and domain `.*-engineering.mjs`/`.kubernetes-operations.mjs` files without renaming or merging their runtime schemas. The public `logs` CLI resource exposes only the deterministic `sanitize` action through `dist/cli/harness.mjs`; this owner exposes no MCP server.
+`workspace-integrity-config` 覆盖现有的 `.command-safety.mjs`、`.source-integrity.mjs`、`.engineering-quality.mjs` 以及领域 `.*-engineering.mjs` / `.kubernetes-operations.mjs` 文件，不重命名或合并它们的运行时 schema。公开 `logs` CLI 资源只通过 `dist/cli/harness.mjs` 暴露确定性的 `sanitize` 动作；本 owner 不暴露 MCP 服务器。
 
-## 2.0 Skill migration
+## 配置与状态
 
-Version 2.0 removes specialist Skill aliases. Android Compose/testing/R8 methods now live under `android-engineering`; SwiftUI/concurrency/testing under `ios-engineering`; Spring/JUnit/Jakarta under `java-engineering`; React Native navigation/performance/upgrades under `react-native-engineering`; Rust rules under `rust-engineering`; and React/Vue/Angular methods under `web-frontend-engineering`. The former three configuration Skills map to `workspace-integrity-config`. Kubernetes methods must be invoked from `delivery-governance`; only its integrity policy remains here.
+项目拥有的 JavaScript 配置可以增加窄路径规则、改支持的检查模式，并调整有界阈值。`commands` 可以保留会话本地的升级状态；`quality` 和确定性领域检查可以在宿主提供的插件数据下保留完成债。无效配置条目按各模块 schema 拒绝或忽略，内置保护仍然可用。
 
-## Configuration and state
+## 边界
 
-Project-owned JavaScript configuration can add narrow path rules, change supported check modes, and tune bounded thresholds. `commands` may keep session-local escalation state; `quality` and deterministic domain checks can keep completion debt under host-provided plugin data. Invalid configuration entries are rejected or ignored according to each module's schema while built-in protections remain available.
+Hook 只能约束 Claude Code 或 Codex 可见的工具活动，不是操作系统沙箱。一次被拒绝的写入证明拦住了已知的不安全形态；一次被允许的写入不证明正确。领域处理器刻意覆盖改写完整性，而不是全面的语言强制。生成文件所有权和 lockfile 规则仍依赖可识别的项目证据，无法推断未文档化的自定义生成器。
 
-## Boundaries
-
-Hooks can constrain only tool activity visible to Claude Code or Codex; they are not an operating-system sandbox. A denied write proves that a known unsafe shape was stopped, while an allowed write does not prove correctness. Domain handlers intentionally cover mutation integrity rather than comprehensive language enforcement. Generated-file ownership and lockfile rules still depend on recognizable project evidence and cannot infer undocumented custom generators.
-
-## Verification
+## 验证
 
 ```bash
 node --import tsx --test \
@@ -73,4 +69,4 @@ node --import tsx --test \
 npm run check:dist
 ```
 
-Run live dual-host cases only through `./scripts/acceptance/run.sh --plugin workspace-integrity`, which applies the mandatory Docker host-acceptance policy.
+实时双宿主用例只能通过 `./scripts/acceptance/run.sh --plugin workspace-integrity` 运行，该命令执行强制的 Docker 宿主验收策略。

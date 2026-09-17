@@ -1,6 +1,6 @@
 # harness-start
 
-Marketplace ID：`harness-start` · 显示名称：**Harness Start**
+Marketplace 标识：`harness-start` · 显示名称：**Harness Start**
 
 Harness Start 是同时面向 Claude Code 与 Codex 的双平台插件 marketplace。
 
@@ -31,7 +31,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 # 缺少某个宿主 CLI 时跳过，不让安装失败
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-missing-hosts
 
-# 选择默认回复语言，默认仍为简体中文
+# 选择默认回复语言（不传则按系统 locale，无法映射时用 en-US）
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --language en-US
 
 ```
@@ -108,7 +108,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 ├── scripts/install-all.sh             # marketplace 与全部插件的一键安装脚本
 ├── scripts/uninstall-all.sh           # 全部插件、marketplace 与安装器偏好的一键卸载脚本
 ├── scripts/ci/validate-plugins.sh     # GitHub/GitLab 共用 CI 检查
-├── docs/architecture.md               # Working harness architecture
+├── docs/architecture.md               # 工作架构
 ├── .github/workflows/validate-plugins.yml
 ├── .gitlab-ci.yml
 └── GUIDE.md                           # 完整初始化与发布指南
@@ -147,9 +147,9 @@ node "${PLUGIN_ROOT}/dist/cli/harness.mjs" <resource> <action> [arguments]
 
 各 owner 捆绑自己的 Skill、Hook、Script、领域实现和验收材料，不声明跨 owner 运行时依赖，也不依赖 `skill-deps.json` 或 `vendor-skills/`。
 
-### Subagent 原则
+### 子 agent 原则
 
-本仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可以在任务适合拆分时，用完整自然语言请求宿主创建普通子 agent；子 agent 的输出只是建议或候选材料，父 agent 必须核对证据、运行验证并承担最终交付责任。模型、思考深度、权限、并发和启停由 Claude Code / Codex 宿主管理，不在跨平台 Hook 中模拟身份、reservation、nonce、mailbox 或审批权。
+本仓库不提供中央子 agent 编排或生命周期审计插件。领域 Skill 可以在任务适合拆分时，用完整自然语言请求宿主创建普通子 agent；子 agent 的输出只是建议或候选材料，父 agent 必须核对证据、运行验证并承担最终交付责任。模型、思考深度、权限、并发和启停由 Claude Code / Codex 宿主管理，不在跨平台 Hook 中模拟身份、reservation、nonce、mailbox 或审批权。
 
 某些领域 Hook 仍会在 `SubagentStop` 上执行与主 agent 相同的语言或交付物检查。这表示“同一领域规则覆盖子会话”，不表示仓库接管子 agent 的调度或生命周期。
 
@@ -173,15 +173,15 @@ plugins/<name>/
 
 owner 与领域实现的运行时依赖都由 esbuild 打进 owner 的单一 bundle，仅保留 Node.js 内置模块为 external，因此单独复制任一 owner 目录即可安装和运行。领域实现位于 `src/domains/`，不拥有独立 `dist/`、Skill 根、测试根、验收根或宿主注册面，也不能被其他 owner 引用。宿主 manifest、Hook 注册、CLI 和 MCP 暴露统一归 owner。测试 fixture 为模拟消费者环境而创建的 `.claude/` 或 `.codex/` 不属于注册面，不做无差别删除。
 
-两个宿主的字段名、环境变量与生命周期事件不同，因此 marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护，业务脚本在插件目录内共享。Hook 事件覆盖：`SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`PostToolUseFailure`、`Stop`、`SubagentStart`、`SubagentStop`、`PreCompact`、`PostCompact`。
+两个宿主的字段名、环境变量与生命周期事件不同，因此 marketplace 索引、插件 manifest 与 Hook 配置按平台分别维护，业务脚本在插件目录内共享。已发布插件实际注册的 Hook 事件是：`SessionStart`、`UserPromptSubmit`、`PreToolUse`、`PostToolUse`、`PostToolUseFailure`、`Stop`、`SubagentStart`、`SubagentStop`。不是每个 owner 都订阅全部事件；`SubagentStart` 目前只由 `artifact-production` 在 Claude Code 上注册。
 
 ### 设计约定
 
-- **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出结构化 Hook 结果（deny / block / `additionalContext`），stderr 输出仅供人读的诊断；解析失败一律 fail-open。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
+- **Hook IO 协议**：事件 JSON 从 stdin 读入，stdout 输出结构化 Hook 结果（deny / block / `additionalContext`），stderr 输出仅供人读的诊断；解析失败一律放行。阻断走 `exit(2)` 加结构化 `blockingContract`（observedFacts / harm / unblockWhen / recovery）；`PreToolUse` 阻断输出 `permissionDecision: "deny"`。
 - **证据**：工作流插件用磁盘回执和 SHA-256 receipt 绑新鲜度；交付前要求回执和 trail 对得上。Hook 被调用、格式对、或多走几轮模型，都不算做完。
-- **fail-open / fail-closed**：解析失败和证据缺失就放行；写入安全、trail 完整性和交付新鲜度出问题就拦住。
+- **放行与拦截**：解析失败和证据缺失就放行；写入安全、trail 完整性和交付新鲜度出问题就拦住。
 - **可配置**：多数守卫支持项目级配置（如 `.source-integrity.mjs`、`.language-output.mjs`），解析失败回退内置规则。
-- **验证配套**：每个插件至少一个 TypeScript 离线测试与一套 acceptance cases；CI 统一运行 typecheck、ESLint、`check:dist`、单元测试和 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
+- **验证配套**：每个插件至少一个 TypeScript 离线测试与一套验收用例；CI 统一运行 typecheck、ESLint、`check:dist`、单元测试和 `scripts/ci/validate-plugins.sh`，宿主验收通过 `scripts/acceptance`（Docker 内）执行。
 
 ## 前置条件
 
@@ -253,14 +253,14 @@ codex plugin add <plugin-name>@harness-start --json
 
 ## 宿主验收：Claude Code、Codex 与 DeepSeek
 
-实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，smoke 和 live case 都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和 honesty gate 仍可直接在宿主运行。每个 live case 只启用当前插件；不再安装社区 Skill。
+实时验收只能在 Docker 中运行，镜像位于 `docker/host-acceptance`。从宿主执行 `./scripts/acceptance/run.sh` 时，冒烟测试和实时用例都会构建并运行该镜像，覆盖 Claude 与 Codex；单元测试和诚实性门禁仍可直接在宿主运行。每个实时用例只启用当前插件；不再安装社区 Skill。
 
 验收要求 `.env` 包含 `DEEPSEEK_API_KEY` 和 `DEEPSEEK_MODEL=deepseek-v4-flash`：
 
 ```bash
-./scripts/acceptance/run.sh --smoke                         # DeepSeek smoke，Docker
+./scripts/acceptance/run.sh --smoke                         # DeepSeek 冒烟测试，Docker
 ./scripts/acceptance/run.sh                                 # 全部插件 × Claude/Codex，Docker
-./scripts/acceptance/run.sh --plugin command-safety  # 单个插件，Docker
+./scripts/acceptance/run.sh --plugin workspace-integrity  # 单个插件，Docker
 ./scripts/acceptance/run.sh --honesty-only                  # 只运行惰性预期门禁，不启动 Docker
 bash scripts/acceptance/test-skill-deps-install.sh          # 确认仓库无 skill-deps/vendor-skills
 

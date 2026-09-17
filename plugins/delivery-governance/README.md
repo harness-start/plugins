@@ -1,62 +1,62 @@
 # delivery-governance
 
-`delivery-governance` covers the transition from a changed working tree to a safely delivered result. It governs Git mutation boundaries, explicit CI-gated merge-request delivery, history-preserving repository extraction, and Kubernetes operational work.
+`delivery-governance` 覆盖从已改工作树到安全交付结果的过渡。它治理 Git 改写边界、显式的 CI 门控合并请求交付、保留历史的仓库抽取，以及 Kubernetes 运维工作。
 
-## Purpose
+## 用途
 
-Delivery failures occur at boundaries that ordinary code generation does not own: accidental bulk staging, unresolved conflict markers, an unapproved worktree, stale CI evidence, force-pushed history, or a repository split that loses commits. This plugin groups those responsibilities by delivery outcome rather than by programming language.
+交付失败发生在普通代码生成并不拥有的边界上：意外的大范围暂存、未解决的冲突标记、未经批准的 worktree、过期的 CI 证据、force-push 历史，或拆仓时丢失提交。本插件按交付结果而不是按编程语言分组这些职责。
 
-## Design
+## 设计
 
-Three runtime domains live under `src/domains/`: `git`, `ci`, and `history`. `git` owns always-relevant repository mutation checks. `ci` owns an explicitly invoked merge-request state machine and remote evidence requirements. `history` owns a sealed preflight/execute protocol that keeps the source repository unchanged while creating a filtered target. All three share the owner's Hook, CLI, Skill, test, acceptance, license, and build boundaries.
+`src/domains/` 下有三个运行时域：`git`、`ci` 和 `history`。`git` 拥有始终相关的仓库改写检查。`ci` 拥有显式调用的合并请求状态机和远端证据要求。`history` 拥有密封的预检/执行协议：源仓库保持不变，同时创建过滤后的目标。三者共享 owner 的 Hook、CLI、Skill、测试、验收、license 和构建边界。
 
-Kubernetes operational methods are bundled as public Skills because they belong to deployment and delivery; the related mutation-integrity Hook remains in `workspace-integrity`. Installing this owner enables its whole surface for Claude Code and Codex; there are no capability profiles.
+Kubernetes 运维方法作为公开 Skill 捆绑，因为它们属于部署与交付；相关的改写完整性 Hook 仍在 `workspace-integrity`。安装本 owner 即为 Claude Code 与 Codex 启用其全部表面，没有能力 profile。
 
-## Capabilities
+## 能力
 
-| Area | Module or Skill | Capability |
+| 范围 | 模块或 Skill | 能力 |
 | --- | --- | --- |
-| Git safety | `git` | Rejects dangerous bulk pathspecs, unsolicited worktrees, protected receipt writes, unsafe conflict-marker states, and invalid commit boundaries |
-| CI-gated delivery | `ci` | Explicit review/CI/default-branch supervision with current-head evidence and SHA-bound merge/push authorization |
-| History migration | `history` | Preflight sealing, selected-path filtering, source immutability checks, target isolation, verification, and recovery receipts |
-| Kubernetes delivery | `kubernetes-operations`, `kubernetes-operations-playbook` | Manifest/Helm operational method, workload hardening, rollout diagnosis, resource and API-drift guidance |
+| Git 安全 | `git` | 拒绝危险的批量 pathspec、主动创建的 worktree、受保护回执写入、不安全的冲突标记状态，以及无效提交边界 |
+| CI 门控交付 | `ci` | 显式的评审/CI/默认分支监督，要求当前 head 证据，以及绑定 SHA 的 merge/push 授权 |
+| 历史迁移 | `history` | 预检密封、选定路径过滤、源不可变检查、目标隔离、核验和恢复回执 |
+| Kubernetes 交付 | `kubernetes-operations`、`kubernetes-operations-playbook` | Manifest/Helm 运维方法、工作负载加固、滚动诊断、资源和 API 漂移指引 |
 
-Configuration and orchestration Skills include `git-delivery-config`, `ci-gated-mr-workflow`, and `repository-history-migration`.
+配置与编排 Skill 包括 `git-delivery-config`、`ci-gated-mr-workflow` 和 `repository-history-migration`。
 
-## When to use it
+## 适用场景
 
-Use it when preparing commits, resolving merge boundaries, creating an explicitly requested worktree, supervising a merge request through review and CI, extracting selected paths into a new repository with history, or designing/reviewing Kubernetes delivery changes. It is most valuable when remote state, branch identity, or history preservation is part of acceptance.
+准备提交、处理合并边界、创建明确请求的 worktree、监督合并请求走过评审和 CI、把选定路径连同历史抽到新仓库，或设计/评审 Kubernetes 交付变更时使用。远端状态、分支身份或历史保全属于验收条件时最有价值。
 
-## When not to use it
+## 不适用场景
 
-Do not invoke the CI workflow for every ordinary code change; it is intentionally explicit-only. Do not use history migration for a normal file copy, a same-repository move, or an import where history is deliberately discarded. Do not treat Kubernetes guidance as proof that a live cluster is healthy. Source-code correctness and test-first development belong to `engineering-workflow`.
+不要为每次普通代码改动调用 CI 工作流；它刻意只在显式请求时启用。不要把历史迁移用于普通文件拷贝、同一仓库内移动，或故意丢弃历史的导入。不要把 Kubernetes 指引当成现场集群健康的证明。源码正确性和测试先行开发属于 `engineering-workflow`。
 
-## Runtime behavior
+## 运行时行为
 
-`PreToolUse` classifies Git, CI, and migration commands before they run. `UserPromptSubmit` records explicit worktree intent for the Git module. `PostToolUse` checks observable repository outcomes such as conflict state and delivery receipts. Remote delivery actions require evidence bound to the current head rather than a plausible SHA appearing elsewhere in text.
+`PreToolUse` 在 Git、CI 和迁移命令运行前分类它们。`UserPromptSubmit` 为 Git 模块记录显式的 worktree 意图。`PostToolUse` 检查可观察的仓库结果，例如冲突状态和交付回执。远端交付动作要求绑定当前 head 的证据，而不是文本里碰巧出现一个像样的 SHA。
 
-History migration uses a two-stage protocol: preflight records the clean source head, plan digest, filter version, include paths, and isolated target; execute rejects stale seals before creating the target. Temporary filtering failure leaves the source unchanged and removes only the operation's own temporary clone.
+历史迁移使用两阶段协议：预检记录干净的源 head、计划 digest、过滤器版本、包含路径和隔离目标；执行在创建目标前拒绝过期封印。临时过滤失败时源仓库不变，只删除本次操作自己的临时 clone。
 
-## Public interfaces
+## 公开接口
 
-The public deterministic CLI is:
+公开确定性 CLI 是：
 
 ```bash
 node "${PLUGIN_ROOT}/dist/cli/harness.mjs" migration preflight [arguments]
 node "${PLUGIN_ROOT}/dist/cli/harness.mjs" migration execute [arguments]
 ```
 
-The `migration` resource is the only public CLI resource. Git, CI, and Kubernetes open-ended work is entered through the bundled Skills listed above. There is no public MCP server.
+`migration` 是唯一公开 CLI 资源。Git、CI 和 Kubernetes 的开放工作通过上面列出的捆绑 Skill 进入。没有公开 MCP 服务器。
 
-## Configuration and state
+## 配置与状态
 
-Git delivery rules can be configured through `.git-delivery.mjs` and `commit-boundaries.json` using `git-delivery-config`. CI workflow state is repository-local and binds observed remote evidence to the current revision. Migration plans and seals are explicit input/output artifacts rather than implicit global state. Host credentials for GitHub, GitLab, or Kubernetes are never installed or authenticated by this plugin.
+Git 交付规则可通过 `git-delivery-config` 配置 `.git-delivery.mjs` 和 `commit-boundaries.json`。CI 工作流状态在仓库本地，把观察到的远端证据绑定到当前修订。迁移计划和封印是显式输入/输出产物，不是隐式全局状态。本插件从不安装或登录 GitHub、GitLab 或 Kubernetes 的宿主凭据。
 
-## Boundaries
+## 边界
 
-Hooks observe commands and repository state available to the host; they do not grant remote permissions, approve a merge, or guarantee that a deployment succeeded. CI evidence can become stale after the head changes. A history receipt proves the performed filter inputs and results, not organizational approval to publish the target. Kubernetes recommendations still require cluster-specific authorization, dry runs, and rollout observation.
+Hook 观察宿主可见的命令和仓库状态；它们不授予远端权限、不批准合并，也不保证部署成功。head 变化后 CI 证据会过期。历史回执证明实际执行的过滤输入和结果，不是把目标公开发布的组织批准。Kubernetes 建议仍需要集群特定授权、dry-run 和滚动观察。
 
-## Verification
+## 验证
 
 ```bash
 node --import tsx --test \
@@ -65,4 +65,4 @@ node --import tsx --test \
 npm run check:dist
 ```
 
-Live acceptance must use `./scripts/acceptance/run.sh --plugin delivery-governance` so both hosts execute inside the mandated Docker environment.
+实时验收必须使用 `./scripts/acceptance/run.sh --plugin delivery-governance`，使两个宿主都在规定的 Docker 环境内执行。

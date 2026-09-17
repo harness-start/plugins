@@ -1,54 +1,54 @@
 # interface-design
 
-`interface-design` improves the visual craft of web and application interfaces without binding the workflow to React, Vue, Flutter, or another framework. It combines an orchestration Skill, a read-only critique Skill, a mechanical craft floor, and lifecycle feedback that preserves visual continuity across edits.
+`interface-design` 改进 Web 与应用界面的视觉工艺，而不把工作流绑到 React、Vue、Flutter 或其他框架。它组合编排 Skill、只读批判 Skill、机械工艺地板，以及跨编辑保持视觉连续性的生命周期反馈。
 
-## Purpose
+## 用途
 
-Interface work often passes functional tests while still failing in hierarchy, spacing, typography, contrast, responsive behavior, motion, or design-system continuity. This plugin gives an agent a focused UI design contract and catches recognizable visual anti-patterns without turning subjective design judgment into a fake deterministic score.
+界面工作常常通过功能测试，却在层级、间距、字体、对比、响应式行为、动效或设计系统连续性上失败。本插件给 agent 一份聚焦的 UI 设计合同，并抓住可识别的视觉反模式，而不把主观设计判断伪装成确定性分数。
 
-## Design
+## 设计
 
-The `craft` domain lives under `src/domains/` and shares the owner's single Hook, Skill, test, acceptance, license, and build boundaries. The `interface-craft` Skill owns open-ended direction and repair. `interface-visual-critique` provides read-only review. `interface-craft-floor` describes mechanical constraints to apply immediately before editing UI. Hooks observe session context and changed interface files, then return bounded feedback or completion findings.
+`craft` 域位于 `src/domains/`，共享 owner 的单一 Hook、Skill、测试、验收、license 和构建边界。`interface-craft` Skill 拥有开放的方向与修复。`interface-visual-critique` 提供只读评审。`interface-craft-floor` 描述编辑 UI 前应立即应用的机械约束。Hook 观察会话上下文和已改的界面文件，然后返回有界反馈或完成发现。
 
-The plugin is self-contained for Claude Code and Codex. Installing it activates the complete surface; there are no capability profiles, framework profiles, or cross-owner Skill dependencies.
+插件对 Claude Code 与 Codex 自包含。安装即启用全部表面；没有能力 profile、框架档位或跨 owner Skill 依赖。
 
-## Capabilities
+## 能力
 
-| Capability | Public Skill or mechanism | What it covers |
+| 能力 | 公开 Skill 或机制 | 覆盖内容 |
 | --- | --- | --- |
-| UI direction and repair | `interface-craft` | Hierarchy, type, spacing, contrast, design-system continuity, responsive behavior, and restrained motion |
-| Read-only visual review | `interface-visual-critique` | Evidence-based critique without editing or release authority |
-| Mechanical craft floor | `interface-craft-floor` | Detectable anti-patterns such as arbitrary hard shadows, weak state treatment, and broken responsive assumptions |
-| Session continuity | Session/Stop Hooks | Carries the selected visual direction through a coherent interface task and reports unresolved mechanical findings |
-| Changed-file feedback | PostToolUse Hook | Reviews only relevant observed interface writes instead of scanning every language file in the repository |
+| UI 方向与修复 | `interface-craft` | 层级、字体、间距、对比、设计系统连续性、响应式行为，以及克制的动效 |
+| 只读视觉评审 | `interface-visual-critique` | 基于证据的批判，没有编辑或发布权 |
+| 机械工艺地板 | `interface-craft-floor` | 可检测的反模式，例如任意硬阴影、弱状态处理和损坏的响应式假设 |
+| 会话连续性 | Session/Stop Hook | 在连贯的界面任务中携带选定的视觉方向，并报告未解决的机械发现 |
+| 已改文件反馈 | PostToolUse Hook | 只评审相关、已观察到的界面写入，而不是扫描仓库里每种语言文件 |
 
-## When to use it
+## 适用场景
 
-Use it when designing a new page or application surface, repairing a visually weak UI, establishing or extending a design system, reviewing responsive layouts, improving accessibility-related visual hierarchy, or checking that motion and interaction states fit an existing product language. It applies to web and app interfaces even when the underlying framework differs.
+设计新页面或应用表面、修复视觉偏弱的 UI、建立或扩展设计系统、评审响应式布局、改进与无障碍相关的视觉层级，或检查动效和交互状态是否贴合现有产品语言时使用。底层框架不同时，仍适用于 Web 与应用界面。
 
-## When not to use it
+## 不适用场景
 
-Do not use it for posters, logos, presentation decks, diagrams, print publications, or video; those belong to `artifact-production`. Do not use it as a substitute for functional frontend engineering, component tests, browser performance analysis, or a formal accessibility audit. A read-only critique request must not be converted into an implementation task.
+不要把它用于海报、logo、演示文稿、图表、印刷品或视频；那些属于 `artifact-production`。不要用它替代功能前端工程、组件测试、浏览器性能分析或正式无障碍审计。只读批判请求不得转成实现任务。
 
-## Runtime behavior
+## 运行时行为
 
-`SessionStart` supplies bounded craft context for relevant UI work. `PostToolUse` inspects host-observed interface changes and reports mechanical findings. `Stop` can surface unresolved craft-floor issues for an active interface task. The Hook does not require the user or agent to mention a Skill name, and Skill activation alone never establishes visual quality.
+`SessionStart` 为相关 UI 工作提供有界工艺上下文。`PostToolUse` 检查宿主观察到的界面变更并报告机械发现。`Stop` 可以为活动界面任务浮出未解决的工艺地板问题。Hook 不要求用户或 agent 提到 Skill 名；Skill 激活本身从不确立视觉质量。
 
-The domain deliberately separates mechanically detectable issues from visual judgment. Hooks can identify known patterns and changed paths; the agent must still inspect the rendered interface, understand product context, and make design tradeoffs.
+该域刻意把可机械检测的问题与视觉判断分开。Hook 能识别已知模式和已改路径；agent 仍必须检查渲染后的界面、理解产品上下文并做设计取舍。
 
-## Public interfaces
+## 公开接口
 
-The public interfaces are the `interface-craft`, `interface-visual-critique`, and `interface-craft-floor` Skills plus the Claude Code and Codex Hooks. This owner has no public CLI and no MCP server. Framework-specific implementation knowledge may be provided by the host or project, but it is not a runtime dependency of this published plugin.
+公开接口是 `interface-craft`、`interface-visual-critique` 和 `interface-craft-floor` Skill，以及 Claude Code 与 Codex Hook。本 owner 没有公开 CLI，也没有 MCP 服务器。框架特定的实现知识可由宿主或项目提供，但不是本已发布插件的运行时依赖。
 
-## Configuration and state
+## 配置与状态
 
-The plugin relies primarily on repository context and observed interface files rather than a capability-selection configuration. Any continuity state is scoped to the current project/session and exists only to connect a coherent design task across lifecycle events. It does not create a global design profile or import hidden workspace Skills.
+插件主要依赖仓库上下文和观察到的界面文件，而不是能力选择配置。任何连续性状态都以当前项目/会话为范围，只为把连贯的设计任务连到各生命周期事件。它不创建全局设计档位，也不导入隐藏的工作区 Skill。
 
-## Boundaries
+## 边界
 
-The plugin does not render a browser, inspect pixels by itself, or prove that a page is attractive, accessible, responsive, or production-ready. Mechanical checks are supporting evidence. Outcome validation should include the actual rendered states, target viewport sizes, interaction behavior, and product requirements. It never gains writer authority from a review-only Skill.
+插件不渲染浏览器、不自行检查像素，也不证明页面好看、无障碍、响应式或可上线。机械检查是辅助证据。结果核验应包括实际渲染状态、目标视口尺寸、交互行为和产品要求。只读评审 Skill 从不获得写入权。
 
-## Verification
+## 验证
 
 ```bash
 node --import tsx --test \
@@ -57,4 +57,4 @@ node --import tsx --test \
 npm run check:dist
 ```
 
-Live dual-host acceptance must run with `./scripts/acceptance/run.sh --plugin interface-design` under Docker.
+实时双宿主验收必须在 Docker 下用 `./scripts/acceptance/run.sh --plugin interface-design` 运行。

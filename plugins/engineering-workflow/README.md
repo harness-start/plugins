@@ -1,65 +1,65 @@
 # engineering-workflow
 
-`engineering-workflow` owns durable, language-independent workflows for changing software: evidence-first debugging, specification-driven delivery, and test-first implementation. It provides both agent methods and mechanical gates so a workflow can survive a long session or resume from repository artifacts.
+`engineering-workflow` 拥有与语言无关、可持久的软件变更工作流：先证据的调试、规格驱动交付，以及测试先行的实现。它同时提供 agent 方法和机械门禁，使工作流能撑过长会话，或从仓库产物恢复。
 
-## Purpose
+## 用途
 
-General engineering advice is not enough when a failure needs a reproducible causal record, a large change needs traceable requirements, or a behavior change must demonstrate RED before implementation. This plugin turns those situations into explicit workflows while leaving ordinary feature work and simple edits unencumbered.
+一般工程建议不够用时：失败需要可复现的因果记录，大改动需要可追踪需求，或行为变更必须在实现前展示 RED。本插件把这些情况变成显式工作流，同时不拖累普通功能工作和简单编辑。
 
-## Design
+## 设计
 
-The owner contains three internal domains under one source tree: `debugging`, `specification`, and `testing`. They share the owner dispatcher, CLI, build, test, acceptance, Skill, and license boundaries. Skills own diagnosis, planning, task decomposition, and red/green judgment. Hooks own only mechanically verifiable constraints such as binding an active debug ledger, protecting workflow artifacts, enforcing specification order, and requiring a corresponding test change before an implementation write.
+owner 在同一源码树下有三个内部域：`debugging`、`specification` 和 `testing`。它们共享 owner dispatcher、CLI、构建、测试、验收、Skill 和 license 边界。Skill 拥有诊断、规划、任务分解和红绿判断。Hook 只拥有可机械验证的约束，例如绑定活动调试账本、保护工作流产物、强制规格顺序，以及要求对应测试先于实现写入而改变。
 
-The owner exposes one public dispatcher and one unified deterministic CLI. Installing it enables the complete Hook and Skill surface for Claude Code and Codex; there are no capability profiles or language-specific branches.
+owner 暴露一个公开 dispatcher 和一套统一的确定性 CLI。安装即为 Claude Code 与 Codex 启用完整 Hook 和 Skill 表面；没有能力 profile，也没有按语言分支。
 
-## Capabilities
+## 能力
 
-| Domain | Capability | Durable artifact or gate |
+| 域 | 能力 | 持久产物或门禁 |
 | --- | --- | --- |
-| `debugging` | Reproduction, hypothesis tracking, root-cause evidence, multi-bug isolation, attempt receipts, pause/resume, and completion checks | Append-only `.debug-workflow` ledger and a session lease |
-| `specification` | Specify → plan → tasks → build progression with digest freshness and requirement traceability | `.specs` artifacts and ordering/freshness validation |
-| `testing` | Test-first orchestration and source-write order enforcement | Corresponding test must change before a behavior-changing implementation target |
+| `debugging` | 复现、假设跟踪、根因证据、多缺陷隔离、尝试回执、暂停/恢复和完成检查 | 只追加的 `.debug-workflow` 账本和会话租约 |
+| `specification` | Specify → plan → tasks → build 推进，带 digest 新鲜度和需求可追溯性 | `.specs` 产物以及顺序/新鲜度校验 |
+| `testing` | 测试先行编排和源码写入顺序强制 | 行为变更的实现目标写入前，对应测试必须先改 |
 
-Public Skills include `debug-workflow`, `sdd`, `sdd-specify`, `sdd-plan`, `sdd-tasks`, `sdd-build`, `tdd-red-green`, and `test-driven-development-orchestrator`.
+公开 Skill 包括 `debug-workflow`、`sdd`、`sdd-specify`、`sdd-plan`、`sdd-tasks`、`sdd-build`、`tdd-red-green` 和 `test-driven-development-orchestrator`。
 
-## When to use it
+## 适用场景
 
-Use `debugging` for a concrete error, failing test, regression, flaky behavior, performance fault, or a resumable bug investigation. Use `specification` when a change spans several requirements or modules and needs durable intent, plan, tasks, and verification recipes. Use `testing` when the public behavior has a stable test seam and implementation should be driven by an observed RED/GREEN loop.
+具体错误、失败测试、回归、不稳定行为、性能故障或可恢复的缺陷调查用 `debugging`。变更跨越多项需求或模块、需要持久意图、计划、任务和验证配方时用 `specification`。公开行为有稳定测试缝、实现应由观察到的 RED/GREEN 循环驱动时用 `testing`。
 
-## When not to use it
+## 不适用场景
 
-Do not start the debug workflow for speculative review, feature design, a production incident that still needs containment, or a conceptual explanation. Do not create SDD artifacts for a one-line mechanical change with an obvious oracle. Do not force TDD onto generated files, pure documentation edits, or work without a meaningful public test seam. Engineering review and general completion discipline belong to `session-governance`.
+不要为推测性评审、功能设计、仍需先遏制的生产事故或概念解释启动调试工作流。不要为一行、oracle 明显的机械改动创建 SDD 产物。不要把 TDD 强加到生成文件、纯文档编辑，或没有有意义公开测试缝的工作。工程评审和一般完成纪律属于 `session-governance`。
 
-## Runtime behavior
+## 运行时行为
 
-`SessionStart` reports resumable debug/testing context. `PreToolUse` protects debug and specification ledgers and enforces test-before-source ordering. `PostToolUse` records observed debug receipts and advances specification evidence; failures remain visible to the debug state. `Stop` blocks only an activated debug workflow whose declared completion evidence is incomplete. The owner parses each Hook event once and invokes matched domain handlers in the same process; it does not launch private plugin runtimes.
+`SessionStart` 报告可恢复的调试/测试上下文。`PreToolUse` 保护调试和规格账本，并强制测试先于源码的顺序。`PostToolUse` 记录观察到的调试回执并推进规格证据；Claude Code 上的 `PostToolUseFailure` 仍对调试状态可见。`Stop` 只阻断已激活、且声明的完成证据不完整的调试工作流。owner 解析每个 Hook 事件一次，并在同一进程内调用匹配的领域处理器；不启动私有插件运行时。
 
-Installing the plugin does not automatically open a debug ledger or create `.specs`. Hard workflow behavior is activated by durable project artifacts and official writer commands, not by mentioning a Skill name or merely loading a Skill.
+安装插件不会自动打开调试账本或创建 `.specs`。硬工作流由持久项目产物和官方 writer 命令激活，不是因为提到 Skill 名或仅仅加载了 Skill。
 
-## Public interfaces
+## 公开接口
 
-The public CLI protocol is:
+公开 CLI 协议是：
 
 ```bash
 node "${PLUGIN_ROOT}/dist/cli/harness.mjs" <resource> <action> [arguments]
 ```
 
-Resources:
+资源：
 
-- `debug`: forwards actions such as `init`, `activate`, `claim`, `affect`, `add-bug`, `pause`, `resume`, `status`, `close`, and `abort` to the debug ledger writer;
-- `spec`: exposes `check` to validate the current specification artifacts.
+- `debug`：把 `init`、`activate`、`claim`、`affect`、`add-bug`、`pause`、`resume`、`status`、`close` 和 `abort` 等动作转发到调试账本 writer；
+- `spec`：暴露 `check`，校验当前规格产物。
 
-Skills remain the normal entrypoint for open-ended work; the CLI is the deterministic writer/validator seam used by Skills, users, and Hooks.
+Skill 仍是开放工作的常规入口；CLI 是 Skill、用户和 Hook 使用的确定性 writer/校验缝。
 
-## Configuration and state
+## 配置与状态
 
-The debug workflow stores repository-owned ledgers under `.debug-workflow` and binds active work to a session/epoch lease. Specification state lives in `.specs` and uses content digests to detect stale downstream artifacts. The testing domain derives correspondence from repository paths, imports, symbols, and Git changes rather than keeping a separate task database. Domain-specific project configuration can tune supported patterns without introducing a language profile.
+调试工作流把仓库拥有的账本存在 `.debug-workflow` 下，并把活动工作绑定到会话/epoch 租约。规格状态在 `.specs` 中，用内容 digest 检测过期的下游产物。测试域从仓库路径、导入、符号和 Git 变更推导对应关系，不另建任务数据库。领域特定项目配置可以调整支持的模式，但不引入语言档位。
 
-## Boundaries
+## 边界
 
-The Hooks can prove ordering, artifact validity, observed command outcomes, and current digest relationships. They cannot prove that a hypothesis is scientifically sound, that a failing test fails for the intended reason, or that a passing suite covers all behavior. The parent agent must interpret RED/GREEN and root-cause evidence. Generated or unobservable mutations remain outside the host Hook boundary.
+Hook 能证明顺序、产物有效性、观察到的命令结果，以及当前 digest 关系。它不能证明假设在科学上成立、失败测试是因预期原因失败，或通过的套件覆盖了全部行为。父 agent 必须解释 RED/GREEN 和根因证据。生成的或观察不到的改写仍在宿主 Hook 边界之外。
 
-## Verification
+## 验证
 
 ```bash
 node --import tsx --test \
@@ -67,4 +67,4 @@ node --import tsx --test \
 npm run check:dist
 ```
 
-Live Claude Code and Codex acceptance uses `./scripts/acceptance/run.sh --plugin engineering-workflow` and therefore runs in Docker.
+Claude Code 与 Codex 实时验收使用 `./scripts/acceptance/run.sh --plugin engineering-workflow`，因此在 Docker 中运行。

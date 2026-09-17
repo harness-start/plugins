@@ -1,88 +1,88 @@
 # artifact-production
 
-`artifact-production` creates reviewable visual, audiovisual, document, and learning artifacts through source-first pipelines. It covers logos, diagrams, posters, presentations, print publications, videos, instrumental music, and training packages for Claude Code and Codex.
+`artifact-production` 通过源码优先流水线创建可复核的视觉、视听、文档和学习制品。它覆盖 logo、图表、海报、演示、印刷出版物、视频、器乐和培训包，面向 Claude Code 与 Codex。
 
-## Purpose
+## 用途
 
-Producing an artifact is more than writing a binary file. A credible delivery needs editable source, explicit direction, deterministic writers, measured probes, an independent review boundary, and a release receipt bound to the current inputs and outputs. This owner provides those end-to-end contracts while keeping read-only advisers separate from writers and release authority.
+生产制品不只是写出一个二进制文件。可信交付需要可编辑源、明确方向、确定性 writer、可测量探针、独立评审边界，以及绑定当前输入输出的发布回执。本 owner 提供这些端到端合同，同时把只读顾问与 writer、发布权分开。
 
-## Design
+## 设计
 
-Eight production domains live under `src/domains/`: `logo`, `diagram`, `poster`, `presentation`, `print`, `video`, `music`, and `training`. Each domain owns its source contract, generated paths, writers, Hook protections, evidence, independent-review input, and release validation. The owner has one Hook dispatcher per host and one unified public CLI that routes `<resource> <action>` to the responsible domain in process.
+`src/domains/` 下有八个生产域：`logo`、`diagram`、`poster`、`presentation`、`print`、`video`、`music` 和 `training`。每个域拥有自己的源合同、生成路径、writer、Hook 保护、证据、独立评审输入和发布校验。owner 为每个宿主提供一个 Hook dispatcher，以及一套把 `<resource> <action>` 在进程内路由到负责域的统一公开 CLI。
 
-Skills own art direction, planning, authoring orchestration, and visual or auditory judgment. Hooks own mechanical rules: protect generated outputs, admit only registered writers, bind evidence to current bytes, keep review independent, and block incomplete release claims. Installing the owner activates all formats; there are no capability profiles and no requirement for external Skills.
+Skill 拥有艺术方向、规划、编排和视觉或听觉判断。Hook 拥有机械规则：保护生成输出、只接纳已注册 writer、把证据绑到当前字节、保持评审独立，并阻断不完整的发布声明。安装 owner 即激活全部格式；没有能力 profile，也不要求外部 Skill。
 
-## Capabilities
+## 能力
 
-| Module | Produces | Core workflow |
+| 模块 | 产出 | 核心工作流 |
 | --- | --- | --- |
-| `logo` | Native vector masters, variants, construction/specimen sheets, previews, and exports | Brief → brand direction → construction → variants → preview → independent review → release |
-| `diagram` | SVG, PNG, HTML, and draw.io-compatible diagram projects | Semantic source/import → design → render → probes → independent review → release |
-| `poster` | Deterministic poster SVG/PNG variants | Brief/art direction → Satori source → render → scanability/composition evidence → independent review → release |
-| `presentation` | Editable 16:9 PPTX, rendered pages, and PDF | Requirements → storyboard → design system → PptxGenJS source → render/probe → independent review → release |
-| `print` | Static publication HTML/PDF packages | Ordered publication sections → lint → PDF evidence → independent review coverage → release |
-| `video` | Evidence-bound Remotion video with admitted media | Direction/storyboard → media admission → shot staging → render → visual/audio probes → independent review → release |
-| `music` | Code-managed instrumental project, mix, and stems | Reference analysis → composition/arrangement → Tone.js rendering → loudness/mix evidence → independent audition → release |
-| `training` | Agenda, instructor/participant materials, exercises, assessments, and delivery package | Audience/outcomes → instructional design → material render → criterion-complete review → release |
+| `logo` | 原生矢量主稿、变体、构造/样本页、预览和导出 | Brief → 品牌方向 → 构造 → 变体 → 预览 → 独立评审 → 发布 |
+| `diagram` | SVG、PNG、HTML 以及兼容 draw.io 的图表项目 | 语义源/导入 → 设计 → 渲染 → 探针 → 独立评审 → 发布 |
+| `poster` | 确定性海报 SVG/PNG 变体 | Brief/艺术方向 → Satori 源 → 渲染 → 可读性/构图证据 → 独立评审 → 发布 |
+| `presentation` | 可编辑 16:9 PPTX、渲染页和 PDF | 需求 → 分镜 → 设计系统 → PptxGenJS 源 → 渲染/探针 → 独立评审 → 发布 |
+| `print` | 静态出版物 HTML/PDF 包 | 有序出版章节 → lint → PDF 证据 → 独立评审覆盖 → 发布 |
+| `video` | 证据绑定的 Remotion 视频与已准入媒体 | 方向/分镜 → 媒体准入 → 镜头编排 → 渲染 → 视听探针 → 独立评审 → 发布 |
+| `music` | 代码管理的器乐项目、混音和分轨 | 参考分析 → 作曲/编曲 → Tone.js 渲染 → 响度/混音证据 → 独立试听 → 发布 |
+| `training` | 议程、讲师/学员材料、练习、评估和交付包 | 受众/成果 → 教学设计 → 材料渲染 → 标准完备的评审 → 发布 |
 
-Read-only adviser Skills cover brand direction, color/accessibility, logo form, diagram/poster/slide/video critique, academic and cultural poster direction, presentation storyboards, music composition/reference/mix QC, video motion/media/shot planning, and training review. Authoring and review Skills have explicit writer-authority boundaries.
+只读顾问 Skill 覆盖品牌方向、颜色/无障碍、logo 形态、图表/海报/幻灯/视频批判、学术与地域文化海报方向、演示分镜、音乐作曲/参考/混音质检、视频运动/媒体/镜头规划，以及培训评审。编排与评审 Skill 有明确的 writer 权限边界。
 
-## When to use it
+## 适用场景
 
-Use it when the requested deliverable is one of the supported artifact families and must remain editable, reproducible, reviewable, and releasable. It is suitable for creating a new brand mark, architecture diagram, campaign poster, slide deck, static publication, short explainer or product video, instrumental track, or structured training program.
+请求的交付物属于受支持的制品家族，并且必须保持可编辑、可复现、可复核、可发布时使用。适合创建新品牌标志、架构图、活动海报、幻灯片、静态出版物、短说明或产品视频、器乐，或结构化培训项目。
 
-Use the read-only critique Skills when an existing artifact needs assessment without mutation. Use the independent review Skills only after another session has produced current rendered outputs and evidence.
+已有制品需要评估且不要改写时，使用只读批判 Skill。独立评审 Skill 只应在另一会话已经产出当前渲染输出和证据之后使用。
 
-## When not to use it
+## 不适用场景
 
-Do not use it for ordinary application UI; use `interface-design`. Do not use it merely to explain a visual concept, edit an unsupported proprietary file in place, or produce an unconstrained one-off binary with no source/evidence contract. The PPTX workflow creates a new deck and is not an arbitrary existing-template editor. The music workflow is not a general DAW controller, and the video workflow does not call vendor media-generation APIs or accept undeclared rights.
+不要把它用于普通应用 UI；那是 `interface-design`。不要只用它解释视觉概念、就地编辑不受支持的专有文件，或生产没有源/证据合同的一次性二进制。PPTX 工作流创建新幻灯片，不是任意已有模板编辑器。音乐工作流不是通用 DAW 控制器；视频工作流不调用厂商媒体生成 API，也不接受未声明权利的素材。
 
-Do not let the producing session self-approve an artifact when the contract requires an independent review. A rendered file alone is not a release.
+合同要求独立评审时，不要让生产会话自我批准制品。仅有渲染文件不是发布。
 
-## Runtime behavior
+## 运行时行为
 
-At `SessionStart`, format domains report relevant existing projects without activating unrelated hard gates. `PreToolUse` protects generated outputs and restricts mutations to registered, capability-bound writers when a governed artifact project is in scope. Shell scope requires the command or current directory to identify the carrier path; merely having an existing or released artifact project does not turn unrelated repo-root interpreters into artifact mutations. `PostToolUse` and failure events update evidence or recovery information. `Stop` and `SubagentStop` validate the active project's declared stage and prevent a false completion claim when current evidence, review, or release receipts are missing.
+`SessionStart` 以 `session` 参数调用全部八个格式域，发现已有项目，不激活无关硬门禁。Claude Code 的 `SubagentStart` 只路由到 `logo:brand-logo-production`，参数为 `subagent`：把该子 agent 标为独立 logo 评审的受信任主体，而不是再跑一遍八个格式的会话发现。`PreToolUse` 在范围内的受治理制品项目中保护生成输出，并把改写限制为已注册、能力绑定的 writer。Shell 范围要求命令或当前目录识别载体路径；仅仅存在已有或已发布的制品项目，不会把无关的仓库根解释器变成制品改写。`PostToolUse` 和失败事件更新证据或恢复信息。`Stop` 与 `SubagentStop` 校验活动项目声明的阶段，当前证据、评审或发布回执缺失时阻止虚假完成声明。
 
-The dispatcher evaluates only routes whose matcher applies. A domain is scoped by the artifact path and project contract, so installing this all-in owner does not cause every format validator to run against every repository write. Hook activation or a successfully formatted file is not proof of visual quality; rendered outputs and outcome-level review remain required.
+dispatcher 只评估 matcher 适用的路由。域由制品路径和项目合同限定范围，因此安装这个全开 owner 不会让每种格式校验器去跑仓库里的每一次写入。Hook 激活或格式正确的文件不是视觉质量证明；仍需要渲染输出和结果级评审。
 
-## Public interfaces
+## 公开接口
 
-The deterministic CLI protocol is:
+确定性 CLI 协议是：
 
 ```bash
 node "${PLUGIN_ROOT}/dist/cli/harness.mjs" <resource> <action> [arguments]
 ```
 
-Supported resources and actions:
+支持的资源和动作：
 
-| Resource | Actions |
+| 资源 | 动作 |
 | --- | --- |
-| `logo` | `advice`, `lint`, `lock`, `preview`, `release`, `render`, `review`, `stage`, `validate` |
-| `diagram` | `import`, `init`, `lint`, `probe`, `release`, `render`, `review` |
-| `poster` | `init`, `lint`, `probe`, `release`, `render`, `review` |
-| `presentation` | `init`, `lint`, `probe`, `release`, `render`, `review` |
-| `print` | `lint`, `release` |
-| `video` | `admit`, `catalog`, `init`, `lint`, `probe`, `release`, `render`, `review`, `shot-stage` |
-| `music` | `advice`, `init`, `lint`, `optimize`, `preview`, `reference`, `release`, `render`, `review`, `stage` |
-| `training` | `init`, `lint`, `release`, `render`, `review` |
+| `logo` | `advice`、`lint`、`lock`、`preview`、`release`、`render`、`review`、`stage`、`validate` |
+| `diagram` | `import`、`init`、`lint`、`probe`、`release`、`render`、`review` |
+| `poster` | `init`、`lint`、`probe`、`release`、`render`、`review` |
+| `presentation` | `init`、`lint`、`probe`、`release`、`render`、`review` |
+| `print` | `lint`、`release` |
+| `video` | `admit`、`catalog`、`init`、`lint`、`probe`、`release`、`render`、`review`、`shot-stage` |
+| `music` | `advice`、`init`、`lint`、`optimize`、`preview`、`reference`、`release`、`render`、`review`、`stage` |
+| `training` | `init`、`lint`、`release`、`render`、`review` |
 
-Principal public authoring/review Skills are `logo-project-authoring`, `logo-project-review`, `diagram-project-authoring`, `diagram-project-review`, `poster-project-authoring`, `poster-project-review`, `pptx-deck-authoring`, `pptx-deck-review`, `video-project-authoring`, `video-project-review`, `music-project-authoring`, `music-project-review`, `training-program-design`, and `training-program-review`. Narrow adviser Skills are listed in `skills/` and describe their own read-only boundaries.
+主要公开编排/评审 Skill 是 `logo-project-authoring`、`logo-project-review`、`diagram-project-authoring`、`diagram-project-review`、`poster-project-authoring`、`poster-project-review`、`pptx-deck-authoring`、`pptx-deck-review`、`video-project-authoring`、`video-project-review`、`music-project-authoring`、`music-project-review`、`training-program-design` 和 `training-program-review`。窄顾问 Skill 列在 `skills/` 中，并自行描述只读边界。
 
-This owner exposes no MCP server.
+本 owner 不暴露 MCP 服务器。
 
-## Configuration and state
+## 配置与状态
 
-Governed projects live under `artifacts/<format>/<artifact-id>/` and contain format-specific source contracts, delivery journals, rendered outputs, probes, review inputs, and release receipts. Writers use digests to bind evidence to current source and generated bytes. Some formats admit external assets or references through registered commands so provenance and rights declarations remain part of the project record.
+受治理项目位于 `artifacts/<format>/<artifact-id>/`，包含格式特定的源合同、交付日志、渲染输出、探针、评审输入和发布回执。writer 用 digest 把证据绑到当前源和生成字节。部分格式通过注册命令准入外部资产或参考，使出处和权利声明留在项目记录里。
 
-The plugin stores only the state required by each production contract. It does not rely on development-workspace caches or globally installed Skills after publication. The owner's generated `dist/` runtime is committed and hash-bound to the complete owner and shared-core TypeScript sources.
+插件只存储各生产合同所需状态。发布后不依赖开发工作区缓存或全局安装的 Skill。owner 生成的 `dist/` 运行时已提交，并与完整 owner 及共享 core TypeScript 源做哈希绑定。
 
-## Boundaries
+## 边界
 
-Deterministic writers and probes can establish file shape, byte identity, dimensions, timing, loudness, manifest consistency, and contract completeness. They cannot establish taste, factual correctness of creative content, legal clearance, audience effectiveness, or accessibility by themselves. Independent review provides human/model judgment but is still bounded by the submitted evidence and rendered samples.
+确定性 writer 和探针可以确立文件形态、字节身份、尺寸、时序、响度、清单一致性和合同完备性。它们本身不能确立品味、创意内容的事实正确性、法律许可、受众效果或无障碍。独立评审提供人/模型判断，但仍受提交证据和渲染样本约束。
 
-The plugin does not guarantee that every external renderer, font, codec, browser, Office installation, or media tool is present. Missing optional tooling must be reported with a recovery path rather than fabricated output. Release receipts establish observable workflow integrity, not legal approval or a tamper-resistant signature against a malicious same-user process.
+插件不保证每种外部渲染器、字体、编解码器、浏览器、Office 安装或媒体工具都在场。缺失的可选工具必须带着恢复路径报告，而不是伪造输出。发布回执确立可观察的工作流完整性，不是法律批准，也不是对抗恶意同用户进程的抗篡改签名。
 
-## Verification
+## 验证
 
 ```bash
 node --import tsx --test \
@@ -91,4 +91,4 @@ node --import tsx --test \
 npm run check:dist
 ```
 
-Format-specific real-render tests may require FFmpeg, browser, font, or Office tooling. Live Claude Code and Codex acceptance must run through `./scripts/acceptance/run.sh --plugin artifact-production` in Docker.
+特定格式的真实渲染测试可能需要 FFmpeg、浏览器、字体或 Office 工具。Claude Code 与 Codex 实时验收必须通过 Docker 中的 `./scripts/acceptance/run.sh --plugin artifact-production` 运行。

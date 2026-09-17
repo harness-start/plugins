@@ -1,61 +1,61 @@
 # activity-audit
 
-`activity-audit` records a bounded, project-local account of the file operations and shell commands performed by agents in Claude Code and Codex. It is intended for operational traceability: answering what an agent attempted, when it happened, and whether the host reported success or failure without copying full tool output into an audit log.
+`activity-audit` 为 Claude Code 与 Codex 记录一份有界、项目本地的 agent 文件操作与 shell 命令账本。用途是操作可追溯：回答某个 agent 尝试了什么、何时发生、宿主报告成功还是失败，而不把完整工具输出拷进审计日志。
 
-## Purpose
+## 用途
 
-Agent sessions can change many files and run many commands before a human reviews the result. This plugin creates one JSONL trail per host session so maintainers can reconstruct that activity, investigate an unexpected change, or support a handoff. Command output and file contents are deliberately excluded to keep the trail smaller and reduce accidental secret capture.
+agent 会话可能在人工复核前改许多文件、跑许多命令。本插件为每个宿主会话写一份 JSONL 轨迹，方便维护者还原活动、追查意外改动，或做交接。命令输出和文件内容故意不记录，以控制体积并减少误抓密钥。
 
-## Design
+## 设计
 
-The owner contains an `activity` domain under `src/domains/`. It exposes a single Hook entrypoint per host and dispatches `PreToolUse`, `PostToolUse`, and `PostToolUseFailure` events to that domain in process. The domain records a pending event before a tool runs and closes or appends the terminal event after the result is observed.
+owner 在 `src/domains/` 下只有 `activity` 域。每个宿主一个 Hook 入口，在进程内把 `PreToolUse`、`PostToolUse` 和 `PostToolUseFailure` 派发给该域。域在工具运行前记下 pending 事件，观察到结果后再闭合或追加终态。
 
-The plugin is self-contained: its Hook runtime, configuration Skill, tests, and storage logic ship together. Installing it activates the complete surface; there are no capability profiles and no dependency on Skills installed elsewhere.
+插件自包含：Hook 运行时、配置 Skill、测试和存储逻辑一起发布。安装即启用全部表面，没有能力 profile，也不依赖别处安装的 Skill。
 
-## Capabilities
+## 能力
 
-| Capability | Mechanism | User-visible result |
+| 能力 | 机制 | 用户可见结果 |
 | --- | --- | --- |
-| Command activity trail | Pre/post Hooks | Command, host, status, timestamps, duration, and optional exit code |
-| File activity trail | Pre/post Hooks | Read, write, or update operation with project-relative paths |
-| Concurrent-event handling | JSONL writer | Pending records are closed only when the tool ID matches; otherwise a terminal record is appended |
-| Audit-path protection | PreToolUse Hook | Agent file tools and shell commands cannot rewrite the audit directory |
-| Secret minimization | Deterministic redaction | Common credential shapes are masked and command text is length-bounded |
-| Project configuration | `agent-activity-audit-config` Skill | Initialize or diagnose `.agent-activity-audit.mjs` |
+| 命令活动轨迹 | Pre/post Hook | 命令、宿主、状态、时间戳、耗时，以及可选退出码 |
+| 文件活动轨迹 | Pre/post Hook | 读、写或更新操作，路径相对项目根 |
+| 并发事件处理 | JSONL writer | 仅当 tool ID 匹配时才闭合 pending；否则追加终态记录 |
+| 审计路径保护 | PreToolUse Hook | agent 的文件工具和 shell 不能改写审计目录 |
+| 密钥最小化 | 确定性脱敏 | 常见凭据形态被遮盖，命令文本有长度上限 |
+| 项目配置 | `agent-activity-audit-config` Skill | 初始化或诊断 `.agent-activity-audit.mjs` |
 
-## When to use it
+## 适用场景
 
-Use this plugin when you need a lightweight history of agent activity in a repository, want to diagnose which session touched a path, need evidence for an engineering handoff, or operate agents in a workspace where command/file traceability matters. It is especially useful for long implementation sessions and shared repositories where the final Git diff alone does not explain attempted commands or failed operations.
+需要仓库内轻量 agent 活动历史、想查哪个会话碰过某路径、需要工程交接证据，或工作区要求命令/文件可追溯时使用。长实现会话和共享仓库尤其有用：最终 Git diff 解释不了尝试过的命令或失败操作。
 
-## When not to use it
+## 不适用场景
 
-Do not use it as a security boundary, compliance archive, terminal recorder, or replacement for Git history. It does not capture human terminal activity, full stdout/stderr, tool-response bodies, or file contents. If you require tamper-resistant WORM storage, centralized retention, identity attestation, or operating-system-level monitoring, use a dedicated audit platform.
+不要把它当安全边界、合规归档、终端录像或 Git 历史替代。它不捕获人类终端活动、完整 stdout/stderr、工具响应体或文件内容。若需要抗篡改 WORM 存储、集中留存、身份证明或操作系统级监控，应使用专门的审计平台。
 
-## Runtime behavior
+## 运行时行为
 
-`PreToolUse` appends a `pending` record. `PostToolUse` and failure events add the observed outcome. When the latest pending record has the same non-empty tool ID, only that last line is replaced; parallel or unmatched results are appended instead of rewriting older history. Missing success evidence is recorded as `unknown`, not guessed as success.
+`PreToolUse` 追加一条 `pending` 记录。`PostToolUse` 和失败事件写入观察到的结果。最新 pending 记录的非空 tool ID 相同时，只替换最后一行；并行或不匹配的结果追加，不改写更早历史。缺少成功证据记为 `unknown`，不臆测为成功。
 
-The audit tree is protected from agent-originated mutations. Runtime errors fail open so an unavailable audit directory does not make the repository unusable. Both hosts use the same schema, while their Hook manifests and environment variables remain platform-specific.
+审计树禁止 agent 来源的改写。运行时错误 fail-open：审计目录不可用时不会让仓库无法使用。两个宿主共用同一 schema，Hook 清单和环境变量仍按平台分开。
 
-## Public interfaces
+## 公开接口
 
-This owner has no public CLI or MCP server. Its public interfaces are:
+本 owner 没有公开 CLI 或 MCP 服务器。公开接口是：
 
-- the `agent-activity-audit-config` Skill for configuration and diagnosis;
-- the Claude Code and Codex lifecycle Hooks declared in `hooks/`;
-- the `agent-activity/v1` JSONL records written under the configured audit root.
+- 用于配置和诊断的 `agent-activity-audit-config` Skill；
+- `hooks/` 中声明的 Claude Code 与 Codex 生命周期 Hook；
+- 写在配置的审计根下的 `agent-activity/v1` JSONL 记录。
 
-## Configuration and state
+## 配置与状态
 
-The default project configuration file is `.agent-activity-audit.mjs`. Supported settings include `enabled`, `auditRoot`, and `maxCommandChars`. Secret redaction is a fixed safety invariant and cannot be disabled. By default, state is written below `.agent-activity-audit/sessions/<session-id>.jsonl`; the plugin creates an ignore file inside that working directory and does not modify the repository root `.gitignore`.
+默认项目配置文件是 `.agent-activity-audit.mjs`。支持的设置包括 `enabled`、`auditRoot` 和 `maxCommandChars`。密钥脱敏是固定安全不变量，不能关闭。默认状态写在 `.agent-activity-audit/sessions/<session-id>.jsonl`；插件在该工作目录内创建 ignore 文件，不修改仓库根 `.gitignore`。
 
-## Boundaries
+## 边界
 
-The trail proves only what the host exposed to the plugin Hooks. It does not prove that an external side effect completed, that a command output was truthful, or that another process did not alter local files. The redactor reduces common secret exposure but is not a universal data-loss-prevention engine. Hook activation is evidence that observation ran, not evidence that the underlying task succeeded.
+轨迹只证明宿主向插件 Hook 暴露了什么。它不证明外部副作用已完成、命令输出真实，或其他进程没有改本地文件。脱敏器减少常见密钥暴露，不是通用防泄漏引擎。Hook 被调用只证明观察发生了，不证明底层任务成功。
 
-## Verification
+## 验证
 
-From the marketplace repository root:
+从 marketplace 仓库根目录：
 
 ```bash
 node --import tsx --test \
@@ -64,4 +64,4 @@ node --import tsx --test \
 npm run check:dist
 ```
 
-Live Claude Code and Codex acceptance must use `./scripts/acceptance/run.sh --plugin activity-audit`, which runs through the repository's Docker host-acceptance policy.
+Claude Code 与 Codex 的实时验收必须使用 `./scripts/acceptance/run.sh --plugin activity-audit`，并走仓库的 Docker 宿主验收策略。
