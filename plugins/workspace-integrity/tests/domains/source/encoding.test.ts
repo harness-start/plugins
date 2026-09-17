@@ -145,12 +145,14 @@ function runEntry(input) {
 test("entry blocks a matched BOM file and allows a clean replacement", async () => {
   const root = mkdtempSync(join(tmpdir(), "source-integrity-"));
   try {
-    const target = join(root, "sample.php");
+    // Use an encoding-matched extension that no deterministic domain validator claims.
+    // `.php` would also run php-engineering's missing-tool fail-closed path.
+    const target = join(root, "sample.sql");
     writeFileSync(
       target,
       Buffer.concat([
         Buffer.from([0xef, 0xbb, 0xbf]),
-        Buffer.from("<?php\n", "utf8"),
+        Buffer.from("SELECT 1;\n", "utf8"),
       ]),
     );
     const event = JSON.stringify({ cwd: root, tool_name: "Write", tool_input: { file_path: target } });
@@ -160,7 +162,7 @@ test("entry blocks a matched BOM file and allows a clean replacement", async () 
     assert.match(blocked.stderr, /\[Encoding Guard\]/u);
     assert.match(blocked.stderr, /UTF-8 BOM/u);
 
-    writeFileSync(target, "<?php\n", "utf8");
+    writeFileSync(target, "SELECT 1;\n", "utf8");
     const allowed = await runEntry(event);
     assert.equal(allowed.code, 0);
     assert.equal(allowed.stdout, "");
