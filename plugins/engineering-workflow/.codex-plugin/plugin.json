@@ -1,7 +1,7 @@
 {
   "name": "engineering-workflow",
-  "version": "1.0.0",
-  "description": "Language-independent debugging, specification, testing, and implementation workflows.",
+  "version": "1.1.0",
+  "description": "Language-independent debugging, specification, testing, implementation, and explicit CLI delegation workflows.",
   "author": {
     "name": "Harness Start",
     "email": "devtools@example.com"
@@ -10,7 +10,7 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Engineering Workflow",
-    "shortDescription": "Language-independent debugging, specification, testing, and implementation workflows.",
+    "shortDescription": "Engineering workflows with explicit CLI delegation.",
     "developerName": "Harness Start",
     "category": "Productivity"
   }

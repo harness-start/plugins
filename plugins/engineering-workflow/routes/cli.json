@@ -5,6 +5,12 @@
       "forwardAction": true
     }
   },
+  "delegate": {
+    "*": {
+      "handler": "delegation",
+      "forwardAction": true
+    }
+  },
   "spec": {
     "check": {
       "handler": "specification",

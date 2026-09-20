@@ -284,7 +284,21 @@ test("plugin runtime, Hooks, and internal Skills never address a sibling plugin"
 test("required method Skills fail closed in plugin-local orchestration while Hooks remain local", () => {
   const orchestrators: Record<string, string[]> = {
     "delivery-governance": ["ci-gated-mr-workflow", "repository-history-migration", "kubernetes-operations"],
-    "engineering-workflow": ["debug-workflow", "sdd", "sdd-build", "sdd-plan", "sdd-specify", "sdd-tasks", "tdd-red-green", "test-driven-development-orchestrator"],
+    "engineering-workflow": [
+      "agy-delegate",
+      "claude-delegate",
+      "codex-delegate",
+      "debug-workflow",
+      "grok-delegate",
+      "pi-delegate",
+      "sdd",
+      "sdd-build",
+      "sdd-plan",
+      "sdd-specify",
+      "sdd-tasks",
+      "tdd-red-green",
+      "test-driven-development-orchestrator",
+    ],
     "knowledge-work": ["actionable-response", "professional-writing", "research-evidence-workflow", "writing-chinese-prose", "writing-english-prose"],
     "session-governance": ["engineering-judgment", "engineering-practice", "engineering-review", "engineering-verification", "intent-discovery", "reasoning-methods"],
   };

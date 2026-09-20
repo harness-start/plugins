@@ -26,12 +26,18 @@ test("engineering-workflow is one self-contained owner runtime", () => {
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .toSorted(),
-    ["debugging", "specification", "testing"],
+    ["debugging", "delegation", "specification", "testing"],
   );
 });
 
 test("engineering-workflow CLI routes invoke owner commands", () => {
   const routes = JSON.parse(readFileSync(resolve(root, "routes/cli.json"), "utf8")) as Record<string, Record<string, Record<string, unknown>>>;
+  assert.deepEqual(routes.delegate, {
+    "*": {
+      handler: "delegation",
+      forwardAction: true,
+    },
+  });
   for (const actions of Object.values(routes)) {
     for (const route of Object.values(actions)) {
       assert.equal(typeof route.handler, "string");

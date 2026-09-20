@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pi Delegate"
+  short_description: "Delegate implementation to Pi, then review and land"
+  default_prompt: "Use $pi-delegate to delegate this bounded coding task to the Pi coding agent CLI."

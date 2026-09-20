@@ -1,0 +1,4 @@
+interface:
+  display_name: "Antigravity Delegate"
+  short_description: "Delegate implementation to Antigravity, then review"
+  default_prompt: "Use $agy-delegate to delegate this bounded coding task to the Antigravity CLI."

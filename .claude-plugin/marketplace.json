@@ -9,7 +9,7 @@
     { "name": "session-governance", "source": "./plugins/session-governance", "description": "Always-on session intent, reasoning, engineering practice, execution discipline, and language-output governance." },
     { "name": "activity-audit", "source": "./plugins/activity-audit", "description": "Always-on, protected per-session command and file activity audit." },
     { "name": "workspace-integrity", "source": "./plugins/workspace-integrity", "description": "Always-on command, source, generated-file, dependency-lock, and workspace integrity guards." },
-    { "name": "engineering-workflow", "source": "./plugins/engineering-workflow", "description": "Language-independent debugging, specification, testing, and implementation workflows." },
+    { "name": "engineering-workflow", "source": "./plugins/engineering-workflow", "description": "Language-independent debugging, specification, testing, implementation, and explicit CLI delegation workflows." },
     { "name": "delivery-governance", "source": "./plugins/delivery-governance", "description": "Git, CI, repository-history migration, and Kubernetes delivery governance." },
     { "name": "knowledge-work", "source": "./plugins/knowledge-work", "description": "Evidence-based research, professional writing, and work-reporting workflows." },
     { "name": "interface-design", "source": "./plugins/interface-design", "description": "Cross-framework interface craft, visual direction, critique, and mechanical quality gates." },

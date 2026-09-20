@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grok Delegate"
+  short_description: "Delegate implementation to Grok Build, then review"
+  default_prompt: "Use $grok-delegate to delegate this bounded coding task to Grok Build."

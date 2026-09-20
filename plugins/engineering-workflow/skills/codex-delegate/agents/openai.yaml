@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Delegate"
+  short_description: "Delegate implementation to Codex, then review and land"
+  default_prompt: "Use $codex-delegate to delegate this bounded coding task to Codex, then review the result."

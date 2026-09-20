@@ -129,7 +129,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 | `session-governance` | 会话意图、推理方法、工程实践、执行纪律与语言输出治理 |
 | `activity-audit` | 受保护的会话级命令与文件活动审计 |
 | `workspace-integrity` | 命令、源码、生成文件、依赖锁与工作区完整性保护；不公开语言百科 Skill，不自动运行语言 lint/format |
-| `engineering-workflow` | 与语言无关的调试、规格驱动、测试驱动和实现方法 |
+| `engineering-workflow` | 与语言无关的调试、规格驱动、测试驱动、实现方法，以及显式 CLI 实现委派 |
 | `delivery-governance` | Git、CI、仓库历史迁移与 Kubernetes 交付治理 |
 | `knowledge-work` | 证据研究、专业写作和工作报告 |
 | `interface-design` | 跨框架界面设计、视觉批判与机械质量门禁 |

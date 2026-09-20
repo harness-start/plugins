@@ -11,6 +11,7 @@ const entry = new URL("../../../dist/cli/harness.mjs", import.meta.url);
 test("owner CLI registers its in-process commands", () => {
   assert.match(source, /runOwnerCli/u);
   assert.match(source, /debugging:\s*runDebugCommand/u);
+  assert.match(source, /delegation:\s*runDelegationCommand/u);
   assert.match(source, /specification:\s*runSpecificationCommand/u);
 });
 

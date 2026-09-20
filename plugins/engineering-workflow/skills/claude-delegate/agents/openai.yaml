@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude Delegate"
+  short_description: "Delegate to another Claude session, then review and land"
+  default_prompt: "Use $claude-delegate to delegate this bounded coding task to a separate Claude Code session."
