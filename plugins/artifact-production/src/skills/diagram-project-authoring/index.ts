@@ -10,6 +10,7 @@ export default defineSkill({
   description: "Create or import a deterministic diagram project and carry it through semantic source, design, SVG/PNG/HTML/draw.io rendering, probes, independent review, and release. Use for flowcharts, architecture diagrams, process maps, timelines, charts, and related visuals under artifacts/diagram; do not use for a read-only critique.",
   useCases: [
     "Use for flowcharts, architecture diagrams, process maps, timelines, charts, and related visuals under artifacts/diagram; do not use for a read-only critique.",
+    "Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.",
   ],
   constraints: [
     "do not use for a read-only critique.",

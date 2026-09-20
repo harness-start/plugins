@@ -1,0 +1,4 @@
+interface:
+  display_name: "Artifact Creative Direction"
+  short_description: "Explore bounded artifact directions before initialization"
+  default_prompt: "Use $artifact-creative-direction to compare creative directions before starting the artifact project."

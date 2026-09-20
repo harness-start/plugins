@@ -10,6 +10,7 @@ export default defineSkill({
   description: "Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release.",
   useCases: [
     "Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release.",
+    "Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.",
   ],
   constraints: [
     "do not fetch, write, spawn, use nondeterminism, assign z-index, or import sibling layers.",

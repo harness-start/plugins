@@ -13,6 +13,7 @@ export default defineSkill({
   ],
   constraints: [
     "do not guess or copy a stale value.",
+    "Before committing, run a pre-mortem, mark every irreversible or one-way-door choice, and put the cheapest kill test for the load-bearing assumption in the existing Risks and Validation sections.",
   ],
   invocation: InvocationPolicy.ImplicitAndExplicit,
   goal: defineSkillGoal({

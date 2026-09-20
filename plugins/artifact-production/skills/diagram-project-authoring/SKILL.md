@@ -8,6 +8,7 @@ description: "Create or import a deterministic diagram project and carry it thro
 ## When to use
 
 - Use for flowcharts, architecture diagrams, process maps, timelines, charts, and related visuals under artifacts/diagram; do not use for a read-only critique.
+- Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.
 
 ## Constraints
 

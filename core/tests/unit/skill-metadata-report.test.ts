@@ -40,8 +40,8 @@ test("artifact-production catalogs keep every bundled skill discoverable with bo
   const catalog = report();
   assert.equal(catalog.schema, "harness-start/skill-metadata-report/v1");
   assert.deepEqual(catalog.totals, {
-    totalSkills: 34,
-    implicitSkills: 34,
+    totalSkills: 35,
+    implicitSkills: 35,
     explicitOnlySkills: 0,
     approxImplicitTokens: catalog.totals.approxImplicitTokens,
   });
@@ -59,6 +59,7 @@ test("the compact catalog preserves every bundled companion", () => {
   const catalog = report();
   const skillNames = new Set(catalog.plugins[0]?.skills.map((skill) => skill.name));
   for (const name of [
+    "artifact-creative-direction",
     "logo-brand-direction", "logo-project-authoring", "logo-project-review",
     "poster-academic", "poster-project-authoring", "poster-project-review",
     "video-format-playbooks", "video-project-authoring", "video-project-review", "video-shot-recipes",

@@ -10,6 +10,7 @@ export default defineSkill({
   description: "Orchestrate general interface visual craft. Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns. Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering.",
   useCases: [
     "Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns.",
+    "For a material redesign whose directions are generic or stuck, read [creative-framing.md](references/creative-framing.md) before [visual-direction.md](references/visual-direction.md); routine fixes bypass it.",
   ],
   constraints: [
     "Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering.",

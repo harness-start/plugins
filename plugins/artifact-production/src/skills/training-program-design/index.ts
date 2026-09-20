@@ -10,6 +10,7 @@ export default defineSkill({
   description: "为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。适用于 AI、软件、流程、合规和岗位技能等主题；当用户只要解释一个概念、润色单份材料或安排会议时不使用。",
   useCases: [
     "为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。适用于 AI、软件、流程、合规和岗位技能等主题；当用户只要解释一个概念、润色单份材料或安排会议时不使用。",
+    "Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.",
   ],
   constraints: [
     "不要手工编辑 `dist/` 或 evidence。",

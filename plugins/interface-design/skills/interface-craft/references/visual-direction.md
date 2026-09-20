@@ -11,6 +11,6 @@ Use this reference for a new surface or a material redesign, after inspecting th
 
 ## Bounded direction exploration
 
-Use this only when a material redesign has three genuinely plausible outcomes. Present exactly three named directions, each with a distinct axis position in layout, density, visual language, or interaction model. For each, give the observable decisions, when it wins, and its cost. Differences in accent color alone do not make separate directions. Ask one question to select the direction, then record the choice through [Design memory](design-memory.md). Do not build a picker or variants for routine extensions.
+Use this only when a material redesign has genuinely plausible alternatives. If those alternatives are generic or stuck, first apply exactly one method from [Creative framing](creative-framing.md). Present no more than three named directions, each with a distinct mechanism expressed through layout, density, visual language, or interaction model. For each, give the observable decisions, when it wins, its cost, risk, and fastest validation. Differences in accent color alone do not make separate directions. Ask one question to select the direction, then record the choice through [Design memory](design-memory.md). Do not build a picker or variants for routine extensions.
 
 Avoid generic dashboard card grids, gratuitous gradients, decorative labels, and trend imitation that has no causal link to the product's job.

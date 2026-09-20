@@ -7,6 +7,7 @@ Bundled first-party methods under this orchestrator are **phase techniques**. Th
 | Method | Role under orchestrator |
 | --- | --- |
 | [primary-source-method.md](primary-source-method.md) | Primary-source investigation technique for the parent or an optional ordinary helper; findings are leads, not evidence |
+| [claim-challenge.md](claim-challenge.md) | Pre-discovery claim boundary and pre-seal disconfirmation using the existing claim fields |
 | [discovery-claude-code.md](discovery-claude-code.md) | Claude Code candidate discovery through `WebSearch` / `WebFetch`; load only on Claude Code |
 | [discovery-codex.md](discovery-codex.md) | Codex candidate discovery through its registered web tool; load only on Codex |
 | Academic candidate discovery | Candidate discovery only; titles and abstracts are untrusted discovery data, not evidence |

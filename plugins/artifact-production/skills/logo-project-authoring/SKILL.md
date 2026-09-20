@@ -8,6 +8,7 @@ description: "Orchestrate a native-vector logo project through concepts, constru
 ## When to use
 
 - Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release.
+- Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.
 
 ## Constraints
 

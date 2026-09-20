@@ -8,6 +8,7 @@ description: "Orchestrate general interface visual craft. Use when designing, re
 ## When to use
 
 - Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns.
+- For a material redesign whose directions are generic or stuck, read [creative-framing.md](references/creative-framing.md) before [visual-direction.md](references/visual-direction.md); routine fixes bypass it.
 
 ## Constraints
 
@@ -34,6 +35,7 @@ This Skill is the only entry. Load same-plugin companions and the references bel
 
 ## References
 
+- [creative-framing.md](references/creative-framing.md)
 - [design-memory-template.md](references/design-memory-template.md)
 - [design-memory.md](references/design-memory.md)
 - [design-system.md](references/design-system.md)

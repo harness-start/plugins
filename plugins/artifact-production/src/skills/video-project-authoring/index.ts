@@ -10,6 +10,7 @@ export default defineSkill({
   description: "Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release.",
   useCases: [
     "Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release.",
+    "Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.",
   ],
   constraints: [
     "do not treat a candidate as an automatic failure or silently waive it.",

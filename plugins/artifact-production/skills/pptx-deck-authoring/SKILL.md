@@ -8,6 +8,7 @@ description: "Orchestrate a new, editable 16:9 PPTX project from requirements th
 ## When to use
 
 - Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template.
+- Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.
 
 ## Constraints
 

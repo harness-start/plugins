@@ -8,6 +8,7 @@ description: "Orchestrate a deterministic poster project from brief through art 
 ## When to use
 
 - Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release.
+- Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.
 
 ## Constraints
 

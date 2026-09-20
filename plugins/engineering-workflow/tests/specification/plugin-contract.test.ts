@@ -45,6 +45,18 @@ test("skills define parent-owned context hygiene and bounded delegation", () => 
   assert.doesNotMatch(all, /subagents? (?:guarantee|ensure|prove) (?:better|higher)/iu);
 });
 
+test("specification and planning challenge the contract before committing", () => {
+  const specify = readFileSync(join(ROOT, "skills", "sdd-specify", "SKILL.md"), "utf8");
+  const plan = readFileSync(join(ROOT, "skills", "sdd-plan", "SKILL.md"), "utf8");
+
+  assert.match(specify, /strongest plausible alternative interpretation/iu);
+  assert.match(specify, /omitted stakeholder/iu);
+  assert.match(specify, /authority decision/iu);
+  assert.match(plan, /pre-mortem/iu);
+  assert.match(plan, /irreversible|one-way door/iu);
+  assert.match(plan, /cheapest.*kill test|kill test.*cheapest/isu);
+});
+
 test("plugin ships Docker acceptance cases for control, recovery, isolation, and resume", () => {
   for (const name of [
     "specification-01-ordinary-bypass",

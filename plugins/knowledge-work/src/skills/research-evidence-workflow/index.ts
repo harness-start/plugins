@@ -10,9 +10,11 @@ export default defineSkill({
   description: "Orchestrate hard research with host-native web discovery, MCP capture/anchors, typed claims, a fresh seal, and post-seal outbound handoff. Use for multi-source or evidence-backed research without provider API keys or standalone search CLIs.",
   useCases: [
     "Use for multi-source or evidence-backed research without provider API keys or standalone search CLIs.",
+    "Read [claim-challenge.md](references/claim-challenge.md) before discovery and before seal to bound claim type, scope, as-of date, valid base rate, competing explanations, disconfirming evidence, and update conditions.",
   ],
   constraints: [
     "Do not use marker strings, identity files, reservation commands, nonce protocols, or plugin lifecycle hooks.",
+    "Encode challenge results only in the existing basis, caveat, and limitation fields; do not extend the claim schema.",
   ],
   invocation: InvocationPolicy.ImplicitAndExplicit,
   goal: defineSkillGoal({

@@ -144,19 +144,20 @@ You MUST complete each phase before proceeding to the next.
 
 **Scientific method:**
 
-1. **Form Single Hypothesis**
-   - State clearly: "I think X is the root cause because Y"
-   - Write it down
-   - Be specific, not vague
+1. **Form Competing Hypotheses**
+   - Keep at least two falsifiable hypotheses while the evidence permits
+   - State clearly why each could produce the symptom and what would falsify it
+   - Use recent changes and comparable working examples as base-rate evidence, not as proof
 
-2. **Test Minimally**
-   - Make the SMALLEST possible change to test hypothesis
-   - One variable at a time
-   - Don't fix multiple things at once
+2. **Choose a Discriminating Probe**
+   - Prefer the smallest observation that separates the live hypotheses
+   - Compare probe cost, risk, reversibility, and information gained
+   - Change one variable at a time
+   - Run the probe before any production code change or mutation
 
 3. **Verify Before Continuing**
    - Did it work? Yes → Phase 4
-   - Didn't work? Form NEW hypothesis
+   - Didn't work? Update, replace, or reprioritize the hypotheses
    - DON'T add more fixes on top
 
 4. **When You Don't Know**

@@ -13,6 +13,7 @@ export default defineSkill({
   ],
   constraints: [
     "do not repeatedly extend an unavailable scout.",
+    "Before writing, state the strongest plausible alternative interpretation, identify an omitted stakeholder, and separate discoverable facts from an authority decision that only the user can make.",
   ],
   invocation: InvocationPolicy.ImplicitAndExplicit,
   goal: defineSkillGoal({

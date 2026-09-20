@@ -8,10 +8,12 @@ description: "Orchestrate hard research with host-native web discovery, MCP capt
 ## When to use
 
 - Use for multi-source or evidence-backed research without provider API keys or standalone search CLIs.
+- Read [claim-challenge.md](references/claim-challenge.md) before discovery and before seal to bound claim type, scope, as-of date, valid base rate, competing explanations, disconfirming evidence, and update conditions.
 
 ## Constraints
 
 - Do not use marker strings, identity files, reservation commands, nonce protocols, or plugin lifecycle hooks.
+- Encode challenge results only in the existing basis, caveat, and limitation fields; do not extend the claim schema.
 
 This skill is the **only hard-research entry**. Bundled primary-source, host-native discovery, academic-candidate, and handoff methods are **phase techniques** under this orchestrator—not top-level alternatives.
 
@@ -109,6 +111,7 @@ Only the user may abandon with exactly `# research-abort`. The hook records `abo
 
 ## References
 
+- [claim-challenge.md](references/claim-challenge.md)
 - [claim-contract.md](references/claim-contract.md)
 - [discovery-claude-code.md](references/discovery-claude-code.md)
 - [discovery-codex.md](references/discovery-codex.md)

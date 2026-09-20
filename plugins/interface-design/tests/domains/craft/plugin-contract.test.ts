@@ -20,6 +20,7 @@ test("orchestrator covers direction, design-system continuity, motion, and rende
   const orchestrator = text("skills/interface-craft/SKILL.md");
   for (const reference of [
     "visual-direction.md",
+    "creative-framing.md",
     "design-system.md",
     "design-memory.md",
     "design-memory-template.md",
@@ -35,6 +36,20 @@ test("orchestrator covers direction, design-system continuity, motion, and rende
   assert.match(orchestrator, /render|screenshot/iu);
   assert.match(text("skills/interface-visual-critique/SKILL.md"), /render|screenshot/iu);
   assert.match(text("skills/interface-craft-floor/SKILL.md"), /reduced-motion/iu);
+});
+
+test("creative framing diverges by mechanism, then converges on evidence", () => {
+  const framing = text("skills/interface-craft/references/creative-framing.md");
+  for (const method of ["assumption inversion", "concept fan", "mechanism analogy", "SCAMPER", "bounded stimulus"]) {
+    assert.match(framing, new RegExp(method, "iu"), method);
+  }
+  assert.match(framing, /one method|exactly one/iu);
+  assert.match(framing, /three.*mechanism-distinct|mechanism-distinct.*three/isu);
+  assert.match(framing, /cost/iu);
+  assert.match(framing, /risk/iu);
+  assert.match(framing, /abandon/iu);
+  assert.match(framing, /routine.*(?:fix|change).*(?:bypass|skip)|(?:bypass|skip).*routine/isu);
+  assert.match(framing, /do not.*(?:model voting|majority vote)|do not.*decide by majority vote/iu);
 });
 
 test("design memory has one managed DESIGN.md block with evidence and verification status", () => {

@@ -8,6 +8,7 @@ description: "Orchestrate an evidence-bound Remotion video from direction and st
 ## When to use
 
 - Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release.
+- Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.
 
 ## Constraints
 

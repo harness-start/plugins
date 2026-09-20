@@ -42,7 +42,7 @@
 
 ## 公开接口
 
-公开 Skill 包括 `intent-discovery`、`first-principles`、`reasoning-methods`、`engineering-practice`、`engineering-judgment`、`engineering-review-checkpoint`、`engineering-review`、`engineering-verification`、`execution-discipline-config` 和 `language-output-config`。
+公开 Skill 包括 `intent-discovery`、`first-principles`、`reasoning-methods`、显式调用的 `grill-me` 与 `socratic-tutor`、`engineering-practice`、`engineering-judgment`、`engineering-review-checkpoint`、`engineering-review`、`engineering-verification`、`execution-discipline-config` 和 `language-output-config`。
 
 本 owner 没有公开 CLI 或 MCP 服务器。Claude Code 与 Codex 通过各自的平台 manifest 和 Hook 消费同一套捆绑方法。
 

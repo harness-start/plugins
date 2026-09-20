@@ -12,6 +12,7 @@ description: "Create or repair an SDD change plan.md from a valid spec.md, bindi
 ## Constraints
 
 - do not guess or copy a stale value.
+- Before committing, run a pre-mortem, mark every irreversible or one-way-door choice, and put the cheapest kill test for the load-bearing assumption in the existing Risks and Validation sections.
 
 Refuse to plan against an invalid spec. Compute the canonical SHA-256 with the bundled validator's `digest` command; do not guess or copy a stale value.
 

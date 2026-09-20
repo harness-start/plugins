@@ -10,9 +10,11 @@ export default defineSkill({
   description: "Select a compact, task-specific reasoning and verification structure for exact problems, causal diagnosis, consequential decisions, or factual synthesis where a plausible answer is not enough. Use when correctness depends on quantifiers, boundaries, competing hypotheses, load-bearing assumptions, external evidence, counterexamples, or calibrated uncertainty. Do not use for simple lookup, translation, routine implementation with a direct test oracle, creative writing, or requests whose answer is already mechanically determined.",
   useCases: [
     "Use when correctness depends on quantifiers, boundaries, competing hypotheses, load-bearing assumptions, external evidence, counterexamples, or calibrated uncertainty.",
+    "Use NONE or one primary branch: exact, causal, claim-evidence, decision, system, or divergence. Read only the matching [model-selection](references/model-selection.md), [decision-and-uncertainty](references/decision-and-uncertainty.md), or [claims-and-systems](references/claims-and-systems.md) reference.",
   ],
   constraints: [
     "Do not use for simple lookup, translation, routine implementation with a direct test oracle, creative writing, or requests whose answer is already mechanically determined.",
+    "Do not use model voting. Use a base rate only with a defensible reference class; for decisions expose reversibility and opportunity cost; for systems trace feedback and delay; always state an update condition or what would change the conclusion.",
   ],
   invocation: InvocationPolicy.ImplicitAndExplicit,
   goal: defineSkillGoal({

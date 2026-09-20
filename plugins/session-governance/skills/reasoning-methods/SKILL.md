@@ -8,10 +8,12 @@ description: "Select a compact, task-specific reasoning and verification structu
 ## When to use
 
 - Use when correctness depends on quantifiers, boundaries, competing hypotheses, load-bearing assumptions, external evidence, counterexamples, or calibrated uncertainty.
+- Use NONE or one primary branch: exact, causal, claim-evidence, decision, system, or divergence. Read only the matching [model-selection](references/model-selection.md), [decision-and-uncertainty](references/decision-and-uncertainty.md), or [claims-and-systems](references/claims-and-systems.md) reference.
 
 ## Constraints
 
 - Do not use for simple lookup, translation, routine implementation with a direct test oracle, creative writing, or requests whose answer is already mechanically determined.
+- Do not use model voting. Use a base rate only with a defensible reference class; for decisions expose reversibility and opportunity cost; for systems trace feedback and delay; always state an update condition or what would change the conclusion.
 
 ## The one rule
 
@@ -47,3 +49,9 @@ Put the verdict first. Follow with the strongest reason, the evidence boundary, 
 ## Honest limits
 
 The method improves structure, not intelligence. Same-model self-review can reinforce an error or abandon a correct answer, especially without external feedback. Unknown facts require research; causal claims require observations; high-impact decisions may still require a domain expert. Say what was not verified instead of filling the gap with confidence.
+
+## References
+
+- [claims-and-systems.md](references/claims-and-systems.md)
+- [decision-and-uncertainty.md](references/decision-and-uncertainty.md)
+- [model-selection.md](references/model-selection.md)

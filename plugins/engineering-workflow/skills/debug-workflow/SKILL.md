@@ -12,6 +12,7 @@ description: "Investigate and optionally fix concrete software failures with an 
 ## Constraints
 
 - Do not use for designing debugging tools or methodology, ordinary feature work, general code review or speculative bug hunting, cosmetic “fixes,” active production incidents before containment, or conceptual explanations that require no investigation.
+- Before any production code change, keep at least two falsifiable hypotheses and choose the next probe by discrimination, cost, risk, and reversibility.
 
 Before diagnosis, read [systematic-debugging.md](references/systematic-debugging.md). Find the root cause before proposing a fix. The plugin Hook remains an independent work-order and evidence gate.
 

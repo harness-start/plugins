@@ -46,6 +46,30 @@ test("orchestrator keeps untrusted candidates outside the evidence boundary", as
   assert.match(contract, /source_capture.*source_anchor/isu);
   assert.match(contract, /primary-source-method\.md/u);
   assert.match(contract, /handoff-method\.md/u);
+  assert.match(contract, /claim-challenge\.md/u);
+});
+
+test("claim challenge records disconfirmation and uncertainty in the existing claim fields", async () => {
+  const challenge = await readFile(
+    pluginFile("skills/research-evidence-workflow/references/claim-challenge.md"),
+    "utf8",
+  );
+
+  for (const term of [
+    "claim type",
+    "scope",
+    "as-of",
+    "base rate",
+    "competing explanation",
+    "update condition",
+    "disconfirming evidence",
+    "basis",
+    "caveat",
+    "limitation",
+  ]) {
+    assert.match(challenge, new RegExp(term, "iu"), term);
+  }
+  assert.match(challenge, /existing.*fields|do not add.*field/iu);
 });
 
 test("academic discovery degrades without installing packages or losing paper versions", async () => {

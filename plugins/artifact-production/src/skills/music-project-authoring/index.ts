@@ -10,6 +10,7 @@ export default defineSkill({
   description: "Orchestrate a code-managed instrumental music project through reference analysis, composition, Tone.js rendering, review handoff, and release.",
   useCases: [
     "Orchestrate a code-managed instrumental music project through reference analysis, composition, Tone.js rendering, review handoff, and release.",
+    "Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.",
   ],
   constraints: [
     "Do not run scripts, network calls, generators, or publishing steps from any similarly named runtime capability.",

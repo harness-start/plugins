@@ -66,7 +66,7 @@ node "${PLUGIN_ROOT}/dist/cli/harness.mjs" <resource> <action> [arguments]
 | `music` | `advice`、`init`、`lint`、`optimize`、`preview`、`reference`、`release`、`render`、`review`、`stage` |
 | `training` | `init`、`lint`、`release`、`render`、`review` |
 
-主要公开编排/评审 Skill 是 `logo-project-authoring`、`logo-project-review`、`diagram-project-authoring`、`diagram-project-review`、`poster-project-authoring`、`poster-project-review`、`pptx-deck-authoring`、`pptx-deck-review`、`video-project-authoring`、`video-project-review`、`music-project-authoring`、`music-project-review`、`training-program-design` 和 `training-program-review`。窄顾问 Skill 列在 `skills/` 中，并自行描述只读边界。
+主要公开编排/评审 Skill 是 `artifact-creative-direction`、`logo-project-authoring`、`logo-project-review`、`diagram-project-authoring`、`diagram-project-review`、`poster-project-authoring`、`poster-project-review`、`pptx-deck-authoring`、`pptx-deck-review`、`video-project-authoring`、`video-project-review`、`music-project-authoring`、`music-project-review`、`training-program-design` 和 `training-program-review`。其中 `artifact-creative-direction` 只在项目初始化前提供只读方向建议；其他窄顾问 Skill 列在 `skills/` 中，并自行描述只读边界。
 
 本 owner 不暴露 MCP 服务器。
 

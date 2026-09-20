@@ -10,6 +10,7 @@ export default defineSkill({
   description: "Orchestrate a new, editable 16:9 PPTX project from requirements through storyboard, design system, PptxGenJS source, rendering, evidence probes, independent review, PDF export, and release receipt. Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template.",
   useCases: [
     "Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template.",
+    "Before initialization, use $artifact-creative-direction only for requested alternatives or repetitive concepts; treat it as advice, not evidence, and fold the choice into the same existing brief.",
   ],
   constraints: [
     "do not use for editing an existing PPTX or template.",

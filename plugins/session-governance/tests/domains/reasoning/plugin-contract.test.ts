@@ -44,13 +44,38 @@ test("skills select an adaptive reasoning structure and a direct evidence-bound 
   assert.match(firstPrinciples, /counterexample|falsif/iu);
 
   const discipline = text("skills/reasoning-methods/SKILL.md");
-  for (const branch of ["exact", "causal", "decision", "factual"]) {
+  for (const branch of ["exact", "causal", "claim", "decision", "system", "divergence"]) {
     assert.match(discipline, new RegExp(`\\b${branch}\\b`, "iu"));
   }
-  assert.match(discipline, /light.*standard.*intensive/isu);
+  assert.match(discipline, /none.*one primary|one primary.*none/isu);
+  assert.match(discipline, /base rate/iu);
+  assert.match(discipline, /reversib/iu);
+  assert.match(discipline, /opportunity cost/iu);
+  assert.match(discipline, /update condition|what would change/iu);
+  assert.match(discipline, /feedback.*delay|delay.*feedback/isu);
+  assert.match(discipline, /model voting|vote.*models/iu);
   assert.match(discipline, /verdict first/iu);
   assert.match(discipline, /what would change/iu);
   assert.doesNotMatch(discipline, /always.{0,40}(?:five|5).{0,40}(?:stage|step)/isu);
+});
+
+test("deep-dialogue skills stay explicit, distinct, adaptive, and user-stoppable", () => {
+  const grill = text("skills/grill-me/SKILL.md");
+  const tutor = text("skills/socratic-tutor/SKILL.md");
+
+  for (const body of [grill, tutor]) {
+    assert.match(body, /disable-model-invocation: true/u);
+    assert.match(body, /one question (?:at a time|per turn)/iu);
+    assert.match(body, /stop|exit/iu);
+    assert.match(body, /direct answer|direct recommendation/iu);
+  }
+
+  assert.match(grill, /surface.*tension.*closure/isu);
+  assert.match(grill, /final brief/iu);
+  assert.match(tutor, /learning target/iu);
+  assert.match(tutor, /counterexample/iu);
+  assert.match(tutor, /novel example|new example/iu);
+  assert.doesNotMatch(tutor, /never (?:give|provide).*answer/iu);
 });
 
 test("both marketplaces replace the two legacy plugin ids with the merged plugin", () => {
