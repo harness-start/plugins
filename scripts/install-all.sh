@@ -27,7 +27,6 @@ GITHUB_ARCHIVE_URL_TEMPLATE="https://github.com/harness-start/plugins/archive/%s
 DO_CLAUDE=1
 DO_CODEX=1
 DRY_RUN=0
-SKIP_MISSING=0
 LIST_ONLY=0
 FAIL_FAST=0
 CLAUDE_SCOPE="user"
@@ -64,7 +63,7 @@ Options:
   --language <profile>    Response profile: zh-CN|zh-TW|en-US|ja-JP|ko-KR|th-TH
                           (default: macOS AppleLanguages, else POSIX locale; fallback: en-US)
   --dry-run               Print actions without running them
-  --skip-missing-hosts    Skip missing claude/codex instead of failing
+  --skip-missing-hosts    Compatibility flag; missing hosts are skipped by default
   --list-only             Resolve plugin names and exit
   --fail-fast             Stop on first plugin failure
   -h, --help              Show this help
@@ -229,7 +228,7 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     --dry-run) DRY_RUN=1; shift ;;
-    --skip-missing-hosts) SKIP_MISSING=1; shift ;;
+    --skip-missing-hosts) shift ;;
     --list-only) LIST_ONLY=1; shift ;;
     --fail-fast) FAIL_FAST=1; shift ;;
     -h|--help) usage; exit 0 ;;
@@ -948,17 +947,13 @@ EOF
   fi
 
   local claude_fail=0 codex_fail=0 did_any=0 registration_fail=0 run_claude=0 run_codex=0
+  local missing_claude=0 missing_codex=0
 
   if [ "${DO_CLAUDE}" = "1" ]; then
     if have_cmd claude; then
       did_any=1; run_claude=1
     else
-      if [ "${SKIP_MISSING}" = "1" ]; then
-        warn "claude not found; skipping Claude Code"
-      else
-        err "claude not found on PATH (install Claude Code CLI, or pass --skip-missing-hosts / --codex-only)"
-        exit 1
-      fi
+      missing_claude=1
     fi
   fi
 
@@ -966,18 +961,8 @@ EOF
     if have_cmd codex; then
       did_any=1; run_codex=1
     else
-      if [ "${SKIP_MISSING}" = "1" ]; then
-        warn "codex not found; skipping Codex"
-      else
-        err "codex not found on PATH (install Codex CLI, or pass --skip-missing-hosts / --claude-only)"
-        exit 1
-      fi
+      missing_codex=1
     fi
-  fi
-
-  if [ "${did_any}" = "0" ]; then
-    err "No host CLIs ran (claude/codex missing?)"
-    exit 1
   fi
 
   if [ "${run_claude}" = "1" ] && ! ensure_claude_marketplace; then registration_fail=1; fi
@@ -1011,13 +996,27 @@ EOF
   fi
 
   printf '\n'
-  log "Done"
-  if [ "${DO_CLAUDE}" = "1" ] && have_cmd claude; then
+  if [ "${did_any}" = "1" ]; then
+    log "Done"
+  else
+    log "Finished without installing plugins"
+  fi
+  if [ "${run_claude}" = "1" ]; then
     printf '  Claude: start a new session (or /reload-plugins if prompted) so hooks load.\n'
   fi
-  if [ "${DO_CODEX}" = "1" ] && have_cmd codex; then
+  if [ "${run_codex}" = "1" ]; then
     printf '  Codex: review and trust plugin hooks with /hooks before they run.\n'
     printf '         Install success does not mean hooks are trusted or executing.\n'
+  fi
+  if [ "${missing_claude}" = "1" ]; then
+    warn "Claude Code was skipped because its CLI was not found on PATH. Install Claude Code and rerun this installer."
+  fi
+  if [ "${missing_codex}" = "1" ]; then
+    warn "Codex was skipped because its CLI was not found on PATH. Install Codex and rerun this installer."
+  fi
+  if [ "${did_any}" = "0" ]; then
+    err "No requested host CLI is available; install Claude Code or Codex, then rerun."
+    exit 1
   fi
   local total_fail=$((claude_fail + codex_fail))
   if [ "${total_fail}" -gt 0 ]; then

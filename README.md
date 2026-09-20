@@ -28,9 +28,6 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 # 只安装 Codex 插件
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --codex-only
 
-# 缺少某个宿主 CLI 时跳过，不让安装失败
-curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --skip-missing-hosts
-
 # 选择默认回复语言（不传则按系统 locale，无法映射时用 en-US）
 curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/scripts/install-all.sh | bash -s -- --language en-US
 
@@ -38,7 +35,7 @@ curl -fsSL https://raw.githubusercontent.com/harness-start/plugins/master/script
 
 即使在本地 clone 中运行 `bash scripts/install-all.sh`，安装器默认仍会使用公开 GitHub Marketplace。要加载当前工作区尚未发布的修改，请使用下方的[本地开发命令](#本地开发)。
 
-要求：`bash`、可访问 GitHub 的网络，以及 Claude Code CLI 和/或 Codex CLI。建议安装 `jq`。
+要求：`bash`、可访问 GitHub 的网络，以及 Claude Code CLI 和/或 Codex CLI。建议安装 `jq`。缺少一个宿主 CLI 时，安装器会自动跳过它、继续安装另一个宿主，并在结束时提醒；两个宿主都不可用时不会安装任何插件，并以非零状态退出。
 
 安装后：
 

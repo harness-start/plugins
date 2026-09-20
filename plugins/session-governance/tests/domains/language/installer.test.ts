@@ -80,6 +80,56 @@ test("installer fails closed when no marketplace catalog can be resolved", () =>
   }
 });
 
+test("default install skips a missing host and reports it after finishing the available host", () => {
+  for (const availableHost of ["claude", "codex"]) {
+    const fixture = mkdtempSync(join(tmpdir(), `installer-missing-host-${availableHost}-`));
+    const bin = join(fixture, "bin");
+    const hostLog = join(fixture, `${availableHost}.log`);
+    mkdirSync(bin, { recursive: true });
+    executable(join(bin, availableHost), `#!/bin/sh
+printf '%s\n' "$*" >> ${JSON.stringify(hostLog)}
+printf '%s\n' '[]'
+`);
+
+    try {
+      const result = runInstaller(["--local", ROOT, "--language", "en-US"], {
+        PATH: `${bin}:/usr/bin:/bin`,
+        CLAUDE_CONFIG_DIR: join(fixture, "claude-home"),
+        CODEX_HOME: join(fixture, "codex-home"),
+      });
+      assert.equal(result.status, 0, result.stderr);
+      assert.match(readFileSync(hostLog, "utf8"), /plugin (?:install|add) activity-audit@harness-start/u);
+      assert.match(result.stderr, /==> Done/u);
+      const missingHost = availableHost === "claude" ? "Codex" : "Claude Code";
+      assert.match(result.stderr, new RegExp(`${missingHost} was skipped because its CLI was not found on PATH`, "u"));
+      assert.ok(
+        result.stderr.indexOf(`${missingHost} was skipped`) > result.stderr.indexOf("==> Done"),
+        result.stderr,
+      );
+    } finally {
+      rmSync(fixture, { recursive: true, force: true });
+    }
+  }
+});
+
+test("installer reports every missing host when no requested CLI is available", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "installer-no-hosts-"));
+  try {
+    const result = runInstaller(["--local", ROOT, "--language", "en-US"], {
+      PATH: "/usr/bin:/bin",
+      CLAUDE_CONFIG_DIR: join(fixture, "claude-home"),
+      CODEX_HOME: join(fixture, "codex-home"),
+    });
+    assert.equal(result.status, 1, result.stderr);
+    assert.match(result.stderr, /Finished without installing plugins/u);
+    assert.match(result.stderr, /Claude Code was skipped because its CLI was not found on PATH/u);
+    assert.match(result.stderr, /Codex was skipped because its CLI was not found on PATH/u);
+    assert.match(result.stderr, /No requested host CLI is available/u);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
 test("remote installs use a persistent master ZIP snapshot instead of a Git marketplace", () => {
   const fixture = mkdtempSync(join(tmpdir(), "installer-remote-zip-"));
   const bin = join(fixture, "bin");
