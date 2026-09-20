@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interface visual critique"
+  short_description: "Read-only hierarchy, type, spacing"
+  default_prompt: "Use $interface-visual-critique to: Read-only hierarchy, type, spacing"

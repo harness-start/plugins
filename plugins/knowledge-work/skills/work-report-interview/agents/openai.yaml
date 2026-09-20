@@ -1,0 +1,4 @@
+interface:
+  display_name: "Work report interview"
+  short_description: "Fill evidence gaps in a work report with a bounded"
+  default_prompt: "Use $work-report-interview to: Fill evidence gaps in a work report with a bounded"

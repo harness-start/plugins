@@ -2,10 +2,18 @@
 name: language-output-config
 description: "Change language-output defaults: response and artifact profiles, drift thresholds, tool feedback, and Stop language gate in .language-output.mjs."
 disable-model-invocation: true
-version: 0.3.0
+version: "0.3.0"
 ---
 
 # language-output-config
+
+## When to use
+
+- Change language-output defaults: response and artifact profiles, drift thresholds, tool feedback, and Stop language gate in .language-output.mjs.
+
+## Constraints
+
+- Do not add custom callbacks, arbitrary profiles, path overrides, turn-level language state, or compatibility reads from `in-chinese`.
 
 Manage the Git-root `.language-output.mjs` consumed by `language-output`. Read `../../README.md` before changing the interface.
 

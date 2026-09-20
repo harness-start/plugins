@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interface craft floor"
+  short_description: "Mechanical visual craft floor for interface files. Use"
+  default_prompt: "Use $interface-craft-floor to: Mechanical visual craft floor for interface files. Use"

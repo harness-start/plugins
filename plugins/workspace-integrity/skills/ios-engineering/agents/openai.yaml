@@ -1,0 +1,4 @@
+interface:
+  display_name: "iOS Engineering"
+  short_description: "Build and review Swift, SwiftUI, concurrency"
+  default_prompt: "Use $ios-engineering to: Build and review Swift, SwiftUI, concurrency"

@@ -1,16 +1,24 @@
 ---
 name: music-reference-profile
-description: Extract unnamed musical characteristics from artists or bands for AI music prompts, descriptions, and creative recombination.
-license: MIT
+description: "Extract unnamed musical characteristics from artists or bands for AI music prompts, descriptions, and creative recombination."
+license: "MIT"
 metadata:
-  author: jwynia
+  author: "jwynia"
   version: "1.0"
-  type: utility
-  mode: evaluative
-  domain: music
+  type: "utility"
+  mode: "evaluative"
+  domain: "music"
 ---
 
 # Musical DNA Analysis
+
+## When to use
+
+- Extract unnamed musical characteristics from artists or bands for AI music prompts, descriptions, and creative recombination.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 

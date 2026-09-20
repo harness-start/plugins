@@ -1,0 +1,4 @@
+interface:
+  display_name: "KubeShark: Failure-Mode Workflow for Kubernetes"
+  short_description: "Prevent Kubernetes hallucinations by diagnosing and fixing"
+  default_prompt: "Use $kubernetes-operations-playbook to: Prevent Kubernetes hallucinations by diagnosing and fixing"

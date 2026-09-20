@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nix Engineering"
+  short_description: "Build and review Nix, flakes, NixOS"
+  default_prompt: "Use $nix-engineering to: Build and review Nix, flakes, NixOS"

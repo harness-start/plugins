@@ -1,9 +1,17 @@
 ---
 name: training-program-review
-description: 只读评审已经生成的培训包，检查受众差异、目标对齐、练习、评价、讲师可执行性、材料一致性与迁移设计，并生成 training-program-design review writer 所需的外部 JSON。仅在 materials 阶段后使用；不用于编写课程。
+description: "只读评审已经生成的培训包，检查受众差异、目标对齐、练习、评价、讲师可执行性、材料一致性与迁移设计，并生成 training-program-design review writer 所需的外部 JSON。仅在 materials 阶段后使用；不用于编写课程。"
 ---
 
 # Training Program Review
+
+## When to use
+
+- 只读评审已经生成的培训包，检查受众差异、目标对齐、练习、评价、讲师可执行性、材料一致性与迁移设计，并生成 training-program-design review writer 所需的外部 JSON。仅在 materials 阶段后使用；不用于编写课程。
+
+## Constraints
+
+- 不要编辑项目、生成物、evidence 或 receipt。
 
 你是只读评审者。阅读目标项目的 `plan.contract.json`、`training-package.json`、`evidence.render.json` 和全部 `dist/*.md`，再阅读 authoring Skill 的 [评审量规](../training-program-design/references/review-rubric.md)。不要编辑项目、生成物、evidence 或 receipt。
 

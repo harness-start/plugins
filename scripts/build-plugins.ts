@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 
 import { build, type BuildResult, type OutputFile } from "esbuild";
 
+import { emitPluginSkills } from "../core/skill/emit.ts";
+
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const pluginsRoot = resolve(repositoryRoot, "plugins");
 const coreSourceRoot = resolve(repositoryRoot, "core", "src");
@@ -39,7 +41,10 @@ async function sourceHash(pluginRoot: string): Promise<string> {
   const sourceFiles = [
     ...await filesUnder(resolve(pluginRoot, "src"), ".ts"),
     ...await filesUnder(coreSourceRoot, ".ts"),
-  ].toSorted();
+  ].filter((filePath) => {
+    const rel = relative(pluginRoot, filePath).split(sep).join("/");
+    return !rel.startsWith("src/skills/");
+  }).toSorted();
   const hash = createHash("sha256");
   for (const filePath of sourceFiles) {
     const projectPath = relative(repositoryRoot, filePath).split(sep).join("/");
@@ -147,20 +152,25 @@ export async function runBuild(): Promise<void> {
     if (outputFiles.length === 0) {
       const staleFiles = await filesUnder(resolve(pluginRoot, "dist"));
       if (staleFiles.length > 0) throw new Error(`${name} has dist/ files but no TypeScript entries`);
-      continue;
+    } else {
+      const differences = (checkOnly || ensureOnly)
+        ? await outputDifferences(pluginRoot, outputFiles)
+        : [];
+      if (checkOnly && differences.length > 0) throw new Error(differences.join("\n"));
+      if (ensureOnly && differences.length > 0) await writeOutput(pluginRoot, outputFiles);
+      if (!checkOnly && !ensureOnly) await writeOutput(pluginRoot, outputFiles);
+      const action = checkOnly
+        ? "checked"
+        : ensureOnly
+          ? differences.length > 0 ? "rebuilt" : "current"
+          : "built";
+      process.stdout.write(`${action} ${name}: ${outputFiles.length} file(s)\n`);
     }
-    const differences = (checkOnly || ensureOnly)
-      ? await outputDifferences(pluginRoot, outputFiles)
-      : [];
-    if (checkOnly && differences.length > 0) throw new Error(differences.join("\n"));
-    if (ensureOnly && differences.length > 0) await writeOutput(pluginRoot, outputFiles);
-    if (!checkOnly && !ensureOnly) await writeOutput(pluginRoot, outputFiles);
-    const action = checkOnly
-      ? "checked"
-      : ensureOnly
-        ? differences.length > 0 ? "rebuilt" : "current"
-        : "built";
-    process.stdout.write(`${action} ${name}: ${outputFiles.length} file(s)\n`);
+
+    const skills = await emitPluginSkills(pluginRoot, { check: checkOnly, ensure: ensureOnly });
+    if (skills.action !== "skipped") {
+      process.stdout.write(`${skills.action} ${name} skills: ${skills.count} file(s)\n`);
+    }
   }
 }
 

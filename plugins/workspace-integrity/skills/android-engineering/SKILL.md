@@ -1,9 +1,18 @@
 ---
 name: android-engineering
-description: Build and review Android projects across Gradle, Compose, tests, resources, and R8 without editing generated dependency state.
-version: 1.0.0
+description: "Build and review Android projects across Gradle, Compose, tests, resources, and R8 without editing generated dependency state."
+version: "1.0.0"
 ---
+
 # Android Engineering
+
+## When to use
+
+- Build and review Android projects across Gradle, Compose, tests, resources, and R8 without editing generated dependency state.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for Android source, build, testing, Compose, resource, or shrinker work. The Hook protects Gradle-owned state, validates changed configuration, and reports bounded source risks; Hook success is not build or device evidence.
 
@@ -16,3 +25,7 @@ Use this Skill for Android source, build, testing, Compose, resource, or shrinke
 5. Report changed behavior, evidence, and any untested device, signing, or variant boundary.
 
 Configure mechanical checks in `.android-engineering.mjs`; use `workspace-integrity-config` when the task is specifically about configuration.
+
+## References
+
+- [practices.md](references/practices.md)

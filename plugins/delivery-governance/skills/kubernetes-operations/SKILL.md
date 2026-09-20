@@ -1,9 +1,18 @@
 ---
 name: kubernetes-operations
-description: Orchestrates Kubernetes operations and guards Helm-owned dependency state with bounded manifest validation.
-version: 0.1.0
+description: "Orchestrates Kubernetes operations and guards Helm-owned dependency state with bounded manifest validation."
+version: "0.1.0"
 ---
+
 # Kubernetes Operations
+
+## When to use
+
+- Orchestrates Kubernetes operations and guards Helm-owned dependency state with bounded manifest validation.
+
+## Constraints
+
+- 不要一次读完全部。
 
 ## Scope
 

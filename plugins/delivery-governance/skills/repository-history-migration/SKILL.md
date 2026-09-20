@@ -1,9 +1,17 @@
 ---
 name: repository-history-migration
-description: Move selected paths from one local Git repository into a new repository while preserving their commit history. Use when splitting a repository, extracting a module, or preparing a history-preserving cross-repository migration. Do not use for ordinary file copies, same-repository moves, or imports where history is intentionally discarded.
+description: "Move selected paths from one local Git repository into a new repository while preserving their commit history. Use when splitting a repository, extracting a module, or preparing a history-preserving cross-repository migration. Do not use for ordinary file copies, same-repository moves, or imports where history is intentionally discarded."
 ---
 
 # Cross-repo history migration
+
+## When to use
+
+- Use when splitting a repository, extracting a module, or preparing a history-preserving cross-repository migration.
+
+## Constraints
+
+- Do not use for ordinary file copies, same-repository moves, or imports where history is intentionally discarded.
 
 Create a new filtered repository from selected paths without modifying the source repository. The bundled tools use a two-command protocol: a read-only preflight returns `sourceHead` and `planDigest`; execute accepts exactly those values and aborts if the source or plan changed.
 

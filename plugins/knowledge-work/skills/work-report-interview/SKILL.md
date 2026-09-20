@@ -1,9 +1,17 @@
 ---
 name: work-report-interview
-description: Fill evidence gaps in a work report with a bounded one-question-at-a-time interview. Use during daily, weekly, or summary authoring when data gaps remain; do not use as a standalone grilling session or to write the saved report.
+description: "Fill evidence gaps in a work report with a bounded one-question-at-a-time interview. Use during daily, weekly, or summary authoring when data gaps remain; do not use as a standalone grilling session or to write the saved report."
 ---
 
 # Work report interview
+
+## When to use
+
+- Fill evidence gaps in a work report with a bounded one-question-at-a-time interview.
+
+## Constraints
+
+- do not use as a standalone grilling session or to write the saved report.
 
 This Skill is a **read-only** gap interview. It cannot save the report, stamp TL verification, or invent tool facts.
 

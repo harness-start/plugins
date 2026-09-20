@@ -22,6 +22,12 @@
 - Publish exactly the eight AIO owners listed in both marketplace catalogs. Private module directories are not a target architecture or a basis for new dependencies; each migrated owner registers in-process handlers and commands from its own source tree. Installation is fixed and all-on: do not add capability profiles or FDE/OPC runtime branches. Owners with deterministic tools expose only `dist/cli/harness.mjs <resource> <action>` as their public CLI protocol.
 <!-- ai-experts:project-instructions:end -->
 
+## Generated Skill markdown
+
+- Author Skills in `plugins/<owner>/src/skills/<id>/index.ts`. Supporting `references/`, `assets/`, `scripts/`, `evals/`, and recognized top-level provenance or license files live next to that source.
+- `plugins/<owner>/skills/` is generated output. Do not edit it with file tools or shell writers. Change the TypeScript source, then run `npm run build` and commit both the source and the refreshed `skills/` tree.
+- `src/skills/` is excluded from the plugin `dist/` source hash. `npm run check:dist` verifies both `dist/` and `skills/`. Project PreToolUse hooks deny direct writes to either generated tree and run `npm run ensure:dist` before project `git push` / `git send-pack`.
+
 ## Host acceptance (mandatory container policy)
 
 - **Live acceptance must run inside the `docker/host-acceptance` container.** Do not run Claude Code / Codex live acceptance sessions on the host.

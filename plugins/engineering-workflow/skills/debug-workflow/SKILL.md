@@ -1,9 +1,17 @@
 ---
 name: debug-workflow
-description: Investigate and optionally fix concrete software failures with an evidence-first Debug Work Order. Use when the user provides or reports a reproducible error, failing test, stack trace, regression, flaky behavior, performance fault, or multiple known bugs and asks to diagnose, debug, or repair them; also use to resume an existing `.debug-workflow` ledger. Do not use for designing debugging tools or methodology, ordinary feature work, general code review or speculative bug hunting, cosmetic “fixes,” active production incidents before containment, or conceptual explanations that require no investigation.
+description: "Investigate and optionally fix concrete software failures with an evidence-first Debug Work Order. Use when the user provides or reports a reproducible error, failing test, stack trace, regression, flaky behavior, performance fault, or multiple known bugs and asks to diagnose, debug, or repair them; also use to resume an existing `.debug-workflow` ledger. Do not use for designing debugging tools or methodology, ordinary feature work, general code review or speculative bug hunting, cosmetic “fixes,” active production incidents before containment, or conceptual explanations that require no investigation."
 ---
 
 # Debug Workflow
+
+## When to use
+
+- Diagnose or repair a reproducible software failure, or resume an existing `.debug-workflow` ledger.
+
+## Constraints
+
+- Do not use for designing debugging tools or methodology, ordinary feature work, general code review or speculative bug hunting, cosmetic “fixes,” active production incidents before containment, or conceptual explanations that require no investigation.
 
 Before diagnosis, read [systematic-debugging.md](references/systematic-debugging.md). Find the root cause before proposing a fix. The plugin Hook remains an independent work-order and evidence gate.
 
@@ -78,3 +86,10 @@ A turn may end while the ledger remains open. Pause only for a real handoff or b
 - For completed work, `close` after hook-backed verification and cite the ledger path or id.
 - For interruption or external blockage, `pause --next "..."` with recovery commands and cite the path or id.
 - Never invent receipt IDs or claim that hook activation alone established debugging effectiveness.
+
+## References
+
+- [condition-based-waiting.md](references/condition-based-waiting.md)
+- [defense-in-depth.md](references/defense-in-depth.md)
+- [root-cause-tracing.md](references/root-cause-tracing.md)
+- [systematic-debugging.md](references/systematic-debugging.md)

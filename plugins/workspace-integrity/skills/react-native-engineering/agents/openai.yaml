@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Native Engineering"
+  short_description: "Build and review bare React Native apps across performance"
+  default_prompt: "Use $react-native-engineering to: Build and review bare React Native apps across performance"

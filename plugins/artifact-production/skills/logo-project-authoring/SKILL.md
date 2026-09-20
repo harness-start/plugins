@@ -1,9 +1,17 @@
 ---
 name: logo-project-authoring
-description: Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release.
+description: "Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release."
 ---
 
 # Logo Project Authoring
+
+## When to use
+
+- Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release.
+
+## Constraints
+
+- do not manufacture concepts for rejected routes.
 
 Keep the main agent responsible for user intent, source integration, gate decisions, and final reporting. Read [Project contract](references/project-contract.md) and [Skill composition](references/skill-composition.md) before authoring.
 
@@ -19,3 +27,8 @@ Use the complete chain `brief → context/references → concept → master → 
 8. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo release` only after admitted review. It alone writes `release.manifest.json` and `receipt.release.json`.
 
 After source changes, rerun from render. After master changes, rerun construction, variants, preview, and review. After only review-input correction, rerun review. Retry a transient adviser once; never bypass a missing core gate.
+
+## References
+
+- [project-contract.md](references/project-contract.md)
+- [skill-composition.md](references/skill-composition.md)

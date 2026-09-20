@@ -27,7 +27,13 @@ function filesUnder(root: string): string[] {
 function expectedSourceHash(pluginName: string): string {
   const sourceFiles = [
     ...filesUnder(path.join(projectRoot, "plugins", pluginName, "src"))
-      .filter((filePath) => filePath.endsWith(".ts")),
+      .filter((filePath) => filePath.endsWith(".ts"))
+      .filter((filePath) => {
+        const rel = path.relative(path.join(projectRoot, "plugins", pluginName), filePath)
+          .split(path.sep)
+          .join("/");
+        return !rel.startsWith("src/skills/");
+      }),
     ...filesUnder(path.join(projectRoot, "core", "src"))
       .filter((filePath) => filePath.endsWith(".ts")),
   ].sort();
@@ -81,6 +87,17 @@ test("denies file-tool writes only inside a plugin dist directory", () => {
   assert.equal(evaluateEvent(event("Write", { file_path: "plugins/example-plugin/dist/index.mjs" }, "/tmp")).deny, false);
 });
 
+test("denies file-tool writes only inside a plugin skills directory", () => {
+  const protectedFile = path.join(projectRoot, "plugins/example-plugin/skills/sample-method/SKILL.md");
+
+  assert.equal(evaluateEvent(event("Write", { file_path: protectedFile })).deny, true);
+  assert.equal(evaluateEvent(event("Edit", { file_path: "plugins/example-plugin/skills/sample-method/SKILL.md" })).deny, true);
+  assert.equal(evaluateEvent(event("Write", { file_path: "plugins/example-plugin/src/skills/sample-method/index.ts" })).deny, false);
+  assert.equal(evaluateEvent(event("Write", { file_path: "plugins/example-plugin/skills-other/SKILL.md" })).deny, false);
+  assert.equal(evaluateEvent(event("Write", { file_path: "plugins/example-plugin/src/skills/sample-method/SKILL.md" })).deny, false);
+  assert.equal(evaluateEvent(event("Write", { file_path: "plugins/example-plugin/skills/sample-method/SKILL.md" }, "/tmp")).deny, false);
+});
+
 test("denies patch operations that add, update, delete, or move plugin dist files", () => {
   const patchText = [
     "*** Begin Patch",
@@ -97,6 +114,25 @@ test("denies patch operations that add, update, delete, or move plugin dist file
   })).deny, true);
   assert.equal(evaluateEvent(event("apply_patch", {
     patch: "*** Update File: plugins/example-plugin/src/index.ts",
+  })).deny, false);
+});
+
+test("denies patch operations that add, update, delete, or move plugin skill files", () => {
+  const patchText = [
+    "*** Begin Patch",
+    "*** Update File: plugins/example-plugin/skills/sample-method/SKILL.md",
+    "@@",
+    "-old",
+    "+new",
+    "*** End Patch",
+  ].join("\n");
+
+  assert.equal(evaluateEvent(event("apply_patch", { patch: patchText })).deny, true);
+  assert.equal(evaluateEvent(event("apply_patch", {
+    patch: "*** Move to: plugins/example-plugin/skills/sample-method/renamed.md",
+  })).deny, true);
+  assert.equal(evaluateEvent(event("apply_patch", {
+    patch: "*** Update File: plugins/example-plugin/src/skills/sample-method/index.ts",
   })).deny, false);
 });
 
@@ -128,6 +164,38 @@ test("denies explicit shell writes to plugin dist while allowing builds and read
     "perl -ne 'print' plugins/example-plugin/dist/index.mjs",
     "cp plugins/example-plugin/dist/index.mjs /tmp/index.mjs",
     "printf '%s' output > plugins/example-plugin/dist-other/index.mjs",
+  ];
+
+  for (const command of allowedCommands) {
+    assert.equal(evaluateEvent(event("Bash", { command })).deny, false, command);
+  }
+});
+
+test("denies explicit shell writes to plugin skills while allowing builds and source edits", () => {
+  const deniedCommands = [
+    "printf '%s' output > plugins/example-plugin/skills/sample-method/SKILL.md",
+    "printf '%s' output>plugins/example-plugin/skills/sample-method/SKILL.md",
+    "printf '%s' output | tee plugins/example-plugin/skills/sample-method/SKILL.md",
+    "cd plugins/example-plugin && sed -i 's/a/b/' skills/sample-method/SKILL.md",
+    "cp /tmp/SKILL.md plugins/example-plugin/skills/sample-method/SKILL.md",
+    "rm -f plugins/example-plugin/skills/sample-method/SKILL.md",
+    "node -e \"require('fs').writeFileSync('plugins/example-plugin/skills/sample-method/SKILL.md', 'x')\"",
+    "cd plugins/example-plugin/skills && touch sample-method/SKILL.md",
+    "printf x > \"$(git rev-parse --show-toplevel)/plugins/example-plugin/skills/sample-method/SKILL.md\"",
+  ];
+
+  for (const command of deniedCommands) {
+    assert.equal(evaluateEvent(event("exec_command", { cmd: command })).deny, true, command);
+  }
+
+  const allowedCommands = [
+    "npm run build",
+    "npm run check:dist",
+    "node scripts/build-plugins.ts",
+    "rg 'name:' plugins/example-plugin/skills/sample-method/SKILL.md",
+    "sed -n '1,5p' plugins/example-plugin/skills/sample-method/SKILL.md",
+    "printf '%s' output > plugins/example-plugin/src/skills/sample-method/index.ts",
+    "printf '%s' output > plugins/example-plugin/skills-other/SKILL.md",
   ];
 
   for (const command of allowedCommands) {

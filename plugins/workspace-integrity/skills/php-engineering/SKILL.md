@@ -1,9 +1,18 @@
 ---
 name: php-engineering
-description: Build and review PHP applications across common frameworks while preserving Composer-owned dependency state.
-version: 1.0.0
+description: "Build and review PHP applications across common frameworks while preserving Composer-owned dependency state."
+version: "1.0.0"
 ---
+
 # PHP Engineering
+
+## When to use
+
+- Build and review PHP applications across common frameworks while preserving Composer-owned dependency state.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for PHP, Composer, Symfony, Yii, Laravel, ThinkPHP, Workerman, tests, and static analysis. The Hook protects Composer-owned state and validates changed PHP/configuration files.
 
@@ -16,3 +25,7 @@ Use this Skill for PHP, Composer, Symfony, Yii, Laravel, ThinkPHP, Workerman, te
 5. Report database, queue, extension, web-server, and deployment boundaries not exercised.
 
 Configure checks in `.php-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

@@ -1,0 +1,26 @@
+import {
+  InvocationPolicy,
+  defineSkill,
+  defineSkillGoal,
+} from "../../../../../core/skill/define.ts";
+
+export default defineSkill({
+  id: "logo-project-authoring",
+  fullName: "Logo Project Authoring",
+  description: "Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release.",
+  useCases: [
+    "Orchestrate a native-vector logo project through concepts, construction proof, variants, preview, independent review, and release.",
+  ],
+  constraints: [
+    "do not manufacture concepts for rejected routes.",
+  ],
+  invocation: InvocationPolicy.ImplicitAndExplicit,
+  goal: defineSkillGoal({
+    body: "# Logo Project Authoring\n\nKeep the main agent responsible for user intent, source integration, gate decisions, and final reporting. Read [Project contract](references/project-contract.md) and [Skill composition](references/skill-composition.md) before authoring.\n\nUse the complete chain `brief → context/references → concept → master → construction → variants → preview → review → release`, while allowing feedback to return from concept selection or preview to the preceding source stage.\n\n1. Freeze `plan.brief.json`, `plan.context.json`, `plan.contract.json`, `plan.color-system.json`, parsed asset/reference provenance, delivery profile, Figma capability/fallback, and the dynamic role-based bilingual worker selection. The brief binds exact `brandName` and `wordmarkText`, script/case policy, letterform type class, and a communication core: core intent, audience outcome, exact retell target, one semantically causal signature cue with source anchors, invariants, and prohibited drift. Choose the carrier (`symbol`, `wordmark`, `lettermark`, `monogram`, or `combination`) and explicitly decide whether an initialism helps or discards meaning. Letter-based carriers also bind target anatomy, transformation operation, stroke, counter, axis, negative-space controls, and a legibility risk. The color system binds its stable core, tokens, structural roles, scenarios, contrast pairs, and prohibited combinations.\n2. Use at most three bundled companion Skills. They have no project writer, review, or release authority. Admit each used Result Card with `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo advice`; integrate or reject its recommendations explicitly. Never substitute a similarly named Skill exposed by the runtime.\n3. Assess symbolic, typographic, monogram, negative-space, geometric, and narrative routes before drawing. Mark each `explore` or `reject` with a brief-specific rationale; explore at least three routes, and do not manufacture concepts for rejected routes. Every explored concept states its contribution to the communication core, memory cue, retell line, invariant, and risk. Record at least two feedback/selection rounds, select exactly one, and derive custom Mark, Wordmark, and Lockup masters from it. Bind the exact wordmark copy to unique current SVG path ids in `src/master/wordmark.manifest.json`.\n4. Bind the standard grid, geometry primitives, optical corrections, and method-appropriate construction sheets to current master hashes. **Fibonacci is optional**: use and prove it only when the selected form was actually built from Fibonacci relationships.\n5. Define primary, mono, reverse, and secondary-layout variants plus transparent PNG, favicon/app icon, specimen, application mockup, and print-guidance outputs. After `package.json` is final, run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo lock <project-root>`; it generates `package-lock.json` with lifecycle scripts disabled and rejects unrelated project writes. Do not run npm directly inside Logo scope. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo lint`, then `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo render` for render-owned outputs only. Use authenticated Figma writeback only when declared; otherwise use the `svg-import-package` Figma fallback.\n6. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo preview`. It creates the strip and measured squint evidence but never edits review data.\n7. Hand current hashes and final artifacts to a different session using `$logo-project-review`. That reviewer writes an external input and invokes `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo review`.\n8. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs logo release` only after admitted review. It alone writes `release.manifest.json` and `receipt.release.json`.\n\nAfter source changes, rerun from render. After master changes, rerun construction, variants, preview, and review. After only review-input correction, rerun review. Retry a transient adviser once; never bypass a missing core gate.\n",
+  }),
+  codexInterface: {
+    shortDescription: "Orchestrate a vector logo project through release gates",
+    defaultPrompt: "Use $logo-project-authoring to create and verify a complete logo project.",
+  },
+  sourceDir: new URL("./", import.meta.url),
+});

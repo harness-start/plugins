@@ -1,9 +1,17 @@
 ---
 name: engineering-review
-description: Read-only review of a code or configuration change for correctness, regressions, security, compatibility, and missing tests. Use when the user asks to review, audit, or assess a diff before merge. Do not edit files, implement fixes, or use this for diagnosing an already observed concrete failure.
+description: "Read-only review of a code or configuration change for correctness, regressions, security, compatibility, and missing tests. Use when the user asks to review, audit, or assess a diff before merge. Do not edit files, implement fixes, or use this for diagnosing an already observed concrete failure."
 ---
 
 # Engineering Review
+
+## When to use
+
+- Use when the user asks to review, audit, or assess a diff before merge.
+
+## Constraints
+
+- Do not edit files, implement fixes, or use this for diagnosing an already observed concrete failure.
 
 Review the requested change as a read-only investigator. The objective is to find defects that can change caller-visible behavior, not to produce a quota of comments.
 

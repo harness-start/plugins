@@ -1,0 +1,4 @@
+interface:
+  display_name: "Actionable responses"
+  short_description: "Structure task-oriented responses so the reader can act"
+  default_prompt: "Use $actionable-response to: Structure task-oriented responses so the reader can act"

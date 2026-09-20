@@ -1,0 +1,4 @@
+interface:
+  display_name: "Presentation visual critique"
+  short_description: "Read-only slide hierarchy and typography critique. No writer"
+  default_prompt: "Use $presentation-visual-critique to: Read-only slide hierarchy and typography critique. No writer"

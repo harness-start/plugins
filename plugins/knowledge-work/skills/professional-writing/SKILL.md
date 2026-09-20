@@ -1,9 +1,17 @@
 ---
 name: professional-writing
-description: Route prose editing to this plugin's first-party writing Skills. Use for human-readable Markdown or chat prose, not code or machine output.
+description: "Route prose editing to this plugin's first-party writing Skills. Use for human-readable Markdown or chat prose, not code or machine output."
 ---
 
 # Professional Writing
+
+## When to use
+
+- Use for human-readable Markdown or chat prose, not code or machine output.
+
+## Constraints
+
+- Do not load language-specific editing Skills for ordinary technical, factual, or conversational responses.
 
 Load only the Skills the current prose needs:
 

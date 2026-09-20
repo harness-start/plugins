@@ -1,9 +1,17 @@
 ---
 name: tdd-red-green
-description: Plan a test-first red-green-refactor loop. The plugin Hook enforces file order; the agent must run and judge RED and GREEN.
+description: "Plan a test-first red-green-refactor loop. The plugin Hook enforces file order; the agent must run and judge RED and GREEN."
 ---
 
 # Test-Driven Development (TDD)
+
+## When to use
+
+- Plan a test-first red-green-refactor loop.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 ## Overview
 
@@ -202,7 +210,7 @@ Next failing test for next feature.
 | **Clear** | Name describes behavior | `test('test1')` |
 | **Shows intent** | Demonstrates desired API | Obscures what code should do |
 
-When writing or changing any test, read [writing-good-tests.md](writing-good-tests.md) for the rules that keep tests honest:
+When writing or changing any test, read [writing-good-tests.md](references/writing-good-tests.md) for the rules that keep tests honest:
 - Name the production change that would make the test fail — before writing it
 - Assert on real behavior, never on mock behavior
 - Keep test-only code in test utilities, out of production classes
@@ -318,3 +326,7 @@ Otherwise → not TDD
 ```
 
 No exceptions without your human partner's permission.
+
+## References
+
+- [writing-good-tests.md](references/writing-good-tests.md)

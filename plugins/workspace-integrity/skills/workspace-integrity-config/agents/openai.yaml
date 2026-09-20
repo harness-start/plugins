@@ -1,2 +1,6 @@
+interface:
+  display_name: "Workspace Integrity Configuration"
+  short_description: "Create, change, or diagnose workspace-integrity project"
+  default_prompt: "Use $workspace-integrity-config to: Create, change, or diagnose workspace-integrity project"
 policy:
   allow_implicit_invocation: false

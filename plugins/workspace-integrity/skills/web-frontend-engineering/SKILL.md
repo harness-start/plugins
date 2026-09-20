@@ -1,9 +1,18 @@
 ---
 name: web-frontend-engineering
-description: Build and review React, Vue, Angular, and TypeScript projects while preserving package-manager-owned state.
-version: 1.0.0
+description: "Build and review React, Vue, Angular, and TypeScript projects while preserving package-manager-owned state."
+version: "1.0.0"
 ---
+
 # Web Frontend Engineering
+
+## When to use
+
+- Build and review React, Vue, Angular, and TypeScript projects while preserving package-manager-owned state.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for React, Vue, Angular, TypeScript, testing, accessibility, rendering, and frontend performance. The Hook protects package-manager state and validates bounded JavaScript, TypeScript, and configuration changes.
 
@@ -16,3 +25,7 @@ Use this Skill for React, Vue, Angular, TypeScript, testing, accessibility, rend
 5. Report browser, accessibility, hydration, bundle, and deployment evidence not exercised.
 
 Configure checks in `.web-frontend-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

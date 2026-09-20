@@ -34,6 +34,7 @@
 - 安装面固定全量启用，没有能力 profile 或 FDE/OPC 运行时分支；FDE、OPC 只是使用者。
 - 自动门禁只用于可机械验证的条件；需要模型理解、探索或取舍的流程留在 Skill 和 agent 工作流中。
 - 每个 owner 只从自己的 `src/**/*.ts` 构建一份已提交、自包含的 `dist/**/*.mjs`。发布前必须校验全部构建摘要和产物新鲜度。
+- 每个 owner 的 `skills/` 由 `src/skills/<id>/index.ts` 生成并提交。`SKILL.md` 与 `dist/` 同属已提交生成物，不能手改。
 - 插件运行时不引用另一个插件的相对路径。
 - `workspace-integrity` 保留跨技术栈的 lock、vendor、generated 等通用保护，并随 owner 捆绑相关工程参考 Skill，但不会把 Skill 加载作为 Hook 前提，也不自动执行语言 lint/format；项目原生验证由显式工程工作流负责。
 - 仓库不提供中央 subagent 编排或生命周期审计插件。领域 Skill 可自然语言委派普通子 agent，父 agent 负责证据、写入、验证和最终交付。

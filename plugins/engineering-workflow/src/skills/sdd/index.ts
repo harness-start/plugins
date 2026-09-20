@@ -1,0 +1,26 @@
+import {
+  InvocationPolicy,
+  defineSkill,
+  defineSkillGoal,
+} from "../../../../../core/skill/define.ts";
+
+export default defineSkill({
+  id: "sdd",
+  fullName: "SDD",
+  description: "Guide a repository change through the lightweight spec, plan, tasks, build, and verification workflow. Use when the user invokes $sdd, asks for spec-driven development, wants to continue an existing .specs change, or needs an implementation recovered from durable SDD artifacts.",
+  useCases: [
+    "Use when the user invokes $sdd, asks for spec-driven development, wants to continue an existing .",
+  ],
+  constraints: [
+    "Do not spawn for a simple single-file, single-task change.",
+  ],
+  invocation: InvocationPolicy.ImplicitAndExplicit,
+  goal: defineSkillGoal({
+    body: "# SDD\n\nRead [specify-method.md](references/specify-method.md) for the specify/plan/tasks/implement method. Internal Skills organize project artifacts under `.specs/`; the Hook independently validates current spec, plan, and task evidence.\n\nKeep one durable change at `.specs/<NNN>-<slug>/`. The user only needs `$sdd`; route internally to `$sdd-specify`, `$sdd-plan`, `$sdd-tasks`, then `$sdd-build`.\n\n## Find the next step\n\n1. Read project instructions and inspect `.specs/` without rewriting valid artifacts.\n2. Select the explicitly named change. If none is named, continue the only incomplete change; otherwise create the next numeric directory.\n3. Validate the directory with the bundled `dist/cli/harness.mjs spec check <change-dir>`.\n4. Choose exactly one next action:\n   - missing or invalid `spec.md` → specify;\n   - missing, invalid, or stale `plan.md` → plan;\n   - missing, invalid, or stale `tasks.md` → tasks;\n   - valid chain → build.\n5. Flow continuously unless project safety rules or a material product decision require the user.\n\nThe hook only protects artifact order and digest freshness. It does not block source writes, judge semantic quality, prove that implementation follows the artifacts, or turn a `Verify:` recipe into test evidence.\n\n## Context-hygiene protocol\n\nKeep the parent context authoritative for the user goal, active change path, current artifact hashes, decisions, Git state, final verification, and delivery. Delegate only bounded evidence gathering or task-local implementation.\n\n- Use Codex `fork_turns: \"none\"` or the host's ordinary isolated-subagent equivalent.\n- Set maximum concurrency to 2 and allow no nested delegation.\n- Do not spawn for a simple single-file, single-task change.\n- Use the single-agent fallback when subagents are unavailable or isolation cannot be verified.\n- Give each worker a Task Brief containing Change/Task ID, artifact hashes, goal, non-goals, allowed files, forbidden actions, Verify command, expected evidence, and failure exit.\n- Give every Task Brief a parent-generated `brief-id` and require the Result Card to echo it exactly. This is a necessary correlation marker, not proof that the host delivered the brief; a worker could recover it from shared ambient data.\n- Time-box the initial delivery handshake to one short host wait. A worker that cannot acknowledge its `brief-id` promptly is unavailable; do not leave the parent blocked behind it.\n- Require a Result Card of at most 4 KiB containing conclusion, files inspected or changed, commands and results, evidence anchors, assumptions/gaps, and parent action. Never request private token-by-token reasoning or full logs.\n- Keep workers out of `.specs/**`, Git history, branches, MRs, and delivery. Permit only the files declared for their role.\n- Re-read decisive evidence, inspect the diff, and have the parent rerun every task's `Verify` command before accepting completion.\n- Allow one worker revision. On a second failure, narrow the task or take it back into the parent.\n- Reject results with a missing or wrong `brief-id`, unexpected descendants, forbidden tool use, undeclared writes, or unverifiable scope. Interrupt that lane when possible and continue in the parent; never reconstruct a worker's task from ambient logs or accept an inferred answer.\n\nUse subagents as a context-isolation mechanism, not as evidence of higher quality. Report only observed outcomes from actual validation.\n`fork_turns: \"none\"` requests reduced inherited conversation; it does not prove that the worker honored the Task Brief. It is also not a filesystem sandbox and cannot prove what a worker read. Treat the `brief-id` echo only as correlation, allowed-file rules as behavioral scope, verify writes through the parent diff, and never place secrets in a shared workspace merely because workers are scoped. On a host/model combination that fails the bounded-worker acceptance—including the Codex 0.147 plus DeepSeek combination exercised by this plugin—do not delegate with `fork_turns: \"all\"`; use the parent fallback until transcript-level acceptance proves direct delivery before action, no forbidden worker calls, no descendants, and an exact Result Card.\n",
+  }),
+  codexInterface: {
+    shortDescription: "Guide spec, plan, tasks, build, and verification.",
+    defaultPrompt: "Use $sdd to guide this change through the lightweight SDD workflow.",
+  },
+  sourceDir: new URL("./", import.meta.url),
+});

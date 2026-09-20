@@ -1,9 +1,17 @@
 ---
 name: sdd-tasks
-description: Create or repair an SDD change tasks.md from current spec and plan artifacts, with requirement traceability, dependencies, file scopes, and verification recipes. Use when an SDD plan is valid but executable tasks are missing, invalid, or stale.
+description: "Create or repair an SDD change tasks.md from current spec and plan artifacts, with requirement traceability, dependencies, file scopes, and verification recipes. Use when an SDD plan is valid but executable tasks are missing, invalid, or stale."
 ---
 
 # SDD Tasks
+
+## When to use
+
+- Use when an SDD plan is valid but executable tasks are missing, invalid, or stale.
+
+## Constraints
+
+- do not repeatedly extend an unavailable reviewer.
 
 Validate `spec.md` and `plan.md`, then compute both current digests with the bundled validator. Never decompose a stale plan.
 

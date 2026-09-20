@@ -1,9 +1,17 @@
 ---
 name: interface-craft-floor
-description: Mechanical visual craft floor for interface files. Use immediately before editing UI. Do not use for posters, decks, video, or logos.
+description: "Mechanical visual craft floor for interface files. Use immediately before editing UI. Do not use for posters, decks, video, or logos."
 ---
 
 # Interface craft floor
+
+## When to use
+
+- Check the mechanical visual craft floor immediately before editing a web or app interface.
+
+## Constraints
+
+- Do not use for posters, decks, video, or logos.
 
 Load this after direction is settled. A committed DESIGN.md or brief overrides habit. When the Hook reports a code, act on that finding instead of re-auditing the rule.
 

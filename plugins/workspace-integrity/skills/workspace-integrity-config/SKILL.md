@@ -1,10 +1,19 @@
 ---
 name: workspace-integrity-config
-description: Create, change, or diagnose workspace-integrity project configuration without changing the existing file names or schemas.
+description: "Create, change, or diagnose workspace-integrity project configuration without changing the existing file names or schemas."
 disable-model-invocation: true
-version: 1.0.0
+version: "1.0.0"
 ---
+
 # Workspace Integrity Configuration
+
+## When to use
+
+- Create, change, or diagnose workspace-integrity project configuration without changing the existing file names or schemas.
+
+## Constraints
+
+- Do not add universal allow/skip expressions.
 
 Use this explicit-only Skill when the task is specifically to create, edit, or diagnose a workspace-integrity configuration file. Project-owned `.mjs` configuration is trusted executable configuration loaded with `import()`; evaluate it against the documented schema, ordering, and error contract.
 

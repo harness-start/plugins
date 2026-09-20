@@ -1,0 +1,4 @@
+interface:
+  display_name: "说人话"
+  short_description: "检查和清理中英文文本里的 AI 套路，适用于“去 AI 味”“说人话”“自然一点”“别像模板”“先标问题”这类改写和审稿需求"
+  default_prompt: "Use $writing-chinese-prose to: 检查和清理中英文文本里的 AI 套路，适用于“去 AI 味”“说人话”“自然一点”“别像模板”“先标问题”这类改写和审稿需求"

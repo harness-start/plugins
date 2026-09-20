@@ -1,9 +1,17 @@
 ---
 name: video-project-authoring
-description: Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release.
+description: "Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release."
 ---
 
 # Video Project Authoring
+
+## When to use
+
+- Orchestrate an evidence-bound Remotion video from direction and storyboard through media admission, rendering, probes, independent review, and release.
+
+## Constraints
+
+- do not treat a candidate as an automatic failure or silently waive it.
 
 Create an original video whose intent, script, assets, source, media outputs, measurements, review, and release stay digest-bound. The main agent owns project files, advisor integration, approvals, and final reporting.
 
@@ -32,3 +40,12 @@ Read all of these before authoring:
 10. After a current independent pass, run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs video release`. Report only release-manifest outputs and label verification claims with execution provenance.
 
 Use every wrapper as one exact standalone command. Do not chain, redirect, pipe, substitute shell expressions, or let an external worker write proof, evidence, review, release, receipt, or admitted paths.
+
+## References
+
+- [direction-and-design.md](references/direction-and-design.md)
+- [external-media-admission.md](references/external-media-admission.md)
+- [profiles.md](references/profiles.md)
+- [project-contract.md](references/project-contract.md)
+- [quality-gates.md](references/quality-gates.md)
+- [skill-composition.md](references/skill-composition.md)

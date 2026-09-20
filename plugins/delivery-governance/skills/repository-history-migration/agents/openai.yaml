@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cross-repo history migration"
+  short_description: "Move selected paths from one local Git repository into a new"
+  default_prompt: "Use $repository-history-migration to: Move selected paths from one local Git repository into a new"

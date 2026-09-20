@@ -55,7 +55,11 @@ function unresolvedPluginSkillReferences(pluginRoot: string): string[] {
     ...filesBelow(resolve(pluginRoot, "src")),
     ...filesBelow(resolve(pluginRoot, "hooks")),
     resolve(pluginRoot, "README.md"),
-  ].filter((path) => existsSync(path) && /\.(?:c?js|mjs|ts|json|md|ya?ml)$/u.test(path));
+  ].filter((path) => {
+    if (!existsSync(path) || !/\.(?:c?js|mjs|ts|json|md|ya?ml)$/u.test(path)) return false;
+    const rel = path.slice(pluginRoot.length + 1).split(/[/\\]/u).join("/");
+    return !rel.startsWith("src/skills/");
+  });
 
   const report = (path: string, lineNumber: number, reference: string) => {
     if (reference !== reference.toLowerCase()) return;

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Humanizer: Remove AI Writing Patterns"
+  short_description: "Remove signs of AI-generated writing from text. Use"
+  default_prompt: "Use $writing-english-prose to: Remove signs of AI-generated writing from text. Use"

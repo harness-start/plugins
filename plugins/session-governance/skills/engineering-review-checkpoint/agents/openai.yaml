@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineering Review Checkpoint"
+  short_description: "Coordinate one bounded read-only reviewer after a coherent"
+  default_prompt: "Use $engineering-review-checkpoint to: Coordinate one bounded read-only reviewer after a coherent"

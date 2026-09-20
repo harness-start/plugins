@@ -1,2 +1,6 @@
+interface:
+  display_name: "language-output-config"
+  short_description: "Change language-output defaults: response and artifact profiles"
+  default_prompt: "Use $language-output-config to: Change language-output defaults: response and artifact profiles"
 policy:
   allow_implicit_invocation: false

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workflow — Audio Production"
+  short_description: "Advise on cross-platform audio routing, MIDI/OSC, DAW/JACK, DSP"
+  default_prompt: "Use $music-mix-qc to: Advise on cross-platform audio routing, MIDI/OSC, DAW/JACK, DSP"

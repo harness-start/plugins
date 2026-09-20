@@ -1,9 +1,17 @@
 ---
 name: poster-regional-culture
-description: Advise on cultural research and art direction for Chinese regional posters, producing candidate directions, prompt packages, and asset briefs.
+description: "Advise on cultural research and art direction for Chinese regional posters, producing candidate directions, prompt packages, and asset briefs."
 ---
 
 # Regional Culture Poster
+
+## When to use
+
+- Advise on cultural research and art direction for Chinese regional posters, producing candidate directions, prompt packages, and asset briefs.
+
+## Constraints
+
+- Remain a read-only adviser: do not render images, mutate poster projects, stamp reviews, or release artifacts.
 
 This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 
@@ -182,3 +190,12 @@ Reject and revise results that fail any of these gates:
 - The delivered poster comes only from the deterministic authoring and evidence workflow; generated imagery remains an input asset.
 
 For batch work, read [series-and-examples.md](references/series-and-examples.md) and perform a global deduplication pass before rendering.
+
+## References
+
+- [cultural-analysis.md](references/cultural-analysis.md)
+- [direct-generation.md](references/direct-generation.md)
+- [mode-b-editorial.md](references/mode-b-editorial.md)
+- [production.md](references/production.md)
+- [series-and-examples.md](references/series-and-examples.md)
+- [visual-system.md](references/visual-system.md)

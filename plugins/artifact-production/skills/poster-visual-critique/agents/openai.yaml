@@ -1,0 +1,4 @@
+interface:
+  display_name: "Poster visual critique"
+  short_description: "Read-only hierarchy and contrast critique for posters. No"
+  default_prompt: "Use $poster-visual-critique to: Read-only hierarchy and contrast critique for posters. No"

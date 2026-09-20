@@ -1,0 +1,22 @@
+import {
+  InvocationPolicy,
+  defineSkill,
+  defineSkillGoal,
+} from "../../../../../core/skill/define.ts";
+
+export default defineSkill({
+  id: "interface-craft",
+  fullName: "Interface craft",
+  description: "Orchestrate general interface visual craft. Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns. Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering.",
+  useCases: [
+    "Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns.",
+  ],
+  constraints: [
+    "Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering.",
+  ],
+  invocation: InvocationPolicy.ImplicitAndExplicit,
+  goal: defineSkillGoal({
+    body: "# Interface craft\n\nThis Skill is the only entry. Load same-plugin companions and the references below only when their decision is active; never load community `impeccable` or `vendor-skills`.\n\n## Route\n\n1. Inspect the project's existing tokens, components, brand assets, screenshots, and `DESIGN.md` before choosing a direction. Preserve established decisions unless the request explicitly calls for a redesign. When references are supplied, read [Reference analysis](references/reference-analysis.md) and separate facts, inferences, and falsifiable assumptions.\n2. State one compact Design Read: surface and audience, primary job, intended visual language, layout variance, motion intensity, and information density. Freeze a communication core before styling: the product promise, intended audience outcome, exact one-sentence retell target, one semantically causal signature cue anchored to a component/state/surface, invariants, and prohibited drift. If a material redesign has genuinely divergent directions, use the bounded three-direction comparison in [Visual direction](references/visual-direction.md) and ask one selection question; otherwise choose and proceed.\n3. For a new surface or material redesign, read [Visual direction](references/visual-direction.md). When extending an existing product, read [Design-system continuity](references/design-system.md). When the work establishes reusable visual decisions, read [Design memory](references/design-memory.md) and its [template](references/design-memory-template.md). A local fix or read-only review does not create design memory.\n4. Read [Motion](references/motion.md) only when transitions, feedback, or authored movement matter. Load [Motion tokens](references/motion-tokens.md) and [Motion recipes](references/motion-recipes.md) only for decisions they actually support.\n5. Read `$interface-craft-floor` immediately before editing UI. For a read-only review, read `$interface-visual-critique` instead.\n6. After edits, render the interface at representative desktop and mobile viewports, or inspect current screenshots when a renderer is already available. Critique the rendered result for hierarchy, clipping, responsive reflow, component consistency, states, and motion. Verify that the signature cue remains recognizable across states and breakpoints and that its form still explains the product promise; then make one bounded correction pass. If rendering is unavailable, say which visual and communication claims remain unverified.\n7. Honor Hook findings. Mechanical codes (`HARD_OFFSET_SHADOW`, `GRADIENT_TEXT`, `EYEBROW_KICKER`, `SECTION_NUMBER_DECORATION`, `REPEATING_GRID_BACKGROUND`, `TRANSITION_ALL`, `FOCUS_OUTLINE_REMOVED`) are facts about the current file. Direction and taste judgments stay in the Skill workflow.\n\n## Honest limits\n\n- This plugin does not write poster, deck, Remotion, or logo artifacts.\n- It does not protect lockfiles or replace `web-frontend-engineering` syntax gates.\n- The Hook scans only the declared web-style UI extensions. Native app craft remains a Skill judgment unless its owning domain plugin supplies a mechanical check.\n- Parse errors and non-UI files fail open. Hook activation, source conformance, design memory, or a successful screenshot alone is not proof the interface is good.\n",
+  }),
+  sourceDir: new URL("./", import.meta.url),
+});

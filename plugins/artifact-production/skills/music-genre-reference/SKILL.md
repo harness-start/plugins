@@ -1,9 +1,17 @@
 ---
 name: music-genre-reference
-description: Advise on MUSE SONG genre selection, generation prompts, lyrics, models, output troubleshooting, and cold-start optimization.
+description: "Advise on MUSE SONG genre selection, generation prompts, lyrics, models, output troubleshooting, and cold-start optimization."
 ---
 
 # 妙响 (MUSE SONG) AI Music Creation
+
+## When to use
+
+- Advise on MUSE SONG genre selection, generation prompts, lyrics, models, output troubleshooting, and cold-start optimization.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 
@@ -88,3 +96,11 @@ For a **纯音乐/instrumental**, drop `[Verse]`/`[Chorus]` lyric sections and u
 - **客观性** in prompts, **show-don't-tell** in lyrics — these two principles drive most quality gains.
 - Simpler often beats longer. If output is wrong, cut the prompt down before adding more.
 - This skill describes the official creation method. It does **not** override platform rules or any signed agreement; never advise scripted/automated 刷量 (it is bannable). Real content driving real engagement is the only legitimate lever.
+
+## References
+
+- [distribution.md](references/distribution.md)
+- [genres.md](references/genres.md)
+- [lyrics.md](references/lyrics.md)
+- [platform.md](references/platform.md)
+- [prompt-engineering.md](references/prompt-engineering.md)

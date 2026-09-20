@@ -1,9 +1,17 @@
 ---
 name: actionable-response
-description: Structure task-oriented responses so the reader can act immediately. Load by default when the user must perform a procedure, troubleshoot, choose, recover from an error, or continue unfinished work. Do not wait for explicit ADHD wording, and never diagnose or label the user.
+description: "Structure task-oriented responses so the reader can act immediately. Load by default when the user must perform a procedure, troubleshoot, choose, recover from an error, or continue unfinished work. Do not wait for explicit ADHD wording, and never diagnose or label the user."
 ---
 
 # Actionable responses
+
+## When to use
+
+- Structure task-oriented responses so the reader can act immediately.
+
+## Constraints
+
+- Do not wait for explicit ADHD wording, and never diagnose or label the user.
 
 Put the answer, current state, or first action where the reader sees it immediately. Actionable writing is not extreme compression. Preserve facts, conditions, order, safety boundaries, commands, paths, and verification criteria.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video media import"
+  short_description: "Admit user-owned local images, audio, video, subtitles"
+  default_prompt: "Use $video-media-import to: Admit user-owned local images, audio, video, subtitles"

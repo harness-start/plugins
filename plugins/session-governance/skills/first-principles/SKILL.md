@@ -1,9 +1,17 @@
 ---
 name: first-principles
-description: Rebuild an unclear concept, system, proposal, or decision from essential constraints instead of inherited labels and conventions. Use when the user asks for first principles, underlying logic, the real problem, a mental model, why something exists, or a from-scratch explanation. Prefer reasoning-methods when the main job is proving an answer, diagnosing a concrete failure, or choosing under quantified uncertainty.
+description: "Rebuild an unclear concept, system, proposal, or decision from essential constraints instead of inherited labels and conventions. Use when the user asks for first principles, underlying logic, the real problem, a mental model, why something exists, or a from-scratch explanation. Prefer reasoning-methods when the main job is proving an answer, diagnosing a concrete failure, or choosing under quantified uncertainty."
 ---
 
 # First Principles
+
+## When to use
+
+- Use when the user asks for first principles, underlying logic, the real problem, a mental model, why something exists, or a from-scratch explanation.
+
+## Constraints
+
+- Do not ask for more context unless the missing answer would change the analysis.
 
 ## The one rule
 

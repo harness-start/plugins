@@ -1,9 +1,17 @@
 ---
 name: diagram-visual-critique
-description: Read-only visual and semantic critique for an existing diagram image or current diagram project output. Use to assess hierarchy, density, routing, labels, accessibility, and type fitness; do not use to write, render, review-sign, or release a diagram project.
+description: "Read-only visual and semantic critique for an existing diagram image or current diagram project output. Use to assess hierarchy, density, routing, labels, accessibility, and type fitness; do not use to write, render, review-sign, or release a diagram project."
 ---
 
 # Diagram Visual Critique
+
+## When to use
+
+- Read-only visual and semantic critique for an existing diagram image or current diagram project output.
+
+## Constraints
+
+- do not use to write, render, review-sign, or release a diagram project.
 
 This adviser is read-only and has no writer authority. Inspect the current SVG/PNG at full size and thumbnail size, then return anchored findings with severity, evidence, and a falsifiable recovery step.
 

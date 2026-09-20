@@ -1,9 +1,17 @@
 ---
 name: sdd-specify
-description: Create or repair an SDD change spec.md with intent, requirements, scenarios, and non-goals. Use when an SDD change has no valid spec, requirements are unclear, or an upstream specification must be revised before planning.
+description: "Create or repair an SDD change spec.md with intent, requirements, scenarios, and non-goals. Use when an SDD change has no valid spec, requirements are unclear, or an upstream specification must be revised before planning."
 ---
 
 # SDD Specify
+
+## When to use
+
+- Use when an SDD change has no valid spec, requirements are unclear, or an upstream specification must be revised before planning.
+
+## Constraints
+
+- do not repeatedly extend an unavailable scout.
 
 Write the smallest contract that makes the change testable. Read the touched code, tests, project rules, and current behavior before inventing requirements.
 

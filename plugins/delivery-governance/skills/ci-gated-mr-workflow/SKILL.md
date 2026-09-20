@@ -1,9 +1,17 @@
 ---
 name: ci-gated-mr-workflow
-description: Use only when the user explicitly invokes `$ci-gated-mr-workflow` or `/ci-gated-mr-workflow` for the current task. Do not select this workflow from an ordinary change request or repository policy alone.
+description: "Use only when the user explicitly invokes `$ci-gated-mr-workflow` or `/ci-gated-mr-workflow` for the current task. Do not select this workflow from an ordinary change request or repository policy alone."
 ---
 
 # CI-gated MR Workflow
+
+## When to use
+
+- Use only when the user explicitly invokes `$ci-gated-mr-workflow` or `/ci-gated-mr-workflow` for the current task.
+
+## Constraints
+
+- Do not select this workflow from an ordinary change request or repository policy alone.
 
 After the user explicitly invokes this Skill for the current task, it owns review requests, completion-time verification, and branch finish methods. PreToolUse only rejects default-branch merge or push commands that omit a bound head SHA. It does not activate this workflow or prove that required CI passed. Repository policy remains an independent constraint.
 
@@ -62,3 +70,7 @@ Lead with the terminal state: delivered, externally blocked, or intentionally pa
 ## Honest limits
 
 This Skill is workflow guidance, not a remote authorization system. Local Git add/commit/reset invariants stay with the Git guard plugin. This plugin's PreToolUse Hook only requires a head SHA on default-branch merge/push shapes and does not prove pipeline success. It ships no Stop Hook: without a provider-bound observation receipt, a Hook could enforce paperwork but could not prove review or CI success. Repository permissions, provider tools, and protected-branch policy remain the authorities for remote effects.
+
+## References
+
+- [reviewer-handoff.md](references/reviewer-handoff.md)

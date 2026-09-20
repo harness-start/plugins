@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test-Driven Development (TDD)"
+  short_description: "Plan a test-first red-green-refactor loop. The plugin Hook"
+  default_prompt: "Use $tdd-red-green to: Plan a test-first red-green-refactor loop. The plugin Hook"

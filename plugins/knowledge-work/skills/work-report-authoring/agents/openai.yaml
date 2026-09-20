@@ -1,0 +1,4 @@
+interface:
+  display_name: "Work Report Authoring"
+  short_description: "员工要生成日报、周报、阶段总结、工作复盘或改进计划时使用；统一编排本地证据、员工确认、成长承诺、TL 验证和完整性封印。"
+  default_prompt: "Use $work-report-authoring to: 员工要生成日报、周报、阶段总结、工作复盘或改进计划时使用；统一编排本地证据、员工确认、成长承诺、TL 验证和完整性封印。"

@@ -1,9 +1,18 @@
 ---
 name: python-engineering
-description: Build and review Python packages, services, tests, typing, and async code while preserving package-manager-owned state.
-version: 1.0.0
+description: "Build and review Python packages, services, tests, typing, and async code while preserving package-manager-owned state."
+version: "1.0.0"
 ---
+
 # Python Engineering
+
+## When to use
+
+- Build and review Python packages, services, tests, typing, and async code while preserving package-manager-owned state.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for Python packages, services, CLIs, typing, async code, and tests. The Hook protects package-manager state and runs bounded syntax, JSON, and Ruff checks.
 
@@ -16,3 +25,7 @@ Use this Skill for Python packages, services, CLIs, typing, async code, and test
 5. Report native extension, service, database, platform, and packaging boundaries not exercised.
 
 Configure checks in `.python-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

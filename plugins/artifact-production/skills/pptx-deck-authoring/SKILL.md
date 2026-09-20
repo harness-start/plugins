@@ -1,9 +1,17 @@
 ---
 name: pptx-deck-authoring
-description: Orchestrate a new, editable 16:9 PPTX project from requirements through storyboard, design system, PptxGenJS source, rendering, evidence probes, independent review, PDF export, and release receipt. Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template.
+description: "Orchestrate a new, editable 16:9 PPTX project from requirements through storyboard, design system, PptxGenJS source, rendering, evidence probes, independent review, PDF export, and release receipt. Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template."
 ---
 
 # PPTX Deck Authoring
+
+## When to use
+
+- Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template.
+
+## Constraints
+
+- do not use for editing an existing PPTX or template.
 
 Create an original, editable deck whose source, outputs, evidence, and review remain reproducibly bound. Keep the main agent responsible for user intent, source integration, gate decisions, and final reporting.
 
@@ -41,3 +49,11 @@ Use exact standalone wrapper commands. Do not chain them with redirects, pipes, 
 - Allow at most two producer/reviewer rounds. If major findings remain, return to storyboard or design rather than accepting them silently.
 
 Use only the Skills and references bundled with this plugin. A similarly named presentation Skill exposed by the runtime is neither a dependency nor an allowed design-reference substitute.
+
+## References
+
+- [accessibility.md](references/accessibility.md)
+- [design-system.md](references/design-system.md)
+- [project-contract.md](references/project-contract.md)
+- [quality-gates.md](references/quality-gates.md)
+- [skill-composition.md](references/skill-composition.md)

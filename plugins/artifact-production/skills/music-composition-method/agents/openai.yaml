@@ -1,0 +1,4 @@
+interface:
+  display_name: "Music Composition"
+  short_description: "Advise on composition, theory, melody, harmony, counterpoint"
+  default_prompt: "Use $music-composition-method to: Advise on composition, theory, melody, harmony, counterpoint"

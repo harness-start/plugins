@@ -1,9 +1,17 @@
 ---
 name: writing-chinese-prose
-description: 检查和清理中英文文本里的 AI 套路，适用于“去 AI 味”“说人话”“自然一点”“别像模板”“先标问题”这类改写和审稿需求；按场景控制力度，同时保留事实、术语、语域和责任主体。
+description: "检查和清理中英文文本里的 AI 套路，适用于“去 AI 味”“说人话”“自然一点”“别像模板”“先标问题”这类改写和审稿需求；按场景控制力度，同时保留事实、术语、语域和责任主体。"
 ---
 
 # 说人话
+
+## When to use
+
+- 检查和清理中英文文本里的 AI 套路，适用于“去 AI 味”“说人话”“自然一点”“别像模板”“先标问题”这类改写和审稿需求；按场景控制力度，同时保留事实、术语、语域和责任主体。
+
+## Constraints
+
+- 保留事实、术语、语域和责任主体；不要把风格改写硬套到逐字翻译、代码、日志、命令、配置或事实校对任务。
 
 把文本从”像模型在表演写作”拉回”像具体人在当前场景下表达”。
 
@@ -415,3 +423,18 @@ Tier 表示问题命中强度，与 [严重度分级](./references/severity.md) 
 - 想处理没收录进词表的同类变体：先看 [微操作手册](./references/operation-manual.md) 里的“变体归并”规则，再决定要不要补词
 
 默认做法是：先用本文件完成“场景、Tier、档位、输出合同”的主判断，再按问题类型补读 `references/`；只有在单文件安装场景里，才停留在本文件的兜底规则。
+
+## References
+
+- [boundary-cases.md](references/boundary-cases.md)
+- [examples.md](references/examples.md)
+- [humanizer-zh.md](references/humanizer-zh.md)
+- [operation-manual.md](references/operation-manual.md)
+- [phrases-en.md](references/phrases-en.md)
+- [phrases-zh.md](references/phrases-zh.md)
+- [positive-style.md](references/positive-style.md)
+- [protected-spans.md](references/protected-spans.md)
+- [scene-guardrails.md](references/scene-guardrails.md)
+- [scene-packs.md](references/scene-packs.md)
+- [severity.md](references/severity.md)
+- [structures.md](references/structures.md)

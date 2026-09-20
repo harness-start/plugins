@@ -1,9 +1,17 @@
 ---
 name: engineering-practice
-description: Route implementation, high-risk review checkpoints, read-only code review, and completion-time verification to this plugin's first-party method Skills. Use for non-trivial coding, review requests, or before claiming work is done. Concrete software failures belong to a dedicated debugging workflow, not this plugin.
+description: "Route implementation, high-risk review checkpoints, read-only code review, and completion-time verification to this plugin's first-party method Skills. Use for non-trivial coding, review requests, or before claiming work is done. Concrete software failures belong to a dedicated debugging workflow, not this plugin."
 ---
 
 # Engineering Practice
+
+## When to use
+
+- Use for non-trivial coding, review requests, or before claiming work is done.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use only the optional method guides that help this task; working directly is valid:
 

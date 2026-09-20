@@ -1,0 +1,4 @@
+interface:
+  display_name: "Professional Writing"
+  short_description: "Route prose editing to this plugin's first-party writing"
+  default_prompt: "Use $professional-writing to: Route prose editing to this plugin's first-party writing"

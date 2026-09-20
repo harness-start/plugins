@@ -1,9 +1,17 @@
 ---
 name: sdd-build
-description: Implement a valid .specs change task by task, using bounded fresh subagents when useful and parent-owned verification. Use when spec.md, plan.md, and tasks.md are valid and current, or when resuming remaining tasks from those artifacts.
+description: "Implement a valid .specs change task by task, using bounded fresh subagents when useful and parent-owned verification. Use when spec.md, plan.md, and tasks.md are valid and current, or when resuming remaining tasks from those artifacts."
 ---
 
 # SDD Build
+
+## When to use
+
+- Use when spec.
+
+## Constraints
+
+- do not recreate valid artifacts when resuming.
 
 Validate the artifact chain before touching implementation. Read task order from the DAG; do not recreate valid artifacts when resuming. Existing repository evidence determines what is already complete—unchecked prose alone does not.
 

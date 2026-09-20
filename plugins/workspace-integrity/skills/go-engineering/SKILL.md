@@ -1,9 +1,18 @@
 ---
 name: go-engineering
-description: Build and review Go modules while preserving module checksums and using repository-owned formatting, tests, and analysis.
-version: 1.0.0
+description: "Build and review Go modules while preserving module checksums and using repository-owned formatting, tests, and analysis."
+version: "1.0.0"
 ---
+
 # Go Engineering
+
+## When to use
+
+- Build and review Go modules while preserving module checksums and using repository-owned formatting, tests, and analysis.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for Go services, libraries, CLIs, concurrency, tests, and release work. The Hook protects `go.sum` and runs bounded checks; it does not prove behavior.
 
@@ -16,3 +25,7 @@ Use this Skill for Go services, libraries, CLIs, concurrency, tests, and release
 5. Report race, platform, integration, or release boundaries that were not exercised.
 
 Configure mechanical checks in `.go-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

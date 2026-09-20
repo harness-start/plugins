@@ -1,9 +1,18 @@
 ---
 name: nix-engineering
-description: Build and review Nix, flakes, NixOS, and Home Manager changes while preserving lockfile ownership and reproducibility.
-version: 1.0.0
+description: "Build and review Nix, flakes, NixOS, and Home Manager changes while preserving lockfile ownership and reproducibility."
+version: "1.0.0"
 ---
+
 # Nix Engineering
+
+## When to use
+
+- Build and review Nix, flakes, NixOS, and Home Manager changes while preserving lockfile ownership and reproducibility.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for Nix language, flakes, NixOS, Home Manager, and reproducible development environments. The Hook protects `flake.lock` and performs bounded parsing when tools exist.
 
@@ -16,3 +25,7 @@ Use this Skill for Nix language, flakes, NixOS, Home Manager, and reproducible d
 5. Report unavailable platforms, substituters, secrets, or deployment evidence.
 
 Configure checks in `.nix-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

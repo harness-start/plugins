@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineering Judgment"
+  short_description: "Reduce common coding mistakes with explicit assumptions"
+  default_prompt: "Use $engineering-judgment to: Reduce common coding mistakes with explicit assumptions"

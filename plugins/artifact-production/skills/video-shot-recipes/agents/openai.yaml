@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video Shot Recipes"
+  short_description: "Select offline shot recipes for evidence-bound Remotion"
+  default_prompt: "Use $video-shot-recipes to: Select offline shot recipes for evidence-bound Remotion"

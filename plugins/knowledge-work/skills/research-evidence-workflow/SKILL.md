@@ -1,9 +1,17 @@
 ---
 name: research-evidence-workflow
-description: Orchestrate hard research with host-native web discovery, MCP capture/anchors, typed claims, a fresh seal, and post-seal outbound handoff. Use for multi-source or evidence-backed research without provider API keys or standalone search CLIs.
+description: "Orchestrate hard research with host-native web discovery, MCP capture/anchors, typed claims, a fresh seal, and post-seal outbound handoff. Use for multi-source or evidence-backed research without provider API keys or standalone search CLIs."
 ---
 
 # Research Evidence Workflow
+
+## When to use
+
+- Use for multi-source or evidence-backed research without provider API keys or standalone search CLIs.
+
+## Constraints
+
+- Do not use marker strings, identity files, reservation commands, nonce protocols, or plugin lifecycle hooks.
 
 This skill is the **only hard-research entry**. Bundled primary-source, host-native discovery, academic-candidate, and handoff methods are **phase techniques** under this orchestrator—not top-level alternatives.
 
@@ -98,3 +106,13 @@ Do not hand off incomplete research to PRD/ADR/implementation skills.
 ## Abort
 
 Only the user may abandon with exactly `# research-abort`. The hook records `aborted`; the workflow CLI cannot authorize abort or completion.
+
+## References
+
+- [claim-contract.md](references/claim-contract.md)
+- [discovery-claude-code.md](references/discovery-claude-code.md)
+- [discovery-codex.md](references/discovery-codex.md)
+- [handoff-method.md](references/handoff-method.md)
+- [outbound-handoff-template.md](references/outbound-handoff-template.md)
+- [primary-source-method.md](references/primary-source-method.md)
+- [skill-composition.md](references/skill-composition.md)

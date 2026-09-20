@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagram Project Review"
+  short_description: "Independently inspect current diagram SVG and PNG outputs"
+  default_prompt: "Use $diagram-project-review to: Independently inspect current diagram SVG and PNG outputs"

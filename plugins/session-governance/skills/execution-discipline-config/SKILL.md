@@ -1,11 +1,19 @@
 ---
 name: execution-discipline-config
-description: Change execution-discipline thresholds for edit loops, command retries, polling budgets, exemptions, or bypass markers in .execution-discipline.mjs.
+description: "Change execution-discipline thresholds for edit loops, command retries, polling budgets, exemptions, or bypass markers in .execution-discipline.mjs."
 disable-model-invocation: true
-version: 0.2.0
+version: "0.2.0"
 ---
 
 # execution-discipline-config
+
+## When to use
+
+- Change execution-discipline thresholds for edit loops, command retries, polling budgets, exemptions, or bypass markers in .execution-discipline.mjs.
+
+## Constraints
+
+- Do not create a second config when one already exists.
 
 Manage the project configuration consumed by `execution-discipline`. The authoritative schema is the plugin sibling `README.md`; read it before editing configuration.
 
@@ -94,3 +102,7 @@ export default {
 
 - Plugin design: `${CLAUDE_PLUGIN_ROOT}/README.md`.
 - Complete example: `references/example-config.mjs`.
+
+## References
+
+- [example-config.mjs](references/example-config.mjs)

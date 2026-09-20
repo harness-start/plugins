@@ -1,0 +1,4 @@
+interface:
+  display_name: "Limited-palette poster direction"
+  short_description: "Advise on original limited-palette screen-print posters, covers"
+  default_prompt: "Use $poster-mondo to: Advise on original limited-palette screen-print posters, covers"

@@ -1,10 +1,18 @@
 ---
 name: video-format-playbooks
-description: Plan 30–90 second explainer or product videos across script, storyboard, scenes, narration, caption sync, edit, and polish.
-version: 0.1.0
+description: "Plan 30–90 second explainer or product videos across script, storyboard, scenes, narration, caption sync, edit, and polish."
+version: "0.1.0"
 ---
 
 # Explainer Video
+
+## When to use
+
+- Plan 30–90 second explainer or product videos across script, storyboard, scenes, narration, caption sync, edit, and polish.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Turn one message into a paced, narrated 30–90s short. Run the full pipeline: script → storyboard → scene build → narration/caption sync → edit → polish, with a consistent style system throughout.
 
@@ -178,3 +186,7 @@ npx remotion render Explainer out/explainer.mp4 --props='{...}'
 ## Reference files
 
 - `references/script-to-screen-workflow.md` — full pipeline detail: the problem→solution→how→payoff script formula with a worked example and word budget, VO timing tables, a fill-in storyboard template with timecodes, a per-scene build checklist, caption authoring guidance (VTT/SRT), and a style-system spec sheet for cross-scene consistency.
+
+## References
+
+- [script-to-screen-workflow.md](references/script-to-screen-workflow.md)

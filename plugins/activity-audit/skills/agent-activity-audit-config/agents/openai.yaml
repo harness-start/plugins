@@ -1,2 +1,6 @@
+interface:
+  display_name: "agent-activity-audit-config"
+  short_description: "Initialize or diagnose .agent-activity-audit.mjs"
+  default_prompt: "Use $agent-activity-audit-config to: Initialize or diagnose .agent-activity-audit.mjs"
 policy:
   allow_implicit_invocation: false

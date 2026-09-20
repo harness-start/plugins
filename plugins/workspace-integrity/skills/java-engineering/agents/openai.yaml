@@ -1,0 +1,4 @@
+interface:
+  display_name: "Java Engineering"
+  short_description: "Build and review Java, Spring Boot, JUnit"
+  default_prompt: "Use $java-engineering to: Build and review Java, Spring Boot, JUnit"

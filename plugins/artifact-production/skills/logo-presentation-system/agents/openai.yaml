@@ -1,0 +1,4 @@
+interface:
+  display_name: "Logo Presentation System / 标志呈现系统"
+  short_description: "Plan logo specimen boards, application mockups, icon exports"
+  default_prompt: "Use $logo-presentation-system to: Plan logo specimen boards, application mockups, icon exports"

@@ -1,9 +1,17 @@
 ---
 name: engineering-judgment
-description: Reduce common coding mistakes with explicit assumptions, surgical edits, bounded ablation, and verifiable success criteria. Use for non-trivial implementation or refactoring. Do not use for read-only code review or concrete software failures.
+description: "Reduce common coding mistakes with explicit assumptions, surgical edits, bounded ablation, and verifiable success criteria. Use for non-trivial implementation or refactoring. Do not use for read-only code review or concrete software failures."
 ---
 
 # Engineering Judgment
+
+## When to use
+
+- Use for non-trivial implementation or refactoring.
+
+## Constraints
+
+- Do not use for read-only code review or concrete software failures.
 
 Behavioral guidelines to reduce common LLM coding mistakes, derived from [Andrej Karpathy's observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 

@@ -1,9 +1,17 @@
 ---
 name: interface-visual-critique
-description: Read-only hierarchy, type, spacing, and contrast critique for interface files. No writer or release authority.
+description: "Read-only hierarchy, type, spacing, and contrast critique for interface files. No writer or release authority."
 ---
 
 # Interface visual critique
+
+## When to use
+
+- Read-only hierarchy, type, spacing, and contrast critique for interface files.
+
+## Constraints
+
+- do not install a new runtime or start a persistent live server just for critique.
 
 This Skill is **read-only**. It cannot write UI files, update `DESIGN.md`, apply fixes, or stamp a product review. Inspect the supplied render or screenshot as well as the responsible source. When the project already provides a read-only render or browser check, it may be run to gather current visual evidence; do not install a new runtime or start a persistent live server just for critique.
 

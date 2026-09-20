@@ -1,0 +1,4 @@
+interface:
+  display_name: "Academic poster narrative"
+  short_description: "Read-only academic poster narrative and scanability advice. No"
+  default_prompt: "Use $poster-academic to: Read-only academic poster narrative and scanability advice. No"

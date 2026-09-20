@@ -1,9 +1,17 @@
 ---
 name: music-composition-method
-description: Advise on composition, theory, melody, harmony, counterpoint, arrangement, orchestration, and analysis; exclude DAW operation and audio engineering.
+description: "Advise on composition, theory, melody, harmony, counterpoint, arrangement, orchestration, and analysis; exclude DAW operation and audio engineering."
 ---
 
 # Music Composition
+
+## When to use
+
+- Advise on composition, theory, melody, harmony, counterpoint, arrangement, orchestration, and analysis; exclude DAW operation and audio engineering.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 
@@ -156,3 +164,96 @@ Recent expansion includes game/interactive scoring, microtonal/xenharmonic syste
 ## Honesty about gaps
 
 If a user asks about a topic this skill doesn't yet cover, say so explicitly: "This skill doesn't have a dedicated reference for [X] yet — I'll work from general principles and flag what I'm uncertain about." Then do that. Don't fabricate confident answers from gaps.
+
+## References
+
+- [00-navigation.md](references/00-navigation.md)
+- [analysis.md](references/analysis.md)
+- [counterpoint.md](references/counterpoint.md)
+- [creative-workflows/answer-calibration.md](references/creative-workflows/answer-calibration.md)
+- [creative-workflows/musical-brainstorming.md](references/creative-workflows/musical-brainstorming.md)
+- [creative-workflows/revision-and-feedback-loops.md](references/creative-workflows/revision-and-feedback-loops.md)
+- [creative-workflows/user-agent-collaboration.md](references/creative-workflows/user-agent-collaboration.md)
+- [critique-and-feedback.md](references/critique-and-feedback.md)
+- [form/classical-forms.md](references/form/classical-forms.md)
+- [form/narrative-and-transitions.md](references/form/narrative-and-transitions.md)
+- [form/popular-song-forms.md](references/form/popular-song-forms.md)
+- [fundamentals/notation-and-conventions.md](references/fundamentals/notation-and-conventions.md)
+- [fundamentals/pitch-intervals-scales.md](references/fundamentals/pitch-intervals-scales.md)
+- [fundamentals/prosody-and-language.md](references/fundamentals/prosody-and-language.md)
+- [fundamentals/rhythm-meter.md](references/fundamentals/rhythm-meter.md)
+- [genres/afrobeats-and-amapiano.md](references/genres/afrobeats-and-amapiano.md)
+- [genres/brazilian-pop-and-funk.md](references/genres/brazilian-pop-and-funk.md)
+- [genres/classical-periods.md](references/genres/classical-periods.md)
+- [genres/country-americana.md](references/genres/country-americana.md)
+- [genres/cpop-and-southeast-asian-pop.md](references/genres/cpop-and-southeast-asian-pop.md)
+- [genres/electronic-edm.md](references/genres/electronic-edm.md)
+- [genres/film-tv-scoring.md](references/genres/film-tv-scoring.md)
+- [genres/folk-and-world.md](references/genres/folk-and-world.md)
+- [genres/folk-roots-and-traditions.md](references/genres/folk-roots-and-traditions.md)
+- [genres/game-music.md](references/genres/game-music.md)
+- [genres/gospel-and-ccm.md](references/genres/gospel-and-ccm.md)
+- [genres/hip-hop-rnb.md](references/genres/hip-hop-rnb.md)
+- [genres/jazz-styles.md](references/genres/jazz-styles.md)
+- [genres/korean-traditional.md](references/genres/korean-traditional.md)
+- [genres/kpop-jpop.md](references/genres/kpop-jpop.md)
+- [genres/latin-pop-and-reggaeton.md](references/genres/latin-pop-and-reggaeton.md)
+- [genres/media-and-commercial-music.md](references/genres/media-and-commercial-music.md)
+- [genres/mena-pop.md](references/genres/mena-pop.md)
+- [genres/metal-punk-hardcore.md](references/genres/metal-punk-hardcore.md)
+- [genres/minor-and-hybrid-genres.md](references/genres/minor-and-hybrid-genres.md)
+- [genres/musical-theatre.md](references/genres/musical-theatre.md)
+- [genres/pop-rock.md](references/genres/pop-rock.md)
+- [genres/regional-scene-starters.md](references/genres/regional-scene-starters.md)
+- [genres/south-asian-film-pop.md](references/genres/south-asian-film-pop.md)
+- [harmony/chord-construction.md](references/harmony/chord-construction.md)
+- [harmony/chromatic-harmony.md](references/harmony/chromatic-harmony.md)
+- [harmony/functional-harmony.md](references/harmony/functional-harmony.md)
+- [harmony/jazz-harmony.md](references/harmony/jazz-harmony.md)
+- [harmony/modal-harmony.md](references/harmony/modal-harmony.md)
+- [harmony/modulation.md](references/harmony/modulation.md)
+- [harmony/reharmonization.md](references/harmony/reharmonization.md)
+- [harmony/voice-leading.md](references/harmony/voice-leading.md)
+- [instrument-idiom/bass.md](references/instrument-idiom/bass.md)
+- [instrument-idiom/brass.md](references/instrument-idiom/brass.md)
+- [instrument-idiom/drums-percussion.md](references/instrument-idiom/drums-percussion.md)
+- [instrument-idiom/guitar.md](references/instrument-idiom/guitar.md)
+- [instrument-idiom/overview.md](references/instrument-idiom/overview.md)
+- [instrument-idiom/piano-keyboards.md](references/instrument-idiom/piano-keyboards.md)
+- [instrument-idiom/strings.md](references/instrument-idiom/strings.md)
+- [instrument-idiom/vocals.md](references/instrument-idiom/vocals.md)
+- [instrument-idiom/winds.md](references/instrument-idiom/winds.md)
+- [melody/melodic-construction.md](references/melody/melodic-construction.md)
+- [melody/motivic-development.md](references/melody/motivic-development.md)
+- [melody/phrase-structure.md](references/melody/phrase-structure.md)
+- [orchestration/arrangement-density.md](references/orchestration/arrangement-density.md)
+- [orchestration/choral-writing.md](references/orchestration/choral-writing.md)
+- [orchestration/instruments-ranges-character.md](references/orchestration/instruments-ranges-character.md)
+- [orchestration/voicing-and-texture.md](references/orchestration/voicing-and-texture.md)
+- [production-aware/arrangement-for-mix.md](references/production-aware/arrangement-for-mix.md)
+- [production-aware/energy-and-dynamics.md](references/production-aware/energy-and-dynamics.md)
+- [production-aware/pre-production-decisions.md](references/production-aware/pre-production-decisions.md)
+- [research/reference-track-digging.md](references/research/reference-track-digging.md)
+- [research/regional-trend-evolution-analysis.md](references/research/regional-trend-evolution-analysis.md)
+- [research/style-reference-and-copyright.md](references/research/style-reference-and-copyright.md)
+- [research/user-listening-context-and-streaming-services.md](references/research/user-listening-context-and-streaming-services.md)
+- [research/web-music-trend-research.md](references/research/web-music-trend-research.md)
+- [rhythm-groove/groove-and-feel.md](references/rhythm-groove/groove-and-feel.md)
+- [rhythm-groove/odd-meters-polyrhythm.md](references/rhythm-groove/odd-meters-polyrhythm.md)
+- [rhythm-groove/rhythmic-devices.md](references/rhythm-groove/rhythmic-devices.md)
+- [songwriting/hooks-and-memorability.md](references/songwriting/hooks-and-memorability.md)
+- [songwriting/lyric-writing.md](references/songwriting/lyric-writing.md)
+- [songwriting/topline-craft.md](references/songwriting/topline-craft.md)
+- [source-bibliography.md](references/source-bibliography.md)
+- [teaching-composition.md](references/teaching-composition.md)
+- [techniques/20th-century-techniques.md](references/techniques/20th-century-techniques.md)
+- [techniques/algorithmic-and-AI-assisted.md](references/techniques/algorithmic-and-AI-assisted.md)
+- [techniques/constraint-based-composition.md](references/techniques/constraint-based-composition.md)
+- [techniques/microtonal.md](references/techniques/microtonal.md)
+- [techniques/theme-and-variation.md](references/techniques/theme-and-variation.md)
+- [validation/first-release-readiness.md](references/validation/first-release-readiness.md)
+- [validation/phase-b-correctness-pass.md](references/validation/phase-b-correctness-pass.md)
+- [validation/phase-c-smoke-test-results.md](references/validation/phase-c-smoke-test-results.md)
+- [validation/prompt-smoke-tests.md](references/validation/prompt-smoke-tests.md)
+- [validation/rc1-packaging-checklist.md](references/validation/rc1-packaging-checklist.md)
+- [workflow.md](references/workflow.md)

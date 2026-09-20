@@ -1,9 +1,17 @@
 ---
 name: interface-craft
-description: Orchestrate general interface visual craft. Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns. Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering.
+description: "Orchestrate general interface visual craft. Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns. Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering."
 ---
 
 # Interface craft
+
+## When to use
+
+- Use when designing, reviewing, or repairing web or app UI direction, design-system continuity, hierarchy, contrast, type, spacing, motion, or anti-patterns.
+
+## Constraints
+
+- Do not use for posters, PPTX, Remotion, logos, or language/lockfile engineering.
 
 This Skill is the only entry. Load same-plugin companions and the references below only when their decision is active; never load community `impeccable` or `vendor-skills`.
 
@@ -23,3 +31,14 @@ This Skill is the only entry. Load same-plugin companions and the references bel
 - It does not protect lockfiles or replace `web-frontend-engineering` syntax gates.
 - The Hook scans only the declared web-style UI extensions. Native app craft remains a Skill judgment unless its owning domain plugin supplies a mechanical check.
 - Parse errors and non-UI files fail open. Hook activation, source conformance, design memory, or a successful screenshot alone is not proof the interface is good.
+
+## References
+
+- [design-memory-template.md](references/design-memory-template.md)
+- [design-memory.md](references/design-memory.md)
+- [design-system.md](references/design-system.md)
+- [motion-recipes.md](references/motion-recipes.md)
+- [motion-tokens.md](references/motion-tokens.md)
+- [motion.md](references/motion.md)
+- [reference-analysis.md](references/reference-analysis.md)
+- [visual-direction.md](references/visual-direction.md)

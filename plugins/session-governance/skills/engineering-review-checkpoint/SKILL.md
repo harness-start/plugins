@@ -1,9 +1,17 @@
 ---
 name: engineering-review-checkpoint
-description: Coordinate one bounded read-only reviewer after a coherent high-risk implementation slice, or when the user explicitly requests an engineering review checkpoint or asks to summon an engineering critic. Use for cross-module, public-contract, security, persistence, migration, concurrency, data-integrity, deployment, runtime-state, recovery, or observability risk. Do not use for simple local edits or an initial read-only audit.
+description: "Coordinate one bounded read-only reviewer after a coherent high-risk implementation slice, or when the user explicitly requests an engineering review checkpoint or asks to summon an engineering critic. Use for cross-module, public-contract, security, persistence, migration, concurrency, data-integrity, deployment, runtime-state, recovery, or observability risk. Do not use for simple local edits or an initial read-only audit."
 ---
 
 # Engineering Review Checkpoint
+
+## When to use
+
+- Use for cross-module, public-contract, security, persistence, migration, concurrency, data-integrity, deployment, runtime-state, recovery, or observability risk.
+
+## Constraints
+
+- Do not use for simple local edits or an initial read-only audit.
 
 Use one independent reviewer to challenge the current implementation snapshot. The parent keeps implementation ownership, verifies every result, and decides what changes.
 

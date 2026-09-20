@@ -1,11 +1,19 @@
 ---
 name: agent-activity-audit-config
-description: Initialize or diagnose .agent-activity-audit.mjs for the agent-activity-audit trail plugin.
+description: "Initialize or diagnose .agent-activity-audit.mjs for the agent-activity-audit trail plugin."
 disable-model-invocation: true
-version: 0.2.0
+version: "0.2.0"
 ---
 
 # agent-activity-audit-config
+
+## When to use
+
+- Initialize or diagnose .agent-activity-audit.mjs for the agent-activity-audit trail plugin.
+
+## Constraints
+
+- Do not commit unless asked.
 
 Manage the project configuration consumed by `agent-activity-audit`.
 
@@ -42,3 +50,7 @@ export default {
 1. Read existing config fully before editing.
 2. Initialize only `.agent-activity-audit.mjs` when missing.
 3. Do not commit unless asked.
+
+## References
+
+- [example-config.mjs](references/example-config.mjs)

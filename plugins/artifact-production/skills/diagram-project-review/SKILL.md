@@ -1,9 +1,17 @@
 ---
 name: diagram-project-review
-description: Independently inspect current diagram SVG and PNG outputs and submit a digest-bound review through the registered review writer. Use only when another session produced a diagram project and requests release review; do not use while authoring or rendering that project.
+description: "Independently inspect current diagram SVG and PNG outputs and submit a digest-bound review through the registered review writer. Use only when another session produced a diagram project and requests release review; do not use while authoring or rendering that project."
 ---
 
 # Diagram Project Review
+
+## When to use
+
+- Independently inspect current diagram SVG and PNG outputs and submit a digest-bound review through the registered review writer.
+
+## Constraints
+
+- do not use while authoring or rendering that project.
 
 Do not edit project files, regenerate outputs, accept stale digests, or release the project. Inspect the current SVG and PNG at full size and thumbnail size before reading the plan; record the first relationship you notice and a one-sentence pre-contract retell. Then read the communication core and compare imported semantics with `plan.import-ledger.json` when present.
 

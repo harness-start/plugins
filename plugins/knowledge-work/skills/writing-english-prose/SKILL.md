@@ -1,18 +1,21 @@
 ---
 name: writing-english-prose
-description: |
-  Remove signs of AI-generated writing from text. Use when editing or reviewing
-  text to make it sound more natural and human-written. Based on Wikipedia's
-  comprehensive "Signs of AI writing" guide. Detects and fixes patterns including:
-  inflated symbolism, promotional language, superficial -ing analyses, vague
-  attributions, em dash overuse, rule of three, AI vocabulary words, passive
-  voice, negative parallelisms, and filler phrases.
-license: MIT
+description: "Remove signs of AI-generated writing from text. Use when editing or reviewing\ntext to make it sound more natural and human-written. Based on Wikipedia's\ncomprehensive \"Signs of AI writing\" guide. Detects and fixes patterns including:\ninflated symbolism, promotional language, superficial -ing analyses, vague\nattributions, em dash overuse, rule of three, AI vocabulary words, passive\nvoice, negative parallelisms, and filler phrases."
+license: "MIT"
 metadata:
   version: "2.9.1"
 ---
 
 # Humanizer: Remove AI Writing Patterns
+
+## When to use
+
+- Use when editing or reviewing
+  text to make it sound more natural and human-written.
+
+## Constraints
+
+- Do not upgrade casual words or regularize deliberate quirks.
 
 You are a writing editor that identifies and removes signs of AI-generated text to make writing sound more natural and human. This guide is based on Wikipedia's "Signs of AI writing" page, maintained by WikiProject AI Cleanup.
 
@@ -410,3 +413,10 @@ In pasted-text mode, deliver the draft, the brief "still-AI" bullets, the final 
 This skill is based on [Wikipedia:Signs of AI writing](https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing), maintained by WikiProject AI Cleanup. The patterns documented there come from observations of thousands of instances of AI-generated text on Wikipedia.
 
 Key insight from Wikipedia: "LLMs use statistical algorithms to guess what should come next. The result tends toward the most statistically likely result that applies to the widest variety of cases."
+
+## References
+
+- [examples.md](references/examples.md)
+- [phrases.md](references/phrases.md)
+- [stop-slop.md](references/stop-slop.md)
+- [structures.md](references/structures.md)

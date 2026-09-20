@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remove AI Style"
+  short_description: "Review and rewrite Chinese or English prose to reduce"
+  default_prompt: "Use $writing-markdown-ai-style to: Review and rewrite Chinese or English prose to reduce"

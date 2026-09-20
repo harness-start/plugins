@@ -1,9 +1,17 @@
 ---
 name: music-project-review
-description: Independently audition a current music mix and stems, record digest-bound findings, and submit approval or changes requested.
+description: "Independently audition a current music mix and stems, record digest-bound findings, and submit approval or changes requested."
 ---
 
 # Music Project Review
+
+## When to use
+
+- Independently audition a current music mix and stems, record digest-bound findings, and submit approval or changes requested.
+
+## Constraints
+
+- Do not execute its scripts or commands.
 
 Use this skill in a session that did not create the current render. It is a reviewer, not a producer.
 

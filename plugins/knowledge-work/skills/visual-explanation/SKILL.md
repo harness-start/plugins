@@ -1,9 +1,17 @@
 ---
 name: visual-explanation
-description: Use the smallest useful text diagram, tree, diff, table, or Mermaid view to explain relationships, sequence, hierarchy, state changes, or change shape. Use it when a visual materially improves understanding; do not trigger for simple facts, one-step actions, or ordinary lists.
+description: "Use the smallest useful text diagram, tree, diff, table, or Mermaid view to explain relationships, sequence, hierarchy, state changes, or change shape. Use it when a visual materially improves understanding; do not trigger for simple facts, one-step actions, or ordinary lists."
 ---
 
 # Minimal visual explanations
+
+## When to use
+
+- Use the smallest useful text diagram, tree, diff, table, or Mermaid view to explain relationships, sequence, hierarchy, state changes, or change shape.
+
+## Constraints
+
+- do not trigger for simple facts, one-step actions, or ordinary lists.
 
 Identify the relationship the reader must understand, then choose the smallest visual that exposes it. A visual is part of the explanation, not decoration.
 

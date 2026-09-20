@@ -1,0 +1,4 @@
+interface:
+  display_name: "writing-terse-output"
+  short_description: "Ultra-compressed communication. Use only when the user"
+  default_prompt: "Use $writing-terse-output to: Ultra-compressed communication. Use only when the user"

@@ -1,13 +1,21 @@
 ---
 name: presentation-storyboard
 description: "Read-only adviser for planning a new presentation-production v2 deck from scratch: audience, title chain, slide roles, visual variety, evidence allocation, and diagram-slide intent. Do not use for editing an existing PPTX or template, extracting a deck, writing project files, rendering, review-signing, or release."
-license: MIT
+license: "MIT"
 metadata:
   version: "2.0"
-  category: productivity
+  category: "productivity"
 ---
 
 # Presentation Storyboard
+
+## When to use
+
+- Plan a new presentation deck from scratch before authoring begins.
+
+## Constraints
+
+- Do not use for editing an existing PPTX or template, extracting a deck, writing project files, rendering, review-signing, or release.
 
 This adviser is read-only and has no writer or release authority. It plans a from-scratch deck for the project contract owned by `$pptx-deck-authoring`; it never edits templates, manipulates OOXML, installs dependencies, writes slide modules, or invokes rendering tools.
 
@@ -38,3 +46,11 @@ The authoring pipeline loads and sanitizes the SVG in `src/deck.ts` and passes d
 ## Output
 
 Return a concise table with slide index, title, role, assertion, narrative job, core contribution, primary visual, evidence, and transition. Add the retell target, signature cue, assumptions, and risks separately. Do not provide shell commands or implementation code.
+
+## References
+
+- [design-system.md](references/design-system.md)
+- [editing.md](references/editing.md)
+- [pitfalls.md](references/pitfalls.md)
+- [pptxgenjs.md](references/pptxgenjs.md)
+- [slide-types.md](references/slide-types.md)

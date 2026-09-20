@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagram Project Authoring"
+  short_description: "Create or import a deterministic diagram project and carry it"
+  default_prompt: "Use $diagram-project-authoring to: Create or import a deterministic diagram project and carry it"

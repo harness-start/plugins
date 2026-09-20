@@ -1,9 +1,18 @@
 ---
 name: ios-engineering
-description: Build and review Swift, SwiftUI, concurrency, and tests while preserving SwiftPM and CocoaPods-owned state.
-version: 1.0.0
+description: "Build and review Swift, SwiftUI, concurrency, and tests while preserving SwiftPM and CocoaPods-owned state."
+version: "1.0.0"
 ---
+
 # iOS Engineering
+
+## When to use
+
+- Build and review Swift, SwiftUI, concurrency, and tests while preserving SwiftPM and CocoaPods-owned state.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for Swift, UIKit, SwiftUI, concurrency, XCTest, Swift Testing, SwiftPM, or CocoaPods work. The Hook protects dependency state, validates changed files, and reports risky concurrency escapes.
 
@@ -16,3 +25,7 @@ Use this Skill for Swift, UIKit, SwiftUI, concurrency, XCTest, Swift Testing, Sw
 5. Report unavailable SDK, signing, runtime, and migration evidence explicitly.
 
 Configure checks in `.ios-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

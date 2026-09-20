@@ -1,10 +1,18 @@
 ---
 name: music-mix-qc
-description: Advise on cross-platform audio routing, MIDI/OSC, DAW/JACK, DSP, denoise, stem separation, transcription, and loudness verification.
-argument-hint: [source]
+description: "Advise on cross-platform audio routing, MIDI/OSC, DAW/JACK, DSP, denoise, stem separation, transcription, and loudness verification."
+argument-hint: "[source]"
 ---
 
 # Workflow — Audio Production
+
+## When to use
+
+- Advise on cross-platform audio routing, MIDI/OSC, DAW/JACK, DSP, denoise, stem separation, transcription, and loudness verification.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 This Skill is a **read-only** adviser. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 

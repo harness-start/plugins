@@ -1,9 +1,17 @@
 ---
 name: reasoning-methods
-description: Select a compact, task-specific reasoning and verification structure for exact problems, causal diagnosis, consequential decisions, or factual synthesis where a plausible answer is not enough. Use when correctness depends on quantifiers, boundaries, competing hypotheses, load-bearing assumptions, external evidence, counterexamples, or calibrated uncertainty. Do not use for simple lookup, translation, routine implementation with a direct test oracle, creative writing, or requests whose answer is already mechanically determined.
+description: "Select a compact, task-specific reasoning and verification structure for exact problems, causal diagnosis, consequential decisions, or factual synthesis where a plausible answer is not enough. Use when correctness depends on quantifiers, boundaries, competing hypotheses, load-bearing assumptions, external evidence, counterexamples, or calibrated uncertainty. Do not use for simple lookup, translation, routine implementation with a direct test oracle, creative writing, or requests whose answer is already mechanically determined."
 ---
 
 # Reasoning Discipline
+
+## When to use
+
+- Use when correctness depends on quantifiers, boundaries, competing hypotheses, load-bearing assumptions, external evidence, counterexamples, or calibrated uncertainty.
+
+## Constraints
+
+- Do not use for simple lookup, translation, routine implementation with a direct test oracle, creative writing, or requests whose answer is already mechanically determined.
 
 ## The one rule
 

@@ -1,9 +1,17 @@
 ---
 name: training-program-design
-description: 为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。适用于 AI、软件、流程、合规和岗位技能等主题；当用户只要解释一个概念、润色单份材料或安排会议时不使用。
+description: "为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。适用于 AI、软件、流程、合规和岗位技能等主题；当用户只要解释一个概念、润色单份材料或安排会议时不使用。"
 ---
 
 # Training Program Design
+
+## When to use
+
+- 为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。适用于 AI、软件、流程、合规和岗位技能等主题；当用户只要解释一个概念、润色单份材料或安排会议时不使用。
+
+## Constraints
+
+- 不要手工编辑 `dist/` 或 evidence。
 
 把培训当作“从真实起点到可观察工作表现”的设计任务。主 agent 始终负责用户意图、事实来源、方案取舍、源合同和最终交付；Hook 只验证阶段合同，不替代教学判断。
 
@@ -51,3 +59,9 @@ Claude 中仅将上面的 `${PLUGIN_ROOT}` 换成 `${CLAUDE_PLUGIN_ROOT}`。不�
 - 最多进行两轮“修改—评审”。仍有阻断问题时回到 outcome 或共同任务设计，而不是降低量规。
 
 只使用本插件捆绑的 Skill、参考文档、CLI 与 Hook。运行时出现的同名 Skill 不是本插件依赖。
+
+## References
+
+- [project-contract.md](references/project-contract.md)
+- [review-rubric.md](references/review-rubric.md)
+- [training-method.md](references/training-method.md)

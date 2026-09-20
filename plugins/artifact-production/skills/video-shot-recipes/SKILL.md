@@ -1,9 +1,17 @@
 ---
 name: video-shot-recipes
-description: Select offline shot recipes for evidence-bound Remotion storyboards, covering camera, transitions, UI entrances, kinetic type, data visuals, and motion.
+description: "Select offline shot recipes for evidence-bound Remotion storyboards, covering camera, transitions, UI entrances, kinetic type, data visuals, and motion."
 ---
 
 # Video Shot Recipes
+
+## When to use
+
+- Select offline shot recipes for evidence-bound Remotion storyboards, covering camera, transitions, UI entrances, kinetic type, data visuals, and motion.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use the bundled catalog as a planning and implementation reference. It is pinned to one upstream revision, works offline, and does not imply that a copied source automatically fits the project or passes review.
 

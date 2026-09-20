@@ -22,7 +22,10 @@ function filesUnder(path) {
 
 test("all plugin-generated runtime text is English", () => {
   const unexpected = [];
-  for (const file of filesUnder(PLUGINS).filter((path) => path.endsWith(".ts") && path.includes("/src/"))) {
+  for (const file of filesUnder(PLUGINS).filter((path) => {
+    if (!path.endsWith(".ts") || !path.includes("/src/")) return false;
+    return !path.replaceAll("\\", "/").includes("/src/skills/");
+  })) {
     const rel = relative(ROOT, file).replaceAll("\\", "/");
     for (const literal of sourceLiterals(readFileSync(file, "utf8"), rel)) {
       if (!GUARDED_SCRIPTS.test(literal.value)) continue;

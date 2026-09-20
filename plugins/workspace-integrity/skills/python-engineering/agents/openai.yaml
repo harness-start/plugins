@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python Engineering"
+  short_description: "Build and review Python packages, services, tests, typing"
+  default_prompt: "Use $python-engineering to: Build and review Python packages, services, tests, typing"

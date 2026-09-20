@@ -1,17 +1,27 @@
 ---
 name: ai-flavor-remover
-description: 中文 AI 味去除与文章润色 Skill。适用于把 AI 生成稿改得更自然、更有读者感，同时保留原意、逻辑和关键事实。
+description: "中文 AI 味去除与文章润色 Skill。适用于把 AI 生成稿改得更自然、更有读者感，同时保留原意、逻辑和关键事实。"
 allowed-tools:
-  - Read
-  - Write
-  - Edit
-  - AskUserQuestion
+  - "Read"
+  - "Write"
+  - "Edit"
+  - "AskUserQuestion"
 metadata:
-  trigger: 去AI味、AI味去除、文章润色、改得像人写、降低机器感
-  source: hylarucoder/ai-flavor-remover
+  trigger: "去AI味、AI味去除、文章润色、改得像人写、降低机器感"
+  source: "hylarucoder/ai-flavor-remover"
 ---
 
 # ai-flavor-remover
+
+## When to use
+
+- 中文 AI 味去除与文章润色 Skill。适用于把 AI 生成稿改得更自然、更有读者感，同时保留原意、逻辑和关键事实。
+
+## Constraints
+
+- 不要用于：
+
+  - 法律、合同、制度、技术规范等必须严肃保真的文本，除非用户明确允许风格化润色。
 
 这是对上游 `hylarucoder/ai-flavor-remover` Prompt 的 WorkWise Skill 包装。执行任务前先阅读本文件；需要完整原始 Prompt 时再读取 `README.md`。
 

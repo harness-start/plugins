@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research Evidence Workflow"
+  short_description: "Orchestrate hard research with host-native web discovery"
+  default_prompt: "Use $research-evidence-workflow to: Orchestrate hard research with host-native web discovery"

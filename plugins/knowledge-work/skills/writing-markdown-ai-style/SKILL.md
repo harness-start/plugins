@@ -1,9 +1,17 @@
 ---
 name: writing-markdown-ai-style
-description: Review and rewrite Chinese or English prose to reduce AI-generated patterns. Use for de-AI polishing, natural-language rewrites, robotic or formulaic writing, and publication cleanup. Run the bundled deterministic Markdown analyzer before editing, inspect every reported location, then read the full article for semantic patterns the rules cannot enumerate. The installed PostToolUse Hook independently rescans observed Markdown writes.
+description: "Review and rewrite Chinese or English prose to reduce AI-generated patterns. Use for de-AI polishing, natural-language rewrites, robotic or formulaic writing, and publication cleanup. Run the bundled deterministic Markdown analyzer before editing, inspect every reported location, then read the full article for semantic patterns the rules cannot enumerate. The installed PostToolUse Hook independently rescans observed Markdown writes."
 ---
 
 # Remove AI Style
+
+## When to use
+
+- Use for de-AI polishing, natural-language rewrites, robotic or formulaic writing, and publication cleanup.
+
+## Constraints
+
+- Do not replace this command with copied `grep` snippets.
 
 Use a two-layer workflow:
 
@@ -132,3 +140,8 @@ Return:
 - important semantic changes found only by full reading
 - confirmation that protected Markdown structures survived
 - any factual or citation issue that needs human verification
+
+## References
+
+- [chinese.md](references/chinese.md)
+- [english.md](references/english.md)

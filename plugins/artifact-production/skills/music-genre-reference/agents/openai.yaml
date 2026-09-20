@@ -1,0 +1,4 @@
+interface:
+  display_name: "妙响 (MUSE SONG) AI Music Creation"
+  short_description: "Advise on MUSE SONG genre selection, generation prompts, lyrics"
+  default_prompt: "Use $music-genre-reference to: Advise on MUSE SONG genre selection, generation prompts, lyrics"

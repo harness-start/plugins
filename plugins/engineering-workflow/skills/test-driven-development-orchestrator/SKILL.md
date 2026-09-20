@@ -1,9 +1,17 @@
 ---
 name: test-driven-development-orchestrator
-description: Orchestrate test-first implementation while the plugin Hook enforces that corresponding tests change before implementation.
+description: "Orchestrate test-first implementation while the plugin Hook enforces that corresponding tests change before implementation."
 ---
 
 # Test-driven development orchestration
+
+## When to use
+
+- Orchestrate test-first implementation while the plugin Hook enforces that corresponding tests change before implementation.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Before changing production code, load this plugin's `tdd-red-green` Skill and follow its red-green-refactor loop.
 

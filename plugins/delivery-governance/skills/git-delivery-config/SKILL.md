@@ -1,11 +1,19 @@
 ---
 name: git-delivery-config
-description: Change git-delivery project settings or commit boundary rules via .git-delivery.mjs and commit-boundaries.json.
+description: "Change git-delivery project settings or commit boundary rules via .git-delivery.mjs and commit-boundaries.json."
 disable-model-invocation: true
-version: 0.3.0
+version: "0.3.0"
 ---
 
 # git-delivery-config
+
+## When to use
+
+- Change git-delivery project settings or commit boundary rules via .git-delivery.mjs and commit-boundaries.json.
+
+## Constraints
+
+- Do not add callbacks, custom scanners, command-rule opt-outs, remote-host settings, or reads from another plugin's configuration.
 
 Manage the Git-root `.git-delivery.mjs` and `.ai-experts/commit-boundaries.json` consumed by `git-delivery`. Read `../../README.md` before changing either interface.
 

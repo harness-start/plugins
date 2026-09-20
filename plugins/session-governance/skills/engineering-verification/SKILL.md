@@ -1,9 +1,17 @@
 ---
 name: engineering-verification
-description: Select the smallest sufficient verification scope and require fresh command evidence before claiming complete, fixed, or passing. Use before completion claims, commits, or pull requests.
+description: "Select the smallest sufficient verification scope and require fresh command evidence before claiming complete, fixed, or passing. Use before completion claims, commits, or pull requests."
 ---
 
 # Proportional Verification Before Completion
+
+## When to use
+
+- Select the smallest sufficient verification scope and require fresh command evidence before claiming complete, fixed, or passing.
+
+## Constraints
+
+- do not make a change safe by themselves.
 
 ## Core contract
 

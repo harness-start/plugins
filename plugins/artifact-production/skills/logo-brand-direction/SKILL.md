@@ -1,11 +1,19 @@
 ---
 name: logo-brand-direction
-description: Create a visual identity brief covering logo direction, color, typography, imagery, and design-system foundations.
+description: "Create a visual identity brief covering logo direction, color, typography, imagery, and design-system foundations."
 metadata:
-  version: 1.0.0
+  version: "1.0.0"
 ---
 
 # Brand Identity
+
+## When to use
+
+- Create a visual identity brief covering logo direction, color, typography, imagery, and design-system foundations.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 This Skill is a **read-only bilingual adviser / 中英双语只读顾问**. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 

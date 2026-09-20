@@ -1,0 +1,4 @@
+interface:
+  display_name: "Brand Identity"
+  short_description: "Create a visual identity brief covering logo direction, color"
+  default_prompt: "Use $logo-brand-direction to: Create a visual identity brief covering logo direction, color"

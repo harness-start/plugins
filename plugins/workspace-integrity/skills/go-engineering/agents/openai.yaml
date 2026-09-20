@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go Engineering"
+  short_description: "Build and review Go modules while preserving module checksums"
+  default_prompt: "Use $go-engineering to: Build and review Go modules while preserving module checksums"

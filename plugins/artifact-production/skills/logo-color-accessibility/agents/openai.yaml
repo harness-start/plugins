@@ -1,0 +1,4 @@
+interface:
+  display_name: "Logo Color & Accessibility / 标志色彩与可访问性"
+  short_description: "Review a logo palette, monochrome/reverse variants, gamut"
+  default_prompt: "Use $logo-color-accessibility to: Review a logo palette, monochrome/reverse variants, gamut"

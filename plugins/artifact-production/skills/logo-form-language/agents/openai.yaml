@@ -1,0 +1,4 @@
+interface:
+  display_name: "Logo Design"
+  short_description: "Guide scalable logo form, color, typography, variants"
+  default_prompt: "Use $logo-form-language to: Guide scalable logo form, color, typography, variants"

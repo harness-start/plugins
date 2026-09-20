@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust Engineering"
+  short_description: "Build and review Rust crates across ownership, APIs, async"
+  default_prompt: "Use $rust-engineering to: Build and review Rust crates across ownership, APIs, async"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Interface craft"
+  short_description: "Orchestrate general interface visual craft. Use when designing"
+  default_prompt: "Use $interface-craft to: Orchestrate general interface visual craft. Use when designing"

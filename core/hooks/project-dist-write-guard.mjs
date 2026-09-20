@@ -107,14 +107,17 @@ function resolveThroughExistingAncestor(absolutePath) {
   }
 }
 
-function isPluginDistPath(absolutePath) {
+function pluginGeneratedKind(absolutePath) {
   const candidates = [absolutePath, resolveThroughExistingAncestor(absolutePath)];
-  return candidates.some((candidate) => {
+  for (const candidate of candidates) {
     const relative = path.relative(PROJECT_ROOT, candidate);
-    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) return false;
+    if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) continue;
     const parts = relative.split(path.sep);
-    return parts.length >= 3 && parts[0] === "plugins" && Boolean(parts[1]) && parts[2] === "dist";
-  });
+    if (parts.length >= 3 && parts[0] === "plugins" && Boolean(parts[1]) && (parts[2] === "dist" || parts[2] === "skills")) {
+      return parts[2];
+    }
+  }
+  return null;
 }
 
 function collectDirectPaths(value, key, output) {
@@ -288,7 +291,19 @@ function containsProjectRemotePush(command, initialCwd) {
   return false;
 }
 
-function denyReason() {
+function denyReason(kind = "dist") {
+  if (kind === "skills") {
+    return [
+      "[Project Dist Write Guard] 插件 skills/ 是构建产物，禁止直接修改。",
+      "",
+      "blockingContract:",
+      "  observedFacts: 当前文件工具、补丁或 shell 命令会直接写入 plugins/<name>/skills/。",
+      "  harm: 直接修改生成的 Skill 会让 TypeScript 源与已发布的 SKILL.md 失去可重现关系。",
+      "  unblockWhen: 操作不再直接写入插件 skills/，并由项目构建命令生成产物。",
+      "  recovery:",
+      "    - 修改对应的 src/skills/，再运行 npm run build。",
+    ].join("\n");
+  }
   return [
     "[Project Dist Write Guard] 插件 dist/ 是构建产物，禁止直接修改。",
     "",
@@ -303,16 +318,16 @@ function denyReason() {
 
 function rebuiltPushReason(details) {
   return [
-    "[Project Dist Write Guard] 检测到 src/ 与 dist/ 不一致，已自动重建；本次 push 已停止。",
+    "[Project Dist Write Guard] 检测到源码与 dist/ 或 skills/ 不一致，已自动重建；本次 push 已停止。",
     "",
     details.trim(),
     "",
     "blockingContract:",
-    "  observedFacts: 构建命令刷新了一个或多个 plugins/<name>/dist/ 文件。",
-    "  harm: 直接继续 push 不会把工作区中新生成但尚未提交的 dist/ 带入远端提交。",
-    "  unblockWhen: 提交自动重建的 dist/，并重试原 git push。",
+    "  observedFacts: 构建命令刷新了一个或多个 plugins/<name>/dist/ 或 plugins/<name>/skills/ 文件。",
+    "  harm: 直接继续 push 不会把工作区中新生成但尚未提交的 dist/ 与 skills/ 带入远端提交。",
+    "  unblockWhen: 提交自动重建的 dist/ 与 skills/，并重试原 git push。",
     "  recovery:",
-    "    - 检查并提交 src/ 与对应 dist/ 的变更。",
+    "    - 检查并提交 src/ 与对应 dist/、src/skills/ 与对应 skills/ 的变更。",
     "    - 重试原 git push 命令。",
   ].filter(Boolean).join("\n");
 }
@@ -325,7 +340,7 @@ function failedPushReason(details) {
     "",
     "blockingContract:",
     "  observedFacts: npm run ensure:dist 未成功完成。",
-    "  harm: 无法证明远端提交中的 src/ 与 dist/ 对应。",
+    "  harm: 无法证明远端提交中的 src/ 与 dist/、src/skills/ 与 skills/ 对应。",
     "  unblockWhen: 修复构建错误，确保 npm run ensure:dist 成功，再重试 push。",
     "  recovery:",
     "    - 运行 npm run ensure:dist 并修复报告的错误。",
@@ -334,24 +349,24 @@ function failedPushReason(details) {
 
 function uncommittedPushReason(details) {
   return [
-    "[Project Dist Write Guard] dist/ 已与当前 src/ 对应，但生成文件尚未全部提交，本次 push 已停止。",
+    "[Project Dist Write Guard] dist/ 与 skills/ 已与当前源码对应，但生成文件尚未全部提交，本次 push 已停止。",
     "",
     details.trim(),
     "",
     "blockingContract:",
-    "  observedFacts: plugins/<name>/dist/ 相对 HEAD 仍有 staged、unstaged 或 untracked 变更。",
+    "  observedFacts: plugins/<name>/dist/ 或 plugins/<name>/skills/ 相对 HEAD 仍有 staged、unstaged 或 untracked 变更。",
     "  harm: git push 不会把尚未提交的生成文件带入远端提交。",
-    "  unblockWhen: 提交对应的 dist/ 变更，并重试原 git push。",
+    "  unblockWhen: 提交对应的 dist/ 与 skills/ 变更，并重试原 git push。",
     "  recovery:",
     "    - 使用 git status 检查并提交生成文件。",
     "    - 重试原 git push 命令。",
   ].filter(Boolean).join("\n");
 }
 
-function summarizeChangedDist(statusOutput) {
+function summarizeGeneratedChanges(statusOutput) {
   const lines = statusOutput.trim().split("\n").filter(Boolean);
   const preview = lines.slice(0, 20);
-  if (lines.length > preview.length) preview.push(`... 另有 ${lines.length - preview.length} 个 dist/ 变更`);
+  if (lines.length > preview.length) preview.push(`... 另有 ${lines.length - preview.length} 个生成文件变更`);
   return preview.join("\n");
 }
 
@@ -378,6 +393,7 @@ export async function ensureProjectDist() {
     "--untracked-files=all",
     "--",
     ":(glob)plugins/*/dist/**",
+    ":(glob)plugins/*/skills/**",
   ], {
     cwd: PROJECT_ROOT,
     encoding: "utf8",
@@ -387,11 +403,11 @@ export async function ensureProjectDist() {
     const error = status.error?.message ?? `git status exited with status ${status.status}`;
     return { status: "failed", details: [status.stderr, error].filter(Boolean).join("\n") };
   }
-  const changedDist = summarizeChangedDist(status.stdout);
-  if (!changedDist) return { status: "current", details: "" };
+  const generatedChanges = summarizeGeneratedChanges(status.stdout);
+  if (!generatedChanges) return { status: "current", details: "" };
   return {
     status: rebuilt ? "rebuilt" : "uncommitted",
-    details: [rebuilt, changedDist].filter(Boolean).join("\n"),
+    details: [rebuilt, generatedChanges].filter(Boolean).join("\n"),
   };
 }
 
@@ -410,14 +426,16 @@ export function evaluateEvent(event) {
       if (containsProjectRemotePush(command, cwd)) ensureDist = true;
       for (const target of extractShellTargets(command, cwd)) {
         const resolved = resolveCandidate(target.value, target.cwd);
-        if (resolved && isPluginDistPath(resolved)) return { deny: true, reason: denyReason() };
+        const kind = resolved ? pluginGeneratedKind(resolved) : null;
+        if (kind) return { deny: true, reason: denyReason(kind) };
       }
     }
   }
 
   for (const candidate of candidates) {
     const resolved = resolveCandidate(candidate, cwd);
-    if (resolved && isPluginDistPath(resolved)) return { deny: true, reason: denyReason() };
+    const kind = resolved ? pluginGeneratedKind(resolved) : null;
+    if (kind) return { deny: true, reason: denyReason(kind) };
   }
   return ensureDist ? { deny: false, ensureDist: true } : { deny: false };
 }

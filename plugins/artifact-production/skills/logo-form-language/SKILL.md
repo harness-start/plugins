@@ -1,13 +1,21 @@
 ---
 name: logo-form-language
-description: Guide scalable logo form, color, typography, variants, and usage specifications as a read-only adviser.
-license: MIT
+description: "Guide scalable logo form, color, typography, variants, and usage specifications as a read-only adviser."
+license: "MIT"
 metadata:
-  author: AI Agent Skills Community
-  version: 1.0.0
+  author: "AI Agent Skills Community"
+  version: "1.0.0"
 ---
 
 # Logo Design
+
+## When to use
+
+- Guide scalable logo form, color, typography, variants, and usage specifications as a read-only adviser.
+
+## Constraints
+
+- Do not assume that every project needs an icon, lettermark, or acronym.
 
 This Skill is a **read-only bilingual adviser / 中英双语只读顾问**. It cannot write project files, run bundled scripts, call external APIs or keys, stamp review, or release.
 
@@ -99,3 +107,7 @@ Three stacked parallelograms forming an upward arrow, representing layered infra
 - **Client has no color preference at all**: Default to a neutral palette (navy/charcoal + one accent color) and present 2-3 accent options. Avoid defaulting to blue — it is overused in tech.
 - **Logo will be embroidered or engraved**: Provide a simplified version with no gradients, no strokes thinner than 1mm at production size, and a minimum of 3mm letter height.
 - **Multiple sub-brands need visual cohesion**: Establish a master icon system where each sub-brand uses the same structural grid and typeface but varies in color or icon detail.
+
+## References
+
+- [design_patterns.md](references/design_patterns.md)

@@ -1,9 +1,17 @@
 ---
 name: music-project-authoring
-description: Orchestrate a code-managed instrumental music project through reference analysis, composition, Tone.js rendering, review handoff, and release.
+description: "Orchestrate a code-managed instrumental music project through reference analysis, composition, Tone.js rendering, review handoff, and release."
 ---
 
 # Music Project Authoring
+
+## When to use
+
+- Orchestrate a code-managed instrumental music project through reference analysis, composition, Tone.js rendering, review handoff, and release.
+
+## Constraints
+
+- Do not run scripts, network calls, generators, or publishing steps from any similarly named runtime capability.
 
 Build music as reviewable source code and establish a causal chain from brief to audible WAV. This skill produces the work; it never authors or stamps `review.music.json`. Use `$music-project-review` in a different session for that gate.
 
@@ -225,3 +233,8 @@ Report:
 - final output and receipt paths.
 
 Distinguish facts, inferences, and assumptions. Say explicitly that mathematical optimization improves consistency against declared objectives; it does not prove universal musical quality.
+
+## References
+
+- [mathematical-model.md](references/mathematical-model.md)
+- [project-contract.md](references/project-contract.md)

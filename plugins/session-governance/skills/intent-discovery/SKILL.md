@@ -1,9 +1,17 @@
 ---
 name: intent-discovery
-description: Front-load intent, repository context, plausible interpretations, and adversarial checks before acting on a first request or a materially new task. Use when hook context marks a first-turn discovery pass, when the same conversation starts a new outcome or deliverable, or when the user explicitly asks to explore context and assumptions up front. Do not rerun for continuations, follow-ups, or corrections. Keep simple requests direct; use bounded generic subagents only when independent evidence can change the approach.
+description: "Front-load intent, repository context, plausible interpretations, and adversarial checks before acting on a first request or a materially new task. Use when hook context marks a first-turn discovery pass, when the same conversation starts a new outcome or deliverable, or when the user explicitly asks to explore context and assumptions up front. Do not rerun for continuations, follow-ups, or corrections. Keep simple requests direct; use bounded generic subagents only when independent evidence can change the approach."
 ---
 
 # Intent Discovery
+
+## When to use
+
+- Use when hook context marks a first-turn discovery pass, when the same conversation starts a new outcome or deliverable, or when the user explicitly asks to explore context and assumptions up front.
+
+## Constraints
+
+- Do not rerun for continuations, follow-ups, or corrections.
 
 Before discovery, classify the request as light, standard, or intensive using this Skill. Explore repository context first. Do not wait for user approval during an eligible discovery pass; continue with the lowest-risk reversible interpretation.
 

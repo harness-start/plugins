@@ -1,0 +1,4 @@
+interface:
+  display_name: "ai-flavor-remover"
+  short_description: "中文 AI 味去除与文章润色 Skill。适用于把 AI 生成稿改得更自然、更有读者感，同时保留原意、逻辑和关键事实。"
+  default_prompt: "Use $ai-flavor-remover to: 中文 AI 味去除与文章润色 Skill。适用于把 AI 生成稿改得更自然、更有读者感，同时保留原意、逻辑和关键事实。"

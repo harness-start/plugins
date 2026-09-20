@@ -1,9 +1,18 @@
 ---
 name: rust-engineering
-description: Build and review Rust crates across ownership, APIs, async, unsafe code, testing, and performance while preserving Cargo state.
-version: 1.0.0
+description: "Build and review Rust crates across ownership, APIs, async, unsafe code, testing, and performance while preserving Cargo state."
+version: "1.0.0"
 ---
+
 # Rust Engineering
+
+## When to use
+
+- Build and review Rust crates across ownership, APIs, async, unsafe code, testing, and performance while preserving Cargo state.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for Cargo, ownership, APIs, errors, async/concurrency, unsafe code, testing, and performance. The Hook protects `Cargo.lock`, runs bounded formatting, and reports unexplained unsafe regions.
 
@@ -16,3 +25,7 @@ Use this Skill for Cargo, ownership, APIs, errors, async/concurrency, unsafe cod
 5. Report target, feature, unsafe-invariant, and performance evidence not exercised.
 
 Configure checks in `.rust-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

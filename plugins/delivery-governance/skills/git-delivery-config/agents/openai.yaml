@@ -1,2 +1,6 @@
+interface:
+  display_name: "git-delivery-config"
+  short_description: "Change git-delivery project settings or commit boundary rules"
+  default_prompt: "Use $git-delivery-config to: Change git-delivery project settings or commit boundary rules"
 policy:
   allow_implicit_invocation: false

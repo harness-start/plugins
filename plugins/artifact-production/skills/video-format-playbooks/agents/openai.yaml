@@ -1,0 +1,4 @@
+interface:
+  display_name: "Explainer Video"
+  short_description: "Plan 30–90 second explainer or product videos across script"
+  default_prompt: "Use $video-format-playbooks to: Plan 30–90 second explainer or product videos across script"

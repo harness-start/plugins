@@ -1,9 +1,17 @@
 ---
 name: work-report-review
-description: TL 要审阅员工日报、周报、阶段总结、承诺兑现或考核证据时使用；只读检查事实、证据强度、改进闭环和待验证项。
+description: "TL 要审阅员工日报、周报、阶段总结、承诺兑现或考核证据时使用；只读检查事实、证据强度、改进闭环和待验证项。"
 ---
 
 # Work Report Review
+
+## When to use
+
+- TL 要审阅员工日报、周报、阶段总结、承诺兑现或考核证据时使用；只读检查事实、证据强度、改进闭环和待验证项。
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 只读复核已封印报告及其 machine ledger，不修改报告、不补写员工确认、不生成绩效分。
 

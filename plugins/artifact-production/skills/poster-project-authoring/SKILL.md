@@ -1,9 +1,17 @@
 ---
 name: poster-project-authoring
-description: Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release.
+description: "Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release."
 ---
 
 # Poster Project Authoring
+
+## When to use
+
+- Orchestrate a deterministic poster project from brief through art direction, Satori source, SVG/PNG render, evidence, independent review, and release.
+
+## Constraints
+
+- do not fetch, write, spawn, use nondeterminism, assign z-index, or import sibling layers.
 
 Create an original SVG/PNG poster whose brief, assets, source, outputs, evidence, and review remain reproducibly bound. The main agent owns user intent, project files, advisor integration, gate decisions, and final reporting.
 
@@ -34,3 +42,12 @@ Read all of these before authoring:
 Use each wrapper as a standalone exact command. Generated paths are protected; mutating wrappers consume a short-lived session-, argv-, and subject-bound capability. Allow at most two producer/reviewer rounds. After a source, asset, copy, design, or dimension change, restart at lint.
 
 Do not imitate a named living artist. Translate references into general composition, material, color, typography, and narrative principles and require original subject-specific relationships.
+
+## References
+
+- [assets-accessibility.md](references/assets-accessibility.md)
+- [design-system.md](references/design-system.md)
+- [profiles.md](references/profiles.md)
+- [project-contract.md](references/project-contract.md)
+- [quality-gates.md](references/quality-gates.md)
+- [skill-composition.md](references/skill-composition.md)

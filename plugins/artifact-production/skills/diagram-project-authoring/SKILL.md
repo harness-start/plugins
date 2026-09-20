@@ -1,9 +1,17 @@
 ---
 name: diagram-project-authoring
-description: Create or import a deterministic diagram project and carry it through semantic source, design, SVG/PNG/HTML/draw.io rendering, probes, independent review, and release. Use for flowcharts, architecture diagrams, process maps, timelines, charts, and related visuals under artifacts/diagram; do not use for a read-only critique.
+description: "Create or import a deterministic diagram project and carry it through semantic source, design, SVG/PNG/HTML/draw.io rendering, probes, independent review, and release. Use for flowcharts, architecture diagrams, process maps, timelines, charts, and related visuals under artifacts/diagram; do not use for a read-only critique."
 ---
 
 # Diagram Project Authoring
+
+## When to use
+
+- Use for flowcharts, architecture diagrams, process maps, timelines, charts, and related visuals under artifacts/diagram; do not use for a read-only critique.
+
+## Constraints
+
+- do not use for a read-only critique.
 
 Own the artifact in `artifacts/diagram/<id>/`. Keep meaning in `src/diagram.json`; generated geometry and delivery files are evidence, not the source of truth.
 

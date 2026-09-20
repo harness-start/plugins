@@ -1,9 +1,17 @@
 ---
 name: poster-visual-critique
-description: Read-only hierarchy and contrast critique for posters. No writer or release authority.
+description: "Read-only hierarchy and contrast critique for posters. No writer or release authority."
 ---
 
 # Poster visual critique
+
+## When to use
+
+- Read-only hierarchy and contrast critique for posters.
+
+## Constraints
+
+- Do not approve Latin tracking merely because it looks acceptable on Chinese text, or vice versa.
 
 Audit a rendered poster against its declared art direction and design system. This adviser is read-only: it cannot write project files, create evidence, invoke writers, stamp independent review, or release an artifact.
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineering Practice"
+  short_description: "Route implementation, high-risk review checkpoints"
+  default_prompt: "Use $engineering-practice to: Route implementation, high-risk review checkpoints"

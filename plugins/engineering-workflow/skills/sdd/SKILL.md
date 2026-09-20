@@ -1,9 +1,17 @@
 ---
 name: sdd
-description: Guide a repository change through the lightweight spec, plan, tasks, build, and verification workflow. Use when the user invokes $sdd, asks for spec-driven development, wants to continue an existing .specs change, or needs an implementation recovered from durable SDD artifacts.
+description: "Guide a repository change through the lightweight spec, plan, tasks, build, and verification workflow. Use when the user invokes $sdd, asks for spec-driven development, wants to continue an existing .specs change, or needs an implementation recovered from durable SDD artifacts."
 ---
 
 # SDD
+
+## When to use
+
+- Use when the user invokes $sdd, asks for spec-driven development, wants to continue an existing .
+
+## Constraints
+
+- Do not spawn for a simple single-file, single-task change.
 
 Read [specify-method.md](references/specify-method.md) for the specify/plan/tasks/implement method. Internal Skills organize project artifacts under `.specs/`; the Hook independently validates current spec, plan, and task evidence.
 
@@ -42,3 +50,7 @@ Keep the parent context authoritative for the user goal, active change path, cur
 
 Use subagents as a context-isolation mechanism, not as evidence of higher quality. Report only observed outcomes from actual validation.
 `fork_turns: "none"` requests reduced inherited conversation; it does not prove that the worker honored the Task Brief. It is also not a filesystem sandbox and cannot prove what a worker read. Treat the `brief-id` echo only as correlation, allowed-file rules as behavioral scope, verify writes through the parent diff, and never place secrets in a shared workspace merely because workers are scoped. On a host/model combination that fails the bounded-worker acceptance—including the Codex 0.147 plus DeepSeek combination exercised by this plugin—do not delegate with `fork_turns: "all"`; use the parent fallback until transcript-level acceptance proves direct delivery before action, no forbidden worker calls, no descendants, and an exact Result Card.
+
+## References
+
+- [specify-method.md](references/specify-method.md)

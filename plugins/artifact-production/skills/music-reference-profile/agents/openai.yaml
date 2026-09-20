@@ -1,0 +1,4 @@
+interface:
+  display_name: "Musical DNA Analysis"
+  short_description: "Extract unnamed musical characteristics from artists or bands"
+  default_prompt: "Use $music-reference-profile to: Extract unnamed musical characteristics from artists or bands"

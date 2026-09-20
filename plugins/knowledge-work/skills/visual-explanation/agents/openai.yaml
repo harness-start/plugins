@@ -1,0 +1,4 @@
+interface:
+  display_name: "Minimal visual explanations"
+  short_description: "Use the smallest useful text diagram, tree, diff, table"
+  default_prompt: "Use $visual-explanation to: Use the smallest useful text diagram, tree, diff, table"

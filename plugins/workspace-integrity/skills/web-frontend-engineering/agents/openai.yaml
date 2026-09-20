@@ -1,0 +1,4 @@
+interface:
+  display_name: "Web Frontend Engineering"
+  short_description: "Build and review React, Vue, Angular"
+  default_prompt: "Use $web-frontend-engineering to: Build and review React, Vue, Angular"

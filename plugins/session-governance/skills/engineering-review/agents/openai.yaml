@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engineering Review"
+  short_description: "Read-only review of a code or configuration change"
+  default_prompt: "Use $engineering-review to: Read-only review of a code or configuration change"

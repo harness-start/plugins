@@ -1,9 +1,17 @@
 ---
 name: work-report-authoring
-description: 员工要生成日报、周报、阶段总结、工作复盘或改进计划时使用；统一编排本地证据、员工确认、成长承诺、TL 验证和完整性封印。
+description: "员工要生成日报、周报、阶段总结、工作复盘或改进计划时使用；统一编排本地证据、员工确认、成长承诺、TL 验证和完整性封印。"
 ---
 
 # Work Report Authoring
+
+## When to use
+
+- 员工要生成日报、周报、阶段总结、工作复盘或改进计划时使用；统一编排本地证据、员工确认、成长承诺、TL 验证和完整性封印。
+
+## Constraints
+
+- 不要查找或模拟旧入口。
 
 生成一份同时服务员工与 TL 的 Markdown 报告。主 agent 对事实归属、推断边界、门禁决定和最终保存负责。第一方方法全部 bundled：归纳读 [normalization.md](references/normalization.md)，改进读 [improvement-method.md](references/improvement-method.md)，TL 验证读 [tl-verification.md](references/tl-verification.md)，补缺调用 `$work-report-interview`。
 
@@ -28,3 +36,9 @@ description: 员工要生成日报、周报、阶段总结、工作复盘或改�
 - 保存后只报告工具实际回执并标注 provenance。
 
 本 Skill 是唯一编排入口。根据用户请求直接选择日报、ISO 周或日期范围；不要查找或模拟旧入口。
+
+## References
+
+- [improvement-method.md](references/improvement-method.md)
+- [normalization.md](references/normalization.md)
+- [tl-verification.md](references/tl-verification.md)

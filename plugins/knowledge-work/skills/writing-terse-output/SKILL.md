@@ -1,7 +1,17 @@
 ---
 name: writing-terse-output
-description: Ultra-compressed communication. Use only when the user explicitly asks for fewer tokens, caveman mode, or brief output.
+description: "Ultra-compressed communication. Use only when the user explicitly asks for fewer tokens, caveman mode, or brief output."
 ---
+
+# writing-terse-output
+
+## When to use
+
+- Ultra-compressed communication.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Respond terse like smart caveman. All technical substance stay. Only fluff die.
 

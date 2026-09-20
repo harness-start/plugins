@@ -1,10 +1,18 @@
 ---
 name: video-motion-direction
-description: Advise on motion-graphics direction across motion language, tone, pacing, hierarchy, restraint, and cross-shot consistency.
-version: 0.1.0
+description: "Advise on motion-graphics direction across motion language, tone, pacing, hierarchy, restraint, and cross-shot consistency."
+version: "0.1.0"
 ---
 
 # Motion Direction
+
+## When to use
+
+- Advise on motion-graphics direction across motion language, tone, pacing, hierarchy, restraint, and cross-shot consistency.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Make the creative decisions for a motion piece before anyone animates a frame. Direction is the judgment layer: it turns a brief and a brand into a small, repeatable set of motion rules — one easing vocabulary, one timing scale, one transition family — so every shot feels like it came from the same hand. Good direction is mostly subtraction: deciding what NOT to move.
 
@@ -114,3 +122,7 @@ Any "no" is a direction defect, not a craft preference — fix it before polishi
 ## Reference files
 
 - `references/direction-playbook.md` — worked examples of the motion-language spec for five tone cells, a full brief template, a shot-by-shot direction-notes template with example entries, brand→motion translation tables, an easing-vocabulary cheat sheet, and a complete pre-render direction checklist.
+
+## References
+
+- [direction-playbook.md](references/direction-playbook.md)

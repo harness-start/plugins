@@ -1,9 +1,17 @@
 ---
 name: logo-presentation-system
-description: Plan logo specimen boards, application mockups, icon exports, print notes, and Figma handoff as a read-only adviser.
+description: "Plan logo specimen boards, application mockups, icon exports, print notes, and Figma handoff as a read-only adviser."
 ---
 
 # Logo Presentation System / 标志呈现系统
+
+## When to use
+
+- Plan logo specimen boards, application mockups, icon exports, print notes, and Figma handoff as a read-only adviser.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 This Skill is a **read-only bilingual adviser** with no project writer, review, release, network, or Figma write authority. 本 Skill 不能直接修改 Figma 或项目文件。
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Engineering"
+  short_description: "Build and review Android projects across Gradle, Compose, tests"
+  default_prompt: "Use $android-engineering to: Build and review Android projects across Gradle, Compose, tests"

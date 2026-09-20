@@ -1,0 +1,4 @@
+interface:
+  display_name: "Proportional Verification Before Completion"
+  short_description: "Select the smallest sufficient verification scope and require"
+  default_prompt: "Use $engineering-verification to: Select the smallest sufficient verification scope and require"

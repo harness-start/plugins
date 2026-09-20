@@ -1,0 +1,4 @@
+interface:
+  display_name: "Video visual critique"
+  short_description: "Read-only visual critique for video frames and motion"
+  default_prompt: "Use $video-visual-critique to: Read-only visual critique for video frames and motion"

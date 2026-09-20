@@ -1,0 +1,4 @@
+interface:
+  display_name: "Motion Direction"
+  short_description: "Advise on motion-graphics direction across motion language"
+  default_prompt: "Use $video-motion-direction to: Advise on motion-graphics direction across motion language"

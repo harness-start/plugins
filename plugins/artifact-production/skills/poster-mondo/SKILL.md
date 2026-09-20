@@ -1,9 +1,17 @@
 ---
 name: poster-mondo
-description: Advise on original limited-palette screen-print posters, covers, and key visuals using symbolic compression, negative space, lettering, and print texture.
+description: "Advise on original limited-palette screen-print posters, covers, and key visuals using symbolic compression, negative space, lettering, and print texture."
 ---
 
 # Limited-palette poster direction
+
+## When to use
+
+- Advise on original limited-palette screen-print posters, covers, and key visuals using symbolic compression, negative space, lettering, and print texture.
+
+## Constraints
+
+- Do not accept “高级”, “复古”, “大师感”, “有设计感”, or a named creator as a complete direction.
 
 This Skill is a **read-only** adviser. It cannot write project files, run scripts, call an image service, create protected evidence, stamp review, or release. The main `$poster-project-authoring` workflow decides whether and how to integrate its advice.
 
@@ -44,3 +52,8 @@ Return one recommended direction and one materially different fallback. For each
 - falsifiable failure conditions.
 
 Use [Carrier notes](references/carrier-notes.md) when the artifact is a book cover, album cover, social card, or event poster. Never promise generation, availability of a model, or a visual outcome from prompt formatting alone.
+
+## References
+
+- [carrier-notes.md](references/carrier-notes.md)
+- [composition-families.md](references/composition-families.md)

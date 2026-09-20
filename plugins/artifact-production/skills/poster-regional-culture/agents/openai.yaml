@@ -1,0 +1,4 @@
+interface:
+  display_name: "Regional Culture Poster"
+  short_description: "Advise on cultural research and art direction for Chinese"
+  default_prompt: "Use $poster-regional-culture to: Advise on cultural research and art direction for Chinese"

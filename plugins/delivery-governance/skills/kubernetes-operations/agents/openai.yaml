@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kubernetes Operations"
+  short_description: "Orchestrates Kubernetes operations and guards Helm-owned"
+  default_prompt: "Use $kubernetes-operations to: Orchestrates Kubernetes operations and guards Helm-owned"

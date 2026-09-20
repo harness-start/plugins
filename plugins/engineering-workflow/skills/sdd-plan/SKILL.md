@@ -1,9 +1,17 @@
 ---
 name: sdd-plan
-description: Create or repair an SDD change plan.md from a valid spec.md, binding the current specification digest and requirement coverage. Use when an SDD specification is ready but its technical plan is missing, invalid, or stale.
+description: "Create or repair an SDD change plan.md from a valid spec.md, binding the current specification digest and requirement coverage. Use when an SDD specification is ready but its technical plan is missing, invalid, or stale."
 ---
 
 # SDD Plan
+
+## When to use
+
+- Use when an SDD specification is ready but its technical plan is missing, invalid, or stale.
+
+## Constraints
+
+- do not guess or copy a stale value.
 
 Refuse to plan against an invalid spec. Compute the canonical SHA-256 with the bundled validator's `digest` command; do not guess or copy a stale value.
 

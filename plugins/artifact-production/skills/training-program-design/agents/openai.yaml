@@ -1,0 +1,4 @@
+interface:
+  display_name: "Training Program Design"
+  short_description: "为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。"
+  default_prompt: "Use $training-program-design to: 为起点、角色或经验差异明显的受众设计新培训，或把已有课程改编成可实施、可练习、可评价的培训包。"

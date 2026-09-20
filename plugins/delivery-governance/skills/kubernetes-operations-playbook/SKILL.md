@@ -5,6 +5,14 @@ description: "Prevent Kubernetes hallucinations by diagnosing and fixing failure
 
 # KubeShark: Failure-Mode Workflow for Kubernetes
 
+## When to use
+
+- Use when generating, reviewing, refactoring, or migrating manifests, Helm charts, Kustomize overlays, cluster policies, and platform-specific Kubernetes work for EKS, GKE, AKS, OpenShift, GitOps controllers, or observability stacks.
+
+## Constraints
+
+- Do not load multiple CRR files unless the task spans multiple detected platforms/tools.
+
 Run this workflow top to bottom.
 
 ## 1) Capture execution context
@@ -98,3 +106,32 @@ Return:
 - chosen remediation and tradeoffs
 - validation/test plan
 - rollback/recovery notes (rollout undo, revision history, data safety)
+
+## References
+
+- [api-drift.md](references/api-drift.md)
+- [conditional/aks-patterns.md](references/conditional/aks-patterns.md)
+- [conditional/eks-patterns.md](references/conditional/eks-patterns.md)
+- [conditional/gitops-controllers.md](references/conditional/gitops-controllers.md)
+- [conditional/gke-patterns.md](references/conditional/gke-patterns.md)
+- [conditional/observability-stacks.md](references/conditional/observability-stacks.md)
+- [conditional/openshift-patterns.md](references/conditional/openshift-patterns.md)
+- [daemonset-operator-patterns.md](references/daemonset-operator-patterns.md)
+- [deployment-patterns.md](references/deployment-patterns.md)
+- [do-dont-patterns.md](references/do-dont-patterns.md)
+- [examples-bad.md](references/examples-bad.md)
+- [examples-good.md](references/examples-good.md)
+- [fragile-rollouts.md](references/fragile-rollouts.md)
+- [helm-patterns.md](references/helm-patterns.md)
+- [insecure-workload-defaults.md](references/insecure-workload-defaults.md)
+- [job-patterns.md](references/job-patterns.md)
+- [kustomize-patterns.md](references/kustomize-patterns.md)
+- [multi-tenancy.md](references/multi-tenancy.md)
+- [network-exposure.md](references/network-exposure.md)
+- [observability.md](references/observability.md)
+- [privilege-sprawl.md](references/privilege-sprawl.md)
+- [resource-starvation.md](references/resource-starvation.md)
+- [security-hardening.md](references/security-hardening.md)
+- [stateful-patterns.md](references/stateful-patterns.md)
+- [storage-and-state.md](references/storage-and-state.md)
+- [validation-and-policy.md](references/validation-and-policy.md)

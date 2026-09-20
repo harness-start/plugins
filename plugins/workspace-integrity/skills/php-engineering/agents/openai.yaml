@@ -1,0 +1,4 @@
+interface:
+  display_name: "PHP Engineering"
+  short_description: "Build and review PHP applications across common frameworks"
+  default_prompt: "Use $php-engineering to: Build and review PHP applications across common frameworks"

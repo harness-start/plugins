@@ -1,9 +1,18 @@
 ---
 name: react-native-engineering
-description: Build and review bare React Native apps across performance, navigation, upgrades, Codegen, and native boundaries.
-version: 1.0.0
+description: "Build and review bare React Native apps across performance, navigation, upgrades, Codegen, and native boundaries."
+version: "1.0.0"
 ---
+
 # React Native Engineering
+
+## When to use
+
+- Build and review bare React Native apps across performance, navigation, upgrades, Codegen, and native boundaries.
+
+## Constraints
+
+- Stay inside this Skill's documented boundary.
 
 Use this Skill for bare React Native, Metro, navigation, performance, upgrades, autolinking, Codegen, and native module boundaries. The Hook protects generated/package-manager state and validates bounded configuration changes.
 
@@ -16,3 +25,7 @@ Use this Skill for bare React Native, Metro, navigation, performance, upgrades, 
 5. Report platform, architecture, release, or data-plane evidence not exercised.
 
 Configure checks in `.react-native-engineering.mjs`; use `workspace-integrity-config` for configuration work.
+
+## References
+
+- [practices.md](references/practices.md)

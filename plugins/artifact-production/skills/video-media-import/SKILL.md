@@ -1,9 +1,17 @@
 ---
 name: video-media-import
-description: Admit user-owned local images, audio, video, subtitles, or fonts through the plugin writer; never call vendor APIs or generate keyed media.
+description: "Admit user-owned local images, audio, video, subtitles, or fonts through the plugin writer; never call vendor APIs or generate keyed media."
 ---
 
 # Video media import
+
+## When to use
+
+- Admit user-owned local images, audio, video, subtitles, or fonts through the plugin writer; never call vendor APIs or generate keyed media.
+
+## Constraints
+
+- Do not execute community generators, TTS, or cut/subtitle CLIs.
 
 This Skill is an **external-runner** only for files the user already placed on disk. It cannot write protected proof, evidence, review, or release paths. It cannot call vendor APIs or require an API key.
 
