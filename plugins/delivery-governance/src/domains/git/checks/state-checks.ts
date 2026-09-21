@@ -31,6 +31,9 @@ const CONFIG_EXTENSIONS = new Set([
   ".cfg", ".conf", ".env", ".hcl", ".ini", ".json", ".properties", ".tf",
   ".tfvars", ".toml", ".xml", ".yaml", ".yml",
 ]);
+const COMMIT_CONTINUATION_MARKERS = [
+  "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD",
+];
 
 type BoundaryRule = {
   id: string;
@@ -252,6 +255,11 @@ function commitState(invocation: GitInvocation): DeliveryFinding[] {
   }
   const files = commitAll ? [...new Set([...staged, ...(unstaged ?? [])])] : staged;
   if (!files.length) return findings;
+  const continuation = COMMIT_CONTINUATION_MARKERS.some((marker) => {
+    const markerPath = git(["rev-parse", "--git-path", marker], invocation.cwd);
+    return markerPath !== null && existsSync(resolve(invocation.cwd, markerPath));
+  });
+  if (continuation) return findings;
 
   const root = git(["rev-parse", "--show-toplevel"], invocation.cwd) || invocation.cwd;
   const boundaryConfig = readBoundaryRules(root);

@@ -50,7 +50,7 @@ node "${PLUGIN_ROOT}/dist/cli/harness.mjs" migration execute [arguments]
 
 ## 配置与状态
 
-Git 交付规则可通过 `git-delivery-config` 配置 `.git-delivery.mjs` 和 `commit-boundaries.json`。CI 工作流状态在仓库本地，把观察到的远端证据绑定到当前修订。迁移计划和封印是显式输入/输出产物，不是隐式全局状态。本插件从不安装或登录 GitHub、GitLab 或 Kubernetes 的宿主凭据。
+Git 交付规则可通过 `git-delivery-config` 配置 `.git-delivery.mjs` 和 `commit-boundaries.json`。提交边界只约束独立提交；当 Git 通过 `MERGE_HEAD`、`CHERRY_PICK_HEAD`、`REVERT_HEAD` 或 `REBASE_HEAD` 标记 continuation 时，范围检查静默跳过，其他 Git 安全检查仍然生效。CI 工作流状态在仓库本地，把观察到的远端证据绑定到当前修订。迁移计划和封印是显式输入/输出产物，不是隐式全局状态。本插件从不安装或登录 GitHub、GitLab 或 Kubernetes 的宿主凭据。
 
 ## 边界
 

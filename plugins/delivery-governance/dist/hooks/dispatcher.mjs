@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:ab392e0a98cac3fa659af4b284e027a9540d6c0d75fe7a66f07047bef6769a25
+// harness-source-hash: sha256:b0871de4bdffb825689d5d58bdc4f12286f0b04456836f0b78d9d26354dba249
 import {
   collectOwnerHookOutput,
   eventCwd,
@@ -9,7 +9,7 @@ import {
   isRecord,
   ownerHookHandler,
   readStdinJson
-} from "../chunks/chunk-FOW4BZ6R.mjs";
+} from "../chunks/chunk-BZEHDX6S.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -1391,6 +1391,12 @@ var CONFIG_EXTENSIONS = /* @__PURE__ */ new Set([
   ".yaml",
   ".yml"
 ]);
+var COMMIT_CONTINUATION_MARKERS = [
+  "MERGE_HEAD",
+  "CHERRY_PICK_HEAD",
+  "REVERT_HEAD",
+  "REBASE_HEAD"
+];
 function isTestFile(file) {
   const normalized = file.replaceAll("\\", "/");
   return /(?:^|\/)(?:test|tests|spec|specs|__tests__)(?:\/|$)/iu.test(normalized) || /(?:^|\.)test\.[^.]+$/iu.test(basename(normalized)) || /(?:^|\.)spec\.[^.]+$/iu.test(basename(normalized)) || /_test\.go$/iu.test(normalized) || /Test\.php$/u.test(normalized);
@@ -1581,6 +1587,11 @@ function commitState(invocation) {
   }
   const files = commitAll ? [.../* @__PURE__ */ new Set([...staged, ...unstaged ?? []])] : staged;
   if (!files.length) return findings;
+  const continuation = COMMIT_CONTINUATION_MARKERS.some((marker) => {
+    const markerPath = git(["rev-parse", "--git-path", marker], invocation.cwd);
+    return markerPath !== null && existsSync3(resolve5(invocation.cwd, markerPath));
+  });
+  if (continuation) return findings;
   const root = git(["rev-parse", "--show-toplevel"], invocation.cwd) || invocation.cwd;
   const boundaryConfig = readBoundaryRules(root);
   if (boundaryConfig.error) {

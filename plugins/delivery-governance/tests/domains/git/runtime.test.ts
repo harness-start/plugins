@@ -314,6 +314,103 @@ test("commit scope keeps configuration and its corresponding tests atomic", () =
   }
 });
 
+test("commit scope allows a cross-boundary merge continuation", async () => {
+  const root = createRepository("git-delivery-merge-scope-");
+  try {
+    for (const directory of ["a", "b"]) {
+      mkdirSync(join(root, directory));
+      writeFileSync(join(root, directory, "package.json"), "{}\n");
+      writeFileSync(join(root, directory, "app.js"), "export const value = 'base';\n");
+    }
+    writeFileSync(join(root, "shared.txt"), "base\n");
+    git(root, "add", "a/package.json", "a/app.js", "b/package.json", "b/app.js", "shared.txt");
+    git(root, "commit", "-m", "feat(repo): initialize merge fixtures");
+
+    git(root, "checkout", "-b", "topic");
+    writeFileSync(join(root, "a", "app.js"), "export const value = 'topic-a';\n");
+    writeFileSync(join(root, "b", "app.js"), "export const value = 'topic-b';\n");
+    writeFileSync(join(root, "shared.txt"), "topic\n");
+    git(root, "add", "a/app.js", "b/app.js", "shared.txt");
+    git(root, "commit", "-m", "feat(repo): update both packages");
+
+    git(root, "checkout", "main");
+    writeFileSync(join(root, "shared.txt"), "main\n");
+    git(root, "add", "shared.txt");
+    git(root, "commit", "-m", "fix(repo): update shared fixture");
+    assert.throws(() => git(root, "merge", "topic"));
+    writeFileSync(join(root, "shared.txt"), "resolved\n");
+    git(root, "add", "shared.txt");
+
+    const result = await runEntry(PRE, {
+      cwd: root,
+      tool_name: "exec_command",
+      tool_input: { cmd: "git commit" },
+    });
+    assert.deepEqual(result, { code: 0, stdout: "", stderr: "" });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("commit scope skips every Git continuation pseudoref without hiding partial staging", () => {
+  const root = createRepository("git-delivery-continuation-scope-");
+  try {
+    for (const directory of ["a", "b"]) {
+      mkdirSync(join(root, directory));
+      writeFileSync(join(root, directory, "package.json"), "{}\n");
+      writeFileSync(join(root, directory, "app.js"), "export const value = 1;\n");
+    }
+    git(root, "add", "a/package.json", "a/app.js", "b/package.json", "b/app.js");
+    git(root, "commit", "-m", "feat(repo): initialize continuation fixtures");
+    writeFileSync(join(root, "a", "app.js"), "export const value = 2;\n");
+    writeFileSync(join(root, "b", "app.js"), "export const value = 2;\n");
+    git(root, "add", "a/app.js", "b/app.js");
+    writeFileSync(join(root, "a", "app.js"), "export const value = 3;\n");
+
+    const head = git(root, "rev-parse", "HEAD");
+    for (const marker of ["MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD"]) {
+      const markerPath = join(root, git(root, "rev-parse", "--git-path", marker));
+      writeFileSync(markerPath, `${head}\n`);
+      const findings = deliveryStateFindings(root, "git commit");
+      assert.equal(findings.some((item) => item.id === "Commit Scope Guard"), false, marker);
+      assert.equal(findings.some((item) => item.id === "Partial Staging Guard"), true, marker);
+      rmSync(markerPath);
+    }
+
+    const ordinary = deliveryStateFindings(root, "git commit -m 'fix(repo): update packages'");
+    assert.equal(ordinary.some((item) => item.id === "Commit Scope Guard" && item.action === "deny"), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("commit scope still blocks a cross-boundary squash merge", () => {
+  const root = createRepository("git-delivery-squash-scope-");
+  try {
+    for (const directory of ["a", "b"]) {
+      mkdirSync(join(root, directory));
+      writeFileSync(join(root, directory, "package.json"), "{}\n");
+      writeFileSync(join(root, directory, "app.js"), "export const value = 'base';\n");
+    }
+    git(root, "add", "a/package.json", "a/app.js", "b/package.json", "b/app.js");
+    git(root, "commit", "-m", "feat(repo): initialize squash fixtures");
+    git(root, "checkout", "-b", "topic");
+    writeFileSync(join(root, "a", "app.js"), "export const value = 'topic-a';\n");
+    writeFileSync(join(root, "b", "app.js"), "export const value = 'topic-b';\n");
+    git(root, "add", "a/app.js", "b/app.js");
+    git(root, "commit", "-m", "feat(repo): update squash fixtures");
+    git(root, "checkout", "main");
+    git(root, "merge", "--squash", "topic");
+
+    const mergeHead = join(root, git(root, "rev-parse", "--git-path", "MERGE_HEAD"));
+    assert.equal(existsSync(mergeHead), false);
+    const findings = deliveryStateFindings(root, "git commit -m 'feat(repo): squash packages'");
+    assert.equal(findings.some((item) => item.id === "Commit Scope Guard" && item.action === "deny"), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("worktree create intent matches explicit isolation requests only", () => {
   const requested = [
     "请用 git worktree 隔离审查这个 PR",
