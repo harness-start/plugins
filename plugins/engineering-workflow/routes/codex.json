@@ -39,16 +39,6 @@
       "timeoutMs": 10000,
       "trigger": "spec-driven-development:pre",
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
-    },
-    {
-      "handler": "testing",
-      "args": [
-        "pre",
-        "codex"
-      ],
-      "timeoutMs": 10000,
-      "trigger": "test-driven-development:pre",
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
     }
   ],
   "PostToolUse": [

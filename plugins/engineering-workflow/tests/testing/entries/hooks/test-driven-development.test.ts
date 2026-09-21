@@ -26,22 +26,17 @@ function runHook(mode, event, platform = "codex") {
   return runRawHook(mode, JSON.stringify(event), platform);
 }
 
-test("SessionStart injects the mechanical test-first file-order rule", async () => {
+test("SessionStart offers a non-blocking TDD method reminder", async () => {
   const result = await runHook("session-start", { cwd: process.cwd(), session_id: "session-1" });
   assert.equal(result.code, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.hookSpecificOutput.hookEventName, "SessionStart");
   assert.equal(output.hookSpecificOutput.permissionDecision, undefined);
   const context = output.hookSpecificOutput.additionalContext;
-  assert.match(context, /\[TDD Guard\]/u);
-  assert.match(context, /git HEAD/iu);
-  assert.match(context, /corresponding test/iu);
-  assert.match(context, /before changing implementation/iu);
-  assert.match(context, /cannot mix test and (?:implementation|source)/iu);
-  assert.match(context, /separate tool call/iu);
-  assert.match(context, /dirty test.*later implementation/iu);
-  assert.match(context, /does not run tests/iu);
-  assert.match(context, /does not.*RED\/GREEN/iu);
+  assert.match(context, /\[TDD Method\]/u);
+  assert.match(context, /advisory/iu);
+  assert.match(context, /does not enforce.*file order/iu);
+  assert.match(context, /run.*RED.*GREEN/isu);
   assert.match(context, /tdd-red-green/u);
   assert.match(context, /not a hook prerequisite/iu);
 });
@@ -64,5 +59,5 @@ test("SessionStart stays advisory when the event looks like a source write", asy
   const output = JSON.parse(result.stdout);
   assert.equal(output.hookSpecificOutput.hookEventName, "SessionStart");
   assert.equal(output.hookSpecificOutput.permissionDecision, undefined);
-  assert.match(output.hookSpecificOutput.additionalContext, /\[TDD Guard\]/u);
+  assert.match(output.hookSpecificOutput.additionalContext, /\[TDD Method\]/u);
 });

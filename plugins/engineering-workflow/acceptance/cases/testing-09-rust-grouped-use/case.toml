@@ -1,4 +1,4 @@
 id = "09-rust-grouped-use"
 hosts = ["claude", "codex"]
 timeout_sec = 300
-tags = ["pre-tool-use", "rust", "grouped-import", "outcome"]
+tags = ["session-start", "tdd", "rust", "advisory", "outcome"]

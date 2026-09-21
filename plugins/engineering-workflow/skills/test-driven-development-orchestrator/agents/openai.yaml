@@ -1,4 +1,4 @@
 interface:
   display_name: "Test-driven development orchestration"
-  short_description: "Orchestrate test-first implementation while the plugin Hook"
-  default_prompt: "Use $test-driven-development-orchestrator to: Orchestrate test-first implementation while the plugin Hook"
+  short_description: "Orchestrate test-first implementation with observed RED"
+  default_prompt: "Use $test-driven-development-orchestrator to: Orchestrate test-first implementation with observed RED"

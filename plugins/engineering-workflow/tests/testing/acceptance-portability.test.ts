@@ -45,15 +45,12 @@ test("acceptance discovery works without GNU find -printf", () => {
   assert.equal(project.stdout, "domain/case-a\n");
 });
 
-test("TDD installs a SessionStart file-order reminder and a PreToolUse guard on both platforms", () => {
+test("TDD installs only a SessionStart advisory on both platforms", () => {
   for (const host of ["claude", "codex"] as const) {
     const routes = readHandlerRoutes(import.meta.url, host, "testing");
-    assert.deepEqual(Object.keys(routes).sort(), ["PreToolUse", "SessionStart"]);
+    assert.deepEqual(Object.keys(routes), ["SessionStart"]);
     assert.equal(routes.SessionStart.length, 1);
-    assert.equal(routes.PreToolUse.length, 1);
     assert.equal(routes.SessionStart[0].handler, "testing");
     assert.deepEqual(routes.SessionStart[0].args, ["session-start", host]);
-    assert.equal(routes.PreToolUse[0].handler, "testing");
-    assert.deepEqual(routes.PreToolUse[0].args, ["pre", host]);
   }
 });

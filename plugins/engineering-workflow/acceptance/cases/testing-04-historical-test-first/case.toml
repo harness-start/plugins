@@ -1,4 +1,4 @@
-id = "04-historical-test-first"
+id = "04-historical-source-advisory"
 hosts = ["claude", "codex"]
 timeout_sec = 240
-tags = ["pre-tool", "test-first", "historical", "deny"]
+tags = ["session-start", "tdd", "historical", "advisory"]

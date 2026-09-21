@@ -1,4 +1,4 @@
-id = "01-block-source-first"
+id = "01-source-first-advisory"
 hosts = ["claude", "codex"]
 timeout_sec = 240
-tags = ["pre-tool", "test-first", "deny"]
+tags = ["session-start", "tdd", "advisory"]

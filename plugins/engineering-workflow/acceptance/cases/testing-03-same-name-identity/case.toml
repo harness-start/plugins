@@ -1,4 +1,4 @@
-id = "03-same-name-identity"
+id = "03-same-name-advisory"
 hosts = ["claude", "codex"]
-timeout_sec = 360
-tags = ["pre-tool", "entity-identity", "same-name", "deny", "allow"]
+timeout_sec = 300
+tags = ["session-start", "tdd", "same-name", "advisory"]

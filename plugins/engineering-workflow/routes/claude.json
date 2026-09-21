@@ -35,15 +35,6 @@
       ],
       "timeoutMs": 10000,
       "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
-    },
-    {
-      "handler": "testing",
-      "args": [
-        "pre",
-        "claude"
-      ],
-      "timeoutMs": 10000,
-      "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace"
     }
   ],
   "PostToolUse": [
