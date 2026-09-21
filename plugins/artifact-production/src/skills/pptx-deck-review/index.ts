@@ -7,16 +7,37 @@ import {
 export default defineSkill({
   id: "pptx-deck-review",
   fullName: "PPTX Deck Review",
-  description: "Independently review the final rendered PNG pages of a PPTX project for visual hierarchy, consistency, legibility, clipping, content coherence, and accessibility, then produce the external review-input JSON consumed by presentation-production. Use only after render and probe; never use in the producing or releasing session.",
+  description: "Independently review the final rendered PNG pages of a PPTX v4 project for audience boundary, headline economy, visual payload, layout rhythm, relationship semantics, legibility, and accessibility, then produce the external review-input JSON. Use only after render and probe; never use in the producing or releasing session.",
   useCases: [
-    "Independently review the final rendered PNG pages of a PPTX project for visual hierarchy, consistency, legibility, clipping, content coherence, and accessibility, then produce the external review-input JSON consumed by presentation-production.",
+    "Independently review a rendered PPTX v4 deck and submit evidence-bound review input.",
   ],
   constraints: [
     "Do not edit the project, its source, evidence, pages, or receipt.",
   ],
   invocation: InvocationPolicy.ImplicitAndExplicit,
   goal: defineSkillGoal({
-    body: "# PPTX Deck Review\n\nAct as an independent, read-only reviewer. Read [Review contract](references/review-contract.md) before starting. Do not edit the project, its source, evidence, pages, or receipt.\n\nInspect every final `dist/pages/NNN.png` at readable resolution before reading the plan. Record the first conclusion or action you recover and a one-sentence pre-contract retell. Then compare the page order and hashes supplied by the producer with the manifest and compare the blind retell with the communication core. Review core fidelity, signature-cue continuity, semantic causality, narrative continuity, assertion clarity, hierarchy, density, alignment, typography, color use, contrast, non-color encoding, clipping, image quality, and consistency.\n\nWrite one external JSON file outside the project root. Set `reviewer.sessionId` to the host session id reported by the guard, then invoke the exact registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation review <project-root> <external-json>` wrapper in this reviewer session. This wrapper is your only project mutation. A `pass` verdict is allowed only when every page is covered and every finding is either fixed in a newly rendered artifact or explicitly accepted with a reason. Never reuse findings against changed page hashes.\n\nReturn a short Result Card containing the review-input path, admitted review hash, inspected page hashes, remaining accepted risks, checks performed, and gaps. Do not claim structure, editability, or release validity; those belong to the probe and release gates.\n",
+    body: `# PPTX Deck Review
+
+Act as an independent, read-only reviewer. Read [Review contract](references/review-contract.md) before starting. Do not edit the project, its source, evidence, pages, or receipt.
+
+## Two-pass review
+
+First inspect the complete montage of final \`dist/pages/NNN.png\` files before reading the plan. Record the first conclusion or action you recover, a one-sentence pre-contract retell, cover language that appears to expose an internal brief, and repeated-layout runs. Then inspect every page at readable resolution and compare current hashes, manifest, storyboard, probe evidence, and communication core.
+
+Complete all five v4 quality checks with page or deck anchors and observable evidence:
+
+- \`audienceBoundary\`: the deck speaks to its audience without casually announcing the private target-audience brief; any explicit addressing matches the plan rationale.
+- \`headlineEconomy\`: titles are compact locators and the visual carries the assertion.
+- \`visualPayload\`: diagrams, data, screenshots, or comparisons carry meaningful information rather than decorating repeated prose.
+- \`layoutRhythm\`: similar-page groups from design evidence are either intentional or reported as findings.
+- \`relationshipSemantics\`: connectors meet their nodes and their arrows, associations, or break markers match the intended meaning, including relationships inside SVG diagrams. Use \`not-applicable\` only when no diagram exists.
+
+Also review core fidelity, signature-cue continuity, density, alignment, typography, color, contrast, non-color encoding, clipping, image quality, accessibility, and the internal consistency of SVG diagrams.
+
+Write one external JSON file outside the project root. Set \`reviewer.sessionId\` to the host session id reported by the guard, then invoke the exact registered \`node \${PLUGIN_ROOT}/dist/cli/harness.mjs presentation review <project-root> <external-json>\` wrapper in this reviewer session. This wrapper is your only project mutation. A pass is allowed only when every page and required check passes. Every finding needs severity, anchor, evidence, recovery, and either resolution evidence or an acceptance reason; resolved page findings also bind the current page SHA-256, and high or critical findings cannot be accepted. Never reuse findings against changed page hashes.
+
+Return a short Result Card containing the review-input path, admitted review hash, inspected page hashes, remaining accepted risks, checks performed, and gaps. Do not claim structure, editability, or release validity; those belong to the probe and release gates.
+`,
   }),
   codexInterface: {
     shortDescription: "Independently review final PPTX page renders",

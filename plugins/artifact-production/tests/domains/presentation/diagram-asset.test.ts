@@ -11,8 +11,9 @@ const SAFE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900"
 function diagramModel() {
   const model = sourceModel();
   const storyboard = JSON.parse(String(model.files!["plan.storyboard.json"]));
-  storyboard.slides[0].visualType = "diagram";
-  storyboard.slides[0].diagram = {
+  storyboard.slides[0].visual = {
+    type: "diagram",
+    mode: "svg",
     asset: "assets/diagrams/service-flow.svg",
     sha256: sha256(SAFE_SVG),
     fit: "contain",
@@ -20,6 +21,9 @@ function diagramModel() {
     alt: "Client connected to API by a request arrow.",
   };
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+  const manifest = JSON.parse(String(model.files!["src/slides/manifest.json"]));
+  manifest.slides[0].visual = { type: "diagram", mode: "svg" };
+  model.files!["src/slides/manifest.json"] = JSON.stringify(manifest);
   model.files!["assets/diagrams/service-flow.svg"] = SAFE_SVG;
   return model;
 }
@@ -28,10 +32,10 @@ test("accepts a hash-bound local SVG diagram asset", () => {
   assert.deepEqual(validatePptxModel(diagramModel(), { stage: "source" }), []);
 });
 
-test("requires diagram metadata when visualType is diagram", () => {
+test("requires diagram metadata when visual type is diagram", () => {
   const model = diagramModel();
   const storyboard = JSON.parse(String(model.files!["plan.storyboard.json"]));
-  delete storyboard.slides[0].diagram;
+  delete storyboard.slides[0].visual.asset;
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
   assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "DIAGRAM_ASSET_INVALID"));
 });
@@ -41,7 +45,7 @@ test("rejects scriptable or externally linked SVG diagram assets", () => {
   const unsafe = `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><image href="https://example.com/a.png"/></svg>`;
   model.files!["assets/diagrams/service-flow.svg"] = unsafe;
   const storyboard = JSON.parse(String(model.files!["plan.storyboard.json"]));
-  storyboard.slides[0].diagram.sha256 = sha256(unsafe);
+  storyboard.slides[0].visual.sha256 = sha256(unsafe);
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
   assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "DIAGRAM_ASSET_UNSAFE"));
 });
@@ -54,7 +58,7 @@ test("rejects relative file references and CSS imports in SVG diagram assets", (
     const model = diagramModel();
     model.files!["assets/diagrams/service-flow.svg"] = unsafe;
     const storyboard = JSON.parse(String(model.files!["plan.storyboard.json"]));
-    storyboard.slides[0].diagram.sha256 = sha256(unsafe);
+    storyboard.slides[0].visual.sha256 = sha256(unsafe);
     model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
     assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "DIAGRAM_ASSET_UNSAFE"));
   }

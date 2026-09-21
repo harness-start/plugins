@@ -1,6 +1,6 @@
 ---
 name: pptx-deck-authoring
-description: "Orchestrate a new, editable 16:9 PPTX project from requirements through storyboard, design system, PptxGenJS source, rendering, evidence probes, independent review, PDF export, and release receipt. Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template."
+description: "Orchestrate a new, editable 16:9 PPTX v4 project from requirements through storyboard, design system, PptxGenJS source, geometry probes, independent review, PDF export, and release receipt. Use for creating a presentation from scratch under artifacts/pptx; do not use for editing an existing PPTX or template."
 ---
 
 # PPTX Deck Authoring
@@ -12,9 +12,9 @@ description: "Orchestrate a new, editable 16:9 PPTX project from requirements th
 
 ## Constraints
 
-- do not use for editing an existing PPTX or template.
+- Do not use for editing an existing PPTX or template.
 
-Create an original, editable deck whose source, outputs, evidence, and review remain reproducibly bound. Keep the main agent responsible for user intent, source integration, gate decisions, and final reporting.
+Create an original, editable v4 deck whose source, outputs, evidence, and review remain reproducibly bound. Keep the main agent responsible for user intent, source integration, gate decisions, and final reporting.
 
 ## Required references
 
@@ -26,16 +26,18 @@ Read all of these before authoring:
 - [Quality gates](references/quality-gates.md)
 - [Accessibility](references/accessibility.md)
 
+Read [v4 migration](references/migration-v4.md) only when an older presentation-production source project must be diagnosed. The authoring workflow does not convert or edit an existing PPTX.
+
 ## Workflow
 
 1. Choose a lowercase kebab-case artifact id. Run the registered `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation init` wrapper for `artifacts/pptx/<artifact-id>`.
-2. Replace every scaffold placeholder. Freeze `plan.contract.json`, `plan.storyboard.json`, and `plan.skill-composition.json` before slide source work. The plan communication core names the intent, audience outcome, exact retell target, one semantically causal signature cue anchored to a real `slide:<id>`, invariants, and prohibited drift. Every slide states one assertion, narrative job, transition, and contribution to that core.
+2. Replace every scaffold placeholder. Freeze the v4 `plan.contract.json`, `plan.storyboard.json`, and `plan.skill-composition.json` before slide source work. Keep the audience brief private by default with `audience.addressing: "implicit"`; explicit audience naming requires a rationale. Every slide separates its one-line `displayTitle` from its internal `assertion`, narrative job, transition, and contribution to the communication core.
 3. Acquire optional external workers only for their declared phase. Record each current-source worker's `used`, `skipped`, or `unavailable` status. Treat their output as advice; integrate it into project-owned JSON or TypeScript yourself.
-4. Freeze `design.system.json`. Make color, typography, spacing, chart, and accessibility decisions semantic and measurable.
-5. Implement `src/deck.ts`, `src/theme.ts`, and exactly one `src/slides/NNN-slug.ts` module per manifest slide. A slide module modifies only the supplied slide and does not create slides, write files, fetch, spawn, or use nondeterminism.
+4. Freeze `design.system.json`. Make color, typography, spacing, chart, accessibility, and anti-pattern decisions semantic and measurable.
+5. Implement `src/deck.ts`, `src/theme.ts`, `src/semantic-layout.ts`, and exactly one `src/slides/NNN-slug.ts` module per manifest slide. Name every visible title `pptx:title:<slide-id>`. For native diagrams, name nodes, relation segments, and break markers with the scaffolded semantic helpers so the OOXML probe can verify their geometry. A slide module modifies only the supplied slide and does not create slides, write files, fetch, spawn, or use nondeterminism.
 6. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation lint`. Resolve every source-contract or ESLint finding.
 7. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation render`. This is the only writer for PPTX, PDF, page PNGs, source-hash previews, and render evidence.
-8. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation probe`. Resolve structure, page mapping, design measurement, and accessibility findings by changing source, then repeat lint → render → probe.
+8. Run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation probe`. Resolve title identity, native-connector geometry, structure, page mapping, design measurement, layout-fingerprint, and accessibility findings by changing source, then repeat lint → render → probe. Layout similarity is review evidence, not an automatic aesthetic verdict.
 9. Hand only the project root, final page PNGs, current digest data, registered review command, and external review-input contract to an independent reviewer using `$pptx-deck-review`. The reviewer must create the input and invoke `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation review` in its own session, which must differ from the rendering and release sessions.
 10. After the reviewer returns an admitted `review.pptx.json`, run `node ${PLUGIN_ROOT}/dist/cli/harness.mjs presentation release <project-root>`.
 11. Report only the files listed by `release.manifest.json`. Label each verification claim with its execution provenance.
@@ -45,9 +47,9 @@ Use exact standalone wrapper commands. Do not chain them with redirects, pipes, 
 ## Failure and rerun policy
 
 - Retry a transient external worker or tool once. Record `unavailable` and continue only when that worker is optional.
-- Stop on missing core toolchain, invalid source contract, unresolved OOXML relation, page-count mismatch, accessibility failure, self-review, or stale hashes.
+- Stop on a legacy schema, long or unnamed title, invalid native relation, unresolved OOXML relationship, page-count mismatch, accessibility failure, incomplete quality review, self-review, or stale hashes.
 - After any source or design change, restart at lint. After only a review-input correction, restart at review. Release never repairs upstream artifacts.
-- Allow at most two producer/reviewer rounds. If major findings remain, return to storyboard or design rather than accepting them silently.
+- Allow at most two producer/reviewer rounds. If high or critical findings remain, return to storyboard or design; they cannot be accepted for release.
 
 Use only the Skills and references bundled with this plugin. A similarly named presentation Skill exposed by the runtime is neither a dependency nor an allowed design-reference substitute.
 
@@ -55,6 +57,7 @@ Use only the Skills and references bundled with this plugin. A similarly named p
 
 - [accessibility.md](references/accessibility.md)
 - [design-system.md](references/design-system.md)
+- [migration-v4.md](references/migration-v4.md)
 - [project-contract.md](references/project-contract.md)
 - [quality-gates.md](references/quality-gates.md)
 - [skill-composition.md](references/skill-composition.md)

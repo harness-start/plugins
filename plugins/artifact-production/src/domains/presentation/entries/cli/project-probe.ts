@@ -50,6 +50,51 @@ function contrast(left: string, right: string) {
   return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05);
 }
 
+function fingerprintSimilarity(left: string[], right: string[]) {
+  const leftSet = new Set(left);
+  const rightSet = new Set(right);
+  const union = new Set([...leftSet, ...rightSet]);
+  if (!union.size) return 1;
+  let intersection = 0;
+  for (const value of leftSet) if (rightSet.has(value)) intersection += 1;
+  return intersection / union.size;
+}
+
+function similarLayoutGroups(
+  pages: Array<{ index: number; fingerprint: string[] }>,
+) {
+  const groups: Array<{ pages: number[]; minimumSimilarity: number }> = [];
+  const consumed = new Set<number>();
+  for (const page of pages) {
+    if (consumed.has(page.index)) continue;
+    const matches = pages
+      .filter(
+        (candidate) =>
+          candidate.index !== page.index &&
+          fingerprintSimilarity(page.fingerprint, candidate.fingerprint) >=
+            0.85,
+      )
+      .map(({ index }) => index);
+    if (matches.length < 2) continue;
+    const indexes = [page.index, ...matches].sort((a, b) => a - b);
+    indexes.forEach((index) => consumed.add(index));
+    groups.push({
+      pages: indexes,
+      minimumSimilarity: Math.min(
+        ...matches.map(
+          (index) =>
+            fingerprintSimilarity(
+              page.fingerprint,
+              pages.find((candidate) => candidate.index === index)
+                ?.fingerprint ?? [],
+            ),
+        ),
+      ),
+    });
+  }
+  return groups;
+}
+
 async function main() {
   const root = assertPptxProjectRoot(process.argv[2]);
   const grant = await consumeWriterCapability({
@@ -79,7 +124,11 @@ async function main() {
   );
   const storyboard = record(JSON.parse(String(model.files?.["plan.storyboard.json"])));
   const storyboardSlides = Array.isArray(storyboard.slides) ? storyboard.slides.map(record) : [];
-  const diagramDigests = storyboardSlides.filter((slide) => slide.visualType === "diagram").map((slide) => record(slide.diagram).sha256).filter((value): value is string => typeof value === "string");
+  const diagramDigests = storyboardSlides
+    .map((slide) => record(slide.visual))
+    .filter((visual) => visual.type === "diagram" && visual.mode === "svg")
+    .map((visual) => visual.sha256)
+    .filter((value): value is string => typeof value === "string");
   if (diagramDigests.length && (packageInspection.externalRelationships.length || diagramDigests.some((expected) => !packageInspection.media.some(({ sha256 }) => sha256 === expected)))) throw new Error("DIAGRAM_MEDIA_MISMATCH");
   const pageCount = await pdfPageCount(join(root, pdfPath), { cwd: root });
   const design = record(
@@ -126,6 +175,11 @@ async function main() {
   const slides = Array.isArray(manifest.slides)
     ? manifest.slides.map(record)
     : [];
+  const layoutPages = packageInspection.slides.map((slide) => ({
+    index: slide.index,
+    fingerprint: slide.layoutFingerprint,
+    bodyObjectCount: slide.bodyObjectCount,
+  }));
   const accessibilityChecks: Array<Record<string, unknown>> = [];
   for (const slide of slides) {
     const accessibility = record(slide.accessibility);
@@ -191,6 +245,11 @@ async function main() {
           },
           ...typographyChecks,
         ],
+        layoutRhythm: {
+          pages: layoutPages,
+          similarGroups: similarLayoutGroups(layoutPages),
+          similarityThreshold: 0.85,
+        },
       });
       await atomicWriteJson(root, "evidence.accessibility.json", {
         schema: ACCESSIBILITY_EVIDENCE_SCHEMA,

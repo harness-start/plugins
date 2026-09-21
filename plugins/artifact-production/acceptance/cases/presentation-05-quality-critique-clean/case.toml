@@ -1,0 +1,4 @@
+id = "05-quality-critique-clean"
+hosts = ["claude", "codex"]
+timeout_sec = 120
+tags = ["pptx", "quality", "clean-control"]

@@ -1,10 +1,10 @@
 # Review contract
 
-Create a JSON object using schema `presentation-production/review-input/v2`:
+Create a JSON object using schema `presentation-production/review-input/v4`:
 
 ```json
 {
-  "schema": "presentation-production/review-input/v2",
+  "schema": "presentation-production/review-input/v4",
   "artifactId": "deck-id",
   "subjectDigest": "64-lowercase-hex",
   "verdict": "pass",
@@ -16,22 +16,47 @@ Create a JSON object using schema `presentation-production/review-input/v2`:
   "pages": [
     { "index": 1, "sha256": "current-page-sha256", "verdict": "pass" }
   ],
+  "checks": {
+    "audienceBoundary": {
+      "status": "pass",
+      "anchors": ["slide:opening"],
+      "evidence": "Observable comparison between the cover and the private audience brief."
+    },
+    "headlineEconomy": {
+      "status": "pass",
+      "anchors": ["slide:opening"],
+      "evidence": "The display title locates the page while the visual carries the assertion."
+    },
+    "visualPayload": {
+      "status": "pass",
+      "anchors": ["slide:opening"],
+      "evidence": "The primary visual conveys information rather than decorating repeated prose."
+    },
+    "layoutRhythm": {
+      "status": "pass",
+      "anchors": ["deck"],
+      "evidence": "The montage and layout-fingerprint groups were checked for mechanical repetition."
+    },
+    "relationshipSemantics": {
+      "status": "not-applicable",
+      "anchors": ["deck"],
+      "evidence": "The storyboard contains no diagram slide.",
+      "rationale": "No relationship-bearing slide is present."
+    }
+  },
   "findings": [
     {
       "id": "visual-001",
-      "severity": "minor",
+      "severity": "medium",
       "page": 1,
-      "evidence": "observable issue anchored to the current page",
-      "disposition": "resolved"
+      "anchor": "slide:opening",
+      "evidence": "Observable issue anchored to the current page.",
+      "recovery": "Specific source correction and rerender step.",
+      "disposition": "resolved",
+      "resolutionEvidence": "The current page was rechecked after the correction.",
+      "resolutionPageSha256": "current-page-sha256"
     }
   ],
-  "checks": {
-    "hierarchy": "pass",
-    "legibility": "pass",
-    "clipping": "pass",
-    "consistency": "pass",
-    "accessibility": "pass"
-  },
   "reviewerRetell": {
     "observedBeforeContract": "The deck asks for one explicit decision.",
     "intendedTarget": "<exact communication-core retell target>",
@@ -48,8 +73,8 @@ Create a JSON object using schema `presentation-production/review-input/v2`:
 }
 ```
 
-Use `human` instead of `independent-agent` only for an actual human reviewer. The wrapper binds `reviewer.sessionId` to the one-time capability session and rejects the renderer's session. Page indexes must be contiguous; hashes must match the current `dist/pages/NNN.png` files.
+Use `human` instead of `independent-agent` only for an actual human reviewer. The wrapper binds `reviewer.sessionId` to the one-time capability session and rejects the renderer's session. Page indexes must be contiguous; hashes must match the current final PNGs.
 
-Every `communicationReview` anchor must exactly match one of the frozen `communicationCore.signatureCue.anchors` in `plan.contract.json`.
+Every quality check needs observable evidence and at least one `deck` or `slide:<id>` anchor. Only `relationshipSemantics` may be `not-applicable`, and only when the storyboard contains no diagram; include a rationale. Every communication-review anchor must match the frozen signature-cue anchors.
 
-Allowed finding dispositions are `resolved` and `accepted`. An accepted finding needs a concrete reason and cannot hide a blocker that prevents the requested use. If any current page fails, return a non-pass Result Card without asking the wrapper to admit the review.
+Finding severities are `low`, `medium`, `high`, and `critical`. Resolved page findings require resolution evidence and the current page SHA-256. Accepted findings require a concrete acceptance reason; high and critical findings cannot be accepted. If any page or required check fails, return a non-pass Result Card without asking the wrapper to admit the review.

@@ -1,0 +1,1 @@
+Use `$presentation-visual-critique` to review `deck-observations.md`. Do not change files. Check audience boundary and layout rhythm. If the supplied evidence contains no material defect in those dimensions, reply exactly `NO_MATERIAL_DEFECTS`. Otherwise reply exactly `CHANGES_REQUIRED`.

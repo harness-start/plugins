@@ -14,31 +14,31 @@ import {
 } from "node:path";
 import { TextDecoder } from "node:util";
 
-import { DOMParser } from "@xmldom/xmldom";
+import { DOMParser, type Element } from "@xmldom/xmldom";
 import { unzipSync } from "fflate";
 import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 
-export const PLAN_SCHEMA = "presentation-production/plan/v3";
-export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v3";
+export const PLAN_SCHEMA = "presentation-production/plan/v4";
+export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v4";
 export const SKILL_COMPOSITION_SCHEMA =
-  "presentation-production/skill-composition/v1";
-export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v2";
-export const PROJECT_SCHEMA = "presentation-production/project/v2";
+  "presentation-production/skill-composition/v4";
+export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v4";
+export const PROJECT_SCHEMA = "presentation-production/project/v4";
 export const SLIDE_MANIFEST_SCHEMA =
-  "presentation-production/slide-manifest/v2";
+  "presentation-production/slide-manifest/v4";
 export const RENDER_EVIDENCE_SCHEMA =
-  "presentation-production/render-evidence/v1";
+  "presentation-production/render-evidence/v4";
 export const STRUCTURE_EVIDENCE_SCHEMA =
-  "presentation-production/structure-evidence/v2";
+  "presentation-production/structure-evidence/v4";
 export const DESIGN_EVIDENCE_SCHEMA =
-  "presentation-production/design-evidence/v1";
+  "presentation-production/design-evidence/v4";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA =
-  "presentation-production/accessibility-evidence/v2";
-export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v2";
-export const REVIEW_SCHEMA = "presentation-production/review/v3";
+  "presentation-production/accessibility-evidence/v4";
+export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v4";
+export const REVIEW_SCHEMA = "presentation-production/review/v4";
 export const RELEASE_MANIFEST_SCHEMA =
-  "presentation-production/release-manifest/v2";
-export const RECEIPT_SCHEMA = "presentation-production/receipt/v2";
+  "presentation-production/release-manifest/v4";
+export const RECEIPT_SCHEMA = "presentation-production/receipt/v4";
 
 export type PptxStage =
   "source" | "design" | "render" | "probe" | "review" | "release";
@@ -135,6 +135,33 @@ const UTF8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const PNG_SIGNATURE = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
 ]);
+const SLIDE_WIDTH_IN = 13.333;
+const SLIDE_HEIGHT_IN = 7.5;
+const EMU_PER_INCH = 914400;
+const DISPLAY_TITLE_MAX_WIDTH = 20;
+const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+const VISUAL_TYPES = new Set([
+  "hero",
+  "content",
+  "comparison",
+  "diagram",
+  "data",
+  "media",
+  "closing",
+]);
+const RELATION_KINDS = new Set([
+  "flow",
+  "dependency",
+  "association",
+  "disconnect",
+]);
+const REVIEW_CHECKS = [
+  "audienceBoundary",
+  "headlineEconomy",
+  "visualPayload",
+  "layoutRhythm",
+  "relationshipSemantics",
+] as const;
 
 const digest = (value: BinaryLike) =>
   createHash("sha256").update(value).digest("hex");
@@ -154,6 +181,24 @@ const finding = (
 ): ContractFinding => ({ code, path, message });
 const stageAtLeast = (stage: PptxStage, expected: PptxStage) =>
   STAGE_RANK[stage] >= STAGE_RANK[expected];
+
+function displayWidth(value: string) {
+  let width = 0;
+  for (const character of value) {
+    width += /[\u1100-\u115f\u2329\u232a\u2e80-\ua4cf\uac00-\ud7a3\uf900-\ufaff\ufe10-\ufe19\ufe30-\ufe6f\uff01-\uff60\uffe0-\uffe6\u{1f300}-\u{1faff}]/u.test(character) ? 2 : 1;
+  }
+  return width;
+}
+
+function validDisplayTitle(value: unknown) {
+  return (
+    typeof value === "string" &&
+    value === value.trim() &&
+    value.length > 0 &&
+    !/[\r\n]/u.test(value) &&
+    displayWidth(value) <= DISPLAY_TITLE_MAX_WIDTH
+  );
+}
 
 function parseJson(
   files: FileMap,
@@ -302,6 +347,7 @@ function validateRequiredSource(files: FileMap, findings: ContractFinding[]) {
     "design.system.json",
     "pptx.project.json",
     "src/deck.ts",
+    "src/semantic-layout.ts",
     "src/theme.ts",
     "src/slides/manifest.json",
   ])
@@ -413,6 +459,158 @@ function validateDesignSystem(
     );
 }
 
+function validAudience(value: unknown) {
+  const audience = rec(value);
+  if (
+    !audience ||
+    !["primary", "context", "desiredAction"].every(
+      (key) =>
+        typeof audience[key] === "string" &&
+        Boolean(String(audience[key]).trim()),
+    ) ||
+    !["implicit", "explicit"].includes(String(audience.addressing))
+  )
+    return false;
+  return (
+    audience.addressing !== "explicit" ||
+    (typeof audience.explicitRationale === "string" &&
+      Boolean(audience.explicitRationale.trim()))
+  );
+}
+
+function validateSlideVisual(
+  files: FileMap,
+  slide: JsonRecord | undefined,
+  index: number,
+  findings: ContractFinding[],
+) {
+  const visual = rec(slide?.visual);
+  const path = `plan.storyboard.json#slides/${index}/visual`;
+  if (
+    !visual ||
+    !VISUAL_TYPES.has(String(visual.type)) ||
+    (visual.variant !== undefined &&
+      (typeof visual.variant !== "string" || !visual.variant.trim()))
+  ) {
+    findings.push(
+      finding(
+        "STORYBOARD_VISUAL_INVALID",
+        path,
+        "visual must use a supported type and an optional non-empty variant",
+      ),
+    );
+    return;
+  }
+  if (visual.type !== "diagram") return;
+  if (visual.mode === "svg") {
+    const assetPath =
+      typeof visual.asset === "string" ? visual.asset : path;
+    if (
+      typeof visual.asset !== "string" ||
+      !/^assets\/diagrams\/[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u.test(
+        visual.asset,
+      ) ||
+      !/^[a-f0-9]{64}$/u.test(String(visual.sha256 ?? "")) ||
+      !["contain", "cover"].includes(String(visual.fit)) ||
+      typeof visual.takeaway !== "string" ||
+      !visual.takeaway.trim() ||
+      typeof visual.alt !== "string" ||
+      !visual.alt.trim()
+    ) {
+      findings.push(
+        finding(
+          "DIAGRAM_ASSET_INVALID",
+          assetPath,
+          "SVG diagram slides require a local asset, SHA-256, fit, takeaway, and alt text",
+        ),
+      );
+      return;
+    }
+    const asset = files[visual.asset];
+    if (
+      typeof asset !== "string" ||
+      digest(Buffer.from(asset)) !== visual.sha256
+    ) {
+      findings.push(
+        finding(
+          "DIAGRAM_ASSET_INVALID",
+          visual.asset,
+          "diagram SVG must exist and match the declared SHA-256",
+        ),
+      );
+      return;
+    }
+    if (
+      !/^\s*(?:<\?xml[^>]*>\s*)?<svg\b/iu.test(asset) ||
+      hasUnsafeSvgReference(asset)
+    )
+      findings.push(
+        finding(
+          "DIAGRAM_ASSET_UNSAFE",
+          visual.asset,
+          "diagram SVG must be self-contained and contain no executable or external content",
+        ),
+      );
+    return;
+  }
+  if (visual.mode !== "native") {
+    findings.push(
+      finding(
+        "DIAGRAM_MODE_INVALID",
+        path,
+        "diagram visuals must declare svg or native mode",
+      ),
+    );
+    return;
+  }
+  const nodes = list(visual.nodes).map(rec);
+  const relations = list(visual.relations).map(rec);
+  const nodeIds = new Set<string>();
+  const nodesValid =
+    nodes.length >= 2 &&
+    nodes.every((node) => {
+      const id = String(node?.id ?? "");
+      const valid =
+        Boolean(node) &&
+        ID.test(id) &&
+        !nodeIds.has(id) &&
+        typeof node?.role === "string" &&
+        Boolean(node.role.trim());
+      nodeIds.add(id);
+      return valid;
+    });
+  const relationIds = new Set<string>();
+  const relationsValid =
+    relations.length > 0 &&
+    relations.every((relation) => {
+      const id = String(relation?.id ?? "");
+      const kind = String(relation?.kind ?? "");
+      const segmentCount = relation?.segmentCount ?? 1;
+      const valid =
+        Boolean(relation) &&
+        ID.test(id) &&
+        !relationIds.has(id) &&
+        nodeIds.has(String(relation?.from ?? "")) &&
+        nodeIds.has(String(relation?.to ?? "")) &&
+        relation?.from !== relation?.to &&
+        RELATION_KINDS.has(kind) &&
+        (kind === "disconnect" ||
+          (Number.isInteger(segmentCount) &&
+            Number(segmentCount) >= 1 &&
+            Number(segmentCount) <= 8));
+      relationIds.add(id);
+      return valid;
+    });
+  if (!nodesValid || !relationsValid)
+    findings.push(
+      finding(
+        "NATIVE_DIAGRAM_INVALID",
+        path,
+        "native diagrams require unique nodes and typed, node-bound relations",
+      ),
+    );
+}
+
 function validateSourceSchemas(
   model: PptxModel,
   files: FileMap,
@@ -429,7 +627,7 @@ function validateSourceSchemas(
     plan &&
     (plan.artifactId !== model.artifactId ||
       !STAGES.has(plan.targetStage as PptxStage) ||
-      typeof plan.audience !== "string" ||
+      !validAudience(plan.audience) ||
       typeof plan.objective !== "string" ||
       typeof plan.language !== "string")
   )
@@ -437,7 +635,7 @@ function validateSourceSchemas(
       finding(
         "PLAN_INVALID",
         "plan.contract.json",
-        "plan must bind artifactId, targetStage, audience, objective, and language",
+        "plan must bind artifactId, targetStage, structured audience intent, objective, and language",
       ),
     );
   const storyboard = schemaRecord(
@@ -460,9 +658,9 @@ function validateSourceSchemas(
         (entry, index) =>
           rec(entry)?.index === index + 1 &&
           typeof rec(entry)?.id === "string" &&
-          typeof rec(entry)?.title === "string" &&
+          validDisplayTitle(rec(entry)?.displayTitle) &&
           typeof rec(entry)?.role === "string" &&
-          typeof rec(entry)?.visualType === "string" &&
+          isObject(rec(entry)?.visual) &&
           typeof rec(entry)?.assertion === "string" && Boolean(String(rec(entry)?.assertion).trim()) &&
           typeof rec(entry)?.narrativeJob === "string" && Boolean(String(rec(entry)?.narrativeJob).trim()) &&
           typeof rec(entry)?.transition === "string" && Boolean(String(rec(entry)?.transition).trim()),
@@ -472,39 +670,22 @@ function validateSourceSchemas(
       finding(
         "STORYBOARD_INVALID",
         "plan.storyboard.json",
-        "storyboard slides must be non-empty, contiguous, and declare id, title, role, and visualType",
+        "storyboard slides must be contiguous and declare id, compact displayTitle, role, and visual",
       ),
     );
-  if (storyboard && storyboardSlides.some((entry) => typeof rec(entry)?.coreContribution !== "string" || !String(rec(entry)?.coreContribution).trim())) findings.push(finding("STORYBOARD_COMMUNICATION_INVALID", "plan.storyboard.json", "every slide must state how it contributes to the communication core"));
   for (const [index, entry] of storyboardSlides.entries()) {
     const slide = rec(entry);
-    if (slide?.visualType !== "diagram") continue;
-    const diagram = rec(slide.diagram);
-    const path = typeof diagram?.asset === "string" ? diagram.asset : `plan.storyboard.json#slides/${index}/diagram`;
-    if (
-      !diagram ||
-      typeof diagram.asset !== "string" ||
-      !/^assets\/diagrams\/[a-z0-9]+(?:-[a-z0-9]+)*\.svg$/u.test(diagram.asset) ||
-      !/^[a-f0-9]{64}$/u.test(String(diagram.sha256 ?? "")) ||
-      !["contain", "cover"].includes(String(diagram.fit)) ||
-      typeof diagram.takeaway !== "string" ||
-      !diagram.takeaway.trim() ||
-      typeof diagram.alt !== "string" ||
-      !diagram.alt.trim()
-    ) {
-      findings.push(finding("DIAGRAM_ASSET_INVALID", path, "diagram slides require a local assets/diagrams/*.svg asset, SHA-256, contain/cover fit, takeaway, and alt text"));
-      continue;
-    }
-    const asset = files[diagram.asset];
-    if (typeof asset !== "string" || digest(Buffer.from(asset)) !== diagram.sha256) {
-      findings.push(finding("DIAGRAM_ASSET_INVALID", diagram.asset, "diagram SVG must exist and match the declared SHA-256"));
-      continue;
-    }
-    if (
-      !/^\s*(?:<\?xml[^>]*>\s*)?<svg\b/iu.test(asset) ||
-      hasUnsafeSvgReference(asset)
-    ) findings.push(finding("DIAGRAM_ASSET_UNSAFE", diagram.asset, "diagram SVG must be self-contained and contain no executable or external content"));
+    if (slide && !validDisplayTitle(slide.displayTitle))
+      findings.push(
+        finding(
+          "DISPLAY_TITLE_INVALID",
+          `plan.storyboard.json#slides/${index}/displayTitle`,
+          `displayTitle must be one line and at most ${DISPLAY_TITLE_MAX_WIDTH} display-width units`,
+        ),
+      );
+    validateSlideVisual(files, slide, index, findings);
   }
+  if (storyboard && storyboardSlides.some((entry) => typeof rec(entry)?.coreContribution !== "string" || !String(rec(entry)?.coreContribution).trim())) findings.push(finding("STORYBOARD_COMMUNICATION_INVALID", "plan.storyboard.json", "every slide must state how it contributes to the communication core"));
   const composition = schemaRecord(
     files,
     "plan.skill-composition.json",
@@ -664,15 +845,16 @@ function validateManifest(
       item?.index !== index + 1 ||
       typeof item.id !== "string" ||
       ids.has(item.id) ||
-      typeof item.title !== "string" ||
+      !validDisplayTitle(item.displayTitle) ||
       typeof item.role !== "string" ||
+      !isObject(item.visual) ||
       !isObject(item.accessibility)
     )
       findings.push(
         finding(
           "SLIDE_SEQUENCE_INVALID",
           "src/slides/manifest.json",
-          "slide indexes and ids must be unique, contiguous, and include title, role, and accessibility",
+          "slide indexes and ids must be unique, contiguous, and include compact displayTitle, role, visual, and accessibility",
         ),
       );
     ids.add(item?.id);
@@ -682,14 +864,26 @@ function validateManifest(
     storyboardSlides.length &&
     (storyboardSlides.length !== slides.length ||
       storyboardSlides.some(
-        (entry, index) => rec(entry)?.id !== rec(slides[index])?.id,
+        (entry, index) => {
+          const planned = rec(entry);
+          const actual = rec(slides[index]);
+          const plannedVisual = rec(planned?.visual);
+          const actualVisual = rec(actual?.visual);
+          return (
+            planned?.id !== actual?.id ||
+            planned?.displayTitle !== actual?.displayTitle ||
+            plannedVisual?.type !== actualVisual?.type ||
+            plannedVisual?.variant !== actualVisual?.variant ||
+            plannedVisual?.mode !== actualVisual?.mode
+          );
+        },
       ))
   )
     findings.push(
       finding(
         "STORYBOARD_MANIFEST_MISMATCH",
         "src/slides/manifest.json",
-        "manifest must preserve storyboard page count and ids",
+        "manifest must preserve storyboard page count, ids, display titles, and visual declarations",
       ),
     );
   return slides;
@@ -727,7 +921,140 @@ export type PptxPackageInspection = {
   externalRelationships: string[];
   unresolvedRelationships: string[];
   media: Array<{ path: string; sha256: string }>;
+  slides: Array<{
+    index: number;
+    objects: PptxObjectInspection[];
+    layoutFingerprint: string[];
+    bodyObjectCount: number;
+  }>;
 };
+
+export type PptxObjectInspection = {
+  name: string;
+  kind: string;
+  text?: string;
+  lineBreaks?: number;
+  bounds: { x: number; y: number; w: number; h: number };
+  start?: { x: number; y: number };
+  end?: { x: number; y: number };
+  beginArrow?: string;
+  endArrow?: string;
+  lineWidthIn?: number;
+};
+
+function numberAttribute(
+  element: Element | null | undefined,
+  name: string,
+) {
+  return Number(element?.getAttribute(name) ?? 0);
+}
+
+function firstDescendant(element: Element, name: string) {
+  return element.getElementsByTagName(name).item(0) as Element | null;
+}
+
+function inspectSlideXml(xml: string, index: number) {
+  const document = new DOMParser({
+    onError: (level, message) => {
+      if (level === "fatalError" || level === "error")
+        throw new Error(`PPTX_XML_INVALID:${message}`);
+    },
+  }).parseFromString(xml, "application/xml");
+  const allObjects: PptxObjectInspection[] = [];
+  const append = (element: Element, fallbackKind: string) => {
+    const nonVisual = firstDescendant(element, "p:cNvPr");
+    const name = nonVisual?.getAttribute("name") ?? "";
+    if (!name) return;
+    const transform = firstDescendant(element, "a:xfrm");
+    const offset = transform
+      ? firstDescendant(transform, "a:off")
+      : null;
+    const extent = transform
+      ? firstDescendant(transform, "a:ext")
+      : null;
+    const x = numberAttribute(offset, "x") / EMU_PER_INCH;
+    const y = numberAttribute(offset, "y") / EMU_PER_INCH;
+    const w = numberAttribute(extent, "cx") / EMU_PER_INCH;
+    const h = numberAttribute(extent, "cy") / EMU_PER_INCH;
+    const geometry = firstDescendant(element, "a:prstGeom");
+    const kind = geometry?.getAttribute("prst") || fallbackKind;
+    const texts = Array.from(element.getElementsByTagName("a:t"));
+    const text = texts.map((entry) => entry.textContent ?? "").join("");
+    const paragraphs = element.getElementsByTagName("a:p").length;
+    const lineBreaks =
+      element.getElementsByTagName("a:br").length + Math.max(0, paragraphs - 1);
+    const line = firstDescendant(element, "a:ln");
+    const beginArrow = firstDescendant(element, "a:headEnd")?.getAttribute(
+      "type",
+    );
+    const endArrow = firstDescendant(element, "a:tailEnd")?.getAttribute(
+      "type",
+    );
+    const flipH = transform?.getAttribute("flipH") === "1";
+    const flipV = transform?.getAttribute("flipV") === "1";
+    const start =
+      kind === "line"
+        ? { x: flipH ? x + w : x, y: flipV ? y + h : y }
+        : undefined;
+    const end =
+      kind === "line"
+        ? { x: flipH ? x : x + w, y: flipV ? y : y + h }
+        : undefined;
+    allObjects.push({
+      name,
+      kind,
+      ...(text ? { text } : {}),
+      ...(text ? { lineBreaks } : {}),
+      bounds: { x, y, w, h },
+      ...(start ? { start } : {}),
+      ...(end ? { end } : {}),
+      ...(beginArrow ? { beginArrow } : {}),
+      ...(endArrow ? { endArrow } : {}),
+      ...(line?.hasAttribute("w")
+        ? {
+            lineWidthIn:
+              numberAttribute(line, "w") / EMU_PER_INCH,
+          }
+        : {}),
+    });
+  };
+  for (const element of Array.from(document.getElementsByTagName("p:sp")))
+    append(element, "shape");
+  for (const element of Array.from(document.getElementsByTagName("p:cxnSp")))
+    append(element, "connector");
+  for (const element of Array.from(document.getElementsByTagName("p:pic")))
+    append(element, "picture");
+  const body = allObjects.filter(({ name, bounds }) => {
+    const centerY = bounds.y + bounds.h / 2;
+    return (
+      !name.startsWith("pptx:title:") &&
+      !name.startsWith("pptx:chrome:") &&
+      centerY >= SLIDE_HEIGHT_IN * 0.15 &&
+      centerY <= SLIDE_HEIGHT_IN * 0.9
+    );
+  });
+  const layoutFingerprint = body
+    .map(({ kind, bounds }) => {
+      const x = Math.max(
+        0,
+        Math.min(11, Math.floor(((bounds.x + bounds.w / 2) / SLIDE_WIDTH_IN) * 12)),
+      );
+      const y = Math.max(
+        0,
+        Math.min(6, Math.floor(((bounds.y + bounds.h / 2) / SLIDE_HEIGHT_IN) * 7)),
+      );
+      const w = Math.max(1, Math.min(12, Math.round((bounds.w / SLIDE_WIDTH_IN) * 12)));
+      const h = Math.max(1, Math.min(7, Math.round((bounds.h / SLIDE_HEIGHT_IN) * 7)));
+      return `${kind}:${x}:${y}:${w}:${h}`;
+    })
+    .sort();
+  return {
+    index,
+    objects: allObjects.filter(({ name }) => name.startsWith("pptx:")),
+    layoutFingerprint,
+    bodyObjectCount: body.length,
+  };
+}
 
 export function inspectPptxPackage(bytes: Buffer): PptxPackageInspection {
   if (bytes.length < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b)
@@ -798,6 +1125,9 @@ export function inspectPptxPackage(bytes: Buffer): PptxPackageInspection {
       .filter((name) => /^ppt\/media\/[^/]+$/u.test(name))
       .sort()
       .map((path) => ({ path, sha256: digest(entries[path] ?? new Uint8Array()) })),
+    slides: slides.map((path, index) =>
+      inspectSlideXml(decode(path), index + 1),
+    ),
   };
 }
 
@@ -808,6 +1138,264 @@ export function inspectPng(bytes: Buffer) {
   const height = bytes.readUInt32BE(20);
   if (width <= 0 || height <= 0) throw new Error("PNG_DIMENSIONS_INVALID");
   return { width, height };
+}
+
+type Point = { x: number; y: number };
+type Bounds = { x: number; y: number; w: number; h: number };
+
+function pointDistance(left: Point, right: Point) {
+  return Math.hypot(left.x - right.x, left.y - right.y);
+}
+
+function boundaryDistance(point: Point, bounds: Bounds) {
+  const right = bounds.x + bounds.w;
+  const bottom = bounds.y + bounds.h;
+  if (
+    point.x >= bounds.x &&
+    point.x <= right &&
+    point.y >= bounds.y &&
+    point.y <= bottom
+  )
+    return Math.min(
+      point.x - bounds.x,
+      right - point.x,
+      point.y - bounds.y,
+      bottom - point.y,
+    );
+  const dx = Math.max(bounds.x - point.x, 0, point.x - right);
+  const dy = Math.max(bounds.y - point.y, 0, point.y - bottom);
+  return Math.hypot(dx, dy);
+}
+
+function pointInside(point: Point, bounds: Bounds) {
+  return (
+    point.x > bounds.x &&
+    point.x < bounds.x + bounds.w &&
+    point.y > bounds.y &&
+    point.y < bounds.y + bounds.h
+  );
+}
+
+function segmentIntersectsBounds(start: Point, end: Point, bounds: Bounds) {
+  if (pointInside(start, bounds) || pointInside(end, bounds)) return true;
+  const edges: Array<[Point, Point]> = [
+    [
+      { x: bounds.x, y: bounds.y },
+      { x: bounds.x + bounds.w, y: bounds.y },
+    ],
+    [
+      { x: bounds.x + bounds.w, y: bounds.y },
+      { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
+    ],
+    [
+      { x: bounds.x + bounds.w, y: bounds.y + bounds.h },
+      { x: bounds.x, y: bounds.y + bounds.h },
+    ],
+    [
+      { x: bounds.x, y: bounds.y + bounds.h },
+      { x: bounds.x, y: bounds.y },
+    ],
+  ];
+  const orientation = (a: Point, b: Point, c: Point) =>
+    (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  return edges.some(([left, right]) => {
+    if (
+      Math.max(start.x, end.x) < Math.min(left.x, right.x) ||
+      Math.max(left.x, right.x) < Math.min(start.x, end.x) ||
+      Math.max(start.y, end.y) < Math.min(left.y, right.y) ||
+      Math.max(left.y, right.y) < Math.min(start.y, end.y)
+    )
+      return false;
+    const first = orientation(start, end, left);
+    const second = orientation(start, end, right);
+    const third = orientation(left, right, start);
+    const fourth = orientation(left, right, end);
+    return first * second <= 0 && third * fourth <= 0;
+  });
+}
+
+function arrowPresent(value: string | undefined) {
+  return Boolean(value && value !== "none");
+}
+
+function validateRenderedSemantics(
+  inspection: PptxPackageInspection,
+  storyboardSlides: unknown[],
+  findings: ContractFinding[],
+  pptxPath: string,
+) {
+  for (const [offset, raw] of storyboardSlides.entries()) {
+    const slide = rec(raw);
+    const inspected = inspection.slides[offset];
+    if (!slide || !inspected) continue;
+    const slideId = String(slide.id ?? "");
+    const titleName = `pptx:title:${slideId}`;
+    const titles = inspected.objects.filter(({ name }) => name === titleName);
+    const actualTitle = titles[0]?.text?.replace(/\s+/gu, " ").trim();
+    if (
+      titles.length !== 1 ||
+      titles[0]?.lineBreaks !== 0 ||
+      actualTitle !== String(slide.displayTitle ?? "").replace(/\s+/gu, " ").trim()
+    )
+      findings.push(
+        finding(
+          "PPTX_TITLE_MISMATCH",
+          `${pptxPath}#slide=${offset + 1}`,
+          "each slide must contain exactly one named title whose text matches displayTitle",
+        ),
+      );
+    const visual = rec(slide.visual);
+    if (visual?.type !== "diagram" || visual.mode !== "native") continue;
+    const nodeSpecs = list(visual.nodes).map(rec);
+    const nodes = new Map<string, PptxObjectInspection>();
+    for (const spec of nodeSpecs) {
+      const id = String(spec?.id ?? "");
+      const name = `pptx:node:${slideId}:${id}`;
+      const matches = inspected.objects.filter((object) => object.name === name);
+      if (matches.length === 1 && matches[0]) nodes.set(id, matches[0]);
+      else
+        findings.push(
+          finding(
+            "PPTX_RELATION_GEOMETRY_INVALID",
+            `${pptxPath}#slide=${offset + 1}`,
+            `native diagram node ${id} must map to exactly one named shape`,
+          ),
+        );
+    }
+    for (const relation of list(visual.relations).map(rec)) {
+      const relationId = String(relation?.id ?? "");
+      const kind = String(relation?.kind ?? "");
+      const source = nodes.get(String(relation?.from ?? ""));
+      const target = nodes.get(String(relation?.to ?? ""));
+      if (!source || !target) continue;
+      const edgePrefix = `pptx:edge:${slideId}:${relationId}:`;
+      const edges = inspected.objects
+        .filter(({ name }) => name.startsWith(edgePrefix))
+        .sort(
+          (left, right) =>
+            Number(left.name.slice(edgePrefix.length)) -
+            Number(right.name.slice(edgePrefix.length)),
+        );
+      if (kind === "disconnect") {
+        const markerName = `pptx:marker:${slideId}:${relationId}`;
+        const markers = inspected.objects.filter(
+          ({ name }) => name === markerName,
+        );
+        const marker = markers[0];
+        const markerCenter = marker
+          ? {
+              x: marker.bounds.x + marker.bounds.w / 2,
+              y: marker.bounds.y + marker.bounds.h / 2,
+            }
+          : undefined;
+        const sourceCenter = {
+          x: source.bounds.x + source.bounds.w / 2,
+          y: source.bounds.y + source.bounds.h / 2,
+        };
+        const targetCenter = {
+          x: target.bounds.x + target.bounds.w / 2,
+          y: target.bounds.y + target.bounds.h / 2,
+        };
+        const span = pointDistance(sourceCenter, targetCenter);
+        const routeDistance = markerCenter
+          ? pointDistance(sourceCenter, markerCenter) +
+            pointDistance(markerCenter, targetCenter)
+          : Number.POSITIVE_INFINITY;
+        if (
+          edges.length ||
+          markers.length !== 1 ||
+          !markerCenter ||
+          pointInside(markerCenter, source.bounds) ||
+          pointInside(markerCenter, target.bounds) ||
+          routeDistance > span + 0.12
+        )
+          findings.push(
+            finding(
+              "PPTX_RELATION_GEOMETRY_INVALID",
+              `${pptxPath}#slide=${offset + 1}&relation=${relationId}`,
+              "disconnect relations require one between-node marker and no connector line",
+            ),
+          );
+        continue;
+      }
+      const expectedSegments = Number(relation?.segmentCount ?? 1);
+      if (
+        edges.length !== expectedSegments ||
+        edges.some(
+          (edge, index) => edge.name !== `${edgePrefix}${index}` || !edge.start || !edge.end,
+        )
+      ) {
+        findings.push(
+          finding(
+            "PPTX_RELATION_GEOMETRY_INVALID",
+            `${pptxPath}#slide=${offset + 1}&relation=${relationId}`,
+            "relation line segments must be complete, contiguous, and zero-indexed",
+          ),
+        );
+        continue;
+      }
+      const first = edges[0];
+      const last = edges.at(-1);
+      if (!first?.start || !last?.end) continue;
+      const tolerance = Math.max(
+        0.08,
+        ...edges.map(({ lineWidthIn = 0 }) => lineWidthIn / 2),
+      );
+      let geometryInvalid =
+        boundaryDistance(first.start, source.bounds) > tolerance ||
+        boundaryDistance(last.end, target.bounds) > tolerance;
+      for (let index = 1; index < edges.length; index += 1) {
+        const previous = edges[index - 1];
+        const current = edges[index];
+        if (
+          !previous?.end ||
+          !current?.start ||
+          pointDistance(previous.end, current.start) > tolerance
+        )
+          geometryInvalid = true;
+      }
+      const related = new Set([String(relation?.from), String(relation?.to)]);
+      for (const edge of edges) {
+        if (!edge.start || !edge.end) continue;
+        for (const [nodeId, node] of nodes) {
+          if (
+            !related.has(nodeId) &&
+            segmentIntersectsBounds(edge.start, edge.end, node.bounds)
+          )
+            geometryInvalid = true;
+        }
+      }
+      if (geometryInvalid)
+        findings.push(
+          finding(
+            "PPTX_RELATION_GEOMETRY_INVALID",
+            `${pptxPath}#slide=${offset + 1}&relation=${relationId}`,
+            "relation endpoints must touch declared nodes, segments must join, and routes must avoid unrelated nodes",
+          ),
+        );
+      const styleInvalid =
+        kind === "association"
+          ? edges.some(
+              ({ beginArrow, endArrow }) =>
+                arrowPresent(beginArrow) || arrowPresent(endArrow),
+            )
+          : edges.some(
+              ({ beginArrow, endArrow }, index) =>
+                arrowPresent(beginArrow) ||
+                (index === edges.length - 1
+                  ? !arrowPresent(endArrow)
+                  : arrowPresent(endArrow)),
+            );
+      if (styleInvalid)
+        findings.push(
+          finding(
+            "PPTX_RELATION_STYLE_INVALID",
+            `${pptxPath}#slide=${offset + 1}&relation=${relationId}`,
+            "flow and dependency arrows belong only at the target; associations have no arrows",
+          ),
+        );
+    }
+  }
 }
 
 function validateRendered(
@@ -832,8 +1420,14 @@ function validateRendered(
           "PPTX slide count and internal relationships must match the manifest",
         ),
       );
+    validateRenderedSemantics(
+      inspection,
+      storyboardSlides,
+      findings,
+      pptxPath,
+    );
     const expectedDiagramDigests = storyboardSlides
-      .map((entry) => rec(rec(entry)?.diagram)?.sha256)
+      .map((entry) => rec(rec(entry)?.visual)?.sha256)
       .filter((value): value is string => typeof value === "string");
     if (
       expectedDiagramDigests.length &&
@@ -980,6 +1574,8 @@ function validateEvidence(
     rec(parseJson(files, "design.system.json"))?.typography,
   )?.roles;
   const requiredTypeRoles = Object.keys(rec(designRoles) ?? {});
+  const layoutRhythm = rec(design?.layoutRhythm);
+  const layoutPages = list(layoutRhythm?.pages);
   if (
     design &&
     (!sourceDigestRecord(model, design) ||
@@ -994,13 +1590,21 @@ function validateEvidence(
               check.criterion === `typography:${role}` &&
               check.source === "design-system-measurement",
           ),
-      ))
+      ) ||
+      layoutPages.length !== slides.length ||
+      layoutPages.some(
+        (entry, index) =>
+          rec(entry)?.index !== index + 1 ||
+          !Array.isArray(rec(entry)?.fingerprint) ||
+          !Number.isInteger(rec(entry)?.bodyObjectCount),
+      ) ||
+      !Array.isArray(layoutRhythm?.similarGroups))
   )
     findings.push(
       finding(
         "DESIGN_EVIDENCE_INVALID",
         "evidence.design.json",
-        "design evidence must bind the design system and cover every typography role with passing carrier measurements",
+        "design evidence must bind typography measurements and per-page layout-rhythm fingerprints",
       ),
     );
   const accessibility = schemaRecord(
@@ -1038,6 +1642,92 @@ function validateEvidence(
     );
 }
 
+export function presentationReviewChecksValid(
+  value: unknown,
+  relationshipRequired: boolean,
+  allowedAnchors?: ReadonlySet<string>,
+) {
+  const checks = rec(value);
+  if (!checks) return false;
+  return REVIEW_CHECKS.every((name) => {
+    const check = rec(checks[name]);
+    if (
+      !check ||
+      !["pass", "not-applicable"].includes(String(check.status)) ||
+      !Array.isArray(check.anchors) ||
+      !check.anchors.length ||
+      !check.anchors.every((anchor) => {
+        if (anchor === "deck") return true;
+        if (typeof anchor !== "string" || !anchor.startsWith("slide:"))
+          return false;
+        return !allowedAnchors || allowedAnchors.has(anchor);
+      }) ||
+      typeof check.evidence !== "string" ||
+      !check.evidence.trim()
+    )
+      return false;
+    if (check.status === "not-applicable")
+      return (
+        name === "relationshipSemantics" &&
+        !relationshipRequired &&
+        typeof check.rationale === "string" &&
+        Boolean(check.rationale.trim())
+      );
+    return true;
+  });
+}
+
+export function presentationReviewFindingsValid(
+  value: unknown,
+  allowedAnchors?: ReadonlySet<string>,
+  pageHashes?: ReadonlyMap<number, string>,
+) {
+  if (!Array.isArray(value)) return false;
+  return value.every((entry) => {
+    const reviewFinding = rec(entry);
+    if (
+      !reviewFinding ||
+      typeof reviewFinding.id !== "string" ||
+      !ID.test(reviewFinding.id) ||
+      !["low", "medium", "high", "critical"].includes(
+        String(reviewFinding.severity),
+      ) ||
+      typeof reviewFinding.anchor !== "string" ||
+      !reviewFinding.anchor.trim() ||
+      (reviewFinding.anchor !== "deck" &&
+        allowedAnchors &&
+        !allowedAnchors.has(reviewFinding.anchor)) ||
+      typeof reviewFinding.evidence !== "string" ||
+      !reviewFinding.evidence.trim() ||
+      typeof reviewFinding.recovery !== "string" ||
+      !reviewFinding.recovery.trim() ||
+      !["resolved", "accepted"].includes(
+        String(reviewFinding.disposition),
+      ) ||
+      (reviewFinding.page !== undefined &&
+        (!Number.isInteger(reviewFinding.page) ||
+          Number(reviewFinding.page) < 1 ||
+          (pageHashes && !pageHashes.has(Number(reviewFinding.page)))))
+    )
+      return false;
+    if (reviewFinding.disposition === "resolved") {
+      const page = Number(reviewFinding.page);
+      return (
+        typeof reviewFinding.resolutionEvidence === "string" &&
+        Boolean(reviewFinding.resolutionEvidence.trim()) &&
+        (reviewFinding.page === undefined ||
+          !pageHashes ||
+          reviewFinding.resolutionPageSha256 === pageHashes.get(page))
+      );
+    }
+    return (
+      !["high", "critical"].includes(String(reviewFinding.severity)) &&
+      typeof reviewFinding.acceptanceReason === "string" &&
+      Boolean(reviewFinding.acceptanceReason.trim())
+    );
+  });
+}
+
 function validateReview(
   model: PptxModel,
   slides: unknown[],
@@ -1054,6 +1744,22 @@ function validateReview(
   const reviewer = rec(review?.reviewer);
   const pages = list(review?.pages);
   const render = rec(parseJson(files, "evidence.render.json"));
+  const storyboard = rec(parseJson(files, "plan.storyboard.json"));
+  const relationshipRequired = list(storyboard?.slides).some((entry) => {
+    const visual = rec(rec(entry)?.visual);
+    return visual?.type === "diagram";
+  });
+  const reviewAnchors = new Set(
+    list(storyboard?.slides).map(
+      (entry) => `slide:${String(rec(entry)?.id ?? "")}`,
+    ),
+  );
+  const reviewPageHashes = new Map(
+    pages.map((entry) => [
+      Number(rec(entry)?.index),
+      String(rec(entry)?.sha256 ?? ""),
+    ]),
+  );
   if (
     review &&
     (!sourceDigestRecord(model, review) ||
@@ -1073,18 +1779,22 @@ function validateReview(
             ] ||
           rec(entry)?.verdict !== "pass",
       ) ||
-      !Array.isArray(review.findings) ||
-      review.findings.some(
-        (entry) =>
-          !isObject(entry) ||
-          !["resolved", "accepted"].includes(String(entry.disposition)),
+      !presentationReviewFindingsValid(
+        review.findings,
+        reviewAnchors,
+        reviewPageHashes,
+      ) ||
+      !presentationReviewChecksValid(
+        review.checks,
+        relationshipRequired,
+        reviewAnchors,
       ))
   )
     findings.push(
       finding(
         "REVIEW_INVALID",
         "review.pptx.json",
-        "review must be independent, cover every current page, and disposition every finding",
+        "review must be independent, cover every page, complete all quality checks, and disposition findings with evidence",
       ),
     );
   const plan = rec(parseJson(files, "plan.contract.json"));

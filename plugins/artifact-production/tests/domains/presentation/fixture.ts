@@ -35,14 +35,20 @@ export function minimalPng(width = 1600, height = 900) {
   return png;
 }
 
-export function minimalPptx() {
+export function minimalPptx(slideXml = `<?xml version="1.0"?>
+  <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+    <p:cSld><p:spTree>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+      <p:sp><p:nvSpPr><p:cNvPr id="2" name="pptx:title:opening"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="457200"/><a:ext cx="3657600" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Opening</a:t></a:r></a:p></p:txBody></p:sp>
+    </p:spTree></p:cSld>
+  </p:sld>`) {
   const relationship = (id: string, type: string, target: string) => `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/>`;
   return Buffer.from(zipSync({
     "[Content_Types].xml": bytes("<?xml version=\"1.0\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"/>"),
     "_rels/.rels": bytes(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship("rId1", "officeDocument", "ppt/presentation.xml")}</Relationships>`),
     "ppt/presentation.xml": bytes("<?xml version=\"1.0\"?><p:presentation xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>"),
     "ppt/_rels/presentation.xml.rels": bytes(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship("rId1", "slide", "slides/slide1.xml")}</Relationships>`),
-    "ppt/slides/slide1.xml": bytes("<?xml version=\"1.0\"?><p:sld xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>"),
+    "ppt/slides/slide1.xml": bytes(slideXml),
     "ppt/slides/_rels/slide1.xml.rels": bytes(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship("rId1", "slideLayout", "../slideLayouts/slideLayout1.xml")}</Relationships>`),
     "ppt/slideLayouts/slideLayout1.xml": bytes("<?xml version=\"1.0\"?><p:sldLayout xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"/>"),
     "ppt/slideLayouts/_rels/slideLayout1.xml.rels": bytes(`<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${relationship("rId1", "slideMaster", "../slideMasters/slideMaster1.xml")}</Relationships>`),
@@ -58,20 +64,21 @@ function hydrate(model: PptxModel) {
 }
 
 export function sourceModel(artifactId = "deck"): PptxModel {
-  const slide = "export function renderSlide(slide, ctx) { slide.addText(ctx.copy.title); }\n";
+  const slide = "export function renderSlide(slide, ctx) { slide.addText(ctx.copy.displayTitle, { objectName: `pptx:title:${ctx.entry.id}` }); }\n";
   const communicationCore = { coreIntent: "Make the operating decision explicit.", audienceOutcome: "Leadership can repeat the decision and its reason.", retellTarget: "Approve the coordinated operating model.", signatureCue: { description: "The opening decision statement", semanticRole: "Narrative spine", anchors: ["slide:opening"] }, semanticLink: "The opening assertion states the decision every later slide must support.", invariants: ["one decision-led title chain"], prohibitedDrift: ["topic labels without assertions"] };
   const files: Record<string, FileContent> = {
     ".gitignore": "node_modules/\n.cache/\n.tmp/\n",
     "package.json": "{}\n",
     "package-lock.json": "{}\n",
-    "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "release", audience: "leadership", objective: "inform", language: "zh-CN", communicationCore }),
-    "plan.storyboard.json": JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", title: "Opening", role: "opening", visualType: "statement", assertion: "Approve the coordinated operating model.", narrativeJob: "state-decision", transition: "establish the decision before evidence", coreContribution: "States the exact retell target." }] }),
+    "plan.contract.json": JSON.stringify({ schema: PLAN_SCHEMA, artifactId, targetStage: "release", audience: { primary: "leadership", context: "operating review", desiredAction: "approve the operating model", addressing: "implicit" }, objective: "inform", language: "zh-CN", communicationCore }),
+    "plan.storyboard.json": JSON.stringify({ schema: STORYBOARD_SCHEMA, slides: [{ index: 1, id: "opening", displayTitle: "Opening", role: "opening", visual: { type: "hero", variant: "statement" }, assertion: "Approve the coordinated operating model.", narrativeJob: "state-decision", transition: "establish the decision before evidence", coreContribution: "States the exact retell target." }] }),
     "plan.skill-composition.json": JSON.stringify({ schema: SKILL_COMPOSITION_SCHEMA, workers: [{ name: "presentation-storyboard", status: "used" }, { name: "presentation-visual-critique", status: "used" }] }),
-    "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F4F6F8", textPrimary: "111827", textSecondary: "374151", accent: "1D4ED8", success: "15803D", warning: "A16207", error: "B91C1C" } }, typography: { roles: Object.fromEntries(["display", "title", "section", "body", "caption", "numeric"].map((role) => [role, { fontFamily: "Noto Sans CJK SC", fontSizePt: role === "body" ? 22 : 28, lineSpacingMultiple: role === "body" ? 1.35 : 1.15, charSpacingPt: 0, maxLines: role === "body" ? 6 : 2, scriptPolicy: "mixed" }])) }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.125, blockGapIn: 0.3, paragraphGapIn: 0.18 } }),
+    "design.system.json": JSON.stringify({ schema: DESIGN_SYSTEM_SCHEMA, colors: { roles: { canvas: "FFFFFF", surface: "F4F6F8", textPrimary: "111827", textSecondary: "374151", accent: "1D4ED8", success: "15803D", warning: "A16207", error: "B91C1C" } }, typography: { roles: Object.fromEntries(["display", "title", "section", "body", "caption", "numeric"].map((role) => [role, { fontFamily: "Noto Sans CJK SC", fontSizePt: role === "body" ? 22 : 28, lineSpacingMultiple: role === "body" ? 1.35 : 1.15, charSpacingPt: 0, maxLines: role === "body" ? 6 : role === "display" || role === "title" ? 1 : 2, scriptPolicy: "mixed" }])) }, spacing: { pageMarginIn: 0.5, baseUnitIn: 0.125, blockGapIn: 0.3, paragraphGapIn: 0.18 }, antiPatterns: ["brief-leakage", "sentence-headlines", "repeated-layout", "decorative-connector"] }),
     "pptx.project.json": JSON.stringify({ schema: PROJECT_SCHEMA, artifactId, layout: "LAYOUT_16X9", entry: "src/deck.ts", slideManifest: "src/slides/manifest.json", designSystem: "design.system.json" }),
     "src/deck.ts": "const deck = new pptxgen();\ndeck.addSlide();\n",
+    "src/semantic-layout.ts": "export const semanticName = {};\n",
     "src/theme.ts": "export const theme = {};\n",
-    "src/slides/manifest.json": JSON.stringify({ schema: SLIDE_MANIFEST_SCHEMA, slides: [{ index: 1, id: "opening", title: "Opening", role: "opening", source: "001-opening.ts", accessibility: { title: "Opening", readingOrder: ["title"], colorEncoding: ["color", "label"] } }] }),
+    "src/slides/manifest.json": JSON.stringify({ schema: SLIDE_MANIFEST_SCHEMA, slides: [{ index: 1, id: "opening", displayTitle: "Opening", role: "opening", visual: { type: "hero", variant: "statement" }, source: "001-opening.ts", accessibility: { title: "Opening", readingOrder: ["title"], colorEncoding: ["color", "label"] } }] }),
     "src/slides/001-opening.ts": slide,
   };
   return hydrate({ artifactId, files, project: JSON.parse(String(files["pptx.project.json"])), plan: JSON.parse(String(files["plan.contract.json"])), tracked: [], ignored: [] });
@@ -96,11 +103,11 @@ export function releaseModel(artifactId = "deck") {
   files["evidence.design.json"] = JSON.stringify({ schema: DESIGN_EVIDENCE_SCHEMA, ...base, designSystemSha256: model.digests?.["design.system.json"], verdict: "pass", checks: [
     { criterion: "body-text-contrast", source: "measurement", status: "pass" },
     ...["display", "title", "section", "body", "caption", "numeric"].map((role) => ({ criterion: `typography:${role}`, source: "design-system-measurement", status: "pass" })),
-  ] });
+  ], layoutRhythm: { pages: [{ index: 1, fingerprint: [], bodyObjectCount: 0 }], similarGroups: [], similarityThreshold: 0.85 } });
   files["evidence.accessibility.json"] = JSON.stringify({ schema: ACCESSIBILITY_EVIDENCE_SCHEMA, ...base, outputSha256: model.digests?.[pptxPath], verdict: "pass", checks: [{ source: "tool-report", status: "pass" }] });
   hydrate(model);
   const communicationCore = JSON.parse(String(files["plan.contract.json"])).communicationCore;
-  files["review.pptx.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }], reviewerRetell: { observedBeforeContract: "The deck asks leadership to approve one coordinated operating model.", intendedTarget: communicationCore.retellTarget, alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." }, communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "slide:opening", evidence: `${key} is visible in the reviewed page.`, recovery: `Revise ${key} and repeat review.` }])), findings: [] });
+  files["review.pptx.json"] = JSON.stringify({ schema: REVIEW_SCHEMA, ...base, verdict: "pass", reviewer: { kind: "independent-agent", id: "reviewer-1", sessionId: "review-session" }, pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }], checks: Object.fromEntries(["audienceBoundary", "headlineEconomy", "visualPayload", "layoutRhythm", "relationshipSemantics"].map((key) => [key, key === "relationshipSemantics" ? { status: "not-applicable", anchors: ["deck"], evidence: "The storyboard and structure evidence contain no native relationship diagram.", rationale: "No relationship-bearing slide is present." } : { status: "pass", anchors: ["slide:opening"], evidence: `${key} was checked against the current rendered page.` }])), reviewerRetell: { observedBeforeContract: "The deck asks leadership to approve one coordinated operating model.", intendedTarget: communicationCore.retellTarget, alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." }, communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "slide:opening", evidence: `${key} is visible in the reviewed page.`, recovery: `Revise ${key} and repeat review.` }])), findings: [] });
   hydrate(model);
   files["release.manifest.json"] = JSON.stringify(createPptxReleaseManifest(model));
   hydrate(model);

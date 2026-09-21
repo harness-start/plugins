@@ -28,7 +28,7 @@ async function main() {
   const findings = validatePptxModel(model, { stage: "source" });
   if (findings.length) throw new Error(findings.map(({ code, path }) => `${code}:${path}`).join(", "));
   const manifest = JSON.parse(String(model.files?.["src/slides/manifest.json"])) as { slides: Array<{ id: string; source: string }> };
-  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"])) as { slides: Array<{ id: string; visualType: string; diagram?: { sha256?: string } }> };
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"])) as { slides: Array<{ id: string; visual: { type: string; mode?: string; sha256?: string } }> };
   await withWriterJournal(root, "pptx-render", async () => {
     const temp = join(root, ".tmp", "pptx-guard", `render-${process.pid}-${Date.now()}`);
     await mkdir(temp, { recursive: true });
@@ -39,7 +39,7 @@ async function main() {
       const candidateBytes = await import("node:fs/promises").then(({ readFile }) => readFile(candidate));
       const inspection = inspectPptxPackage(candidateBytes);
       if (inspection.slideCount !== manifest.slides.length || inspection.unresolvedRelationships.length) throw new Error("RENDER_PPTX_STRUCTURE_INVALID");
-      const diagramDigests = storyboard.slides.filter(({ visualType }) => visualType === "diagram").map(({ diagram }) => diagram?.sha256).filter((value): value is string => typeof value === "string");
+      const diagramDigests = storyboard.slides.filter(({ visual }) => visual.type === "diagram" && visual.mode === "svg").map(({ visual }) => visual.sha256).filter((value): value is string => typeof value === "string");
       if (diagramDigests.length && (inspection.externalRelationships.length || diagramDigests.some((expected) => !inspection.media.some(({ sha256 }) => sha256 === expected)))) throw new Error("RENDER_DIAGRAM_MEDIA_MISMATCH");
       const rendered = await renderOfficePages(candidate, temp, { cwd: root });
       const pageCount = await pdfPageCount(rendered.pdfPath, { cwd: root });

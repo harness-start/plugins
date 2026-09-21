@@ -53,14 +53,20 @@ test("real Office pipeline closes render, probe, independent review, and release
     const pagePath = "dist/pages/001.png";
     const reviewInput = join(workspace, "review-input.json");
     writeFileSync(reviewInput, `${JSON.stringify({
-      schema: "presentation-production/review-input/v2",
+      schema: "presentation-production/review-input/v4",
       artifactId: "pipeline-deck",
       subjectDigest: computePptxSubjectDigest(model),
       verdict: "pass",
       reviewer: { kind: "independent-agent", id: "pipeline-reviewer", sessionId: "review-session" },
       pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }],
       findings: [],
-      checks: { hierarchy: "pass", legibility: "pass", clipping: "pass", consistency: "pass", accessibility: "pass" },
+      checks: {
+        audienceBoundary: { status: "pass", anchors: ["slide:opening"], evidence: "The cover addresses the audience without exposing the private brief." },
+        headlineEconomy: { status: "pass", anchors: ["slide:opening"], evidence: "The visible title is a compact single-line label." },
+        visualPayload: { status: "pass", anchors: ["slide:opening"], evidence: "The opening visual hierarchy carries the primary message." },
+        layoutRhythm: { status: "pass", anchors: ["deck"], evidence: "The one-page deck has no repeated-layout run." },
+        relationshipSemantics: { status: "not-applicable", anchors: ["deck"], evidence: "The storyboard and structure evidence contain no native relationship diagram.", rationale: "No relationship-bearing slide is present." },
+      },
       reviewerRetell: { observedBeforeContract: "This deck leads to one explicit decision.", intendedTarget: "This deck leads to one explicit decision.", alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." },
       communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "slide:opening", evidence: `${key} is visible in the reviewed page.`, recovery: `Revise ${key} and repeat independent review.` }])),
     }, null, 2)}\n`);

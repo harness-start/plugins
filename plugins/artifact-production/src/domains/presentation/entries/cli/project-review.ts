@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computePptxSubjectDigest, loadPptxProject, validatePptxModel } from "../../lib/contract.js";
+import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computePptxSubjectDigest, loadPptxProject, presentationReviewChecksValid, presentationReviewFindingsValid, validatePptxModel } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertPptxProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 import { communicationAnchors, communicationReviewValid } from "../../../../lib/communication-contract.js";
@@ -37,7 +37,21 @@ async function main() {
   const core = record(record(model.plan).communicationCore);
   if (!communicationReviewValid(payload, core.retellTarget, communicationAnchors(core))) throw new Error("COMMUNICATION_REVIEW_INCOMPLETE");
   const reviewFindings = Array.isArray(payload.findings) ? payload.findings : [];
-  if (reviewFindings.some((entry) => !["resolved", "accepted"].includes(String(record(entry).disposition)))) throw new Error("REVIEW_FINDING_UNRESOLVED");
+  const storyboard = record(JSON.parse(String(model.files?.["plan.storyboard.json"])));
+  const relationshipRequired = Array.isArray(storyboard.slides) && storyboard.slides.some((entry) => {
+    const visual = record(record(entry).visual);
+    return visual.type === "diagram";
+  });
+  const reviewAnchors = new Set(
+    Array.isArray(storyboard.slides)
+      ? storyboard.slides.map((entry) => `slide:${String(record(entry).id ?? "")}`)
+      : [],
+  );
+  const reviewPageHashes = new Map(
+    pages.map((page) => [Number(page.index), String(page.sha256 ?? "")]),
+  );
+  if (!presentationReviewFindingsValid(reviewFindings, reviewAnchors, reviewPageHashes)) throw new Error("REVIEW_FINDING_INVALID");
+  if (!presentationReviewChecksValid(payload.checks, relationshipRequired, reviewAnchors)) throw new Error("REVIEW_CHECKS_INCOMPLETE");
   await withWriterJournal(root, "pptx-review", async () => {
     await atomicWriteJson(root, "review.pptx.json", { schema: REVIEW_SCHEMA, plugin: "presentation-production", artifactId: model.artifactId, subjectDigest: computePptxSubjectDigest(model), verdict: "pass", reviewer, pages, findings: reviewFindings, checks: payload.checks ?? {}, reviewerRetell: payload.reviewerRetell, communicationReview: payload.communicationReview, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("pptx-review", grant) });
   }, grant);
