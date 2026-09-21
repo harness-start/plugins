@@ -35,7 +35,7 @@ node "$DELEGATE_PLUGIN_ROOT/dist/cli/harness.mjs" delegate grok \
   --brief brief.txt --cd "$PWD"
 ```
 
-The default is `--always-approve --sandbox workspace`. Use `--read-only` for best-effort plan intent, then verify the diff because it is not a hard no-write boundary. Use `--full-access` only after explicit human approval; it disables the sandbox and auto-approves tools.
+The default is `--always-approve --sandbox workspace`. Use `--read-only` for best-effort plan intent, then verify the diff because it is not a hard no-write boundary. Use `--full-access` only after explicit human approval; by itself it disables the sandbox and auto-approves tools. If the native read-only sandbox cannot start because of an incompatible host path or kernel policy, explicit approval also permits combining `--read-only --full-access`: the relay disables the OS sandbox but retains plan mode and the read-only Git tripwire. Never make that fallback implicit.
 
 4. Wait for process exit and inspect the printed `result.json` plus `harnessAudit`. Dirty worktrees are allowed. Treat HEAD or index changes as a failed parent boundary.
 5. Review all tracked, staged, and untracked changes and re-run the real project gates. Never accept Grok's own report as proof.

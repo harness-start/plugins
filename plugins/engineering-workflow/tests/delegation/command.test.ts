@@ -52,6 +52,28 @@ process.stdout.write(JSON.stringify({ type: "thread.started", thread_id: "offlin
   return bin;
 }
 
+function fakeGrok(root: string): string {
+  const bin = join(root, "bin");
+  mkdirSync(bin);
+  const implementation = join(bin, "fake-grok.cjs");
+  writeFileSync(implementation, `
+const { writeFileSync } = require("node:fs");
+const args = process.argv.slice(2);
+if (args.includes("version") || args.includes("--version")) {
+  process.stdout.write("grok 1.0.34-offline\\n");
+  process.exit(0);
+}
+writeFileSync(process.env.FAKE_GROK_ARGV, JSON.stringify(args));
+if (process.env.FAKE_GROK_WRITE_FILE) writeFileSync(process.env.FAKE_GROK_WRITE_FILE, "unexpected write\\n");
+process.stdout.write(JSON.stringify({ type: "text", data: "offline fake report" }) + "\\n");
+process.stdout.write(JSON.stringify({ type: "end", sessionId: "offline-grok-session" }) + "\\n");
+`);
+  const executable = join(bin, "grok");
+  writeFileSync(executable, `#!/bin/sh\nexec "${process.execPath}" "${implementation}" "$@"\n`);
+  chmodSync(executable, 0o755);
+  return bin;
+}
+
 function dispatchCodex(options: { stage?: boolean } = {}) {
   const root = repository("delegation-command-");
   const controls = mkdtempSync(join(tmpdir(), "delegation-controls-"));
@@ -102,6 +124,53 @@ test("all bundled provider relays expose an offline help protocol without fleet 
   assert.match(helpByProvider.get("agy") ?? "", /--sandbox[\s\S]*--read-only[\s\S]*--dangerously-skip-permissions/u);
   assert.match(helpByProvider.get("grok") ?? "", /--read-only[\s\S]*--full-access/u);
   assert.match(helpByProvider.get("pi") ?? "", /--approve[\s\S]*--read-only/u);
+});
+
+test("Grok can retain read-only auditing when full access is explicitly approved", () => {
+  const root = repository("delegation-grok-read-only-");
+  const controls = mkdtempSync(join(tmpdir(), "delegation-grok-controls-"));
+  const bin = fakeGrok(controls);
+  const outDir = join(controls, "relay-output");
+  const brief = join(controls, "brief.txt");
+  const argvPath = join(controls, "argv.json");
+  writeFileSync(brief, "Review without modifying files.\n");
+
+  const result = spawnSync(process.execPath, [
+    entry,
+    "delegate",
+    "grok",
+    "--read-only",
+    "--full-access",
+    "--brief",
+    brief,
+    "--cd",
+    root,
+    "--out-dir",
+    outDir,
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      PLUGIN_ROOT: pluginRoot,
+      PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`,
+      FAKE_GROK_ARGV: argvPath,
+      FAKE_GROK_WRITE_FILE: join(root, "unexpected.txt"),
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  const relayResult = JSON.parse(readFileSync(join(outDir, "result.json"), "utf8")) as Record<string, unknown>;
+  assert.equal(relayResult.autonomy, "read-only-full-access");
+  assert.equal(relayResult.readOnlyViolation, true);
+  const argv = JSON.parse(readFileSync(argvPath, "utf8")) as string[];
+  assert.deepEqual(argv.slice(argv.indexOf("--sandbox"), argv.indexOf("--sandbox") + 4), [
+    "--sandbox",
+    "off",
+    "--permission-mode",
+    "plan",
+  ]);
+  assert.equal(argv.includes("--always-approve"), false);
 });
 
 test("the public owner CLI accepts a dirty baseline and records non-attributed Git deltas", () => {

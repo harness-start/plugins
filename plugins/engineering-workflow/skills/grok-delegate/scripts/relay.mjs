@@ -24,6 +24,8 @@
  *   default        — `--always-approve --sandbox workspace` (write in CWD)
  *   --read-only    — `--sandbox read-only --permission-mode plan` (review intent)
  *   --full-access  — `--always-approve --sandbox off` (unrestricted; opt-in)
+ *   both flags     — `--sandbox off --permission-mode plan` (review intent,
+ *                    unrestricted host access; explicit approval required)
  *
  * `--read-only` is best-effort, NOT a hard guarantee: on grok 0.2.101 the
  * read-only sandbox governs out-of-workspace filesystem/network access, not the
@@ -60,6 +62,9 @@
  *   --max-turns <n>         Maximum number of agent turns for this run.
  *   --read-only             Review/diagnosis with no edits (`--sandbox read-only`).
  *   --full-access           Unrestricted auto-approve (`--sandbox off`); opt-in.
+ *                           Combine with `--read-only` only after explicit approval
+ *                           when the native sandbox cannot start; plan mode and the
+ *                           read-only Git tripwire remain active.
  *   --resume-last           Continue the most recent Grok session for this cwd;
  *                           send only the delta brief.
  *   --session <id>          Continue a specific session id; send only the delta brief.
@@ -102,7 +107,7 @@ const MAX_BUFFERED_CHARS = 1_048_576;
 
 const VERSION_PROBE_TIMEOUT_MS = 10_000;
 const MAX_TIMER_MS = 2_147_483_647;
-const AUTONOMY_MODES = new Set(["workspace-write", "read-only", "full-access"]);
+const AUTONOMY_MODES = new Set(["workspace-write", "read-only", "full-access", "read-only-full-access"]);
 
 let trustedGitRoot = null;
 // The same root in git's own literal spelling, captured by the bootstrap query.
@@ -275,6 +280,8 @@ function fail(message, code = 2) {
 
 function parseArgs(argv) {
   const flagged = new Set();
+  let readOnlyRequested = false;
+  let fullAccessRequested = false;
   const opts = {
     brief: null,
     cd: process.cwd(),
@@ -308,8 +315,8 @@ function parseArgs(argv) {
       case "--model": opts.model = next(); flagged.add("model"); break;
       case "--effort": opts.effort = next(); flagged.add("effort"); break;
       case "--max-turns": opts.maxTurns = next(); break;
-      case "--read-only": opts.autonomy = "read-only"; flagged.add("autonomy"); flagged.add("readOnly"); break;
-      case "--full-access": opts.autonomy = "full-access"; flagged.add("autonomy"); break;
+      case "--read-only": readOnlyRequested = true; flagged.add("autonomy"); flagged.add("readOnly"); break;
+      case "--full-access": fullAccessRequested = true; flagged.add("autonomy"); break;
       case "--resume-last": opts.resumeLast = true; break;
       case "--session": opts.session = next(); break;
       case "--timeout": opts.timeout = next(); flagged.add("timeout"); break;
@@ -318,6 +325,9 @@ function parseArgs(argv) {
         fail(`unknown option: ${arg}`);
     }
   }
+  if (readOnlyRequested && fullAccessRequested) opts.autonomy = "read-only-full-access";
+  else if (readOnlyRequested) opts.autonomy = "read-only";
+  else if (fullAccessRequested) opts.autonomy = "full-access";
   // The watchdog is relay-only (the grok launch has no timeout flag), so a malformed
   // --timeout must fail loudly here - a silent no-watchdog fallback would be wrong.
   if (opts.timeout !== null && parseDuration(opts.timeout) === null) {
@@ -729,7 +739,7 @@ function timestamp() {
 }
 
 function autonomyFlags(autonomy) {
-  // Maps the relay's three autonomy modes onto Grok's native --sandbox /
+  // Maps the relay's four autonomy modes onto Grok's native --sandbox /
   // --always-approve / --permission-mode flags. Grok's default permission mode
   // is `ask`, which hangs a headless pipe — so every path sets autonomy
   // explicitly. Sandbox profiles (verified valid on grok 0.2.101):
@@ -741,12 +751,18 @@ function autonomyFlags(autonomy) {
   switch (autonomy) {
     case "read-only":
       return ["--sandbox", "read-only", "--permission-mode", "plan"];
+    case "read-only-full-access":
+      return ["--sandbox", "off", "--permission-mode", "plan"];
     case "full-access":
       return ["--always-approve", "--sandbox", "off"];
     case "workspace-write":
     default:
       return ["--always-approve", "--sandbox", "workspace"];
   }
+}
+
+function hasReadOnlyIntent(autonomy) {
+  return autonomy === "read-only" || autonomy === "read-only-full-access";
 }
 
 function buildArgv(opts, run) {
@@ -886,14 +902,14 @@ function dispatchToGrok(opts, run, writeResult) {
   // plan mode are advisory), so a --read-only run snapshots the tree up front
   // and flags a violation in the result instead of pretending to enforce.
   const relayArtifacts = [run.briefPath, run.eventsPath, run.finalPath, run.resultPath];
-  const beforeTree = opts.autonomy === "read-only" ? gitTripwireState(opts.cd, relayArtifacts) : null;
+  const beforeTree = hasReadOnlyIntent(opts.autonomy) ? gitTripwireState(opts.cd, relayArtifacts) : null;
   // Working-tree and index state for paths that are ALREADY dirty. Their porcelain lines will not
   // move if the run edits them, so the line comparison alone cannot see those writes.
-  const beforeFingerprints = opts.autonomy === "read-only" ? fingerprintDirtyPaths(opts.cd, relayArtifacts) : null;
+  const beforeFingerprints = hasReadOnlyIntent(opts.autonomy) ? fingerprintDirtyPaths(opts.cd, relayArtifacts) : null;
   // every dispatched result that reports touchedFiles carries the verdict, aborted runs included -
   // an aborted --read-only review can still have modified the tree
   const readOnlyFlag = () =>
-    opts.autonomy === "read-only"
+    hasReadOnlyIntent(opts.autonomy)
       ? { readOnlyViolation: readOnlyVerdict(beforeTree, gitTripwireState(opts.cd, relayArtifacts), beforeFingerprints) }
       : {};
   const argv = buildArgv(opts, run);
