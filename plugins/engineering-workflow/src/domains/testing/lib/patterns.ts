@@ -245,7 +245,8 @@ function testNames(language: string, text: string): string[] {
 
 function identifierUsed(text: string, identifier: string | null | undefined): boolean {
   if (!identifier) return false;
-  return new RegExp(`\\b${identifier.replace(/[$]/gu, "\\$")}\\b`, "u").test(text);
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "u").test(text);
 }
 
 function phpNamespace(code: string): string {
@@ -377,6 +378,78 @@ function javascriptTargets(code: string, testPath: string): string[] {
   return unique(targets);
 }
 
+type RustUseLeaf = {
+  binding: string;
+  path: string[];
+};
+
+const RUST_IDENTIFIER = /^(?:r#)?[A-Za-z_][A-Za-z0-9_]*$/u;
+const MAX_RUST_USE_DEPTH = 32;
+
+function compactRustUse(value: string): string {
+  return value.trim()
+    .replace(/\s*::\s*/gu, "::")
+    .replace(/\s*\{\s*/gu, "{")
+    .replace(/\s*\}\s*/gu, "}")
+    .replace(/\s*,\s*/gu, ",")
+    .replace(/\s+as\s+/gu, " as ");
+}
+
+function splitRustUseItems(value: string): string[] | null {
+  const items: string[] = [];
+  let cursor = 0;
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth < 0) return null;
+    } else if (char === "," && depth === 0) {
+      const item = value.slice(cursor, index).trim();
+      if (item) items.push(item);
+      cursor = index + 1;
+    }
+  }
+  if (depth !== 0) return null;
+  const item = value.slice(cursor).trim();
+  if (item) items.push(item);
+  return items;
+}
+
+function expandRustUseTree(value: string, prefix: string[] = [], depth = 0): RustUseLeaf[] {
+  if (depth > MAX_RUST_USE_DEPTH) return [];
+  const expression = compactRustUse(value);
+  const open = expression.indexOf("{");
+  if (open >= 0) {
+    if (!expression.slice(0, open).endsWith("::")) return [];
+    let braceDepth = 0;
+    let close = -1;
+    for (let index = open; index < expression.length; index += 1) {
+      const char = expression[index];
+      if (char === "{") braceDepth += 1;
+      else if (char === "}" && --braceDepth === 0) {
+        close = index;
+        break;
+      }
+    }
+    if (close < 0 || expression.slice(close + 1).trim()) return [];
+    const head = expression.slice(0, open - 2);
+    const headSegments = head.split("::").filter(Boolean);
+    if (headSegments.some((segment) => !RUST_IDENTIFIER.test(segment))) return [];
+    const items = splitRustUseItems(expression.slice(open + 1, close));
+    if (!items) return [];
+    return items.flatMap((item) => expandRustUseTree(item, [...prefix, ...headSegments], depth + 1));
+  }
+
+  const aliased = expression.match(/^(.*?)\s+as\s+((?:r#)?[A-Za-z_][A-Za-z0-9_]*)$/u);
+  const path = (aliased?.[1] ?? expression).split("::").filter(Boolean);
+  const binding = aliased?.[2] ?? path.at(-1) ?? "";
+  if (path.length === 0 || path.some((segment) => !RUST_IDENTIFIER.test(segment))) return [];
+  if (!RUST_IDENTIFIER.test(binding) || ["self", "super", "crate"].includes(path.at(-1) ?? "") || path.at(-1) === "*") return [];
+  return [{ path: [...prefix, ...path], binding }];
+}
+
 function rustTargets(code: string, context: LanguageContext): string[] {
   const body = code.replace(/^\s*use\s+[^;]+;\s*$/gmu, "");
   const crateName = String(context.rustCrateName ?? "");
@@ -384,16 +457,10 @@ function rustTargets(code: string, context: LanguageContext): string[] {
   if (!crateName) return [];
   const targets: string[] = [];
   for (const match of code.matchAll(/^\s*use\s+([^;]+)\s*;/gmu)) {
-    const expression = (match[1] ?? "").trim();
-    const grouped = expression.match(/^(.+?)::\{(.+)\}$/u);
-    const paths = grouped
-      ? (grouped[2] ?? "").split(",").map((item) => `${grouped[1]}::${item.trim()}`)
-      : [expression];
-    for (const path of paths) {
-      const alias = path.match(/\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/u)?.[1];
-      const segments = path.replace(/\s+as\s+[A-Za-z_][A-Za-z0-9_]*$/u, "").split("::");
+    for (const leaf of expandRustUseTree(match[1] ?? "")) {
+      const segments = [...leaf.path];
       const item = segments.pop();
-      if (!identifierUsed(body, alias ?? item)) continue;
+      if (!identifierUsed(body, leaf.binding)) continue;
       const importedCrate = segments.shift()?.replaceAll("-", "_");
       if (importedCrate !== crateName.replaceAll("-", "_")) continue;
       targets.push(`rust:${crateRoot}:${crateName}#${segments.join("::")}#${item}`);

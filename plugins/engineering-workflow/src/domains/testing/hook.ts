@@ -113,6 +113,24 @@ function dirtyLiveTests(root: string, source: SourceLike, context: LanguageConte
   });
 }
 
+function hasDirtyRustTestInCrate(root: string, sourceContext: LanguageContext): boolean {
+  return listDirtyPaths(root).some((path) => {
+    const classified = classifyPath(path);
+    if (classified.kind !== "test" || classified.language !== "rust") return false;
+    const state = gitPathState(root, path);
+    if (!state.present || !state.dirty) return false;
+    const testContext = resolveLanguageContext(root, path, "rust");
+    const sourceCrate = String(sourceContext.rustCrateName ?? "");
+    const testCrate = String(testContext.rustCrateName ?? "");
+    if (
+      sourceCrate !== testCrate
+      || String(sourceContext.rustCrateRoot ?? "") !== String(testContext.rustCrateRoot ?? "")
+    ) return false;
+    const evidence = extractTestEvidence("rust", readText(resolve(root, path)), path, testContext);
+    return evidence.valid;
+  });
+}
+
 function restoresBaseline(root: string, event: HookEvent, target: ActiveTarget): boolean {
   const deleting = targetOperation(event, target.absolutePath) === "delete";
   if (!deleting && shellCommandOf(event)) return false;
@@ -149,6 +167,7 @@ function testChangeBreaksAuthorization(root: string, event: HookEvent, target: A
   const current = testRecord(root, event, target, false);
   if (!current?.dirty) return null;
   const proposed = testRecord(root, event, target, true);
+  if (target.language === "rust" && proposed?.dirty && proposed.evidence.valid) return null;
   for (const dirtySource of dirtySourceTargets(root)) {
     if (dirtySource.language !== target.language) continue;
     const source = sourceForTarget(root, event, dirtySource, false);
@@ -197,6 +216,9 @@ function checkSourceTarget(root: string, event: HookEvent, target: ActiveTarget)
   const deleting = targetOperation(event, target.absolutePath) === "delete";
   const source = sourceForTarget(root, event, target, deleting);
   const context = resolveLanguageContext(root, target.path, target.language);
+
+  // Rust symbol inference is positive-only: failure to map a valid dirty test must not become negative evidence.
+  if (target.language === "rust" && hasDirtyRustTestInCrate(root, context)) return true;
 
   if (deleting) {
     const historical = headCorrespondingTests(root, source, context);

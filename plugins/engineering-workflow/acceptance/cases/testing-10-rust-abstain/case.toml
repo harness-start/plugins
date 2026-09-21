@@ -1,0 +1,4 @@
+id = "10-rust-abstain"
+hosts = ["claude", "codex"]
+timeout_sec = 300
+tags = ["pre-tool-use", "rust", "abstain", "outcome"]

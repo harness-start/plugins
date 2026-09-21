@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:a0bc9e686ce921ac3c43a926c145db87aa7ea27ae9f404b5a850bb56cfa3ae1a
+// harness-source-hash: sha256:8d6b1826783e524ce86aa85854bb3f60d3c56be422e076bac98ffd30bb6d4ab7
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   parseWriterStdout,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-6N3SAKAQ.mjs";
+} from "../chunks/chunk-NG2BGHUR.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -2025,7 +2025,8 @@ function testNames(language, text) {
 }
 function identifierUsed(text, identifier) {
   if (!identifier) return false;
-  return new RegExp(`\\b${identifier.replace(/[$]/gu, "\\$")}\\b`, "u").test(text);
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(`\\b${escaped}\\b`, "u").test(text);
 }
 function phpNamespace(code) {
   return code.match(/\bnamespace\s+([A-Za-z_\\][A-Za-z0-9_\\]*)\s*[;{]/u)?.[1]?.replace(/^\\/u, "") ?? "";
@@ -2146,6 +2147,63 @@ function javascriptTargets(code, testPath) {
   }
   return unique(targets2);
 }
+var RUST_IDENTIFIER = /^(?:r#)?[A-Za-z_][A-Za-z0-9_]*$/u;
+var MAX_RUST_USE_DEPTH = 32;
+function compactRustUse(value) {
+  return value.trim().replace(/\s*::\s*/gu, "::").replace(/\s*\{\s*/gu, "{").replace(/\s*\}\s*/gu, "}").replace(/\s*,\s*/gu, ",").replace(/\s+as\s+/gu, " as ");
+}
+function splitRustUseItems(value) {
+  const items = [];
+  let cursor = 0;
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "{") depth += 1;
+    else if (char === "}") {
+      depth -= 1;
+      if (depth < 0) return null;
+    } else if (char === "," && depth === 0) {
+      const item2 = value.slice(cursor, index).trim();
+      if (item2) items.push(item2);
+      cursor = index + 1;
+    }
+  }
+  if (depth !== 0) return null;
+  const item = value.slice(cursor).trim();
+  if (item) items.push(item);
+  return items;
+}
+function expandRustUseTree(value, prefix = [], depth = 0) {
+  if (depth > MAX_RUST_USE_DEPTH) return [];
+  const expression = compactRustUse(value);
+  const open = expression.indexOf("{");
+  if (open >= 0) {
+    if (!expression.slice(0, open).endsWith("::")) return [];
+    let braceDepth = 0;
+    let close = -1;
+    for (let index = open; index < expression.length; index += 1) {
+      const char = expression[index];
+      if (char === "{") braceDepth += 1;
+      else if (char === "}" && --braceDepth === 0) {
+        close = index;
+        break;
+      }
+    }
+    if (close < 0 || expression.slice(close + 1).trim()) return [];
+    const head = expression.slice(0, open - 2);
+    const headSegments = head.split("::").filter(Boolean);
+    if (headSegments.some((segment) => !RUST_IDENTIFIER.test(segment))) return [];
+    const items = splitRustUseItems(expression.slice(open + 1, close));
+    if (!items) return [];
+    return items.flatMap((item) => expandRustUseTree(item, [...prefix, ...headSegments], depth + 1));
+  }
+  const aliased = expression.match(/^(.*?)\s+as\s+((?:r#)?[A-Za-z_][A-Za-z0-9_]*)$/u);
+  const path = (aliased?.[1] ?? expression).split("::").filter(Boolean);
+  const binding = aliased?.[2] ?? path.at(-1) ?? "";
+  if (path.length === 0 || path.some((segment) => !RUST_IDENTIFIER.test(segment))) return [];
+  if (!RUST_IDENTIFIER.test(binding) || ["self", "super", "crate"].includes(path.at(-1) ?? "") || path.at(-1) === "*") return [];
+  return [{ path: [...prefix, ...path], binding }];
+}
 function rustTargets(code, context2) {
   const body = code.replace(/^\s*use\s+[^;]+;\s*$/gmu, "");
   const crateName = String(context2.rustCrateName ?? "");
@@ -2153,14 +2211,10 @@ function rustTargets(code, context2) {
   if (!crateName) return [];
   const targets2 = [];
   for (const match of code.matchAll(/^\s*use\s+([^;]+)\s*;/gmu)) {
-    const expression = (match[1] ?? "").trim();
-    const grouped = expression.match(/^(.+?)::\{(.+)\}$/u);
-    const paths = grouped ? (grouped[2] ?? "").split(",").map((item) => `${grouped[1]}::${item.trim()}`) : [expression];
-    for (const path of paths) {
-      const alias = path.match(/\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$/u)?.[1];
-      const segments = path.replace(/\s+as\s+[A-Za-z_][A-Za-z0-9_]*$/u, "").split("::");
+    for (const leaf of expandRustUseTree(match[1] ?? "")) {
+      const segments = [...leaf.path];
       const item = segments.pop();
-      if (!identifierUsed(body, alias ?? item)) continue;
+      if (!identifierUsed(body, leaf.binding)) continue;
       const importedCrate = segments.shift()?.replaceAll("-", "_");
       if (importedCrate !== crateName.replaceAll("-", "_")) continue;
       targets2.push(`rust:${crateRoot}:${crateName}#${segments.join("::")}#${item}`);
@@ -2690,6 +2744,20 @@ function dirtyLiveTests(root, source, context2) {
     return state.present && state.dirty;
   });
 }
+function hasDirtyRustTestInCrate(root, sourceContext) {
+  return listDirtyPaths(root).some((path) => {
+    const classified = classifyPath2(path);
+    if (classified.kind !== "test" || classified.language !== "rust") return false;
+    const state = gitPathState(root, path);
+    if (!state.present || !state.dirty) return false;
+    const testContext = resolveLanguageContext(root, path, "rust");
+    const sourceCrate = String(sourceContext.rustCrateName ?? "");
+    const testCrate = String(testContext.rustCrateName ?? "");
+    if (sourceCrate !== testCrate || String(sourceContext.rustCrateRoot ?? "") !== String(testContext.rustCrateRoot ?? "")) return false;
+    const evidence = extractTestEvidence("rust", readText(resolve12(root, path)), path, testContext);
+    return evidence.valid;
+  });
+}
 function restoresBaseline(root, event, target) {
   const deleting = targetOperation(event, target.absolutePath) === "delete";
   if (!deleting && shellCommandOf(event)) return false;
@@ -2721,6 +2789,7 @@ function testChangeBreaksAuthorization(root, event, target, eventTargets) {
   const current = testRecord(root, event, target, false);
   if (!current?.dirty) return null;
   const proposed = testRecord(root, event, target, true);
+  if (target.language === "rust" && proposed?.dirty && proposed.evidence.valid) return null;
   for (const dirtySource of dirtySourceTargets(root)) {
     if (dirtySource.language !== target.language) continue;
     const source = sourceForTarget(root, event, dirtySource, false);
@@ -2766,6 +2835,7 @@ function checkSourceTarget(root, event, target) {
   const deleting = targetOperation(event, target.absolutePath) === "delete";
   const source = sourceForTarget(root, event, target, deleting);
   const context2 = resolveLanguageContext(root, target.path, target.language);
+  if (target.language === "rust" && hasDirtyRustTestInCrate(root, context2)) return true;
   if (deleting) {
     const historical = headCorrespondingTests(root, source, context2);
     if (historical.length > 0 && historical.every((path) => gitPathState(root, path).dirty)) return true;

@@ -402,6 +402,42 @@ test("Rust and Go dependency identities cannot unlock a same-named local entity"
   }, goDependency, { goModulePath: "example.com/shop", goModuleRoot: "" }), false);
 });
 
+test("Rust multiline grouped imports preserve nested paths and aliases without throwing", () => {
+  const evidence = extractTestEvidence(
+    "rust",
+    [
+      "use shop::{",
+      "    billing::{OrderService, Price as BillingPrice, Unused},",
+      "};",
+      "#[test]",
+      "fn creates() { OrderService::new(); BillingPrice::zero(); }",
+      "",
+    ].join("\n"),
+    "crates/shop/tests/order_service.rs",
+    { rustCrateName: "shop", rustCrateRoot: "crates/shop" },
+  );
+  assert.deepEqual(evidence.targets, [
+    "rust:crates/shop:shop#billing#OrderService",
+    "rust:crates/shop:shop#billing#Price",
+  ]);
+
+  const malformed = extractTestEvidence(
+    "rust",
+    "use shop::{billing::{OrderService};\n#[test]\nfn creates() { OrderService::new(); }\n",
+    "crates/shop/tests/order_service.rs",
+    { rustCrateName: "shop", rustCrateRoot: "crates/shop" },
+  );
+  assert.deepEqual(malformed.targets, []);
+
+  const dependency = extractTestEvidence(
+    "rust",
+    "use dependency::{billing::{OrderService}};\n#[test]\nfn creates() { OrderService::new(); }\n",
+    "crates/shop/tests/order_service.rs",
+    { rustCrateName: "shop", rustCrateRoot: "crates/shop" },
+  );
+  assert.deepEqual(dependency.targets, []);
+});
+
 test("language context uses the nearest Cargo and Go manifests", () => {
   const fx = fixture("test-driven-development-context-");
   try {
@@ -1125,6 +1161,155 @@ test("public hook resolves Go module identity before authorizing an external-pac
       AI_EXPERTS_TRIGGER_FROM: "test",
     });
     assert.equal(allowed.stdout, "", allowed.stdout);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("multiline nested Rust use authorizes its matching source edit", async () => {
+  const fx = fixture("test-driven-development-rust-grouped-use-");
+  try {
+    gitInit(fx.root);
+    mkdirSync(join(fx.root, "crates", "rust-obfstr", "src"), { recursive: true });
+    mkdirSync(join(fx.root, "crates", "rust-obfstr", "tests"), { recursive: true });
+    writeFileSync(join(fx.root, "crates", "rust-obfstr", "Cargo.toml"), [
+      "[package]",
+      "name = \"rust-obfstr\"",
+      "version = \"0.1.0\"",
+      "edition = \"2021\"",
+      "",
+    ].join("\n"));
+    writeFileSync(join(fx.root, "crates", "rust-obfstr", "src", "lib.rs"), "pub mod formatting;\n");
+    const sourcePath = "crates/rust-obfstr/src/formatting.rs";
+    const originalSource = "pub fn obf_fmt() -> &'static str { \"fmt\" }\n";
+    writeFileSync(join(fx.root, sourcePath), originalSource);
+    const testPath = "crates/rust-obfstr/tests/formatting.rs";
+    writeFileSync(join(fx.root, testPath), [
+      "use rust_obfstr::formatting::obf_fmt;",
+      "#[test]",
+      "fn formatting() { assert_eq!(obf_fmt(), \"fmt\"); }",
+      "",
+    ].join("\n"));
+    gitCommitAll(fx.root, "seed Rust crate");
+
+    writeFileSync(join(fx.root, testPath), [
+      "use rust_obfstr::{",
+      "    formatting::{obf_error, obf_fmt},",
+      "};",
+      "#[test]",
+      "fn formatting() { assert_eq!(obf_fmt(), \"fmt\"); assert_eq!(obf_error(), \"error\"); }",
+      "",
+    ].join("\n"));
+    const revisedSource = [
+      originalSource.trimEnd(),
+      "pub fn obf_error() -> &'static str { \"error\" }",
+      "",
+    ].join("\n");
+    const result = await runHook(
+      "pre",
+      writeEvent(fx.root, sourcePath, revisedSource, "rust-grouped-source"),
+      hookEnv(fx.data),
+    );
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "", `${result.stdout}\n${result.stderr}`);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("public hook never uses Rust symbol inference as negative evidence", async () => {
+  const fx = fixture("test-driven-development-rust-abstain-");
+  try {
+    gitInit(fx.root);
+    mkdirSync(join(fx.root, "src"), { recursive: true });
+    mkdirSync(join(fx.root, "tests"), { recursive: true });
+    writeFileSync(join(fx.root, "Cargo.toml"), [
+      "[package]",
+      "name = \"shop\"",
+      "version = \"0.1.0\"",
+      "edition = \"2021\"",
+      "",
+    ].join("\n"));
+    writeFileSync(join(fx.root, "src", "lib.rs"), "pub mod billing;\npub mod errors;\n");
+    writeFileSync(join(fx.root, "src", "billing.rs"), "pub fn total() -> usize { 1 }\n");
+    const sourcePath = "src/errors.rs";
+    const originalSource = "pub fn existing() -> &'static str { \"existing\" }\n";
+    writeFileSync(join(fx.root, sourcePath), originalSource);
+    const testPath = "tests/integration.rs";
+    writeFileSync(join(fx.root, testPath), [
+      "use shop::billing::total;",
+      "#[test]",
+      "fn totals() { assert_eq!(total(), 1); }",
+      "",
+    ].join("\n"));
+    gitCommitAll(fx.root, "seed Rust crate");
+
+    writeFileSync(join(fx.root, testPath), [
+      "use shop::billing::*;",
+      "#[test]",
+      "fn totals() { assert_eq!(total(), 1); }",
+      "",
+    ].join("\n"));
+    const revisedSource = `${originalSource}pub fn obf_error() -> &'static str { \"error\" }\n`;
+    const result = await runHook(
+      "pre",
+      writeEvent(fx.root, sourcePath, revisedSource, "rust-unsupported-source"),
+      hookEnv(fx.data),
+    );
+
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(result.stdout, "", `${result.stdout}\n${result.stderr}`);
+
+    writeFileSync(join(fx.root, testPath), [
+      "use shop::billing::total;",
+      "#[test]",
+      "fn totals() { assert_eq!(total(), 1); assert!(total() > 0); }",
+      "",
+    ].join("\n"));
+    const resolved = await runHook(
+      "pre",
+      writeEvent(fx.root, sourcePath, revisedSource, "rust-resolved-source"),
+      hookEnv(fx.data),
+    );
+    assert.equal(resolved.stdout, "", `${resolved.stdout}\n${resolved.stderr}`);
+  } finally {
+    rmSync(fx.root, { recursive: true, force: true });
+    rmSync(fx.data, { recursive: true, force: true });
+  }
+});
+
+test("Rust abstention does not cross Cargo crate boundaries", async () => {
+  const fx = fixture("test-driven-development-rust-abstain-scope-");
+  try {
+    gitInit(fx.root);
+    for (const crate of ["shop", "other"]) {
+      mkdirSync(join(fx.root, "crates", crate, "src"), { recursive: true });
+      writeFileSync(join(fx.root, "crates", crate, "Cargo.toml"), [
+        "[package]",
+        `name = "${crate}"`,
+        "version = \"0.1.0\"",
+        "edition = \"2021\"",
+        "",
+      ].join("\n"));
+      writeFileSync(join(fx.root, "crates", crate, "src", "lib.rs"), "pub fn marker() {}\n");
+    }
+    mkdirSync(join(fx.root, "crates", "other", "tests"), { recursive: true });
+    const testPath = "crates/other/tests/integration.rs";
+    writeFileSync(join(fx.root, testPath), "use other::marker;\n#[test]\nfn marks() { marker(); }\n");
+    gitCommitAll(fx.root, "seed separate Rust crates");
+
+    writeFileSync(join(fx.root, testPath), "use other::marker;\n#[test]\nfn marks_twice() { marker(); marker(); }\n");
+    const sourcePath = "crates/shop/src/errors.rs";
+    const result = await runHook(
+      "pre",
+      writeEvent(fx.root, sourcePath, "pub fn obf_error() -> &'static str { \"error\" }\n", "rust-cross-crate"),
+      hookEnv(fx.data),
+    );
+
+    assert.match(result.stdout, /\[TDD Guard\] Blocked crates\/shop\/src\/errors\.rs/u);
   } finally {
     rmSync(fx.root, { recursive: true, force: true });
     rmSync(fx.data, { recursive: true, force: true });
