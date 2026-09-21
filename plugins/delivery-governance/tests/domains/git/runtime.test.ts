@@ -19,15 +19,10 @@ import {
   isWorktreeCreatePermitted, readWorktreeCreateReceipt, recordWorktreeCreateAllowance,
   userRequestedWorktreeCreate, worktreeCreateReceiptPath, worktreeIsolationRequested,
 } from "../../../src/domains/git/lib/worktree-intent.js";
-import {
-  acquireWorktreeMutationLease, commandMutatesGitWorktree, releaseWorktreeMutationLease,
-} from "../../../src/domains/git/lib/mutation-lease.js";
-
 const DISPATCHER = fileURLToPath(new URL("../../../dist/hooks/dispatcher.mjs", import.meta.url));
 const PRE = { path: DISPATCHER, eventName: "PreToolUse" };
 const POST = { path: DISPATCHER, eventName: "PostToolUse" };
 const PROMPT = { path: DISPATCHER, eventName: "UserPromptSubmit" };
-const STOP = { path: DISPATCHER, eventName: "Stop" };
 
 function runEntry(entry, event) {
   return new Promise((resolvePromise, reject) => {
@@ -395,8 +390,6 @@ test("pre entry denies unsolicited worktree add and host isolation", async () =>
       tool_input: { cmd: "git worktree add .worktrees/feat-x -b feat/x" },
     });
     assert.deepEqual(allowed, { code: 0, stdout: "", stderr: "" });
-    assert.deepEqual(await runEntry(STOP, { cwd: root, session_id: "sess-allow" }), { code: 0, stdout: "", stderr: "" });
-
     writeFileSync(join(root, ".git-delivery.mjs"), "export default { checks: { worktreeCreate: 'allow' } };\n");
     const configured = await runEntry(PRE, {
       cwd: root,
@@ -410,49 +403,33 @@ test("pre entry denies unsolicited worktree add and host isolation", async () =>
   }
 });
 
-test("public hooks serialize mutations from different sessions in one worktree", async () => {
-  const root = createRepository("git-delivery-mutation-lease-");
+test("public hooks do not reserve a checkout against concurrent agent mutations", async () => {
+  const root = createRepository("git-delivery-concurrent-mutations-");
   try {
-    writeFileSync(join(root, "app.js"), "export const value = 1;\n");
-    git(root, "add", "app.js");
+    writeFileSync(join(root, "app-a.js"), "export const value = 'a';\n");
+    writeFileSync(join(root, "app-b.js"), "export const value = 'b';\n");
+    git(root, "add", "app-a.js", "app-b.js");
     git(root, "commit", "-m", "feat(repo): initialize fixture");
-    const mutation = (session_id) => ({
+    const mutation = (session_id, file) => ({
       cwd: root,
       session_id,
       tool_name: "Write",
-      tool_input: { file_path: join(root, "app.js"), content: "export const value = 2;\n" },
+      tool_input: { file_path: join(root, file), content: "export const value = 2;\n" },
     });
 
-    assert.deepEqual(await runEntry(PRE, mutation("session-a")), { code: 0, stdout: "", stderr: "" });
-    const denied = await runEntry(PRE, mutation("session-b"));
-    assert.equal(denied.code, 0, denied.stderr);
-    assert.equal(JSON.parse(denied.stdout).hookSpecificOutput.permissionDecision, "deny");
-    assert.match(denied.stdout, /Worktree Mutation Lease/u);
-    assert.deepEqual(await runEntry(PRE, mutation("session-a")), { code: 0, stdout: "", stderr: "" });
-
-    assert.deepEqual(await runEntry(STOP, { cwd: root, session_id: "session-a" }), { code: 0, stdout: "", stderr: "" });
-    assert.deepEqual(await runEntry(PRE, mutation("session-b")), { code: 0, stdout: "", stderr: "" });
+    assert.deepEqual(await runEntry(PRE, mutation("session-a", "app-a.js")), { code: 0, stdout: "", stderr: "" });
+    assert.deepEqual(await runEntry(PRE, mutation("session-b", "app-b.js")), { code: 0, stdout: "", stderr: "" });
+    assert.deepEqual(await runEntry(PRE, mutation("session-b", "app-a.js")), { code: 0, stdout: "", stderr: "" });
+    assert.deepEqual(await runEntry(PRE, {
+      cwd: root,
+      session_id: "session-c",
+      tool_name: "exec_command",
+      tool_input: { cmd: "git add app-a.js" },
+    }), { code: 0, stdout: "", stderr: "" });
+    assert.equal(existsSync(join(root, ".git-delivery", "state", "worktree-mutation-lease.json")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
-});
-
-test("stale worktree mutation leases can be reclaimed but not released cross-session", () => {
-  const root = createRepository("git-delivery-mutation-lease-unit-");
-  try {
-    assert.equal(acquireWorktreeMutationLease(root, "session-a", 1_000).action, "acquired");
-    assert.equal(acquireWorktreeMutationLease(root, "session-b", 1_001).action, "blocked");
-    assert.equal(releaseWorktreeMutationLease(root, "session-b"), false);
-    assert.equal(acquireWorktreeMutationLease(root, "session-b", 1_000 + 10 * 60 * 1000 + 1).action, "acquired");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("read-only Git worktree and stash queries do not acquire a mutation lease", () => {
-  assert.equal(commandMutatesGitWorktree("git worktree list", process.cwd()), false);
-  assert.equal(commandMutatesGitWorktree("git stash list", process.cwd()), false);
-  assert.equal(commandMutatesGitWorktree("git worktree add /tmp/fixture", process.cwd()), true);
 });
 
 test("user prompt entry records explicit worktree requests and ignores negations", async () => {
