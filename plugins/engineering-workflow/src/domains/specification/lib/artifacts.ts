@@ -143,6 +143,16 @@ function syntaxText(input: string): string {
   return maskHtmlComments(maskCodeSpans(maskFencedBlocks(canonicalText(input))));
 }
 
+function taskText(input: string): string {
+  return maskHtmlComments(maskFencedBlocks(canonicalText(input)));
+}
+
+function taskProseText(syntax: string, fields: string): string {
+  const syntaxLines = syntax.match(/.*(?:\n|$)/gu) ?? [];
+  const fieldLines = fields.match(/.*(?:\n|$)/gu) ?? [];
+  return syntaxLines.map((line, index) => /^-[ \t]+(?:Files|Verify):/iu.test(fieldLines[index] ?? "") ? maskRange(line) : line).join("");
+}
+
 function hasRawHtmlBlock(text: string): boolean {
   return /^ {0,3}(?:<\?|<!\[CDATA\[|<![A-Z]|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s|\/?>))/mu.test(text);
 }
@@ -188,8 +198,12 @@ function requireUniqueSections(
   }
 }
 
-function unresolved(text: string): boolean {
-  return /(?:\bTODO\b|\bTBD\b|NEEDS[ _-]?CLARIFICATION|\[\s*\?\s*\])/iu.test(text);
+function unresolvedMarker(text: string): RegExpMatchArray | null {
+  return text.match(/(?:\bTODO\b|\bTBD\b|NEEDS[ _-]?CLARIFICATION|\[\s*\?\s*\])/iu);
+}
+
+function lineNumberAt(text: string, index: number): number {
+  return text.slice(0, index).split("\n").length;
 }
 
 export function validateSpecText(input: unknown): SpecResult {
@@ -199,7 +213,7 @@ export function validateSpecText(input: unknown): SpecResult {
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "spec.md does not allow raw HTML blocks.", "spec.md"));
   const sectionMap = sections(syntax);
   requireUniqueSections(sectionMap, REQUIRED_SPEC_SECTIONS, "spec.md", findings);
-  if (unresolved(syntax)) findings.push(finding("unresolved-marker", "spec.md contains an unresolved marker.", "spec.md"));
+  if (unresolvedMarker(syntax)) findings.push(finding("unresolved-marker", "spec.md contains an unresolved marker.", "spec.md"));
 
   const requirementBody = (sectionMap.get("requirements") ?? [""])[0] ?? "";
   const headings = [...requirementBody.matchAll(/^###\s+(REQ-\d{3}):\s*(\S.*?)\s*$/gmu)];
@@ -244,7 +258,7 @@ export function validatePlanText(input: unknown, specResult: SpecResult | null):
     const count = [...syntax.matchAll(new RegExp(`\\b${requirement.id}\\b`, "gu"))].length;
     if (count === 0) findings.push(finding("uncovered-requirement", `plan.md does not cover ${requirement.id}.`, "plan.md"));
   }
-  if (unresolved(syntax)) findings.push(finding("unresolved-marker", "plan.md contains an unresolved marker.", "plan.md"));
+  if (unresolvedMarker(syntax)) findings.push(finding("unresolved-marker", "plan.md contains an unresolved marker.", "plan.md"));
   return { kind: "plan", text, digest: digestText(text), specDigest, findings };
 }
 
@@ -252,9 +266,19 @@ function splitValues(raw: unknown): string[] {
   return String(raw ?? "").split(",").map((value) => value.trim().replace(/^`|`$/gu, "")).filter(Boolean);
 }
 
-function fieldOf(body: string, label: string): { count: number; value: string } {
-  const matches = [...body.matchAll(new RegExp(`^-\\s+${label}:\\s*(.*?)\\s*$`, "gimu"))];
-  return { count: matches.length, value: matches[0]?.[1]?.trim() ?? "" };
+type TaskField = {
+  count: number;
+  value: string;
+  firstIndex: number | null;
+};
+
+function fieldOf(body: string, label: string): TaskField {
+  const matches = [...body.matchAll(new RegExp(`^-[ \\t]+${label}:[ \\t]*(.*?)[ \\t]*$`, "gimu"))];
+  return {
+    count: matches.length,
+    value: matches[0]?.[1]?.trim() ?? "",
+    firstIndex: matches[0]?.index ?? null,
+  };
 }
 
 function isSafeRepoPath(path: string, repoRoot: string | null = null): boolean {
@@ -284,6 +308,7 @@ export function validateTasksText(
 ): TasksResult {
   const text = canonicalText(input);
   const syntax = syntaxText(text);
+  const taskSyntax = taskText(text);
   const findings: ArtifactFinding[] = [];
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "tasks.md does not allow raw HTML blocks.", "tasks.md"));
   if (!specResult || specResult.findings.length > 0) findings.push(finding("invalid-upstream-spec", "tasks.md requires a valid spec.md.", "tasks.md"));
@@ -295,28 +320,31 @@ export function validateTasksText(
   if (!planDigest) findings.push(finding("missing-plan-digest", "tasks.md requires one Plan-Digest field.", "tasks.md"));
   else if (planResult && planDigest !== planResult.digest) findings.push(finding("stale-plan-digest", "tasks.md Plan-Digest does not match plan.md.", "tasks.md"));
 
-  const headings = [...syntax.matchAll(/^##\s+(TASK-\d{3}):\s*(\S.*?)\s*$/gmu)];
+  const headings = [...taskSyntax.matchAll(/^##\s+(TASK-\d{3}):\s*(\S.*?)\s*$/gmu)];
   const tasks = new Map<string, TaskRecord>();
   for (let index = 0; index < headings.length; index += 1) {
     const heading = headings[index];
     if (!heading?.[1] || heading.index === undefined) continue;
     const id = heading[1];
     const start = heading.index + heading[0].length;
-    const end = headings[index + 1]?.index ?? syntax.length;
-    const body = syntax.slice(start, end);
+    const end = headings[index + 1]?.index ?? taskSyntax.length;
+    const body = taskSyntax.slice(start, end);
     if (tasks.has(id)) findings.push(finding("duplicate-task", `Duplicate task ${id}.`, "tasks.md"));
     const requirementField = fieldOf(body, "Requirement");
     const dependsField = fieldOf(body, "Depends");
     const filesField = fieldOf(body, "Files");
     const verifyField = fieldOf(body, "Verify");
-    const fields: Array<[string, { count: number; value: string }]> = [
+    const fields: Array<[string, TaskField]> = [
       ["Requirement", requirementField],
       ["Depends", dependsField],
       ["Files", filesField],
       ["Verify", verifyField],
     ];
     for (const [name, field] of fields) {
-      if (field.count !== 1 || !field.value) findings.push(finding("invalid-task-field", `${id} requires exactly one non-empty ${name} field.`, "tasks.md"));
+      if (field.count !== 1 || !field.value) {
+        const location = field.firstIndex === null ? "" : ` at line ${lineNumberAt(taskSyntax, start + field.firstIndex)}`;
+        findings.push(finding("invalid-task-field", `${id} requires exactly one non-empty ${name} field${location}.`, "tasks.md"));
+      }
     }
     const requirements = splitValues(requirementField.value);
     const depends = /^none$/iu.test(dependsField.value) ? [] : splitValues(dependsField.value);
@@ -367,7 +395,14 @@ export function validateTasksText(
       }
     }
   }
-  if (unresolved(syntax)) findings.push(finding("unresolved-marker", "tasks.md contains an unresolved marker.", "tasks.md"));
+  const prose = taskProseText(syntax, taskSyntax);
+  const marker = unresolvedMarker(prose);
+  if (marker?.index !== undefined) {
+    const line = lineNumberAt(prose, marker.index);
+    const task = headings.findLast((heading) => heading.index !== undefined && lineNumberAt(taskSyntax, heading.index) <= line)?.[1];
+    const context = task ? ` in ${task}` : "";
+    findings.push(finding("unresolved-marker", `tasks.md contains an unresolved marker${context} at line ${line}.`, "tasks.md"));
+  }
   return { kind: "tasks", text, digest: digestText(text), specDigest, planDigest, tasks: taskList, findings };
 }
 

@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:3a50209e35dce1326d1a6f1fa5af2c36a4601fcc49325ec5c5e65a53ed931563
+// harness-source-hash: sha256:4948903cf8e005fcfb75d83f33f5832a9c0cab16b959b624e51ccfda20835b5d
 
 // core/src/owner-hook-runtime.ts
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -882,6 +882,14 @@ function maskHtmlComments(text3) {
 function syntaxText(input) {
   return maskHtmlComments(maskCodeSpans(maskFencedBlocks(canonicalText(input))));
 }
+function taskText(input) {
+  return maskHtmlComments(maskFencedBlocks(canonicalText(input)));
+}
+function taskProseText(syntax, fields) {
+  const syntaxLines = syntax.match(/.*(?:\n|$)/gu) ?? [];
+  const fieldLines = fields.match(/.*(?:\n|$)/gu) ?? [];
+  return syntaxLines.map((line, index) => /^-[ \t]+(?:Files|Verify):/iu.test(fieldLines[index] ?? "") ? maskRange(line) : line).join("");
+}
 function hasRawHtmlBlock(text3) {
   return /^ {0,3}(?:<\?|<!\[CDATA\[|<![A-Z]|<\/?[A-Za-z][A-Za-z0-9-]*(?:\s|\/?>))/mu.test(text3);
 }
@@ -918,8 +926,11 @@ function requireUniqueSections(sectionMap, required, artifact, findings) {
     else if (!values[0]) findings.push(finding("empty-section", `${artifact} section ## ${name} must not be empty.`, artifact));
   }
 }
-function unresolved(text3) {
-  return /(?:\bTODO\b|\bTBD\b|NEEDS[ _-]?CLARIFICATION|\[\s*\?\s*\])/iu.test(text3);
+function unresolvedMarker(text3) {
+  return text3.match(/(?:\bTODO\b|\bTBD\b|NEEDS[ _-]?CLARIFICATION|\[\s*\?\s*\])/iu);
+}
+function lineNumberAt(text3, index) {
+  return text3.slice(0, index).split("\n").length;
 }
 function validateSpecText(input) {
   const text3 = canonicalText(input);
@@ -928,7 +939,7 @@ function validateSpecText(input) {
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "spec.md does not allow raw HTML blocks.", "spec.md"));
   const sectionMap = sections(syntax);
   requireUniqueSections(sectionMap, REQUIRED_SPEC_SECTIONS, "spec.md", findings);
-  if (unresolved(syntax)) findings.push(finding("unresolved-marker", "spec.md contains an unresolved marker.", "spec.md"));
+  if (unresolvedMarker(syntax)) findings.push(finding("unresolved-marker", "spec.md contains an unresolved marker.", "spec.md"));
   const requirementBody = (sectionMap.get("requirements") ?? [""])[0] ?? "";
   const headings = [...requirementBody.matchAll(/^###\s+(REQ-\d{3}):\s*(\S.*?)\s*$/gmu)];
   const requirements = [];
@@ -970,15 +981,19 @@ function validatePlanText(input, specResult) {
     const count = [...syntax.matchAll(new RegExp(`\\b${requirement.id}\\b`, "gu"))].length;
     if (count === 0) findings.push(finding("uncovered-requirement", `plan.md does not cover ${requirement.id}.`, "plan.md"));
   }
-  if (unresolved(syntax)) findings.push(finding("unresolved-marker", "plan.md contains an unresolved marker.", "plan.md"));
+  if (unresolvedMarker(syntax)) findings.push(finding("unresolved-marker", "plan.md contains an unresolved marker.", "plan.md"));
   return { kind: "plan", text: text3, digest: digestText(text3), specDigest, findings };
 }
 function splitValues(raw) {
   return String(raw ?? "").split(",").map((value) => value.trim().replace(/^`|`$/gu, "")).filter(Boolean);
 }
 function fieldOf(body, label) {
-  const matches = [...body.matchAll(new RegExp(`^-\\s+${label}:\\s*(.*?)\\s*$`, "gimu"))];
-  return { count: matches.length, value: matches[0]?.[1]?.trim() ?? "" };
+  const matches = [...body.matchAll(new RegExp(`^-[ \\t]+${label}:[ \\t]*(.*?)[ \\t]*$`, "gimu"))];
+  return {
+    count: matches.length,
+    value: matches[0]?.[1]?.trim() ?? "",
+    firstIndex: matches[0]?.index ?? null
+  };
 }
 function isSafeRepoPath(path, repoRoot = null) {
   if (!path || isAbsolute(path) || path.includes("\\") || /[\u0000-\u001f*?{}[\]]/u.test(path)) return false;
@@ -999,6 +1014,7 @@ function reachable(tasks, start, target, visited = /* @__PURE__ */ new Set()) {
 function validateTasksText(input, specResult, planResult, repoRoot = null) {
   const text3 = canonicalText(input);
   const syntax = syntaxText(text3);
+  const taskSyntax = taskText(text3);
   const findings = [];
   if (hasRawHtmlBlock(syntax)) findings.push(finding("raw-html-block", "tasks.md does not allow raw HTML blocks.", "tasks.md"));
   if (!specResult || specResult.findings.length > 0) findings.push(finding("invalid-upstream-spec", "tasks.md requires a valid spec.md.", "tasks.md"));
@@ -1009,15 +1025,15 @@ function validateTasksText(input, specResult, planResult, repoRoot = null) {
   else if (specResult && specDigest !== specResult.digest) findings.push(finding("stale-spec-digest", "tasks.md Spec-Digest does not match spec.md.", "tasks.md"));
   if (!planDigest) findings.push(finding("missing-plan-digest", "tasks.md requires one Plan-Digest field.", "tasks.md"));
   else if (planResult && planDigest !== planResult.digest) findings.push(finding("stale-plan-digest", "tasks.md Plan-Digest does not match plan.md.", "tasks.md"));
-  const headings = [...syntax.matchAll(/^##\s+(TASK-\d{3}):\s*(\S.*?)\s*$/gmu)];
+  const headings = [...taskSyntax.matchAll(/^##\s+(TASK-\d{3}):\s*(\S.*?)\s*$/gmu)];
   const tasks = /* @__PURE__ */ new Map();
   for (let index = 0; index < headings.length; index += 1) {
     const heading = headings[index];
     if (!heading?.[1] || heading.index === void 0) continue;
     const id = heading[1];
     const start = heading.index + heading[0].length;
-    const end = headings[index + 1]?.index ?? syntax.length;
-    const body = syntax.slice(start, end);
+    const end = headings[index + 1]?.index ?? taskSyntax.length;
+    const body = taskSyntax.slice(start, end);
     if (tasks.has(id)) findings.push(finding("duplicate-task", `Duplicate task ${id}.`, "tasks.md"));
     const requirementField = fieldOf(body, "Requirement");
     const dependsField = fieldOf(body, "Depends");
@@ -1030,7 +1046,10 @@ function validateTasksText(input, specResult, planResult, repoRoot = null) {
       ["Verify", verifyField]
     ];
     for (const [name, field] of fields) {
-      if (field.count !== 1 || !field.value) findings.push(finding("invalid-task-field", `${id} requires exactly one non-empty ${name} field.`, "tasks.md"));
+      if (field.count !== 1 || !field.value) {
+        const location = field.firstIndex === null ? "" : ` at line ${lineNumberAt(taskSyntax, start + field.firstIndex)}`;
+        findings.push(finding("invalid-task-field", `${id} requires exactly one non-empty ${name} field${location}.`, "tasks.md"));
+      }
     }
     const requirements = splitValues(requirementField.value);
     const depends = /^none$/iu.test(dependsField.value) ? [] : splitValues(dependsField.value);
@@ -1081,7 +1100,14 @@ function validateTasksText(input, specResult, planResult, repoRoot = null) {
       }
     }
   }
-  if (unresolved(syntax)) findings.push(finding("unresolved-marker", "tasks.md contains an unresolved marker.", "tasks.md"));
+  const prose = taskProseText(syntax, taskSyntax);
+  const marker = unresolvedMarker(prose);
+  if (marker?.index !== void 0) {
+    const line = lineNumberAt(prose, marker.index);
+    const task = headings.findLast((heading) => heading.index !== void 0 && lineNumberAt(taskSyntax, heading.index) <= line)?.[1];
+    const context = task ? ` in ${task}` : "";
+    findings.push(finding("unresolved-marker", `tasks.md contains an unresolved marker${context} at line ${line}.`, "tasks.md"));
+  }
   return { kind: "tasks", text: text3, digest: digestText(text3), specDigest, planDigest, tasks: taskList, findings };
 }
 function decodeArtifact(path) {

@@ -160,6 +160,55 @@ test("tasks bind both upstream artifacts and enforce coverage plus a safe DAG", 
   assert.ok(validateTasksText(dangling, specResult, planResult).findings.some((f) => f.code === "unknown-dependency"));
 });
 
+test("task placeholder scanning ignores file and verification literals", () => {
+  const specResult = validateSpecText(SPEC);
+  const planResult = validatePlanText(plan(), specResult);
+  const literalTodo = tasks()
+    .replace("- Files: test/cache.test.js", "- Files: docs/todo.md, runtimes/agent-sandbox/src/extensions/rpiv-todo.ts")
+    .replace("- Verify: node --test test/cache.test.js", "- Verify: node tools/todo-check.mjs");
+  const result = validateTasksText(literalTodo, specResult, planResult);
+
+  assert.deepEqual(result.findings, []);
+  assert.deepEqual(result.tasks[0]?.files, [
+    "docs/todo.md",
+    "runtimes/agent-sandbox/src/extensions/rpiv-todo.ts",
+  ]);
+
+  const proseTodo = literalTodo.replace(
+    "## TASK-001: Add stale-entry coverage",
+    "## TASK-001: Add stale-entry coverage\nTODO",
+  );
+  const unresolved = validateTasksText(proseTodo, specResult, planResult).findings.find((item) => item.code === "unresolved-marker");
+  assert.match(unresolved?.message ?? "", /TASK-001.*line \d+/u);
+});
+
+test("task fields preserve inline code and stop at line boundaries", () => {
+  const specResult = validateSpecText(SPEC);
+  const planResult = validatePlanText(plan(), specResult);
+
+  const quotedOnly = tasks().replace("- Files: test/cache.test.js", "- Files: `docs/guide.md`");
+  assert.deepEqual(validateTasksText(quotedOnly, specResult, planResult).tasks[0]?.files, ["docs/guide.md"]);
+
+  const mixed = tasks().replace("- Files: test/cache.test.js", "- Files: src/index.ts, `docs/guide.md`");
+  assert.deepEqual(validateTasksText(mixed, specResult, planResult).tasks[0]?.files, ["src/index.ts", "docs/guide.md"]);
+
+  const empty = tasks().replace("- Files: test/cache.test.js", "- Files:");
+  const emptyResult = validateTasksText(empty, specResult, planResult);
+  assert.deepEqual(emptyResult.tasks[0]?.files, []);
+  assert.match(
+    emptyResult.findings.find((item) => item.code === "invalid-task-field")?.message ?? "",
+    /TASK-001.*Files.*line \d+/u,
+  );
+
+  const quotedTraversal = tasks().replace("- Files: src/cache.js", "- Files: `../outside.js`");
+  assert.ok(validateTasksText(quotedTraversal, specResult, planResult).findings.some((item) => item.code === "unsafe-task-file"));
+
+  const quotedOverlap = tasks()
+    .replace("- Depends: TASK-001", "- Depends: none")
+    .replace("- Files: src/cache.js", "- Files: `test/cache.test.js`");
+  assert.ok(validateTasksText(quotedOverlap, specResult, planResult).findings.some((item) => item.code === "parallel-file-overlap"));
+});
+
 test("filesystem inspection rejects bad names, oversized artifacts, and symlinks", () => {
   const root = mkdtempSync(join(tmpdir(), "sdd-artifacts-"));
   const good = join(root, ".specs", "001-cache-refresh");

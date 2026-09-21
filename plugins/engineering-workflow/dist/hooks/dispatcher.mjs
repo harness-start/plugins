@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:3a50209e35dce1326d1a6f1fa5af2c36a4601fcc49325ec5c5e65a53ed931563
+// harness-source-hash: sha256:4948903cf8e005fcfb75d83f33f5832a9c0cab16b959b624e51ccfda20835b5d
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -23,7 +23,7 @@ import {
   parseWriterStdout,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-I4SZMUP2.mjs";
+} from "../chunks/chunk-LXGY35UP.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";

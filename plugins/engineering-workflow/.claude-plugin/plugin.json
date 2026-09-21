@@ -1,6 +1,6 @@
 {
   "name": "engineering-workflow",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Language-independent debugging, specification, testing, implementation, and explicit CLI delegation workflows.",
   "author": {
     "name": "Harness Start",
