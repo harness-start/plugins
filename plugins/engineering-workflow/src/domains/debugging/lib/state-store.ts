@@ -23,6 +23,18 @@ export type Receipt = {
   [key: string]: unknown;
 };
 
+export type PendingCommand = {
+  token: string;
+  toolUseId: string | null;
+  bugId: string;
+  kind: string;
+  mutates: boolean;
+  commandHash: string;
+  mutationSeq: number;
+  revision: number;
+  at: number;
+};
+
 export type SessionState = {
   version: number;
   bound: boolean;
@@ -34,6 +46,7 @@ export type SessionState = {
   eventSeq: number;
   mutationSeq: number;
   receipts: Receipt[];
+  pendingCommands: PendingCommand[];
   attempts: Record<string, number>;
   invalid: boolean;
   updatedAt: number;
@@ -81,7 +94,7 @@ function ensureStateDir(directory: string): void {
 }
 
 export function emptyState(): SessionState {
-  return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, invalid: false, updatedAt: 0 };
+  return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], pendingCommands: [], attempts: {}, invalid: false, updatedAt: 0 };
 }
 
 function asReceipts(value: unknown): Receipt[] {
@@ -99,6 +112,33 @@ function asAttempts(value: unknown): Record<string, number> {
   const attempts: Record<string, number> = {};
   for (const [key, count] of Object.entries(value)) attempts[key] = Number(count);
   return attempts;
+}
+
+function asPendingCommands(value: unknown): PendingCommand[] {
+  if (!Array.isArray(value)) return [];
+  const now = Date.now();
+  const pending: PendingCommand[] = [];
+  for (const item of value.slice(-1000)) {
+    if (!isRecord(item)) continue;
+    const token = typeof item.token === "string" ? item.token : "";
+    const bugId = typeof item.bugId === "string" ? item.bugId : "";
+    const kind = typeof item.kind === "string" ? item.kind : "";
+    const commandHash = typeof item.commandHash === "string" ? item.commandHash : "";
+    const at = Number(item.at) || 0;
+    if (!token || !bugId || !kind || !commandHash || now - at > TTL_MS) continue;
+    pending.push({
+      token: token.slice(0, 200),
+      toolUseId: nullableString(item.toolUseId)?.slice(0, 200) ?? null,
+      bugId,
+      kind,
+      mutates: Boolean(item.mutates),
+      commandHash,
+      mutationSeq: Number(item.mutationSeq) || 0,
+      revision: Number(item.revision) || 0,
+      at,
+    });
+  }
+  return pending;
 }
 
 function nullableString(value: unknown): string | null {
@@ -119,6 +159,7 @@ function sanitize(value: unknown): SessionState {
     eventSeq: Number(value.eventSeq) || 0,
     mutationSeq: Number(value.mutationSeq) || 0,
     receipts: asReceipts(value.receipts),
+    pendingCommands: asPendingCommands(value.pendingCommands),
     attempts: asAttempts(value.attempts),
     invalid: Boolean(value.invalid),
     updatedAt: Number(value.updatedAt) || 0,
@@ -189,6 +230,7 @@ export function updateState<T>(sessionId: string | null | undefined, cwd: string
     const state = readState(sessionId, cwd);
     const result = updater(state);
     state.receipts = state.receipts.slice(-1000);
+    state.pendingCommands = state.pendingCommands.slice(-1000);
     writeState(sessionId, cwd, state);
     return { state, result };
   });

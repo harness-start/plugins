@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:4948903cf8e005fcfb75d83f33f5832a9c0cab16b959b624e51ccfda20835b5d
+// harness-source-hash: sha256:08429dad4fe56ad05510b982e9c941f18d8b9ddaf27d7c77ff7e99ec5684d58d
 import {
   DEFAULT_CONFIG,
   canonicalizeLedgerPath,
@@ -11,6 +11,7 @@ import {
   eventToolInput,
   eventToolName,
   eventToolResponse,
+  eventToolUseId,
   findLedgerDir,
   formatFindings,
   inspectChange,
@@ -23,7 +24,7 @@ import {
   parseWriterStdout,
   scanLedgers,
   writerActionFromCommand
-} from "../chunks/chunk-LXGY35UP.mjs";
+} from "../chunks/chunk-H2UYBUNC.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
@@ -729,6 +730,31 @@ function responseText(response) {
     return String(response ?? "");
   }
 }
+function continuationToken(value) {
+  if (!isRecord(value)) return null;
+  const token = value.session_id ?? value.sessionId ?? value.cell_id ?? value.cellId;
+  if (typeof token !== "string" && typeof token !== "number") return null;
+  const normalized = String(token).trim();
+  return normalized ? normalized.slice(0, 200) : null;
+}
+function isCommandPoll(event) {
+  const name = eventToolName(event).split(".").at(-1)?.replaceAll("_", "").toLowerCase();
+  return name === "writestdin";
+}
+function extractPollToken(event) {
+  return continuationToken(eventToolInput(event));
+}
+function extractRunningToken(event) {
+  const response = extractToolResponse(event);
+  if (isRecord(response)) {
+    const code = response.exit_code ?? response.exitCode ?? response.code;
+    if (Number.isFinite(Number(code)) || response.success === true || response.success === false || response.interrupted === true) return null;
+    const structured = continuationToken(response);
+    if (structured) return structured;
+  }
+  const match = responseText(response).match(/(?:Process running with session ID|Script running with cell ID)\s+([A-Za-z0-9._:-]+)/iu);
+  return match?.[1] ?? null;
+}
 function inferOutcome(event, forceFailure = false) {
   if (forceFailure) return "failure";
   const response = extractToolResponse(event);
@@ -783,7 +809,7 @@ function ensureStateDir(directory) {
   if (workdir) ensurePluginWorkdirGitignore(workdir);
 }
 function emptyState() {
-  return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], attempts: {}, invalid: false, updatedAt: 0 };
+  return { version: VERSION, bound: false, workOrderPath: null, workOrderId: null, epoch: 0, activeBugId: null, revision: 0, eventSeq: 0, mutationSeq: 0, receipts: [], pendingCommands: [], attempts: {}, invalid: false, updatedAt: 0 };
 }
 function asReceipts(value) {
   if (!Array.isArray(value)) return [];
@@ -799,6 +825,32 @@ function asAttempts(value) {
   const attempts = {};
   for (const [key, count] of Object.entries(value)) attempts[key] = Number(count);
   return attempts;
+}
+function asPendingCommands(value) {
+  if (!Array.isArray(value)) return [];
+  const now = Date.now();
+  const pending = [];
+  for (const item of value.slice(-1e3)) {
+    if (!isRecord(item)) continue;
+    const token = typeof item.token === "string" ? item.token : "";
+    const bugId = typeof item.bugId === "string" ? item.bugId : "";
+    const kind = typeof item.kind === "string" ? item.kind : "";
+    const commandHash = typeof item.commandHash === "string" ? item.commandHash : "";
+    const at = Number(item.at) || 0;
+    if (!token || !bugId || !kind || !commandHash || now - at > TTL_MS) continue;
+    pending.push({
+      token: token.slice(0, 200),
+      toolUseId: nullableString(item.toolUseId)?.slice(0, 200) ?? null,
+      bugId,
+      kind,
+      mutates: Boolean(item.mutates),
+      commandHash,
+      mutationSeq: Number(item.mutationSeq) || 0,
+      revision: Number(item.revision) || 0,
+      at
+    });
+  }
+  return pending;
 }
 function nullableString(value) {
   if (value === null || value === void 0) return null;
@@ -817,6 +869,7 @@ function sanitize(value) {
     eventSeq: Number(value.eventSeq) || 0,
     mutationSeq: Number(value.mutationSeq) || 0,
     receipts: asReceipts(value.receipts),
+    pendingCommands: asPendingCommands(value.pendingCommands),
     attempts: asAttempts(value.attempts),
     invalid: Boolean(value.invalid),
     updatedAt: Number(value.updatedAt) || 0
@@ -1075,6 +1128,67 @@ function recordReceipt({ cwd, sessionId, config = DEFAULT_CONFIG, kind, command 
   writeState(sessionId, live.repoRoot, live.state);
   return { ...live, kind: "recorded", receipt };
 }
+function registerPendingCommand({ cwd, sessionId, config = DEFAULT_CONFIG, token, toolUseId = null, kind, command, now = Date.now() }) {
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  if (live.kind !== "active") return live;
+  const bug = live.workOrder.bugs.find((item) => item.id === live.workOrder.activeBugId);
+  const commandHash = hash(normalizeCommand(command));
+  live.state.pendingCommands = live.state.pendingCommands.filter((pending) => pending.token !== token && (!toolUseId || pending.toolUseId !== toolUseId));
+  live.state.pendingCommands.push({
+    token,
+    toolUseId,
+    bugId: String(bug.id),
+    kind: classifyCommand(command, bug, config),
+    mutates: kind === "mutation",
+    commandHash,
+    mutationSeq: live.state.mutationSeq,
+    revision: live.state.revision,
+    at: now
+  });
+  live.state.pendingCommands = live.state.pendingCommands.slice(-config.limits.maxReceipts);
+  writeState(sessionId, live.repoRoot, live.state);
+  return { ...live, kind: "pending" };
+}
+function completePendingCommand({ cwd, sessionId, config = DEFAULT_CONFIG, token = null, toolUseId = null, commandHash = null, outcome, summary = "", now = Date.now() }) {
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  if (live.kind !== "active") return live;
+  let index = -1;
+  if (token) index = live.state.pendingCommands.findIndex((pending2) => pending2.token === token);
+  else {
+    if (toolUseId) index = live.state.pendingCommands.findIndex((pending2) => pending2.toolUseId === toolUseId);
+    if (index < 0 && commandHash) {
+      const matches2 = live.state.pendingCommands.map((pending2, pendingIndex) => ({ pending: pending2, pendingIndex })).filter(({ pending: pending2 }) => pending2.commandHash === commandHash);
+      if (matches2.length === 1) index = matches2[0].pendingIndex;
+    }
+  }
+  if (index < 0) return { ...live, kind: "unmatched" };
+  const [pending] = live.state.pendingCommands.splice(index, 1);
+  if (!pending || !live.workOrder.bugs.some((bug) => bug.id === pending.bugId)) {
+    writeState(sessionId, live.repoRoot, live.state);
+    return { ...live, kind: "unmatched" };
+  }
+  live.state.eventSeq += 1;
+  if (pending.mutates) live.state.mutationSeq = live.state.eventSeq;
+  const receipt = {
+    id: `R-${live.state.eventSeq}`,
+    bugId: pending.bugId,
+    kind: pending.kind,
+    commandHash: pending.commandHash,
+    paths: [],
+    outcome,
+    summary: String(summary).replace(/\s+/gu, " ").slice(0, 240),
+    mutationSeq: live.state.mutationSeq,
+    revision: pending.revision,
+    at: now
+  };
+  live.state.receipts.push(receipt);
+  if (receipt.kind === "reproduction" && outcome === "failure" && Number(receipt.mutationSeq) > 0) {
+    live.state.attempts[pending.bugId] = Number(live.state.attempts[pending.bugId] || 0) + 1;
+  }
+  live.state.receipts = live.state.receipts.slice(-config.limits.maxReceipts);
+  writeState(sessionId, live.repoRoot, live.state);
+  return { ...live, kind: "recorded", receipt };
+}
 function preMutationDecision({ cwd, sessionId, paths, config = DEFAULT_CONFIG }) {
   const live = refreshBoundWorkOrder({ cwd, sessionId, config });
   if (["idle", "inactive"].includes(live.kind)) return { action: "allow", reason: "no active bound work order" };
@@ -1317,6 +1431,13 @@ function responseStdout(event) {
 function execStatus(error) {
   return isRecord(error) ? error.status : void 0;
 }
+function reportReceipt(recorded, postEvent, config) {
+  if (recorded.kind !== "recorded") return;
+  writeJson2(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
+  if (recorded.receipt.kind !== "reproduction" || recorded.receipt.outcome !== "failure") return;
+  const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
+  if (count >= config.limits.maxFailedFixAttempts) writeJson2(contextOutput(postEvent, `[Debugging Workflow Guard] ${String(recorded.receipt.bugId)} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
+}
 async function runPost(event, forceFailure = false) {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
@@ -1351,13 +1472,52 @@ async function runPost(event, forceFailure = false) {
     return;
   }
   if (command) {
-    const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
-    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellCommandMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
-    if (recorded.kind === "recorded") writeJson2(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
-    if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
-      const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
-      if (count >= config.limits.maxFailedFixAttempts) writeJson2(contextOutput(postEvent, `[Debugging Workflow Guard] ${String(recorded.receipt.bugId)} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
+    const runningToken = extractRunningToken(event);
+    if (runningToken) {
+      registerPendingCommand({
+        cwd,
+        sessionId,
+        config,
+        token: runningToken,
+        toolUseId: eventToolUseId(event) || null,
+        kind: shellCommandMutates(command) ? "mutation" : "command",
+        command
+      });
+      return;
     }
+  }
+  if (isCommandPoll(event)) {
+    const token = extractPollToken(event);
+    const outcome = inferOutcome(event, forceFailure);
+    if (!token || outcome === "unknown" && extractRunningToken(event)) return;
+    const recorded = completePendingCommand({
+      cwd,
+      sessionId,
+      config,
+      token,
+      outcome,
+      summary: conciseResponse(event)
+    });
+    reportReceipt(recorded, postEvent, config);
+    return;
+  }
+  if (command) {
+    const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
+    const completed = completePendingCommand({
+      cwd,
+      sessionId,
+      config,
+      toolUseId: eventToolUseId(event) || null,
+      commandHash: hash(normalizeCommand(command)),
+      outcome,
+      summary: conciseResponse(event)
+    });
+    if (completed.kind === "recorded") {
+      reportReceipt(completed, postEvent, config);
+      return;
+    }
+    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellCommandMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
+    reportReceipt(recorded, postEvent, config);
     return;
   }
   if (isMutationTool(event) && paths.length > 0) {

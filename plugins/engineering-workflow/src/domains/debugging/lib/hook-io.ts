@@ -7,6 +7,7 @@ import {
   eventToolInput,
   eventToolName,
   eventToolResponse,
+  eventToolUseId,
   isRecord,
   readStdinJson,
   type HookEvent,
@@ -26,6 +27,7 @@ export {
   eventCwd as extractCwd,
   eventToolInput as extractToolInput,
   eventToolName as extractToolName,
+  eventToolUseId as extractToolUseId,
 };
 
 export function extractSessionId(event: HookEvent): string | null {
@@ -111,6 +113,35 @@ function responseText(response: unknown): string {
     if (fields.length > 0) return fields.join("\n");
   }
   try { return JSON.stringify(response ?? ""); } catch { return String(response ?? ""); }
+}
+
+function continuationToken(value: unknown): string | null {
+  if (!isRecord(value)) return null;
+  const token = value.session_id ?? value.sessionId ?? value.cell_id ?? value.cellId;
+  if (typeof token !== "string" && typeof token !== "number") return null;
+  const normalized = String(token).trim();
+  return normalized ? normalized.slice(0, 200) : null;
+}
+
+export function isCommandPoll(event: HookEvent): boolean {
+  const name = eventToolName(event).split(".").at(-1)?.replaceAll("_", "").toLowerCase();
+  return name === "writestdin";
+}
+
+export function extractPollToken(event: HookEvent): string | null {
+  return continuationToken(eventToolInput(event));
+}
+
+export function extractRunningToken(event: HookEvent): string | null {
+  const response = extractToolResponse(event);
+  if (isRecord(response)) {
+    const code = response.exit_code ?? response.exitCode ?? response.code;
+    if (Number.isFinite(Number(code)) || response.success === true || response.success === false || response.interrupted === true) return null;
+    const structured = continuationToken(response);
+    if (structured) return structured;
+  }
+  const match = responseText(response).match(/(?:Process running with session ID|Script running with cell ID)\s+([A-Za-z0-9._:-]+)/iu);
+  return match?.[1] ?? null;
 }
 
 export function inferOutcome(event: HookEvent, forceFailure = false): CommandOutcome {

@@ -16,10 +16,14 @@ import {
   extractAssistantMessage,
   extractCwd,
   extractFileTargets,
+  extractPollToken,
+  extractRunningToken,
   extractSessionId,
   extractShellCommand,
+  extractToolUseId,
   extractToolResponse,
   inferOutcome,
+  isCommandPoll,
   isMutationTool,
   preToolDeny,
   stopDeny,
@@ -35,12 +39,18 @@ import {
   bindAfterWriter,
   classifyPath,
   closeBinding,
+  completePendingCommand,
   completionFindings,
   configuredOutcome,
+  hash,
+  normalizeCommand,
   preMutationDecision,
   preCommandDecision,
   recordReceipt,
   refreshBoundWorkOrder,
+  registerPendingCommand,
+  type PendingCommandResult,
+  type RecordReceiptResult,
 } from "./lib/workflow.js";
 
 const outputStore = new AsyncLocalStorage<HookOutput[]>();
@@ -161,6 +171,14 @@ function execStatus(error: unknown): unknown {
   return isRecord(error) ? error.status : undefined;
 }
 
+function reportReceipt(recorded: RecordReceiptResult | PendingCommandResult, postEvent: "PostToolUse" | "PostToolUseFailure", config: PluginConfig): void {
+  if (recorded.kind !== "recorded") return;
+  writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
+  if (recorded.receipt.kind !== "reproduction" || recorded.receipt.outcome !== "failure") return;
+  const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
+  if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${String(recorded.receipt.bugId)} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
+}
+
 async function runPost(event: HookEvent, forceFailure = false): Promise<void> {
   const { cwd, root, config, sessionId } = await context(event);
   if (config.mode === "off") return;
@@ -196,13 +214,52 @@ async function runPost(event: HookEvent, forceFailure = false): Promise<void> {
   }
 
   if (command) {
-    const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
-    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellCommandMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
-    if (recorded.kind === "recorded") writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] Receipt ${recorded.receipt.id}: ${String(recorded.receipt.kind)} ${String(recorded.receipt.outcome)} for ${String(recorded.receipt.bugId)}. Cite this id only when it supports the stated claim.`));
-    if (recorded.kind === "recorded" && recorded.receipt.kind === "reproduction" && outcome === "failure") {
-      const count = recorded.state.attempts[String(recorded.receipt.bugId)] ?? 0;
-      if (count >= config.limits.maxFailedFixAttempts) writeJson(contextOutput(postEvent, `[Debugging Workflow Guard] ${String(recorded.receipt.bugId)} reached ${count} failed post-mutation reproductions. Move only this bug to architecture-review before another production edit.`));
+    const runningToken = extractRunningToken(event);
+    if (runningToken) {
+      registerPendingCommand({
+        cwd,
+        sessionId,
+        config,
+        token: runningToken,
+        toolUseId: extractToolUseId(event) || null,
+        kind: shellCommandMutates(command) ? "mutation" : "command",
+        command,
+      });
+      return;
     }
+  }
+  if (isCommandPoll(event)) {
+    const token = extractPollToken(event);
+    const outcome = inferOutcome(event, forceFailure);
+    if (!token || (outcome === "unknown" && extractRunningToken(event))) return;
+    const recorded = completePendingCommand({
+      cwd,
+      sessionId,
+      config,
+      token,
+      outcome,
+      summary: conciseResponse(event),
+    });
+    reportReceipt(recorded, postEvent, config);
+    return;
+  }
+  if (command) {
+    const outcome = configuredOutcome(command, inferOutcome(event, forceFailure), config);
+    const completed = completePendingCommand({
+      cwd,
+      sessionId,
+      config,
+      toolUseId: extractToolUseId(event) || null,
+      commandHash: hash(normalizeCommand(command)),
+      outcome,
+      summary: conciseResponse(event),
+    });
+    if (completed.kind === "recorded") {
+      reportReceipt(completed, postEvent, config);
+      return;
+    }
+    const recorded = recordReceipt({ cwd, sessionId, config, kind: shellCommandMutates(command) ? "mutation" : "command", command, outcome, summary: conciseResponse(event) });
+    reportReceipt(recorded, postEvent, config);
     return;
   }
   if (isMutationTool(event) && paths.length > 0) {

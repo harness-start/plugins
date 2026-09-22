@@ -37,10 +37,13 @@ export type WorkflowBound = { kind: "bound"; repoRoot: string; workOrder: WorkOr
 export type WorkflowInactive = { kind: "inactive"; repoRoot: string; state: SessionState; workOrder: WorkOrder; findings?: undefined; receipt?: undefined; active?: undefined; path?: undefined };
 export type WorkflowActive = { kind: "active"; repoRoot: string; state: SessionState; workOrder: WorkOrder; findings?: undefined; receipt?: undefined; active?: undefined; path?: undefined };
 export type WorkflowRecorded = { kind: "recorded"; repoRoot: string; state: SessionState; workOrder: WorkOrder; receipt: Receipt; findings?: undefined; active?: undefined; path?: undefined };
+export type WorkflowPending = { kind: "pending"; repoRoot: string; state: SessionState; workOrder: WorkOrder };
+export type WorkflowUnmatched = { kind: "unmatched"; repoRoot: string; state: SessionState; workOrder: WorkOrder };
 
 export type BindMutationResult = WorkflowIdle | WorkflowInvalid | WorkflowConflict | WorkflowBound;
 export type RefreshResult = WorkflowIdle | WorkflowInvalid | WorkflowInactive | WorkflowActive;
 export type RecordReceiptResult = RefreshResult | WorkflowRecorded;
+export type PendingCommandResult = RefreshResult | WorkflowPending | WorkflowUnmatched | WorkflowRecorded;
 export type WriterHookResult = BindMutationResult | RefreshResult;
 
 export type BindMutationInput = {
@@ -65,6 +68,29 @@ export type RecordReceiptInput = {
   command?: string | null;
   paths?: string[];
   outcome?: string | null;
+  summary?: string;
+  now?: number;
+};
+
+export type RegisterPendingCommandInput = {
+  cwd: string;
+  sessionId: string | null;
+  config?: PluginConfig;
+  token: string;
+  toolUseId?: string | null;
+  kind: string;
+  command: string;
+  now?: number;
+};
+
+export type CompletePendingCommandInput = {
+  cwd: string;
+  sessionId: string | null;
+  config?: PluginConfig;
+  token?: string | null;
+  toolUseId?: string | null;
+  commandHash?: string | null;
+  outcome: CommandOutcome;
   summary?: string;
   now?: number;
 };
@@ -240,6 +266,73 @@ export function recordReceipt({ cwd, sessionId, config = DEFAULT_CONFIG, kind, c
   if (receipt.kind === "reproduction" && outcome === "failure" && Number(receipt.mutationSeq) > 0) {
     const attemptKey = String(bug.id ?? "");
     live.state.attempts[attemptKey] = Number(live.state.attempts[attemptKey] || 0) + 1;
+  }
+  live.state.receipts = live.state.receipts.slice(-config.limits.maxReceipts);
+  writeState(sessionId, live.repoRoot, live.state);
+  return { ...live, kind: "recorded", receipt };
+}
+
+export function registerPendingCommand({ cwd, sessionId, config = DEFAULT_CONFIG, token, toolUseId = null, kind, command, now = Date.now() }: RegisterPendingCommandInput): PendingCommandResult {
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  if (live.kind !== "active") return live;
+  const bug = live.workOrder.bugs.find((item) => item.id === live.workOrder.activeBugId)!;
+  const commandHash = hash(normalizeCommand(command));
+  live.state.pendingCommands = live.state.pendingCommands.filter((pending) => (
+    pending.token !== token && (!toolUseId || pending.toolUseId !== toolUseId)
+  ));
+  live.state.pendingCommands.push({
+    token,
+    toolUseId,
+    bugId: String(bug.id),
+    kind: classifyCommand(command, bug, config),
+    mutates: kind === "mutation",
+    commandHash,
+    mutationSeq: live.state.mutationSeq,
+    revision: live.state.revision,
+    at: now,
+  });
+  live.state.pendingCommands = live.state.pendingCommands.slice(-config.limits.maxReceipts);
+  writeState(sessionId, live.repoRoot, live.state);
+  return { ...live, kind: "pending" };
+}
+
+export function completePendingCommand({ cwd, sessionId, config = DEFAULT_CONFIG, token = null, toolUseId = null, commandHash = null, outcome, summary = "", now = Date.now() }: CompletePendingCommandInput): PendingCommandResult {
+  const live = refreshBoundWorkOrder({ cwd, sessionId, config });
+  if (live.kind !== "active") return live;
+  let index = -1;
+  if (token) index = live.state.pendingCommands.findIndex((pending) => pending.token === token);
+  else {
+    if (toolUseId) index = live.state.pendingCommands.findIndex((pending) => pending.toolUseId === toolUseId);
+    if (index < 0 && commandHash) {
+      const matches = live.state.pendingCommands
+        .map((pending, pendingIndex) => ({ pending, pendingIndex }))
+        .filter(({ pending }) => pending.commandHash === commandHash);
+      if (matches.length === 1) index = matches[0]!.pendingIndex;
+    }
+  }
+  if (index < 0) return { ...live, kind: "unmatched" };
+  const [pending] = live.state.pendingCommands.splice(index, 1);
+  if (!pending || !live.workOrder.bugs.some((bug) => bug.id === pending.bugId)) {
+    writeState(sessionId, live.repoRoot, live.state);
+    return { ...live, kind: "unmatched" };
+  }
+  live.state.eventSeq += 1;
+  if (pending.mutates) live.state.mutationSeq = live.state.eventSeq;
+  const receipt: Receipt = {
+    id: `R-${live.state.eventSeq}`,
+    bugId: pending.bugId,
+    kind: pending.kind,
+    commandHash: pending.commandHash,
+    paths: [],
+    outcome,
+    summary: String(summary).replace(/\s+/gu, " ").slice(0, 240),
+    mutationSeq: live.state.mutationSeq,
+    revision: pending.revision,
+    at: now,
+  };
+  live.state.receipts.push(receipt);
+  if (receipt.kind === "reproduction" && outcome === "failure" && Number(receipt.mutationSeq) > 0) {
+    live.state.attempts[pending.bugId] = Number(live.state.attempts[pending.bugId] || 0) + 1;
   }
   live.state.receipts = live.state.receipts.slice(-config.limits.maxReceipts);
   writeState(sessionId, live.repoRoot, live.state);

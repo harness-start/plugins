@@ -33,7 +33,7 @@ owner 暴露一个公开 dispatcher 和一套统一的确定性 CLI。安装即�
 
 ## 运行时行为
 
-`SessionStart` 报告可恢复的调试/测试上下文。`PreToolUse` 保护调试和规格账本，并强制测试先于源码的顺序。`PostToolUse` 记录观察到的调试回执并推进规格证据；Claude Code 上的 `PostToolUseFailure` 仍对调试状态可见。`Stop` 只阻断已激活、且声明的完成证据不完整的调试工作流。owner 解析每个 Hook 事件一次，并在同一进程内调用匹配的领域处理器；不启动私有插件运行时。
+`SessionStart` 报告可恢复的调试/测试上下文。`PreToolUse` 保护调试和规格账本，并强制测试先于源码的顺序。`PostToolUse` 记录观察到的调试回执并推进规格证据；Codex 的长时命令通过 `write_stdin` 返回终态时，会与原命令的受限元数据关联后再生成回执；Claude Code 上的 `PostToolUseFailure` 仍对调试状态可见。`Stop` 只阻断已激活、且声明的完成证据不完整的调试工作流。owner 解析每个 Hook 事件一次，并在同一进程内调用匹配的领域处理器；不启动私有插件运行时。
 
 安装插件不会自动打开调试账本或创建 `.specs`。硬工作流由持久项目产物和官方 writer 命令激活，不是因为提到 Skill 名或仅仅加载了 Skill。
 

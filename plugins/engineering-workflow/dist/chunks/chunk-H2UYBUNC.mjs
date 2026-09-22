@@ -1,4 +1,4 @@
-// harness-source-hash: sha256:4948903cf8e005fcfb75d83f33f5832a9c0cab16b959b624e51ccfda20835b5d
+// harness-source-hash: sha256:08429dad4fe56ad05510b982e9c941f18d8b9ddaf27d7c77ff7e99ec5684d58d
 
 // core/src/owner-hook-runtime.ts
 import { AsyncLocalStorage } from "node:async_hooks";
@@ -44,6 +44,18 @@ function eventToolInput(event) {
 function eventToolResponse(event) {
   const tool = nestedRecord(event, "tool");
   return event.tool_response ?? event.toolResponse ?? event.tool_result ?? event.toolResult ?? event.response ?? tool?.response ?? null;
+}
+function eventToolUseId(event) {
+  const tool = nestedRecord(event, "tool");
+  const toolUse = nestedRecord(event, "tool_use");
+  return firstString(
+    event.tool_use_id,
+    event.toolUseId,
+    event.tool_call_id,
+    event.toolCallId,
+    toolUse?.id,
+    tool?.id
+  );
 }
 function eventAssistantMessage(event) {
   return firstString(
@@ -1202,6 +1214,7 @@ export {
   eventToolName,
   eventToolInput,
   eventToolResponse,
+  eventToolUseId,
   eventAssistantMessage,
   DEFAULT_CONFIG,
   loadProjectConfig,

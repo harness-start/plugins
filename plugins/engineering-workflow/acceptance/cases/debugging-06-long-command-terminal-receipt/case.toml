@@ -1,0 +1,4 @@
+id = "06-long-command-terminal-receipt"
+hosts = ["codex"]
+timeout_sec = 600
+tags = ["debugging", "long-running", "write-stdin", "receipt"]

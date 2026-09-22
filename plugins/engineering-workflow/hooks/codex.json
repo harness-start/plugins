@@ -28,7 +28,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|Write|create_file|search_replace",
+        "matcher": "apply_patch|ApplyPatch|Bash|bash|Edit|exec|exec_command|functions.write_stdin|local_shell|MultiEdit|NotebookEdit|Shell|shell|shell_command|write_stdin|Write|create_file|search_replace",
         "hooks": [
           {
             "type": "command",

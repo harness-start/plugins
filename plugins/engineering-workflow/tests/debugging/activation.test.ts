@@ -13,6 +13,7 @@ import { initLedger, pauseLedger } from "../../src/domains/debugging/lib/writer.
 const HOOK_SRC = fileURLToPath(new URL("./run-hook.ts", import.meta.url));
 const TSX = fileURLToPath(new URL("../../../../node_modules/tsx/dist/cli.mjs", import.meta.url));
 const WRITER = fileURLToPath(new URL("../../src/entries/cli/harness.ts", import.meta.url));
+const CODEX_HOOKS = fileURLToPath(new URL("../../hooks/codex.json", import.meta.url));
 
 function workOrder() {
   return {
@@ -92,6 +93,13 @@ function writerEvent(root, created, sessionId, extra = {}) {
     tool_response: { exit_code: 0, stdout: JSON.stringify(created) },
     ...extra,
   };
+}
+
+function sessionState(root) {
+  const sessions = join(root, ".debug-workflow", ".state", "sessions");
+  const stateFile = readdirSync(sessions).find((name) => name.endsWith(".json"));
+  assert.ok(stateFile);
+  return JSON.parse(readFileSync(join(sessions, stateFile), "utf8"));
 }
 
 test("outcome inference fails closed when Codex omits an exit code", () => {
@@ -233,6 +241,207 @@ test("Codex PostToolUse reports advisory context on stderr without interposing J
   assert.equal(feedback.code, 0, feedback.stderr);
   assert.equal(feedback.stdout, "");
   assert.match(feedback.stderr, /\[Debugging Workflow Guard\] Bound DWO-/u);
+});
+
+test("Codex observes write_stdin only after tool use", () => {
+  const hooks = JSON.parse(readFileSync(CODEX_HOOKS, "utf8")).hooks;
+  const preMatchers = hooks.PreToolUse.map((route) => route.matcher ?? "").join("|");
+  const postMatchers = hooks.PostToolUse.map((route) => route.matcher ?? "").join("|");
+  assert.doesNotMatch(preMatchers, /write_stdin/u);
+  assert.match(postMatchers, /(?:^|\|)write_stdin(?:\||$)/u);
+  assert.match(postMatchers, /(?:^|\|)functions\.write_stdin(?:\||$)/u);
+});
+
+test("Codex long-running reproduction finalizes through write_stdin", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-async-data-"));
+  const created = openLedger(root);
+  const env = { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin" };
+  await runHook("post", writerEvent(root, created, "async-session"), env);
+
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-session",
+    tool_name: "exec_command",
+    tool_use_id: "exec-1",
+    tool_input: { command: "node --test test/login.test.mjs" },
+    tool_response: { session_id: 731, output: "Process running with session ID 731" },
+  }, env);
+  const pending = sessionState(root);
+  assert.equal(pending.pendingCommands.length, 1);
+  assert.deepEqual(pending.receipts, []);
+  assert.doesNotMatch(JSON.stringify(pending.pendingCommands), /node --test|still running/u);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-session",
+    tool_name: "write_stdin",
+    tool_input: { session_id: 731, chars: "" },
+    tool_response: { session_id: 731, output: "TAP version 13\n# still running" },
+  }, env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-session",
+    tool_name: "functions.write_stdin",
+    tool_input: { session_id: 731, chars: "" },
+    tool_response: { exit_code: 1, output: "not ok 1 - login\n# fail 1" },
+  }, env);
+
+  const state = sessionState(root);
+  assert.deepEqual(state.pendingCommands, []);
+  assert.equal(state.receipts.length, 1);
+  assert.equal(state.receipts[0].kind, "reproduction");
+  assert.equal(state.receipts[0].outcome, "failure");
+
+  const production = await runHook("pre", {
+    cwd: root,
+    session_id: "async-session",
+    tool_name: "Write",
+    tool_input: { file_path: join(root, "src", "login.js") },
+  }, env);
+  assert.equal(production.stdout, "", production.stdout);
+});
+
+test("a successful long-running reproduction does not unlock production mutation", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-async-success-data-"));
+  const created = openLedger(root);
+  const env = { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin" };
+  await runHook("post", writerEvent(root, created, "async-success-session"), env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-success-session",
+    tool_name: "exec_command",
+    tool_use_id: "exec-2",
+    tool_input: { command: "node --test test/login.test.mjs" },
+    tool_response: { session_id: 732, output: "Process running with session ID 732" },
+  }, env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-success-session",
+    tool_name: "write_stdin",
+    tool_input: { session_id: 732, chars: "" },
+    tool_response: { exit_code: 0, output: "ok 1 - login\n# pass 1\n# fail 0" },
+  }, env);
+
+  const state = sessionState(root);
+  assert.equal(state.receipts.length, 1);
+  assert.equal(state.receipts[0].outcome, "success");
+  const production = await runHook("pre", {
+    cwd: root,
+    session_id: "async-success-session",
+    tool_name: "Write",
+    tool_input: { file_path: join(root, "src", "login.js") },
+  }, env);
+  assert.match(production.stdout, /"permissionDecision":"deny"/u);
+});
+
+test("an unrelated write_stdin result cannot finalize a pending command", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-async-token-data-"));
+  const created = openLedger(root);
+  const env = { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin" };
+  await runHook("post", writerEvent(root, created, "async-token-session"), env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-token-session",
+    tool_name: "exec_command",
+    tool_use_id: "exec-3",
+    tool_input: { command: "node --test test/login.test.mjs" },
+    tool_response: { session_id: 733, output: "Process running with session ID 733" },
+  }, env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-token-session",
+    tool_name: "write_stdin",
+    tool_input: { session_id: 999, chars: "" },
+    tool_response: { exit_code: 1, output: "not ok 1 - unrelated" },
+  }, env);
+
+  const state = sessionState(root);
+  assert.equal(state.pendingCommands.length, 1);
+  assert.deepEqual(state.receipts, []);
+  const production = await runHook("pre", {
+    cwd: root,
+    session_id: "async-token-session",
+    tool_name: "Write",
+    tool_input: { file_path: join(root, "src", "login.js") },
+  }, env);
+  assert.match(production.stdout, /"permissionDecision":"deny"/u);
+});
+
+test("cross-session and unknown terminal results cannot fabricate a failure receipt", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-async-unknown-data-"));
+  const created = openLedger(root);
+  const env = { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin" };
+  await runHook("post", writerEvent(root, created, "async-owner-session"), env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-owner-session",
+    tool_name: "exec_command",
+    tool_use_id: "exec-unknown",
+    tool_input: { command: "node --test test/login.test.mjs" },
+    tool_response: { session_id: 735, output: "Process running with session ID 735" },
+  }, env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "different-session",
+    tool_name: "write_stdin",
+    tool_input: { session_id: 735, chars: "" },
+    tool_response: { exit_code: 1, output: "not ok 1 - unrelated session" },
+  }, env);
+  assert.equal(sessionState(root).pendingCommands.length, 1);
+
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-owner-session",
+    tool_name: "write_stdin",
+    tool_input: { session_id: 735, chars: "" },
+    tool_response: { output: "command ended without a trustworthy status" },
+  }, env);
+  const state = sessionState(root);
+  assert.deepEqual(state.pendingCommands, []);
+  assert.equal(state.receipts.length, 1);
+  assert.equal(state.receipts[0].outcome, "unknown");
+  assert.equal(state.receipts.some((receipt) => receipt.outcome === "failure"), false);
+
+  const production = await runHook("pre", {
+    cwd: root,
+    session_id: "async-owner-session",
+    tool_name: "Write",
+    tool_input: { file_path: join(root, "src", "login.js") },
+  }, env);
+  assert.match(production.stdout, /"permissionDecision":"deny"/u);
+});
+
+test("a terminal command replay consumes pending state without duplicating the receipt", async () => {
+  const root = fixture();
+  const data = mkdtempSync(join(tmpdir(), "debug-workflow-codex-async-replay-data-"));
+  const created = openLedger(root);
+  const env = { PLUGIN_DATA: data, PLUGIN_ROOT: "/plugin" };
+  await runHook("post", writerEvent(root, created, "async-replay-session"), env);
+  const command = "node --test test/login.test.mjs";
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-replay-session",
+    tool_name: "exec_command",
+    tool_use_id: "exec-4",
+    tool_input: { command },
+    tool_response: { session_id: 734, output: "Process running with session ID 734" },
+  }, env);
+  await runHook("post", {
+    cwd: root,
+    session_id: "async-replay-session",
+    tool_name: "exec_command",
+    tool_use_id: "exec-4",
+    tool_input: { command },
+    tool_response: { exit_code: 1, output: "not ok 1 - login\n# fail 1" },
+  }, env);
+
+  const state = sessionState(root);
+  assert.deepEqual(state.pendingCommands, []);
+  assert.equal(state.receipts.length, 1);
+  assert.equal(state.receipts[0].outcome, "failure");
 });
 
 test("stderr redirection to dev null does not count as a production mutation", async () => {
