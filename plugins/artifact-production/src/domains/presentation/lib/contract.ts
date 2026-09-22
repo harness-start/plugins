@@ -17,28 +17,29 @@ import { TextDecoder } from "node:util";
 import { DOMParser, type Element } from "@xmldom/xmldom";
 import { unzipSync } from "fflate";
 import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
+import { estimateTextBox } from "./quality-signals.js";
 
-export const PLAN_SCHEMA = "presentation-production/plan/v5";
-export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v5";
+export const PLAN_SCHEMA = "presentation-production/plan/v6";
+export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v6";
 export const SKILL_COMPOSITION_SCHEMA =
-  "presentation-production/skill-composition/v5";
-export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v5";
-export const PROJECT_SCHEMA = "presentation-production/project/v5";
+  "presentation-production/skill-composition/v6";
+export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v6";
+export const PROJECT_SCHEMA = "presentation-production/project/v6";
 export const SLIDE_MANIFEST_SCHEMA =
-  "presentation-production/slide-manifest/v5";
+  "presentation-production/slide-manifest/v6";
 export const RENDER_EVIDENCE_SCHEMA =
-  "presentation-production/render-evidence/v5";
+  "presentation-production/render-evidence/v6";
 export const STRUCTURE_EVIDENCE_SCHEMA =
-  "presentation-production/structure-evidence/v5";
+  "presentation-production/structure-evidence/v6";
 export const DESIGN_EVIDENCE_SCHEMA =
-  "presentation-production/design-evidence/v5";
+  "presentation-production/design-evidence/v6";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA =
-  "presentation-production/accessibility-evidence/v5";
-export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v5";
-export const REVIEW_SCHEMA = "presentation-production/review/v5";
+  "presentation-production/accessibility-evidence/v6";
+export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v6";
+export const REVIEW_SCHEMA = "presentation-production/review/v6";
 export const RELEASE_MANIFEST_SCHEMA =
-  "presentation-production/release-manifest/v5";
-export const RECEIPT_SCHEMA = "presentation-production/receipt/v5";
+  "presentation-production/release-manifest/v6";
+export const RECEIPT_SCHEMA = "presentation-production/receipt/v6";
 
 export type PptxStage =
   "source" | "design" | "render" | "probe" | "review" | "release";
@@ -156,6 +157,7 @@ const CONTENT_LOGICS = new Set([
   "comparison",
   "evidence",
   "metric",
+  "matrix",
 ]);
 const DIAGRAM_LOGICS = new Set([
   "sequence",
@@ -193,6 +195,7 @@ const RELATION_KINDS = new Set([
 ]);
 const REVIEW_CHECKS = [
   "audienceBoundary",
+  "audienceCoverage",
   "headlineVoice",
   "typographyRhythm",
   "contentEncoding",
@@ -536,6 +539,172 @@ function validHeadline(value: unknown) {
   );
 }
 
+function labeledEntries(value: unknown, minimum = 2) {
+  const entries = list(value).map(rec);
+  const ids = new Set<string>();
+  return (
+    entries.length >= minimum &&
+    entries.every((entry) => {
+      const id = String(entry?.id ?? "");
+      const valid =
+        Boolean(entry) &&
+        ID.test(id) &&
+        !ids.has(id) &&
+        typeof entry?.label === "string" &&
+        Boolean(entry.label.trim());
+      ids.add(id);
+      return valid;
+    })
+  );
+}
+
+function completeCoordinateSet(
+  entries: unknown,
+  leftKey: string,
+  rightKey: string,
+  leftIds: ReadonlySet<string>,
+  rightIds: ReadonlySet<string>,
+  validEntry: (entry: JsonRecord) => boolean,
+) {
+  const coordinates = new Set<string>();
+  const cells = list(entries).map(rec);
+  return (
+    cells.length === leftIds.size * rightIds.size &&
+    cells.every((cell) => {
+      if (!cell) return false;
+      const left = String(cell[leftKey] ?? "");
+      const right = String(cell[rightKey] ?? "");
+      const coordinate = `${left}\0${right}`;
+      const valid =
+        leftIds.has(left) &&
+        rightIds.has(right) &&
+        !coordinates.has(coordinate) &&
+        validEntry(cell);
+      coordinates.add(coordinate);
+      return valid;
+    })
+  );
+}
+
+function validateMatrixVisual(
+  visual: JsonRecord,
+  path: string,
+  findings: ContractFinding[],
+) {
+  const matrix = rec(visual.matrix);
+  const rows = list(matrix?.rows).map(rec);
+  const columns = list(matrix?.columns).map(rec);
+  const rowIds = new Set(rows.map((entry) => String(entry?.id ?? "")));
+  const columnIds = new Set(columns.map((entry) => String(entry?.id ?? "")));
+  const valid =
+    visual.type === "comparison" &&
+    matrix &&
+    ID.test(String(matrix.id ?? "")) &&
+    matrix.coverage === "full" &&
+    labeledEntries(matrix.rows) &&
+    labeledEntries(matrix.columns) &&
+    completeCoordinateSet(
+      matrix.cells,
+      "rowId",
+      "columnId",
+      rowIds,
+      columnIds,
+      (cell) =>
+        ["supported", "unsupported", "conditional"].includes(
+          String(cell.status),
+        ) &&
+        typeof cell.label === "string" &&
+        Boolean(cell.label.trim()),
+    );
+  if (!valid)
+    findings.push(
+      finding(
+        "STORYBOARD_MATRIX_INVALID",
+        path,
+        "matrix visuals require labeled row and column dimensions plus one typed cell for every coordinate",
+      ),
+    );
+}
+
+function validateComparisonVisual(
+  visual: JsonRecord,
+  path: string,
+  findings: ContractFinding[],
+) {
+  const comparison = rec(visual.comparison);
+  const options = list(comparison?.options).map(rec);
+  const criteria = list(comparison?.criteria).map(rec);
+  const optionIds = new Set(options.map((entry) => String(entry?.id ?? "")));
+  const criterionIds = new Set(
+    criteria.map((entry) => String(entry?.id ?? "")),
+  );
+  const valid =
+    visual.type === "comparison" &&
+    comparison &&
+    ID.test(String(comparison.id ?? "")) &&
+    labeledEntries(comparison.options) &&
+    labeledEntries(comparison.criteria, 1) &&
+    criteria.every(
+      (criterion) =>
+        typeof criterion?.basis === "string" &&
+        Boolean(criterion.basis.trim()),
+    ) &&
+    completeCoordinateSet(
+      comparison.cells,
+      "optionId",
+      "criterionId",
+      optionIds,
+      criterionIds,
+      (cell) =>
+        typeof cell.value === "string" && Boolean(cell.value.trim()),
+    );
+  if (!valid)
+    findings.push(
+      finding(
+        "STORYBOARD_COMPARISON_INVALID",
+        path,
+        "comparison visuals require shared evidence-based criteria and one value for every option and criterion",
+      ),
+    );
+}
+
+function validateMetricVisual(
+  visual: JsonRecord,
+  path: string,
+  findings: ContractFinding[],
+) {
+  const ids = new Set<string>();
+  const metrics = list(visual.metrics).map(rec);
+  const valid =
+    visual.type === "data" &&
+    metrics.length > 0 &&
+    metrics.every((metric) => {
+      const id = String(metric?.id ?? "");
+      const entryValid =
+        Boolean(metric) &&
+        ID.test(id) &&
+        !ids.has(id) &&
+        typeof metric?.label === "string" &&
+        Boolean(metric.label.trim()) &&
+        typeof metric.value === "number" &&
+        Number.isFinite(metric.value) &&
+        (metric.unit === undefined ||
+          (typeof metric.unit === "string" && Boolean(metric.unit.trim()))) &&
+        typeof metric.evidenceAnchor === "string" &&
+        Boolean(metric.evidenceAnchor.trim());
+      ids.add(id);
+      return entryValid;
+    });
+  if (!valid)
+    findings.push(
+      finding(
+        "STORYBOARD_METRIC_INVALID",
+        path,
+        "metric visuals require at least one finite numeric value with a label and evidence anchor",
+      ),
+    );
+}
+
 function graphValid(
   logic: string,
   nodeIds: Set<string>,
@@ -665,19 +834,29 @@ function validateSlideVisual(
         "group visuals require unique groups with a supported encoding and at least two items",
       ),
     );
+  if (logic === "matrix") validateMatrixVisual(visual, path, findings);
+  if (logic === "comparison")
+    validateComparisonVisual(visual, path, findings);
+  if (logic === "metric") validateMetricVisual(visual, path, findings);
   if (visual.type !== "diagram") return;
   if (
     !READING_DIRECTIONS.has(String(visual.readingDirection)) ||
     (["sequence", "branch"].includes(logic) &&
-      visual.readingDirection === "top-to-bottom" &&
-      (typeof visual.directionRationale !== "string" ||
-        !visual.directionRationale.trim()))
+      visual.readingDirection !== "left-to-right") ||
+    (logic === "hierarchy" &&
+      !["left-to-right", "top-to-bottom"].includes(
+        String(visual.readingDirection),
+      )) ||
+    (logic === "cycle" && visual.readingDirection !== "clockwise") ||
+    (logic === "network" &&
+      !["left-to-right", "radial"].includes(String(visual.readingDirection))) ||
+    Object.hasOwn(visual, "directionRationale")
   )
     findings.push(
       finding(
         "NATIVE_DIAGRAM_INVALID",
         path,
-        "diagrams require a reading direction; top-to-bottom sequence and branch diagrams on 16:9 require a rationale",
+        "sequence and branch diagrams must read left-to-right on 16:9; only hierarchy may read top-to-bottom",
       ),
     );
   if (visual.mode === "svg") {
@@ -1201,6 +1380,12 @@ function paragraphInspection(paragraph: Element) {
   };
 }
 
+function relationLineKind(kind: string) {
+  return /^(?:line|connector|straightConnector[0-9]+|bentConnector[0-9]+|curvedConnector[0-9]+)$/iu.test(
+    kind,
+  );
+}
+
 function inspectSlideXml(xml: string, index: number) {
   const document = new DOMParser({
     onError: (level, message) => {
@@ -1254,11 +1439,11 @@ function inspectSlideXml(xml: string, index: number) {
     const flipH = transform?.getAttribute("flipH") === "1";
     const flipV = transform?.getAttribute("flipV") === "1";
     const start =
-      kind === "line"
+      relationLineKind(kind)
         ? { x: flipH ? x + w : x, y: flipV ? y + h : y }
         : undefined;
     const end =
-      kind === "line"
+      relationLineKind(kind)
         ? { x: flipH ? x : x + w, y: flipV ? y : y + h }
         : undefined;
     allObjects.push({
@@ -1514,12 +1699,15 @@ function arrowPresent(value: string | undefined) {
 
 function semanticTypographyRole(name: string) {
   const parts = name.split(":");
-  if (
-    parts[0] !== "pptx" ||
-    !["title", "text", "list", "item", "node"].includes(parts[1] ?? "")
-  )
-    return undefined;
-  const role = parts[1] === "node" ? parts[4] : parts[3];
+  if (parts[0] !== "pptx") return undefined;
+  const role =
+    parts[1] === "node" || parts[1] === "metric"
+      ? parts[4]
+      : parts[1] === "matrix" || parts[1] === "comparison"
+        ? parts[6]
+        : ["title", "text", "list", "item"].includes(parts[1] ?? "")
+          ? parts[3]
+          : undefined;
   return TYPOGRAPHY_ROLES.includes(
     role as (typeof TYPOGRAPHY_ROLES)[number],
   )
@@ -1588,6 +1776,29 @@ function validateRenderedText(
           `text object ${object.name} must use a semantic typography role and match its emitted OOXML rhythm without autofit`,
         ),
       );
+    if (role && object.text) {
+      const estimate = estimateTextBox({
+        text: object.text,
+        widthIn: object.bounds.w,
+        fontSizePt: Number(role.fontSizePt),
+        lineSpacingMultiple: Number(role.lineSpacingMultiple),
+        marginPt: Number(role.marginPt),
+        paragraphSpaceAfterPt: Number(role.paragraphSpaceAfterPt),
+        paragraphCount: object.paragraphs?.length ?? 1,
+        explicitLines: Number(object.lineBreaks ?? 0) + 1,
+      });
+      if (
+        estimate.estimatedLines > Number(role.maxLines) ||
+        estimate.requiredHeightIn > object.bounds.h * 1.15
+      )
+        findings.push(
+          finding(
+            "PPTX_TEXT_FIT_INVALID",
+            path,
+            `text object ${object.name} is estimated to require ${estimate.estimatedLines} lines and ${estimate.requiredHeightIn.toFixed(2)}in of height`,
+          ),
+        );
+    }
   }
   const visual = rec(slide.visual);
   for (const rawGroup of list(visual?.groups)) {
@@ -1662,6 +1873,122 @@ function validateRenderedText(
   }
 }
 
+function validateStructuredVisualOutput(
+  inspected: PptxPackageInspection["slides"][number],
+  slide: JsonRecord,
+  findings: ContractFinding[],
+  pptxPath: string,
+) {
+  const visual = rec(slide.visual);
+  const slideId = String(slide.id ?? "");
+  const path = `${pptxPath}#slide=${inspected.index}`;
+  const visibleTextMatches = (actual: string | undefined, expected: unknown) =>
+    actual?.replace(/\s+/gu, " ").trim() ===
+    String(expected ?? "").replace(/\s+/gu, " ").trim();
+  if (visual?.logic === "matrix") {
+    const matrix = rec(visual.matrix);
+    const matrixId = String(matrix?.id ?? "");
+    for (const rawCell of list(matrix?.cells)) {
+      const cell = rec(rawCell);
+      const name = `pptx:matrix:${slideId}:${matrixId}:${String(cell?.rowId ?? "")}:${String(cell?.columnId ?? "")}:body`;
+      const matches = inspected.objects.filter((object) => object.name === name);
+      if (
+        matches.length !== 1 ||
+        !visibleTextMatches(matches[0]?.text, cell?.label)
+      )
+        findings.push(
+          finding(
+            "PPTX_MATRIX_INVALID",
+            path,
+            `matrix cell ${name} must map to exactly one visible object`,
+          ),
+        );
+    }
+  }
+  if (visual?.logic === "comparison") {
+    const comparison = rec(visual.comparison);
+    const comparisonId = String(comparison?.id ?? "");
+    for (const rawCell of list(comparison?.cells)) {
+      const cell = rec(rawCell);
+      const name = `pptx:comparison:${slideId}:${comparisonId}:${String(cell?.optionId ?? "")}:${String(cell?.criterionId ?? "")}:body`;
+      const matches = inspected.objects.filter((object) => object.name === name);
+      if (
+        matches.length !== 1 ||
+        !visibleTextMatches(matches[0]?.text, cell?.value)
+      )
+        findings.push(
+          finding(
+            "PPTX_COMPARISON_INVALID",
+            path,
+            `comparison cell ${name} must map to exactly one visible object`,
+          ),
+        );
+    }
+  }
+  if (visual?.logic === "metric") {
+    for (const rawMetric of list(visual.metrics)) {
+      const metric = rec(rawMetric);
+      const name = `pptx:metric:${slideId}:${String(metric?.id ?? "")}:numeric`;
+      const matches = inspected.objects.filter((object) => object.name === name);
+      if (
+        matches.length !== 1 ||
+        !matches[0]?.text?.includes(String(metric?.value ?? ""))
+      )
+        findings.push(
+          finding(
+            "PPTX_METRIC_INVALID",
+            path,
+            `metric ${name} must render its declared numeric value`,
+          ),
+        );
+    }
+  }
+}
+
+function validateRelationshipObjects(
+  inspected: PptxPackageInspection["slides"][number],
+  slide: JsonRecord,
+  findings: ContractFinding[],
+  pptxPath: string,
+) {
+  const visual = rec(slide.visual);
+  const slideId = String(slide.id ?? "");
+  const path = `${pptxPath}#slide=${inspected.index}`;
+  const declaredRelations = new Set(
+    visual?.type === "diagram" && visual.mode === "native"
+      ? list(visual.relations).map((entry) => String(rec(entry)?.id ?? ""))
+      : [],
+  );
+  for (const object of inspected.objects) {
+    if (
+      object.name.startsWith("pptx:title:") ||
+      object.name.startsWith("pptx:chrome:")
+    )
+      continue;
+    const centerY = object.bounds.y + object.bounds.h / 2;
+    if (centerY < SLIDE_HEIGHT_IN * 0.15 || centerY > SLIDE_HEIGHT_IN * 0.9)
+      continue;
+    const isLine = relationLineKind(object.kind);
+    const isArrowShape = /arrow|chevron/iu.test(object.kind);
+    const hasArrow =
+      arrowPresent(object.beginArrow) || arrowPresent(object.endArrow);
+    if (!isLine && !isArrowShape && !hasArrow) continue;
+    if (object.name.startsWith(`pptx:separator:${slideId}:`)) {
+      if (isLine && !hasArrow) continue;
+    } else if (object.name.startsWith(`pptx:edge:${slideId}:`) && isLine) {
+      const relationId = object.name.split(":")[3] ?? "";
+      if (declaredRelations.has(relationId)) continue;
+    }
+    findings.push(
+      finding(
+        "PPTX_UNDECLARED_RELATION",
+        path,
+        `body relationship object ${object.name} must be a declared native diagram edge or an arrowless semantic separator`,
+      ),
+    );
+  }
+}
+
 function validateRenderedSemantics(
   inspection: PptxPackageInspection,
   storyboardSlides: unknown[],
@@ -1698,6 +2025,18 @@ function validateRenderedSemantics(
       slide,
       designRoles,
       baseUnitIn,
+      findings,
+      pptxPath,
+    );
+    validateStructuredVisualOutput(
+      inspected,
+      slide,
+      findings,
+      pptxPath,
+    );
+    validateRelationshipObjects(
+      inspected,
+      slide,
       findings,
       pptxPath,
     );
@@ -2059,6 +2398,8 @@ function validateEvidence(
   const layoutPages = list(layoutRhythm?.pages);
   const textRhythmPages = list(rec(design?.textRhythm)?.pages);
   const compositionSignals = list(design?.compositionSignals);
+  const deckSignals = list(design?.deckSignals);
+  const textFitSignals = list(design?.textFitSignals);
   if (
     design &&
     (!sourceDigestRecord(model, design) ||
@@ -2090,6 +2431,38 @@ function validateEvidence(
           rec(entry)?.autofitObjects !== 0,
       ) ||
       !Array.isArray(design.headlineSignals) ||
+      !Array.isArray(design.deckSignals) ||
+      deckSignals.some((entry) => {
+        const signal = rec(entry);
+        return (
+          !signal ||
+          !ID.test(String(signal.id ?? "")) ||
+          signal.severity !== "blocking" ||
+          !Array.isArray(signal.pages) ||
+          !signal.pages.length ||
+          signal.pages.some(
+            (page) =>
+              !Number.isInteger(page) ||
+              Number(page) < 1 ||
+              Number(page) > slides.length,
+          ) ||
+          typeof signal.evidence !== "string" ||
+          !signal.evidence.trim()
+        );
+      }) ||
+      !Array.isArray(design.textFitSignals) ||
+      textFitSignals.some((entry) => {
+        const signal = rec(entry);
+        return (
+          !signal ||
+          !Number.isInteger(signal.page) ||
+          Number(signal.page) < 1 ||
+          Number(signal.page) > slides.length ||
+          !["overflow", "orphan-line-risk"].includes(String(signal.kind)) ||
+          typeof signal.object !== "string" ||
+          !signal.object
+        );
+      }) ||
       compositionSignals.length !== slides.length ||
       compositionSignals.some(
         (entry, index) =>
@@ -2101,7 +2474,7 @@ function validateEvidence(
       finding(
         "DESIGN_EVIDENCE_INVALID",
         "evidence.design.json",
-        "design evidence must bind typography measurements, emitted text rhythm, headline signals, and per-page composition fingerprints",
+        "design evidence must bind typography measurements, emitted text rhythm, deck signals, text-fit signals, and per-page composition fingerprints",
       ),
     );
   const accessibility = schemaRecord(
@@ -2180,6 +2553,7 @@ export function presentationPageAuditsValid(
   storyboardSlides: unknown[],
   headlineSignalPages: ReadonlySet<number> = new Set(),
   compositionSignalPages: ReadonlySet<number> = new Set(),
+  textFitSignalPages: ReadonlySet<number> = new Set(),
 ) {
   return pages.every((rawPage, index) => {
     const page = rec(rawPage);
@@ -2190,6 +2564,7 @@ export function presentationPageAuditsValid(
       ["headlineVoice", new Set(["plain", "specific"])],
       ["typographyRhythm", undefined],
       ["contentEncoding", undefined],
+      ["distanceLegibility", undefined],
     ] as const;
     for (const [name, classifications] of requiredPass) {
       const audit = rec(audits[name]);
@@ -2204,6 +2579,8 @@ export function presentationPageAuditsValid(
         return false;
       if (
         ((name === "headlineVoice" && headlineSignalPages.has(index + 1)) ||
+          (name === "typographyRhythm" &&
+            textFitSignalPages.has(index + 1)) ||
           (name === "contentEncoding" &&
             compositionSignalPages.has(index + 1))) &&
         (typeof audit.signalDisposition !== "string" ||
@@ -2310,6 +2687,9 @@ function validateReview(
   );
   const storyboardSlides = list(storyboard?.slides);
   const designEvidence = rec(parseJson(files, "evidence.design.json"));
+  const blockingDeckSignals = list(designEvidence?.deckSignals).filter(
+    (entry) => rec(entry)?.severity === "blocking",
+  );
   const headlineSignalPages = new Set(
     list(designEvidence?.headlineSignals).map((entry) => Number(rec(entry)?.page)),
   );
@@ -2317,6 +2697,11 @@ function validateReview(
     list(designEvidence?.compositionSignals)
       .filter((entry) => list(rec(entry)?.signals).length > 0)
       .map((entry) => Number(rec(entry)?.page)),
+  );
+  const textFitSignalPages = new Set(
+    list(designEvidence?.textFitSignals).map((entry) =>
+      Number(rec(entry)?.page),
+    ),
   );
   const reviewAnchors = new Set(
     list(storyboard?.slides).map(
@@ -2353,12 +2738,14 @@ function validateReview(
         storyboardSlides,
         headlineSignalPages,
         compositionSignalPages,
+        textFitSignalPages,
       ) ||
       !presentationReviewFindingsValid(
         review.findings,
         reviewAnchors,
         reviewPageHashes,
       ) ||
+      blockingDeckSignals.length > 0 ||
       !presentationReviewChecksValid(
         review.checks,
         relationshipRequired,

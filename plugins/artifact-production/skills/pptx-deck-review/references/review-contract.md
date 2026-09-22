@@ -1,10 +1,10 @@
 # Review contract
 
-Create an external JSON object using schema `presentation-production/review-input/v5`. Page hashes must match the current final PNGs.
+Create an external JSON object using schema `presentation-production/review-input/v6`. Page hashes must match the current final PNGs.
 
 ```json
 {
-  "schema": "presentation-production/review-input/v5",
+  "schema": "presentation-production/review-input/v6",
   "artifactId": "deck-id",
   "subjectDigest": "64-lowercase-hex",
   "verdict": "pass",
@@ -34,6 +34,10 @@ Create an external JSON object using schema `presentation-production/review-inpu
           "evidence": "The visual adds a relationship or observation beyond the subtitle.",
           "signalDisposition": "Required only when the probe flags this composition."
         },
+        "distanceLegibility": {
+          "status": "pass",
+          "evidence": "The payload remains readable at approximately 480×270; any fine interface detail has a readable crop or callout."
+        },
         "grouping": {
           "status": "not-applicable",
           "evidence": "No peer group is declared.",
@@ -49,6 +53,7 @@ Create an external JSON object using schema `presentation-production/review-inpu
   ],
   "checks": {
     "audienceBoundary": { "status": "pass", "anchors": ["slide:opening"], "evidence": "The cover addresses the audience without exposing the private brief." },
+    "audienceCoverage": { "status": "pass", "anchors": ["deck"], "evidence": "The visible deck answers the material decision needs of every role in the declared audience." },
     "headlineVoice": { "status": "pass", "anchors": ["deck"], "evidence": "The title chain was read independently and contains no formulaic title." },
     "typographyRhythm": { "status": "pass", "anchors": ["deck"], "evidence": "Rendered text rhythm agrees with the bound OOXML measurements." },
     "contentEncoding": { "status": "pass", "anchors": ["deck"], "evidence": "Every primary visual adds information rather than decorating repeated prose." },
@@ -75,7 +80,7 @@ Create an external JSON object using schema `presentation-production/review-inpu
 
 Use `human` only for an actual human reviewer. The wrapper binds `reviewer.sessionId` to the one-time capability session and rejects the renderer's session.
 
-`headlineVoice`, `typographyRhythm`, and `contentEncoding` are required on every page. Headline classification may be `plain` or `specific`; `formulaic` cannot pass. `grouping` and `readingPath` may be `not-applicable` only when the storyboard declares no matching structure, with evidence and a rationale. Probe headline or composition signals require `signalDisposition` on that page.
+`headlineVoice`, `typographyRhythm`, `contentEncoding`, and `distanceLegibility` are required on every page. Headline classification may be `plain` or `specific`; `formulaic` cannot pass. `grouping` and `readingPath` may be `not-applicable` only when the storyboard declares no matching structure, with evidence and a rationale. Review-level headline, composition, or text-fit signals require `signalDisposition` on that page. A blocking deck signal prevents admission and cannot be dispositioned.
 
 Every deck check needs observable evidence and at least one `deck` or `slide:<id>` anchor. Only `relationshipSemantics` and `groupingSemantics` may be `not-applicable`, when the corresponding structure is absent. Every communication-review anchor must match the frozen signature-cue anchors.
 

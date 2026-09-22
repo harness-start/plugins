@@ -1,13 +1,13 @@
 ---
 name: pptx-deck-review
-description: "Independently review the final rendered PNG pages of a PPTX v5 project for audience boundary, headline voice, text rhythm, content encoding, grouping, layout rhythm, relationship semantics, legibility, and accessibility, then produce the external review-input JSON. Use only after render and probe; never use in the producing or releasing session."
+description: "Independently review the final rendered PNG pages of a PPTX v6 project for audience fit, headline voice, text rhythm, content encoding, grouping, layout rhythm, relationship semantics, comparison truth, legibility, and accessibility, then produce the external review-input JSON. Use only after render and probe; never use in the producing or releasing session."
 ---
 
 # PPTX Deck Review
 
 ## When to use
 
-- Independently review a rendered PPTX v5 deck and submit evidence-bound review input.
+- Independently review a rendered PPTX v6 deck and submit evidence-bound review input.
 
 ## Constraints
 
@@ -19,17 +19,20 @@ Act as an independent, read-only reviewer. Read [Review contract](references/rev
 
 First inspect the complete montage of final `dist/pages/NNN.png` files before reading the plan. Record the first conclusion or action you recover, a one-sentence pre-contract retell, cover language that appears to expose an internal brief, and repeated-layout runs. Then inspect every page at readable resolution and compare current hashes, manifest, storyboard, probe evidence, and communication core.
 
-Complete all seven v5 deck checks with page or deck anchors and observable evidence:
+Complete all eight v6 deck checks with page or deck anchors and observable evidence. Do not cite storyboard intent, visual-logic labels, schema validity, or probe success as proof of what a viewer can see:
 
 - `audienceBoundary`: the deck speaks to its audience without casually announcing the private target-audience brief; any explicit addressing matches the plan rationale.
+- `audienceCoverage`: infer the distinct decision needs of every role named in a compound audience brief and identify any material need the visible deck leaves unanswered. A clean audience boundary does not prove adequate coverage.
 - `headlineVoice`: read the title chain without body copy, classify each title as plain, specific, or formulaic, and reject a pass if any remains formulaic. Compactness alone is not evidence of natural language. Explicitly dispose every probe headline signal.
-- `typographyRhythm`: compare visible baselines, line spacing, paragraph spacing, left/top alignment, and clipping with emitted OOXML evidence.
-- `contentEncoding`: state what each primary visual communicates beyond the subtitle. Explicitly dispose every composition signal; a repeated card grid or bottom strip is not meaningful by itself.
-- `layoutRhythm`: similar-page groups from design evidence are either intentional or reported as findings.
-- `relationshipSemantics`: graph topology matches the claim, forward paths follow the declared physical reading direction, and connectors meet their nodes with the intended arrow, association, or break semantics. Use `not-applicable` only when no diagram exists.
+- `typographyRhythm`: compare visible baselines, line spacing, paragraph spacing, left/top alignment, clipping, and orphaned final lines with emitted OOXML evidence. Explicitly dispose every text-fit signal.
+- `contentEncoding`: state what each primary visual visibly communicates beyond the subtitle. Trace every claimed matrix cell, comparison criterion, metric, branch, or cycle. Explicitly dispose every review-level composition signal; a repeated card grid or bottom strip is not meaningful by itself.
+- `layoutRhythm`: inspect the montage for repeated payload frames. Probe blocking deck signals cannot be waived; request a source revision instead of writing a favorable rationale.
+- `relationshipSemantics`: graph topology matches the visible claim, forward paths follow the declared physical reading direction, and connectors meet their nodes with the intended arrow, association, or break semantics. Use `not-applicable` only when no diagram exists.
 - `groupingSemantics`: peer items use real bullets, numbering, aligned stacks, or grids. Use `not-applicable` only when no group is declared.
 
-Every page entry includes hash-bound audits for `headlineVoice`, `typographyRhythm`, `contentEncoding`, `grouping`, and `readingPath`. The first three always pass with observable evidence. Grouping and reading path may be `not-applicable` only when the storyboard declares no corresponding structure, with a rationale. A signaled page also records a `signalDisposition` in the relevant audit.
+Every page entry includes hash-bound audits for `headlineVoice`, `typographyRhythm`, `contentEncoding`, `distanceLegibility`, `grouping`, and `readingPath`. The first four always pass with observable evidence. Grouping and reading path may be `not-applicable` only when the storyboard declares no corresponding structure, with a rationale. A review-level signaled page also records a `signalDisposition` in the relevant audit.
+
+Judge distance legibility at approximately 480×270. If a media page relies on interface text that is unreadable at that scale, require a zoomed crop, callout, or readable summary. A full-page screenshot does not prove its fine text is usable in a presentation.
 
 Also review core fidelity, signature-cue continuity, density, alignment, typography, color, contrast, non-color encoding, clipping, image quality, accessibility, and the internal consistency of SVG diagrams.
 

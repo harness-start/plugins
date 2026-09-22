@@ -12,7 +12,7 @@ import {
 import { minimalPptx, releaseModel, sha256, sourceModel } from "./fixture.js";
 
 test("accepts the strict source-stage project contract", () => {
-  assert.equal(REVIEW_INPUT_SCHEMA, "presentation-production/review-input/v5");
+  assert.equal(REVIEW_INPUT_SCHEMA, "presentation-production/review-input/v6");
   assert.deepEqual(validatePptxModel(sourceModel(), { stage: "source" }), []);
 });
 
@@ -161,6 +161,12 @@ test("accepts a native relation whose arrow joins the declared node boundaries",
   assert.equal(findings.some(({ code }) => code.startsWith("PPTX_RELATION_")), false);
 });
 
+test("accepts a declared OOXML connector preset as a native relation", () => {
+  const xml = nativeDiagramXml().replace('prst="line"', 'prst="straightConnector1"');
+  const findings = validatePptxModel(nativeDiagramModel(xml), { stage: "render" });
+  assert.equal(findings.some(({ code }) => code.startsWith("PPTX_RELATION_")), false);
+});
+
 test("rejects a declared cycle without a return path", () => {
   const model = nativeDiagramModel(nativeDiagramXml());
   const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
@@ -172,15 +178,99 @@ test("rejects a declared cycle without a return path", () => {
   assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "NATIVE_DIAGRAM_INVALID"));
 });
 
-test("requires rationale for a top-to-bottom wide-screen sequence", () => {
+test("rejects a top-to-bottom wide-screen sequence even with a rationale", () => {
   const model = nativeDiagramModel(nativeDiagramXml());
   const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
   storyboard.slides[0].visual.logic = "sequence";
   storyboard.slides[0].visual.readingDirection = "top-to-bottom";
+  storyboard.slides[0].visual.directionRationale = "The steps are short.";
   storyboard.slides[0].visual.relations[0].pathRole = "forward";
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
 
   assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "NATIVE_DIAGRAM_INVALID"));
+});
+
+test("allows a top-to-bottom hierarchy on a wide-screen slide", () => {
+  const model = nativeDiagramModel(nativeDiagramXml());
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  storyboard.slides[0].visual.logic = "hierarchy";
+  storyboard.slides[0].visual.readingDirection = "top-to-bottom";
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+
+  assert.equal(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "NATIVE_DIAGRAM_INVALID"), false);
+});
+
+test("requires complete matrix, parallel comparison, and quantitative metric contracts", () => {
+  const incompleteMatrix = sourceModel();
+  const matrixStoryboard = JSON.parse(String(incompleteMatrix.files?.["plan.storyboard.json"]));
+  matrixStoryboard.slides[0].visual = {
+    type: "comparison",
+    logic: "matrix",
+    matrix: {
+      id: "compatibility",
+      rows: [{ id: "client-a", label: "Client A" }, { id: "client-b", label: "Client B" }],
+      columns: [{ id: "api-a", label: "API A" }, { id: "api-b", label: "API B" }],
+      coverage: "full",
+      cells: [{ rowId: "client-a", columnId: "api-a", status: "supported" }],
+    },
+  };
+  incompleteMatrix.files!["plan.storyboard.json"] = JSON.stringify(matrixStoryboard);
+  assert.ok(validatePptxModel(incompleteMatrix, { stage: "source" }).some(({ code }) => code === "STORYBOARD_MATRIX_INVALID"));
+
+  const unevenComparison = sourceModel();
+  const comparisonStoryboard = JSON.parse(String(unevenComparison.files?.["plan.storyboard.json"]));
+  comparisonStoryboard.slides[0].visual = {
+    type: "comparison",
+    logic: "comparison",
+    comparison: {
+      id: "approaches",
+      options: [{ id: "manual", label: "Manual" }, { id: "platform", label: "Platform" }],
+      criteria: [{ id: "setup", label: "Setup", basis: "Elapsed time" }],
+      cells: [{ optionId: "platform", criterionId: "setup", value: "One workflow" }],
+    },
+  };
+  unevenComparison.files!["plan.storyboard.json"] = JSON.stringify(comparisonStoryboard);
+  assert.ok(validatePptxModel(unevenComparison, { stage: "source" }).some(({ code }) => code === "STORYBOARD_COMPARISON_INVALID"));
+
+  const conceptualMetric = sourceModel();
+  const metricStoryboard = JSON.parse(String(conceptualMetric.files?.["plan.storyboard.json"]));
+  metricStoryboard.slides[0].visual = {
+    type: "data",
+    logic: "metric",
+    metrics: [{ id: "leverage", label: "Leverage", value: "high", unit: "", evidenceAnchor: "source:analysis" }],
+  };
+  conceptualMetric.files!["plan.storyboard.json"] = JSON.stringify(metricStoryboard);
+  assert.ok(validatePptxModel(conceptualMetric, { stage: "source" }).some(({ code }) => code === "STORYBOARD_METRIC_INVALID"));
+});
+
+test("matrix output must render the declared visible value in every cell", () => {
+  const model = releaseModel();
+  const cells = [
+    { rowId: "client-a", columnId: "api-a", status: "supported", label: "Yes" },
+    { rowId: "client-a", columnId: "api-b", status: "unsupported", label: "No" },
+    { rowId: "client-b", columnId: "api-a", status: "conditional", label: "Maybe" },
+    { rowId: "client-b", columnId: "api-b", status: "supported", label: "Yes" },
+  ];
+  const matrix = {
+    id: "compatibility",
+    rows: [{ id: "client-a", label: "Client A" }, { id: "client-b", label: "Client B" }],
+    columns: [{ id: "api-a", label: "API A" }, { id: "api-b", label: "API B" }],
+    coverage: "full",
+    cells,
+  };
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  storyboard.slides[0].visual = { type: "comparison", logic: "matrix", matrix };
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+  const manifest = JSON.parse(String(model.files?.["src/slides/manifest.json"]));
+  manifest.slides[0].visual = { type: "comparison", logic: "matrix" };
+  model.files!["src/slides/manifest.json"] = JSON.stringify(manifest);
+  const emu = (value: number) => Math.round(value * 914400);
+  const cellShape = (id: number, row: string, column: string, text: string, x: number, y: number) => `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="pptx:matrix:opening:compatibility:${row}:${column}:body"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(1.5)}" cy="${emu(0.6)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="0"/><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="135000"/></a:lnSpc><a:spcAft><a:spcPts val="600"/></a:spcAft></a:pPr><a:r><a:rPr sz="2200"><a:latin typeface="Noto Sans CJK SC"/></a:rPr><a:t>${text}</a:t></a:r></a:p></p:txBody></p:sp>`;
+  const xml = `<?xml version="1.0"?><p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/><p:sp><p:nvSpPr><p:cNvPr id="2" name="pptx:title:opening:display"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(1)}" y="${emu(0.5)}"/><a:ext cx="${emu(4)}" cy="${emu(0.5)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="0"/><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="115000"/></a:lnSpc><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr><a:r><a:rPr sz="2800"><a:latin typeface="Noto Sans CJK SC"/></a:rPr><a:t>Opening</a:t></a:r></a:p></p:txBody></p:sp>${cellShape(3, "client-a", "api-a", "Yes", 2, 2)}${cellShape(4, "client-a", "api-b", "No", 4, 2)}${cellShape(5, "client-b", "api-a", "Maybe", 2, 3)}${cellShape(6, "client-b", "api-b", "Wrong", 4, 3)}</p:spTree></p:cSld></p:sld>`;
+  model.files!["dist/deck.pptx"] = minimalPptx(xml);
+  model.digests!["dist/deck.pptx"] = sha256(model.files!["dist/deck.pptx"] as Buffer);
+
+  assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_MATRIX_INVALID"));
 });
 
 test("rejects a forward relation that runs against the declared reading direction", () => {
@@ -207,6 +297,36 @@ test("requires a declared group to render its actual encoding", () => {
   model.files!["src/slides/manifest.json"] = JSON.stringify(manifest);
 
   assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_GROUP_ENCODING_INVALID"));
+});
+
+test("rejects loose body arrows and permits an explicit arrowless separator", () => {
+  const looseArrow = '<p:sp><p:nvSpPr><p:cNvPr id="9" name="Down Arrow 8"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="3657600" y="2286000"/><a:ext cx="457200" cy="914400"/></a:xfrm><a:prstGeom prst="downArrow"><a:avLst/></a:prstGeom></p:spPr></p:sp>';
+  const arrowModel = releaseModel();
+  arrowModel.files!["dist/deck.pptx"] = minimalPptx().subarray();
+  const baseXml = `<?xml version="1.0"?>
+    <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:cSld><p:spTree>
+        <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+        <p:sp><p:nvSpPr><p:cNvPr id="2" name="pptx:title:opening:display"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="457200"/><a:ext cx="3657600" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="0"/><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="115000"/></a:lnSpc><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr><a:r><a:rPr sz="2800"><a:latin typeface="Noto Sans CJK SC"/></a:rPr><a:t>Opening</a:t></a:r></a:p></p:txBody></p:sp>
+        BODY
+      </p:spTree></p:cSld>
+    </p:sld>`;
+  arrowModel.files!["dist/deck.pptx"] = minimalPptx(baseXml.replace("BODY", looseArrow));
+  arrowModel.digests!["dist/deck.pptx"] = sha256(arrowModel.files!["dist/deck.pptx"] as Buffer);
+  assert.ok(validatePptxModel(arrowModel, { stage: "render" }).some(({ code }) => code === "PPTX_UNDECLARED_RELATION"));
+
+  const separator = '<p:sp><p:nvSpPr><p:cNvPr id="9" name="pptx:separator:opening:divider"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="1828800" y="2743200"/><a:ext cx="3657600" cy="0"/></a:xfrm><a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:ln w="12700"/></p:spPr></p:sp>';
+  const separatorModel = releaseModel();
+  separatorModel.files!["dist/deck.pptx"] = minimalPptx(baseXml.replace("BODY", separator));
+  separatorModel.digests!["dist/deck.pptx"] = sha256(separatorModel.files!["dist/deck.pptx"] as Buffer);
+  assert.equal(validatePptxModel(separatorModel, { stage: "render" }).some(({ code }) => code === "PPTX_UNDECLARED_RELATION"), false);
+});
+
+test("rejects estimated automatic text overflow", () => {
+  const body = '<p:sp><p:nvSpPr><p:cNvPr id="9" name="pptx:text:opening:body:detail"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="1828800" y="1828800"/><a:ext cx="457200" cy="228600"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="0"/><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="135000"/></a:lnSpc><a:spcAft><a:spcPts val="600"/></a:spcAft></a:pPr><a:r><a:rPr sz="2200"><a:latin typeface="Noto Sans CJK SC"/></a:rPr><a:t>这是一段不可能装进狭小文本框的正文内容</a:t></a:r></a:p></p:txBody></p:sp>';
+  const xml = nativeDiagramXml().replace("</p:spTree>", `${body}</p:spTree>`);
+  const model = nativeDiagramModel(xml);
+  assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_TEXT_FIT_INVALID"));
 });
 
 test("rejects a floating native connector and a missing target arrow", () => {
@@ -265,7 +385,7 @@ test("requires a between-node marker instead of a pseudo-connector for disconnec
 test("rejects legacy presentation schemas without compatibility fallback", () => {
   const model = sourceModel();
   const plan = JSON.parse(String(model.files?.["plan.contract.json"]));
-  plan.schema = "presentation-production/plan/v3";
+  plan.schema = "presentation-production/plan/v5";
   model.files!["plan.contract.json"] = JSON.stringify(plan);
   assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "PLAN_INVALID"));
 });
@@ -304,6 +424,28 @@ test("release requires all presentation quality checks", () => {
   delete review.checks.layoutRhythm;
   model.files!["review.pptx.json"] = JSON.stringify(review);
   assert.ok(validatePptxModel(model, { stage: "release" }).some(({ code }) => code === "REVIEW_INVALID"));
+});
+
+test("review requires audience coverage and presentation-distance legibility", () => {
+  const model = releaseModel();
+  const review = JSON.parse(String(model.files?.["review.pptx.json"]));
+  delete review.checks.audienceCoverage;
+  delete review.pages[0].audits.distanceLegibility;
+  model.files!["review.pptx.json"] = JSON.stringify(review);
+
+  assert.ok(validatePptxModel(model, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"));
+});
+
+test("blocking deck signals cannot be waived by review prose", () => {
+  const model = releaseModel();
+  const design = JSON.parse(String(model.files?.["evidence.design.json"]));
+  design.deckSignals = [{ id: "repeated-frame", severity: "blocking", pages: [1], evidence: "The same payload frame dominates the body pages." }];
+  model.files!["evidence.design.json"] = JSON.stringify(design);
+  const review = JSON.parse(String(model.files?.["review.pptx.json"]));
+  review.checks.layoutRhythm.evidence = "The repeated frame is intentional.";
+  model.files!["review.pptx.json"] = JSON.stringify(review);
+
+  assert.ok(validatePptxModel(model, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"));
 });
 
 test("release requires hash-bound per-page visual audits", () => {

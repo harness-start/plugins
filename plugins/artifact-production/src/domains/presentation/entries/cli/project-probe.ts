@@ -23,6 +23,13 @@ import {
   sessionMetadata,
   withWriterJournal,
 } from "../../lib/writer.js";
+import {
+  compositionSignals,
+  deckRiskSignals,
+  headlineRiskSignals,
+  similarLayoutGroups,
+  textFitSignals,
+} from "../../lib/quality-signals.js";
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): RecordValue =>
@@ -48,126 +55,6 @@ function contrast(left: string, right: string) {
     (a, b) => b - a,
   );
   return ((lighter ?? 0) + 0.05) / ((darker ?? 0) + 0.05);
-}
-
-function fingerprintSimilarity(left: string[], right: string[]) {
-  const leftSet = new Set(left);
-  const rightSet = new Set(right);
-  const union = new Set([...leftSet, ...rightSet]);
-  if (!union.size) return 1;
-  let intersection = 0;
-  for (const value of leftSet) if (rightSet.has(value)) intersection += 1;
-  return intersection / union.size;
-}
-
-function similarLayoutGroups(
-  pages: Array<{ index: number; fingerprint: string[] }>,
-) {
-  const groups: Array<{ pages: number[]; minimumSimilarity: number }> = [];
-  const consumed = new Set<number>();
-  for (const page of pages) {
-    if (consumed.has(page.index)) continue;
-    const matches = pages
-      .filter(
-        (candidate) =>
-          candidate.index !== page.index &&
-          fingerprintSimilarity(page.fingerprint, candidate.fingerprint) >=
-            0.85,
-      )
-      .map(({ index }) => index);
-    if (matches.length < 2) continue;
-    const indexes = [page.index, ...matches].sort((a, b) => a - b);
-    indexes.forEach((index) => consumed.add(index));
-    groups.push({
-      pages: indexes,
-      minimumSimilarity: Math.min(
-        ...matches.map(
-          (index) =>
-            fingerprintSimilarity(
-              page.fingerprint,
-              pages.find((candidate) => candidate.index === index)
-                ?.fingerprint ?? [],
-            ),
-        ),
-      ),
-    });
-  }
-  return groups;
-}
-
-function headlineRiskSignals(slides: RecordValue[]) {
-  const rows = slides.map((slide, offset) => {
-    const title = String(slide.displayTitle ?? "");
-    const signals: string[] = [];
-    const clauses = title.split(/[,，:：]/u).map((part) => part.trim()).filter(Boolean);
-    if (
-      clauses.length === 2 &&
-      Math.min(...clauses.map((part) => [...part].length)) >= 2 &&
-      Math.max(...clauses.map((part) => [...part].length)) /
-        Math.min(...clauses.map((part) => [...part].length)) <=
-        1.8
-    )
-      signals.push("balanced-clauses");
-    if (/从.+到|不是.+而是|更.+更|from .+ to |not .+ but /iu.test(title))
-      signals.push("formulaic-frame");
-    return { page: offset + 1, title, signals };
-  });
-  const punctuationFamilies = new Map<string, number[]>();
-  rows.forEach(({ title }, offset) => {
-    const family = Array.from(title.matchAll(/[,，:：—-]/gu), (match) => match[0]).join("");
-    if (!family) return;
-    const pages = punctuationFamilies.get(family) ?? [];
-    pages.push(offset);
-    punctuationFamilies.set(family, pages);
-  });
-  for (const pages of punctuationFamilies.values())
-    if (pages.length >= 3)
-      for (const offset of pages) rows[offset]?.signals.push("repeated-title-grammar");
-  return rows.filter(({ signals }) => signals.length > 0);
-}
-
-function compositionSignals(
-  slides: Array<{
-    index: number;
-    objects: Array<Record<string, unknown>>;
-    layoutFingerprint: string[];
-  }>,
-  storyboardSlides: RecordValue[],
-) {
-  return slides.map((slide, offset) => {
-    const signals: string[] = [];
-    const sizeCounts = new Map<string, number>();
-    for (const token of slide.layoutFingerprint) {
-      const parts = token.split(":");
-      const size = parts.slice(-2).join(":");
-      sizeCounts.set(size, (sizeCounts.get(size) ?? 0) + 1);
-    }
-    if ([...sizeCounts.values()].some((count) => count >= 3))
-      signals.push("equal-object-grid");
-    if (
-      slide.objects.some((object) => {
-        const bounds = record(object.bounds);
-        return (
-          String(object.name ?? "").startsWith("pptx:text:") &&
-          Number(bounds.y) >= 6.25 &&
-          Number(bounds.h) <= 0.75
-        );
-      })
-    )
-      signals.push("bottom-takeaway-strip");
-    if (
-      slide.objects.some(
-        (object) =>
-          object.horizontalAlign === "center" && Number(object.lineBreaks) >= 2,
-      )
-    )
-      signals.push("centered-multiline");
-    return {
-      page: slide.index,
-      logic: record(storyboardSlides[offset]?.visual).logic,
-      signals,
-    };
-  });
 }
 
 async function main() {
@@ -273,6 +160,19 @@ async function main() {
     }>,
     storyboardSlides,
   );
+  const layoutGroups = similarLayoutGroups(layoutPages);
+  const fitSignals = textFitSignals(
+    packageInspection.slides as unknown as Array<{
+      index: number;
+      objects: Array<Record<string, unknown>>;
+    }>,
+  );
+  const deckSignals = deckRiskSignals(
+    visualSignals,
+    headlineSignals,
+    layoutGroups,
+    storyboardSlides,
+  );
   const accessibilityChecks: Array<Record<string, unknown>> = [];
   for (const slide of slides) {
     const accessibility = record(slide.accessibility);
@@ -313,7 +213,7 @@ async function main() {
         },
         package: packageInspection,
         pageCount,
-        tool: { name: "pptx-opc-validator", version: "2" },
+        tool: { name: "pptx-opc-validator", version: "3" },
         verdict: "pass",
       });
       await atomicWriteJson(root, "evidence.design.json", {
@@ -340,12 +240,14 @@ async function main() {
         ],
         layoutRhythm: {
           pages: layoutPages,
-          similarGroups: similarLayoutGroups(layoutPages),
+          similarGroups: layoutGroups,
           similarityThreshold: 0.85,
         },
         textRhythm: { pages: textRhythmPages },
         headlineSignals,
         compositionSignals: visualSignals,
+        deckSignals,
+        textFitSignals: fitSignals,
       });
       await atomicWriteJson(root, "evidence.accessibility.json", {
         schema: ACCESSIBILITY_EVIDENCE_SCHEMA,

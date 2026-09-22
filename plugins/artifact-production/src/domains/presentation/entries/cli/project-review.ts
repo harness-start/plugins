@@ -50,7 +50,9 @@ async function main() {
   const designEvidence = record(JSON.parse(String(model.files?.["evidence.design.json"])));
   const headlineSignalPages = new Set((Array.isArray(designEvidence.headlineSignals) ? designEvidence.headlineSignals : []).map((entry) => Number(record(entry).page)));
   const compositionSignalPages = new Set((Array.isArray(designEvidence.compositionSignals) ? designEvidence.compositionSignals : []).filter((entry) => Array.isArray(record(entry).signals) && (record(entry).signals as unknown[]).length > 0).map((entry) => Number(record(entry).page)));
-  if (!presentationPageAuditsValid(pages, storyboardSlides, headlineSignalPages, compositionSignalPages)) throw new Error("REVIEW_PAGE_AUDITS_INVALID");
+  const textFitSignalPages = new Set((Array.isArray(designEvidence.textFitSignals) ? designEvidence.textFitSignals : []).map((entry) => Number(record(entry).page)));
+  if ((Array.isArray(designEvidence.deckSignals) ? designEvidence.deckSignals : []).some((entry) => record(entry).severity === "blocking")) throw new Error("REVIEW_BLOCKED_BY_DECK_SIGNAL");
+  if (!presentationPageAuditsValid(pages, storyboardSlides, headlineSignalPages, compositionSignalPages, textFitSignalPages)) throw new Error("REVIEW_PAGE_AUDITS_INVALID");
   const reviewAnchors = new Set(
     Array.isArray(storyboard.slides)
       ? storyboard.slides.map((entry) => `slide:${String(record(entry).id ?? "")}`)

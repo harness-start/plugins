@@ -53,7 +53,7 @@ test("real Office pipeline closes render, probe, independent review, and release
     const pagePath = "dist/pages/001.png";
     const reviewInput = join(workspace, "review-input.json");
     writeFileSync(reviewInput, `${JSON.stringify({
-      schema: "presentation-production/review-input/v5",
+      schema: "presentation-production/review-input/v6",
       artifactId: "pipeline-deck",
       subjectDigest: computePptxSubjectDigest(model),
       verdict: "pass",
@@ -62,12 +62,14 @@ test("real Office pipeline closes render, probe, independent review, and release
         headlineVoice: { status: "pass", classification: "plain", evidence: "The title is a direct label." },
         typographyRhythm: { status: "pass", evidence: "The rendered title follows the declared display role." },
         contentEncoding: { status: "pass", evidence: "The opening hierarchy carries the primary message." },
+        distanceLegibility: { status: "pass", evidence: "The opening remains readable at presentation-thumbnail scale." },
         grouping: { status: "not-applicable", evidence: "No group is declared.", rationale: "The page contains one statement." },
         readingPath: { status: "not-applicable", evidence: "No diagram is declared.", rationale: "The page contains one statement." },
       } }],
       findings: [],
       checks: {
         audienceBoundary: { status: "pass", anchors: ["slide:opening"], evidence: "The cover addresses the audience without exposing the private brief." },
+        audienceCoverage: { status: "pass", anchors: ["slide:opening"], evidence: "The page supplies the decision requested by the declared audience." },
         headlineVoice: { status: "pass", anchors: ["slide:opening"], evidence: "The visible title is a plain single-line label." },
         typographyRhythm: { status: "pass", anchors: ["slide:opening"], evidence: "The rendered title matches its bound OOXML role." },
         contentEncoding: { status: "pass", anchors: ["slide:opening"], evidence: "The opening visual hierarchy carries the primary message." },

@@ -1,6 +1,6 @@
 # Project contract
 
-The project root is `artifacts/pptx/<artifact-id>`. Versioned source includes `.gitignore`, package files, `tsconfig.json`, the v5 plan, storyboard, skill-composition, design-system, project, and slide-manifest contracts, plus `src/deck.ts`, `src/theme.ts`, `src/semantic-layout.ts`, `src/text-layout.ts`, and one source module per slide. Earlier schema versions are rejected rather than upgraded in place.
+The project root is `artifacts/pptx/<artifact-id>`. Versioned source includes `.gitignore`, package files, `tsconfig.json`, the v6 plan, storyboard, skill-composition, design-system, project, and slide-manifest contracts, plus `src/deck.ts`, `src/theme.ts`, `src/semantic-layout.ts`, `src/text-layout.ts`, and one source module per slide. Earlier schema versions are rejected rather than upgraded in place.
 
 Stages are strictly ordered: `source → design → render → probe → review → release`. Set `plan.contract.json.targetStage` to the stage actually required at session stop. Never spell or invent stages loosely.
 
@@ -10,4 +10,4 @@ The audience brief is structured and private by default. `audience.addressing: "
 
 Source paths remain agent-editable. These generated paths are wrapper-owned: `dist/**`, `src/slides/*.png`, `evidence.*.json`, `review.*.json`, `release.manifest.json`, `receipt.*.json`, and the mutation journal. Do not bypass the hook with direct shell, filesystem APIs, scripts, symlinks, or encoded commands.
 
-Every slide manifest entry is contiguous and maps to `src/slides/NNN-slug.ts`. Slide modules export exactly one `renderSlide`; `src/deck.ts` alone creates slides and writes the final PPTX. Titles, text blocks, lists, group items, and native diagram objects use the scaffolded `pptx:*` names. Their typography roles, group encodings, topology, and geometry are checked in the final package rather than trusted from source declarations.
+Every slide manifest entry is contiguous and maps to `src/slides/NNN-slug.ts`. Slide modules export exactly one `renderSlide`; `src/deck.ts` alone creates slides and writes the final PPTX. Titles, text blocks, lists, group items, matrix and comparison cells, metrics, separators, and native diagram objects use the scaffolded `pptx:*` names. Their typography roles, structure, topology, and geometry are checked in the final package rather than trusted from source declarations. Body lines are either declared diagram edges or arrowless semantic separators; loose lines and arrow presets are invalid.
