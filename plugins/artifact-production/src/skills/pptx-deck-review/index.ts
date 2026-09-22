@@ -7,9 +7,9 @@ import {
 export default defineSkill({
   id: "pptx-deck-review",
   fullName: "PPTX Deck Review",
-  description: "Independently review the final rendered PNG pages of a PPTX v4 project for audience boundary, headline economy, visual payload, layout rhythm, relationship semantics, legibility, and accessibility, then produce the external review-input JSON. Use only after render and probe; never use in the producing or releasing session.",
+  description: "Independently review the final rendered PNG pages of a PPTX v5 project for audience boundary, headline voice, text rhythm, content encoding, grouping, layout rhythm, relationship semantics, legibility, and accessibility, then produce the external review-input JSON. Use only after render and probe; never use in the producing or releasing session.",
   useCases: [
-    "Independently review a rendered PPTX v4 deck and submit evidence-bound review input.",
+    "Independently review a rendered PPTX v5 deck and submit evidence-bound review input.",
   ],
   constraints: [
     "Do not edit the project, its source, evidence, pages, or receipt.",
@@ -24,13 +24,17 @@ Act as an independent, read-only reviewer. Read [Review contract](references/rev
 
 First inspect the complete montage of final \`dist/pages/NNN.png\` files before reading the plan. Record the first conclusion or action you recover, a one-sentence pre-contract retell, cover language that appears to expose an internal brief, and repeated-layout runs. Then inspect every page at readable resolution and compare current hashes, manifest, storyboard, probe evidence, and communication core.
 
-Complete all five v4 quality checks with page or deck anchors and observable evidence:
+Complete all seven v5 deck checks with page or deck anchors and observable evidence:
 
 - \`audienceBoundary\`: the deck speaks to its audience without casually announcing the private target-audience brief; any explicit addressing matches the plan rationale.
-- \`headlineEconomy\`: titles are compact locators and the visual carries the assertion.
-- \`visualPayload\`: diagrams, data, screenshots, or comparisons carry meaningful information rather than decorating repeated prose.
+- \`headlineVoice\`: read the title chain without body copy, classify each title as plain, specific, or formulaic, and reject a pass if any remains formulaic. Compactness alone is not evidence of natural language. Explicitly dispose every probe headline signal.
+- \`typographyRhythm\`: compare visible baselines, line spacing, paragraph spacing, left/top alignment, and clipping with emitted OOXML evidence.
+- \`contentEncoding\`: state what each primary visual communicates beyond the subtitle. Explicitly dispose every composition signal; a repeated card grid or bottom strip is not meaningful by itself.
 - \`layoutRhythm\`: similar-page groups from design evidence are either intentional or reported as findings.
-- \`relationshipSemantics\`: connectors meet their nodes and their arrows, associations, or break markers match the intended meaning, including relationships inside SVG diagrams. Use \`not-applicable\` only when no diagram exists.
+- \`relationshipSemantics\`: graph topology matches the claim, forward paths follow the declared physical reading direction, and connectors meet their nodes with the intended arrow, association, or break semantics. Use \`not-applicable\` only when no diagram exists.
+- \`groupingSemantics\`: peer items use real bullets, numbering, aligned stacks, or grids. Use \`not-applicable\` only when no group is declared.
+
+Every page entry includes hash-bound audits for \`headlineVoice\`, \`typographyRhythm\`, \`contentEncoding\`, \`grouping\`, and \`readingPath\`. The first three always pass with observable evidence. Grouping and reading path may be \`not-applicable\` only when the storyboard declares no corresponding structure, with a rationale. A signaled page also records a \`signalDisposition\` in the relevant audit.
 
 Also review core fidelity, signature-cue continuity, density, alignment, typography, color, contrast, non-color encoding, clipping, image quality, accessibility, and the internal consistency of SVG diagrams.
 

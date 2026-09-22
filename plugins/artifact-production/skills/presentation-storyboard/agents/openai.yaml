@@ -1,4 +1,4 @@
 interface:
   display_name: "Presentation Storyboard"
-  short_description: "Read-only adviser for planning a new presentation-production v4"
-  default_prompt: "Use $presentation-storyboard to: Read-only adviser for planning a new presentation-production v4"
+  short_description: "Read-only adviser for planning a new presentation-production v5"
+  default_prompt: "Use $presentation-storyboard to: Read-only adviser for planning a new presentation-production v5"

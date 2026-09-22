@@ -87,13 +87,13 @@ shadow: { color: "00000020" }              // CORRUPTS FILE
 shadow: { color: "000000", opacity: 0.12 } // CORRECT
 ```
 
-### Prevent text wrapping in titles
+### Size titles deliberately
 
 ```javascript
-// Use fit:'shrink' for long titles
-slide.addText("Long Title Here", {
+// Rewrite or resize the box; generated autofit is renderer-dependent.
+slide.addText("Short Title", {
   x: 0.5, y: 2, w: 9, h: 1,
-  fontSize: 48, fit: "shrink"
+  fontSize: 48
 });
 ```
 

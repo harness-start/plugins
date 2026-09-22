@@ -53,19 +53,27 @@ test("real Office pipeline closes render, probe, independent review, and release
     const pagePath = "dist/pages/001.png";
     const reviewInput = join(workspace, "review-input.json");
     writeFileSync(reviewInput, `${JSON.stringify({
-      schema: "presentation-production/review-input/v4",
+      schema: "presentation-production/review-input/v5",
       artifactId: "pipeline-deck",
       subjectDigest: computePptxSubjectDigest(model),
       verdict: "pass",
       reviewer: { kind: "independent-agent", id: "pipeline-reviewer", sessionId: "review-session" },
-      pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass" }],
+      pages: [{ index: 1, sha256: model.digests?.[pagePath], verdict: "pass", audits: {
+        headlineVoice: { status: "pass", classification: "plain", evidence: "The title is a direct label." },
+        typographyRhythm: { status: "pass", evidence: "The rendered title follows the declared display role." },
+        contentEncoding: { status: "pass", evidence: "The opening hierarchy carries the primary message." },
+        grouping: { status: "not-applicable", evidence: "No group is declared.", rationale: "The page contains one statement." },
+        readingPath: { status: "not-applicable", evidence: "No diagram is declared.", rationale: "The page contains one statement." },
+      } }],
       findings: [],
       checks: {
         audienceBoundary: { status: "pass", anchors: ["slide:opening"], evidence: "The cover addresses the audience without exposing the private brief." },
-        headlineEconomy: { status: "pass", anchors: ["slide:opening"], evidence: "The visible title is a compact single-line label." },
-        visualPayload: { status: "pass", anchors: ["slide:opening"], evidence: "The opening visual hierarchy carries the primary message." },
+        headlineVoice: { status: "pass", anchors: ["slide:opening"], evidence: "The visible title is a plain single-line label." },
+        typographyRhythm: { status: "pass", anchors: ["slide:opening"], evidence: "The rendered title matches its bound OOXML role." },
+        contentEncoding: { status: "pass", anchors: ["slide:opening"], evidence: "The opening visual hierarchy carries the primary message." },
         layoutRhythm: { status: "pass", anchors: ["deck"], evidence: "The one-page deck has no repeated-layout run." },
         relationshipSemantics: { status: "not-applicable", anchors: ["deck"], evidence: "The storyboard and structure evidence contain no native relationship diagram.", rationale: "No relationship-bearing slide is present." },
+        groupingSemantics: { status: "not-applicable", anchors: ["deck"], evidence: "The storyboard contains no declared group.", rationale: "No grouped peers are present." },
       },
       reviewerRetell: { observedBeforeContract: "This deck leads to one explicit decision.", intendedTarget: "This deck leads to one explicit decision.", alignment: "pass", limitation: "Independent reviewer proxy; not a human recall study." },
       communicationReview: Object.fromEntries(["coreFidelity", "signatureCue", "semanticCausality", "retellAlignment", "invariantContinuity"].map((key) => [key, { status: "pass", anchor: "slide:opening", evidence: `${key} is visible in the reviewed page.`, recovery: `Revise ${key} and repeat independent review.` }])),

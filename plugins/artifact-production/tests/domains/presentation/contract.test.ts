@@ -12,8 +12,32 @@ import {
 import { minimalPptx, releaseModel, sha256, sourceModel } from "./fixture.js";
 
 test("accepts the strict source-stage project contract", () => {
-  assert.equal(REVIEW_INPUT_SCHEMA, "presentation-production/review-input/v4");
+  assert.equal(REVIEW_INPUT_SCHEMA, "presentation-production/review-input/v5");
   assert.deepEqual(validatePptxModel(sourceModel(), { stage: "source" }), []);
+});
+
+test("requires an explicit headline mode and visual logic on every slide", () => {
+  const model = sourceModel();
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  delete storyboard.slides[0].headline;
+  delete storyboard.slides[0].visual.logic;
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+
+  const codes = validatePptxModel(model, { stage: "source" }).map(({ code }) => code);
+  assert.ok(codes.includes("STORYBOARD_INVALID"));
+  assert.ok(codes.includes("STORYBOARD_VISUAL_INVALID"));
+});
+
+test("requires output-bound typography rhythm instead of a paragraph gap proxy", () => {
+  const model = sourceModel();
+  const design = JSON.parse(String(model.files?.["design.system.json"]));
+  delete design.typography.roles.body.paragraphSpaceAfterPt;
+  delete design.typography.roles.body.horizontalAlign;
+  delete design.typography.roles.body.verticalAlign;
+  delete design.typography.roles.body.marginPt;
+  model.files!["design.system.json"] = JSON.stringify(design);
+
+  assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "DESIGN_SYSTEM_INVALID"));
 });
 
 test("requires structured audience intent and a rationale for explicit addressing", () => {
@@ -54,6 +78,44 @@ test("extracts stable semantic object names, bounds, text, and arrow direction f
   assert.equal(inspection.slides[0]?.objects[1]?.endArrow, "triangle");
 });
 
+test("extracts paragraph rhythm, alignment, bullets, and autofit from OOXML", () => {
+  const slideXml = `<?xml version="1.0"?>
+    <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+      <p:cSld><p:spTree>
+        <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
+        <p:sp><p:nvSpPr><p:cNvPr id="2" name="pptx:list:opening:list:clients"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="457200"/><a:ext cx="3657600" cy="914400"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="91440"><a:normAutofit/></a:bodyPr><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="135000"/></a:lnSpc><a:spcBef><a:spcPts val="300"/></a:spcBef><a:spcAft><a:spcPts val="600"/></a:spcAft><a:buChar char="•"/></a:pPr><a:r><a:rPr sz="2200"/><a:t>Codex</a:t></a:r></a:p></p:txBody></p:sp>
+      </p:spTree></p:cSld></p:sld>`;
+  const object = inspectPptxPackage(minimalPptx(slideXml)).slides[0]?.objects[0];
+  assert.equal(object?.lineSpacingMultiple, 1.35);
+  assert.equal(object?.paragraphSpaceAfterPt, 6);
+  assert.equal(object?.horizontalAlign, "left");
+  assert.equal(object?.verticalAlign, "top");
+  assert.equal(object?.bulletKind, "bullet");
+  assert.equal(object?.autofit, "shrink");
+});
+
+test("rejects renderer-dependent autofit on governed text", () => {
+  const model = releaseModel();
+  model.files!["dist/deck.pptx"] = minimalPptx(
+    nativeDiagramXml().replace(
+      '<a:bodyPr anchor="t" lIns="0"/>',
+      '<a:bodyPr anchor="t" lIns="0"><a:normAutofit/></a:bodyPr>',
+    ),
+  );
+  model.digests!["dist/deck.pptx"] = sha256(model.files!["dist/deck.pptx"] as Buffer);
+  assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_TEXT_RHYTHM_INVALID"));
+});
+
+test("rejects a visible text box that bypasses semantic typography naming", () => {
+  const rawText = '<p:sp><p:nvSpPr><p:cNvPr id="9" name="Text 99"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="914400" y="1371600"/><a:ext cx="3657600" cy="457200"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="0"/><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="135000"/></a:lnSpc><a:spcAft><a:spcPts val="600"/></a:spcAft></a:pPr><a:r><a:rPr sz="2200"><a:latin typeface="Noto Sans CJK SC"/></a:rPr><a:t>Ungoverned text</a:t></a:r></a:p></p:txBody></p:sp>';
+  const model = releaseModel();
+  model.files!["dist/deck.pptx"] = minimalPptx(
+    nativeDiagramXml().replace("</p:spTree>", `${rawText}</p:spTree>`),
+  );
+  model.digests!["dist/deck.pptx"] = sha256(model.files!["dist/deck.pptx"] as Buffer);
+  assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_TEXT_RHYTHM_INVALID"));
+});
+
 function nativeDiagramXml({ lineX = 3, lineWidth = 2, arrow = true } = {}) {
   const emu = (value: number) => Math.round(value * 914400);
   const shape = (id: number, name: string, x: number, y: number, w: number, h: number) => `<p:sp><p:nvSpPr><p:cNvPr id="${id}" name="${name}"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(x)}" y="${emu(y)}"/><a:ext cx="${emu(w)}" cy="${emu(h)}"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom></p:spPr></p:sp>`;
@@ -61,9 +123,9 @@ function nativeDiagramXml({ lineX = 3, lineWidth = 2, arrow = true } = {}) {
     <p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
       <p:cSld><p:spTree>
         <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>
-        <p:sp><p:nvSpPr><p:cNvPr id="2" name="pptx:title:opening"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(1)}" y="${emu(0.5)}"/><a:ext cx="${emu(4)}" cy="${emu(0.5)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Opening</a:t></a:r></a:p></p:txBody></p:sp>
-        ${shape(3, "pptx:node:opening:client", 1, 3, 2, 1)}
-        ${shape(4, "pptx:node:opening:gateway", 5, 3, 2, 1)}
+        <p:sp><p:nvSpPr><p:cNvPr id="2" name="pptx:title:opening:display"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(1)}" y="${emu(0.5)}"/><a:ext cx="${emu(4)}" cy="${emu(0.5)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr anchor="t" lIns="0"/><a:lstStyle/><a:p><a:pPr algn="l"><a:lnSpc><a:spcPct val="115000"/></a:lnSpc><a:spcAft><a:spcPts val="0"/></a:spcAft></a:pPr><a:r><a:rPr sz="2800"><a:latin typeface="Noto Sans CJK SC"/></a:rPr><a:t>Opening</a:t></a:r></a:p></p:txBody></p:sp>
+        ${shape(3, "pptx:node:opening:client:body", 1, 3, 2, 1)}
+        ${shape(4, "pptx:node:opening:gateway:body", 5, 3, 2, 1)}
         <p:sp><p:nvSpPr><p:cNvPr id="5" name="pptx:edge:opening:request:0"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="${emu(lineX)}" y="${emu(3.5)}"/><a:ext cx="${emu(lineWidth)}" cy="0"/></a:xfrm><a:prstGeom prst="line"><a:avLst/></a:prstGeom><a:ln w="25400">${arrow ? '<a:tailEnd type="triangle"/>' : ""}</a:ln></p:spPr></p:sp>
       </p:spTree></p:cSld>
     </p:sld>`;
@@ -74,18 +136,20 @@ function nativeDiagramModel(slideXml: string) {
   const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
   storyboard.slides[0].visual = {
     type: "diagram",
+    logic: "sequence",
     mode: "native",
+    readingDirection: "left-to-right",
     nodes: [
-      { id: "client", role: "source" },
-      { id: "gateway", role: "target" },
+      { id: "client", role: "source", typographyRole: "body" },
+      { id: "gateway", role: "target", typographyRole: "body" },
     ],
     relations: [
-      { id: "request", from: "client", to: "gateway", kind: "flow", segmentCount: 1 },
+      { id: "request", from: "client", to: "gateway", kind: "flow", pathRole: "forward", segmentCount: 1 },
     ],
   };
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
   const manifest = JSON.parse(String(model.files?.["src/slides/manifest.json"]));
-  manifest.slides[0].visual = { type: "diagram", mode: "native" };
+  manifest.slides[0].visual = { type: "diagram", logic: "sequence", mode: "native", readingDirection: "left-to-right" };
   model.files!["src/slides/manifest.json"] = JSON.stringify(manifest);
   model.files!["dist/deck.pptx"] = minimalPptx(slideXml);
   model.digests!["dist/deck.pptx"] = sha256(model.files!["dist/deck.pptx"] as Buffer);
@@ -97,6 +161,54 @@ test("accepts a native relation whose arrow joins the declared node boundaries",
   assert.equal(findings.some(({ code }) => code.startsWith("PPTX_RELATION_")), false);
 });
 
+test("rejects a declared cycle without a return path", () => {
+  const model = nativeDiagramModel(nativeDiagramXml());
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  storyboard.slides[0].visual.logic = "cycle";
+  storyboard.slides[0].visual.readingDirection = "clockwise";
+  storyboard.slides[0].visual.relations[0].pathRole = "forward";
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+
+  assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "NATIVE_DIAGRAM_INVALID"));
+});
+
+test("requires rationale for a top-to-bottom wide-screen sequence", () => {
+  const model = nativeDiagramModel(nativeDiagramXml());
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  storyboard.slides[0].visual.logic = "sequence";
+  storyboard.slides[0].visual.readingDirection = "top-to-bottom";
+  storyboard.slides[0].visual.relations[0].pathRole = "forward";
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+
+  assert.ok(validatePptxModel(model, { stage: "source" }).some(({ code }) => code === "NATIVE_DIAGRAM_INVALID"));
+});
+
+test("rejects a forward relation that runs against the declared reading direction", () => {
+  const model = nativeDiagramModel(nativeDiagramXml());
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  storyboard.slides[0].visual.relations[0].from = "gateway";
+  storyboard.slides[0].visual.relations[0].to = "client";
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+
+  assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_READING_DIRECTION_INVALID"));
+});
+
+test("requires a declared group to render its actual encoding", () => {
+  const model = releaseModel();
+  const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
+  storyboard.slides[0].visual = {
+    type: "content",
+    logic: "group",
+    groups: [{ id: "clients", encoding: "bulleted", itemCount: 3 }],
+  };
+  model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
+  const manifest = JSON.parse(String(model.files?.["src/slides/manifest.json"]));
+  manifest.slides[0].visual = { type: "content", logic: "group" };
+  model.files!["src/slides/manifest.json"] = JSON.stringify(manifest);
+
+  assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_GROUP_ENCODING_INVALID"));
+});
+
 test("rejects a floating native connector and a missing target arrow", () => {
   const floating = validatePptxModel(nativeDiagramModel(nativeDiagramXml({ lineX: 3.3, lineWidth: 1.4 })), { stage: "render" });
   assert.ok(floating.some(({ code }) => code === "PPTX_RELATION_GEOMETRY_INVALID"));
@@ -106,14 +218,14 @@ test("rejects a floating native connector and a missing target arrow", () => {
 });
 
 test("rejects a native connector that crosses an unrelated node", () => {
-  const blocker = '<p:sp><p:nvSpPr><p:cNvPr id="6" name="pptx:node:opening:blocker"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="3383280" y="2971800"/><a:ext cx="548640" cy="457200"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom></p:spPr></p:sp>';
+  const blocker = '<p:sp><p:nvSpPr><p:cNvPr id="6" name="pptx:node:opening:blocker:body"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x="3383280" y="2971800"/><a:ext cx="548640" cy="457200"/></a:xfrm><a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom></p:spPr></p:sp>';
   const xml = nativeDiagramXml().replace(
     '<p:sp><p:nvSpPr><p:cNvPr id="5" name="pptx:edge:opening:request:0"',
     `${blocker}<p:sp><p:nvSpPr><p:cNvPr id="5" name="pptx:edge:opening:request:0"`,
   );
   const model = nativeDiagramModel(xml);
   const storyboard = JSON.parse(String(model.files?.["plan.storyboard.json"]));
-  storyboard.slides[0].visual.nodes.push({ id: "blocker", role: "unrelated" });
+  storyboard.slides[0].visual.nodes.push({ id: "blocker", role: "unrelated", typographyRole: "body" });
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
   assert.ok(validatePptxModel(model, { stage: "render" }).some(({ code }) => code === "PPTX_RELATION_GEOMETRY_INVALID"));
 });
@@ -131,6 +243,7 @@ test("requires a between-node marker instead of a pseudo-connector for disconnec
     from: "client",
     to: "gateway",
     kind: "disconnect",
+    pathRole: "forward",
   };
   markerModel.files!["plan.storyboard.json"] = JSON.stringify(markerStoryboard);
   const markerFindings = validatePptxModel(markerModel, { stage: "render" });
@@ -143,6 +256,7 @@ test("requires a between-node marker instead of a pseudo-connector for disconnec
     from: "client",
     to: "gateway",
     kind: "disconnect",
+    pathRole: "forward",
   };
   lineModel.files!["plan.storyboard.json"] = JSON.stringify(lineStoryboard);
   assert.ok(validatePptxModel(lineModel, { stage: "render" }).some(({ code }) => code === "PPTX_RELATION_GEOMETRY_INVALID"));
@@ -190,6 +304,34 @@ test("release requires all presentation quality checks", () => {
   delete review.checks.layoutRhythm;
   model.files!["review.pptx.json"] = JSON.stringify(review);
   assert.ok(validatePptxModel(model, { stage: "release" }).some(({ code }) => code === "REVIEW_INVALID"));
+});
+
+test("release requires hash-bound per-page visual audits", () => {
+  const model = releaseModel();
+  const review = JSON.parse(String(model.files?.["review.pptx.json"]));
+  delete review.pages[0].audits;
+  model.files!["review.pptx.json"] = JSON.stringify(review);
+
+  assert.ok(validatePptxModel(model, { stage: "release" }).some(({ code }) => code === "REVIEW_INVALID"));
+});
+
+test("page audits must dispose probe signals and cannot pass a formulaic title", () => {
+  const model = releaseModel();
+  const design = JSON.parse(String(model.files?.["evidence.design.json"]));
+  design.headlineSignals = [{ page: 1, title: "Opening", signals: ["balanced-clauses"] }];
+  design.compositionSignals[0].signals = ["equal-object-grid"];
+  model.files!["evidence.design.json"] = JSON.stringify(design);
+  const review = JSON.parse(String(model.files?.["review.pptx.json"]));
+  review.pages[0].audits.headlineVoice.classification = "formulaic";
+  model.files!["review.pptx.json"] = JSON.stringify(review);
+
+  assert.ok(validatePptxModel(model, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"));
+
+  review.pages[0].audits.headlineVoice.classification = "plain";
+  review.pages[0].audits.headlineVoice.signalDisposition = "The signal is a false positive because the title is a single concrete noun.";
+  review.pages[0].audits.contentEncoding.signalDisposition = "The equal regions encode distinct evidence categories rather than repeated prose.";
+  model.files!["review.pptx.json"] = JSON.stringify(review);
+  assert.equal(validatePptxModel(model, { stage: "review" }).some(({ code }) => code === "REVIEW_INVALID"), false);
 });
 
 test("review cannot accept a high-severity finding", () => {

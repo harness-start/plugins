@@ -95,6 +95,81 @@ function similarLayoutGroups(
   return groups;
 }
 
+function headlineRiskSignals(slides: RecordValue[]) {
+  const rows = slides.map((slide, offset) => {
+    const title = String(slide.displayTitle ?? "");
+    const signals: string[] = [];
+    const clauses = title.split(/[,，:：]/u).map((part) => part.trim()).filter(Boolean);
+    if (
+      clauses.length === 2 &&
+      Math.min(...clauses.map((part) => [...part].length)) >= 2 &&
+      Math.max(...clauses.map((part) => [...part].length)) /
+        Math.min(...clauses.map((part) => [...part].length)) <=
+        1.8
+    )
+      signals.push("balanced-clauses");
+    if (/从.+到|不是.+而是|更.+更|from .+ to |not .+ but /iu.test(title))
+      signals.push("formulaic-frame");
+    return { page: offset + 1, title, signals };
+  });
+  const punctuationFamilies = new Map<string, number[]>();
+  rows.forEach(({ title }, offset) => {
+    const family = Array.from(title.matchAll(/[,，:：—-]/gu), (match) => match[0]).join("");
+    if (!family) return;
+    const pages = punctuationFamilies.get(family) ?? [];
+    pages.push(offset);
+    punctuationFamilies.set(family, pages);
+  });
+  for (const pages of punctuationFamilies.values())
+    if (pages.length >= 3)
+      for (const offset of pages) rows[offset]?.signals.push("repeated-title-grammar");
+  return rows.filter(({ signals }) => signals.length > 0);
+}
+
+function compositionSignals(
+  slides: Array<{
+    index: number;
+    objects: Array<Record<string, unknown>>;
+    layoutFingerprint: string[];
+  }>,
+  storyboardSlides: RecordValue[],
+) {
+  return slides.map((slide, offset) => {
+    const signals: string[] = [];
+    const sizeCounts = new Map<string, number>();
+    for (const token of slide.layoutFingerprint) {
+      const parts = token.split(":");
+      const size = parts.slice(-2).join(":");
+      sizeCounts.set(size, (sizeCounts.get(size) ?? 0) + 1);
+    }
+    if ([...sizeCounts.values()].some((count) => count >= 3))
+      signals.push("equal-object-grid");
+    if (
+      slide.objects.some((object) => {
+        const bounds = record(object.bounds);
+        return (
+          String(object.name ?? "").startsWith("pptx:text:") &&
+          Number(bounds.y) >= 6.25 &&
+          Number(bounds.h) <= 0.75
+        );
+      })
+    )
+      signals.push("bottom-takeaway-strip");
+    if (
+      slide.objects.some(
+        (object) =>
+          object.horizontalAlign === "center" && Number(object.lineBreaks) >= 2,
+      )
+    )
+      signals.push("centered-multiline");
+    return {
+      page: slide.index,
+      logic: record(storyboardSlides[offset]?.visual).logic,
+      signals,
+    };
+  });
+}
+
 async function main() {
   const root = assertPptxProjectRoot(process.argv[2]);
   const grant = await consumeWriterCapability({
@@ -180,6 +255,24 @@ async function main() {
     fingerprint: slide.layoutFingerprint,
     bodyObjectCount: slide.bodyObjectCount,
   }));
+  const textRhythmPages = packageInspection.slides.map((slide) => ({
+    index: slide.index,
+    governedTextObjects: slide.objects.filter(
+      ({ name, text }) =>
+        Boolean(text) &&
+        /^(?:pptx:(?:title|text|list|item|node):)/u.test(name),
+    ).length,
+    autofitObjects: slide.objects.filter(({ autofit }) => Boolean(autofit)).length,
+  }));
+  const headlineSignals = headlineRiskSignals(storyboardSlides);
+  const visualSignals = compositionSignals(
+    packageInspection.slides as unknown as Array<{
+      index: number;
+      objects: Array<Record<string, unknown>>;
+      layoutFingerprint: string[];
+    }>,
+    storyboardSlides,
+  );
   const accessibilityChecks: Array<Record<string, unknown>> = [];
   for (const slide of slides) {
     const accessibility = record(slide.accessibility);
@@ -250,6 +343,9 @@ async function main() {
           similarGroups: similarLayoutGroups(layoutPages),
           similarityThreshold: 0.85,
         },
+        textRhythm: { pages: textRhythmPages },
+        headlineSignals,
+        compositionSignals: visualSignals,
       });
       await atomicWriteJson(root, "evidence.accessibility.json", {
         schema: ACCESSIBILITY_EVIDENCE_SCHEMA,

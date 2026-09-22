@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computePptxSubjectDigest, loadPptxProject, presentationReviewChecksValid, presentationReviewFindingsValid, validatePptxModel } from "../../lib/contract.js";
+import { REVIEW_INPUT_SCHEMA, REVIEW_SCHEMA, computePptxSubjectDigest, loadPptxProject, presentationPageAuditsValid, presentationReviewChecksValid, presentationReviewFindingsValid, validatePptxModel } from "../../lib/contract.js";
 import { consumeWriterCapability, processWriterArgv } from "../../lib/capability.js";
 import { assertPptxProjectRoot, atomicWriteJson, sessionMetadata, withWriterJournal } from "../../lib/writer.js";
 import { communicationAnchors, communicationReviewValid } from "../../../../lib/communication-contract.js";
@@ -42,6 +42,15 @@ async function main() {
     const visual = record(record(entry).visual);
     return visual.type === "diagram";
   });
+  const storyboardSlides = Array.isArray(storyboard.slides) ? storyboard.slides : [];
+  const groupingRequired = storyboardSlides.some((entry) => {
+    const visual = record(record(entry).visual);
+    return Array.isArray(visual.groups) && visual.groups.length > 0;
+  });
+  const designEvidence = record(JSON.parse(String(model.files?.["evidence.design.json"])));
+  const headlineSignalPages = new Set((Array.isArray(designEvidence.headlineSignals) ? designEvidence.headlineSignals : []).map((entry) => Number(record(entry).page)));
+  const compositionSignalPages = new Set((Array.isArray(designEvidence.compositionSignals) ? designEvidence.compositionSignals : []).filter((entry) => Array.isArray(record(entry).signals) && (record(entry).signals as unknown[]).length > 0).map((entry) => Number(record(entry).page)));
+  if (!presentationPageAuditsValid(pages, storyboardSlides, headlineSignalPages, compositionSignalPages)) throw new Error("REVIEW_PAGE_AUDITS_INVALID");
   const reviewAnchors = new Set(
     Array.isArray(storyboard.slides)
       ? storyboard.slides.map((entry) => `slide:${String(record(entry).id ?? "")}`)
@@ -51,7 +60,7 @@ async function main() {
     pages.map((page) => [Number(page.index), String(page.sha256 ?? "")]),
   );
   if (!presentationReviewFindingsValid(reviewFindings, reviewAnchors, reviewPageHashes)) throw new Error("REVIEW_FINDING_INVALID");
-  if (!presentationReviewChecksValid(payload.checks, relationshipRequired, reviewAnchors)) throw new Error("REVIEW_CHECKS_INCOMPLETE");
+  if (!presentationReviewChecksValid(payload.checks, relationshipRequired, groupingRequired, reviewAnchors)) throw new Error("REVIEW_CHECKS_INCOMPLETE");
   await withWriterJournal(root, "pptx-review", async () => {
     await atomicWriteJson(root, "review.pptx.json", { schema: REVIEW_SCHEMA, plugin: "presentation-production", artifactId: model.artifactId, subjectDigest: computePptxSubjectDigest(model), verdict: "pass", reviewer, pages, findings: reviewFindings, checks: payload.checks ?? {}, reviewerRetell: payload.reviewerRetell, communicationReview: payload.communicationReview, reviewInputSha256: createHash("sha256").update(bytes).digest("hex"), ...sessionMetadata("pptx-review", grant) });
   }, grant);

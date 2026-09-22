@@ -13,7 +13,9 @@ function diagramModel() {
   const storyboard = JSON.parse(String(model.files!["plan.storyboard.json"]));
   storyboard.slides[0].visual = {
     type: "diagram",
+    logic: "sequence",
     mode: "svg",
+    readingDirection: "left-to-right",
     asset: "assets/diagrams/service-flow.svg",
     sha256: sha256(SAFE_SVG),
     fit: "contain",
@@ -22,7 +24,7 @@ function diagramModel() {
   };
   model.files!["plan.storyboard.json"] = JSON.stringify(storyboard);
   const manifest = JSON.parse(String(model.files!["src/slides/manifest.json"]));
-  manifest.slides[0].visual = { type: "diagram", mode: "svg" };
+  manifest.slides[0].visual = { type: "diagram", logic: "sequence", mode: "svg", readingDirection: "left-to-right" };
   model.files!["src/slides/manifest.json"] = JSON.stringify(manifest);
   model.files!["assets/diagrams/service-flow.svg"] = SAFE_SVG;
   return model;

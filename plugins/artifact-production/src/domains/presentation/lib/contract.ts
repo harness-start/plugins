@@ -18,27 +18,27 @@ import { DOMParser, type Element } from "@xmldom/xmldom";
 import { unzipSync } from "fflate";
 import { communicationAnchors, communicationCoreValid, communicationReviewValid } from "../../../lib/communication-contract.js";
 
-export const PLAN_SCHEMA = "presentation-production/plan/v4";
-export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v4";
+export const PLAN_SCHEMA = "presentation-production/plan/v5";
+export const STORYBOARD_SCHEMA = "presentation-production/storyboard/v5";
 export const SKILL_COMPOSITION_SCHEMA =
-  "presentation-production/skill-composition/v4";
-export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v4";
-export const PROJECT_SCHEMA = "presentation-production/project/v4";
+  "presentation-production/skill-composition/v5";
+export const DESIGN_SYSTEM_SCHEMA = "presentation-production/design-system/v5";
+export const PROJECT_SCHEMA = "presentation-production/project/v5";
 export const SLIDE_MANIFEST_SCHEMA =
-  "presentation-production/slide-manifest/v4";
+  "presentation-production/slide-manifest/v5";
 export const RENDER_EVIDENCE_SCHEMA =
-  "presentation-production/render-evidence/v4";
+  "presentation-production/render-evidence/v5";
 export const STRUCTURE_EVIDENCE_SCHEMA =
-  "presentation-production/structure-evidence/v4";
+  "presentation-production/structure-evidence/v5";
 export const DESIGN_EVIDENCE_SCHEMA =
-  "presentation-production/design-evidence/v4";
+  "presentation-production/design-evidence/v5";
 export const ACCESSIBILITY_EVIDENCE_SCHEMA =
-  "presentation-production/accessibility-evidence/v4";
-export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v4";
-export const REVIEW_SCHEMA = "presentation-production/review/v4";
+  "presentation-production/accessibility-evidence/v5";
+export const REVIEW_INPUT_SCHEMA = "presentation-production/review-input/v5";
+export const REVIEW_SCHEMA = "presentation-production/review/v5";
 export const RELEASE_MANIFEST_SCHEMA =
-  "presentation-production/release-manifest/v4";
-export const RECEIPT_SCHEMA = "presentation-production/receipt/v4";
+  "presentation-production/release-manifest/v5";
+export const RECEIPT_SCHEMA = "presentation-production/receipt/v5";
 
 export type PptxStage =
   "source" | "design" | "render" | "probe" | "review" | "release";
@@ -149,6 +149,42 @@ const VISUAL_TYPES = new Set([
   "media",
   "closing",
 ]);
+const HEADLINE_MODES = new Set(["label", "finding", "question"]);
+const CONTENT_LOGICS = new Set([
+  "statement",
+  "group",
+  "comparison",
+  "evidence",
+  "metric",
+]);
+const DIAGRAM_LOGICS = new Set([
+  "sequence",
+  "branch",
+  "cycle",
+  "hierarchy",
+  "network",
+]);
+const READING_DIRECTIONS = new Set([
+  "left-to-right",
+  "top-to-bottom",
+  "clockwise",
+  "radial",
+]);
+const GROUP_ENCODINGS = new Set([
+  "bulleted",
+  "numbered",
+  "aligned-stack",
+  "grid",
+]);
+const TYPOGRAPHY_ROLES = [
+  "display",
+  "title",
+  "section",
+  "body",
+  "list",
+  "caption",
+  "numeric",
+] as const;
 const RELATION_KINDS = new Set([
   "flow",
   "dependency",
@@ -157,10 +193,12 @@ const RELATION_KINDS = new Set([
 ]);
 const REVIEW_CHECKS = [
   "audienceBoundary",
-  "headlineEconomy",
-  "visualPayload",
+  "headlineVoice",
+  "typographyRhythm",
+  "contentEncoding",
   "layoutRhythm",
   "relationshipSemantics",
+  "groupingSemantics",
 ] as const;
 
 const digest = (value: BinaryLike) =>
@@ -348,7 +386,9 @@ function validateRequiredSource(files: FileMap, findings: ContractFinding[]) {
     "pptx.project.json",
     "src/deck.ts",
     "src/semantic-layout.ts",
+    "src/text-layout.ts",
     "src/theme.ts",
+    "tsconfig.json",
     "src/slides/manifest.json",
   ])
     if (!(filePath in files))
@@ -416,7 +456,7 @@ function validateDesignSystem(
     );
   if (
     !typeRoles ||
-    !["display", "title", "section", "body", "caption", "numeric"].every(
+    !TYPOGRAPHY_ROLES.every(
       (key) => {
         const role = rec(typeRoles[key]);
         return (
@@ -431,7 +471,15 @@ function validateDesignSystem(
           Number(role.charSpacingPt) <= 10 &&
           Number.isInteger(role.maxLines) &&
           Number(role.maxLines) > 0 &&
-          ["cjk", "latin", "mixed"].includes(String(role.scriptPolicy))
+          ["cjk", "latin", "mixed"].includes(String(role.scriptPolicy)) &&
+          Number.isFinite(role.paragraphSpaceAfterPt) &&
+          Number(role.paragraphSpaceAfterPt) >= 0 &&
+          ["left", "center", "right"].includes(String(role.horizontalAlign)) &&
+          ["top", "middle", "bottom"].includes(String(role.verticalAlign)) &&
+          Number.isFinite(role.marginPt) &&
+          Number(role.marginPt) >= 0 &&
+          (!["body", "list"].includes(key) ||
+            (role.horizontalAlign === "left" && role.verticalAlign === "top"))
         );
       },
     )
@@ -440,7 +488,7 @@ function validateDesignSystem(
       finding(
         "DESIGN_SYSTEM_INVALID",
         "design.system.json",
-        "typography roles must declare family, point size, line spacing, character spacing, line limit, and script policy",
+        "typography roles must declare family, point size, line and paragraph spacing, alignment, margin, line limit, and script policy; body and list roles are left/top aligned",
       ),
     );
   if (
@@ -448,13 +496,13 @@ function validateDesignSystem(
     Number(spacing.pageMarginIn) < 0.3 ||
     Number(spacing.baseUnitIn) <= 0 ||
     Number(spacing.blockGapIn) <= 0 ||
-    Number(spacing.paragraphGapIn) <= 0
+    Object.hasOwn(spacing, "paragraphGapIn")
   )
     findings.push(
       finding(
         "DESIGN_SYSTEM_INVALID",
         "design.system.json",
-        "spacing must declare pageMarginIn >= 0.3 and positive baseUnitIn, blockGapIn, and paragraphGapIn",
+        "spacing must declare pageMarginIn >= 0.3 and positive baseUnitIn and blockGapIn; paragraph spacing belongs to typography roles",
       ),
     );
 }
@@ -478,6 +526,96 @@ function validAudience(value: unknown) {
   );
 }
 
+function validHeadline(value: unknown) {
+  const headline = rec(value);
+  if (!headline || !HEADLINE_MODES.has(String(headline.mode))) return false;
+  return (
+    headline.mode !== "finding" ||
+    (typeof headline.evidenceAnchor === "string" &&
+      Boolean(headline.evidenceAnchor.trim()))
+  );
+}
+
+function graphValid(
+  logic: string,
+  nodeIds: Set<string>,
+  relations: Array<JsonRecord | undefined>,
+) {
+  const directed = relations.filter(
+    (relation): relation is JsonRecord =>
+      Boolean(relation) && relation?.kind !== "disconnect",
+  );
+  const outgoing = new Map([...nodeIds].map((id) => [id, [] as string[]]));
+  const incoming = new Map([...nodeIds].map((id) => [id, [] as string[]]));
+  const undirected = new Map([...nodeIds].map((id) => [id, new Set<string>()]));
+  for (const relation of directed) {
+    const from = String(relation.from);
+    const to = String(relation.to);
+    outgoing.get(from)?.push(to);
+    incoming.get(to)?.push(from);
+    undirected.get(from)?.add(to);
+    undirected.get(to)?.add(from);
+  }
+  const first = nodeIds.values().next().value as string | undefined;
+  const seen = new Set<string>();
+  const pending = first ? [first] : [];
+  while (pending.length) {
+    const current = pending.pop();
+    if (!current || seen.has(current)) continue;
+    seen.add(current);
+    for (const next of undirected.get(current) ?? []) pending.push(next);
+  }
+  const connected = seen.size === nodeIds.size;
+  const indegrees = new Map(
+    [...nodeIds].map((id) => [id, incoming.get(id)?.length ?? 0]),
+  );
+  const queue = [...nodeIds].filter((id) => indegrees.get(id) === 0);
+  let visited = 0;
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current) continue;
+    visited += 1;
+    for (const next of outgoing.get(current) ?? []) {
+      const degree = (indegrees.get(next) ?? 0) - 1;
+      indegrees.set(next, degree);
+      if (degree === 0) queue.push(next);
+    }
+  }
+  const dag = visited === nodeIds.size;
+  const roots = [...nodeIds].filter((id) => (incoming.get(id)?.length ?? 0) === 0);
+  const leaves = [...nodeIds].filter((id) => (outgoing.get(id)?.length ?? 0) === 0);
+  if (logic === "sequence")
+    return (
+      connected &&
+      dag &&
+      roots.length === 1 &&
+      leaves.length === 1 &&
+      [...nodeIds].every(
+        (id) =>
+          (incoming.get(id)?.length ?? 0) <= 1 &&
+          (outgoing.get(id)?.length ?? 0) <= 1,
+      )
+    );
+  if (logic === "branch")
+    return (
+      connected &&
+      dag &&
+      [...nodeIds].some(
+        (id) =>
+          (incoming.get(id)?.length ?? 0) > 1 ||
+          (outgoing.get(id)?.length ?? 0) > 1,
+      )
+    );
+  if (logic === "hierarchy") return connected && dag && roots.length === 1;
+  if (logic === "cycle")
+    return (
+      connected &&
+      !dag &&
+      relations.some((relation) => relation?.pathRole === "return")
+    );
+  return logic === "network" && connected;
+}
+
 function validateSlideVisual(
   files: FileMap,
   slide: JsonRecord | undefined,
@@ -486,9 +624,13 @@ function validateSlideVisual(
 ) {
   const visual = rec(slide?.visual);
   const path = `plan.storyboard.json#slides/${index}/visual`;
+  const logic = String(visual?.logic ?? "");
   if (
     !visual ||
     !VISUAL_TYPES.has(String(visual.type)) ||
+    !(visual.type === "diagram"
+      ? DIAGRAM_LOGICS.has(logic)
+      : CONTENT_LOGICS.has(logic)) ||
     (visual.variant !== undefined &&
       (typeof visual.variant !== "string" || !visual.variant.trim()))
   ) {
@@ -496,12 +638,48 @@ function validateSlideVisual(
       finding(
         "STORYBOARD_VISUAL_INVALID",
         path,
-        "visual must use a supported type and an optional non-empty variant",
+        "visual must use a supported type, compatible information logic, and an optional non-empty variant",
       ),
     );
     return;
   }
+  const groups = list(visual.groups).map(rec);
+  const groupIds = new Set<string>();
+  const groupsValid = groups.every((group) => {
+    const id = String(group?.id ?? "");
+    const valid =
+      Boolean(group) &&
+      ID.test(id) &&
+      !groupIds.has(id) &&
+      GROUP_ENCODINGS.has(String(group?.encoding)) &&
+      Number.isInteger(group?.itemCount) &&
+      Number(group?.itemCount) >= 2;
+    groupIds.add(id);
+    return valid;
+  });
+  if (!groupsValid || (logic === "group" && !groups.length))
+    findings.push(
+      finding(
+        "STORYBOARD_GROUP_INVALID",
+        path,
+        "group visuals require unique groups with a supported encoding and at least two items",
+      ),
+    );
   if (visual.type !== "diagram") return;
+  if (
+    !READING_DIRECTIONS.has(String(visual.readingDirection)) ||
+    (["sequence", "branch"].includes(logic) &&
+      visual.readingDirection === "top-to-bottom" &&
+      (typeof visual.directionRationale !== "string" ||
+        !visual.directionRationale.trim()))
+  )
+    findings.push(
+      finding(
+        "NATIVE_DIAGRAM_INVALID",
+        path,
+        "diagrams require a reading direction; top-to-bottom sequence and branch diagrams on 16:9 require a rationale",
+      ),
+    );
   if (visual.mode === "svg") {
     const assetPath =
       typeof visual.asset === "string" ? visual.asset : path;
@@ -575,7 +753,10 @@ function validateSlideVisual(
         ID.test(id) &&
         !nodeIds.has(id) &&
         typeof node?.role === "string" &&
-        Boolean(node.role.trim());
+        Boolean(node.role.trim()) &&
+        TYPOGRAPHY_ROLES.includes(
+          String(node?.typographyRole) as (typeof TYPOGRAPHY_ROLES)[number],
+        );
       nodeIds.add(id);
       return valid;
     });
@@ -594,6 +775,7 @@ function validateSlideVisual(
         nodeIds.has(String(relation?.to ?? "")) &&
         relation?.from !== relation?.to &&
         RELATION_KINDS.has(kind) &&
+        ["forward", "return"].includes(String(relation?.pathRole)) &&
         (kind === "disconnect" ||
           (Number.isInteger(segmentCount) &&
             Number(segmentCount) >= 1 &&
@@ -601,12 +783,12 @@ function validateSlideVisual(
       relationIds.add(id);
       return valid;
     });
-  if (!nodesValid || !relationsValid)
+  if (!nodesValid || !relationsValid || !graphValid(logic, nodeIds, relations))
     findings.push(
       finding(
         "NATIVE_DIAGRAM_INVALID",
         path,
-        "native diagrams require unique nodes and typed, node-bound relations",
+        "native diagrams require unique nodes, typed node-bound relations, and graph topology matching the declared visual logic",
       ),
     );
 }
@@ -659,6 +841,7 @@ function validateSourceSchemas(
           rec(entry)?.index === index + 1 &&
           typeof rec(entry)?.id === "string" &&
           validDisplayTitle(rec(entry)?.displayTitle) &&
+          validHeadline(rec(entry)?.headline) &&
           typeof rec(entry)?.role === "string" &&
           isObject(rec(entry)?.visual) &&
           typeof rec(entry)?.assertion === "string" && Boolean(String(rec(entry)?.assertion).trim()) &&
@@ -670,7 +853,7 @@ function validateSourceSchemas(
       finding(
         "STORYBOARD_INVALID",
         "plan.storyboard.json",
-        "storyboard slides must be contiguous and declare id, compact displayTitle, role, and visual",
+        "storyboard slides must be contiguous and declare id, compact displayTitle, headline mode, role, and visual",
       ),
     );
   for (const [index, entry] of storyboardSlides.entries()) {
@@ -873,8 +1056,10 @@ function validateManifest(
             planned?.id !== actual?.id ||
             planned?.displayTitle !== actual?.displayTitle ||
             plannedVisual?.type !== actualVisual?.type ||
+            plannedVisual?.logic !== actualVisual?.logic ||
             plannedVisual?.variant !== actualVisual?.variant ||
-            plannedVisual?.mode !== actualVisual?.mode
+            plannedVisual?.mode !== actualVisual?.mode ||
+            plannedVisual?.readingDirection !== actualVisual?.readingDirection
           );
         },
       ))
@@ -940,6 +1125,25 @@ export type PptxObjectInspection = {
   beginArrow?: string;
   endArrow?: string;
   lineWidthIn?: number;
+  fontSizePt?: number;
+  fontFace?: string;
+  charSpacingPt?: number;
+  lineSpacingMultiple?: number;
+  paragraphSpaceAfterPt?: number;
+  horizontalAlign?: "left" | "center" | "right";
+  verticalAlign?: "top" | "middle" | "bottom";
+  marginPt?: number;
+  bulletKind?: "bullet" | "numbered";
+  autofit?: "shrink" | "resize";
+  paragraphs?: Array<{
+    fontSizePt?: number;
+    fontFace?: string;
+    charSpacingPt?: number;
+    lineSpacingMultiple?: number;
+    paragraphSpaceAfterPt?: number;
+    horizontalAlign?: "left" | "center" | "right";
+    bulletKind?: "bullet" | "numbered";
+  }>;
 };
 
 function numberAttribute(
@@ -951,6 +1155,50 @@ function numberAttribute(
 
 function firstDescendant(element: Element, name: string) {
   return element.getElementsByTagName(name).item(0) as Element | null;
+}
+
+function paragraphInspection(paragraph: Element) {
+  const properties = firstDescendant(paragraph, "a:pPr");
+  const spacing = properties
+    ? firstDescendant(properties, "a:spcPct")
+    : null;
+  const afterContainer = properties ? firstDescendant(properties, "a:spcAft") : null;
+  const after = afterContainer ? firstDescendant(afterContainer, "a:spcPts") : null;
+  const runProperties =
+    firstDescendant(paragraph, "a:rPr") ??
+    firstDescendant(paragraph, "a:defRPr");
+  const alignment = properties?.getAttribute("algn");
+  const latin = runProperties ? firstDescendant(runProperties, "a:latin") : null;
+  const bulletKind: "bullet" | "numbered" | undefined = firstDescendant(paragraph, "a:buAutoNum")
+    ? "numbered"
+    : firstDescendant(paragraph, "a:buChar")
+      ? "bullet"
+      : undefined;
+  return {
+    ...(runProperties?.hasAttribute("sz")
+      ? { fontSizePt: numberAttribute(runProperties, "sz") / 100 }
+      : {}),
+    ...(latin?.hasAttribute("typeface")
+      ? { fontFace: latin.getAttribute("typeface") ?? "" }
+      : {}),
+    ...(runProperties?.hasAttribute("spc")
+      ? { charSpacingPt: numberAttribute(runProperties, "spc") / 100 }
+      : {}),
+    ...(spacing?.hasAttribute("val")
+      ? { lineSpacingMultiple: numberAttribute(spacing, "val") / 100000 }
+      : {}),
+    ...(after?.hasAttribute("val")
+      ? { paragraphSpaceAfterPt: numberAttribute(after, "val") / 100 }
+      : {}),
+    ...(["l", "ctr", "r"].includes(String(alignment))
+      ? {
+          horizontalAlign: ({ l: "left", ctr: "center", r: "right" } as const)[
+            alignment as "l" | "ctr" | "r"
+          ],
+        }
+      : {}),
+    ...(bulletKind ? { bulletKind } : {}),
+  };
 }
 
 function inspectSlideXml(xml: string, index: number) {
@@ -981,6 +1229,19 @@ function inspectSlideXml(xml: string, index: number) {
     const texts = Array.from(element.getElementsByTagName("a:t"));
     const text = texts.map((entry) => entry.textContent ?? "").join("");
     const paragraphs = element.getElementsByTagName("a:p").length;
+    const paragraphDetails = Array.from(
+      element.getElementsByTagName("a:p"),
+    ).map(paragraphInspection);
+    const firstParagraph = paragraphDetails[0];
+    const bodyProperties = firstDescendant(element, "a:bodyPr");
+    const vertical = bodyProperties?.getAttribute("anchor");
+    const autofit = bodyProperties
+      ? firstDescendant(bodyProperties, "a:normAutofit")
+        ? "shrink"
+        : firstDescendant(bodyProperties, "a:spAutoFit")
+          ? "resize"
+          : undefined
+      : undefined;
     const lineBreaks =
       element.getElementsByTagName("a:br").length + Math.max(0, paragraphs - 1);
     const line = firstDescendant(element, "a:ln");
@@ -1016,6 +1277,39 @@ function inspectSlideXml(xml: string, index: number) {
               numberAttribute(line, "w") / EMU_PER_INCH,
           }
         : {}),
+      ...(firstParagraph?.fontSizePt !== undefined
+        ? { fontSizePt: firstParagraph.fontSizePt }
+        : {}),
+      ...(firstParagraph?.fontFace
+        ? { fontFace: firstParagraph.fontFace }
+        : {}),
+      ...(firstParagraph?.charSpacingPt !== undefined
+        ? { charSpacingPt: firstParagraph.charSpacingPt }
+        : {}),
+      ...(firstParagraph?.lineSpacingMultiple !== undefined
+        ? { lineSpacingMultiple: firstParagraph.lineSpacingMultiple }
+        : {}),
+      ...(firstParagraph?.paragraphSpaceAfterPt !== undefined
+        ? { paragraphSpaceAfterPt: firstParagraph.paragraphSpaceAfterPt }
+        : {}),
+      ...(firstParagraph?.horizontalAlign
+        ? { horizontalAlign: firstParagraph.horizontalAlign }
+        : {}),
+      ...(["t", "ctr", "b"].includes(String(vertical))
+        ? {
+            verticalAlign: ({ t: "top", ctr: "middle", b: "bottom" } as const)[
+              vertical as "t" | "ctr" | "b"
+            ],
+          }
+        : {}),
+      ...(bodyProperties?.hasAttribute("lIns")
+        ? { marginPt: numberAttribute(bodyProperties, "lIns") / 12700 }
+        : {}),
+      ...(firstParagraph?.bulletKind
+        ? { bulletKind: firstParagraph.bulletKind }
+        : {}),
+      ...(autofit ? { autofit } : {}),
+      ...(paragraphDetails.length ? { paragraphs: paragraphDetails } : {}),
     });
   };
   for (const element of Array.from(document.getElementsByTagName("p:sp")))
@@ -1050,7 +1344,7 @@ function inspectSlideXml(xml: string, index: number) {
     .sort();
   return {
     index,
-    objects: allObjects.filter(({ name }) => name.startsWith("pptx:")),
+    objects: allObjects,
     layoutFingerprint,
     bodyObjectCount: body.length,
   };
@@ -1218,19 +1512,174 @@ function arrowPresent(value: string | undefined) {
   return Boolean(value && value !== "none");
 }
 
-function validateRenderedSemantics(
-  inspection: PptxPackageInspection,
-  storyboardSlides: unknown[],
+function semanticTypographyRole(name: string) {
+  const parts = name.split(":");
+  if (
+    parts[0] !== "pptx" ||
+    !["title", "text", "list", "item", "node"].includes(parts[1] ?? "")
+  )
+    return undefined;
+  const role = parts[1] === "node" ? parts[4] : parts[3];
+  return TYPOGRAPHY_ROLES.includes(
+    role as (typeof TYPOGRAPHY_ROLES)[number],
+  )
+    ? role
+    : undefined;
+}
+
+function closeEnough(left: number | undefined, right: unknown, tolerance: number) {
+  return (
+    left !== undefined &&
+    Number.isFinite(Number(right)) &&
+    Math.abs(left - Number(right)) <= tolerance
+  );
+}
+
+function spacingMatches(left: number | undefined, right: unknown) {
+  return Number(right) === 0 && left === undefined
+    ? true
+    : closeEnough(left, right, 0.1);
+}
+
+function validateRenderedText(
+  inspected: PptxPackageInspection["slides"][number],
+  slide: JsonRecord,
+  designRoles: JsonRecord,
+  baseUnitIn: number,
   findings: ContractFinding[],
   pptxPath: string,
 ) {
+  const slideId = String(slide.id ?? "");
+  const path = `${pptxPath}#slide=${inspected.index}`;
+  for (const object of inspected.objects.filter(({ text }) => Boolean(text))) {
+    if (object.name.startsWith("pptx:chrome:")) continue;
+    const roleName = semanticTypographyRole(object.name);
+    const role = roleName ? rec(designRoles[roleName]) : undefined;
+    const paragraphs = object.paragraphs ?? [];
+    const rhythmValid =
+      Boolean(role) &&
+      !object.autofit &&
+      object.lineBreaks !== undefined &&
+      object.lineBreaks + 1 <= Number(role?.maxLines) &&
+      object.verticalAlign === role?.verticalAlign &&
+      closeEnough(object.marginPt, role?.marginPt, 0.1) &&
+      paragraphs.length > 0 &&
+      paragraphs.every(
+        (paragraph) =>
+          closeEnough(paragraph.fontSizePt, role?.fontSizePt, 0.1) &&
+          paragraph.fontFace === role?.fontFamily &&
+          spacingMatches(paragraph.charSpacingPt, role?.charSpacingPt) &&
+          closeEnough(
+            paragraph.lineSpacingMultiple,
+            role?.lineSpacingMultiple,
+            0.01,
+          ) &&
+          spacingMatches(
+            paragraph.paragraphSpaceAfterPt,
+            role?.paragraphSpaceAfterPt,
+          ) &&
+          paragraph.horizontalAlign === role?.horizontalAlign,
+      );
+    if (!rhythmValid)
+      findings.push(
+        finding(
+          "PPTX_TEXT_RHYTHM_INVALID",
+          path,
+          `text object ${object.name} must use a semantic typography role and match its emitted OOXML rhythm without autofit`,
+        ),
+      );
+  }
+  const visual = rec(slide.visual);
+  for (const rawGroup of list(visual?.groups)) {
+    const group = rec(rawGroup);
+    if (!group) continue;
+    const id = String(group.id ?? "");
+    const itemCount = Number(group.itemCount);
+    const encoding = String(group.encoding ?? "");
+    if (["bulleted", "numbered"].includes(encoding)) {
+      const name = `pptx:list:${slideId}:list:${id}`;
+      const matches = inspected.objects.filter((object) => object.name === name);
+      const expectedBullet = encoding === "bulleted" ? "bullet" : "numbered";
+      if (
+        matches.length !== 1 ||
+        matches[0]?.paragraphs?.length !== itemCount ||
+        matches[0]?.paragraphs?.some(
+          (paragraph) => paragraph.bulletKind !== expectedBullet,
+        )
+      )
+        findings.push(
+          finding(
+            "PPTX_GROUP_ENCODING_INVALID",
+            path,
+            `group ${id} must render ${itemCount} real ${encoding} paragraphs`,
+          ),
+        );
+      continue;
+    }
+    const prefix = `pptx:item:${slideId}:`;
+    const suffix = new RegExp(`:${id}:[0-9]+$`, "u");
+    const items = inspected.objects
+      .filter(
+        ({ name }) => name.startsWith(prefix) && suffix.test(name),
+      )
+      .sort(
+        (left, right) =>
+          Number(left.name.split(":").at(-1)) -
+          Number(right.name.split(":").at(-1)),
+      );
+    let geometryValid = items.length === itemCount;
+    const tolerance = Math.max(0.04, baseUnitIn / 2);
+    if (geometryValid && encoding === "aligned-stack") {
+      const firstX = items[0]?.bounds.x ?? 0;
+      const gaps = items.slice(1).map(
+        (item, offset) => item.bounds.y - (items[offset]?.bounds.y ?? 0),
+      );
+      geometryValid =
+        items.every((item) => Math.abs(item.bounds.x - firstX) <= tolerance) &&
+        gaps.every(
+          (gap) => Math.abs(gap - (gaps[0] ?? gap)) <= tolerance,
+        );
+    }
+    if (geometryValid && encoding === "grid")
+      geometryValid = items.every((item, index) =>
+        items.some(
+          (peer, peerIndex) =>
+            peerIndex !== index &&
+            (Math.abs(peer.bounds.x - item.bounds.x) <= tolerance ||
+              Math.abs(peer.bounds.y - item.bounds.y) <= tolerance) &&
+            Math.abs(peer.bounds.w - item.bounds.w) <= tolerance &&
+            Math.abs(peer.bounds.h - item.bounds.h) <= tolerance,
+        ),
+      );
+    if (!geometryValid)
+      findings.push(
+        finding(
+          "PPTX_GROUP_ENCODING_INVALID",
+          path,
+          `group ${id} must render the declared ${encoding} item count and alignment`,
+        ),
+      );
+  }
+}
+
+function validateRenderedSemantics(
+  inspection: PptxPackageInspection,
+  storyboardSlides: unknown[],
+  designSystem: JsonRecord | undefined,
+  findings: ContractFinding[],
+  pptxPath: string,
+) {
+  const designRoles = rec(rec(designSystem?.typography)?.roles) ?? {};
+  const baseUnitIn = Number(rec(designSystem?.spacing)?.baseUnitIn ?? 0.1);
   for (const [offset, raw] of storyboardSlides.entries()) {
     const slide = rec(raw);
     const inspected = inspection.slides[offset];
     if (!slide || !inspected) continue;
     const slideId = String(slide.id ?? "");
-    const titleName = `pptx:title:${slideId}`;
-    const titles = inspected.objects.filter(({ name }) => name === titleName);
+    const titlePrefix = `pptx:title:${slideId}:`;
+    const titles = inspected.objects.filter(({ name }) =>
+      name.startsWith(titlePrefix),
+    );
     const actualTitle = titles[0]?.text?.replace(/\s+/gu, " ").trim();
     if (
       titles.length !== 1 ||
@@ -1244,13 +1693,21 @@ function validateRenderedSemantics(
           "each slide must contain exactly one named title whose text matches displayTitle",
         ),
       );
+    validateRenderedText(
+      inspected,
+      slide,
+      designRoles,
+      baseUnitIn,
+      findings,
+      pptxPath,
+    );
     const visual = rec(slide.visual);
     if (visual?.type !== "diagram" || visual.mode !== "native") continue;
     const nodeSpecs = list(visual.nodes).map(rec);
     const nodes = new Map<string, PptxObjectInspection>();
     for (const spec of nodeSpecs) {
       const id = String(spec?.id ?? "");
-      const name = `pptx:node:${slideId}:${id}`;
+      const name = `pptx:node:${slideId}:${id}:${String(spec?.typographyRole ?? "")}`;
       const matches = inspected.objects.filter((object) => object.name === name);
       if (matches.length === 1 && matches[0]) nodes.set(id, matches[0]);
       else
@@ -1373,6 +1830,29 @@ function validateRenderedSemantics(
             "relation endpoints must touch declared nodes, segments must join, and routes must avoid unrelated nodes",
           ),
         );
+      const sourceCenter = {
+        x: source.bounds.x + source.bounds.w / 2,
+        y: source.bounds.y + source.bounds.h / 2,
+      };
+      const targetCenter = {
+        x: target.bounds.x + target.bounds.w / 2,
+        y: target.bounds.y + target.bounds.h / 2,
+      };
+      const readingDirection = String(visual.readingDirection ?? "");
+      if (
+        relation?.pathRole === "forward" &&
+        ((readingDirection === "left-to-right" &&
+          targetCenter.x <= sourceCenter.x + tolerance) ||
+          (readingDirection === "top-to-bottom" &&
+            targetCenter.y <= sourceCenter.y + tolerance))
+      )
+        findings.push(
+          finding(
+            "PPTX_READING_DIRECTION_INVALID",
+            `${pptxPath}#slide=${offset + 1}&relation=${relationId}`,
+            "forward relations must progress in the declared physical reading direction",
+          ),
+        );
       const styleInvalid =
         kind === "association"
           ? edges.some(
@@ -1423,6 +1903,7 @@ function validateRendered(
     validateRenderedSemantics(
       inspection,
       storyboardSlides,
+      rec(parseJson(files, "design.system.json")),
       findings,
       pptxPath,
     );
@@ -1576,6 +2057,8 @@ function validateEvidence(
   const requiredTypeRoles = Object.keys(rec(designRoles) ?? {});
   const layoutRhythm = rec(design?.layoutRhythm);
   const layoutPages = list(layoutRhythm?.pages);
+  const textRhythmPages = list(rec(design?.textRhythm)?.pages);
+  const compositionSignals = list(design?.compositionSignals);
   if (
     design &&
     (!sourceDigestRecord(model, design) ||
@@ -1598,13 +2081,27 @@ function validateEvidence(
           !Array.isArray(rec(entry)?.fingerprint) ||
           !Number.isInteger(rec(entry)?.bodyObjectCount),
       ) ||
-      !Array.isArray(layoutRhythm?.similarGroups))
+      !Array.isArray(layoutRhythm?.similarGroups) ||
+      textRhythmPages.length !== slides.length ||
+      textRhythmPages.some(
+        (entry, index) =>
+          rec(entry)?.index !== index + 1 ||
+          !Number.isInteger(rec(entry)?.governedTextObjects) ||
+          rec(entry)?.autofitObjects !== 0,
+      ) ||
+      !Array.isArray(design.headlineSignals) ||
+      compositionSignals.length !== slides.length ||
+      compositionSignals.some(
+        (entry, index) =>
+          rec(entry)?.page !== index + 1 ||
+          !Array.isArray(rec(entry)?.signals),
+      ))
   )
     findings.push(
       finding(
         "DESIGN_EVIDENCE_INVALID",
         "evidence.design.json",
-        "design evidence must bind typography measurements and per-page layout-rhythm fingerprints",
+        "design evidence must bind typography measurements, emitted text rhythm, headline signals, and per-page composition fingerprints",
       ),
     );
   const accessibility = schemaRecord(
@@ -1645,6 +2142,7 @@ function validateEvidence(
 export function presentationReviewChecksValid(
   value: unknown,
   relationshipRequired: boolean,
+  groupingRequired: boolean,
   allowedAnchors?: ReadonlySet<string>,
 ) {
   const checks = rec(value);
@@ -1668,11 +2166,69 @@ export function presentationReviewChecksValid(
       return false;
     if (check.status === "not-applicable")
       return (
-        name === "relationshipSemantics" &&
-        !relationshipRequired &&
+        ((name === "relationshipSemantics" && !relationshipRequired) ||
+          (name === "groupingSemantics" && !groupingRequired)) &&
         typeof check.rationale === "string" &&
         Boolean(check.rationale.trim())
       );
+    return true;
+  });
+}
+
+export function presentationPageAuditsValid(
+  pages: unknown[],
+  storyboardSlides: unknown[],
+  headlineSignalPages: ReadonlySet<number> = new Set(),
+  compositionSignalPages: ReadonlySet<number> = new Set(),
+) {
+  return pages.every((rawPage, index) => {
+    const page = rec(rawPage);
+    const audits = rec(page?.audits);
+    const slide = rec(storyboardSlides[index]);
+    if (!audits || !slide) return false;
+    const requiredPass = [
+      ["headlineVoice", new Set(["plain", "specific"])],
+      ["typographyRhythm", undefined],
+      ["contentEncoding", undefined],
+    ] as const;
+    for (const [name, classifications] of requiredPass) {
+      const audit = rec(audits[name]);
+      if (
+        !audit ||
+        audit.status !== "pass" ||
+        typeof audit.evidence !== "string" ||
+        !audit.evidence.trim() ||
+        (classifications &&
+          !classifications.has(String(audit.classification)))
+      )
+        return false;
+      if (
+        ((name === "headlineVoice" && headlineSignalPages.has(index + 1)) ||
+          (name === "contentEncoding" &&
+            compositionSignalPages.has(index + 1))) &&
+        (typeof audit.signalDisposition !== "string" ||
+          !audit.signalDisposition.trim())
+      )
+        return false;
+    }
+    const visual = rec(slide.visual);
+    for (const [name, required] of [
+      ["grouping", list(visual?.groups).length > 0],
+      ["readingPath", visual?.type === "diagram"],
+    ] as const) {
+      const audit = rec(audits[name]);
+      if (
+        !audit ||
+        !["pass", "not-applicable"].includes(String(audit.status)) ||
+        typeof audit.evidence !== "string" ||
+        !audit.evidence.trim() ||
+        (required && audit.status !== "pass") ||
+        (!required &&
+          audit.status === "not-applicable" &&
+          (typeof audit.rationale !== "string" || !audit.rationale.trim()))
+      )
+        return false;
+    }
     return true;
   });
 }
@@ -1749,6 +2305,19 @@ function validateReview(
     const visual = rec(rec(entry)?.visual);
     return visual?.type === "diagram";
   });
+  const groupingRequired = list(storyboard?.slides).some(
+    (entry) => list(rec(rec(entry)?.visual)?.groups).length > 0,
+  );
+  const storyboardSlides = list(storyboard?.slides);
+  const designEvidence = rec(parseJson(files, "evidence.design.json"));
+  const headlineSignalPages = new Set(
+    list(designEvidence?.headlineSignals).map((entry) => Number(rec(entry)?.page)),
+  );
+  const compositionSignalPages = new Set(
+    list(designEvidence?.compositionSignals)
+      .filter((entry) => list(rec(entry)?.signals).length > 0)
+      .map((entry) => Number(rec(entry)?.page)),
+  );
   const reviewAnchors = new Set(
     list(storyboard?.slides).map(
       (entry) => `slide:${String(rec(entry)?.id ?? "")}`,
@@ -1779,6 +2348,12 @@ function validateReview(
             ] ||
           rec(entry)?.verdict !== "pass",
       ) ||
+      !presentationPageAuditsValid(
+        pages,
+        storyboardSlides,
+        headlineSignalPages,
+        compositionSignalPages,
+      ) ||
       !presentationReviewFindingsValid(
         review.findings,
         reviewAnchors,
@@ -1787,6 +2362,7 @@ function validateReview(
       !presentationReviewChecksValid(
         review.checks,
         relationshipRequired,
+        groupingRequired,
         reviewAnchors,
       ))
   )

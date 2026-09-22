@@ -1,4 +1,4 @@
 interface:
   display_name: "Presentation visual critique"
-  short_description: "Read-only critique of slide audience boundary, hierarchy"
-  default_prompt: "Use $presentation-visual-critique to: Read-only critique of slide audience boundary, hierarchy"
+  short_description: "Read-only critique of slide audience boundary"
+  default_prompt: "Use $presentation-visual-critique to: Read-only critique of slide audience boundary"

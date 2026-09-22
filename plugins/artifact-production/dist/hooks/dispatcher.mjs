@@ -1,11 +1,11 @@
-// harness-source-hash: sha256:5a69b2936e6051b23a45a0fe4c95ae9b70fc60d9e4a2f87fcad9fc09c2802d4a
+// harness-source-hash: sha256:253573a0f3bd6ecb6a919d8e9ce5b3cd54c5fb70cc95b2a32088d75ee36cc981
 import {
   evaluatePrintWrite,
   validatePrintModel
-} from "../chunks/chunk-ERJS5TBQ.mjs";
+} from "../chunks/chunk-UVPHK3KI.mjs";
 import {
   issueWriterCapability as issueWriterCapability5
-} from "../chunks/chunk-MIAAYGQK.mjs";
+} from "../chunks/chunk-JRYP525B.mjs";
 import {
   computeTrainingSubjectDigest,
   evaluateTrainingWrite,
@@ -13,22 +13,22 @@ import {
   loadTrainingProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot6,
   validateTrainingModel
-} from "../chunks/chunk-BPCFBYAV.mjs";
+} from "../chunks/chunk-FB5OFMZ2.mjs";
 import {
   evaluateVideoWrite,
   issueWriterCapability as issueWriterCapability6,
   validateVideoModel
-} from "../chunks/chunk-TNDBUH6U.mjs";
+} from "../chunks/chunk-6OK3TY4O.mjs";
 import {
   findVideoProjects,
   loadVideoProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot7
-} from "../chunks/chunk-ZLNXUJ3X.mjs";
-import "../chunks/chunk-HKIOADAS.mjs";
+} from "../chunks/chunk-LASWRPPZ.mjs";
+import "../chunks/chunk-6B4MMUDU.mjs";
 import {
   issueWriterCapability as issueWriterCapability4
-} from "../chunks/chunk-SYTUO6VZ.mjs";
-import "../chunks/chunk-LDWQYWOG.mjs";
+} from "../chunks/chunk-KJJ677RC.mjs";
+import "../chunks/chunk-5RPDYTZ4.mjs";
 import {
   computePptxSubjectDigest,
   evaluatePptxWrite,
@@ -36,10 +36,10 @@ import {
   loadPptxProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot5,
   validatePptxModel
-} from "../chunks/chunk-ZGOEUODB.mjs";
+} from "../chunks/chunk-VZLJHBEA.mjs";
 import {
   issueWriterCapability as issueWriterCapability3
-} from "../chunks/chunk-5UAW7T45.mjs";
+} from "../chunks/chunk-J5C7AS6S.mjs";
 import {
   computePosterSubjectDigest,
   evaluatePosterWrite,
@@ -47,42 +47,42 @@ import {
   loadPosterProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot4,
   validatePosterModel
-} from "../chunks/chunk-OD5VJAOQ.mjs";
+} from "../chunks/chunk-DYOVXE7U.mjs";
 import {
   issueMusicWriterCapability
-} from "../chunks/chunk-NZKLNPWH.mjs";
+} from "../chunks/chunk-WR5DR2C3.mjs";
 import {
   computeMusicSubjectDigest,
   evaluateMusicWrite,
   validateMusicModel,
   validateMusicReferenceProfile
-} from "../chunks/chunk-F3H6UQCM.mjs";
+} from "../chunks/chunk-UV3UK4BX.mjs";
 import {
   isKebabArtifactId,
   markSessionEngagedArtifact,
   resolveWorkspaceRoot as resolveWorkspaceRoot3,
   sessionEngagedArtifact,
   touchesArtifact
-} from "../chunks/chunk-2ONXY2A3.mjs";
+} from "../chunks/chunk-VHWSRWTZ.mjs";
 import {
   issueWriterCapability as issueWriterCapability2
-} from "../chunks/chunk-7PH3VOHH.mjs";
+} from "../chunks/chunk-EDYTVGEW.mjs";
 import {
   computeLogoSubjectDigest,
   evaluateLogoWrite,
   validateLogoModel
-} from "../chunks/chunk-QGL2KTOO.mjs";
+} from "../chunks/chunk-EE5DCMAQ.mjs";
 import {
   findLogoProjects,
   loadLogoProject,
   resolveWorkspaceRoot as resolveWorkspaceRoot2
-} from "../chunks/chunk-6YDYQZLP.mjs";
-import "../chunks/chunk-X2YRUGE2.mjs";
-import "../chunks/chunk-V2UVYWCZ.mjs";
+} from "../chunks/chunk-OL5KE3MT.mjs";
+import "../chunks/chunk-JBK55I2P.mjs";
+import "../chunks/chunk-VAJCBL5A.mjs";
 import {
   issueWriterCapability
-} from "../chunks/chunk-P2EESWJL.mjs";
-import "../chunks/chunk-LNZRBHYO.mjs";
+} from "../chunks/chunk-REZ33KXF.mjs";
+import "../chunks/chunk-7LRQYS6E.mjs";
 import {
   computeDiagramSubjectDigest,
   evaluateDiagramWrite,
@@ -90,9 +90,9 @@ import {
   loadDiagramProject,
   resolveWorkspaceRoot,
   validateDiagramModel
-} from "../chunks/chunk-FKPEEOQC.mjs";
-import "../chunks/chunk-6TTQXZBL.mjs";
-import "../chunks/chunk-2VFKL446.mjs";
+} from "../chunks/chunk-J4CCDIDW.mjs";
+import "../chunks/chunk-5WHBFGBZ.mjs";
+import "../chunks/chunk-ACZGLWAJ.mjs";
 
 // core/src/aio-dispatcher.ts
 import { readFileSync } from "node:fs";
